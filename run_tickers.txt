@@ -1,0 +1,6 @@
+# Tickers for quick per-run batch analysis.
+# One ticker per line OR comma-separated values.
+AAPL
+MSFT
+NVDA
+SPY

@@ -1,0 +1,14 @@
+# Categorized ticker lists. Use [category_name] sections.
+# Entries can be one per line or comma-separated.
+
+[tech]
+AAPL, MSFT, NVDA, AMZN, GOOGL
+
+[etf]
+SPY, QQQ, IWM, XLF, XLK
+
+[energy]
+XOM, CVX, COP
+
+[banks]
+JPM, BAC, WFC, C
