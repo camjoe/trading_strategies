@@ -10,6 +10,13 @@
   --down: #b33f62;
   --line: #c6d3e1;
   --shadow: 0 10px 40px #22354d24;
+  --log-bg: #0b1220;
+  --log-ink: #d7e4ff;
+  --log-num: #7b8aa5;
+  --log-error: #ff8da1;
+  --log-warn: #ffd58f;
+  --log-ok: #95e4bc;
+  --log-meta: #9cc8ff;
 }
 
 * {
@@ -24,16 +31,6 @@ body {
   background: radial-gradient(circle at 18% 10%, #f8d9bc 0, #f8d9bc00 30%),
     radial-gradient(circle at 85% 85%, #9dd7d7 0, #9dd7d700 35%),
     linear-gradient(155deg, var(--bg-1), var(--bg-2));
-}
-
-.scene {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(to right, #ffffff3d 1px, transparent 1px),
-    linear-gradient(to bottom, #ffffff29 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(circle at center, #000 50%, #0000 100%);
 }
 
 .topbar {
@@ -201,15 +198,81 @@ td {
   margin-bottom: 0.8rem;
 }
 
-pre {
+.log-output {
   margin: 0;
-  min-height: 220px;
-  max-height: 420px;
+  min-height: 280px;
+  max-height: 520px;
   overflow: auto;
-  background: #0f17202a;
-  border: 1px solid #c7d3e4;
-  border-radius: 10px;
-  padding: 0.8rem;
+  background: var(--log-bg);
+  color: var(--log-ink);
+  border: 1px solid #1e2d48;
+  border-radius: 12px;
+  padding: 0.45rem 0.6rem;
+  font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
+  font-weight: 500;
+  font-size: 0.83rem;
+  line-height: 1.08;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+.log-line {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.log-text {
+  display: block;
+  color: var(--log-ink);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.08;
+}
+
+.log-group {
+  margin: 0;
+  padding: 0 0 0 0.45rem;
+  border-left: 2px solid #ffffff1c;
+}
+
+.log-group + .log-group {
+  margin-top: 0.28rem;
+}
+
+.log-meta-line {
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+  color: var(--log-meta);
+  cursor: pointer;
+  list-style: none;
+}
+
+.log-meta-line::-webkit-details-marker {
+  display: none;
+}
+
+.log-error .log-text {
+  color: var(--log-error);
+}
+
+.log-warn .log-text {
+  color: var(--log-warn);
+}
+
+.log-ok .log-text {
+  color: var(--log-ok);
+}
+
+.log-meta .log-text {
+  color: var(--log-meta);
+}
+
+.log-empty {
+  color: #aebdd8;
+  padding: 0.2rem;
 }
 
 @keyframes rise {
