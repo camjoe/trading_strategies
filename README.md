@@ -8,7 +8,7 @@ Simple Python workflow for charting stock trends with `yfinance` and `matplotlib
 2. Run the script from the project root:
 
 ```powershell
-python stock_trends.py
+python trends/stock_trends.py
 ```
 
 3. Check output charts in `charts/`.
@@ -16,12 +16,12 @@ python stock_trends.py
 Optional first run with explanations:
 
 ```powershell
-python stock_trends.py --explain
+python trends/stock_trends.py --explain
 ```
 
 ## What This Script Does
 
-`stock_trends.py` downloads market data and calculates:
+`trends/stock_trends.py` downloads market data and calculates:
 - Moving averages: `MA20`, `MA50`, `MA200`
 - `RS` and `RSI14`
 - `MACD`, `MACDSignal`, and `MACDHist`
@@ -58,7 +58,7 @@ SPY, QQQ, IWM
 From the project root:
 
 ```powershell
-python stock_trends.py
+python trends/stock_trends.py
 ```
 
 Behavior:
@@ -71,43 +71,43 @@ Behavior:
 Run one ticker directly:
 
 ```powershell
-python stock_trends.py AAPL --period 1y --interval 1d
+python trends/stock_trends.py AAPL --period 1y --interval 1d
 ```
 
 Run using `run_tickers.txt`:
 
 ```powershell
-python stock_trends.py --tickers-file run_tickers.txt --period 6mo --interval 1d
+python trends/stock_trends.py --tickers-file run_tickers.txt --period 6mo --interval 1d
 ```
 
 Run a category from `ticker_categories.txt`:
 
 ```powershell
-python stock_trends.py --category tech --period 1y --interval 1d
+python trends/stock_trends.py --category tech --period 1y --interval 1d
 ```
 
 List available categories:
 
 ```powershell
-python stock_trends.py --list-categories
+python trends/stock_trends.py --list-categories
 ```
 
 Show indicator explanations while running:
 
 ```powershell
-python stock_trends.py --category etf --explain
+python trends/stock_trends.py --category etf --explain
 ```
 
 Use a custom category file path:
 
 ```powershell
-python stock_trends.py --category banks --category-file ticker_categories.txt
+python trends/stock_trends.py --category banks --category-file ticker_categories.txt
 ```
 
 Debug column structure (useful when data-provider schema changes):
 
 ```powershell
-python stock_trends.py NVDA --debug-columns
+python trends/stock_trends.py NVDA --debug-columns
 ```
 
 ## Notes
