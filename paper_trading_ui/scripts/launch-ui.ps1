@@ -43,10 +43,12 @@ Import-EnvFile -FilePath $frontendEnv
 
 if (-not $env:API_HOST) { $env:API_HOST = "127.0.0.1" }
 if (-not $env:API_PORT) { $env:API_PORT = "8000" }
+if (-not $env:FRONTEND_HOST) { $env:FRONTEND_HOST = "127.0.0.1" }
+if (-not $env:FRONTEND_PORT) { $env:FRONTEND_PORT = "5173" }
 if (-not $env:VITE_API_BASE) { $env:VITE_API_BASE = "http://$($env:API_HOST):$($env:API_PORT)" }
 
 $backendCmd = "Set-Location '$repoRoot'; & '$pythonExe' -m uvicorn paper_trading_ui.backend.main:app --reload --host $env:API_HOST --port $env:API_PORT"
-$frontendCmd = "Set-Location '$($uiDir.Path)/frontend'; npm run dev"
+$frontendCmd = "Set-Location '$($uiDir.Path)/frontend'; npm run dev -- --host $env:FRONTEND_HOST --port $env:FRONTEND_PORT --strictPort"
 
 if ($DryRun) {
     Write-Host "Backend command:" -ForegroundColor Cyan
@@ -61,4 +63,4 @@ Start-Process powershell -WorkingDirectory (Join-Path $uiDir "frontend") -Argume
 
 Write-Host "Launched backend and frontend in new PowerShell windows." -ForegroundColor Green
 Write-Host "Backend: http://$($env:API_HOST):$($env:API_PORT)" -ForegroundColor Green
-Write-Host "Frontend: check the Vite output window for the URL." -ForegroundColor Green
+Write-Host "Frontend: http://$($env:FRONTEND_HOST):$($env:FRONTEND_PORT)" -ForegroundColor Green

@@ -21,6 +21,8 @@ Backend env file supports:
 Frontend env file supports:
 
 - `VITE_API_BASE` (API base URL, default `http://127.0.0.1:8000`)
+- `FRONTEND_HOST` (launcher-only dev host, default `127.0.0.1`)
+- `FRONTEND_PORT` (launcher-only dev port, default `5173`)
 
 ## Backend (FastAPI)
 
@@ -49,6 +51,8 @@ npm run dev
 ```
 
 Frontend URL (default): http://127.0.0.1:5173
+
+Note: the launcher runs Vite with `--strictPort`, so if `FRONTEND_PORT` is occupied the frontend window will show an explicit error instead of silently switching ports.
 
 ## One-Command Launcher (PowerShell)
 
