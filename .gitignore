@@ -1,5 +1,7 @@
 personal/
 charts/
+logs/
+trading/database/*.db
 
 #### Auto-Generated Python.gitignore file #####
 
