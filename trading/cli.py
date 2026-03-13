@@ -12,8 +12,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_create = sub.add_parser("create-account", help="Create a new paper account.")
     p_create.add_argument("--name", required=True, help="Account name, e.g. trend_v1")
+    p_create.add_argument("--display-name", default=None, help="Human-friendly account name")
     p_create.add_argument("--strategy", required=True, help="Strategy label")
     p_create.add_argument("--initial-cash", type=float, required=True, help="Starting cash")
+    p_create.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
+    p_create.add_argument("--goal-max-return-pct", type=float, default=None, help="Goal maximum return percent")
+    p_create.add_argument(
+        "--goal-period",
+        default="monthly",
+        help="Goal time period label, e.g. weekly, monthly, quarterly",
+    )
+    p_create.add_argument(
+        "--learning-enabled",
+        action="store_true",
+        help="Enable learning mode for this account",
+    )
     p_create.add_argument(
         "--benchmark",
         default="SPY",
@@ -23,6 +36,27 @@ def build_parser() -> argparse.ArgumentParser:
     p_set_benchmark = sub.add_parser("set-benchmark", help="Set benchmark ticker for an account.")
     p_set_benchmark.add_argument("--account", required=True, help="Account name")
     p_set_benchmark.add_argument("--benchmark", required=True, help="Benchmark ticker, e.g. SPY")
+
+    p_configure = sub.add_parser("configure-account", help="Update per-account metadata and goals.")
+    p_configure.add_argument("--account", required=True, help="Account name")
+    p_configure.add_argument("--display-name", default=None, help="Human-friendly account name")
+    p_configure.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
+    p_configure.add_argument("--goal-max-return-pct", type=float, default=None, help="Goal maximum return percent")
+    p_configure.add_argument(
+        "--goal-period",
+        default=None,
+        help="Goal time period label, e.g. weekly, monthly, quarterly",
+    )
+    p_configure.add_argument(
+        "--learning-enabled",
+        action="store_true",
+        help="Turn on learning mode for this account",
+    )
+    p_configure.add_argument(
+        "--learning-disabled",
+        action="store_true",
+        help="Turn off learning mode for this account",
+    )
 
     p_trade = sub.add_parser("trade", help="Record a mock buy or sell.")
     p_trade.add_argument("--account", required=True, help="Account name")

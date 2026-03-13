@@ -10,6 +10,19 @@ except ModuleNotFoundError:
     from pricing import benchmark_stats, fetch_latest_prices
 
 
+def format_goal_text(row: sqlite3.Row) -> str:
+    if row["goal_min_return_pct"] is None and row["goal_max_return_pct"] is None:
+        return "not-set"
+    if row["goal_min_return_pct"] is not None and row["goal_max_return_pct"] is not None:
+        return (
+            f"{float(row['goal_min_return_pct']):.2f}% to "
+            f"{float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
+        )
+    if row["goal_min_return_pct"] is not None:
+        return f">= {float(row['goal_min_return_pct']):.2f}% per {row['goal_period']}"
+    return f"<= {float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
+
+
 def build_account_stats(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
@@ -77,8 +90,13 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
     )
     strategy_return_pct = ((equity / account["initial_cash"]) - 1.0) * 100.0
 
+    goal_text = format_goal_text(account)
+
     print(f"Account: {account['name']} | Strategy: {account['strategy']}")
+    print(f"Descriptive Name: {account['descriptive_name']}")
     print(f"Benchmark: {account['benchmark_ticker']}")
+    print(f"Goal: {goal_text}")
+    print(f"Learning Enabled: {'yes' if int(account['learning_enabled']) else 'no'}")
     print(f"Initial Cash: {account['initial_cash']:.2f}")
     print(f"Cash: {state.cash:.2f}")
     print(f"Market Value: {market_value:.2f}")
@@ -119,7 +137,8 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
 def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     accounts = conn.execute(
         """
-        SELECT id, name, strategy, initial_cash, created_at, benchmark_ticker
+        SELECT id, name, descriptive_name, strategy, initial_cash, created_at, benchmark_ticker,
+               goal_min_return_pct, goal_max_return_pct, goal_period, learning_enabled
         FROM accounts
         ORDER BY strategy, name
         """
@@ -148,8 +167,10 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
             positions_text = "none"
 
         print(
-            f"- {account['name']} | strategy={account['strategy']} | benchmark={account['benchmark_ticker']}"
+            f"- {account['name']} ({account['descriptive_name']}) | strategy={account['strategy']} | "
+            f"benchmark={account['benchmark_ticker']} | learning={'on' if int(account['learning_enabled']) else 'off'}"
         )
+        print(f"  goal={format_goal_text(account)}")
         print(
             f"  equity={equity:.2f} return={strategy_return_pct:.2f}% "
             f"positions={position_count} trend={trend}"

@@ -1,12 +1,12 @@
 try:
     from trading.accounting import record_trade
-    from trading.accounts import create_account, list_accounts, set_benchmark
+    from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
     from trading.cli import build_parser
     from trading.db import DB_PATH, ensure_db
     from trading.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 except ModuleNotFoundError:
     from accounting import record_trade
-    from accounts import create_account, list_accounts, set_benchmark
+    from accounts import configure_account, create_account, list_accounts, set_benchmark
     from cli import build_parser
     from db import DB_PATH, ensure_db
     from reporting import account_report, compare_strategies, show_snapshots, snapshot_account
@@ -22,11 +22,42 @@ def main() -> None:
             print(f"Initialized: {DB_PATH}")
 
         elif args.command == "create-account":
-            create_account(conn, args.name, args.strategy, args.initial_cash, args.benchmark)
+            create_account(
+                conn,
+                args.name,
+                args.strategy,
+                args.initial_cash,
+                args.benchmark,
+                descriptive_name=args.display_name,
+                goal_min_return_pct=args.goal_min_return_pct,
+                goal_max_return_pct=args.goal_max_return_pct,
+                goal_period=args.goal_period,
+                learning_enabled=args.learning_enabled,
+            )
             print(
                 f"Created account '{args.name}' for strategy '{args.strategy}' "
                 f"with benchmark '{args.benchmark.upper()}'."
             )
+
+        elif args.command == "configure-account":
+            learning_enabled: bool | None = None
+            if args.learning_enabled and args.learning_disabled:
+                parser.error("Use only one of --learning-enabled or --learning-disabled")
+            if args.learning_enabled:
+                learning_enabled = True
+            elif args.learning_disabled:
+                learning_enabled = False
+
+            configure_account(
+                conn,
+                account_name=args.account,
+                descriptive_name=args.display_name,
+                goal_min_return_pct=args.goal_min_return_pct,
+                goal_max_return_pct=args.goal_max_return_pct,
+                goal_period=args.goal_period,
+                learning_enabled=learning_enabled,
+            )
+            print(f"Updated account configuration for '{args.account}'.")
 
         elif args.command == "set-benchmark":
             set_benchmark(conn, args.account, args.benchmark)

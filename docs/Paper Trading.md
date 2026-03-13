@@ -33,6 +33,19 @@ Create account with explicit benchmark:
 python trading/paper_trading.py create-account --name crypto_momo_v1 --strategy "Crypto Momentum" --initial-cash 50000 --benchmark BTC-USD
 ```
 
+Create account with descriptive name, return goal range, and learning mode:
+
+```powershell
+python trading/paper_trading.py create-account --name momentum_5k --display-name "Momentum Growth Account" --strategy "Momentum" --initial-cash 5000 --goal-min-return-pct 2 --goal-max-return-pct 4 --goal-period monthly --learning-enabled
+```
+
+Update account goals/settings later (easy per-account configuration):
+
+```powershell
+python trading/paper_trading.py configure-account --account momentum_5k --goal-min-return-pct 5 --goal-max-return-pct 10 --goal-period monthly
+python trading/paper_trading.py configure-account --account meanrev_5k --display-name "Mean Reversion Income" --learning-enabled
+```
+
 Update benchmark on an existing account:
 
 ```powershell
@@ -68,6 +81,53 @@ Compare all strategies (labels, positions, benchmark, alpha, trend):
 
 ```powershell
 python trading/paper_trading.py compare-strategies --lookback 10
+```
+
+## Daily Auto Trades
+
+Default 12-stock trade universe is in `trading/trade_universe.txt`.
+
+Run 1 to 5 auto-generated trades per account for the day:
+
+```powershell
+python trading/auto_trader.py --accounts momentum_5k,meanrev_5k --min-trades 1 --max-trades 5
+```
+
+Optional deterministic run (for repeatable simulations):
+
+```powershell
+python trading/auto_trader.py --accounts momentum_5k,meanrev_5k --seed 42
+```
+
+## Windows Daily Scheduler
+
+Automated runner script:
+- `trading/daily_paper_trading.ps1`
+
+What it does each run:
+- Executes auto trades for configured accounts (1-5 trades per account by default)
+- Saves a snapshot for each account
+- Prints strategy comparison
+- Writes a timestamped log to `logs/`
+
+Learning mode behavior:
+- If `learning_enabled` is on for an account, auto-trader biases buys toward better-performing holdings and biases sells toward weaker holdings.
+
+Registered scheduled task:
+- Name: `Trading\DailyPaperTrading`
+- Time: daily at `4:10 PM`
+
+Useful commands:
+
+```powershell
+# Run once immediately
+powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\daily_paper_trading.ps1
+
+# View task details
+schtasks /Query /TN "Trading\DailyPaperTrading" /V /FO LIST
+
+# Change schedule time (example: 3:45 PM)
+schtasks /Change /TN "Trading\DailyPaperTrading" /ST 15:45
 ```
 
 ## Notes
