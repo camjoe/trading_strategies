@@ -5,7 +5,7 @@ This document contains all PowerShell and Task Scheduler operations for automate
 ## Runner Script
 
 Script path:
-- `trading/daily_paper_trading.ps1`
+- `trading/scripts/daily_paper_trading.ps1`
 
 Behavior:
 - Runs auto-trader for configured accounts.
@@ -19,10 +19,10 @@ Behavior:
 
 ```powershell
 # Normal run
-powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\daily_paper_trading.ps1 -RunSource manual
+powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\scripts\daily_paper_trading.ps1 -RunSource manual
 
 # Force extra same-day run
-powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\daily_paper_trading.ps1 -RunSource manual -ForceRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\scripts\daily_paper_trading.ps1 -RunSource manual -ForceRun
 ```
 
 ## Scheduled Tasks (No Elevation Approach)
@@ -36,7 +36,7 @@ If Task Scheduler creation is blocked by permissions in your environment, use th
 Create startup fallback task (runs 10 minutes after boot):
 
 ```powershell
-$scriptPath = Join-Path (Get-Location) "trading\daily_paper_trading.ps1"
+$scriptPath = Join-Path (Get-Location) "trading\scripts\daily_paper_trading.ps1"
 $action = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
 schtasks /Create /TN "Trading\DailyPaperTradingFallback" /SC ONSTART /DELAY 0000:10 /TR $action /F
 ```
@@ -68,11 +68,11 @@ This runs once at user logon and works without admin rights.
 $startupDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup"
 $repoRoot = Get-Location
 $cmdPath = Join-Path $startupDir "daily_paper_trading_fallback.cmd"
-$content = "@echo off`r`ncd /d `"$repoRoot`"`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File .\trading\daily_paper_trading.ps1 -RunSource startup-fallback`r`n"
+$content = "@echo off`r`ncd /d `"$repoRoot`"`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File .\trading\scripts\daily_paper_trading.ps1 -RunSource startup-fallback`r`n"
 Set-Content -Path $cmdPath -Value $content -Encoding ASCII
 ```
 
-Because `trading/daily_paper_trading.ps1` has same-day duplicate protection, logon fallback and daily scheduled runs can coexist safely.
+Because `trading/scripts/daily_paper_trading.ps1` has same-day duplicate protection, logon fallback and daily scheduled runs can coexist safely.
 
 ## Elevated Option (Optional)
 

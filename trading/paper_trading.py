@@ -112,7 +112,8 @@ def main() -> None:
         elif args.command == "apply-account-preset":
             preset_file = (
                 Path(__file__).resolve().parent
-                / f"account_profiles.{args.preset.strip().lower()}.json"
+                / "account_profiles"
+                / f"{args.preset.strip().lower()}.json"
             )
             profiles = load_account_profiles(str(preset_file))
             created, updated, skipped = apply_account_profiles(

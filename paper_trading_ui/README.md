@@ -50,6 +50,20 @@ npm run dev
 
 Frontend URL (default): http://127.0.0.1:5173
 
+## One-Command Launcher (PowerShell)
+
+From repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\paper_trading_ui\scripts\launch-ui.ps1
+```
+
+Dry run (show commands without starting processes):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\paper_trading_ui\scripts\launch-ui.ps1 -DryRun
+```
+
 ## Available API Routes
 
 - `GET /health`

@@ -27,7 +27,8 @@ function Import-EnvFile {
     }
 }
 
-$uiDir = Resolve-Path $PSScriptRoot
+$scriptsDir = Resolve-Path $PSScriptRoot
+$uiDir = Resolve-Path (Join-Path $scriptsDir "..")
 $repoRoot = Resolve-Path (Join-Path $uiDir "..")
 $backendEnv = Join-Path $uiDir "backend/.env"
 $frontendEnv = Join-Path $uiDir "frontend/.env"

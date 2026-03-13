@@ -49,7 +49,7 @@ python trading/paper_trading.py configure-account --account meanrev_5k --display
 Bulk apply account profiles from one JSON file:
 
 ```powershell
-python trading/paper_trading.py apply-account-profiles --file trading/account_profiles.json
+python trading/paper_trading.py apply-account-profiles --file trading/account_profiles/default.json
 ```
 
 Apply built-in presets:
@@ -60,10 +60,10 @@ python trading/paper_trading.py apply-account-preset --preset conservative
 ```
 
 Preset files:
-- `trading/account_profiles.aggressive.json`
-- `trading/account_profiles.conservative.json`
+- `trading/account_profiles/aggressive.json`
+- `trading/account_profiles/conservative.json`
 
-`trading/account_profiles.json` is the recommended single source of truth for account strategy metadata:
+`trading/account_profiles/default.json` is the recommended single source of truth for account strategy metadata:
 - `name`
 - `descriptive_name`
 - `strategy`

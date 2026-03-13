@@ -170,8 +170,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_apply_profiles.add_argument(
         "--file",
-        default="trading/account_profiles.json",
-        help="Path to JSON account profile file (default: trading/account_profiles.json)",
+        default="trading/account_profiles/default.json",
+        help="Path to JSON account profile file (default: trading/account_profiles/default.json)",
     )
     p_apply_profiles.add_argument(
         "--no-create-missing",
