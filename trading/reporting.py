@@ -97,6 +97,28 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
     print(f"Benchmark: {account['benchmark_ticker']}")
     print(f"Goal: {goal_text}")
     print(f"Learning Enabled: {'yes' if int(account['learning_enabled']) else 'no'}")
+    print(f"Risk Policy: {account['risk_policy']}")
+    print(f"Instrument Mode: {account['instrument_mode']}")
+    if account["instrument_mode"] == "leaps":
+        print(
+            "LEAPs Params: "
+            f"strike_offset_pct={account['option_strike_offset_pct']} "
+            f"min_dte={account['option_min_dte']} max_dte={account['option_max_dte']}"
+        )
+        print(
+            "Options Filters: "
+            f"type={account['option_type']} "
+            f"delta={account['target_delta_min']}-{account['target_delta_max']} "
+            f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
+        )
+        print(
+            "Options Risk: "
+            f"max_premium={account['max_premium_per_trade']} "
+            f"max_contracts={account['max_contracts_per_trade']} "
+            f"roll_dte={account['roll_dte_threshold']} "
+            f"profit_take={account['profit_take_pct']} "
+            f"max_loss={account['max_loss_pct']}"
+        )
     print(f"Initial Cash: {account['initial_cash']:.2f}")
     print(f"Cash: {state.cash:.2f}")
     print(f"Market Value: {market_value:.2f}")
@@ -137,8 +159,9 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
 def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     accounts = conn.execute(
         """
-        SELECT id, name, descriptive_name, strategy, initial_cash, created_at, benchmark_ticker,
-               goal_min_return_pct, goal_max_return_pct, goal_period, learning_enabled
+         SELECT id, name, descriptive_name, strategy, initial_cash, created_at, benchmark_ticker,
+             goal_min_return_pct, goal_max_return_pct, goal_period, learning_enabled,
+             risk_policy, instrument_mode
         FROM accounts
         ORDER BY strategy, name
         """
@@ -168,7 +191,8 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
 
         print(
             f"- {account['name']} ({account['descriptive_name']}) | strategy={account['strategy']} | "
-            f"benchmark={account['benchmark_ticker']} | learning={'on' if int(account['learning_enabled']) else 'off'}"
+            f"benchmark={account['benchmark_ticker']} | learning={'on' if int(account['learning_enabled']) else 'off'} | "
+            f"risk={account['risk_policy']} | mode={account['instrument_mode']}"
         )
         print(f"  goal={format_goal_text(account)}")
         print(

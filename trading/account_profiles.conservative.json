@@ -9,7 +9,11 @@
       "goal_min_return_pct": 2,
       "goal_max_return_pct": 4,
       "goal_period": "monthly",
-      "learning_enabled": false
+      "learning_enabled": false,
+      "risk_policy": "fixed_stop",
+      "stop_loss_pct": 3,
+      "instrument_mode": "equity",
+      "max_loss_pct": 3
     },
     {
       "name": "meanrev_5k",
@@ -20,7 +24,13 @@
       "goal_min_return_pct": 3,
       "goal_max_return_pct": 6,
       "goal_period": "monthly",
-      "learning_enabled": false
+      "learning_enabled": false,
+      "risk_policy": "stop_and_target",
+      "stop_loss_pct": 3,
+      "take_profit_pct": 6,
+      "instrument_mode": "equity",
+      "max_loss_pct": 4,
+      "profit_take_pct": 6
     }
   ]
 }

@@ -73,6 +73,31 @@ Preset files:
 - `goal_max_return_pct`
 - `goal_period`
 - `learning_enabled`
+- `risk_policy` (`none`, `fixed_stop`, `take_profit`, `stop_and_target`)
+- `stop_loss_pct`
+- `take_profit_pct`
+- `instrument_mode` (`equity`, `leaps`)
+- `option_strike_offset_pct` (for LEAPs simulation)
+- `option_min_dte` and `option_max_dte` (days-to-expiration window)
+- `option_type` (`call`, `put`, `both`)
+- `target_delta_min` and `target_delta_max` (0 to 1)
+- `max_premium_per_trade`
+- `max_contracts_per_trade`
+- `iv_rank_min` and `iv_rank_max` (0 to 100)
+- `roll_dte_threshold`
+- `profit_take_pct`
+- `max_loss_pct`
+
+Example for options/LEAPs-style configuration:
+
+```powershell
+python trading/paper_trading.py configure-account --account momentum_5k --instrument-mode leaps --option-strike-offset-pct 5 --option-min-dte 180 --option-max-dte 365 --risk-policy stop_and_target --stop-loss-pct 8 --take-profit-pct 15
+```
+
+What is IV Rank?
+- IV Rank (Implied Volatility Rank) is a normalized value from 0 to 100 showing where current implied volatility sits versus its own 1-year range.
+- Roughly: `0` means near the lowest IV of the past year, `100` means near the highest.
+- Traders often use higher IV Rank for premium-selling strategies and lower IV Rank for premium-buying strategies, but it depends on the setup.
 
 Update benchmark on an existing account:
 

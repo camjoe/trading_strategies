@@ -76,6 +76,38 @@ def choose_sell_qty(position_qty: float) -> int:
     return random.randint(1, min(5, max_qty))
 
 
+def choose_sell_ticker_by_risk(
+    can_sell: list[str],
+    prices: dict[str, float],
+    state: object,
+    risk_policy: str,
+    stop_loss_pct: float | None,
+    take_profit_pct: float | None,
+) -> str | None:
+    if not can_sell:
+        return None
+
+    candidates: list[str] = []
+    for ticker in can_sell:
+        price = prices.get(ticker)
+        avg_cost = state.avg_cost.get(ticker, 0.0)
+        if price is None or price <= 0 or avg_cost <= 0:
+            continue
+
+        move_pct = ((price / avg_cost) - 1.0) * 100.0
+        if risk_policy in {"fixed_stop", "stop_and_target"} and stop_loss_pct is not None:
+            if move_pct <= -abs(float(stop_loss_pct)):
+                candidates.append(ticker)
+        if risk_policy in {"take_profit", "stop_and_target"} and take_profit_pct is not None:
+            if move_pct >= abs(float(take_profit_pct)):
+                candidates.append(ticker)
+
+    if not candidates:
+        return None
+
+    return random.choice(list(dict.fromkeys(candidates)))
+
+
 def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: object, learning_enabled: bool) -> str:
     if not learning_enabled:
         return random.choice(universe)
@@ -130,6 +162,10 @@ def run_for_account(
 ) -> int:
     account = get_account(conn, account_name)
     learning_enabled = bool(int(account["learning_enabled"]))
+    risk_policy = str(account["risk_policy"]).strip().lower()
+    stop_loss_pct = account["stop_loss_pct"]
+    take_profit_pct = account["take_profit_pct"]
+    instrument_mode = str(account["instrument_mode"]).strip().lower()
     target = random.randint(min_trades, max_trades)
     executed = 0
 
@@ -137,8 +173,19 @@ def run_for_account(
         state = compute_account_state(account["initial_cash"], load_trades(conn, account["id"]))
         can_sell = [t for t, q in state.positions.items() if q >= 1]
 
+        forced_sell = choose_sell_ticker_by_risk(
+            can_sell,
+            prices,
+            state,
+            risk_policy,
+            stop_loss_pct,
+            take_profit_pct,
+        )
+
         side = "buy"
-        if can_sell and random.random() < 0.35:
+        if forced_sell is not None:
+            side = "sell"
+        elif can_sell and random.random() < 0.35:
             side = "sell"
 
         if side == "buy":
@@ -150,13 +197,27 @@ def run_for_account(
             if qty <= 0:
                 continue
         else:
-            ticker = choose_sell_ticker(can_sell, prices, state, learning_enabled)
+            if forced_sell is not None:
+                ticker = forced_sell
+            else:
+                ticker = choose_sell_ticker(can_sell, prices, state, learning_enabled)
             price = prices.get(ticker)
             if price is None or price <= 0:
                 continue
             qty = choose_sell_qty(state.positions[ticker])
             if qty <= 0:
                 continue
+
+        if instrument_mode == "leaps":
+            qty = min(qty, 2)
+
+        note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
+        if forced_sell is not None:
+            note_parts.append(f"risk={risk_policy}")
+        if instrument_mode == "leaps":
+            note_parts.append("mode=leaps")
+            note_parts.append(f"strike_offset={account['option_strike_offset_pct']}")
+            note_parts.append(f"dte={account['option_min_dte']}-{account['option_max_dte']}")
 
         record_trade(
             conn,
@@ -167,7 +228,7 @@ def run_for_account(
             price=float(price),
             fee=fee,
             trade_time=utc_now_iso(),
-            note="auto-daily-learn" if learning_enabled else "auto-daily",
+            note=";".join(note_parts),
         )
         executed += 1
 
