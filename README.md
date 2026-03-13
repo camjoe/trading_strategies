@@ -116,3 +116,16 @@ python stock_trends.py NVDA --debug-columns
 - Lines starting with `#` in ticker files are ignored.
 - Tickers can be written one per line or comma-separated.
 - `--debug-columns` prints dataframe column shape before and after normalization.
+
+## Testing
+
+Run the full test suite from project root:
+
+```powershell
+python -m pytest
+```
+
+Coverage is configured in `pytest.ini` and includes:
+- Terminal report with missing lines
+- `coverage.xml` output (used by CI artifact upload)
+- Minimum coverage threshold of 35% (baseline, can be raised over time)
