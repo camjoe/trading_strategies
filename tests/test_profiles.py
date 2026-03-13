@@ -20,6 +20,16 @@ def test_apply_account_profiles_sets_risk_and_instrument_fields(conn) -> None:
             "option_strike_offset_pct": 5,
             "option_min_dte": 120,
             "option_max_dte": 365,
+            "option_type": "call",
+            "target_delta_min": 0.25,
+            "target_delta_max": 0.55,
+            "max_premium_per_trade": 500,
+            "max_contracts_per_trade": 2,
+            "iv_rank_min": 20,
+            "iv_rank_max": 80,
+            "roll_dte_threshold": 45,
+            "profit_take_pct": 30,
+            "max_loss_pct": 20,
         }
     ]
 
@@ -34,3 +44,8 @@ def test_apply_account_profiles_sets_risk_and_instrument_fields(conn) -> None:
     assert account["risk_policy"] == "fixed_stop"
     assert account["instrument_mode"] == "leaps"
     assert int(account["learning_enabled"]) == 1
+    assert account["option_type"] == "call"
+    assert float(account["target_delta_min"]) == 0.25
+    assert float(account["target_delta_max"]) == 0.55
+    assert float(account["iv_rank_min"]) == 20.0
+    assert float(account["iv_rank_max"]) == 80.0

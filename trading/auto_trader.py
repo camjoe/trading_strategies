@@ -5,6 +5,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yfinance as yf
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -74,6 +76,89 @@ def choose_sell_qty(position_qty: float) -> int:
     if max_qty < 1:
         return 0
     return random.randint(1, min(5, max_qty))
+
+
+def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
+    # IV rank proxy: percentile rank of 1y realized volatility inside the current trade universe.
+    vols: dict[str, float] = {}
+    for ticker in universe:
+        try:
+            hist = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
+            if hist.empty:
+                continue
+            close = hist["Close"].dropna()
+            if len(close) < 30:
+                continue
+            daily_ret = close.pct_change().dropna()
+            if daily_ret.empty:
+                continue
+            vol_annual = float(daily_ret.std() * (252 ** 0.5))
+            vols[ticker] = vol_annual
+        except Exception:
+            continue
+
+    if not vols:
+        return {}
+
+    sorted_items = sorted(vols.items(), key=lambda x: x[1])
+    n = len(sorted_items)
+    if n == 1:
+        return {sorted_items[0][0]: 50.0}
+
+    out: dict[str, float] = {}
+    for i, (ticker, _vol) in enumerate(sorted_items):
+        out[ticker] = (i / (n - 1)) * 100.0
+    return out
+
+
+def estimate_delta(abs_strike_offset_pct: float) -> float:
+    # Simple monotonic mapping: farther OTM implies lower delta.
+    return max(0.05, min(0.95, 0.55 - (abs(abs_strike_offset_pct) / 100.0)))
+
+
+def estimate_option_premium(underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None) -> float:
+    dte_mid = 240.0
+    if min_dte is not None and max_dte is not None:
+        dte_mid = (float(min_dte) + float(max_dte)) / 2.0
+    elif min_dte is not None:
+        dte_mid = float(min_dte)
+    elif max_dte is not None:
+        dte_mid = float(max_dte)
+
+    time_factor = max(0.08, min(0.35, dte_mid / 1000.0))
+    delta_factor = 0.4 + delta_est
+    premium = underlying_price * time_factor * delta_factor
+    return max(0.5, premium)
+
+
+def option_candidate_allowed(
+    account: sqlite3.Row,
+    ticker: str,
+    price: float,
+    iv_rank_proxy: dict[str, float],
+) -> tuple[bool, float, float]:
+    strike_offset = float(account["option_strike_offset_pct"] or 0.0)
+    delta_est = estimate_delta(strike_offset)
+    iv_rank = iv_rank_proxy.get(ticker)
+
+    delta_min = account["target_delta_min"]
+    delta_max = account["target_delta_max"]
+    if delta_min is not None and delta_est < float(delta_min):
+        return False, delta_est, iv_rank if iv_rank is not None else -1.0
+    if delta_max is not None and delta_est > float(delta_max):
+        return False, delta_est, iv_rank if iv_rank is not None else -1.0
+
+    iv_min = account["iv_rank_min"]
+    iv_max = account["iv_rank_max"]
+    if (iv_min is not None or iv_max is not None) and iv_rank is None:
+        return False, delta_est, -1.0
+    if iv_min is not None and iv_rank is not None and iv_rank < float(iv_min):
+        return False, delta_est, iv_rank
+    if iv_max is not None and iv_rank is not None and iv_rank > float(iv_max):
+        return False, delta_est, iv_rank
+
+    _ = price  # reserved for richer pricing filters
+    return True, delta_est, iv_rank if iv_rank is not None else -1.0
 
 
 def choose_sell_ticker_by_risk(
@@ -156,6 +241,7 @@ def run_for_account(
     account_name: str,
     universe: list[str],
     prices: dict[str, float],
+    iv_rank_proxy: dict[str, float],
     min_trades: int,
     max_trades: int,
     fee: float,
@@ -189,13 +275,60 @@ def run_for_account(
             side = "sell"
 
         if side == "buy":
-            ticker = choose_buy_ticker(universe, prices, state, learning_enabled)
-            price = prices.get(ticker)
-            if price is None or price <= 0:
-                continue
-            qty = choose_buy_qty(state.cash, price, fee)
-            if qty <= 0:
-                continue
+            if instrument_mode == "leaps":
+                candidates: list[tuple[str, float, float]] = []
+                for candidate_ticker in universe:
+                    px = prices.get(candidate_ticker)
+                    if px is None or px <= 0:
+                        continue
+                    ok, delta_est, iv_est = option_candidate_allowed(
+                        account,
+                        candidate_ticker,
+                        float(px),
+                        iv_rank_proxy,
+                    )
+                    if ok:
+                        candidates.append((candidate_ticker, delta_est, iv_est))
+
+                if not candidates:
+                    continue
+
+                ticker, delta_est, iv_est = random.choice(candidates)
+                price = prices.get(ticker)
+                if price is None or price <= 0:
+                    continue
+
+                option_price = estimate_option_premium(
+                    float(price),
+                    delta_est,
+                    int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
+                    int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
+                )
+                qty = choose_buy_qty(state.cash, option_price, fee)
+                if qty <= 0:
+                    continue
+
+                max_contracts = account["max_contracts_per_trade"]
+                if max_contracts is not None:
+                    qty = min(qty, int(max_contracts))
+
+                max_premium = account["max_premium_per_trade"]
+                if max_premium is not None:
+                    premium_qty = int(float(max_premium) // option_price)
+                    qty = min(qty, premium_qty)
+
+                if qty <= 0:
+                    continue
+                trade_price = float(option_price)
+            else:
+                ticker = choose_buy_ticker(universe, prices, state, learning_enabled)
+                price = prices.get(ticker)
+                if price is None or price <= 0:
+                    continue
+                qty = choose_buy_qty(state.cash, float(price), fee)
+                if qty <= 0:
+                    continue
+                trade_price = float(price)
         else:
             if forced_sell is not None:
                 ticker = forced_sell
@@ -207,9 +340,10 @@ def run_for_account(
             qty = choose_sell_qty(state.positions[ticker])
             if qty <= 0:
                 continue
+            trade_price = float(price)
 
-        if instrument_mode == "leaps":
-            qty = min(qty, 2)
+            if instrument_mode == "leaps":
+                qty = min(qty, 2)
 
         note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
         if forced_sell is not None:
@@ -218,6 +352,11 @@ def run_for_account(
             note_parts.append("mode=leaps")
             note_parts.append(f"strike_offset={account['option_strike_offset_pct']}")
             note_parts.append(f"dte={account['option_min_dte']}-{account['option_max_dte']}")
+            note_parts.append(f"type={account['option_type']}")
+            if side == "buy":
+                note_parts.append(f"delta={delta_est:.2f}")
+                if iv_est >= 0:
+                    note_parts.append(f"iv_rank={iv_est:.1f}")
 
         record_trade(
             conn,
@@ -225,7 +364,7 @@ def run_for_account(
             side=side,
             ticker=ticker,
             qty=qty,
-            price=float(price),
+            price=trade_price,
             fee=fee,
             trade_time=utc_now_iso(),
             note=";".join(note_parts),
@@ -256,6 +395,7 @@ def main() -> None:
     prices = fetch_latest_prices(universe)
     if not prices:
         raise ValueError("Could not fetch any prices for ticker universe.")
+    iv_rank_proxy = build_iv_rank_proxy(universe)
 
     conn = ensure_db()
     try:
@@ -265,6 +405,7 @@ def main() -> None:
                 account_name=account_name,
                 universe=universe,
                 prices=prices,
+                iv_rank_proxy=iv_rank_proxy,
                 min_trades=args.min_trades,
                 max_trades=args.max_trades,
                 fee=args.fee,
