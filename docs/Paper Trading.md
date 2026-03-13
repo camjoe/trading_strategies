@@ -46,6 +46,34 @@ python trading/paper_trading.py configure-account --account momentum_5k --goal-m
 python trading/paper_trading.py configure-account --account meanrev_5k --display-name "Mean Reversion Income" --learning-enabled
 ```
 
+Bulk apply account profiles from one JSON file:
+
+```powershell
+python trading/paper_trading.py apply-account-profiles --file trading/account_profiles.json
+```
+
+Apply built-in presets:
+
+```powershell
+python trading/paper_trading.py apply-account-preset --preset aggressive
+python trading/paper_trading.py apply-account-preset --preset conservative
+```
+
+Preset files:
+- `trading/account_profiles.aggressive.json`
+- `trading/account_profiles.conservative.json`
+
+`trading/account_profiles.json` is the recommended single source of truth for account strategy metadata:
+- `name`
+- `descriptive_name`
+- `strategy`
+- `initial_cash` (used when creating missing accounts)
+- `benchmark_ticker`
+- `goal_min_return_pct`
+- `goal_max_return_pct`
+- `goal_period`
+- `learning_enabled`
+
 Update benchmark on an existing account:
 
 ```powershell

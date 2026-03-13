@@ -90,4 +90,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Snapshot lookback count for trend classification (default: 10)",
     )
 
+    p_apply_profiles = sub.add_parser(
+        "apply-account-profiles",
+        help="Create/update accounts from a JSON profile file.",
+    )
+    p_apply_profiles.add_argument(
+        "--file",
+        default="trading/account_profiles.json",
+        help="Path to JSON account profile file (default: trading/account_profiles.json)",
+    )
+    p_apply_profiles.add_argument(
+        "--no-create-missing",
+        action="store_true",
+        help="Do not create accounts that do not already exist",
+    )
+
+    p_apply_preset = sub.add_parser(
+        "apply-account-preset",
+        help="Apply a built-in account profile preset.",
+    )
+    p_apply_preset.add_argument(
+        "--preset",
+        required=True,
+        choices=["aggressive", "conservative"],
+        help="Preset name to apply",
+    )
+    p_apply_preset.add_argument(
+        "--no-create-missing",
+        action="store_true",
+        help="Do not create accounts that do not already exist",
+    )
+
     return parser

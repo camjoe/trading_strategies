@@ -1,14 +1,18 @@
+from pathlib import Path
+
 try:
     from trading.accounting import record_trade
     from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
     from trading.cli import build_parser
     from trading.db import DB_PATH, ensure_db
+    from trading.profiles import apply_account_profiles, load_account_profiles
     from trading.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 except ModuleNotFoundError:
     from accounting import record_trade
     from accounts import configure_account, create_account, list_accounts, set_benchmark
     from cli import build_parser
     from db import DB_PATH, ensure_db
+    from profiles import apply_account_profiles, load_account_profiles
     from reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 
 
@@ -58,6 +62,34 @@ def main() -> None:
                 learning_enabled=learning_enabled,
             )
             print(f"Updated account configuration for '{args.account}'.")
+
+        elif args.command == "apply-account-profiles":
+            profiles = load_account_profiles(args.file)
+            created, updated, skipped = apply_account_profiles(
+                conn,
+                profiles,
+                create_missing=not args.no_create_missing,
+            )
+            print(
+                "Applied account profiles: "
+                f"created={created}, updated={updated}, skipped={skipped}."
+            )
+
+        elif args.command == "apply-account-preset":
+            preset_file = (
+                Path(__file__).resolve().parent
+                / f"account_profiles.{args.preset.strip().lower()}.json"
+            )
+            profiles = load_account_profiles(str(preset_file))
+            created, updated, skipped = apply_account_profiles(
+                conn,
+                profiles,
+                create_missing=not args.no_create_missing,
+            )
+            print(
+                f"Applied preset '{args.preset}': "
+                f"created={created}, updated={updated}, skipped={skipped}."
+            )
 
         elif args.command == "set-benchmark":
             set_benchmark(conn, args.account, args.benchmark)

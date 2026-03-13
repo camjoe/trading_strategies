@@ -1,0 +1,26 @@
+{
+  "accounts": [
+    {
+      "name": "momentum_5k",
+      "descriptive_name": "Momentum Conservative",
+      "strategy": "Momentum Risk-Managed",
+      "initial_cash": 5000,
+      "benchmark_ticker": "SPY",
+      "goal_min_return_pct": 2,
+      "goal_max_return_pct": 4,
+      "goal_period": "monthly",
+      "learning_enabled": false
+    },
+    {
+      "name": "meanrev_5k",
+      "descriptive_name": "Mean Reversion Conservative",
+      "strategy": "Mean Reversion Defensive",
+      "initial_cash": 5000,
+      "benchmark_ticker": "SPY",
+      "goal_min_return_pct": 3,
+      "goal_max_return_pct": 6,
+      "goal_period": "monthly",
+      "learning_enabled": false
+    }
+  ]
+}

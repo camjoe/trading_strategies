@@ -1,0 +1,26 @@
+{
+  "accounts": [
+    {
+      "name": "momentum_5k",
+      "descriptive_name": "Momentum Aggressive",
+      "strategy": "Momentum Aggressive",
+      "initial_cash": 5000,
+      "benchmark_ticker": "QQQ",
+      "goal_min_return_pct": 20,
+      "goal_max_return_pct": 30,
+      "goal_period": "monthly",
+      "learning_enabled": true
+    },
+    {
+      "name": "meanrev_5k",
+      "descriptive_name": "Mean Reversion Aggressive",
+      "strategy": "Mean Reversion Tactical",
+      "initial_cash": 5000,
+      "benchmark_ticker": "SPY",
+      "goal_min_return_pct": 12,
+      "goal_max_return_pct": 20,
+      "goal_period": "monthly",
+      "learning_enabled": true
+    }
+  ]
+}
