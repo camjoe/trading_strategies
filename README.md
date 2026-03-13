@@ -128,4 +128,5 @@ python -m pytest
 Coverage is configured in `pytest.ini` and includes:
 - Terminal report with missing lines
 - `coverage.xml` output (used by CI artifact upload)
+- Coverage collection for both `trading` and `trends` packages
 - Minimum coverage threshold of 35% (baseline, can be raised over time)
