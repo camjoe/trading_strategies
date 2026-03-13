@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Ignore local env files (secrets/local config), but keep template examples in git.
+.env
+.env.*
+!.env.example
