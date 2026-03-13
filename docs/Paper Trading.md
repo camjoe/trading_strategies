@@ -154,34 +154,8 @@ python trading/auto_trader.py --accounts momentum_5k,meanrev_5k --seed 42
 
 ## Windows Daily Scheduler
 
-Automated runner script:
-- `trading/daily_paper_trading.ps1`
-
-What it does each run:
-- Executes auto trades for configured accounts (1-5 trades per account by default)
-- Saves a snapshot for each account
-- Prints strategy comparison
-- Writes a timestamped log to `logs/`
-
-Learning mode behavior:
-- If `learning_enabled` is on for an account, auto-trader biases buys toward better-performing holdings and biases sells toward weaker holdings.
-
-Registered scheduled task:
-- Name: `Trading\DailyPaperTrading`
-- Time: daily at `4:10 PM`
-
-Useful commands:
-
-```powershell
-# Run once immediately
-powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\daily_paper_trading.ps1
-
-# View task details
-schtasks /Query /TN "Trading\DailyPaperTrading" /V /FO LIST
-
-# Change schedule time (example: 3:45 PM)
-schtasks /Change /TN "Trading\DailyPaperTrading" /ST 15:45
-```
+PowerShell/task scheduling operations are documented in:
+- `docs/Paper Trading Scheduler.md`
 
 ## Notes
 
