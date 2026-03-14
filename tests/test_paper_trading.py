@@ -167,3 +167,141 @@ def test_main_create_account_defaults_learning_disabled(monkeypatch):
     assert captured["benchmark"] == "SPY"
     assert captured["kwargs"]["learning_enabled"] is False
     assert fake_conn.closed is True
+
+
+def test_main_backtest_dispatches_and_prints_summary(monkeypatch, capsys):
+    fake_conn = _FakeConn()
+    args = SimpleNamespace(
+        command="backtest",
+        account="acct1",
+        tickers_file="trading/trade_universe.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-01",
+        lookback_months=None,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name="smoke",
+        allow_approximate_leaps=False,
+    )
+
+    captured = {}
+
+    class _Result:
+        run_id = 7
+        account_name = "acct1"
+        start_date = "2026-01-01"
+        end_date = "2026-03-01"
+        trade_count = 5
+        ending_equity = 10450.0
+        total_return_pct = 4.5
+        max_drawdown_pct = -2.0
+        benchmark_return_pct = 3.0
+        alpha_pct = 1.5
+        warnings = ["daily bars only"]
+
+    def fake_run_backtest(conn, cfg):
+        captured["conn"] = conn
+        captured["cfg"] = cfg
+        return _Result()
+
+    monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+    monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+    monkeypatch.setattr(paper_trading, "run_backtest", fake_run_backtest)
+
+    paper_trading.main()
+
+    assert captured["conn"] is fake_conn
+    assert captured["cfg"].account_name == "acct1"
+    out = capsys.readouterr().out
+    assert "Backtest complete: run_id=7" in out
+    assert "Benchmark Return: 3.00% | Alpha: 1.50%" in out
+    assert "Backtest safeguards / approximation notes:" in out
+    assert fake_conn.closed is True
+
+
+def test_main_backtest_report_dispatches(monkeypatch, capsys):
+    fake_conn = _FakeConn()
+    args = SimpleNamespace(command="backtest-report", run_id=11)
+
+    def fake_backtest_report(_conn, run_id):
+        assert run_id == 11
+        return {
+            "run_id": 11,
+            "run_name": "wf-1",
+            "account_name": "acct1",
+            "strategy": "Trend",
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-31",
+            "created_at": "2026-03-14T00:00:00Z",
+            "trade_count": 2,
+            "starting_equity": 10000.0,
+            "ending_equity": 10100.0,
+            "total_return_pct": 1.0,
+            "max_drawdown_pct": -0.5,
+            "slippage_bps": 5.0,
+            "fee_per_trade": 0.0,
+            "tickers_file": "trading/trade_universe.txt",
+            "warnings": "daily bars only",
+        }
+
+    monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+    monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+    monkeypatch.setattr(paper_trading, "backtest_report", fake_backtest_report)
+
+    paper_trading.main()
+
+    out = capsys.readouterr().out
+    assert "Backtest Run 11 (wf-1)" in out
+    assert "Safeguards / notes: daily bars only" in out
+    assert fake_conn.closed is True
+
+
+def test_main_backtest_walk_forward_dispatches(monkeypatch, capsys):
+    fake_conn = _FakeConn()
+    args = SimpleNamespace(
+        command="backtest-walk-forward",
+        account="acct1",
+        tickers_file="trading/trade_universe.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-31",
+        lookback_months=None,
+        test_months=1,
+        step_months=1,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name_prefix="wf",
+        allow_approximate_leaps=False,
+    )
+
+    captured = {}
+
+    class _Summary:
+        account_name = "acct1"
+        start_date = "2026-01-01"
+        end_date = "2026-03-31"
+        window_count = 3
+        run_ids = [101, 102, 103]
+        average_return_pct = 1.2
+        median_return_pct = 1.0
+        best_return_pct = 2.3
+        worst_return_pct = 0.1
+
+    def fake_run_walk_forward_backtest(conn, cfg):
+        captured["conn"] = conn
+        captured["cfg"] = cfg
+        return _Summary()
+
+    monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+    monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+    monkeypatch.setattr(paper_trading, "run_walk_forward_backtest", fake_run_walk_forward_backtest)
+
+    paper_trading.main()
+
+    assert captured["conn"] is fake_conn
+    assert captured["cfg"].test_months == 1
+    out = capsys.readouterr().out
+    assert "Walk-forward complete: account=acct1" in out
+    assert "Generated run ids: 101, 102, 103" in out
+    assert fake_conn.closed is True
