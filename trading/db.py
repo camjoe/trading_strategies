@@ -70,6 +70,51 @@ def init_schema(conn: sqlite3.Connection) -> None:
             unrealized_pnl REAL NOT NULL,
             FOREIGN KEY (account_id) REFERENCES accounts(id)
         );
+
+        CREATE TABLE IF NOT EXISTS backtest_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id INTEGER NOT NULL,
+            run_name TEXT,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            slippage_bps REAL NOT NULL DEFAULT 0,
+            fee_per_trade REAL NOT NULL DEFAULT 0,
+            tickers_file TEXT,
+            notes TEXT,
+            warnings TEXT,
+            FOREIGN KEY (account_id) REFERENCES accounts(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS backtest_trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id INTEGER NOT NULL,
+            trade_time TEXT NOT NULL,
+            ticker TEXT NOT NULL,
+            side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+            qty REAL NOT NULL,
+            price REAL NOT NULL,
+            fee REAL NOT NULL DEFAULT 0,
+            slippage_bps REAL NOT NULL DEFAULT 0,
+            note TEXT,
+            FOREIGN KEY (run_id) REFERENCES backtest_runs(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS backtest_equity_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id INTEGER NOT NULL,
+            snapshot_time TEXT NOT NULL,
+            cash REAL NOT NULL,
+            market_value REAL NOT NULL,
+            equity REAL NOT NULL,
+            realized_pnl REAL NOT NULL,
+            unrealized_pnl REAL NOT NULL,
+            FOREIGN KEY (run_id) REFERENCES backtest_runs(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_backtest_runs_account_id ON backtest_runs(account_id);
+        CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id);
+        CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id ON backtest_equity_snapshots(run_id);
         """
     )
     ensure_accounts_benchmark_column(conn)

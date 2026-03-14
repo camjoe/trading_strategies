@@ -164,3 +164,8 @@ PowerShell/task scheduling operations are documented in:
 - Latest prices for unrealized PnL are fetched via `yfinance`.
 - You can pass custom ISO timestamps with `--time` on trade/snapshot commands.
 - Trend classification uses snapshot history plus current equity (`up`, `flat`, `down`, or `insufficient-data`).
+
+## Backtesting Docs
+
+Backtesting commands, safeguards, and walk-forward usage are documented in:
+- `docs/backtesting/README.md`

@@ -110,6 +110,10 @@ button:hover {
   grid-column: span 12;
 }
 
+.backtest-card {
+  grid-column: span 12;
+}
+
 h2,
 h3,
 h4 {
@@ -196,6 +200,93 @@ td {
   gap: 0.5rem;
   grid-template-columns: 1.4fr 2fr auto;
   margin-bottom: 0.8rem;
+}
+
+.bt-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.8rem;
+}
+
+.bt-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bt-quick-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bt-quick-buttons button {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  background: linear-gradient(120deg, #607d8b, #8da4b3);
+}
+
+.bt-row {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bt-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.bt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bt-runs {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.bt-run-item {
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  background: #ffffffd6;
+  border: 1px solid #d1dceb;
+}
+
+.bt-result {
+  border: 1px solid #d1dceb;
+  border-radius: 10px;
+  background: #ffffffd6;
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.bt-result ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.bt-warning {
+  border: 1px solid #e0c15f;
+  background: #fff4c7;
+  color: #7a5900;
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.bt-warning ul {
+  margin: 0;
+  padding-left: 1rem;
 }
 
 .log-output {
@@ -294,6 +385,14 @@ td {
   }
 
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bt-row {
     grid-template-columns: 1fr;
   }
 }
