@@ -106,6 +106,41 @@ def _ensure_sufficient_cash_for_buy(
         raise ValueError(f"Insufficient cash: need {required_cash:.2f}, available {available_cash:.2f}.")
 
 
+def _account_state_from_db(conn: sqlite3.Connection, account_id: int, initial_cash: float) -> AccountState:
+    trades = load_trades(conn, account_id)
+    return compute_account_state(initial_cash, trades)
+
+
+def _insert_trade(
+    conn: sqlite3.Connection,
+    account_id: int,
+    ticker: str,
+    side: str,
+    qty: float,
+    price: float,
+    fee: float,
+    trade_time: str | None,
+    note: str | None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            account_id,
+            ticker,
+            side,
+            float(qty),
+            float(price),
+            float(fee),
+            trade_time or utc_now_iso(),
+            note,
+        ),
+    )
+    conn.commit()
+
+
 def load_trades(conn: sqlite3.Connection, account_id: int) -> list[sqlite3.Row]:
     return conn.execute(
         """
@@ -145,8 +180,7 @@ def compute_account_state(initial_cash: float, trades: list[sqlite3.Row]) -> Acc
             )
             continue
 
-        if side not in VALID_SIDES:
-            raise ValueError(f"Unsupported side: {side}")
+        raise ValueError(f"Unsupported side: {side}")
 
     positions, avg_cost = _compact_positions(positions, avg_cost)
 
@@ -167,23 +201,7 @@ def record_trade(
     account = get_account(conn, account_name)
     side, ticker = _normalize_order_input(side, ticker)
 
-    existing_state = compute_account_state(account["initial_cash"], load_trades(conn, account["id"]))
+    existing_state = _account_state_from_db(conn, account["id"], account["initial_cash"])
     _ensure_sufficient_cash_for_buy(side, qty, price, fee, existing_state.cash)
 
-    conn.execute(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account["id"],
-            ticker,
-            side,
-            float(qty),
-            float(price),
-            float(fee),
-            trade_time or utc_now_iso(),
-            note,
-        ),
-    )
-    conn.commit()
+    _insert_trade(conn, account["id"], ticker, side, qty, price, fee, trade_time, note)

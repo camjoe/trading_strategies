@@ -23,6 +23,153 @@ def format_goal_text(row: sqlite3.Row) -> str:
     return f"<= {float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
 
 
+def _compute_market_value_and_unrealized(
+    positions: dict[str, float],
+    avg_cost: dict[str, float],
+    prices: dict[str, float],
+) -> tuple[float, float]:
+    market_value = 0.0
+    unrealized = 0.0
+    for ticker, qty in positions.items():
+        price = prices.get(ticker)
+        if price is None:
+            continue
+        market_value += qty * price
+        unrealized += (price - avg_cost[ticker]) * qty
+    return market_value, unrealized
+
+
+def _strategy_return_pct(equity: float, initial_cash: float) -> float:
+    return ((equity / initial_cash) - 1.0) * 100.0
+
+
+def _benchmark_available(benchmark_equity: float | None, benchmark_return_pct: float | None) -> bool:
+    return benchmark_equity is not None and benchmark_return_pct is not None
+
+
+def _alpha_pct(strategy_return_pct: float, benchmark_return_pct: float) -> float:
+    return strategy_return_pct - benchmark_return_pct
+
+
+def _print_leaps_params(account: sqlite3.Row) -> None:
+    print(
+        "LEAPs Params: "
+        f"strike_offset_pct={account['option_strike_offset_pct']} "
+        f"min_dte={account['option_min_dte']} max_dte={account['option_max_dte']}"
+    )
+    print(
+        "Options Filters: "
+        f"type={account['option_type']} "
+        f"delta={account['target_delta_min']}-{account['target_delta_max']} "
+        f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
+    )
+    print(
+        "Options Risk: "
+        f"max_premium={account['max_premium_per_trade']} "
+        f"max_contracts={account['max_contracts_per_trade']} "
+        f"roll_dte={account['roll_dte_threshold']} "
+        f"profit_take={account['profit_take_pct']} "
+        f"max_loss={account['max_loss_pct']}"
+    )
+
+
+def _print_account_header(account: sqlite3.Row) -> None:
+    print(f"Account: {account['name']} | Strategy: {account['strategy']}")
+    print(f"Descriptive Name: {account['descriptive_name']}")
+    print(f"Benchmark: {account['benchmark_ticker']}")
+    print(f"Goal: {format_goal_text(account)}")
+    print(f"Learning Enabled: {'yes' if int(account['learning_enabled']) else 'no'}")
+    print(f"Risk Policy: {account['risk_policy']}")
+    print(f"Instrument Mode: {account['instrument_mode']}")
+    if account["instrument_mode"] == "leaps":
+        _print_leaps_params(account)
+
+
+def _print_performance_lines(
+    account: sqlite3.Row,
+    cash: float,
+    market_value: float,
+    equity: float,
+    realized_pnl: float,
+    unrealized: float,
+    strategy_return_pct: float,
+    benchmark_equity: float | None,
+    benchmark_return_pct: float | None,
+) -> None:
+    print(f"Initial Cash: {account['initial_cash']:.2f}")
+    print(f"Cash: {cash:.2f}")
+    print(f"Market Value: {market_value:.2f}")
+    print(f"Equity: {equity:.2f}")
+    print(f"Strategy Return %: {strategy_return_pct:.2f}")
+    print(f"Realized PnL: {realized_pnl:.2f}")
+    print(f"Unrealized PnL: {unrealized:.2f}")
+
+    if _benchmark_available(benchmark_equity, benchmark_return_pct):
+        assert benchmark_return_pct is not None
+        assert benchmark_equity is not None
+        alpha_pct = _alpha_pct(strategy_return_pct, benchmark_return_pct)
+        print(f"Benchmark Equity: {benchmark_equity:.2f}")
+        print(f"Benchmark Return %: {benchmark_return_pct:.2f}")
+        print(f"Strategy Alpha vs Benchmark %: {alpha_pct:.2f}")
+        return
+
+    print("Benchmark comparison: unavailable (price history not found)")
+
+
+def _print_open_positions(
+    positions: dict[str, float],
+    avg_cost: dict[str, float],
+    prices: dict[str, float],
+) -> None:
+    if not positions:
+        print("Open Positions: none")
+        return
+
+    print("Open Positions:")
+    for ticker in sorted(positions.keys()):
+        qty = positions[ticker]
+        avg = avg_cost[ticker]
+        px = prices.get(ticker)
+        px_display = f"{px:.2f}" if px is not None else "N/A"
+        print(f"- {ticker}: qty={qty:.4f}, avg_cost={avg:.2f}, last_price={px_display}")
+
+
+def _positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
+    position_count = len(positions)
+    if not positions:
+        return position_count, "none"
+
+    sorted_positions = sorted(positions.items(), key=lambda x: x[0])
+    positions_text = ", ".join([f"{ticker}:{qty:.2f}" for ticker, qty in sorted_positions[:5]])
+    if len(sorted_positions) > 5:
+        positions_text += ", ..."
+    return position_count, positions_text
+
+
+def _compare_account_header(account: sqlite3.Row) -> str:
+    return (
+        f"- {account['name']} ({account['descriptive_name']}) | strategy={account['strategy']} | "
+        f"benchmark={account['benchmark_ticker']} | learning={'on' if int(account['learning_enabled']) else 'off'} | "
+        f"risk={account['risk_policy']} | mode={account['instrument_mode']}"
+    )
+
+
+def _compare_benchmark_line(
+    strategy_return_pct: float,
+    benchmark_equity: float | None,
+    benchmark_return_pct: float | None,
+) -> str:
+    if _benchmark_available(benchmark_equity, benchmark_return_pct):
+        assert benchmark_equity is not None
+        assert benchmark_return_pct is not None
+        alpha_pct = _alpha_pct(strategy_return_pct, benchmark_return_pct)
+        return (
+            f"  benchmark_equity={benchmark_equity:.2f} benchmark_return={benchmark_return_pct:.2f}% "
+            f"alpha={alpha_pct:.2f}%"
+        )
+    return "  benchmark_equity=N/A benchmark_return=N/A alpha=N/A"
+
+
 def build_account_stats(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
@@ -32,14 +179,7 @@ def build_account_stats(
     tickers = sorted(state.positions.keys())
     prices = fetch_latest_prices(tickers) if tickers else {}
 
-    market_value = 0.0
-    unrealized = 0.0
-    for ticker, qty in state.positions.items():
-        price = prices.get(ticker)
-        if price is None:
-            continue
-        market_value += qty * price
-        unrealized += (price - state.avg_cost[ticker]) * qty
+    market_value, unrealized = _compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
 
     equity = state.cash + market_value
     return state, prices, market_value, unrealized, equity
@@ -88,62 +228,21 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
     benchmark_equity, benchmark_return_pct = benchmark_stats(
         account["benchmark_ticker"], account["initial_cash"], account["created_at"]
     )
-    strategy_return_pct = ((equity / account["initial_cash"]) - 1.0) * 100.0
+    strategy_return_pct = _strategy_return_pct(equity, account["initial_cash"])
 
-    goal_text = format_goal_text(account)
-
-    print(f"Account: {account['name']} | Strategy: {account['strategy']}")
-    print(f"Descriptive Name: {account['descriptive_name']}")
-    print(f"Benchmark: {account['benchmark_ticker']}")
-    print(f"Goal: {goal_text}")
-    print(f"Learning Enabled: {'yes' if int(account['learning_enabled']) else 'no'}")
-    print(f"Risk Policy: {account['risk_policy']}")
-    print(f"Instrument Mode: {account['instrument_mode']}")
-    if account["instrument_mode"] == "leaps":
-        print(
-            "LEAPs Params: "
-            f"strike_offset_pct={account['option_strike_offset_pct']} "
-            f"min_dte={account['option_min_dte']} max_dte={account['option_max_dte']}"
-        )
-        print(
-            "Options Filters: "
-            f"type={account['option_type']} "
-            f"delta={account['target_delta_min']}-{account['target_delta_max']} "
-            f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
-        )
-        print(
-            "Options Risk: "
-            f"max_premium={account['max_premium_per_trade']} "
-            f"max_contracts={account['max_contracts_per_trade']} "
-            f"roll_dte={account['roll_dte_threshold']} "
-            f"profit_take={account['profit_take_pct']} "
-            f"max_loss={account['max_loss_pct']}"
-        )
-    print(f"Initial Cash: {account['initial_cash']:.2f}")
-    print(f"Cash: {state.cash:.2f}")
-    print(f"Market Value: {market_value:.2f}")
-    print(f"Equity: {equity:.2f}")
-    print(f"Strategy Return %: {strategy_return_pct:.2f}")
-    print(f"Realized PnL: {state.realized_pnl:.2f}")
-    print(f"Unrealized PnL: {unrealized:.2f}")
-    if benchmark_equity is not None and benchmark_return_pct is not None:
-        alpha_pct = strategy_return_pct - benchmark_return_pct
-        print(f"Benchmark Equity: {benchmark_equity:.2f}")
-        print(f"Benchmark Return %: {benchmark_return_pct:.2f}")
-        print(f"Strategy Alpha vs Benchmark %: {alpha_pct:.2f}")
-    else:
-        print("Benchmark comparison: unavailable (price history not found)")
-
-    if not state.positions:
-        print("Open Positions: none")
-    else:
-        print("Open Positions:")
-        for ticker in sorted(state.positions.keys()):
-            qty = state.positions[ticker]
-            avg = state.avg_cost[ticker]
-            px = prices.get(ticker)
-            px_display = f"{px:.2f}" if px is not None else "N/A"
-            print(f"- {ticker}: qty={qty:.4f}, avg_cost={avg:.2f}, last_price={px_display}")
+    _print_account_header(account)
+    _print_performance_lines(
+        account,
+        state.cash,
+        market_value,
+        equity,
+        state.realized_pnl,
+        unrealized,
+        strategy_return_pct,
+        benchmark_equity,
+        benchmark_return_pct,
+    )
+    _print_open_positions(state.positions, state.avg_cost, prices)
 
     stats = {
         "cash": state.cash,
@@ -174,39 +273,21 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     print("Per-strategy comparison:")
     for account in accounts:
         state, _prices, _market_value, _unrealized, equity = build_account_stats(conn, account)
-        strategy_return_pct = ((equity / account["initial_cash"]) - 1.0) * 100.0
+        strategy_return_pct = _strategy_return_pct(equity, account["initial_cash"])
         bench_equity, bench_return_pct = benchmark_stats(
             account["benchmark_ticker"], account["initial_cash"], account["created_at"]
         )
         trend = infer_overall_trend(conn, account["id"], equity, lookback)
 
-        position_count = len(state.positions)
-        if state.positions:
-            sorted_positions = sorted(state.positions.items(), key=lambda x: x[0])
-            positions_text = ", ".join([f"{k}:{v:.2f}" for k, v in sorted_positions[:5]])
-            if len(sorted_positions) > 5:
-                positions_text += ", ..."
-        else:
-            positions_text = "none"
+        position_count, positions_text = _positions_summary_text(state.positions)
 
-        print(
-            f"- {account['name']} ({account['descriptive_name']}) | strategy={account['strategy']} | "
-            f"benchmark={account['benchmark_ticker']} | learning={'on' if int(account['learning_enabled']) else 'off'} | "
-            f"risk={account['risk_policy']} | mode={account['instrument_mode']}"
-        )
+        print(_compare_account_header(account))
         print(f"  goal={format_goal_text(account)}")
         print(
             f"  equity={equity:.2f} return={strategy_return_pct:.2f}% "
             f"positions={position_count} trend={trend}"
         )
-        if bench_equity is not None and bench_return_pct is not None:
-            alpha_pct = strategy_return_pct - bench_return_pct
-            print(
-                f"  benchmark_equity={bench_equity:.2f} benchmark_return={bench_return_pct:.2f}% "
-                f"alpha={alpha_pct:.2f}%"
-            )
-        else:
-            print("  benchmark_equity=N/A benchmark_return=N/A alpha=N/A")
+        print(_compare_benchmark_line(strategy_return_pct, bench_equity, bench_return_pct))
         print(f"  positions: {positions_text}")
 
 
