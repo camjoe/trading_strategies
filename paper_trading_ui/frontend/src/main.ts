@@ -9,9 +9,10 @@ const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
   throw new Error("Missing #app root");
 }
+const app = appRoot;
 
 function renderShell(): void {
-  appRoot.innerHTML = shellTemplate;
+  app.innerHTML = shellTemplate;
 }
 
 const backtestingFeature = createBacktestingFeature();

@@ -23,6 +23,50 @@ export interface BacktestingFeature {
   wireActions: () => void;
 }
 
+const PREFLIGHT_INPUT_SELECTOR =
+  'input[name="tickersFile"], input[name="universeHistoryDir"], input[name="start"], input[name="end"], input[name="lookbackMonths"], input[name="allowApproximateLeaps"], select[name="account"]';
+
+const BACKTEST_ACCOUNT_SELECT_SELECTOR = "#backtestAccountSelect";
+const WALK_FORWARD_ACCOUNT_SELECT_SELECTOR = "#walkForwardAccountSelect";
+
+const BACKTEST_WARNINGS_SELECTOR = "#runBacktestWarnings";
+const WALK_FORWARD_WARNINGS_SELECTOR = "#runWalkForwardWarnings";
+const BACKTEST_RUN_OUTPUT_SELECTOR = "#backtestRunOutput";
+const WALK_FORWARD_OUTPUT_SELECTOR = "#walkForwardOutput";
+
+const BACKTEST_RUNS_LIST_SELECTOR = "#backtestRunsList";
+const BACKTEST_REPORT_VIEW_SELECTOR = "#backtestReportView";
+const REFRESH_BACKTESTS_BUTTON_SELECTOR = "#refreshBacktestsBtn";
+const RUN_BACKTEST_FORM_SELECTOR = "#runBacktestForm";
+const RUN_WALK_FORWARD_FORM_SELECTOR = "#runWalkForwardForm";
+
+const BACKTEST_RUN_ITEM_SELECTOR = ".bt-run-item";
+const QUICK_LOOKBACK_BUTTONS_SELECTOR = ".bt-quick-buttons";
+
+interface BacktestBasePayload {
+  account: string;
+  tickersFile: string;
+  universeHistoryDir: string | null;
+  start: string | null;
+  end: string | null;
+  lookbackMonths: number | null;
+  allowApproximateLeaps: boolean;
+}
+
+interface BacktestRunPayload extends BacktestBasePayload {
+  slippageBps: number;
+  fee: number;
+  runName: string | null;
+}
+
+interface WalkForwardPayload extends BacktestBasePayload {
+  testMonths: number;
+  stepMonths: number;
+  slippageBps: number;
+  fee: number;
+  runNamePrefix: string | null;
+}
+
 function parseOptInt(raw: string): number | null {
   const v = raw.trim();
   if (!v) return null;
@@ -33,6 +77,44 @@ function parseOptInt(raw: string): number | null {
 function parseOptStr(raw: string): string | null {
   const v = raw.trim();
   return v ? v : null;
+}
+
+function parseFormNumber(fd: FormData, key: string, fallback: number): number {
+  return Number(fd.get(key) ?? fallback);
+}
+
+function buildBacktestBasePayload(fd: FormData): BacktestBasePayload {
+  return {
+    account: String(fd.get("account") ?? "").trim(),
+    tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
+    universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
+    start: parseOptStr(String(fd.get("start") ?? "")),
+    end: parseOptStr(String(fd.get("end") ?? "")),
+    lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
+    allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
+  };
+}
+
+function buildBacktestRunPayload(form: HTMLFormElement): BacktestRunPayload {
+  const fd = new FormData(form);
+  return {
+    ...buildBacktestBasePayload(fd),
+    slippageBps: parseFormNumber(fd, "slippageBps", 5),
+    fee: parseFormNumber(fd, "fee", 0),
+    runName: parseOptStr(String(fd.get("runName") ?? "")),
+  };
+}
+
+function buildWalkForwardPayload(form: HTMLFormElement): WalkForwardPayload {
+  const fd = new FormData(form);
+  return {
+    ...buildBacktestBasePayload(fd),
+    testMonths: parseFormNumber(fd, "testMonths", 1),
+    stepMonths: parseFormNumber(fd, "stepMonths", 1),
+    slippageBps: parseFormNumber(fd, "slippageBps", 5),
+    fee: parseFormNumber(fd, "fee", 0),
+    runNamePrefix: parseOptStr(String(fd.get("runNamePrefix") ?? "")),
+  };
 }
 
 function validateDateInputs(start: string | null, lookbackMonths: number | null): string | null {
@@ -62,7 +144,7 @@ export function createBacktestingFeature(): BacktestingFeature {
       .map((a) => `<option value="${esc(a.name)}">${esc(a.displayName)} (${esc(a.name)})</option>`)
       .join("");
 
-    for (const selectId of ["#backtestAccountSelect", "#walkForwardAccountSelect"]) {
+    for (const selectId of [BACKTEST_ACCOUNT_SELECT_SELECTOR, WALK_FORWARD_ACCOUNT_SELECT_SELECTOR]) {
       const select = find<HTMLSelectElement>(selectId);
       if (!select) continue;
       const previous = select.value;
@@ -84,7 +166,7 @@ export function createBacktestingFeature(): BacktestingFeature {
   }
 
   async function loadBacktestRuns(): Promise<void> {
-    const target = find<HTMLDivElement>("#backtestRunsList");
+    const target = find<HTMLDivElement>(BACKTEST_RUNS_LIST_SELECTOR);
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading backtest runs...</div>`;
@@ -97,7 +179,7 @@ export function createBacktestingFeature(): BacktestingFeature {
 
     target.innerHTML = data.runs.map(renderBacktestRunCard).join("");
 
-    for (const btn of findAll<HTMLButtonElement>(".bt-run-item")) {
+    for (const btn of findAll<HTMLButtonElement>(BACKTEST_RUN_ITEM_SELECTOR)) {
       btn.addEventListener("click", () => {
         const runIdRaw = btn.dataset.runId;
         if (!runIdRaw) return;
@@ -109,7 +191,7 @@ export function createBacktestingFeature(): BacktestingFeature {
   }
 
   async function loadBacktestReport(runId: number): Promise<void> {
-    const target = find<HTMLDivElement>("#backtestReportView");
+    const target = find<HTMLDivElement>(BACKTEST_REPORT_VIEW_SELECTOR);
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading report for run ${runId}...</div>`;
@@ -121,22 +203,11 @@ export function createBacktestingFeature(): BacktestingFeature {
     const target = find<HTMLDivElement>(outputSelector);
     if (!target) return;
 
-    const fd = new FormData(form);
-    const account = String(fd.get("account") ?? "").trim();
-    if (!account) {
+    const payload = buildBacktestBasePayload(new FormData(form));
+    if (!payload.account) {
       target.innerHTML = `<div class="empty">Select an account to preview financial-model warnings.</div>`;
       return;
     }
-
-    const payload = {
-      account,
-      tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
-      universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
-      start: parseOptStr(String(fd.get("start") ?? "")),
-      end: parseOptStr(String(fd.get("end") ?? "")),
-      lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
-      allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
-    };
 
     const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
     if (validationError) {
@@ -154,7 +225,7 @@ export function createBacktestingFeature(): BacktestingFeature {
   }
 
   function wireQuickLookbackButtons(): void {
-    for (const quickButtons of findAll<HTMLDivElement>(".bt-quick-buttons")) {
+    for (const quickButtons of findAll<HTMLDivElement>(QUICK_LOOKBACK_BUTTONS_SELECTOR)) {
       quickButtons.addEventListener("click", (event) => {
         const target = event.target;
         if (!(target instanceof HTMLButtonElement)) return;
@@ -193,7 +264,7 @@ export function createBacktestingFeature(): BacktestingFeature {
     }, 300);
 
     const inputs = findAll<HTMLInputElement | HTMLSelectElement>(
-      'input[name="tickersFile"], input[name="universeHistoryDir"], input[name="start"], input[name="end"], input[name="lookbackMonths"], input[name="allowApproximateLeaps"], select[name="account"]',
+      PREFLIGHT_INPUT_SELECTOR,
       form,
     );
 
@@ -210,11 +281,11 @@ export function createBacktestingFeature(): BacktestingFeature {
   }
 
   function wireActions(): void {
-    const refreshBacktestsBtn = find<HTMLButtonElement>("#refreshBacktestsBtn");
-    const runBacktestForm = find<HTMLFormElement>("#runBacktestForm");
-    const runWalkForwardForm = find<HTMLFormElement>("#runWalkForwardForm");
-    const backtestAccountSelect = find<HTMLSelectElement>("#backtestAccountSelect");
-    const walkForwardAccountSelect = find<HTMLSelectElement>("#walkForwardAccountSelect");
+    const refreshBacktestsBtn = find<HTMLButtonElement>(REFRESH_BACKTESTS_BUTTON_SELECTOR);
+    const runBacktestForm = find<HTMLFormElement>(RUN_BACKTEST_FORM_SELECTOR);
+    const runWalkForwardForm = find<HTMLFormElement>(RUN_WALK_FORWARD_FORM_SELECTOR);
+    const backtestAccountSelect = find<HTMLSelectElement>(BACKTEST_ACCOUNT_SELECT_SELECTOR);
+    const walkForwardAccountSelect = find<HTMLSelectElement>(WALK_FORWARD_ACCOUNT_SELECT_SELECTOR);
 
     wireQuickLookbackButtons();
 
@@ -224,22 +295,10 @@ export function createBacktestingFeature(): BacktestingFeature {
 
     runBacktestForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const out = find<HTMLDivElement>("#backtestRunOutput");
+      const out = find<HTMLDivElement>(BACKTEST_RUN_OUTPUT_SELECTOR);
       if (!out || !runBacktestForm) return;
 
-      const fd = new FormData(runBacktestForm);
-      const payload = {
-        account: String(fd.get("account") ?? "").trim(),
-        tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
-        universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
-        start: parseOptStr(String(fd.get("start") ?? "")),
-        end: parseOptStr(String(fd.get("end") ?? "")),
-        lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
-        slippageBps: Number(fd.get("slippageBps") ?? 5),
-        fee: Number(fd.get("fee") ?? 0),
-        runName: parseOptStr(String(fd.get("runName") ?? "")),
-        allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
-      };
+      const payload = buildBacktestRunPayload(runBacktestForm);
 
       const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
       if (validationError) {
@@ -253,7 +312,7 @@ export function createBacktestingFeature(): BacktestingFeature {
         out.innerHTML = renderBacktestRunResult(result);
         await loadBacktestRuns();
         await loadBacktestReport(result.runId);
-        await refreshPreflightWarnings(runBacktestForm, "#runBacktestWarnings");
+        await refreshPreflightWarnings(runBacktestForm, BACKTEST_WARNINGS_SELECTOR);
       } catch (error) {
         out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
       }
@@ -261,24 +320,10 @@ export function createBacktestingFeature(): BacktestingFeature {
 
     runWalkForwardForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const out = find<HTMLDivElement>("#walkForwardOutput");
+      const out = find<HTMLDivElement>(WALK_FORWARD_OUTPUT_SELECTOR);
       if (!out || !runWalkForwardForm) return;
 
-      const fd = new FormData(runWalkForwardForm);
-      const payload = {
-        account: String(fd.get("account") ?? "").trim(),
-        tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
-        universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
-        start: parseOptStr(String(fd.get("start") ?? "")),
-        end: parseOptStr(String(fd.get("end") ?? "")),
-        lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
-        testMonths: Number(fd.get("testMonths") ?? 1),
-        stepMonths: Number(fd.get("stepMonths") ?? 1),
-        slippageBps: Number(fd.get("slippageBps") ?? 5),
-        fee: Number(fd.get("fee") ?? 0),
-        runNamePrefix: parseOptStr(String(fd.get("runNamePrefix") ?? "")),
-        allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
-      };
+      const payload = buildWalkForwardPayload(runWalkForwardForm);
 
       const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
       if (validationError) {
@@ -294,7 +339,7 @@ export function createBacktestingFeature(): BacktestingFeature {
         if (result.runIds.length) {
           await loadBacktestReport(result.runIds[0]);
         }
-        await refreshPreflightWarnings(runWalkForwardForm, "#runWalkForwardWarnings");
+        await refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
       } catch (error) {
         out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
       }
@@ -303,19 +348,19 @@ export function createBacktestingFeature(): BacktestingFeature {
     backtestAccountSelect?.addEventListener("change", () => {
       applyBacktestAccountDefaults(runBacktestForm, backtestAccountSelect.value);
       if (runBacktestForm) {
-        void refreshPreflightWarnings(runBacktestForm, "#runBacktestWarnings");
+        void refreshPreflightWarnings(runBacktestForm, BACKTEST_WARNINGS_SELECTOR);
       }
     });
 
     walkForwardAccountSelect?.addEventListener("change", () => {
       applyBacktestAccountDefaults(runWalkForwardForm, walkForwardAccountSelect.value);
       if (runWalkForwardForm) {
-        void refreshPreflightWarnings(runWalkForwardForm, "#runWalkForwardWarnings");
+        void refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
       }
     });
 
-    wirePreflight(runBacktestForm, "#runBacktestWarnings");
-    wirePreflight(runWalkForwardForm, "#runWalkForwardWarnings");
+    wirePreflight(runBacktestForm, BACKTEST_WARNINGS_SELECTOR);
+    wirePreflight(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
   }
 
   function setAccounts(accounts: AccountSummary[]): void {
