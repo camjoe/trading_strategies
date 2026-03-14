@@ -4,7 +4,7 @@ from typing import Callable
 try:
     from trading.accounting import record_trade
     from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
-    from trading.backtest import (
+    from trading.backtesting.backtest import (
         BacktestConfig,
         WalkForwardConfig,
         backtest_report,
@@ -18,7 +18,7 @@ try:
 except ModuleNotFoundError:
     from accounting import record_trade
     from accounts import configure_account, create_account, list_accounts, set_benchmark
-    from backtest import BacktestConfig, WalkForwardConfig, backtest_report, run_backtest, run_walk_forward_backtest
+    from backtesting.backtest import BacktestConfig, WalkForwardConfig, backtest_report, run_backtest, run_walk_forward_backtest
     from cli import build_parser
     from db import DB_PATH, ensure_db
     from profiles import apply_account_profiles, load_account_profiles

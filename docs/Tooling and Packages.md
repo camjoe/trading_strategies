@@ -30,9 +30,9 @@ Reference list of useful Python packages, data providers, and VS Code extensions
 - `ta`
 
 ### Backtesting and Performance
-- `quantstats`
-- `vectorbt`
-- `backtrader`
+
+Backtesting-specific tools and notes have been moved to:
+- `docs/backtesting/Tooling.md`
 
 ### Data and API Access
 - `yfinance`

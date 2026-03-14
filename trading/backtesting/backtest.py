@@ -11,18 +11,18 @@ import pandas as pd
 
 try:
     from trading.accounts import get_account, utc_now_iso
-    from trading.backtest_data import (
+    from trading.backtesting.backtest_data import (
         build_monthly_universe,
         fetch_benchmark_close,
         fetch_close_history,
         load_tickers_from_file,
         resolve_backtest_dates,
     )
-    from trading.strategy_signals import resolve_signal
+    from trading.backtesting.strategy_signals import resolve_signal
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
-    from backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
-    from strategy_signals import resolve_signal
+    from backtesting.backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
+    from backtesting.strategy_signals import resolve_signal
 
 
 @dataclass

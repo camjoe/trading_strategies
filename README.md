@@ -117,6 +117,16 @@ python trends/stock_trends.py NVDA --debug-columns
 - Tickers can be written one per line or comma-separated.
 - `--debug-columns` prints dataframe column shape before and after normalization.
 
+## Backtesting
+
+Backtesting and walk-forward simulation documentation is now in:
+- `docs/backtesting/README.md`
+
+## Documentation Index
+
+For a full map of project docs, see:
+- `docs/README.md`
+
 ## Testing
 
 Run the full test suite from project root:
