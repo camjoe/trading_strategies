@@ -205,6 +205,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="trading/trade_universe.txt",
         help="Path to ticker universe file (default: trading/trade_universe.txt)",
     )
+    p_backtest.add_argument(
+        "--universe-history-dir",
+        default=None,
+        help="Optional folder of monthly universe snapshots named YYYY-MM.txt",
+    )
     p_backtest.add_argument("--start", default=None, help="Start date YYYY-MM-DD")
     p_backtest.add_argument("--end", default=None, help="End date YYYY-MM-DD")
     p_backtest.add_argument(

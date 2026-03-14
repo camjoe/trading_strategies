@@ -168,6 +168,7 @@ def _handle_backtest(conn, args, parser) -> None:
         BacktestConfig(
             account_name=args.account,
             tickers_file=args.tickers_file,
+            universe_history_dir=args.universe_history_dir,
             start=args.start,
             end=args.end,
             lookback_months=args.lookback_months,

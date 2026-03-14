@@ -104,3 +104,61 @@ def fetch_benchmark_close(benchmark_ticker: str, start_date: date, end_date: dat
     if series.empty:
         raise ValueError(f"No benchmark history for {benchmark_ticker}")
     return series
+
+
+def _iter_month_keys(start_date: date, end_date: date) -> list[str]:
+    keys: list[str] = []
+    cursor = date(start_date.year, start_date.month, 1)
+    while cursor <= end_date:
+        keys.append(f"{cursor.year:04d}-{cursor.month:02d}")
+        if cursor.month == 12:
+            cursor = date(cursor.year + 1, 1, 1)
+        else:
+            cursor = date(cursor.year, cursor.month + 1, 1)
+    return keys
+
+
+def build_monthly_universe(
+    default_tickers: list[str],
+    start_date: date,
+    end_date: date,
+    universe_history_dir: str | None,
+) -> tuple[dict[str, list[str]], list[str], list[str]]:
+    if not default_tickers:
+        raise ValueError("Default ticker universe is empty.")
+
+    month_keys = _iter_month_keys(start_date, end_date)
+    month_to_tickers: dict[str, list[str]] = {}
+    warnings: list[str] = []
+
+    if not universe_history_dir:
+        for month_key in month_keys:
+            month_to_tickers[month_key] = list(default_tickers)
+        return month_to_tickers, list(default_tickers), warnings
+
+    history_dir = Path(universe_history_dir)
+    if not history_dir.exists() or not history_dir.is_dir():
+        raise ValueError(f"Universe history directory not found: {universe_history_dir}")
+
+    all_tickers: set[str] = set(default_tickers)
+    for month_key in month_keys:
+        month_file = history_dir / f"{month_key}.txt"
+        if not month_file.exists():
+            warnings.append(
+                f"Universe snapshot missing for {month_key}; falling back to default universe from {history_dir}."
+            )
+            month_to_tickers[month_key] = list(default_tickers)
+            continue
+
+        tickers = load_tickers_from_file(str(month_file))
+        if not tickers:
+            warnings.append(
+                f"Universe snapshot {month_file.name} is empty; falling back to default universe."
+            )
+            month_to_tickers[month_key] = list(default_tickers)
+            continue
+
+        month_to_tickers[month_key] = tickers
+        all_tickers.update(tickers)
+
+    return month_to_tickers, sorted(all_tickers), warnings

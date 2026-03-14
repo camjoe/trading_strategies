@@ -10,16 +10,25 @@ import pandas as pd
 
 try:
     from trading.accounts import get_account, utc_now_iso
-    from trading.backtest_data import fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
+    from trading.backtest_data import (
+        build_monthly_universe,
+        fetch_benchmark_close,
+        fetch_close_history,
+        load_tickers_from_file,
+        resolve_backtest_dates,
+    )
+    from trading.strategy_signals import resolve_signal
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
-    from backtest_data import fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
+    from backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
+    from strategy_signals import resolve_signal
 
 
 @dataclass
 class BacktestConfig:
     account_name: str
     tickers_file: str
+    universe_history_dir: str | None
     start: str | None
     end: str | None
     lookback_months: int | None
@@ -43,30 +52,6 @@ class BacktestResult:
     alpha_pct: float | None
     max_drawdown_pct: float
     warnings: list[str]
-
-
-def _strategy_signal(strategy_name: str, history: pd.Series) -> str:
-    if len(history) < 30:
-        return "hold"
-
-    close = float(history.iloc[-1])
-    sma_10 = float(history.tail(10).mean())
-    sma_20 = float(history.tail(20).mean())
-
-    name = strategy_name.lower()
-    if "mean" in name or "reversion" in name:
-        if close < (sma_20 * 0.98):
-            return "buy"
-        if close > (sma_20 * 1.02):
-            return "sell"
-        return "hold"
-
-    # Default trend/momentum proxy.
-    if close > sma_10 > sma_20:
-        return "buy"
-    if close < sma_10:
-        return "sell"
-    return "hold"
 
 
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
@@ -259,8 +244,21 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
     warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
 
-    tickers = load_tickers_from_file(cfg.tickers_file)
-    close = fetch_close_history(tickers, start_date, end_date)
+    default_tickers = load_tickers_from_file(cfg.tickers_file)
+    month_to_tickers, all_tickers, universe_warnings = build_monthly_universe(
+        default_tickers,
+        start_date,
+        end_date,
+        cfg.universe_history_dir,
+    )
+    warnings.extend(universe_warnings)
+
+    if cfg.universe_history_dir:
+        warnings.append(
+            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
+        )
+
+    close = fetch_close_history(all_tickers, start_date, end_date)
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
@@ -279,7 +277,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     trade_count = 0
 
     dates = list(close.index)
-    first_prices = {ticker: float(close.loc[dates[0], ticker]) for ticker in tickers}
+    first_prices = {ticker: float(close.loc[dates[0], ticker]) for ticker in all_tickers}
     first_mv = _compute_market_value(positions, first_prices)
     first_equity = cash + first_mv
     _insert_snapshot(
@@ -298,12 +296,18 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         signal_date = dates[idx - 1]
         trade_date = dates[idx]
 
-        signal_prices = close.loc[signal_date]
         trade_prices = close.loc[trade_date]
+        month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
+        active_tickers = month_to_tickers.get(month_key, default_tickers)
+        held_tickers = [t for t, q in positions.items() if q > 0]
+        strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
 
-        for ticker in tickers:
+        for ticker in strategy_tickers:
             history = close.loc[:signal_date, ticker].dropna()
-            signal = _strategy_signal(str(account["strategy"]), history)
+            signal = resolve_signal(str(account["strategy"]), history)
+
+            if signal == "buy" and ticker not in active_tickers:
+                continue
 
             if signal == "buy" and positions[ticker] <= 0:
                 px = float(trade_prices[ticker])
@@ -372,7 +376,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
                     "signal=sell",
                 )
 
-        marks = {ticker: float(trade_prices[ticker]) for ticker in tickers}
+        marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
         market_value = _compute_market_value(positions, marks)
         unrealized_pnl = 0.0
         for ticker, qty in positions.items():
@@ -405,7 +409,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         account_name=cfg.account_name,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
-        tickers=tickers,
+        tickers=all_tickers,
         trade_count=trade_count,
         ending_equity=ending_equity,
         total_return_pct=total_return_pct,
