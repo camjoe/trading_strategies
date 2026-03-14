@@ -1,6 +1,6 @@
 # Docs Index
 
-This folder contains project planning, paper trading operations, and backtesting documentation.
+This folder contains planning, paper trading operations, and backtesting documentation.
 
 ## Core Docs
 
@@ -9,7 +9,7 @@ This folder contains project planning, paper trading operations, and backtesting
 - `Paper Trading.md`: Account setup, commands, and operational notes.
 - `Paper Trading Scheduler.md`: Windows scheduling workflow for daily paper trading.
 - `Tooling and Packages.md`: Package/tool reference for analysis workflows.
-- `TODO.md`: Active backlog items.
+- `TODO.md`: Active backlog.
 
 ## Backtesting Docs
 

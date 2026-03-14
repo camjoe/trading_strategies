@@ -6,6 +6,7 @@ from calendar import monthrange
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
+from statistics import median
 
 import pandas as pd
 
@@ -21,7 +22,13 @@ try:
     from trading.backtesting.strategy_signals import resolve_signal
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
-    from backtesting.backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
+    from backtesting.backtest_data import (
+        build_monthly_universe,
+        fetch_benchmark_close,
+        fetch_close_history,
+        load_tickers_from_file,
+        resolve_backtest_dates,
+    )
     from backtesting.strategy_signals import resolve_signal
 
 
@@ -207,24 +214,58 @@ def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) ->
     return warnings
 
 
-def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
-    account = get_account(conn, cfg.account_name)
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
-
+def _resolve_universe(
+    cfg: BacktestConfig,
+    start_date: date,
+    end_date: date,
+) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
     default_tickers = load_tickers_from_file(cfg.tickers_file)
-    _month_to_tickers, _all_tickers, universe_warnings = build_monthly_universe(
+    month_to_tickers, all_tickers, universe_warnings = build_monthly_universe(
         default_tickers,
         start_date,
         end_date,
         cfg.universe_history_dir,
     )
-    warnings.extend(universe_warnings)
 
+    warnings = list(universe_warnings)
     if cfg.universe_history_dir:
         warnings.append(
             "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
         )
+
+    return default_tickers, month_to_tickers, all_tickers, warnings
+
+
+def _compute_unrealized_pnl(
+    positions: dict[str, float],
+    avg_cost: dict[str, float],
+    marks: dict[str, float],
+) -> float:
+    total = 0.0
+    for ticker, qty in positions.items():
+        if qty <= 0:
+            continue
+        total += (marks[ticker] - avg_cost[ticker]) * qty
+    return total
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        raise ValueError("values cannot be empty")
+    return float(median(values))
+
+
+def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
+    account = get_account(conn, cfg.account_name)
+    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
+
+    _default_tickers, _month_to_tickers, _all_tickers, universe_warnings = _resolve_universe(
+        cfg,
+        start_date,
+        end_date,
+    )
+    warnings.extend(universe_warnings)
 
     return warnings
 
@@ -333,19 +374,12 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
     warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
 
-    default_tickers = load_tickers_from_file(cfg.tickers_file)
-    month_to_tickers, all_tickers, universe_warnings = build_monthly_universe(
-        default_tickers,
+    default_tickers, month_to_tickers, all_tickers, universe_warnings = _resolve_universe(
+        cfg,
         start_date,
         end_date,
-        cfg.universe_history_dir,
     )
     warnings.extend(universe_warnings)
-
-    if cfg.universe_history_dir:
-        warnings.append(
-            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
-        )
 
     close = fetch_close_history(all_tickers, start_date, end_date)
     if len(close.index) < 3:
@@ -467,11 +501,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
 
         marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
         market_value = _compute_market_value(positions, marks)
-        unrealized_pnl = 0.0
-        for ticker, qty in positions.items():
-            if qty <= 0:
-                continue
-            unrealized_pnl += (marks[ticker] - avg_cost[ticker]) * qty
+        unrealized_pnl = _compute_unrealized_pnl(positions, avg_cost, marks)
 
         equity = cash + market_value
         equity_curve.append(equity)
@@ -606,13 +636,6 @@ def run_walk_forward_backtest(conn: sqlite3.Connection, cfg: WalkForwardConfig) 
         run_ids.append(result.run_id)
         returns.append(result.total_return_pct)
 
-    sorted_returns = sorted(returns)
-    n = len(sorted_returns)
-    if n % 2 == 1:
-        median = sorted_returns[n // 2]
-    else:
-        median = (sorted_returns[(n // 2) - 1] + sorted_returns[n // 2]) / 2.0
-
     return WalkForwardSummary(
         account_name=cfg.account_name,
         start_date=start_date.isoformat(),
@@ -620,7 +643,7 @@ def run_walk_forward_backtest(conn: sqlite3.Connection, cfg: WalkForwardConfig) 
         window_count=len(run_ids),
         run_ids=run_ids,
         average_return_pct=sum(returns) / len(returns),
-        median_return_pct=median,
+        median_return_pct=_median(returns),
         best_return_pct=max(returns),
         worst_return_pct=min(returns),
     )

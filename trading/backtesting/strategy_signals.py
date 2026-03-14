@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+import importlib
+
 import pandas as pd
 
 try:
     from trends.indicators import calculate_macd, calculate_rs_rsi
 except ModuleNotFoundError:
-    from indicators import calculate_macd, calculate_rs_rsi
+    indicators = importlib.import_module("indicators")
+    calculate_macd = indicators.calculate_macd
+    calculate_rs_rsi = indicators.calculate_rs_rsi
 
 
 def _trend_signal(history: pd.Series) -> str:

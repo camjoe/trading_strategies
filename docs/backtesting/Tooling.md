@@ -1,6 +1,6 @@
 # Backtesting Tooling
 
-Backtesting/performance-focused packages commonly used for Python workflows:
+Backtesting and performance-focused packages commonly used for Python workflows:
 
 - `quantstats`
 - `vectorbt`

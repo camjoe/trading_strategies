@@ -6,8 +6,12 @@ import pytest
 from trading.backtesting import strategy_signals
 
 
+def _series_range(start: int, stop: int) -> pd.Series:
+    return pd.Series([float(i) for i in range(start, stop)])
+
+
 def test_resolve_signal_trend_buy() -> None:
-    history = pd.Series([float(i) for i in range(1, 40)])
+    history = _series_range(1, 40)
     assert strategy_signals.resolve_signal("trend_v1", history) == "buy"
 
 
@@ -22,7 +26,7 @@ def test_resolve_signal_rsi_buy_on_oversold() -> None:
 
 
 def test_resolve_signal_macd_crossover_buy(monkeypatch: pytest.MonkeyPatch) -> None:
-    history = pd.Series([float(i) for i in range(1, 50)])
+    history = _series_range(1, 50)
 
     macd = pd.Series([0.0] * 48 + [1.0])
     macd_signal = pd.Series([0.0] * 47 + [0.5, 0.2])

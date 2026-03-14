@@ -6,6 +6,8 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
+DATE_FMT = "%Y-%m-%d"
+
 
 def load_tickers_from_file(file_path: str) -> list[str]:
     path = Path(file_path)
@@ -13,14 +15,27 @@ def load_tickers_from_file(file_path: str) -> list[str]:
         raise FileNotFoundError(f"Ticker file not found: {file_path}")
 
     tickers: list[str] = []
+    seen: set[str] = set()
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
         tokens = line.replace(",", " ").split()
-        tickers.extend([t.strip().upper() for t in tokens if t.strip()])
+        for token in tokens:
+            ticker = token.strip().upper()
+            if not ticker or ticker in seen:
+                continue
+            seen.add(ticker)
+            tickers.append(ticker)
 
-    return list(dict.fromkeys(tickers))
+    return tickers
+
+
+def _parse_date(value: str, label: str) -> date:
+    try:
+        return datetime.strptime(value, DATE_FMT).date()
+    except ValueError as exc:
+        raise ValueError(f"Invalid {label} date: {value}. Expected format is {DATE_FMT}.") from exc
 
 
 def resolve_backtest_dates(
@@ -33,14 +48,14 @@ def resolve_backtest_dates(
         raise ValueError("Use either --start or --lookback-months, not both.")
 
     now = as_of or datetime.now(UTC).date()
-    end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else now
+    end_date = _parse_date(end, "end") if end else now
 
     if lookback_months is not None:
         if lookback_months <= 0:
             raise ValueError("lookback_months must be > 0")
         start_date = end_date - timedelta(days=int(lookback_months * 30.5))
     elif start:
-        start_date = datetime.strptime(start, "%Y-%m-%d").date()
+        start_date = _parse_date(start, "start")
     else:
         start_date = end_date - timedelta(days=31)
 
@@ -107,14 +122,16 @@ def fetch_benchmark_close(benchmark_ticker: str, start_date: date, end_date: dat
 
 
 def _iter_month_keys(start_date: date, end_date: date) -> list[str]:
+    def next_month_start(current: date) -> date:
+        if current.month == 12:
+            return date(current.year + 1, 1, 1)
+        return date(current.year, current.month + 1, 1)
+
     keys: list[str] = []
     cursor = date(start_date.year, start_date.month, 1)
     while cursor <= end_date:
         keys.append(f"{cursor.year:04d}-{cursor.month:02d}")
-        if cursor.month == 12:
-            cursor = date(cursor.year + 1, 1, 1)
-        else:
-            cursor = date(cursor.year, cursor.month + 1, 1)
+        cursor = next_month_start(cursor)
     return keys
 
 

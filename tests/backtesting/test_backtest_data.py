@@ -9,6 +9,10 @@ import pytest
 from trading.backtesting import backtest_data
 
 
+def _business_days(periods: int) -> pd.DatetimeIndex:
+    return pd.date_range("2026-01-01", periods=periods, freq="B")
+
+
 def test_load_tickers_from_file_parses_and_deduplicates(tmp_path: Path) -> None:
     p = tmp_path / "tickers.txt"
     p.write_text("# comment\nAAPL, msft\n\nAAPL\nNVDA", encoding="utf-8")
@@ -76,7 +80,7 @@ def test_fetch_close_history_validates_empty_tickers() -> None:
 
 
 def test_fetch_close_history_missing_close_column_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    idx = _business_days(3)
     # MultiIndex frame without Close level for the requested multi-ticker path.
     hist = pd.DataFrame(
         {
@@ -93,10 +97,11 @@ def test_fetch_close_history_missing_close_column_raises(monkeypatch: pytest.Mon
 
 
 def test_fetch_benchmark_close_empty_series_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    nan = float("nan")
     monkeypatch.setattr(
         backtest_data,
         "fetch_close_history",
-        lambda _tickers, _start, _end: pd.DataFrame({"SPY": [float("nan"), float("nan")]}),
+        lambda _tickers, _start, _end: pd.DataFrame({"SPY": [nan, nan]}),
     )
 
     with pytest.raises(ValueError, match="No benchmark history for SPY"):

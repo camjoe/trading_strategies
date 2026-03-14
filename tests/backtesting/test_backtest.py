@@ -7,7 +7,14 @@ import pandas as pd
 import pytest
 
 from trading.accounts import create_account
-from trading.backtesting.backtest import BacktestConfig, WalkForwardConfig, backtest_report, build_walk_forward_windows, run_backtest, run_walk_forward_backtest
+from trading.backtesting.backtest import (
+    BacktestConfig,
+    WalkForwardConfig,
+    backtest_report,
+    build_walk_forward_windows,
+    run_backtest,
+    run_walk_forward_backtest,
+)
 
 
 def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
@@ -21,15 +28,29 @@ def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
     return pd.DataFrame(data, index=idx)
 
 
-def test_run_backtest_persists_isolated_results(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_bt", "trend_v1", 10000.0, "SPY")
-
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL", "MSFT"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
+def _patch_market_data(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    tickers: list[str],
+    benchmark_values: list[float],
+) -> None:
+    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: tickers)
+    monkeypatch.setattr(
+        "trading.backtesting.backtest.fetch_close_history",
+        lambda _tickers, _start, _end: _fake_close_history(_tickers),
+    )
     monkeypatch.setattr(
         "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series([100.0, 103.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
+        lambda _ticker, _start, _end: pd.Series(
+            benchmark_values,
+            index=pd.date_range("2026-01-01", periods=len(benchmark_values), freq="B"),
+        ),
     )
+
+
+def test_run_backtest_persists_isolated_results(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_account(conn, "acct_bt", "trend_v1", 10000.0, "SPY")
+    _patch_market_data(monkeypatch, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 103.0])
 
     result = run_backtest(
         conn,
@@ -76,12 +97,7 @@ def test_run_backtest_leaps_adds_financial_risk_warnings(conn, monkeypatch: pyte
         option_type="call",
     )
 
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series([100.0, 102.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
-    )
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 102.0])
 
     result_without_opt_in = run_backtest(
         conn,
@@ -122,13 +138,7 @@ def test_run_backtest_leaps_adds_financial_risk_warnings(conn, monkeypatch: pyte
 
 def test_backtest_report_returns_summary(conn, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(conn, "acct_report_bt", "trend_v1", 10000.0, "SPY")
-
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series([100.0, 105.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
-    )
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 105.0])
 
     result = run_backtest(
         conn,
@@ -162,12 +172,7 @@ def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.Mo
         call_count["n"] += 1
         return "hold"
 
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series([100.0, 101.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
-    )
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
     monkeypatch.setattr("trading.backtesting.backtest.resolve_signal", fake_signal)
 
     run_backtest(
@@ -200,12 +205,7 @@ def test_run_backtest_monthly_universe_reconstitution_adds_warning(
     history_dir.mkdir(parents=True, exist_ok=True)
     (history_dir / "2026-01.txt").write_text("AAPL\n", encoding="utf-8")
 
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL", "MSFT"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series([100.0, 101.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
-    )
+    _patch_market_data(monkeypatch, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 101.0])
 
     result = run_backtest(
         conn,
@@ -245,13 +245,7 @@ def test_build_walk_forward_windows_monthly_rolls() -> None:
 
 def test_run_walk_forward_backtest_creates_multiple_runs(conn, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(conn, "acct_wf", "trend_v1", 10000.0, "SPY")
-
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series([100.0, 101.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
-    )
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
 
     summary = run_walk_forward_backtest(
         conn,
