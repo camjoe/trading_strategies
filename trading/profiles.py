@@ -8,6 +8,24 @@ except ModuleNotFoundError:
     from accounts import configure_account, create_account, get_account, set_benchmark
 
 
+_CONFIGURE_KEYS = {
+    "descriptive_name", "goal_min_return_pct", "goal_max_return_pct", "goal_period",
+    "learning_enabled", "risk_policy", "stop_loss_pct", "take_profit_pct",
+    "instrument_mode", "option_strike_offset_pct", "option_min_dte", "option_max_dte",
+    "option_type", "target_delta_min", "target_delta_max", "max_premium_per_trade",
+    "max_contracts_per_trade", "iv_rank_min", "iv_rank_max", "roll_dte_threshold",
+    "profit_take_pct", "max_loss_pct",
+}
+
+
+def _opt_float(v: object) -> float | None:
+    return float(v) if v is not None else None
+
+
+def _opt_int(v: object) -> int | None:
+    return int(v) if v is not None else None
+
+
 def _to_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
@@ -48,6 +66,36 @@ def load_account_profiles(file_path: str) -> list[dict[str, object]]:
     return out
 
 
+def _extract_profile_fields(profile: dict[str, object]) -> dict[str, object]:
+    """Normalize and type-coerce all configurable fields from a raw profile dict."""
+    g = profile.get
+    learning = g("learning_enabled")
+    return {
+        "descriptive_name": str(g("descriptive_name")) if g("descriptive_name") is not None else None,
+        "goal_min_return_pct": _opt_float(g("goal_min_return_pct")),
+        "goal_max_return_pct": _opt_float(g("goal_max_return_pct")),
+        "goal_period": str(g("goal_period")) if g("goal_period") is not None else None,
+        "learning_enabled": _to_bool(learning) if learning is not None else None,
+        "risk_policy": str(g("risk_policy")) if g("risk_policy") is not None else None,
+        "stop_loss_pct": _opt_float(g("stop_loss_pct")),
+        "take_profit_pct": _opt_float(g("take_profit_pct")),
+        "instrument_mode": str(g("instrument_mode")) if g("instrument_mode") is not None else None,
+        "option_strike_offset_pct": _opt_float(g("option_strike_offset_pct")),
+        "option_min_dte": _opt_int(g("option_min_dte")),
+        "option_max_dte": _opt_int(g("option_max_dte")),
+        "option_type": str(g("option_type")) if g("option_type") is not None else None,
+        "target_delta_min": _opt_float(g("target_delta_min")),
+        "target_delta_max": _opt_float(g("target_delta_max")),
+        "max_premium_per_trade": _opt_float(g("max_premium_per_trade")),
+        "max_contracts_per_trade": _opt_int(g("max_contracts_per_trade")),
+        "iv_rank_min": _opt_float(g("iv_rank_min")),
+        "iv_rank_max": _opt_float(g("iv_rank_max")),
+        "roll_dte_threshold": _opt_int(g("roll_dte_threshold")),
+        "profit_take_pct": _opt_float(g("profit_take_pct")),
+        "max_loss_pct": _opt_float(g("max_loss_pct")),
+    }
+
+
 def apply_account_profiles(
     conn: sqlite3.Connection,
     profiles: list[dict[str, object]],
@@ -59,6 +107,9 @@ def apply_account_profiles(
 
     for profile in profiles:
         name = str(profile["name"]).strip()
+        benchmark = str(profile.get("benchmark_ticker", "SPY")).strip().upper()
+        strategy = str(profile.get("strategy", "Unspecified")).strip()
+        initial_cash = float(profile.get("initial_cash", 5000.0))
 
         try:
             get_account(conn, name)
@@ -66,101 +117,18 @@ def apply_account_profiles(
         except ValueError:
             exists = False
 
-        benchmark = str(profile.get("benchmark_ticker", "SPY")).strip().upper()
-        strategy = str(profile.get("strategy", "Unspecified")).strip()
-        initial_cash = float(profile.get("initial_cash", 5000.0))
-
-        descriptive_name = profile.get("descriptive_name")
-        if descriptive_name is not None:
-            descriptive_name = str(descriptive_name)
-
-        goal_min = profile.get("goal_min_return_pct")
-        goal_max = profile.get("goal_max_return_pct")
-        goal_period = profile.get("goal_period")
-        if goal_period is not None:
-            goal_period = str(goal_period)
-
-        learning_enabled = profile.get("learning_enabled")
-        if learning_enabled is not None:
-            learning_enabled = _to_bool(learning_enabled)
-
-        risk_policy = profile.get("risk_policy")
-        if risk_policy is not None:
-            risk_policy = str(risk_policy)
-
-        stop_loss_pct = profile.get("stop_loss_pct")
-        take_profit_pct = profile.get("take_profit_pct")
-
-        instrument_mode = profile.get("instrument_mode")
-        if instrument_mode is not None:
-            instrument_mode = str(instrument_mode)
-
-        option_strike_offset_pct = profile.get("option_strike_offset_pct")
-        option_min_dte = profile.get("option_min_dte")
-        option_max_dte = profile.get("option_max_dte")
-        option_type = profile.get("option_type")
-        if option_type is not None:
-            option_type = str(option_type)
-        target_delta_min = profile.get("target_delta_min")
-        target_delta_max = profile.get("target_delta_max")
-        max_premium_per_trade = profile.get("max_premium_per_trade")
-        max_contracts_per_trade = profile.get("max_contracts_per_trade")
-        iv_rank_min = profile.get("iv_rank_min")
-        iv_rank_max = profile.get("iv_rank_max")
-        roll_dte_threshold = profile.get("roll_dte_threshold")
-        profit_take_pct = profile.get("profit_take_pct")
-        max_loss_pct = profile.get("max_loss_pct")
-
         if not exists:
             if not create_missing:
                 skipped += 1
                 continue
 
-            create_account(
-                conn,
-                name=name,
-                strategy=strategy,
-                initial_cash=initial_cash,
-                benchmark_ticker=benchmark,
-                descriptive_name=descriptive_name,
-                goal_min_return_pct=float(goal_min) if goal_min is not None else None,
-                goal_max_return_pct=float(goal_max) if goal_max is not None else None,
-                goal_period=goal_period or "monthly",
-                learning_enabled=bool(learning_enabled) if learning_enabled is not None else False,
-                risk_policy=risk_policy or "none",
-                stop_loss_pct=float(stop_loss_pct) if stop_loss_pct is not None else None,
-                take_profit_pct=float(take_profit_pct) if take_profit_pct is not None else None,
-                instrument_mode=instrument_mode or "equity",
-                option_strike_offset_pct=(
-                    float(option_strike_offset_pct)
-                    if option_strike_offset_pct is not None
-                    else None
-                ),
-                option_min_dte=int(option_min_dte) if option_min_dte is not None else None,
-                option_max_dte=int(option_max_dte) if option_max_dte is not None else None,
-                option_type=option_type,
-                target_delta_min=float(target_delta_min) if target_delta_min is not None else None,
-                target_delta_max=float(target_delta_max) if target_delta_max is not None else None,
-                max_premium_per_trade=(
-                    float(max_premium_per_trade)
-                    if max_premium_per_trade is not None
-                    else None
-                ),
-                max_contracts_per_trade=(
-                    int(max_contracts_per_trade)
-                    if max_contracts_per_trade is not None
-                    else None
-                ),
-                iv_rank_min=float(iv_rank_min) if iv_rank_min is not None else None,
-                iv_rank_max=float(iv_rank_max) if iv_rank_max is not None else None,
-                roll_dte_threshold=(
-                    int(roll_dte_threshold)
-                    if roll_dte_threshold is not None
-                    else None
-                ),
-                profit_take_pct=float(profit_take_pct) if profit_take_pct is not None else None,
-                max_loss_pct=float(max_loss_pct) if max_loss_pct is not None else None,
-            )
+            fields = _extract_profile_fields(profile)
+            create_kwargs = {**fields}
+            create_kwargs["goal_period"] = fields["goal_period"] or "monthly"
+            create_kwargs["learning_enabled"] = fields["learning_enabled"] if fields["learning_enabled"] is not None else False
+            create_kwargs["risk_policy"] = fields["risk_policy"] or "none"
+            create_kwargs["instrument_mode"] = fields["instrument_mode"] or "equity"
+            create_account(conn, name=name, strategy=strategy, initial_cash=initial_cash, benchmark_ticker=benchmark, **create_kwargs)
             created += 1
             continue
 
@@ -176,75 +144,9 @@ def apply_account_profiles(
             conn.commit()
             fields_updated = True
 
-        if any(
-            key in profile
-            for key in [
-                "descriptive_name",
-                "goal_min_return_pct",
-                "goal_max_return_pct",
-                "goal_period",
-                "learning_enabled",
-                "risk_policy",
-                "stop_loss_pct",
-                "take_profit_pct",
-                "instrument_mode",
-                "option_strike_offset_pct",
-                "option_min_dte",
-                "option_max_dte",
-                "option_type",
-                "target_delta_min",
-                "target_delta_max",
-                "max_premium_per_trade",
-                "max_contracts_per_trade",
-                "iv_rank_min",
-                "iv_rank_max",
-                "roll_dte_threshold",
-                "profit_take_pct",
-                "max_loss_pct",
-            ]
-        ):
-            configure_account(
-                conn,
-                account_name=name,
-                descriptive_name=descriptive_name,
-                goal_min_return_pct=float(goal_min) if goal_min is not None else None,
-                goal_max_return_pct=float(goal_max) if goal_max is not None else None,
-                goal_period=goal_period,
-                learning_enabled=learning_enabled,
-                risk_policy=risk_policy,
-                stop_loss_pct=float(stop_loss_pct) if stop_loss_pct is not None else None,
-                take_profit_pct=float(take_profit_pct) if take_profit_pct is not None else None,
-                instrument_mode=instrument_mode,
-                option_strike_offset_pct=(
-                    float(option_strike_offset_pct)
-                    if option_strike_offset_pct is not None
-                    else None
-                ),
-                option_min_dte=int(option_min_dte) if option_min_dte is not None else None,
-                option_max_dte=int(option_max_dte) if option_max_dte is not None else None,
-                option_type=option_type,
-                target_delta_min=float(target_delta_min) if target_delta_min is not None else None,
-                target_delta_max=float(target_delta_max) if target_delta_max is not None else None,
-                max_premium_per_trade=(
-                    float(max_premium_per_trade)
-                    if max_premium_per_trade is not None
-                    else None
-                ),
-                max_contracts_per_trade=(
-                    int(max_contracts_per_trade)
-                    if max_contracts_per_trade is not None
-                    else None
-                ),
-                iv_rank_min=float(iv_rank_min) if iv_rank_min is not None else None,
-                iv_rank_max=float(iv_rank_max) if iv_rank_max is not None else None,
-                roll_dte_threshold=(
-                    int(roll_dte_threshold)
-                    if roll_dte_threshold is not None
-                    else None
-                ),
-                profit_take_pct=float(profit_take_pct) if profit_take_pct is not None else None,
-                max_loss_pct=float(max_loss_pct) if max_loss_pct is not None else None,
-            )
+        if any(key in profile for key in _CONFIGURE_KEYS):
+            fields = _extract_profile_fields(profile)
+            configure_account(conn, account_name=name, **fields)
             fields_updated = True
 
         if fields_updated:
