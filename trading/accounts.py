@@ -1,6 +1,6 @@
 import sqlite3
-from datetime import datetime, timezone
 from typing import Callable
+from common.time import utc_now_iso as _utc_now_iso
 
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -9,7 +9,7 @@ OPTION_TYPES = {"call", "put", "both"}
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return _utc_now_iso()
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> sqlite3.Row:

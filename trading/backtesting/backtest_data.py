@@ -5,30 +5,13 @@ from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
+from common.tickers import load_tickers_from_file as _load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"
 
 
 def load_tickers_from_file(file_path: str) -> list[str]:
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Ticker file not found: {file_path}")
-
-    tickers: list[str] = []
-    seen: set[str] = set()
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        tokens = line.replace(",", " ").split()
-        for token in tokens:
-            ticker = token.strip().upper()
-            if not ticker or ticker in seen:
-                continue
-            seen.add(ticker)
-            tickers.append(ticker)
-
-    return tickers
+    return _load_tickers_from_file(file_path)
 
 
 def _parse_date(value: str, label: str) -> date:

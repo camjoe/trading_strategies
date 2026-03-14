@@ -2,11 +2,12 @@ import argparse
 import random
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypeAlias
 
 import yfinance as yf
+from common.tickers import load_tickers_from_file as _load_tickers_from_file
+from common.time import utc_now_iso as _utc_now_iso
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -25,19 +26,7 @@ except ModuleNotFoundError:
 
 
 def load_tickers_from_file(file_path: str) -> list[str]:
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Ticker file not found: {file_path}")
-
-    tickers: list[str] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        tokens = line.replace(",", " ").split()
-        tickers.extend([t.strip().upper() for t in tokens if t.strip()])
-
-    return list(dict.fromkeys(tickers))
+    return _load_tickers_from_file(file_path)
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,7 +51,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return _utc_now_iso()
 
 
 def choose_buy_qty(cash: float, price: float, fee: float) -> int:
