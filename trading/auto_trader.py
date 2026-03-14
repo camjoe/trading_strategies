@@ -4,6 +4,7 @@ import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TypeAlias
 
 import yfinance as yf
 
@@ -236,6 +237,160 @@ def choose_sell_ticker(can_sell: list[str], prices: dict[str, float], state: obj
     return random.choice([t for _score, t in scored[:worst_n]])
 
 
+BuyTradeSelection: TypeAlias = tuple[str, int, float, float | None, float | None]
+SellTradeSelection: TypeAlias = tuple[str, int, float]
+
+
+def _build_leaps_candidates(
+    account: sqlite3.Row,
+    universe: list[str],
+    prices: dict[str, float],
+    iv_rank_proxy: dict[str, float],
+) -> list[tuple[str, float, float]]:
+    candidates: list[tuple[str, float, float]] = []
+    for ticker in universe:
+        price = prices.get(ticker)
+        if price is None or price <= 0:
+            continue
+
+        ok, delta_est, iv_est = option_candidate_allowed(
+            account,
+            ticker,
+            float(price),
+            iv_rank_proxy,
+        )
+        if ok:
+            candidates.append((ticker, delta_est, iv_est))
+
+    return candidates
+
+
+def _apply_leaps_buy_qty_limits(
+    qty: int,
+    option_price: float,
+    account: sqlite3.Row,
+) -> int:
+    max_contracts = account["max_contracts_per_trade"]
+    if max_contracts is not None:
+        qty = min(qty, int(max_contracts))
+
+    max_premium = account["max_premium_per_trade"]
+    if max_premium is not None:
+        premium_qty = int(float(max_premium) // option_price)
+        qty = min(qty, premium_qty)
+
+    return qty
+
+
+def _build_trade_note(
+    learning_enabled: bool,
+    forced_sell: str | None,
+    risk_policy: str,
+    instrument_mode: str,
+    account: sqlite3.Row,
+    side: str,
+    delta_est: float | None,
+    iv_est: float | None,
+) -> str:
+    note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
+    if forced_sell is not None:
+        note_parts.append(f"risk={risk_policy}")
+    if instrument_mode == "leaps":
+        note_parts.append("mode=leaps")
+        note_parts.append(f"strike_offset={account['option_strike_offset_pct']}")
+        note_parts.append(f"dte={account['option_min_dte']}-{account['option_max_dte']}")
+        note_parts.append(f"type={account['option_type']}")
+        if side == "buy" and delta_est is not None:
+            note_parts.append(f"delta={delta_est:.2f}")
+            if iv_est is not None and iv_est >= 0:
+                note_parts.append(f"iv_rank={iv_est:.1f}")
+
+    return ";".join(note_parts)
+
+
+def _choose_side(forced_sell: str | None, can_sell: list[str]) -> str:
+    if forced_sell is not None:
+        return "sell"
+    if can_sell and random.random() < 0.35:
+        return "sell"
+    return "buy"
+
+
+def _prepare_buy_trade(
+    account: sqlite3.Row,
+    instrument_mode: str,
+    universe: list[str],
+    prices: dict[str, float],
+    iv_rank_proxy: dict[str, float],
+    state: object,
+    learning_enabled: bool,
+    fee: float,
+) -> BuyTradeSelection | None:
+    if instrument_mode == "leaps":
+        candidates = _build_leaps_candidates(account, universe, prices, iv_rank_proxy)
+        if not candidates:
+            return None
+
+        ticker, delta_est, iv_est = random.choice(candidates)
+        price = prices.get(ticker)
+        if price is None or price <= 0:
+            return None
+
+        option_price = estimate_option_premium(
+            float(price),
+            delta_est,
+            int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
+            int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
+        )
+        qty = choose_buy_qty(state.cash, option_price, fee)
+        if qty <= 0:
+            return None
+
+        qty = _apply_leaps_buy_qty_limits(qty, option_price, account)
+        if qty <= 0:
+            return None
+
+        return ticker, qty, float(option_price), delta_est, iv_est
+
+    ticker = choose_buy_ticker(universe, prices, state, learning_enabled)
+    price = prices.get(ticker)
+    if price is None or price <= 0:
+        return None
+
+    qty = choose_buy_qty(state.cash, float(price), fee)
+    if qty <= 0:
+        return None
+
+    return ticker, qty, float(price), None, None
+
+
+def _prepare_sell_trade(
+    can_sell: list[str],
+    forced_sell: str | None,
+    prices: dict[str, float],
+    state: object,
+    learning_enabled: bool,
+    instrument_mode: str,
+) -> SellTradeSelection | None:
+    if forced_sell is not None:
+        ticker = forced_sell
+    else:
+        ticker = choose_sell_ticker(can_sell, prices, state, learning_enabled)
+
+    price = prices.get(ticker)
+    if price is None or price <= 0:
+        return None
+
+    qty = choose_sell_qty(state.positions[ticker])
+    if qty <= 0:
+        return None
+
+    if instrument_mode == "leaps":
+        qty = min(qty, 2)
+
+    return ticker, qty, float(price)
+
+
 def run_for_account(
     conn: sqlite3.Connection,
     account_name: str,
@@ -254,7 +409,6 @@ def run_for_account(
     instrument_mode = str(account["instrument_mode"]).strip().lower()
     target = random.randint(min_trades, max_trades)
     executed = 0
-
     for _ in range(target):
         state = compute_account_state(account["initial_cash"], load_trades(conn, account["id"]))
         can_sell = [t for t, q in state.positions.items() if q >= 1]
@@ -268,95 +422,39 @@ def run_for_account(
             take_profit_pct,
         )
 
-        side = "buy"
-        if forced_sell is not None:
-            side = "sell"
-        elif can_sell and random.random() < 0.35:
-            side = "sell"
+        side = _choose_side(forced_sell, can_sell)
+
+        delta_est: float | None = None
+        iv_est: float | None = None
 
         if side == "buy":
-            if instrument_mode == "leaps":
-                candidates: list[tuple[str, float, float]] = []
-                for candidate_ticker in universe:
-                    px = prices.get(candidate_ticker)
-                    if px is None or px <= 0:
-                        continue
-                    ok, delta_est, iv_est = option_candidate_allowed(
-                        account,
-                        candidate_ticker,
-                        float(px),
-                        iv_rank_proxy,
-                    )
-                    if ok:
-                        candidates.append((candidate_ticker, delta_est, iv_est))
+            prepared_buy = _prepare_buy_trade(
+                account,
+                instrument_mode,
+                universe,
+                prices,
+                iv_rank_proxy,
+                state,
+                learning_enabled,
+                fee,
+            )
+            if prepared_buy is None:
+                continue
 
-                if not candidates:
-                    continue
-
-                ticker, delta_est, iv_est = random.choice(candidates)
-                price = prices.get(ticker)
-                if price is None or price <= 0:
-                    continue
-
-                option_price = estimate_option_premium(
-                    float(price),
-                    delta_est,
-                    int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
-                    int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
-                )
-                qty = choose_buy_qty(state.cash, option_price, fee)
-                if qty <= 0:
-                    continue
-
-                max_contracts = account["max_contracts_per_trade"]
-                if max_contracts is not None:
-                    qty = min(qty, int(max_contracts))
-
-                max_premium = account["max_premium_per_trade"]
-                if max_premium is not None:
-                    premium_qty = int(float(max_premium) // option_price)
-                    qty = min(qty, premium_qty)
-
-                if qty <= 0:
-                    continue
-                trade_price = float(option_price)
-            else:
-                ticker = choose_buy_ticker(universe, prices, state, learning_enabled)
-                price = prices.get(ticker)
-                if price is None or price <= 0:
-                    continue
-                qty = choose_buy_qty(state.cash, float(price), fee)
-                if qty <= 0:
-                    continue
-                trade_price = float(price)
+            ticker, qty, trade_price, delta_est, iv_est = prepared_buy
         else:
-            if forced_sell is not None:
-                ticker = forced_sell
-            else:
-                ticker = choose_sell_ticker(can_sell, prices, state, learning_enabled)
-            price = prices.get(ticker)
-            if price is None or price <= 0:
+            prepared_sell = _prepare_sell_trade(
+                can_sell,
+                forced_sell,
+                prices,
+                state,
+                learning_enabled,
+                instrument_mode,
+            )
+            if prepared_sell is None:
                 continue
-            qty = choose_sell_qty(state.positions[ticker])
-            if qty <= 0:
-                continue
-            trade_price = float(price)
 
-            if instrument_mode == "leaps":
-                qty = min(qty, 2)
-
-        note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
-        if forced_sell is not None:
-            note_parts.append(f"risk={risk_policy}")
-        if instrument_mode == "leaps":
-            note_parts.append("mode=leaps")
-            note_parts.append(f"strike_offset={account['option_strike_offset_pct']}")
-            note_parts.append(f"dte={account['option_min_dte']}-{account['option_max_dte']}")
-            note_parts.append(f"type={account['option_type']}")
-            if side == "buy":
-                note_parts.append(f"delta={delta_est:.2f}")
-                if iv_est >= 0:
-                    note_parts.append(f"iv_rank={iv_est:.1f}")
+            ticker, qty, trade_price = prepared_sell
 
         record_trade(
             conn,
@@ -367,7 +465,16 @@ def run_for_account(
             price=trade_price,
             fee=fee,
             trade_time=utc_now_iso(),
-            note=";".join(note_parts),
+            note=_build_trade_note(
+                learning_enabled,
+                forced_sell,
+                risk_policy,
+                instrument_mode,
+                account,
+                side,
+                delta_est,
+                iv_est,
+            ),
         )
         executed += 1
 

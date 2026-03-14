@@ -1,7 +1,6 @@
 [run]
 omit =
     trading/paper_trading.py
-    trading/auto_trader.py
     trading/cli.py
     trends/stock_trends.py
     trends/cli.py
