@@ -195,4 +195,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not create accounts that do not already exist",
     )
 
+    p_backtest = sub.add_parser(
+        "backtest",
+        help="Run a historical backtest for an existing account configuration.",
+    )
+    p_backtest.add_argument("--account", required=True, help="Account name")
+    p_backtest.add_argument(
+        "--tickers-file",
+        default="trading/trade_universe.txt",
+        help="Path to ticker universe file (default: trading/trade_universe.txt)",
+    )
+    p_backtest.add_argument("--start", default=None, help="Start date YYYY-MM-DD")
+    p_backtest.add_argument("--end", default=None, help="End date YYYY-MM-DD")
+    p_backtest.add_argument(
+        "--lookback-months",
+        type=int,
+        default=None,
+        help="Alternative to --start: look back N months from end date",
+    )
+    p_backtest.add_argument("--slippage-bps", type=float, default=5.0, help="Slippage in basis points per trade")
+    p_backtest.add_argument("--fee", type=float, default=0.0, help="Fixed fee per trade")
+    p_backtest.add_argument("--run-name", default=None, help="Optional run label")
+    p_backtest.add_argument(
+        "--allow-approximate-leaps",
+        action="store_true",
+        help="Allow approximate LEAPs backtest mode using underlying price proxies",
+    )
+
+    p_backtest_report = sub.add_parser(
+        "backtest-report",
+        help="Show summary metrics for a previous backtest run.",
+    )
+    p_backtest_report.add_argument("--run-id", type=int, required=True, help="Backtest run id")
+
     return parser

@@ -4,6 +4,7 @@ from typing import Callable
 try:
     from trading.accounting import record_trade
     from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
+    from trading.backtest import BacktestConfig, backtest_report, run_backtest
     from trading.cli import build_parser
     from trading.db import DB_PATH, ensure_db
     from trading.profiles import apply_account_profiles, load_account_profiles
@@ -11,6 +12,7 @@ try:
 except ModuleNotFoundError:
     from accounting import record_trade
     from accounts import configure_account, create_account, list_accounts, set_benchmark
+    from backtest import BacktestConfig, backtest_report, run_backtest
     from cli import build_parser
     from db import DB_PATH, ensure_db
     from profiles import apply_account_profiles, load_account_profiles
@@ -160,6 +162,64 @@ def _handle_compare_strategies(conn, args, parser) -> None:
     compare_strategies(conn, args.lookback)
 
 
+def _handle_backtest(conn, args, parser) -> None:
+    result = run_backtest(
+        conn,
+        BacktestConfig(
+            account_name=args.account,
+            tickers_file=args.tickers_file,
+            start=args.start,
+            end=args.end,
+            lookback_months=args.lookback_months,
+            slippage_bps=args.slippage_bps,
+            fee_per_trade=args.fee,
+            run_name=args.run_name,
+            allow_approximate_leaps=bool(args.allow_approximate_leaps),
+        ),
+    )
+    print(
+        f"Backtest complete: run_id={result.run_id} account={result.account_name} "
+        f"range={result.start_date}..{result.end_date} trades={result.trade_count}"
+    )
+    print(
+        f"Ending Equity: {result.ending_equity:.2f} | Return: {result.total_return_pct:.2f}% | "
+        f"Max Drawdown: {result.max_drawdown_pct:.2f}%"
+    )
+    if result.benchmark_return_pct is not None and result.alpha_pct is not None:
+        print(
+            f"Benchmark Return: {result.benchmark_return_pct:.2f}% | Alpha: {result.alpha_pct:.2f}%"
+        )
+    else:
+        print("Benchmark comparison unavailable for selected date range.")
+
+    if result.warnings:
+        print("Backtest safeguards / approximation notes:")
+        for warning in result.warnings:
+            print(f"- {warning}")
+
+
+def _handle_backtest_report(conn, args, parser) -> None:
+    report = backtest_report(conn, args.run_id)
+    print(
+        f"Backtest Run {report['run_id']} ({report['run_name'] or 'unnamed'}) | "
+        f"account={report['account_name']} strategy={report['strategy']}"
+    )
+    print(
+        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
+        f"| Trades: {report['trade_count']}"
+    )
+    print(
+        f"Start Equity: {report['starting_equity']:.2f} | End Equity: {report['ending_equity']:.2f} "
+        f"| Return: {report['total_return_pct']:.2f}% | Max DD: {report['max_drawdown_pct']:.2f}%"
+    )
+    print(
+        f"Slippage (bps): {report['slippage_bps']:.2f} | Fee/Trade: {report['fee_per_trade']:.2f} "
+        f"| Tickers File: {report['tickers_file']}"
+    )
+    if report["warnings"]:
+        print(f"Safeguards / notes: {report['warnings']}")
+
+
 COMMAND_HANDLERS: dict[str, Callable] = {
     "init": _handle_init,
     "create-account": _handle_create_account,
@@ -173,6 +233,8 @@ COMMAND_HANDLERS: dict[str, Callable] = {
     "snapshot": _handle_snapshot,
     "snapshot-history": _handle_snapshot_history,
     "compare-strategies": _handle_compare_strategies,
+    "backtest": _handle_backtest,
+    "backtest-report": _handle_backtest_report,
 }
 
 
