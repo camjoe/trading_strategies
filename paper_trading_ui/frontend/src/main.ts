@@ -1,102 +1,26 @@
 import "./styles.css";
+import { getJson, postJson } from "./lib/http";
+import { renderLogLines } from "./lib/logs";
+import { esc } from "./lib/format";
+import { accountCard } from "./templates/accounts";
+import { renderDetail } from "./templates/detail";
+import {
+  renderBacktestRunCard,
+  renderBacktestReport,
+  renderBacktestRunResult,
+  renderWalkForwardResult,
+  warningListHtml,
+} from "./templates/backtesting";
+import shellTemplate from "./templates/shell.html?raw";
+import type {
+  AccountDetail,
+  AccountSummary,
+  BacktestReport,
+  BacktestRunResult,
+  BacktestRunSummary,
+  WalkForwardResult,
+} from "./types";
 
-type AccountSummary = {
-  name: string;
-  displayName: string;
-  strategy: string;
-  instrumentMode: string;
-  riskPolicy: string;
-  benchmark: string;
-  initialCash: number;
-  equity: number;
-  totalChange: number;
-  totalChangePct: number;
-  changeSinceLastSnapshot: number | null;
-  latestSnapshotTime: string | null;
-};
-
-type AccountDetail = {
-  account: AccountSummary;
-  latestBacktest: BacktestRunSummary | null;
-  snapshots: Array<{
-    time: string;
-    cash: number;
-    marketValue: number;
-    equity: number;
-    realizedPnl: number;
-    unrealizedPnl: number;
-  }>;
-  trades: Array<{
-    ticker: string;
-    side: string;
-    qty: number;
-    price: number;
-    fee: number;
-    tradeTime: string;
-  }>;
-};
-
-type BacktestRunSummary = {
-  runId: number;
-  runName: string | null;
-  accountName: string;
-  strategy: string;
-  startDate: string;
-  endDate: string;
-  createdAt: string;
-  slippageBps: number;
-  feePerTrade: number;
-  tickersFile: string;
-};
-
-type BacktestRunResult = {
-  runId: number;
-  accountName: string;
-  startDate: string;
-  endDate: string;
-  tradeCount: number;
-  endingEquity: number;
-  totalReturnPct: number;
-  benchmarkReturnPct: number | null;
-  alphaPct: number | null;
-  maxDrawdownPct: number;
-  warnings: string[];
-};
-
-type WalkForwardResult = {
-  accountName: string;
-  startDate: string;
-  endDate: string;
-  windowCount: number;
-  runIds: number[];
-  averageReturnPct: number;
-  medianReturnPct: number;
-  bestReturnPct: number;
-  worstReturnPct: number;
-};
-
-type BacktestReport = {
-  run_id: number;
-  run_name: string | null;
-  account_name: string;
-  strategy: string;
-  benchmark_ticker: string;
-  start_date: string;
-  end_date: string;
-  created_at: string;
-  slippage_bps: number;
-  fee_per_trade: number;
-  tickers_file: string;
-  notes: string | null;
-  warnings: string;
-  trade_count: number;
-  starting_equity: number;
-  ending_equity: number;
-  total_return_pct: number;
-  max_drawdown_pct: number;
-};
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 let cachedAccounts: AccountSummary[] = [];
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -105,273 +29,9 @@ if (!app) {
 }
 const appRoot: HTMLDivElement = app;
 
-const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-
-function pct(v: number): string {
-  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
-}
-
-function num(v: number): string {
-  return `${v >= 0 ? "+" : ""}${currency.format(v)}`;
-}
-
-function esc(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function classifyLogLine(line: string): string {
-  const upper = line.toUpperCase();
-  if (upper.includes("ERROR") || upper.includes("FAILED") || upper.includes("EXCEPTION") || upper.includes("TRACEBACK")) {
-    return "error";
-  }
-  if (upper.includes("WARN")) {
-    return "warn";
-  }
-  if (upper.includes("DONE") || upper.includes("COMPLETE") || upper.includes("SUCCESS")) {
-    return "ok";
-  }
-  if (upper.includes("START") || upper.includes("RUN META")) {
-    return "meta";
-  }
-  return "plain";
-}
-
-function sanitizeLogLine(line: string): string {
-  // Remove BOM, ANSI escape codes, and low control chars that can render as artifacts.
-  return line
-    .replace(/^\uFEFF/, "")
-    .replace(/\u001B\[[0-9;]*[A-Za-z]/g, "")
-    .replace(/\r/g, "")
-    .replace(/[\uFFFD]/g, "")
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
-}
-
-function renderLogLines(lines: string[]): string {
-  const cleaned = lines.map(sanitizeLogLine).filter((line) => line.trim().length > 0);
-
-  if (!cleaned.length) {
-    return `<div class="log-empty">No lines matched this filter.</div>`;
-  }
-
-  let html = "";
-  let inGroup = false;
-
-  const closeGroup = (): void => {
-    if (inGroup) {
-      html += "</details>";
-      inGroup = false;
-    }
-  };
-
-  for (const line of cleaned) {
-    const kind = classifyLogLine(line);
-
-    if (kind === "meta") {
-      closeGroup();
-      html += `<details class="log-group" open><summary class="log-meta-line">${esc(line)}</summary>`;
-      inGroup = true;
-      continue;
-    }
-
-    if (!inGroup) {
-      html += `<div class="log-line log-${kind}"><span class="log-text">${esc(line)}</span></div>`;
-      continue;
-    }
-
-    html += `<div class="log-line log-${kind}"><span class="log-text">${esc(line)}</span></div>`;
-  }
-
-  closeGroup();
-  return html;
-}
-
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) {
-    throw new Error(`Request failed: ${res.status}`);
-  }
-  return (await res.json()) as T;
-}
-
-async function postJson<T>(path: string, payload?: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: payload ? { "Content-Type": "application/json" } : undefined,
-    body: payload ? JSON.stringify(payload) : undefined,
-  });
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const maybeJson = (await res.json()) as { detail?: string };
-      detail = typeof maybeJson.detail === "string" ? maybeJson.detail : "";
-    } catch {
-      detail = "";
-    }
-    throw new Error(detail ? `Request failed: ${res.status} (${detail})` : `Request failed: ${res.status}`);
-  }
-  const text = await res.text();
-  return (text ? (JSON.parse(text) as T) : ({} as T));
-}
 
 function renderShell(): void {
-  const root = appRoot;
-  root.innerHTML = `
-    <header class="topbar">
-      <h1>Paper Trading Console</h1>
-      <div class="actions">
-        <button id="refreshAccountsBtn">Refresh Accounts</button>
-        <button id="snapshotAllBtn">Snapshot All</button>
-      </div>
-    </header>
-
-    <main class="layout">
-      <section class="card accounts-card">
-        <h2>Accounts</h2>
-        <div id="accountsGrid" class="accounts-grid"></div>
-      </section>
-
-      <section class="card detail-card">
-        <h2>Account Detail</h2>
-        <div id="accountDetail" class="empty">Choose an account to inspect snapshots and trades.</div>
-      </section>
-
-      <section class="card logs-card">
-        <h2>Logs</h2>
-        <div class="log-controls">
-          <select id="logFileSelect"></select>
-          <input id="logFilterInput" placeholder="Filter text" />
-          <button id="loadLogBtn">Load Log</button>
-        </div>
-        <div id="logOutput" class="log-output">Select a log file to begin.</div>
-      </section>
-
-      <section class="card backtest-card">
-        <h2>Backtesting</h2>
-
-        <div class="bt-grid">
-          <article>
-            <h3>Run Backtest</h3>
-            <form id="runBacktestForm" class="bt-form">
-              <select id="backtestAccountSelect" name="account" required>
-                <option value="">Select account</option>
-              </select>
-              <input name="tickersFile" value="trading/trade_universe.txt" placeholder="Tickers file" />
-              <input name="universeHistoryDir" placeholder="Universe history dir (optional)" />
-              <div class="bt-quick-buttons" data-target-form="runBacktestForm">
-                <button type="button" data-lookback-months="1">Last 1M</button>
-                <button type="button" data-lookback-months="3">Last 3M</button>
-                <button type="button" data-lookback-months="6">Last 6M</button>
-                <button type="button" data-lookback-months="12">Last 12M</button>
-              </div>
-              <div class="bt-row">
-                <input name="start" type="date" placeholder="Start" />
-                <input name="end" type="date" placeholder="End" />
-              </div>
-              <div class="bt-row">
-                <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
-                <input name="slippageBps" type="number" step="0.1" value="5" placeholder="Slippage bps" />
-              </div>
-              <div class="bt-row">
-                <input name="fee" type="number" step="0.01" value="0" placeholder="Fee" />
-                <input name="runName" placeholder="Run name (optional)" />
-              </div>
-              <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
-              <div id="runBacktestWarnings" class="bt-warning empty">Select an account to preview financial-model warnings.</div>
-              <button type="submit">Run Backtest</button>
-            </form>
-            <div id="backtestRunOutput" class="empty">Submit to run a backtest.</div>
-          </article>
-
-          <article>
-            <h3>Run Walk-Forward</h3>
-            <form id="runWalkForwardForm" class="bt-form">
-              <select id="walkForwardAccountSelect" name="account" required>
-                <option value="">Select account</option>
-              </select>
-              <input name="tickersFile" value="trading/trade_universe.txt" placeholder="Tickers file" />
-              <input name="universeHistoryDir" placeholder="Universe history dir (optional)" />
-              <div class="bt-quick-buttons" data-target-form="runWalkForwardForm">
-                <button type="button" data-lookback-months="3">Last 3M</button>
-                <button type="button" data-lookback-months="6">Last 6M</button>
-                <button type="button" data-lookback-months="12">Last 12M</button>
-                <button type="button" data-lookback-months="24">Last 24M</button>
-              </div>
-              <div class="bt-row">
-                <input name="start" type="date" placeholder="Start" />
-                <input name="end" type="date" placeholder="End" />
-              </div>
-              <div class="bt-row">
-                <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
-                <input name="testMonths" type="number" min="1" value="1" placeholder="Test months" />
-              </div>
-              <div class="bt-row">
-                <input name="stepMonths" type="number" min="1" value="1" placeholder="Step months" />
-                <input name="slippageBps" type="number" step="0.1" value="5" placeholder="Slippage bps" />
-              </div>
-              <div class="bt-row">
-                <input name="fee" type="number" step="0.01" value="0" placeholder="Fee" />
-                <input name="runNamePrefix" placeholder="Run name prefix (optional)" />
-              </div>
-              <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
-              <div id="runWalkForwardWarnings" class="bt-warning empty">Select an account to preview financial-model warnings.</div>
-              <button type="submit">Run Walk-Forward</button>
-            </form>
-            <div id="walkForwardOutput" class="empty">Submit to run walk-forward windows.</div>
-          </article>
-        </div>
-
-        <div class="bt-grid">
-          <article>
-            <div class="bt-head">
-              <h3>Backtest Runs</h3>
-              <button id="refreshBacktestsBtn">Refresh Runs</button>
-            </div>
-            <div id="backtestRunsList" class="bt-runs empty">No runs loaded.</div>
-          </article>
-
-          <article>
-            <h3>Run Report</h3>
-            <div id="backtestReportView" class="empty">Choose a run to inspect report details.</div>
-          </article>
-        </div>
-      </section>
-    </main>
-  `;
-}
-
-function accountCard(a: AccountSummary): string {
-  const pnlClass = a.totalChange >= 0 ? "up" : "down";
-  const latestSnapshot = a.latestSnapshotTime ? new Date(a.latestSnapshotTime).toLocaleString() : "none";
-  const snapshotChange = a.changeSinceLastSnapshot === null ? "n/a" : num(a.changeSinceLastSnapshot);
-
-  return `
-    <button class="account-card" data-account="${esc(a.name)}">
-      <div class="row top">
-        <strong>${esc(a.displayName)}</strong>
-        <span class="chip">${esc(a.strategy)}</span>
-      </div>
-      <div class="row slim">Name: ${esc(a.name)} | Benchmark: ${esc(a.benchmark)}</div>
-      <div class="row">
-        <span>Equity</span>
-        <strong>${currency.format(a.equity)}</strong>
-      </div>
-      <div class="row ${pnlClass}">
-        <span>Total Change</span>
-        <strong>${num(a.totalChange)} (${pct(a.totalChangePct)})</strong>
-      </div>
-      <div class="row slim">
-        <span>Since Last Snapshot: ${snapshotChange}</span>
-      </div>
-      <div class="row slim">
-        <span>Last Snapshot: ${latestSnapshot}</span>
-      </div>
-    </button>
-  `;
+  appRoot.innerHTML = shellTemplate;
 }
 
 function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
@@ -423,83 +83,6 @@ async function loadAccounts(): Promise<void> {
       await loadAccountDetail(accountName);
     });
   }
-}
-
-function renderDetail(detail: AccountDetail): string {
-  const snapRows = detail.snapshots
-    .slice(0, 25)
-    .map(
-      (s) => `
-      <tr>
-        <td>${new Date(s.time).toLocaleString()}</td>
-        <td>${currency.format(s.equity)}</td>
-        <td>${currency.format(s.cash)}</td>
-        <td>${currency.format(s.marketValue)}</td>
-      </tr>
-    `,
-    )
-    .join("");
-
-  const tradeRows = detail.trades
-    .slice(-25)
-    .reverse()
-    .map(
-      (t) => `
-      <tr>
-        <td>${new Date(t.tradeTime).toLocaleString()}</td>
-        <td>${esc(t.ticker)}</td>
-        <td class="${t.side === "buy" ? "up" : "down"}">${esc(t.side)}</td>
-        <td>${t.qty.toFixed(4)}</td>
-        <td>${currency.format(t.price)}</td>
-        <td>${currency.format(t.fee)}</td>
-      </tr>
-    `,
-    )
-    .join("");
-
-  const latestBacktest = detail.latestBacktest
-    ? `
-      <div class="bt-result">
-        <div><strong>Latest Backtest Run ${detail.latestBacktest.runId}</strong> ${esc(detail.latestBacktest.runName ?? "(unnamed)")}</div>
-        <div>Range: ${esc(detail.latestBacktest.startDate)}..${esc(detail.latestBacktest.endDate)} | Created: ${new Date(detail.latestBacktest.createdAt).toLocaleString()}</div>
-        <div>Slippage: ${detail.latestBacktest.slippageBps.toFixed(2)} bps | Fee: ${currency.format(detail.latestBacktest.feePerTrade)}</div>
-        <button id="openLatestBacktestReportBtn" data-run-id="${detail.latestBacktest.runId}" type="button">Open Report</button>
-      </div>
-    `
-    : `<div class="empty">No backtest run found for this account yet.</div>`;
-
-  return `
-    <div class="detail-head">
-      <div>
-        <h3>${esc(detail.account.displayName)}</h3>
-        <p>${esc(detail.account.name)} | ${esc(detail.account.strategy)} | ${esc(detail.account.benchmark)}</p>
-      </div>
-      <button id="snapshotOneBtn" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
-    </div>
-
-    <article>
-      <h4>Latest Backtest</h4>
-      ${latestBacktest}
-    </article>
-
-    <div class="detail-grid">
-      <article>
-        <h4>Equity Snapshots</h4>
-        <table>
-          <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
-          <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
-        </table>
-      </article>
-
-      <article>
-        <h4>Recent Trades</h4>
-        <table>
-          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
-          <tbody>${tradeRows || `<tr><td colspan="6">No trades yet.</td></tr>`}</tbody>
-        </table>
-      </article>
-    </div>
-  `;
 }
 
 async function loadAccountDetail(accountName: string): Promise<void> {
@@ -580,13 +163,6 @@ function parseOptStr(raw: string): string | null {
   return v ? v : null;
 }
 
-function warningListHtml(warnings: string[]): string {
-  if (!warnings.length) {
-    return `<div class="empty">No financial-model warnings for the current configuration.</div>`;
-  }
-  return `<ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`;
-}
-
 function validateDateInputs(start: string | null, lookbackMonths: number | null): string | null {
   if (start && lookbackMonths !== null) {
     return "Use either Start date or Lookback months, not both.";
@@ -604,65 +180,6 @@ function debounce<T extends (...args: never[]) => void>(fn: T, delayMs: number):
       fn(...args);
     }, delayMs);
   };
-}
-
-function renderBacktestRunResult(result: BacktestRunResult): string {
-  const benchmarkLine =
-    result.benchmarkReturnPct === null || result.alphaPct === null
-      ? "Benchmark: unavailable"
-      : `Benchmark ${pct(result.benchmarkReturnPct)} | Alpha ${pct(result.alphaPct)}`;
-  const warnings = `<div class="bt-warning">${warningListHtml(result.warnings)}</div>`;
-
-  return `
-    <div class="bt-result">
-      <div><strong>Run ${result.runId}</strong> | ${esc(result.accountName)} | ${esc(result.startDate)}..${esc(result.endDate)}</div>
-      <div>Trades: ${result.tradeCount} | End Equity: ${currency.format(result.endingEquity)} | Return: ${pct(result.totalReturnPct)} | Max DD: ${pct(result.maxDrawdownPct)}</div>
-      <div>${benchmarkLine}</div>
-      ${warnings}
-    </div>
-  `;
-}
-
-function renderWalkForwardResult(result: WalkForwardResult): string {
-  const runIds = result.runIds.length ? result.runIds.join(", ") : "none";
-  return `
-    <div class="bt-result">
-      <div><strong>${esc(result.accountName)}</strong> | ${esc(result.startDate)}..${esc(result.endDate)} | Windows: ${result.windowCount}</div>
-      <div>Avg ${pct(result.averageReturnPct)} | Median ${pct(result.medianReturnPct)} | Best ${pct(result.bestReturnPct)} | Worst ${pct(result.worstReturnPct)}</div>
-      <div>Run IDs: ${esc(runIds)}</div>
-    </div>
-  `;
-}
-
-function renderBacktestRunCard(run: BacktestRunSummary): string {
-  const created = new Date(run.createdAt).toLocaleString();
-  return `
-    <button class="bt-run-item" data-run-id="${run.runId}">
-      <div class="row top">
-        <strong>#${run.runId} ${esc(run.runName ?? "(unnamed)")}</strong>
-        <span class="chip">${esc(run.accountName)}</span>
-      </div>
-      <div class="row slim">${esc(run.strategy)} | ${esc(run.startDate)}..${esc(run.endDate)}</div>
-      <div class="row slim">Created: ${created}</div>
-    </button>
-  `;
-}
-
-function renderBacktestReport(report: BacktestReport): string {
-  const warningItems = String(report.warnings || "")
-    .split(" | ")
-    .map((v) => v.trim())
-    .filter((v) => v.length > 0);
-
-  return `
-    <div class="bt-result">
-      <div><strong>Run ${report.run_id}</strong> ${esc(report.run_name ?? "(unnamed)")} | ${esc(report.account_name)} | ${esc(report.strategy)}</div>
-      <div>Range: ${esc(report.start_date)}..${esc(report.end_date)} | Benchmark: ${esc(report.benchmark_ticker)}</div>
-      <div>Start: ${currency.format(report.starting_equity)} | End: ${currency.format(report.ending_equity)} | Return: ${pct(report.total_return_pct)} | Max DD: ${pct(report.max_drawdown_pct)}</div>
-      <div>Trades: ${report.trade_count} | Slippage: ${report.slippage_bps.toFixed(2)} bps | Fee: ${currency.format(report.fee_per_trade)}</div>
-      <div class="bt-warning">${warningListHtml(warningItems)}</div>
-    </div>
-  `;
 }
 
 async function loadBacktestRuns(): Promise<void> {
