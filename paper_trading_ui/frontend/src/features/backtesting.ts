@@ -1,0 +1,332 @@
+import { find, findAll } from "../lib/dom";
+import { esc } from "../lib/format";
+import { getJson, postJson } from "../lib/http";
+import {
+  renderBacktestReport,
+  renderBacktestRunCard,
+  renderBacktestRunResult,
+  renderWalkForwardResult,
+  warningListHtml,
+} from "../templates/backtesting";
+import type {
+  AccountSummary,
+  BacktestReport,
+  BacktestRunResult,
+  BacktestRunSummary,
+  WalkForwardResult,
+} from "../types";
+
+export interface BacktestingFeature {
+  setAccounts: (accounts: AccountSummary[]) => void;
+  loadBacktestRuns: () => Promise<void>;
+  loadBacktestReport: (runId: number) => Promise<void>;
+  wireActions: () => void;
+}
+
+function parseOptInt(raw: string): number | null {
+  const v = raw.trim();
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function parseOptStr(raw: string): string | null {
+  const v = raw.trim();
+  return v ? v : null;
+}
+
+function validateDateInputs(start: string | null, lookbackMonths: number | null): string | null {
+  if (start && lookbackMonths !== null) {
+    return "Use either Start date or Lookback months, not both.";
+  }
+  return null;
+}
+
+function debounce<T extends (...args: never[]) => void>(fn: T, delayMs: number): (...args: Parameters<T>) => void {
+  let timer: number | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+    }
+    timer = window.setTimeout(() => {
+      fn(...args);
+    }, delayMs);
+  };
+}
+
+export function createBacktestingFeature(): BacktestingFeature {
+  let cachedAccounts: AccountSummary[] = [];
+
+  function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
+    const accountOptions = accounts
+      .map((a) => `<option value="${esc(a.name)}">${esc(a.displayName)} (${esc(a.name)})</option>`)
+      .join("");
+
+    for (const selectId of ["#backtestAccountSelect", "#walkForwardAccountSelect"]) {
+      const select = find<HTMLSelectElement>(selectId);
+      if (!select) continue;
+      const previous = select.value;
+      select.innerHTML = `<option value="">Select account</option>${accountOptions}`;
+      if (previous && accounts.some((a) => a.name === previous)) {
+        select.value = previous;
+      }
+    }
+  }
+
+  function applyBacktestAccountDefaults(form: HTMLFormElement | null, accountName: string): void {
+    if (!form || !accountName) return;
+    const account = cachedAccounts.find((a) => a.name === accountName);
+    if (!account) return;
+
+    const leapsCheckbox = find<HTMLInputElement>('input[name="allowApproximateLeaps"]', form);
+    if (!leapsCheckbox) return;
+    leapsCheckbox.checked = account.instrumentMode === "leaps";
+  }
+
+  async function loadBacktestRuns(): Promise<void> {
+    const target = find<HTMLDivElement>("#backtestRunsList");
+    if (!target) return;
+
+    target.innerHTML = `<div class="empty">Loading backtest runs...</div>`;
+    const data = await getJson<{ runs: BacktestRunSummary[] }>("/api/backtests/runs?limit=100");
+
+    if (!data.runs.length) {
+      target.innerHTML = `<div class="empty">No backtest runs found yet.</div>`;
+      return;
+    }
+
+    target.innerHTML = data.runs.map(renderBacktestRunCard).join("");
+
+    for (const btn of findAll<HTMLButtonElement>(".bt-run-item")) {
+      btn.addEventListener("click", () => {
+        const runIdRaw = btn.dataset.runId;
+        if (!runIdRaw) return;
+        const runId = Number(runIdRaw);
+        if (!Number.isFinite(runId)) return;
+        void loadBacktestReport(runId);
+      });
+    }
+  }
+
+  async function loadBacktestReport(runId: number): Promise<void> {
+    const target = find<HTMLDivElement>("#backtestReportView");
+    if (!target) return;
+
+    target.innerHTML = `<div class="empty">Loading report for run ${runId}...</div>`;
+    const report = await getJson<BacktestReport>(`/api/backtests/runs/${runId}`);
+    target.innerHTML = renderBacktestReport(report);
+  }
+
+  async function refreshPreflightWarnings(form: HTMLFormElement, outputSelector: string): Promise<void> {
+    const target = find<HTMLDivElement>(outputSelector);
+    if (!target) return;
+
+    const fd = new FormData(form);
+    const account = String(fd.get("account") ?? "").trim();
+    if (!account) {
+      target.innerHTML = `<div class="empty">Select an account to preview financial-model warnings.</div>`;
+      return;
+    }
+
+    const payload = {
+      account,
+      tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
+      universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
+      start: parseOptStr(String(fd.get("start") ?? "")),
+      end: parseOptStr(String(fd.get("end") ?? "")),
+      lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
+      allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
+    };
+
+    const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
+    if (validationError) {
+      target.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+      return;
+    }
+
+    target.innerHTML = `<div class="empty">Checking warnings...</div>`;
+    try {
+      const result = await postJson<{ warnings: string[] }>("/api/backtests/preflight", payload);
+      target.innerHTML = warningListHtml(result.warnings);
+    } catch (error) {
+      target.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+    }
+  }
+
+  function wireQuickLookbackButtons(): void {
+    for (const quickButtons of findAll<HTMLDivElement>(".bt-quick-buttons")) {
+      quickButtons.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLButtonElement)) return;
+
+        const monthsRaw = target.dataset.lookbackMonths;
+        if (!monthsRaw) return;
+        const months = Number(monthsRaw);
+        if (!Number.isFinite(months) || months <= 0) return;
+
+        const formId = quickButtons.dataset.targetForm;
+        if (!formId) return;
+        const form = find<HTMLFormElement>(`#${formId}`);
+        if (!form) return;
+
+        const lookbackInput = find<HTMLInputElement>('input[name="lookbackMonths"]', form);
+        const startInput = find<HTMLInputElement>('input[name="start"]', form);
+        const endInput = find<HTMLInputElement>('input[name="end"]', form);
+        if (lookbackInput) {
+          lookbackInput.value = String(Math.trunc(months));
+        }
+        if (startInput) {
+          startInput.value = "";
+        }
+        if (endInput) {
+          endInput.value = "";
+        }
+      });
+    }
+  }
+
+  function wirePreflight(form: HTMLFormElement | null, target: string): void {
+    if (!form) return;
+
+    const debouncedRefresh = debounce(() => {
+      void refreshPreflightWarnings(form, target);
+    }, 300);
+
+    const inputs = findAll<HTMLInputElement | HTMLSelectElement>(
+      'input[name="tickersFile"], input[name="universeHistoryDir"], input[name="start"], input[name="end"], input[name="lookbackMonths"], input[name="allowApproximateLeaps"], select[name="account"]',
+      form,
+    );
+
+    for (const input of inputs) {
+      input.addEventListener("change", () => {
+        void refreshPreflightWarnings(form, target);
+      });
+      input.addEventListener("input", () => {
+        debouncedRefresh();
+      });
+    }
+
+    void refreshPreflightWarnings(form, target);
+  }
+
+  function wireActions(): void {
+    const refreshBacktestsBtn = find<HTMLButtonElement>("#refreshBacktestsBtn");
+    const runBacktestForm = find<HTMLFormElement>("#runBacktestForm");
+    const runWalkForwardForm = find<HTMLFormElement>("#runWalkForwardForm");
+    const backtestAccountSelect = find<HTMLSelectElement>("#backtestAccountSelect");
+    const walkForwardAccountSelect = find<HTMLSelectElement>("#walkForwardAccountSelect");
+
+    wireQuickLookbackButtons();
+
+    refreshBacktestsBtn?.addEventListener("click", () => {
+      void loadBacktestRuns();
+    });
+
+    runBacktestForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const out = find<HTMLDivElement>("#backtestRunOutput");
+      if (!out || !runBacktestForm) return;
+
+      const fd = new FormData(runBacktestForm);
+      const payload = {
+        account: String(fd.get("account") ?? "").trim(),
+        tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
+        universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
+        start: parseOptStr(String(fd.get("start") ?? "")),
+        end: parseOptStr(String(fd.get("end") ?? "")),
+        lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
+        slippageBps: Number(fd.get("slippageBps") ?? 5),
+        fee: Number(fd.get("fee") ?? 0),
+        runName: parseOptStr(String(fd.get("runName") ?? "")),
+        allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
+      };
+
+      const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
+      if (validationError) {
+        out.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+        return;
+      }
+
+      out.innerHTML = `<div class="empty">Running backtest...</div>`;
+      try {
+        const result = await postJson<BacktestRunResult>("/api/backtests/run", payload);
+        out.innerHTML = renderBacktestRunResult(result);
+        await loadBacktestRuns();
+        await loadBacktestReport(result.runId);
+        await refreshPreflightWarnings(runBacktestForm, "#runBacktestWarnings");
+      } catch (error) {
+        out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+      }
+    });
+
+    runWalkForwardForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const out = find<HTMLDivElement>("#walkForwardOutput");
+      if (!out || !runWalkForwardForm) return;
+
+      const fd = new FormData(runWalkForwardForm);
+      const payload = {
+        account: String(fd.get("account") ?? "").trim(),
+        tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
+        universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
+        start: parseOptStr(String(fd.get("start") ?? "")),
+        end: parseOptStr(String(fd.get("end") ?? "")),
+        lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
+        testMonths: Number(fd.get("testMonths") ?? 1),
+        stepMonths: Number(fd.get("stepMonths") ?? 1),
+        slippageBps: Number(fd.get("slippageBps") ?? 5),
+        fee: Number(fd.get("fee") ?? 0),
+        runNamePrefix: parseOptStr(String(fd.get("runNamePrefix") ?? "")),
+        allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
+      };
+
+      const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
+      if (validationError) {
+        out.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+        return;
+      }
+
+      out.innerHTML = `<div class="empty">Running walk-forward windows...</div>`;
+      try {
+        const result = await postJson<WalkForwardResult>("/api/backtests/walk-forward", payload);
+        out.innerHTML = renderWalkForwardResult(result);
+        await loadBacktestRuns();
+        if (result.runIds.length) {
+          await loadBacktestReport(result.runIds[0]);
+        }
+        await refreshPreflightWarnings(runWalkForwardForm, "#runWalkForwardWarnings");
+      } catch (error) {
+        out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+      }
+    });
+
+    backtestAccountSelect?.addEventListener("change", () => {
+      applyBacktestAccountDefaults(runBacktestForm, backtestAccountSelect.value);
+      if (runBacktestForm) {
+        void refreshPreflightWarnings(runBacktestForm, "#runBacktestWarnings");
+      }
+    });
+
+    walkForwardAccountSelect?.addEventListener("change", () => {
+      applyBacktestAccountDefaults(runWalkForwardForm, walkForwardAccountSelect.value);
+      if (runWalkForwardForm) {
+        void refreshPreflightWarnings(runWalkForwardForm, "#runWalkForwardWarnings");
+      }
+    });
+
+    wirePreflight(runBacktestForm, "#runBacktestWarnings");
+    wirePreflight(runWalkForwardForm, "#runWalkForwardWarnings");
+  }
+
+  function setAccounts(accounts: AccountSummary[]): void {
+    cachedAccounts = accounts;
+    populateBacktestAccountSelects(cachedAccounts);
+  }
+
+  return {
+    setAccounts,
+    loadBacktestRuns,
+    loadBacktestReport,
+    wireActions,
+  };
+}
