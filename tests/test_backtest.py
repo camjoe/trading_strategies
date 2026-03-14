@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import date
 
 import pandas as pd
 import pytest
 
 from trading.accounts import create_account
-from trading.backtest import BacktestConfig, backtest_report, run_backtest
+from trading.backtest import BacktestConfig, WalkForwardConfig, backtest_report, build_walk_forward_windows, run_backtest, run_walk_forward_backtest
 
 
 def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
@@ -222,3 +223,54 @@ def test_run_backtest_monthly_universe_reconstitution_adds_warning(
 
     assert any("Monthly universe reconstitution enabled" in warning for warning in result.warnings)
     assert any("Universe snapshot missing" in warning for warning in result.warnings)
+
+
+def test_build_walk_forward_windows_monthly_rolls() -> None:
+    windows = build_walk_forward_windows(
+        start_date=date(2026, 1, 15),
+        end_date=date(2026, 4, 10),
+        test_months=1,
+        step_months=1,
+    )
+
+    assert windows == [
+        (date(2026, 1, 15), date(2026, 1, 31)),
+        (date(2026, 2, 1), date(2026, 2, 28)),
+        (date(2026, 3, 1), date(2026, 3, 31)),
+        (date(2026, 4, 1), date(2026, 4, 10)),
+    ]
+
+
+def test_run_walk_forward_backtest_creates_multiple_runs(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_account(conn, "acct_wf", "trend_v1", 10000.0, "SPY")
+
+    monkeypatch.setattr("trading.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr("trading.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
+    monkeypatch.setattr(
+        "trading.backtest.fetch_benchmark_close",
+        lambda _ticker, _start, _end: pd.Series([100.0, 101.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
+    )
+
+    summary = run_walk_forward_backtest(
+        conn,
+        WalkForwardConfig(
+            account_name="acct_wf",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-31",
+            lookback_months=None,
+            test_months=1,
+            step_months=1,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name_prefix="wf-test",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    assert summary.window_count == 3
+    assert len(summary.run_ids) == 3
+
+    rows = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()
+    assert rows is not None and int(rows["n"]) == 3

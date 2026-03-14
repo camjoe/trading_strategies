@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import math
 import sqlite3
+from calendar import monthrange
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 
@@ -54,6 +55,35 @@ class BacktestResult:
     warnings: list[str]
 
 
+@dataclass
+class WalkForwardConfig:
+    account_name: str
+    tickers_file: str
+    universe_history_dir: str | None
+    start: str | None
+    end: str | None
+    lookback_months: int | None
+    test_months: int
+    step_months: int
+    slippage_bps: float
+    fee_per_trade: float
+    run_name_prefix: str | None
+    allow_approximate_leaps: bool
+
+
+@dataclass
+class WalkForwardSummary:
+    account_name: str
+    start_date: str
+    end_date: str
+    window_count: int
+    run_ids: list[int]
+    average_return_pct: float
+    median_return_pct: float
+    best_return_pct: float
+    worst_return_pct: float
+
+
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
     if not equity_curve:
         return 0.0
@@ -67,6 +97,43 @@ def _max_drawdown_pct(equity_curve: list[float]) -> float:
         dd = (equity / peak) - 1.0
         max_dd = min(max_dd, dd)
     return max_dd * 100.0
+
+
+def _add_months(base: date, months: int) -> date:
+    if months < 0:
+        raise ValueError("months must be >= 0")
+
+    month_index = (base.year * 12 + (base.month - 1)) + months
+    target_year = month_index // 12
+    target_month = (month_index % 12) + 1
+    target_day = min(base.day, monthrange(target_year, target_month)[1])
+    return date(target_year, target_month, target_day)
+
+
+def build_walk_forward_windows(
+    start_date: date,
+    end_date: date,
+    test_months: int,
+    step_months: int,
+) -> list[tuple[date, date]]:
+    if test_months <= 0:
+        raise ValueError("test_months must be > 0")
+    if step_months <= 0:
+        raise ValueError("step_months must be > 0")
+    if start_date >= end_date:
+        raise ValueError("start_date must be before end_date")
+
+    windows: list[tuple[date, date]] = []
+    cursor = date(start_date.year, start_date.month, 1)
+    while cursor <= end_date:
+        next_cursor = _add_months(cursor, test_months)
+        window_start = max(start_date, cursor)
+        window_end = min(end_date, next_cursor - timedelta(days=1))
+        if window_start < window_end:
+            windows.append((window_start, window_end))
+        cursor = _add_months(cursor, step_months)
+
+    return windows
 
 
 def _compute_market_value(positions: dict[str, float], prices: dict[str, float]) -> float:
@@ -481,3 +548,57 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "total_return_pct": total_return_pct,
         "max_drawdown_pct": max_drawdown,
     }
+
+
+def run_walk_forward_backtest(conn: sqlite3.Connection, cfg: WalkForwardConfig) -> WalkForwardSummary:
+    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    windows = build_walk_forward_windows(
+        start_date=start_date,
+        end_date=end_date,
+        test_months=cfg.test_months,
+        step_months=cfg.step_months,
+    )
+    if not windows:
+        raise ValueError("No walk-forward windows generated for the selected date range.")
+
+    run_ids: list[int] = []
+    returns: list[float] = []
+    for idx, (window_start, window_end) in enumerate(windows, start=1):
+        window_name_prefix = (cfg.run_name_prefix or f"{cfg.account_name}-wf").strip()
+        run_name = f"{window_name_prefix}-w{idx:03d}-{window_start.isoformat()}-{window_end.isoformat()}"
+        result = run_backtest(
+            conn,
+            BacktestConfig(
+                account_name=cfg.account_name,
+                tickers_file=cfg.tickers_file,
+                universe_history_dir=cfg.universe_history_dir,
+                start=window_start.isoformat(),
+                end=window_end.isoformat(),
+                lookback_months=None,
+                slippage_bps=cfg.slippage_bps,
+                fee_per_trade=cfg.fee_per_trade,
+                run_name=run_name,
+                allow_approximate_leaps=cfg.allow_approximate_leaps,
+            ),
+        )
+        run_ids.append(result.run_id)
+        returns.append(result.total_return_pct)
+
+    sorted_returns = sorted(returns)
+    n = len(sorted_returns)
+    if n % 2 == 1:
+        median = sorted_returns[n // 2]
+    else:
+        median = (sorted_returns[(n // 2) - 1] + sorted_returns[n // 2]) / 2.0
+
+    return WalkForwardSummary(
+        account_name=cfg.account_name,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+        window_count=len(run_ids),
+        run_ids=run_ids,
+        average_return_pct=sum(returns) / len(returns),
+        median_return_pct=median,
+        best_return_pct=max(returns),
+        worst_return_pct=min(returns),
+    )

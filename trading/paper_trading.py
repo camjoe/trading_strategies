@@ -4,7 +4,13 @@ from typing import Callable
 try:
     from trading.accounting import record_trade
     from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
-    from trading.backtest import BacktestConfig, backtest_report, run_backtest
+    from trading.backtest import (
+        BacktestConfig,
+        WalkForwardConfig,
+        backtest_report,
+        run_backtest,
+        run_walk_forward_backtest,
+    )
     from trading.cli import build_parser
     from trading.db import DB_PATH, ensure_db
     from trading.profiles import apply_account_profiles, load_account_profiles
@@ -12,7 +18,7 @@ try:
 except ModuleNotFoundError:
     from accounting import record_trade
     from accounts import configure_account, create_account, list_accounts, set_benchmark
-    from backtest import BacktestConfig, backtest_report, run_backtest
+    from backtest import BacktestConfig, WalkForwardConfig, backtest_report, run_backtest, run_walk_forward_backtest
     from cli import build_parser
     from db import DB_PATH, ensure_db
     from profiles import apply_account_profiles, load_account_profiles
@@ -221,6 +227,39 @@ def _handle_backtest_report(conn, args, parser) -> None:
         print(f"Safeguards / notes: {report['warnings']}")
 
 
+def _handle_backtest_walk_forward(conn, args, parser) -> None:
+    summary = run_walk_forward_backtest(
+        conn,
+        WalkForwardConfig(
+            account_name=args.account,
+            tickers_file=args.tickers_file,
+            universe_history_dir=args.universe_history_dir,
+            start=args.start,
+            end=args.end,
+            lookback_months=args.lookback_months,
+            test_months=args.test_months,
+            step_months=args.step_months,
+            slippage_bps=args.slippage_bps,
+            fee_per_trade=args.fee,
+            run_name_prefix=args.run_name_prefix,
+            allow_approximate_leaps=bool(args.allow_approximate_leaps),
+        ),
+    )
+
+    print(
+        f"Walk-forward complete: account={summary.account_name} range={summary.start_date}..{summary.end_date} "
+        f"windows={summary.window_count}"
+    )
+    print(
+        f"Average Return: {summary.average_return_pct:.2f}% | Median Return: {summary.median_return_pct:.2f}% "
+        f"| Best: {summary.best_return_pct:.2f}% | Worst: {summary.worst_return_pct:.2f}%"
+    )
+    run_ids_preview = ", ".join([str(run_id) for run_id in summary.run_ids[:10]])
+    if len(summary.run_ids) > 10:
+        run_ids_preview += ", ..."
+    print(f"Generated run ids: {run_ids_preview}")
+
+
 COMMAND_HANDLERS: dict[str, Callable] = {
     "init": _handle_init,
     "create-account": _handle_create_account,
@@ -236,6 +275,7 @@ COMMAND_HANDLERS: dict[str, Callable] = {
     "compare-strategies": _handle_compare_strategies,
     "backtest": _handle_backtest,
     "backtest-report": _handle_backtest_report,
+    "backtest-walk-forward": _handle_backtest_walk_forward,
 }
 
 
