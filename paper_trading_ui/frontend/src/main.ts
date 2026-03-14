@@ -2,6 +2,7 @@ import "./styles.css";
 import { getJson, postJson } from "./lib/http";
 import { renderLogLines } from "./lib/logs";
 import { esc } from "./lib/format";
+import { find, findAll } from "./lib/dom";
 import { accountCard } from "./templates/accounts";
 import { renderDetail } from "./templates/detail";
 import {
@@ -23,11 +24,10 @@ import type {
 
 let cachedAccounts: AccountSummary[] = [];
 
-const app = document.querySelector<HTMLDivElement>("#app");
-if (!app) {
+const appRoot = find<HTMLDivElement>("#app");
+if (!appRoot) {
   throw new Error("Missing #app root");
 }
-const appRoot: HTMLDivElement = app;
 
 
 function renderShell(): void {
@@ -40,7 +40,7 @@ function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
     .join("");
 
   for (const selectId of ["#backtestAccountSelect", "#walkForwardAccountSelect"]) {
-    const select = document.querySelector<HTMLSelectElement>(selectId);
+    const select = find<HTMLSelectElement>(selectId);
     if (!select) continue;
     const previous = select.value;
     select.innerHTML = `<option value="">Select account</option>${accountOptions}`;
@@ -55,13 +55,13 @@ function applyBacktestAccountDefaults(form: HTMLFormElement | null, accountName:
   const account = cachedAccounts.find((a) => a.name === accountName);
   if (!account) return;
 
-  const leapsCheckbox = form.querySelector<HTMLInputElement>('input[name="allowApproximateLeaps"]');
+  const leapsCheckbox = find<HTMLInputElement>('input[name="allowApproximateLeaps"]', form);
   if (!leapsCheckbox) return;
   leapsCheckbox.checked = account.instrumentMode === "leaps";
 }
 
 async function loadAccounts(): Promise<void> {
-  const target = document.querySelector<HTMLDivElement>("#accountsGrid");
+  const target = find<HTMLDivElement>("#accountsGrid");
   if (!target) return;
 
   target.innerHTML = `<div class="empty">Loading accounts...</div>`;
@@ -76,7 +76,7 @@ async function loadAccounts(): Promise<void> {
 
   target.innerHTML = data.accounts.map(accountCard).join("");
 
-  for (const btn of document.querySelectorAll<HTMLButtonElement>(".account-card")) {
+  for (const btn of findAll<HTMLButtonElement>(".account-card")) {
     btn.addEventListener("click", async () => {
       const accountName = btn.dataset.account;
       if (!accountName) return;
@@ -86,14 +86,14 @@ async function loadAccounts(): Promise<void> {
 }
 
 async function loadAccountDetail(accountName: string): Promise<void> {
-  const target = document.querySelector<HTMLDivElement>("#accountDetail");
+  const target = find<HTMLDivElement>("#accountDetail");
   if (!target) return;
 
   target.innerHTML = `<div class="empty">Loading ${esc(accountName)}...</div>`;
   const detail = await getJson<AccountDetail>(`/api/accounts/${encodeURIComponent(accountName)}`);
   target.innerHTML = renderDetail(detail);
 
-  const snapBtn = document.querySelector<HTMLButtonElement>("#snapshotOneBtn");
+  const snapBtn = find<HTMLButtonElement>("#snapshotOneBtn");
   if (snapBtn) {
     snapBtn.addEventListener("click", async () => {
       const acct = snapBtn.dataset.account;
@@ -104,7 +104,7 @@ async function loadAccountDetail(accountName: string): Promise<void> {
     });
   }
 
-  const openReportBtn = document.querySelector<HTMLButtonElement>("#openLatestBacktestReportBtn");
+  const openReportBtn = find<HTMLButtonElement>("#openLatestBacktestReportBtn");
   if (openReportBtn) {
     openReportBtn.addEventListener("click", async () => {
       const runIdRaw = openReportBtn.dataset.runId;
@@ -117,7 +117,7 @@ async function loadAccountDetail(accountName: string): Promise<void> {
 }
 
 async function loadLogFiles(): Promise<void> {
-  const select = document.querySelector<HTMLSelectElement>("#logFileSelect");
+  const select = find<HTMLSelectElement>("#logFileSelect");
   if (!select) return;
 
   const data = await getJson<{ files: string[] }>("/api/logs/files");
@@ -130,9 +130,9 @@ async function loadLogFiles(): Promise<void> {
 }
 
 async function loadSelectedLog(): Promise<void> {
-  const select = document.querySelector<HTMLSelectElement>("#logFileSelect");
-  const filterInput = document.querySelector<HTMLInputElement>("#logFilterInput");
-  const output = document.querySelector<HTMLElement>("#logOutput");
+  const select = find<HTMLSelectElement>("#logFileSelect");
+  const filterInput = find<HTMLInputElement>("#logFilterInput");
+  const output = find<HTMLElement>("#logOutput");
   if (!select || !output || !filterInput) return;
 
   const file = select.value;
@@ -183,7 +183,7 @@ function debounce<T extends (...args: never[]) => void>(fn: T, delayMs: number):
 }
 
 async function loadBacktestRuns(): Promise<void> {
-  const target = document.querySelector<HTMLDivElement>("#backtestRunsList");
+  const target = find<HTMLDivElement>("#backtestRunsList");
   if (!target) return;
 
   target.innerHTML = `<div class="empty">Loading backtest runs...</div>`;
@@ -196,7 +196,7 @@ async function loadBacktestRuns(): Promise<void> {
 
   target.innerHTML = data.runs.map(renderBacktestRunCard).join("");
 
-  for (const btn of document.querySelectorAll<HTMLButtonElement>(".bt-run-item")) {
+  for (const btn of findAll<HTMLButtonElement>(".bt-run-item")) {
     btn.addEventListener("click", async () => {
       const runIdRaw = btn.dataset.runId;
       if (!runIdRaw) return;
@@ -208,7 +208,7 @@ async function loadBacktestRuns(): Promise<void> {
 }
 
 async function loadBacktestReport(runId: number): Promise<void> {
-  const target = document.querySelector<HTMLDivElement>("#backtestReportView");
+  const target = find<HTMLDivElement>("#backtestReportView");
   if (!target) return;
 
   target.innerHTML = `<div class="empty">Loading report for run ${runId}...</div>`;
@@ -217,7 +217,7 @@ async function loadBacktestReport(runId: number): Promise<void> {
 }
 
 async function refreshPreflightWarnings(form: HTMLFormElement, outputSelector: string): Promise<void> {
-  const target = document.querySelector<HTMLDivElement>(outputSelector);
+  const target = find<HTMLDivElement>(outputSelector);
   if (!target) return;
 
   const fd = new FormData(form);
@@ -253,16 +253,16 @@ async function refreshPreflightWarnings(form: HTMLFormElement, outputSelector: s
 }
 
 async function wireActions(): Promise<void> {
-  const refreshBtn = document.querySelector<HTMLButtonElement>("#refreshAccountsBtn");
-  const snapshotAllBtn = document.querySelector<HTMLButtonElement>("#snapshotAllBtn");
-  const loadLogBtn = document.querySelector<HTMLButtonElement>("#loadLogBtn");
-  const refreshBacktestsBtn = document.querySelector<HTMLButtonElement>("#refreshBacktestsBtn");
-  const runBacktestForm = document.querySelector<HTMLFormElement>("#runBacktestForm");
-  const runWalkForwardForm = document.querySelector<HTMLFormElement>("#runWalkForwardForm");
-  const backtestAccountSelect = document.querySelector<HTMLSelectElement>("#backtestAccountSelect");
-  const walkForwardAccountSelect = document.querySelector<HTMLSelectElement>("#walkForwardAccountSelect");
+  const refreshBtn = find<HTMLButtonElement>("#refreshAccountsBtn");
+  const snapshotAllBtn = find<HTMLButtonElement>("#snapshotAllBtn");
+  const loadLogBtn = find<HTMLButtonElement>("#loadLogBtn");
+  const refreshBacktestsBtn = find<HTMLButtonElement>("#refreshBacktestsBtn");
+  const runBacktestForm = find<HTMLFormElement>("#runBacktestForm");
+  const runWalkForwardForm = find<HTMLFormElement>("#runWalkForwardForm");
+  const backtestAccountSelect = find<HTMLSelectElement>("#backtestAccountSelect");
+  const walkForwardAccountSelect = find<HTMLSelectElement>("#walkForwardAccountSelect");
 
-  for (const quickButtons of document.querySelectorAll<HTMLDivElement>(".bt-quick-buttons")) {
+  for (const quickButtons of findAll<HTMLDivElement>(".bt-quick-buttons")) {
     quickButtons.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLButtonElement)) return;
@@ -274,12 +274,12 @@ async function wireActions(): Promise<void> {
 
       const formId = quickButtons.dataset.targetForm;
       if (!formId) return;
-      const form = document.querySelector<HTMLFormElement>(`#${formId}`);
+      const form = find<HTMLFormElement>(`#${formId}`);
       if (!form) return;
 
-      const lookbackInput = form.querySelector<HTMLInputElement>('input[name="lookbackMonths"]');
-      const startInput = form.querySelector<HTMLInputElement>('input[name="start"]');
-      const endInput = form.querySelector<HTMLInputElement>('input[name="end"]');
+      const lookbackInput = find<HTMLInputElement>('input[name="lookbackMonths"]', form);
+      const startInput = find<HTMLInputElement>('input[name="start"]', form);
+      const endInput = find<HTMLInputElement>('input[name="end"]', form);
       if (lookbackInput) {
         lookbackInput.value = String(Math.trunc(months));
       }
@@ -304,7 +304,7 @@ async function wireActions(): Promise<void> {
 
   runBacktestForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const out = document.querySelector<HTMLDivElement>("#backtestRunOutput");
+    const out = find<HTMLDivElement>("#backtestRunOutput");
     if (!out || !runBacktestForm) return;
 
     const fd = new FormData(runBacktestForm);
@@ -341,7 +341,7 @@ async function wireActions(): Promise<void> {
 
   runWalkForwardForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const out = document.querySelector<HTMLDivElement>("#walkForwardOutput");
+    const out = find<HTMLDivElement>("#walkForwardOutput");
     if (!out || !runWalkForwardForm) return;
 
     const fd = new FormData(runWalkForwardForm);
@@ -403,8 +403,9 @@ async function wireActions(): Promise<void> {
     const debouncedRefresh = debounce(() => {
       void refreshPreflightWarnings(form, target);
     }, 300);
-    const inputs = form.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+    const inputs = findAll<HTMLInputElement | HTMLSelectElement>(
       'input[name="tickersFile"], input[name="universeHistoryDir"], input[name="start"], input[name="end"], input[name="lookbackMonths"], input[name="allowApproximateLeaps"], select[name="account"]',
+      form,
     );
     for (const input of inputs) {
       input.addEventListener("change", () => {
