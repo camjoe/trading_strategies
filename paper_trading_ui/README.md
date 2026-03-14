@@ -54,6 +54,22 @@ Frontend URL (default): http://127.0.0.1:5173
 
 Note: the launcher runs Vite with `--strictPort`, so if `FRONTEND_PORT` is occupied the frontend window will show an explicit error instead of silently switching ports.
 
+## One-Command Launcher (Cross-Platform Python)
+
+From repository root:
+
+```powershell
+python paper_trading_ui/scripts/launch_ui.py
+```
+
+Dry run (show commands without starting processes):
+
+```powershell
+python paper_trading_ui/scripts/launch_ui.py --dry-run
+```
+
+This keeps both services attached to your terminal and stops both when you press `Ctrl+C`.
+
 ## One-Command Launcher (PowerShell)
 
 From repository root:
