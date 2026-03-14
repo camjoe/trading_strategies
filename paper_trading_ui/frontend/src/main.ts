@@ -5,6 +5,7 @@ type AccountSummary = {
   displayName: string;
   strategy: string;
   instrumentMode: string;
+  riskPolicy: string;
   benchmark: string;
   initialCash: number;
   equity: number;
@@ -280,6 +281,7 @@ function renderShell(): void {
                 <input name="runName" placeholder="Run name (optional)" />
               </div>
               <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
+              <div id="runBacktestWarnings" class="bt-warning empty">Select an account to preview financial-model warnings.</div>
               <button type="submit">Run Backtest</button>
             </form>
             <div id="backtestRunOutput" class="empty">Submit to run a backtest.</div>
@@ -316,6 +318,7 @@ function renderShell(): void {
                 <input name="runNamePrefix" placeholder="Run name prefix (optional)" />
               </div>
               <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
+              <div id="runWalkForwardWarnings" class="bt-warning empty">Select an account to preview financial-model warnings.</div>
               <button type="submit">Run Walk-Forward</button>
             </form>
             <div id="walkForwardOutput" class="empty">Submit to run walk-forward windows.</div>
@@ -577,6 +580,13 @@ function parseOptStr(raw: string): string | null {
   return v ? v : null;
 }
 
+function warningListHtml(warnings: string[]): string {
+  if (!warnings.length) {
+    return `<div class="empty">No financial-model warnings for the current configuration.</div>`;
+  }
+  return `<ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`;
+}
+
 function validateDateInputs(start: string | null, lookbackMonths: number | null): string | null {
   if (start && lookbackMonths !== null) {
     return "Use either Start date or Lookback months, not both.";
@@ -584,14 +594,24 @@ function validateDateInputs(start: string | null, lookbackMonths: number | null)
   return null;
 }
 
+function debounce<T extends (...args: never[]) => void>(fn: T, delayMs: number): (...args: Parameters<T>) => void {
+  let timer: number | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+    }
+    timer = window.setTimeout(() => {
+      fn(...args);
+    }, delayMs);
+  };
+}
+
 function renderBacktestRunResult(result: BacktestRunResult): string {
   const benchmarkLine =
     result.benchmarkReturnPct === null || result.alphaPct === null
       ? "Benchmark: unavailable"
       : `Benchmark ${pct(result.benchmarkReturnPct)} | Alpha ${pct(result.alphaPct)}`;
-  const warnings = result.warnings.length
-    ? `<ul>${result.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`
-    : "<div>Warnings: none</div>";
+  const warnings = `<div class="bt-warning">${warningListHtml(result.warnings)}</div>`;
 
   return `
     <div class="bt-result">
@@ -629,13 +649,18 @@ function renderBacktestRunCard(run: BacktestRunSummary): string {
 }
 
 function renderBacktestReport(report: BacktestReport): string {
+  const warningItems = String(report.warnings || "")
+    .split(" | ")
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+
   return `
     <div class="bt-result">
       <div><strong>Run ${report.run_id}</strong> ${esc(report.run_name ?? "(unnamed)")} | ${esc(report.account_name)} | ${esc(report.strategy)}</div>
       <div>Range: ${esc(report.start_date)}..${esc(report.end_date)} | Benchmark: ${esc(report.benchmark_ticker)}</div>
       <div>Start: ${currency.format(report.starting_equity)} | End: ${currency.format(report.ending_equity)} | Return: ${pct(report.total_return_pct)} | Max DD: ${pct(report.max_drawdown_pct)}</div>
       <div>Trades: ${report.trade_count} | Slippage: ${report.slippage_bps.toFixed(2)} bps | Fee: ${currency.format(report.fee_per_trade)}</div>
-      <div>Warnings: ${esc(report.warnings || "none")}</div>
+      <div class="bt-warning">${warningListHtml(warningItems)}</div>
     </div>
   `;
 }
@@ -672,6 +697,42 @@ async function loadBacktestReport(runId: number): Promise<void> {
   target.innerHTML = `<div class="empty">Loading report for run ${runId}...</div>`;
   const report = await getJson<BacktestReport>(`/api/backtests/runs/${runId}`);
   target.innerHTML = renderBacktestReport(report);
+}
+
+async function refreshPreflightWarnings(form: HTMLFormElement, outputSelector: string): Promise<void> {
+  const target = document.querySelector<HTMLDivElement>(outputSelector);
+  if (!target) return;
+
+  const fd = new FormData(form);
+  const account = String(fd.get("account") ?? "").trim();
+  if (!account) {
+    target.innerHTML = `<div class="empty">Select an account to preview financial-model warnings.</div>`;
+    return;
+  }
+
+  const payload = {
+    account,
+    tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
+    universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
+    start: parseOptStr(String(fd.get("start") ?? "")),
+    end: parseOptStr(String(fd.get("end") ?? "")),
+    lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
+    allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
+  };
+
+  const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
+  if (validationError) {
+    target.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+    return;
+  }
+
+  target.innerHTML = `<div class="empty">Checking warnings...</div>`;
+  try {
+    const result = await postJson<{ warnings: string[] }>("/api/backtests/preflight", payload);
+    target.innerHTML = warningListHtml(result.warnings);
+  } catch (error) {
+    target.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+  }
 }
 
 async function wireActions(): Promise<void> {
@@ -755,6 +816,7 @@ async function wireActions(): Promise<void> {
       out.innerHTML = renderBacktestRunResult(result);
       await loadBacktestRuns();
       await loadBacktestReport(result.runId);
+      await refreshPreflightWarnings(runBacktestForm, "#runBacktestWarnings");
     } catch (error) {
       out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
     }
@@ -795,6 +857,7 @@ async function wireActions(): Promise<void> {
       if (result.runIds.length) {
         await loadBacktestReport(result.runIds[0]);
       }
+      await refreshPreflightWarnings(runWalkForwardForm, "#runWalkForwardWarnings");
     } catch (error) {
       out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
     }
@@ -802,11 +865,40 @@ async function wireActions(): Promise<void> {
 
   backtestAccountSelect?.addEventListener("change", () => {
     applyBacktestAccountDefaults(runBacktestForm, backtestAccountSelect.value);
+    if (runBacktestForm) {
+      void refreshPreflightWarnings(runBacktestForm, "#runBacktestWarnings");
+    }
   });
 
   walkForwardAccountSelect?.addEventListener("change", () => {
     applyBacktestAccountDefaults(runWalkForwardForm, walkForwardAccountSelect.value);
+    if (runWalkForwardForm) {
+      void refreshPreflightWarnings(runWalkForwardForm, "#runWalkForwardWarnings");
+    }
   });
+
+  const preflightWireups: Array<[HTMLFormElement | null, string]> = [
+    [runBacktestForm, "#runBacktestWarnings"],
+    [runWalkForwardForm, "#runWalkForwardWarnings"],
+  ];
+  for (const [form, target] of preflightWireups) {
+    if (!form) continue;
+    const debouncedRefresh = debounce(() => {
+      void refreshPreflightWarnings(form, target);
+    }, 300);
+    const inputs = form.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+      'input[name="tickersFile"], input[name="universeHistoryDir"], input[name="start"], input[name="end"], input[name="lookbackMonths"], input[name="allowApproximateLeaps"], select[name="account"]',
+    );
+    for (const input of inputs) {
+      input.addEventListener("change", () => {
+        void refreshPreflightWarnings(form, target);
+      });
+      input.addEventListener("input", () => {
+        debouncedRefresh();
+      });
+    }
+    void refreshPreflightWarnings(form, target);
+  }
 }
 
 async function bootstrap(): Promise<void> {

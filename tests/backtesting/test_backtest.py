@@ -62,7 +62,7 @@ def test_run_backtest_persists_isolated_results(conn, monkeypatch: pytest.Monkey
     assert paper_trades is not None and int(paper_trades["n"]) == 0
 
 
-def test_run_backtest_leaps_requires_explicit_approximation_opt_in(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_backtest_leaps_adds_financial_risk_warnings(conn, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(
         conn,
         "acct_leaps_bt",
@@ -83,22 +83,23 @@ def test_run_backtest_leaps_requires_explicit_approximation_opt_in(conn, monkeyp
         lambda _ticker, _start, _end: pd.Series([100.0, 102.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
     )
 
-    with pytest.raises(ValueError, match="LEAPs mode backtesting is approximate only"):
-        run_backtest(
-            conn,
-            BacktestConfig(
-                account_name="acct_leaps_bt",
-                tickers_file="trading/trade_universe.txt",
-                universe_history_dir=None,
-                start="2026-01-01",
-                end="2026-03-01",
-                lookback_months=None,
-                slippage_bps=5.0,
-                fee_per_trade=0.0,
-                run_name=None,
-                allow_approximate_leaps=False,
-            ),
-        )
+    result_without_opt_in = run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_leaps_bt",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name=None,
+            allow_approximate_leaps=False,
+        ),
+    )
+    assert any("LEAPs mode is approximated" in warning for warning in result_without_opt_in.warnings)
+    assert any("LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings)
 
     result = run_backtest(
         conn,
@@ -116,6 +117,7 @@ def test_run_backtest_leaps_requires_explicit_approximation_opt_in(conn, monkeyp
         ),
     )
     assert any("LEAPs mode is approximated" in warning for warning in result.warnings)
+    assert not any("opt-in was not enabled" in warning for warning in result.warnings)
 
 
 def test_backtest_report_returns_summary(conn, monkeypatch: pytest.MonkeyPatch) -> None:

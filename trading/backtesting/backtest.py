@@ -196,12 +196,34 @@ def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) ->
         )
 
     if account["instrument_mode"] == "leaps":
-        if not allow_approximate_leaps:
-            raise ValueError(
-                "LEAPs mode backtesting is approximate only. Re-run with --allow-approximate-leaps to continue."
-            )
         warnings.append(
             "LEAPs mode is approximated using underlying equity prices; options chain history and Greeks are not modeled."
+        )
+        if not allow_approximate_leaps:
+            warnings.append(
+                "LEAPs approximation opt-in was not enabled; proceeding with approximate LEAPs assumptions for research only."
+            )
+
+    return warnings
+
+
+def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
+    account = get_account(conn, cfg.account_name)
+    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
+
+    default_tickers = load_tickers_from_file(cfg.tickers_file)
+    _month_to_tickers, _all_tickers, universe_warnings = build_monthly_universe(
+        default_tickers,
+        start_date,
+        end_date,
+        cfg.universe_history_dir,
+    )
+    warnings.extend(universe_warnings)
+
+    if cfg.universe_history_dir:
+        warnings.append(
+            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
         )
 
     return warnings

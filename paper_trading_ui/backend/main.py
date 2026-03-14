@@ -13,6 +13,7 @@ from trading.accounting import load_trades
 from trading.backtesting.backtest import (
     BacktestConfig,
     backtest_report,
+    preview_backtest_warnings,
     run_backtest,
     WalkForwardConfig,
     run_walk_forward_backtest,
@@ -84,6 +85,7 @@ def _build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[s
         "displayName": row["descriptive_name"],
         "strategy": row["strategy"],
         "instrumentMode": row["instrument_mode"],
+        "riskPolicy": row["risk_policy"],
         "benchmark": row["benchmark_ticker"],
         "initialCash": initial_cash,
         "equity": equity,
@@ -148,6 +150,16 @@ class WalkForwardRunRequest(BaseModel):
     slippageBps: float = 5.0
     fee: float = 0.0
     runNamePrefix: str | None = None
+    allowApproximateLeaps: bool = False
+
+
+class BacktestPreflightRequest(BaseModel):
+    account: str
+    tickersFile: str = "trading/trade_universe.txt"
+    universeHistoryDir: str | None = None
+    start: str | None = None
+    end: str | None = None
+    lookbackMonths: int | None = Field(default=None, gt=0)
     allowApproximateLeaps: bool = False
 
 
@@ -379,6 +391,38 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
             "alphaPct": result.alpha_pct,
             "maxDrawdownPct": result.max_drawdown_pct,
             "warnings": result.warnings,
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/api/backtests/preflight")
+def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, object]:
+    conn = ensure_db()
+    try:
+        try:
+            warnings = preview_backtest_warnings(
+                conn,
+                BacktestConfig(
+                    account_name=payload.account,
+                    tickers_file=payload.tickersFile,
+                    universe_history_dir=payload.universeHistoryDir,
+                    start=payload.start,
+                    end=payload.end,
+                    lookback_months=payload.lookbackMonths,
+                    slippage_bps=0.0,
+                    fee_per_trade=0.0,
+                    run_name=None,
+                    allow_approximate_leaps=payload.allowApproximateLeaps,
+                ),
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return {
+            "warnings": warnings,
         }
     finally:
         conn.close()
