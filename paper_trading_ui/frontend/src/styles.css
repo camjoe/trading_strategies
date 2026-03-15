@@ -60,10 +60,76 @@ body {
   z-index: 1;
   display: flex;
   gap: 0;
+  align-items: stretch;
   padding: 0 1rem;
   background: #f4f8ffcc;
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--line);
+}
+
+.tab-dropdown {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.docs-nav-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  min-width: 280px;
+  padding: 0.55rem;
+  border: 1px solid #c9d7e5;
+  border-radius: 14px;
+  background: #f7fbffef;
+  box-shadow: 0 16px 34px #22354d22;
+  backdrop-filter: blur(10px);
+}
+
+.docs-nav-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.docs-link-group {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.docs-link-group-title {
+  margin: 0;
+  padding: 0 0.25rem;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.docs-link-group-list {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.docs-nav-item {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.docs-nav-item:hover,
+.docs-nav-item:focus-visible {
+  background: #e7f2f4;
+  border-color: #b7d6d9;
+  color: var(--accent);
+  transform: none;
+  filter: none;
 }
 
 .tab-btn {
@@ -102,6 +168,55 @@ body {
   grid-column: span 12;
 }
 
+.docs-toc-card {
+  grid-column: span 12;
+  position: sticky;
+  top: 7rem;
+  z-index: 1;
+  background: linear-gradient(180deg, #fbfdffed, #f4f9ffed);
+}
+
+.docs-toc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.docs-toc-head p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.docs-toc-groups {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.docs-toc-item {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #d2dfeb;
+  background: #ffffffd8;
+  color: var(--ink);
+  text-align: left;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.docs-toc-item:hover,
+.docs-toc-item:focus-visible {
+  border-color: #9dc7cb;
+  background: #edf7f8;
+  color: var(--accent);
+  transform: none;
+  filter: none;
+}
+
 .docs-grid {
   display: grid;
   gap: 1rem;
@@ -126,6 +241,91 @@ body {
   font-size: 0.9rem;
   color: var(--ink-soft);
   line-height: 1.5;
+}
+
+.ref-card {
+  grid-column: span 12;
+}
+
+.ref-card > h2 {
+  margin-bottom: 0.25rem;
+}
+
+.ref-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 7rem;
+}
+
+.ref-section h3 {
+  margin: 0 0 0.6rem;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.ref-section > p {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin-bottom: 0.5rem;
+}
+
+.ref-table th {
+  background: #e8f1f8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.ref-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #e8eef5;
+  vertical-align: top;
+}
+
+.ref-table td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink);
+  min-width: 170px;
+}
+
+.ref-table td:last-child {
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.ref-eval-list {
+  margin: 0.25rem 0 0.75rem;
+  padding-left: 1.25rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+.ref-subsection-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 1rem 0 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .actions {
@@ -333,6 +533,26 @@ td {
   color: var(--ink);
   background: #ffffffd6;
   border: 1px solid #d1dceb;
+}
+
+@media (max-width: 900px) {
+  .docs-nav-menu {
+    left: auto;
+    right: 0;
+    width: min(82vw, 320px);
+  }
+
+  .docs-toc-card {
+    top: 6.5rem;
+  }
+
+  .docs-toc-head {
+    display: grid;
+  }
+
+  .docs-toc-groups {
+    grid-template-columns: 1fr;
+  }
 }
 
 .bt-result {

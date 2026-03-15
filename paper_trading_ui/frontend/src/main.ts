@@ -11,8 +11,112 @@ if (!appRoot) {
 }
 const app = appRoot;
 
+type DocsSectionLink = {
+  groupLabel: string;
+  sectionId: string;
+  sectionTitle: string;
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function openTab(target: string): void {
+  const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
+  const tabPanels = document.querySelectorAll<HTMLElement>(".tab-panel");
+
+  tabBtns.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === target);
+  });
+  tabPanels.forEach((panel) => {
+    panel.hidden = panel.id !== `tab-${target}`;
+  });
+}
+
 function renderShell(): void {
   app.innerHTML = shellTemplate;
+}
+
+function scrollToDocsSection(sectionId: string): void {
+  openTab("docs");
+  requestAnimationFrame(() => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function collectDocsSections(): DocsSectionLink[] {
+  const sectionHeadings = Array.from(
+    document.querySelectorAll<HTMLHeadingElement>("#tab-docs .ref-card .ref-section > h3"),
+  );
+
+  return sectionHeadings.flatMap((heading) => {
+    const section = heading.closest<HTMLElement>(".ref-section");
+    const card = heading.closest<HTMLElement>(".ref-card");
+    const groupHeading = card?.querySelector<HTMLHeadingElement>("h2");
+    const sectionTitle = heading.textContent?.trim();
+    const groupLabel = groupHeading?.textContent?.trim();
+
+    if (!section || !sectionTitle || !groupLabel) {
+      return [];
+    }
+
+    if (!section.id) {
+      section.id = `docs-${slugify(sectionTitle)}`;
+    }
+
+    return [
+      {
+        groupLabel,
+        sectionId: section.id,
+        sectionTitle,
+      },
+    ];
+  });
+}
+
+function renderDocsSectionGroups(
+  container: HTMLElement,
+  sections: DocsSectionLink[],
+  itemClassName: string,
+): void {
+  const groups = new Map<string, DocsSectionLink[]>();
+
+  sections.forEach((section) => {
+    const items = groups.get(section.groupLabel) ?? [];
+    items.push(section);
+    groups.set(section.groupLabel, items);
+  });
+
+  groups.forEach((items, groupLabel) => {
+    const group = document.createElement("section");
+    group.className = "docs-link-group";
+
+    const label = document.createElement("h3");
+    label.className = "docs-link-group-title";
+    label.textContent = groupLabel;
+    group.appendChild(label);
+
+    const list = document.createElement("div");
+    list.className = "docs-link-group-list";
+
+    items.forEach((section) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = itemClassName;
+      item.textContent = section.sectionTitle;
+      item.addEventListener("click", () => {
+        scrollToDocsSection(section.sectionId);
+      });
+      list.appendChild(item);
+    });
+
+    group.appendChild(list);
+    container.appendChild(group);
+  });
 }
 
 const backtestingFeature = createBacktestingFeature();
@@ -27,6 +131,7 @@ const logsFeature = createLogsFeature();
 async function bootstrap(): Promise<void> {
   renderShell();
   initTabs();
+  initDocsMenu();
   accountsFeature.wireActions();
   logsFeature.wireActions();
   backtestingFeature.wireActions();
@@ -37,16 +142,84 @@ async function bootstrap(): Promise<void> {
 
 function initTabs(): void {
   const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
-  const tabPanels = document.querySelectorAll<HTMLElement>(".tab-panel");
 
   tabBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = btn.dataset.tab;
-      tabBtns.forEach((b) => b.classList.toggle("active", b === btn));
-      tabPanels.forEach((panel) => {
-        panel.hidden = panel.id !== `tab-${target}`;
-      });
+      if (!target) {
+        return;
+      }
+      openTab(target);
     });
+  });
+}
+
+function initDocsMenu(): void {
+  const docsNavItem = find<HTMLElement>("#docsNavItem");
+  const docsTabBtn = find<HTMLButtonElement>("#docsTabBtn");
+  const docsSectionMenu = find<HTMLElement>("#docsSectionMenu");
+  const docsSectionList = find<HTMLElement>("#docsSectionList");
+  const docsTocList = find<HTMLElement>("#docsTocList");
+  const sections = collectDocsSections();
+
+  if (!docsNavItem || !docsTabBtn || !docsSectionMenu || !docsSectionList || sections.length === 0) {
+    return;
+  }
+
+  let isPinnedOpen = false;
+
+  const setMenuOpen = (isOpen: boolean) => {
+    docsSectionMenu.hidden = !isOpen;
+    docsNavItem.classList.toggle("open", isOpen);
+    docsTabBtn.setAttribute("aria-expanded", String(isOpen));
+  };
+
+  renderDocsSectionGroups(docsSectionList, sections, "docs-nav-item");
+  if (docsTocList && !docsTocList.closest("[hidden]")) {
+    renderDocsSectionGroups(docsTocList, sections, "docs-toc-item");
+  }
+
+  docsSectionList.addEventListener("click", () => {
+    isPinnedOpen = false;
+    setMenuOpen(false);
+  });
+
+  docsNavItem.addEventListener("mouseenter", () => {
+    setMenuOpen(true);
+  });
+
+  docsNavItem.addEventListener("mouseleave", () => {
+    if (!isPinnedOpen) {
+      setMenuOpen(false);
+    }
+  });
+
+  docsTabBtn.addEventListener("click", () => {
+    if (document.querySelector<HTMLElement>("#tab-docs:not([hidden])")) {
+      isPinnedOpen = !isPinnedOpen;
+    } else {
+      isPinnedOpen = true;
+    }
+    setMenuOpen(isPinnedOpen);
+  });
+
+  docsTabBtn.addEventListener("focus", () => {
+    setMenuOpen(true);
+  });
+
+  docsNavItem.addEventListener("focusout", (event) => {
+    const nextTarget = event.relatedTarget;
+    if (!isPinnedOpen && !(nextTarget instanceof Node && docsNavItem.contains(nextTarget))) {
+      setMenuOpen(false);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Node) || docsNavItem.contains(event.target)) {
+      return;
+    }
+    isPinnedOpen = false;
+    setMenuOpen(false);
   });
 }
 
