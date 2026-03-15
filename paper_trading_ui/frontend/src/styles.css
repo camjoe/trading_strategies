@@ -518,6 +518,43 @@ td {
   gap: 0.55rem;
 }
 
+.bt-advanced {
+  border: 1px solid #d4dfec;
+  border-radius: 10px;
+  background: #f7fbffd6;
+}
+
+.bt-advanced summary {
+  cursor: pointer;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+  list-style: none;
+}
+
+.bt-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.bt-advanced summary::before {
+  content: "+";
+  display: inline-block;
+  margin-right: 0.45rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.bt-advanced[open] summary::before {
+  content: "−";
+}
+
+.bt-advanced-body {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
 .bt-quick-buttons {
   display: flex;
   flex-wrap: wrap;

@@ -60,18 +60,21 @@
             <button type="button" data-lookback-months="6">Last 6M</button>
             <button type="button" data-lookback-months="12">Last 12M</button>
           </div>
-          <div class="bt-row">
-            <input name="start" type="date" placeholder="Start" />
-            <input name="end" type="date" placeholder="End" />
-          </div>
-          <div class="bt-row">
-            <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
-            <input name="slippageBps" type="number" step="0.1" value="5" placeholder="Slippage bps" />
-          </div>
-          <div class="bt-row">
-            <input name="fee" type="number" step="0.01" value="0" placeholder="Fee" />
-            <input name="runName" placeholder="Run name (optional)" />
-          </div>
+          <details class="bt-advanced">
+            <summary>Additional options</summary>
+            <div class="bt-advanced-body">
+              <div class="bt-row">
+                <input name="start" type="date" placeholder="Start" />
+                <input name="end" type="date" placeholder="End" />
+              </div>
+              <div class="bt-row">
+                <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
+                <input name="slippageBps" type="number" step="0.1" placeholder="Slippage bps (empty defaults to 5)" />
+              </div>
+              <input name="fee" type="number" step="0.01" placeholder="Fee" />
+            </div>
+          </details>
+          <input name="runName" placeholder="Run name (optional)" />
           <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
           <div id="runBacktestWarnings" class="bt-warning empty">Select an account to preview financial-model warnings.</div>
           <button type="submit">Run Backtest</button>
@@ -94,21 +97,24 @@
             <button type="button" data-lookback-months="24">Last 24M</button>
           </div>
           <div class="bt-row">
-            <input name="start" type="date" placeholder="Start" />
-            <input name="end" type="date" placeholder="End" />
-          </div>
-          <div class="bt-row">
-            <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
             <input name="testMonths" type="number" min="1" value="1" placeholder="Test months" />
-          </div>
-          <div class="bt-row">
             <input name="stepMonths" type="number" min="1" value="1" placeholder="Step months" />
-            <input name="slippageBps" type="number" step="0.1" value="5" placeholder="Slippage bps" />
           </div>
-          <div class="bt-row">
-            <input name="fee" type="number" step="0.01" value="0" placeholder="Fee" />
-            <input name="runNamePrefix" placeholder="Run name prefix (optional)" />
-          </div>
+          <input name="runNamePrefix" placeholder="Run name prefix (optional)" />
+          <details class="bt-advanced">
+            <summary>Additional options</summary>
+            <div class="bt-advanced-body">
+              <div class="bt-row">
+                <input name="start" type="date" placeholder="Start" />
+                <input name="end" type="date" placeholder="End" />
+              </div>
+              <div class="bt-row">
+                <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
+                <input name="slippageBps" type="number" step="0.1" placeholder="Slippage bps (empty defaults to 5)" />
+              </div>
+              <input name="fee" type="number" step="0.01" placeholder="Fee" />
+            </div>
+          </details>
           <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
           <div id="runWalkForwardWarnings" class="bt-warning empty">Select an account to preview financial-model warnings.</div>
           <button type="submit">Run Walk-Forward</button>

@@ -80,7 +80,12 @@ function parseOptStr(raw: string): string | null {
 }
 
 function parseFormNumber(fd: FormData, key: string, fallback: number): number {
-  return Number(fd.get(key) ?? fallback);
+  const raw = String(fd.get(key) ?? "").trim();
+  if (!raw) {
+    return fallback;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function buildBacktestBasePayload(fd: FormData): BacktestBasePayload {
