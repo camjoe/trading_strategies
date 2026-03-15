@@ -6,6 +6,9 @@ import { createLogsFeature } from "./features/logs";
 import shellTemplate from "./templates/shell.html?raw";
 import navTemplate from "./templates/nav.html?raw";
 import docsTabTemplate from "./templates/docs-tab.html?raw";
+import backtestingTabTemplate from "./templates/backtesting-tab.html?raw";
+import tradesTabTemplate from "./templates/trades-tab.html?raw";
+import accountsTabTemplate from "./templates/accounts-tab.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -53,6 +56,9 @@ function openTab(target: string): void {
 function renderShell(): void {
   app.innerHTML = shellTemplate
     .replace("<!-- NAV_PARTIAL -->", navTemplate)
+    .replace("<!-- TRADES_TAB_PARTIAL -->", tradesTabTemplate)
+    .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTabTemplate)
+    .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTabTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", docsTabTemplate);
 }
 
