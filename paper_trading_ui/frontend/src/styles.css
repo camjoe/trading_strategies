@@ -206,8 +206,35 @@ body {
   grid-column: span 12;
 }
 
-.ref-card > h2 {
+.ref-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.ref-card-head > h2 {
   margin-bottom: 0.25rem;
+}
+
+.ref-card-toggle-all {
+  background: #f5f9fddd;
+  color: var(--ink-soft);
+  border: 1px solid #c8d9ea;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ref-card-toggle-all:hover,
+.ref-card-toggle-all:focus-visible {
+  background: #ecf4fb;
+  color: var(--accent);
+  border-color: #a6c5dc;
+  transform: none;
+  filter: none;
 }
 
 .ref-section {

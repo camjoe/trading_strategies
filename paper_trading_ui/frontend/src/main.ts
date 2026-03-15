@@ -86,7 +86,18 @@ function initDocsAccordion(): void {
   const cards = Array.from(document.querySelectorAll<HTMLElement>("#tab-docs .ref-card"));
 
   cards.forEach((card) => {
+    const cardToggleAllBtn = card.querySelector<HTMLButtonElement>("[data-ref-card-toggle-all]");
     const sections = Array.from(card.querySelectorAll<HTMLElement>(":scope > .ref-section"));
+
+    const updateCardToggleAllButton = () => {
+      if (!cardToggleAllBtn) {
+        return;
+      }
+
+      const allExpanded = sections.length > 0 && sections.every((section) => section.classList.contains("expanded"));
+      cardToggleAllBtn.textContent = allExpanded ? "Collapse all" : "Expand all";
+      cardToggleAllBtn.setAttribute("aria-label", allExpanded ? "Collapse all sections" : "Expand all sections");
+    };
 
     sections.forEach((section, index) => {
       const heading = section.querySelector<HTMLHeadingElement>(":scope > h3");
@@ -123,10 +134,12 @@ function initDocsAccordion(): void {
           sections.forEach((sibling) => {
             setDocsSectionExpanded(sibling, sibling === section);
           });
+          updateCardToggleAllButton();
           return;
         }
 
         setDocsSectionExpanded(section, false);
+        updateCardToggleAllButton();
       };
 
       button.addEventListener("click", () => {
@@ -135,6 +148,18 @@ function initDocsAccordion(): void {
 
       setDocsSectionExpanded(section, index === 0);
     });
+
+    if (cardToggleAllBtn) {
+      cardToggleAllBtn.addEventListener("click", () => {
+        const shouldExpandAll = !sections.every((section) => section.classList.contains("expanded"));
+        sections.forEach((section) => {
+          setDocsSectionExpanded(section, shouldExpandAll);
+        });
+        updateCardToggleAllButton();
+      });
+    }
+
+    updateCardToggleAllButton();
   });
 }
 

@@ -178,44 +178,74 @@
     </section>
 
     <section class="card ref-card">
-      <h2>Financial &amp; Market Knowledge</h2>
+      <div class="ref-card-head">
+        <h2>Financial &amp; Market Knowledge</h2>
+        <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+      </div>
 
       <div class="ref-section">
-        <h3>Financial Terms &amp; Phrases</h3>
+        <h3>Performance &amp; Benchmarking</h3>
         <table class="ref-table">
           <thead><tr><th>Term</th><th>Definition</th></tr></thead>
           <tbody>
             <tr><td>Alpha</td><td>Excess return of a strategy relative to a benchmark. Positive alpha means outperformance.</td></tr>
-            <tr><td>Beta</td><td>Sensitivity of an asset's returns to market movements. Beta of 1.0 moves in line with the market.</td></tr>
-            <tr><td>Sharpe Ratio</td><td>Risk-adjusted return: mean excess return divided by its standard deviation. Higher is better.</td></tr>
-            <tr><td>Max Drawdown</td><td>Largest peak-to-trough decline in portfolio value — a key measure of downside risk.</td></tr>
             <tr><td>PnL (Profit and Loss)</td><td>Total realized and unrealized gain or loss on a position or portfolio.</td></tr>
             <tr><td>Realized PnL</td><td>Gain or loss locked in by closing a position.</td></tr>
             <tr><td>Unrealized PnL</td><td>Gain or loss on a position still open (mark-to-market).</td></tr>
             <tr><td>Equity Snapshot</td><td>A point-in-time record of total portfolio value used to build a performance time series.</td></tr>
             <tr><td>Benchmark</td><td>A reference index (e.g., SPY, QQQ) used to compare strategy performance.</td></tr>
-            <tr><td>Hit Rate</td><td>Percentage of trades that are profitable.</td></tr>
-            <tr><td>Turnover</td><td>How frequently positions are replaced; high turnover increases transaction costs.</td></tr>
+            <!-- <tr><td>Beta</td><td>Sensitivity of an asset's returns to market movements. Beta of 1.0 moves in line with the market.</td></tr> -->
+            <!-- <tr><td>Sharpe Ratio</td><td>Risk-adjusted return: mean excess return divided by its standard deviation. Higher is better.</td></tr> -->
+            <!-- <tr><td>Max Drawdown</td><td>Largest peak-to-trough decline in portfolio value — a key measure of downside risk.</td></tr> -->
+            <!-- <tr><td>Hit Rate</td><td>Percentage of trades that are profitable.</td></tr> -->
+            <!-- <tr><td>Turnover</td><td>How frequently positions are replaced; high turnover increases transaction costs.</td></tr> -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Execution &amp; Risk Controls</h3>
+        <table class="ref-table">
+          <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+          <tbody>
             <tr><td>Slippage</td><td>Difference between the expected execution price and the actual fill price.</td></tr>
+            <tr><td>Stop-Loss</td><td>A predefined exit point to limit losses on a trade.</td></tr>
+            <tr><td>Take-Profit</td><td>A predefined exit point to lock in gains on a trade.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Options / Derivatives</h3>
+        <table class="ref-table">
+          <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+          <tbody>
             <tr><td>IV Rank</td><td>Normalized 0–100 score for current implied volatility vs. its 1-year range. 0 = near lowest; 100 = near highest. Used to gauge whether options are relatively cheap or expensive.</td></tr>
             <tr><td>LEAPs</td><td>Long-term Equity Anticipation Securities — options with expirations typically one year or more out.</td></tr>
             <tr><td>DTE (Days to Expiration)</td><td>Number of calendar days until an options contract expires.</td></tr>
             <tr><td>Delta</td><td>Rate of change in an option's price relative to a $1 move in the underlying asset. Ranges 0–1 for calls, 0 to -1 for puts.</td></tr>
             <tr><td>Strike Price</td><td>The price at which an option contract can be exercised.</td></tr>
             <tr><td>Premium</td><td>The price paid (or received) for an options contract.</td></tr>
-            <tr><td>Stop-Loss</td><td>A predefined exit point to limit losses on a trade.</td></tr>
-            <tr><td>Take-Profit</td><td>A predefined exit point to lock in gains on a trade.</td></tr>
-            <tr><td>Walk-Forward Validation</td><td>Backtesting methodology where the model is trained on a rolling window and tested on the next unseen period, reducing overfitting.</td></tr>
-            <tr><td>Look-Ahead Bias</td><td>An error where future data is inadvertently used when generating historical signals.</td></tr>
-            <tr><td>Survivorship Bias</td><td>Distortion in backtests caused by only including assets that still exist today, ignoring delisted companies.</td></tr>
-            <tr><td>Adjusted Close</td><td>Historical closing price adjusted for corporate actions (splits, dividends) to maintain a consistent series.</td></tr>
-            <tr><td>Regime</td><td>A persistent market state (e.g., trending, mean-reverting, high-volatility) that affects strategy performance.</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="ref-section">
-        <h3>Technical Analysis Concepts</h3>
+        <h3>Data &amp; Backtesting Integrity</h3>
+        <table class="ref-table">
+          <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+          <tbody>
+            <tr><td>Walk-Forward Validation</td><td>Backtesting methodology where the model is trained on a rolling window and tested on the next unseen period, reducing overfitting.</td></tr>
+            <tr><td>Adjusted Close</td><td>Historical closing price adjusted for corporate actions (splits, dividends) to maintain a consistent series.</td></tr>
+            <!-- <tr><td>Look-Ahead Bias</td><td>An error where future data is inadvertently used when generating historical signals.</td></tr> -->
+            <!-- <tr><td>Survivorship Bias</td><td>Distortion in backtests caused by only including assets that still exist today, ignoring delisted companies.</td></tr> -->
+            <!-- <tr><td>Regime</td><td>A persistent market state (e.g., trending, mean-reverting, high-volatility) that affects strategy performance.</td></tr> -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Technical Signals</h3>
         <table class="ref-table">
           <thead><tr><th>Concept</th><th>Description</th></tr></thead>
           <tbody>
@@ -223,12 +253,12 @@
             <tr><td>EMA</td><td>Exponential Moving Average — applies more weight to recent prices than older ones.</td></tr>
             <tr><td>MACD</td><td>Moving Average Convergence Divergence — momentum indicator comparing two EMAs and a signal line.</td></tr>
             <tr><td>RSI</td><td>Relative Strength Index (0–100) measuring speed and magnitude of recent price changes. Above 70 = overbought; below 30 = oversold.</td></tr>
-            <tr><td>Bollinger Bands</td><td>Volatility bands placed two standard deviations above and below a moving average.</td></tr>
-            <tr><td>ATR</td><td>Average True Range — measures market volatility; useful for position sizing and stop placement.</td></tr>
             <tr><td>Volume</td><td>Number of shares or contracts traded in a period — a key confirmation signal for price moves.</td></tr>
-            <tr><td>Breakout</td><td>When price moves beyond a defined resistance or support level, often on elevated volume.</td></tr>
-            <tr><td>Mean Reversion</td><td>The tendency of prices to return to a historical average after deviating from it.</td></tr>
             <tr><td>Momentum</td><td>The persistence of price trends — assets that have performed well recently tend to continue doing so over short horizons.</td></tr>
+            <!-- <tr><td>Bollinger Bands</td><td>Volatility bands placed two standard deviations above and below a moving average.</td></tr> -->
+            <!-- <tr><td>ATR</td><td>Average True Range — measures market volatility; useful for position sizing and stop placement.</td></tr> -->
+            <!-- <tr><td>Breakout</td><td>When price moves beyond a defined resistance or support level, often on elevated volume.</td></tr> -->
+            <!-- <tr><td>Mean Reversion</td><td>The tendency of prices to return to a historical average after deviating from it.</td></tr> -->
           </tbody>
         </table>
       </div>
@@ -271,14 +301,30 @@
             <tr><td>Macro</td><td>Macro-level signals (rates, volatility indices) for regime context.</td></tr>
             <tr><td>Futures</td><td>Commodity and index futures — not currently active.</td></tr>
             <tr><td>Forex</td><td>Currency pairs — not currently active.</td></tr>
-            <tr><td>Crypto</td><td>Digital assets via feeds like ccxt — exploratory.</td></tr>
+            <tr><td>Crypto</td><td>Digital assets via feeds like ccxt — not currently active.</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <section class="card ref-card">
-      <h2>Software</h2>
+      <div class="ref-card-head">
+        <h2>Software</h2>
+        <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+      </div>
+
+      <div class="ref-section">
+        <h3>Projects in This Repository</h3>
+        <table class="ref-table">
+          <thead><tr><th>Project</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>trading/</td><td>Core trading engine — paper trading accounts, trade recording, position management, accounting, automated trading, reporting, and backtesting. Key modules: paper_trading.py, auto_trader.py, accounting.py, backtesting/, reporting.py, models.py, db.py, profiles.py.</td></tr>
+            <tr><td>trends/</td><td>Stock trend analysis module. Fetches price data, computes technical indicators, and generates trend signals. Key modules: data.py, indicators.py, stock_trends.py, tickers.py, charts.py.</td></tr>
+            <tr><td>paper_trading_ui/</td><td>Web interface for monitoring paper trading accounts and triggering backtests. Backend is a FastAPI REST API; frontend is a TypeScript + Vite single-page app with no external UI framework.</td></tr>
+            <tr><td>common/</td><td>Shared utilities — tickers.py (common ticker loading helpers) and time.py (date/time utilities).</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="ref-section">
         <h3>Languages</h3>
@@ -315,10 +361,6 @@
           <thead><tr><th>Package</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td>yfinance</td><td>Primary market data source — daily OHLCV and adjusted close via Yahoo Finance.</td></tr>
-            <tr><td>yahooquery</td><td>Alternative Yahoo Finance client.</td></tr>
-            <tr><td>pandas-datareader</td><td>Generic financial data reader (FRED, Stooq, etc.).</td></tr>
-            <tr><td>requests / httpx</td><td>HTTP clients for REST API calls.</td></tr>
-            <tr><td>ccxt</td><td>Crypto exchange data aggregator.</td></tr>
           </tbody>
         </table>
 
@@ -328,18 +370,6 @@
           <tbody>
             <tr><td>pandas</td><td>Core data manipulation and time-series handling.</td></tr>
             <tr><td>numpy</td><td>Numerical computing.</td></tr>
-            <tr><td>scipy</td><td>Scientific computing and statistical tests.</td></tr>
-            <tr><td>statsmodels</td><td>Statistical models, OLS regression, time-series analysis.</td></tr>
-            <tr><td>scikit-learn</td><td>Machine learning — classification, regression, preprocessing.</td></tr>
-          </tbody>
-        </table>
-
-        <p class="ref-subsection-label">Technical Indicators</p>
-        <table class="ref-table">
-          <thead><tr><th>Package</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td>pandas-ta</td><td>130+ technical indicators built on pandas DataFrames.</td></tr>
-            <tr><td>ta</td><td>Lightweight technical analysis library.</td></tr>
           </tbody>
         </table>
 
@@ -348,42 +378,21 @@
           <thead><tr><th>Package</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td>matplotlib</td><td>Static charting.</td></tr>
-            <tr><td>plotly</td><td>Interactive charts.</td></tr>
-            <tr><td>mplfinance</td><td>OHLCV candlestick and financial chart rendering.</td></tr>
           </tbody>
         </table>
 
-        <p class="ref-subsection-label">Backtesting &amp; Performance</p>
+        <p class="ref-subsection-label">Backend &amp; Validation</p>
         <table class="ref-table">
           <thead><tr><th>Package</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td>quantstats</td><td>Portfolio performance and tearsheet reports.</td></tr>
-            <tr><td>vectorbt</td><td>Vectorized backtesting framework for fast simulation.</td></tr>
-            <tr><td>backtrader</td><td>Event-driven backtesting framework.</td></tr>
-          </tbody>
-        </table>
-
-        <p class="ref-subsection-label">Deep Learning (Optional)</p>
-        <table class="ref-table">
-          <thead><tr><th>Package</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td>torch</td><td>PyTorch — deep learning for sequence models and custom architectures.</td></tr>
+            <tr><td>fastapi</td><td>API framework for paper trading UI backend routes.</td></tr>
+            <tr><td>pydantic</td><td>Request/response schema and validation models.</td></tr>
+            <tr><td>python-dotenv</td><td>Environment variable loading for backend configuration.</td></tr>
+            <tr><td>pytest</td><td>Test framework used across repository test suites.</td></tr>
           </tbody>
         </table>
       </div>
 
-      <div class="ref-section">
-        <h3>Projects in This Repository</h3>
-        <table class="ref-table">
-          <thead><tr><th>Project</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td>trading/</td><td>Core trading engine — paper trading accounts, trade recording, position management, accounting, automated trading, reporting, and backtesting. Key modules: paper_trading.py, auto_trader.py, accounting.py, backtesting/, reporting.py, models.py, db.py, profiles.py.</td></tr>
-            <tr><td>trends/</td><td>Stock trend analysis module. Fetches price data, computes technical indicators, and generates trend signals. Key modules: data.py, indicators.py, stock_trends.py, tickers.py, charts.py.</td></tr>
-            <tr><td>paper_trading_ui/</td><td>Web interface for monitoring paper trading accounts and triggering backtests. Backend is a FastAPI REST API; frontend is a TypeScript + Vite single-page app with no external UI framework.</td></tr>
-            <tr><td>common/</td><td>Shared utilities — tickers.py (common ticker loading helpers) and time.py (date/time utilities).</td></tr>
-          </tbody>
-        </table>
-      </div>
     </section>
   </div>
 </main>
