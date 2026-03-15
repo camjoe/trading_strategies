@@ -425,5 +425,148 @@
       </div>
 
     </section>
+
+    <section class="card ref-card">
+      <div class="ref-card-head">
+        <h2>RESTful API Reference</h2>
+        <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+      </div>
+
+      <div class="ref-section">
+        <h3>API Basics</h3>
+        <table class="ref-table">
+          <thead><tr><th>Item</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>Backend Framework</td><td>FastAPI app in paper_trading_ui/backend/main.py.</td></tr>
+            <tr><td>Base Path</td><td>Most application endpoints are under /api/ (plus /health for service checks).</td></tr>
+            <tr><td>Content Type</td><td>JSON request/response payloads.</td></tr>
+            <tr><td>CORS</td><td>Configured via CORS_ORIGINS (comma-separated), defaults to *.</td></tr>
+            <tr><td>Error Shape</td><td>HTTP errors return a detail message (FastAPI HTTPException).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Accounts &amp; Snapshots Endpoints</h3>
+        <table class="ref-table">
+          <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>GET /health</td><td>Simple health check. Returns {"status":"ok"} when backend is up.</td></tr>
+            <tr><td>GET /api/accounts</td><td>List account summaries (equity, benchmark, PnL deltas, latest snapshot time).</td></tr>
+            <tr><td>GET /api/accounts/{account_name}</td><td>Get one account detail, latest backtest summary, recent snapshots, and recent trades.</td></tr>
+            <tr><td>POST /api/actions/snapshot/{account_name}</td><td>Create an equity snapshot for one account.</td></tr>
+            <tr><td>POST /api/actions/snapshot-all</td><td>Create equity snapshots for all accounts.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Logs Endpoints</h3>
+        <table class="ref-table">
+          <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>GET /api/logs/files</td><td>Return available .log files from configured logs directory.</td></tr>
+            <tr><td>GET /api/logs/{file_name}</td><td>Return recent lines from a log file with optional filtering.</td></tr>
+          </tbody>
+        </table>
+
+        <p class="ref-subsection-label">Log Query Parameters</p>
+        <table class="ref-table">
+          <thead><tr><th>Parameter</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>limit</td><td>Number of lines to return (default 400, min 10, max 4000).</td></tr>
+            <tr><td>contains</td><td>Case-insensitive substring filter applied before line limit is sliced.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Backtesting Endpoints</h3>
+        <table class="ref-table">
+          <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>GET /api/backtests/runs</td><td>List recent backtest runs across accounts.</td></tr>
+            <tr><td>GET /api/backtests/latest/{account_name}</td><td>Get latest run metadata for a single account.</td></tr>
+            <tr><td>GET /api/backtests/runs/{run_id}</td><td>Get full report for one run id.</td></tr>
+            <tr><td>POST /api/backtests/run</td><td>Run a single backtest window and persist results.</td></tr>
+            <tr><td>POST /api/backtests/preflight</td><td>Preview warnings before executing a run (no execution).</td></tr>
+            <tr><td>POST /api/backtests/walk-forward</td><td>Execute rolling walk-forward windows and return aggregate summary.</td></tr>
+          </tbody>
+        </table>
+
+        <p class="ref-subsection-label">Backtest Run Query Parameters</p>
+        <table class="ref-table">
+          <thead><tr><th>Endpoint</th><th>Parameter</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>GET /api/backtests/runs</td><td>limit</td><td>Max runs returned (default 50, min 1, max 500).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ref-section">
+        <h3>Request Body Models</h3>
+
+        <p class="ref-subsection-label">Common Response Fields</p>
+        <table class="ref-table">
+          <thead><tr><th>Field</th><th>Where It Appears</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>status</td><td>/health, snapshot actions</td><td>Operation status string (for current endpoints, typically "ok").</td></tr>
+            <tr><td>detail</td><td>HTTP error responses</td><td>Error message returned when validation or lookup fails.</td></tr>
+            <tr><td>warnings</td><td>preflight + backtest run response</td><td>Array of non-fatal warnings (data quality, assumptions, coverage issues).</td></tr>
+            <tr><td>runId / runIds</td><td>backtest run + walk-forward responses</td><td>Persisted run identifier(s) for fetching report details later.</td></tr>
+            <tr><td>accountName</td><td>account and backtesting responses</td><td>Normalized account key used by backend for the result payload.</td></tr>
+            <tr><td>startDate / endDate</td><td>backtest run metadata + summaries</td><td>Effective date range used for the run or report context.</td></tr>
+            <tr><td>createdAt</td><td>run listing endpoints</td><td>Timestamp when a run record was stored.</td></tr>
+          </tbody>
+        </table>
+
+        <p class="ref-subsection-label">POST /api/backtests/run (BacktestRunRequest)</p>
+        <table class="ref-table">
+          <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
+            <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+            <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
+            <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
+            <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window if dates are omitted.</td></tr>
+            <tr><td>slippageBps</td><td>float, default 5.0</td><td>Per-trade slippage in basis points.</td></tr>
+            <tr><td>fee</td><td>float, default 0.0</td><td>Flat per-trade fee.</td></tr>
+            <tr><td>runName</td><td>string | null</td><td>Optional custom run name.</td></tr>
+            <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Allow fallback approximation for LEAP pricing if exact data is missing.</td></tr>
+          </tbody>
+        </table>
+
+        <p class="ref-subsection-label">POST /api/backtests/preflight (BacktestPreflightRequest)</p>
+        <table class="ref-table">
+          <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>account</td><td>string (required)</td><td>Account name to validate.</td></tr>
+            <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+            <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
+            <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
+            <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window.</td></tr>
+            <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Same fallback toggle used by run endpoints.</td></tr>
+          </tbody>
+        </table>
+
+        <p class="ref-subsection-label">POST /api/backtests/walk-forward (WalkForwardRunRequest)</p>
+        <table class="ref-table">
+          <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
+            <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+            <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
+            <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
+            <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Training lookback window.</td></tr>
+            <tr><td>testMonths</td><td>int, default 1, &gt; 0</td><td>Length of each test window.</td></tr>
+            <tr><td>stepMonths</td><td>int, default 1, &gt; 0</td><td>How far to roll forward between windows.</td></tr>
+            <tr><td>slippageBps</td><td>float, default 5.0</td><td>Per-trade slippage in basis points.</td></tr>
+            <tr><td>fee</td><td>float, default 0.0</td><td>Flat per-trade fee.</td></tr>
+            <tr><td>runNamePrefix</td><td>string | null</td><td>Optional naming prefix for generated window runs.</td></tr>
+            <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Allow LEAP approximation fallback.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </main>

@@ -19,6 +19,15 @@ type DocsSectionLink = {
 
 type DocsSectionButtonIndex = Map<string, HTMLButtonElement[]>;
 
+const DOCS_GROUP_LABEL_OVERRIDES: Record<string, string> = {
+  "Financial & Market Knowledge": "Financial & Markets",
+  "RESTful API Reference": "API Reference",
+};
+
+function getDocsGroupDisplayLabel(groupLabel: string): string {
+  return DOCS_GROUP_LABEL_OVERRIDES[groupLabel] ?? groupLabel;
+}
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -193,51 +202,101 @@ function collectDocsSections(): DocsSectionLink[] {
   });
 }
 
-function renderDocsSectionGroups(
-  container: HTMLElement,
-  sections: DocsSectionLink[],
-  itemClassName: string,
-): DocsSectionButtonIndex {
+function renderDocsSectionFlyout(container: HTMLElement, sections: DocsSectionLink[]): DocsSectionButtonIndex {
   const groups = new Map<string, DocsSectionLink[]>();
+  const groupOrder: string[] = [];
+  const groupButtons = new Map<string, HTMLButtonElement>();
+  const groupPanels = new Map<string, HTMLElement>();
   const buttonsBySection = new Map<string, HTMLButtonElement[]>();
 
   sections.forEach((section) => {
-    const items = groups.get(section.groupLabel) ?? [];
-    items.push(section);
-    groups.set(section.groupLabel, items);
+    if (!groups.has(section.groupLabel)) {
+      groups.set(section.groupLabel, []);
+      groupOrder.push(section.groupLabel);
+    }
+    groups.get(section.groupLabel)?.push(section);
   });
 
-  groups.forEach((items, groupLabel) => {
-    const group = document.createElement("section");
-    group.className = "docs-link-group";
+  const root = document.createElement("div");
+  root.className = "docs-nav-two-pane";
 
-    const label = document.createElement("h3");
-    label.className = "docs-link-group-title";
-    label.textContent = groupLabel;
-    group.appendChild(label);
+  const primaryList = document.createElement("div");
+  primaryList.className = "docs-nav-primary-list";
 
-    const list = document.createElement("div");
-    list.className = "docs-link-group-list";
+  const secondary = document.createElement("div");
+  secondary.className = "docs-nav-secondary";
+  secondary.hidden = true;
 
-    items.forEach((section) => {
+  const setActiveGroup = (groupLabel: string) => {
+    root.classList.add("has-secondary");
+    secondary.hidden = false;
+
+    groupButtons.forEach((button, label) => {
+      const isActive = label === groupLabel;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-expanded", String(isActive));
+    });
+
+    groupPanels.forEach((panel, label) => {
+      panel.hidden = label !== groupLabel;
+    });
+  };
+
+  groupOrder.forEach((groupLabel) => {
+    const groupDisplayLabel = getDocsGroupDisplayLabel(groupLabel);
+
+    const primaryItem = document.createElement("button");
+    primaryItem.type = "button";
+    primaryItem.className = "docs-nav-group-item";
+    primaryItem.textContent = groupDisplayLabel;
+    primaryItem.dataset.group = groupLabel;
+
+    primaryItem.addEventListener("mouseenter", () => {
+      setActiveGroup(groupLabel);
+    });
+    primaryItem.addEventListener("focus", () => {
+      setActiveGroup(groupLabel);
+    });
+
+    primaryList.appendChild(primaryItem);
+    groupButtons.set(groupLabel, primaryItem);
+
+    const panel = document.createElement("section");
+    panel.className = "docs-nav-secondary-panel";
+    panel.hidden = true;
+
+    const panelTitle = document.createElement("h3");
+    panelTitle.className = "docs-link-group-title";
+    panelTitle.textContent = groupDisplayLabel;
+    panel.appendChild(panelTitle);
+
+    const panelList = document.createElement("div");
+    panelList.className = "docs-link-group-list";
+
+    (groups.get(groupLabel) ?? []).forEach((section) => {
       const item = document.createElement("button");
       item.type = "button";
-      item.className = itemClassName;
+      item.className = "docs-nav-item";
       item.textContent = section.sectionTitle;
       item.dataset.sectionId = section.sectionId;
       item.addEventListener("click", () => {
         scrollToDocsSection(section.sectionId);
       });
-      list.appendChild(item);
+      panelList.appendChild(item);
 
       const sectionButtons = buttonsBySection.get(section.sectionId) ?? [];
       sectionButtons.push(item);
       buttonsBySection.set(section.sectionId, sectionButtons);
     });
 
-    group.appendChild(list);
-    container.appendChild(group);
+    panel.appendChild(panelList);
+    secondary.appendChild(panel);
+    groupPanels.set(groupLabel, panel);
   });
+
+  root.appendChild(primaryList);
+  root.appendChild(secondary);
+  container.appendChild(root);
 
   return buttonsBySection;
 }
@@ -318,6 +377,27 @@ function initDocsMenu(): void {
 
   const setMenuOpen = (isOpen: boolean) => {
     clearCloseMenuTimeout();
+    if (isOpen) {
+      const flyoutRoot = docsSectionList.querySelector<HTMLElement>(".docs-nav-two-pane");
+      const secondaryPane = docsSectionList.querySelector<HTMLElement>(".docs-nav-secondary");
+
+      flyoutRoot?.classList.remove("has-secondary");
+      if (secondaryPane) {
+        secondaryPane.hidden = true;
+      }
+
+      docsSectionList
+        .querySelectorAll<HTMLButtonElement>(".docs-nav-group-item")
+        .forEach((button) => {
+          button.classList.remove("active");
+          button.setAttribute("aria-expanded", "false");
+        });
+      docsSectionList
+        .querySelectorAll<HTMLElement>(".docs-nav-secondary-panel")
+        .forEach((panel) => {
+          panel.hidden = true;
+        });
+    }
     docsSectionMenu.hidden = !isOpen;
     docsNavItem.classList.toggle("open", isOpen);
     docsTabBtn.setAttribute("aria-expanded", String(isOpen));
@@ -333,7 +413,7 @@ function initDocsMenu(): void {
     }, 140);
   };
 
-  const allButtons = renderDocsSectionGroups(docsSectionList, sections, "docs-nav-item");
+  const allButtons = renderDocsSectionFlyout(docsSectionList, sections);
 
   const updateActiveSection = () => {
     if (!document.querySelector<HTMLElement>("#tab-docs:not([hidden])") || sectionElements.length === 0) {
