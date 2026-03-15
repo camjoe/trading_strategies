@@ -6,27 +6,27 @@
   </div>
 </header>
 
-<main class="layout">
-  <section class="card accounts-card">
-    <h2>Accounts</h2>
-    <div id="accountsGrid" class="accounts-grid"></div>
-  </section>
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="accounts">Acconuts</button>
+  <button class="tab-btn" data-tab="trades">Trades</button>
+  <button class="tab-btn" data-tab="backtesting">Backtests</button>
+  <button class="tab-btn" data-tab="docs">Documentation</button>
+</nav>
 
-  <section class="card detail-card">
-    <h2>Account Detail</h2>
-    <div id="accountDetail" class="empty">Choose an account to inspect snapshots and trades.</div>
-  </section>
+<main>
+  <div id="tab-trades" class="tab-panel layout" hidden>
+    <section class="card logs-card">
+      <h2>Trades</h2>
+      <div class="log-controls">
+        <select id="logFileSelect"></select>
+        <input id="logFilterInput" placeholder="Filter text" />
+        <button id="loadLogBtn">Load Log</button>
+      </div>
+      <div id="logOutput" class="log-output">Select a log file to begin.</div>
+    </section>
+  </div>
 
-  <section class="card logs-card">
-    <h2>Logs</h2>
-    <div class="log-controls">
-      <select id="logFileSelect"></select>
-      <input id="logFilterInput" placeholder="Filter text" />
-      <button id="loadLogBtn">Load Log</button>
-    </div>
-    <div id="logOutput" class="log-output">Select a log file to begin.</div>
-  </section>
-
+  <div id="tab-backtesting" class="tab-panel layout" hidden>
   <section class="card backtest-card">
     <h2>Backtesting</h2>
 
@@ -117,4 +117,49 @@
       </article>
     </div>
   </section>
+  </div>
+
+  <div id="tab-accounts" class="tab-panel layout">
+    <section class="card accounts-card">
+      <h2>Accounts</h2>
+      <div id="accountsGrid" class="accounts-grid"></div>
+    </section>
+
+    <section class="card detail-card">
+      <h2>Account Detail</h2>
+      <div id="accountDetail" class="empty">Choose an account to inspect snapshots and trades.</div>
+    </section>
+  </div>
+
+  <div id="tab-docs" class="tab-panel layout" hidden>
+    <section class="card docs-card">
+      <h2>Documentation</h2>
+      <div class="docs-grid">
+        <article class="doc-entry">
+          <h3>Strategies</h3>
+          <p>Strategy hypotheses, evaluation framework, and backlog of approaches including trend following, momentum, mean reversion, and factor-based signals.</p>
+        </article>
+        <article class="doc-entry">
+          <h3>Paper Trading</h3>
+          <p>Account setup, CLI commands, and operational notes for running and monitoring paper trading sessions.</p>
+        </article>
+        <article class="doc-entry">
+          <h3>Backtesting</h3>
+          <p>Backtesting commands, safeguards, and walk-forward usage. Covers run management, date ranges, slippage, and reporting.</p>
+        </article>
+        <article class="doc-entry">
+          <h3>Paper Trading Scheduler</h3>
+          <p>Windows scheduling workflow for automating daily paper trading runs on a recurring schedule.</p>
+        </article>
+        <article class="doc-entry">
+          <h3>Tooling &amp; Packages</h3>
+          <p>Package and tool reference for analysis workflows, including data providers, statistical libraries, and backtesting tools.</p>
+        </article>
+        <article class="doc-entry">
+          <h3>Area of Focus</h3>
+          <p>Current and future research categories guiding strategy development and portfolio construction.</p>
+        </article>
+      </div>
+    </section>
+  </div>
 </main>

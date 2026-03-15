@@ -111,36 +111,6 @@ def _account_state_from_db(conn: sqlite3.Connection, account_id: int, initial_ca
     return compute_account_state(initial_cash, trades)
 
 
-def _insert_trade(
-    conn: sqlite3.Connection,
-    account_id: int,
-    ticker: str,
-    side: str,
-    qty: float,
-    price: float,
-    fee: float,
-    trade_time: str | None,
-    note: str | None,
-) -> None:
-    conn.execute(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account_id,
-            ticker,
-            side,
-            float(qty),
-            float(price),
-            float(fee),
-            trade_time or utc_now_iso(),
-            note,
-        ),
-    )
-    conn.commit()
-
-
 def load_trades(conn: sqlite3.Connection, account_id: int) -> list[sqlite3.Row]:
     return conn.execute(
         """
@@ -204,4 +174,20 @@ def record_trade(
     existing_state = _account_state_from_db(conn, account["id"], account["initial_cash"])
     _ensure_sufficient_cash_for_buy(side, qty, price, fee, existing_state.cash)
 
-    _insert_trade(conn, account["id"], ticker, side, qty, price, fee, trade_time, note)
+    conn.execute(
+        """
+        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            account["id"],
+            ticker,
+            side,
+            float(qty),
+            float(price),
+            float(fee),
+            trade_time or utc_now_iso(),
+            note,
+        ),
+    )
+    conn.commit()

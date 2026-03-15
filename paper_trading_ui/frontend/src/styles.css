@@ -54,6 +54,80 @@ body {
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
 }
 
+.tab-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 0;
+  padding: 0 1rem;
+  background: #f4f8ffcc;
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-soft);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.tab-btn:hover {
+  color: var(--ink);
+  transform: none;
+  filter: none;
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  padding: 1rem;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+.docs-card {
+  grid-column: span 12;
+}
+
+.docs-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.doc-entry {
+  background: #ffffffd6;
+  border: 1px solid #d1dceb;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.doc-entry h3 {
+  margin: 0 0 0.5rem;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.doc-entry p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 .actions {
   display: flex;
   gap: 0.6rem;

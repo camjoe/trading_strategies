@@ -26,12 +26,28 @@ const logsFeature = createLogsFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
+  initTabs();
   accountsFeature.wireActions();
   logsFeature.wireActions();
   backtestingFeature.wireActions();
   await accountsFeature.loadAccounts();
   await logsFeature.loadLogFiles();
   await backtestingFeature.loadBacktestRuns();
+}
+
+function initTabs(): void {
+  const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
+  const tabPanels = document.querySelectorAll<HTMLElement>(".tab-panel");
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.tab;
+      tabBtns.forEach((b) => b.classList.toggle("active", b === btn));
+      tabPanels.forEach((panel) => {
+        panel.hidden = panel.id !== `tab-${target}`;
+      });
+    });
+  });
 }
 
 void bootstrap();
