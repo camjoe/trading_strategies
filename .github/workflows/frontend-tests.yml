@@ -1,0 +1,41 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - paper_trading_ui/frontend/**
+      - .github/workflows/frontend-tests.yml
+  pull_request:
+    paths:
+      - paper_trading_ui/frontend/**
+      - .github/workflows/frontend-tests.yml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: paper_trading_ui/frontend
+        run: npm ci
+
+      - name: Run frontend tests with coverage
+        working-directory: paper_trading_ui/frontend
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-coverage
+          path: paper_trading_ui/frontend/coverage
