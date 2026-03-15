@@ -33,3 +33,22 @@ jobs:
         with:
           name: coverage-xml
           path: coverage.xml
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: paper_trading_ui/frontend
+        run: npm ci
+
+      - name: Run frontend tests with coverage
+        working-directory: paper_trading_ui/frontend
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-coverage
+          path: paper_trading_ui/frontend/coverage
