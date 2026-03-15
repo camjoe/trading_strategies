@@ -146,7 +146,7 @@ function initDocsAccordion(): void {
         setExpanded(!section.classList.contains("expanded"));
       });
 
-      setDocsSectionExpanded(section, index === 0);
+      setDocsSectionExpanded(section, false);
     });
 
     if (cardToggleAllBtn) {
