@@ -217,13 +217,57 @@ body {
   scroll-margin-top: var(--sticky-stack-offset);
 }
 
-.ref-section h3 {
-  margin: 0 0 0.6rem;
+.ref-section-heading {
+  margin: 0;
+}
+
+.ref-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+  background: transparent;
+  color: var(--accent);
+  border: none;
+  border-radius: 0;
+  text-align: left;
   color: var(--accent);
   font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
+}
+
+.ref-section-toggle::after {
+  content: "+";
+  flex: none;
+  color: var(--accent);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: transform 140ms ease, color 140ms ease;
+}
+
+.ref-section.expanded .ref-section-toggle::after {
+  content: "−";
+  color: var(--accent);
+}
+
+.ref-section-toggle:hover,
+.ref-section-toggle:focus-visible {
+  color: var(--accent);
+  transform: none;
+  filter: none;
+}
+
+.ref-section-body {
+  padding-top: 0.75rem;
+}
+
+.ref-section-body[hidden] {
+  display: none;
 }
 
 .ref-section > p {
