@@ -17,6 +17,8 @@ type DocsSectionLink = {
   sectionTitle: string;
 };
 
+type DocsSectionButtonIndex = Map<string, HTMLButtonElement[]>;
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -82,8 +84,9 @@ function renderDocsSectionGroups(
   container: HTMLElement,
   sections: DocsSectionLink[],
   itemClassName: string,
-): void {
+): DocsSectionButtonIndex {
   const groups = new Map<string, DocsSectionLink[]>();
+  const buttonsBySection = new Map<string, HTMLButtonElement[]>();
 
   sections.forEach((section) => {
     const items = groups.get(section.groupLabel) ?? [];
@@ -108,14 +111,35 @@ function renderDocsSectionGroups(
       item.type = "button";
       item.className = itemClassName;
       item.textContent = section.sectionTitle;
+      item.dataset.sectionId = section.sectionId;
       item.addEventListener("click", () => {
         scrollToDocsSection(section.sectionId);
       });
       list.appendChild(item);
+
+      const sectionButtons = buttonsBySection.get(section.sectionId) ?? [];
+      sectionButtons.push(item);
+      buttonsBySection.set(section.sectionId, sectionButtons);
     });
 
     group.appendChild(list);
     container.appendChild(group);
+  });
+
+  return buttonsBySection;
+}
+
+function setActiveDocsSection(buttonsBySection: DocsSectionButtonIndex, activeSectionId: string): void {
+  buttonsBySection.forEach((buttons, sectionId) => {
+    const isActive = sectionId === activeSectionId;
+    buttons.forEach((button) => {
+      button.classList.toggle("active", isActive);
+      if (isActive) {
+        button.setAttribute("aria-current", "true");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
   });
 }
 
@@ -159,28 +183,66 @@ function initDocsMenu(): void {
   const docsTabBtn = find<HTMLButtonElement>("#docsTabBtn");
   const docsSectionMenu = find<HTMLElement>("#docsSectionMenu");
   const docsSectionList = find<HTMLElement>("#docsSectionList");
-  const docsTocList = find<HTMLElement>("#docsTocList");
   const sections = collectDocsSections();
 
   if (!docsNavItem || !docsTabBtn || !docsSectionMenu || !docsSectionList || sections.length === 0) {
     return;
   }
 
-  let isPinnedOpen = false;
+  let closeMenuTimeoutId: number | undefined;
+  const sectionElements = sections.flatMap((section) => {
+    const element = document.getElementById(section.sectionId);
+    return element ? [{ ...section, element }] : [];
+  });
+
+  const clearCloseMenuTimeout = () => {
+    if (closeMenuTimeoutId !== undefined) {
+      window.clearTimeout(closeMenuTimeoutId);
+      closeMenuTimeoutId = undefined;
+    }
+  };
 
   const setMenuOpen = (isOpen: boolean) => {
+    clearCloseMenuTimeout();
     docsSectionMenu.hidden = !isOpen;
     docsNavItem.classList.toggle("open", isOpen);
     docsTabBtn.setAttribute("aria-expanded", String(isOpen));
   };
 
-  renderDocsSectionGroups(docsSectionList, sections, "docs-nav-item");
-  if (docsTocList && !docsTocList.closest("[hidden]")) {
-    renderDocsSectionGroups(docsTocList, sections, "docs-toc-item");
+  const queueMenuClose = () => {
+    clearCloseMenuTimeout();
+    closeMenuTimeoutId = window.setTimeout(() => {
+      docsSectionMenu.hidden = true;
+      docsNavItem.classList.remove("open");
+      docsTabBtn.setAttribute("aria-expanded", "false");
+      closeMenuTimeoutId = undefined;
+    }, 140);
+  };
+
+  const allButtons = renderDocsSectionGroups(docsSectionList, sections, "docs-nav-item");
+
+  const updateActiveSection = () => {
+    if (!document.querySelector<HTMLElement>("#tab-docs:not([hidden])") || sectionElements.length === 0) {
+      return;
+    }
+
+    const anchorOffset = 170;
+    let activeSectionId = sectionElements[0].sectionId;
+
+    sectionElements.forEach((section) => {
+      if (section.element.getBoundingClientRect().top <= anchorOffset) {
+        activeSectionId = section.sectionId;
+      }
+    });
+
+    setActiveDocsSection(allButtons, activeSectionId);
+  };
+
+  if (sectionElements.length > 0) {
+    setActiveDocsSection(allButtons, sectionElements[0].sectionId);
   }
 
   docsSectionList.addEventListener("click", () => {
-    isPinnedOpen = false;
     setMenuOpen(false);
   });
 
@@ -189,28 +251,18 @@ function initDocsMenu(): void {
   });
 
   docsNavItem.addEventListener("mouseleave", () => {
-    if (!isPinnedOpen) {
-      setMenuOpen(false);
-    }
+    queueMenuClose();
   });
 
   docsTabBtn.addEventListener("click", () => {
-    if (document.querySelector<HTMLElement>("#tab-docs:not([hidden])")) {
-      isPinnedOpen = !isPinnedOpen;
-    } else {
-      isPinnedOpen = true;
-    }
-    setMenuOpen(isPinnedOpen);
-  });
-
-  docsTabBtn.addEventListener("focus", () => {
-    setMenuOpen(true);
+    setMenuOpen(false);
+    requestAnimationFrame(updateActiveSection);
   });
 
   docsNavItem.addEventListener("focusout", (event) => {
     const nextTarget = event.relatedTarget;
-    if (!isPinnedOpen && !(nextTarget instanceof Node && docsNavItem.contains(nextTarget))) {
-      setMenuOpen(false);
+    if (!(nextTarget instanceof Node && docsNavItem.contains(nextTarget))) {
+      queueMenuClose();
     }
   });
 
@@ -218,9 +270,11 @@ function initDocsMenu(): void {
     if (!(event.target instanceof Node) || docsNavItem.contains(event.target)) {
       return;
     }
-    isPinnedOpen = false;
     setMenuOpen(false);
   });
+
+  window.addEventListener("scroll", updateActiveSection, { passive: true });
+  window.addEventListener("resize", updateActiveSection);
 }
 
 void bootstrap();

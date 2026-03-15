@@ -1,4 +1,7 @@
 :root {
+  --topbar-height: 72px;
+  --tab-nav-height: 56px;
+  --sticky-stack-offset: calc(var(--topbar-height) + var(--tab-nav-height) + 16px);
   --bg-1: #f2efe9;
   --bg-2: #dce6f2;
   --panel: #ffffffd9;
@@ -36,7 +39,7 @@ body {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -56,8 +59,8 @@ body {
 
 .tab-nav {
   position: sticky;
-  top: 0;
-  z-index: 1;
+  top: var(--topbar-height);
+  z-index: 2;
   display: flex;
   gap: 0;
   align-items: stretch;
@@ -75,9 +78,13 @@ body {
 
 .docs-nav-menu {
   position: absolute;
-  top: calc(100% + 0.35rem);
+  top: 100%;
   left: 0;
   min-width: 280px;
+  padding-top: 0.35rem;
+}
+
+.docs-nav-surface {
   padding: 0.55rem;
   border: 1px solid #c9d7e5;
   border-radius: 14px;
@@ -124,6 +131,7 @@ body {
 }
 
 .docs-nav-item:hover,
+.docs-nav-item.active,
 .docs-nav-item:focus-visible {
   background: #e7f2f4;
   border-color: #b7d6d9;
@@ -168,55 +176,6 @@ body {
   grid-column: span 12;
 }
 
-.docs-toc-card {
-  grid-column: span 12;
-  position: sticky;
-  top: 7rem;
-  z-index: 1;
-  background: linear-gradient(180deg, #fbfdffed, #f4f9ffed);
-}
-
-.docs-toc-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.docs-toc-head p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.92rem;
-}
-
-.docs-toc-groups {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.docs-toc-item {
-  width: 100%;
-  padding: 0.7rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid #d2dfeb;
-  background: #ffffffd8;
-  color: var(--ink);
-  text-align: left;
-  font-size: 0.92rem;
-  font-weight: 500;
-}
-
-.docs-toc-item:hover,
-.docs-toc-item:focus-visible {
-  border-color: #9dc7cb;
-  background: #edf7f8;
-  color: var(--accent);
-  transform: none;
-  filter: none;
-}
-
 .docs-grid {
   display: grid;
   gap: 1rem;
@@ -255,7 +214,7 @@ body {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--line);
-  scroll-margin-top: 7rem;
+  scroll-margin-top: var(--sticky-stack-offset);
 }
 
 .ref-section h3 {
@@ -540,18 +499,6 @@ td {
     left: auto;
     right: 0;
     width: min(82vw, 320px);
-  }
-
-  .docs-toc-card {
-    top: 6.5rem;
-  }
-
-  .docs-toc-head {
-    display: grid;
-  }
-
-  .docs-toc-groups {
-    grid-template-columns: 1fr;
   }
 }
 

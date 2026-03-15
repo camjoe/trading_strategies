@@ -7,7 +7,7 @@
 </header>
 
 <nav class="tab-nav">
-  <button class="tab-btn active" data-tab="accounts">Acconuts</button>
+  <button class="tab-btn active" data-tab="accounts">Accounts</button>
   <button class="tab-btn" data-tab="trades">Trades</button>
   <button class="tab-btn" data-tab="backtesting">Backtests</button>
   <div class="tab-dropdown" id="docsNavItem">
@@ -21,7 +21,9 @@
       Documentation
     </button>
     <div class="docs-nav-menu" id="docsSectionMenu" hidden>
-      <div class="docs-nav-list" id="docsSectionList"></div>
+      <div class="docs-nav-surface">
+        <div class="docs-nav-list" id="docsSectionList"></div>
+      </div>
     </div>
   </div>
 </nav>
@@ -173,14 +175,6 @@
           <p>Current and future research categories guiding strategy development and portfolio construction.</p>
         </article>
       </div>
-    </section>
-
-    <section class="card docs-toc-card" hidden>
-      <div class="docs-toc-head">
-        <h2>Section Index</h2>
-        <p>Jump directly to the financial and software reference sections below.</p>
-      </div>
-      <div class="docs-toc-groups" id="docsTocList"></div>
     </section>
 
     <section class="card ref-card">
