@@ -4,6 +4,8 @@ import { createAccountsFeature } from "./features/accounts";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createLogsFeature } from "./features/logs";
 import shellTemplate from "./templates/shell.html?raw";
+import navTemplate from "./templates/nav.html?raw";
+import docsTabTemplate from "./templates/docs-tab.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -49,7 +51,9 @@ function openTab(target: string): void {
 }
 
 function renderShell(): void {
-  app.innerHTML = shellTemplate;
+  app.innerHTML = shellTemplate
+    .replace("<!-- NAV_PARTIAL -->", navTemplate)
+    .replace("<!-- DOCS_TAB_PARTIAL -->", docsTabTemplate);
 }
 
 function setDocsSectionExpanded(section: HTMLElement, expanded: boolean): void {

@@ -1,0 +1,378 @@
+<div id="tab-docs" class="tab-panel layout" hidden>
+  <section class="card docs-card">
+    <h2>Documentation</h2>
+    <div class="docs-grid">
+      <article class="doc-entry">
+        <h3>Strategies</h3>
+        <p>Strategy hypotheses, evaluation framework, and backlog of approaches including trend following, momentum, mean reversion, and factor-based signals.</p>
+      </article>
+      <article class="doc-entry">
+        <h3>Paper Trading</h3>
+        <p>Account setup, CLI commands, and operational notes for running and monitoring paper trading sessions.</p>
+      </article>
+      <article class="doc-entry">
+        <h3>Backtesting</h3>
+        <p>Backtesting commands, safeguards, and walk-forward usage. Covers run management, date ranges, slippage, and reporting.</p>
+      </article>
+      <article class="doc-entry">
+        <h3>Paper Trading Scheduler</h3>
+        <p>Windows scheduling workflow for automating daily paper trading runs on a recurring schedule.</p>
+      </article>
+      <article class="doc-entry">
+        <h3>Tooling &amp; Packages</h3>
+        <p>Package and tool reference for analysis workflows, including data providers, statistical libraries, and backtesting tools.</p>
+      </article>
+      <article class="doc-entry">
+        <h3>Area of Focus</h3>
+        <p>Current and future research categories guiding strategy development and portfolio construction.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="card ref-card">
+    <div class="ref-card-head">
+      <h2>Financial &amp; Market Knowledge</h2>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+    </div>
+
+    <div class="ref-section">
+      <h3>Performance &amp; Benchmarking</h3>
+      <table class="ref-table">
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td>Alpha</td><td>Excess return of a strategy relative to a benchmark. Positive alpha means outperformance.</td></tr>
+          <tr><td>PnL (Profit and Loss)</td><td>Total realized and unrealized gain or loss on a position or portfolio.</td></tr>
+          <tr><td>Realized PnL</td><td>Gain or loss locked in by closing a position.</td></tr>
+          <tr><td>Unrealized PnL</td><td>Gain or loss on a position still open (mark-to-market).</td></tr>
+          <tr><td>Equity Snapshot</td><td>A point-in-time record of total portfolio value used to build a performance time series.</td></tr>
+          <tr><td>Benchmark</td><td>A reference index (e.g., SPY, QQQ) used to compare strategy performance.</td></tr>
+          <!-- <tr><td>Beta</td><td>Sensitivity of an asset's returns to market movements. Beta of 1.0 moves in line with the market.</td></tr> -->
+          <!-- <tr><td>Sharpe Ratio</td><td>Risk-adjusted return: mean excess return divided by its standard deviation. Higher is better.</td></tr> -->
+          <!-- <tr><td>Max Drawdown</td><td>Largest peak-to-trough decline in portfolio value — a key measure of downside risk.</td></tr> -->
+          <!-- <tr><td>Hit Rate</td><td>Percentage of trades that are profitable.</td></tr> -->
+          <!-- <tr><td>Turnover</td><td>How frequently positions are replaced; high turnover increases transaction costs.</td></tr> -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Execution &amp; Risk Controls</h3>
+      <table class="ref-table">
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td>Slippage</td><td>Difference between the expected execution price and the actual fill price.</td></tr>
+          <tr><td>Stop-Loss</td><td>A predefined exit point to limit losses on a trade.</td></tr>
+          <tr><td>Take-Profit</td><td>A predefined exit point to lock in gains on a trade.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Options / Derivatives</h3>
+      <table class="ref-table">
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td>IV Rank</td><td>Normalized 0–100 score for current implied volatility vs. its 1-year range. 0 = near lowest; 100 = near highest. Used to gauge whether options are relatively cheap or expensive.</td></tr>
+          <tr><td>LEAPs</td><td>Long-term Equity Anticipation Securities — options with expirations typically one year or more out.</td></tr>
+          <tr><td>DTE (Days to Expiration)</td><td>Number of calendar days until an options contract expires.</td></tr>
+          <tr><td>Delta</td><td>Rate of change in an option's price relative to a $1 move in the underlying asset. Ranges 0–1 for calls, 0 to -1 for puts.</td></tr>
+          <tr><td>Strike Price</td><td>The price at which an option contract can be exercised.</td></tr>
+          <tr><td>Premium</td><td>The price paid (or received) for an options contract.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Data &amp; Backtesting Integrity</h3>
+      <table class="ref-table">
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td>Walk-Forward Validation</td><td>Backtesting methodology where the model is trained on a rolling window and tested on the next unseen period, reducing overfitting.</td></tr>
+          <tr><td>Adjusted Close</td><td>Historical closing price adjusted for corporate actions (splits, dividends) to maintain a consistent series.</td></tr>
+          <!-- <tr><td>Look-Ahead Bias</td><td>An error where future data is inadvertently used when generating historical signals.</td></tr> -->
+          <!-- <tr><td>Survivorship Bias</td><td>Distortion in backtests caused by only including assets that still exist today, ignoring delisted companies.</td></tr> -->
+          <!-- <tr><td>Regime</td><td>A persistent market state (e.g., trending, mean-reverting, high-volatility) that affects strategy performance.</td></tr> -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Technical Signals</h3>
+      <table class="ref-table">
+        <thead><tr><th>Concept</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Moving Average (MA)</td><td>Smoothed price series over a rolling window (e.g., 50-day MA). Used to identify trend direction.</td></tr>
+          <tr><td>EMA</td><td>Exponential Moving Average — applies more weight to recent prices than older ones.</td></tr>
+          <tr><td>MACD</td><td>Moving Average Convergence Divergence — momentum indicator comparing two EMAs and a signal line.</td></tr>
+          <tr><td>RSI</td><td>Relative Strength Index (0–100) measuring speed and magnitude of recent price changes. Above 70 = overbought; below 30 = oversold.</td></tr>
+          <tr><td>Volume</td><td>Number of shares or contracts traded in a period — a key confirmation signal for price moves.</td></tr>
+          <tr><td>Momentum</td><td>The persistence of price trends — assets that have performed well recently tend to continue doing so over short horizons.</td></tr>
+          <!-- <tr><td>Bollinger Bands</td><td>Volatility bands placed two standard deviations above and below a moving average.</td></tr> -->
+          <!-- <tr><td>ATR</td><td>Average True Range — measures market volatility; useful for position sizing and stop placement.</td></tr> -->
+          <!-- <tr><td>Breakout</td><td>When price moves beyond a defined resistance or support level, often on elevated volume.</td></tr> -->
+          <!-- <tr><td>Mean Reversion</td><td>The tendency of prices to return to a historical average after deviating from it.</td></tr> -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Trading Strategies</h3>
+      <table class="ref-table">
+        <thead><tr><th>Strategy</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Trend Following</td><td>Enter positions in the direction of an established price trend; exit when the trend weakens.</td></tr>
+          <tr><td>Mean Reversion</td><td>Bet that prices will revert to a historical average after an extreme move.</td></tr>
+          <tr><td>Momentum (Cross-Sectional)</td><td>Rank assets by recent relative performance and go long the top performers.</td></tr>
+          <tr><td>Volatility Breakout</td><td>Enter positions when price breaks out of a defined volatility range.</td></tr>
+          <tr><td>Pairs / Statistical Arbitrage</td><td>Exploit temporary divergences in the price spread between historically correlated instruments.</td></tr>
+          <tr><td>Factor-Based Signals</td><td>Use quantitative factors (value, quality, momentum, low-volatility) to rank and select assets.</td></tr>
+          <tr><td>Regime-Aware Models</td><td>Adjust strategy behavior based on detected market regime (trending vs. mean-reverting, etc.).</td></tr>
+        </tbody>
+      </table>
+      <p class="ref-subsection-label">Evaluation Framework</p>
+      <ul class="ref-eval-list">
+        <li>Universe and timeframe</li>
+        <li>Signal definition</li>
+        <li>Entry / exit rules</li>
+        <li>Position sizing</li>
+        <li>Transaction cost and slippage assumptions</li>
+        <li>Risk limits</li>
+        <li>Validation method (walk-forward, out-of-sample)</li>
+        <li>Metrics: Sharpe ratio, max drawdown, turnover, hit rate</li>
+      </ul>
+    </div>
+
+    <div class="ref-section">
+      <h3>Areas of Focus</h3>
+      <table class="ref-table">
+        <thead><tr><th>Asset Class</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Equities</td><td>Individual stocks — core focus area.</td></tr>
+          <tr><td>ETFs</td><td>Sector, factor, and index ETFs — useful for regime and trend strategies.</td></tr>
+          <tr><td>Options / LEAPs</td><td>Long-dated options used to simulate leveraged equity exposure with defined risk.</td></tr>
+          <tr><td>Macro</td><td>Macro-level signals (rates, volatility indices) for regime context.</td></tr>
+          <tr><td>Futures</td><td>Commodity and index futures — not currently active.</td></tr>
+          <tr><td>Forex</td><td>Currency pairs — not currently active.</td></tr>
+          <tr><td>Crypto</td><td>Digital assets via feeds like ccxt — not currently active.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card ref-card">
+    <div class="ref-card-head">
+      <h2>Software</h2>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+    </div>
+
+    <div class="ref-section">
+      <h3>Projects in This Repository</h3>
+      <table class="ref-table">
+        <thead><tr><th>Project</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>trading/</td><td>Core trading engine — paper trading accounts, trade recording, position management, accounting, automated trading, reporting, and backtesting. Key modules: paper_trading.py, auto_trader.py, accounting.py, backtesting/, reporting.py, models.py, db.py, profiles.py.</td></tr>
+          <tr><td>trends/</td><td>Stock trend analysis module. Fetches price data, computes technical indicators, and generates trend signals. Key modules: data.py, indicators.py, stock_trends.py, tickers.py, charts.py.</td></tr>
+          <tr><td>paper_trading_ui/</td><td>Web interface for monitoring paper trading accounts and triggering backtests. Backend is a FastAPI REST API; frontend is a TypeScript + Vite single-page app with no external UI framework.</td></tr>
+          <tr><td>common/</td><td>Shared utilities — tickers.py (common ticker loading helpers) and time.py (date/time utilities).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Languages</h3>
+      <table class="ref-table">
+        <thead><tr><th>Language</th><th>Usage</th></tr></thead>
+        <tbody>
+          <tr><td>Python</td><td>Core language for all trading logic, backtesting, data analysis, and the API backend.</td></tr>
+          <tr><td>TypeScript</td><td>Frontend UI (paper_trading_ui/frontend/) — provides type-safe client-side code.</td></tr>
+          <tr><td>SQL (SQLite)</td><td>Persistent storage for accounts, trades, equity snapshots, and backtest results.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Frameworks &amp; Tools</h3>
+      <table class="ref-table">
+        <thead><tr><th>Tool</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>FastAPI</td><td>REST API backend for the paper trading UI (paper_trading_ui/backend/).</td></tr>
+          <tr><td>Pydantic</td><td>Data validation and settings management used throughout the FastAPI backend.</td></tr>
+          <tr><td>Vite</td><td>Frontend build tool and dev server for the TypeScript UI.</td></tr>
+          <tr><td>Peewee</td><td>Lightweight Python ORM used for SQLite database access.</td></tr>
+          <tr><td>pytest</td><td>Test framework for all unit and integration tests.</td></tr>
+          <tr><td>pytest-cov</td><td>Code coverage reporting for the test suite.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Key Python Packages</h3>
+
+      <p class="ref-subsection-label">Data &amp; Market Access</p>
+      <table class="ref-table">
+        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>yfinance</td><td>Primary market data source — daily OHLCV and adjusted close via Yahoo Finance.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Analysis &amp; Modeling</p>
+      <table class="ref-table">
+        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>pandas</td><td>Core data manipulation and time-series handling.</td></tr>
+          <tr><td>numpy</td><td>Numerical computing.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Visualization</p>
+      <table class="ref-table">
+        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>matplotlib</td><td>Static charting.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Backend &amp; Validation</p>
+      <table class="ref-table">
+        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>fastapi</td><td>API framework for paper trading UI backend routes.</td></tr>
+          <tr><td>pydantic</td><td>Request/response schema and validation models.</td></tr>
+          <tr><td>python-dotenv</td><td>Environment variable loading for backend configuration.</td></tr>
+          <tr><td>pytest</td><td>Test framework used across repository test suites.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <section class="card ref-card">
+    <div class="ref-card-head">
+      <h2>RESTful API Reference</h2>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+    </div>
+
+    <div class="ref-section">
+      <h3>API Basics</h3>
+      <table class="ref-table">
+        <thead><tr><th>Item</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Backend Framework</td><td>FastAPI app in paper_trading_ui/backend/main.py.</td></tr>
+          <tr><td>Base Path</td><td>Most application endpoints are under /api/ (plus /health for service checks).</td></tr>
+          <tr><td>Content Type</td><td>JSON request/response payloads.</td></tr>
+          <tr><td>CORS</td><td>Configured via CORS_ORIGINS (comma-separated), defaults to *.</td></tr>
+          <tr><td>Error Shape</td><td>HTTP errors return a detail message (FastAPI HTTPException).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Accounts &amp; Snapshots Endpoints</h3>
+      <table class="ref-table">
+        <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>GET /health</td><td>Simple health check. Returns {"status":"ok"} when backend is up.</td></tr>
+          <tr><td>GET /api/accounts</td><td>List account summaries (equity, benchmark, PnL deltas, latest snapshot time).</td></tr>
+          <tr><td>GET /api/accounts/{account_name}</td><td>Get one account detail, latest backtest summary, recent snapshots, and recent trades.</td></tr>
+          <tr><td>POST /api/actions/snapshot/{account_name}</td><td>Create an equity snapshot for one account.</td></tr>
+          <tr><td>POST /api/actions/snapshot-all</td><td>Create equity snapshots for all accounts.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Logs Endpoints</h3>
+      <table class="ref-table">
+        <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>GET /api/logs/files</td><td>Return available .log files from configured logs directory.</td></tr>
+          <tr><td>GET /api/logs/{file_name}</td><td>Return recent lines from a log file with optional filtering.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Log Query Parameters</p>
+      <table class="ref-table">
+        <thead><tr><th>Parameter</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>limit</td><td>Number of lines to return (default 400, min 10, max 4000).</td></tr>
+          <tr><td>contains</td><td>Case-insensitive substring filter applied before line limit is sliced.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Backtesting Endpoints</h3>
+      <table class="ref-table">
+        <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>GET /api/backtests/runs</td><td>List recent backtest runs across accounts.</td></tr>
+          <tr><td>GET /api/backtests/latest/{account_name}</td><td>Get latest run metadata for a single account.</td></tr>
+          <tr><td>GET /api/backtests/runs/{run_id}</td><td>Get full report for one run id.</td></tr>
+          <tr><td>POST /api/backtests/run</td><td>Run a single backtest window and persist results.</td></tr>
+          <tr><td>POST /api/backtests/preflight</td><td>Preview warnings before executing a run (no execution).</td></tr>
+          <tr><td>POST /api/backtests/walk-forward</td><td>Execute rolling walk-forward windows and return aggregate summary.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Backtest Run Query Parameters</p>
+      <table class="ref-table">
+        <thead><tr><th>Endpoint</th><th>Parameter</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>GET /api/backtests/runs</td><td>limit</td><td>Max runs returned (default 50, min 1, max 500).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ref-section">
+      <h3>Request Body Models</h3>
+
+      <p class="ref-subsection-label">POST /api/backtests/run (BacktestRunRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
+          <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
+          <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
+          <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window if dates are omitted.</td></tr>
+          <tr><td>slippageBps</td><td>float, default 5.0</td><td>Per-trade slippage in basis points.</td></tr>
+          <tr><td>fee</td><td>float, default 0.0</td><td>Flat per-trade fee.</td></tr>
+          <tr><td>runName</td><td>string | null</td><td>Optional custom run name.</td></tr>
+          <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Allow fallback approximation for LEAP pricing if exact data is missing.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">POST /api/backtests/preflight (BacktestPreflightRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>account</td><td>string (required)</td><td>Account name to validate.</td></tr>
+          <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
+          <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
+          <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window.</td></tr>
+          <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Same fallback toggle used by run endpoints.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">POST /api/backtests/walk-forward (WalkForwardRunRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
+          <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
+          <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
+          <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Training lookback window.</td></tr>
+          <tr><td>testMonths</td><td>int, default 1, &gt; 0</td><td>Length of each test window.</td></tr>
+          <tr><td>stepMonths</td><td>int, default 1, &gt; 0</td><td>How far to roll forward between windows.</td></tr>
+          <tr><td>slippageBps</td><td>float, default 5.0</td><td>Per-trade slippage in basis points.</td></tr>
+          <tr><td>fee</td><td>float, default 0.0</td><td>Flat per-trade fee.</td></tr>
+          <tr><td>runNamePrefix</td><td>string | null</td><td>Optional naming prefix for generated window runs.</td></tr>
+          <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Allow LEAP approximation fallback.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
