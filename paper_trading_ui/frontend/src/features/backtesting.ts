@@ -1,6 +1,7 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
+import { debounce } from "../lib/timing";
 import {
   renderBacktestReport,
   renderBacktestRunCard,
@@ -130,18 +131,6 @@ function validateDateInputs(start: string | null, lookbackMonths: number | null)
     return "Use either Start date or Lookback months, not both.";
   }
   return null;
-}
-
-function debounce<T extends (...args: never[]) => void>(fn: T, delayMs: number): (...args: Parameters<T>) => void {
-  let timer: number | null = null;
-  return (...args: Parameters<T>) => {
-    if (timer !== null) {
-      window.clearTimeout(timer);
-    }
-    timer = window.setTimeout(() => {
-      fn(...args);
-    }, delayMs);
-  };
 }
 
 export function createBacktestingFeature(): BacktestingFeature {

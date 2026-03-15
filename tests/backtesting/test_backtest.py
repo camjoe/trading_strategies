@@ -12,6 +12,7 @@ from trading.backtesting.backtest import (
     WalkForwardConfig,
     backtest_report,
     build_walk_forward_windows,
+    preview_backtest_warnings,
     run_backtest,
     run_walk_forward_backtest,
 )
@@ -270,3 +271,122 @@ def test_run_walk_forward_backtest_creates_multiple_runs(conn, monkeypatch: pyte
 
     rows = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs").fetchone()
     assert rows is not None and int(rows["n"]) == 3
+
+
+def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(conn) -> None:
+    create_account(
+        conn,
+        "acct_preview_leaps",
+        "trend_v1",
+        5000.0,
+        "SPY",
+        instrument_mode="leaps",
+        option_strike_offset_pct=5.0,
+        option_min_dte=120,
+        option_max_dte=365,
+        option_type="call",
+    )
+
+    warnings = preview_backtest_warnings(
+        conn,
+        BacktestConfig(
+            account_name="acct_preview_leaps",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=0.0,
+            fee_per_trade=0.0,
+            run_name=None,
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    assert any("LEAPs mode is approximated" in warning for warning in warnings)
+    assert any("opt-in was not enabled" in warning for warning in warnings)
+    assert any("daily close data only" in warning for warning in warnings)
+
+
+def test_backtest_report_persists_warning_string(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_account(
+        conn,
+        "acct_report_warn",
+        "trend_v1",
+        5000.0,
+        "SPY",
+        instrument_mode="leaps",
+        option_strike_offset_pct=5.0,
+        option_min_dte=120,
+        option_max_dte=365,
+        option_type="call",
+    )
+
+    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
+    monkeypatch.setattr(
+        "trading.backtesting.backtest.fetch_benchmark_close",
+        lambda _ticker, _start, _end: pd.Series([100.0, 102.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
+    )
+
+    result = run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_report_warn",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name="warn-report",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    summary = backtest_report(conn, result.run_id)
+    warnings = str(summary["warnings"])
+    assert "LEAPs mode is approximated" in warnings
+    assert "opt-in was not enabled" in warnings
+
+
+def test_build_walk_forward_windows_rejects_non_positive_lengths() -> None:
+    with pytest.raises(ValueError, match="test_months must be > 0"):
+        build_walk_forward_windows(
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 3, 1),
+            test_months=0,
+            step_months=1,
+        )
+
+    with pytest.raises(ValueError, match="step_months must be > 0"):
+        build_walk_forward_windows(
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 3, 1),
+            test_months=1,
+            step_months=0,
+        )
+
+
+def test_run_walk_forward_backtest_no_generated_windows_raises(conn) -> None:
+    create_account(conn, "acct_wf_empty", "trend_v1", 10000.0, "SPY")
+
+    with pytest.raises(ValueError, match="No walk-forward windows generated"):
+        run_walk_forward_backtest(
+            conn,
+            WalkForwardConfig(
+                account_name="acct_wf_empty",
+                tickers_file="trading/trade_universe.txt",
+                universe_history_dir=None,
+                start="2026-01-31",
+                end="2026-02-01",
+                lookback_months=None,
+                test_months=1,
+                step_months=2,
+                slippage_bps=5.0,
+                fee_per_trade=0.0,
+                run_name_prefix="wf-empty",
+                allow_approximate_leaps=False,
+            ),
+        )
