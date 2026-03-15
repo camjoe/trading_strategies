@@ -37,6 +37,9 @@ const WALK_FORWARD_OUTPUT_SELECTOR = "#walkForwardOutput";
 const BACKTEST_RUNS_LIST_SELECTOR = "#backtestRunsList";
 const BACKTEST_REPORT_VIEW_SELECTOR = "#backtestReportView";
 const REFRESH_BACKTESTS_BUTTON_SELECTOR = "#refreshBacktestsBtn";
+const WALK_FORWARD_RUNS_LIST_SELECTOR = "#walkForwardRunsList";
+const WALK_FORWARD_REPORT_VIEW_SELECTOR = "#walkForwardReportView";
+const REFRESH_WALK_FORWARD_BUTTON_SELECTOR = "#refreshWalkForwardBtn";
 const RUN_BACKTEST_FORM_SELECTOR = "#runBacktestForm";
 const RUN_WALK_FORWARD_FORM_SELECTOR = "#runWalkForwardForm";
 
@@ -144,6 +147,9 @@ function debounce<T extends (...args: never[]) => void>(fn: T, delayMs: number):
 export function createBacktestingFeature(): BacktestingFeature {
   let cachedAccounts: AccountSummary[] = [];
 
+  const isWalkForwardRun = (run: BacktestRunSummary): boolean =>
+    Boolean(run.runName && /-w\d{3}-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}$/.test(run.runName));
+
   function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
     const accountOptions = accounts
       .map((a) => `<option value="${esc(a.name)}">${esc(a.displayName)} (${esc(a.name)})</option>`)
@@ -170,38 +176,62 @@ export function createBacktestingFeature(): BacktestingFeature {
     leapsCheckbox.checked = account.instrumentMode === "leaps";
   }
 
-  async function loadBacktestRuns(): Promise<void> {
-    const target = find<HTMLDivElement>(BACKTEST_RUNS_LIST_SELECTOR);
-    if (!target) return;
-
-    target.innerHTML = `<div class="empty">Loading backtest runs...</div>`;
-    const data = await getJson<{ runs: BacktestRunSummary[] }>("/api/backtests/runs?limit=100");
-
-    if (!data.runs.length) {
-      target.innerHTML = `<div class="empty">No backtest runs found yet.</div>`;
+  function renderRunsList(
+    target: HTMLDivElement,
+    runs: BacktestRunSummary[],
+    emptyMessage: string,
+    reportTargetSelector: string,
+  ): void {
+    if (!runs.length) {
+      target.innerHTML = `<div class="empty">${esc(emptyMessage)}</div>`;
       return;
     }
 
-    target.innerHTML = data.runs.map(renderBacktestRunCard).join("");
+    target.innerHTML = runs.map(renderBacktestRunCard).join("");
 
-    for (const btn of findAll<HTMLButtonElement>(BACKTEST_RUN_ITEM_SELECTOR)) {
+    for (const btn of target.querySelectorAll<HTMLButtonElement>(BACKTEST_RUN_ITEM_SELECTOR)) {
       btn.addEventListener("click", () => {
         const runIdRaw = btn.dataset.runId;
         if (!runIdRaw) return;
         const runId = Number(runIdRaw);
         if (!Number.isFinite(runId)) return;
-        void loadBacktestReport(runId);
+        void loadBacktestReportTo(runId, reportTargetSelector);
       });
     }
   }
 
-  async function loadBacktestReport(runId: number): Promise<void> {
-    const target = find<HTMLDivElement>(BACKTEST_REPORT_VIEW_SELECTOR);
+  async function loadBacktestRuns(): Promise<void> {
+    const backtestTarget = find<HTMLDivElement>(BACKTEST_RUNS_LIST_SELECTOR);
+    const walkForwardTarget = find<HTMLDivElement>(WALK_FORWARD_RUNS_LIST_SELECTOR);
+    if (!backtestTarget || !walkForwardTarget) return;
+
+    backtestTarget.innerHTML = `<div class="empty">Loading backtest runs...</div>`;
+    walkForwardTarget.innerHTML = `<div class="empty">Loading walk-forward runs...</div>`;
+    const data = await getJson<{ runs: BacktestRunSummary[] }>("/api/backtests/runs?limit=100");
+
+    const backtestRuns = data.runs.filter((run) => !isWalkForwardRun(run));
+    const walkForwardRuns = data.runs.filter(isWalkForwardRun);
+
+    renderRunsList(backtestTarget, backtestRuns, "No backtest runs found yet.", BACKTEST_REPORT_VIEW_SELECTOR);
+    renderRunsList(
+      walkForwardTarget,
+      walkForwardRuns,
+      "No walk-forward runs found yet.",
+      WALK_FORWARD_REPORT_VIEW_SELECTOR,
+    );
+  }
+
+  async function loadBacktestReportTo(runId: number, reportSelector: string): Promise<void> {
+    const target = find<HTMLDivElement>(reportSelector);
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading report for run ${runId}...</div>`;
     const report = await getJson<BacktestReport>(`/api/backtests/runs/${runId}`);
     target.innerHTML = renderBacktestReport(report);
+  }
+
+  async function loadBacktestReport(runId: number): Promise<void> {
+    await loadBacktestReportTo(runId, BACKTEST_REPORT_VIEW_SELECTOR);
   }
 
   async function refreshPreflightWarnings(form: HTMLFormElement, outputSelector: string): Promise<void> {
@@ -287,6 +317,7 @@ export function createBacktestingFeature(): BacktestingFeature {
 
   function wireActions(): void {
     const refreshBacktestsBtn = find<HTMLButtonElement>(REFRESH_BACKTESTS_BUTTON_SELECTOR);
+    const refreshWalkForwardBtn = find<HTMLButtonElement>(REFRESH_WALK_FORWARD_BUTTON_SELECTOR);
     const runBacktestForm = find<HTMLFormElement>(RUN_BACKTEST_FORM_SELECTOR);
     const runWalkForwardForm = find<HTMLFormElement>(RUN_WALK_FORWARD_FORM_SELECTOR);
     const backtestAccountSelect = find<HTMLSelectElement>(BACKTEST_ACCOUNT_SELECT_SELECTOR);
@@ -295,6 +326,10 @@ export function createBacktestingFeature(): BacktestingFeature {
     wireQuickLookbackButtons();
 
     refreshBacktestsBtn?.addEventListener("click", () => {
+      void loadBacktestRuns();
+    });
+
+    refreshWalkForwardBtn?.addEventListener("click", () => {
       void loadBacktestRuns();
     });
 
@@ -342,7 +377,8 @@ export function createBacktestingFeature(): BacktestingFeature {
         out.innerHTML = renderWalkForwardResult(result);
         await loadBacktestRuns();
         if (result.runIds.length) {
-          await loadBacktestReport(result.runIds[0]);
+          const latestRunId = result.runIds[result.runIds.length - 1];
+          await loadBacktestReportTo(latestRunId, WALK_FORWARD_REPORT_VIEW_SELECTOR);
         }
         await refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
       } catch (error) {

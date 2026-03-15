@@ -513,6 +513,11 @@ td {
   margin-top: 0.8rem;
 }
 
+.bt-stack {
+  display: grid;
+  gap: 1rem;
+}
+
 .bt-form {
   display: grid;
   gap: 0.55rem;
