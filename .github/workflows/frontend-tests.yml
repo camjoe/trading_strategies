@@ -25,6 +25,8 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: paper_trading_ui/frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: paper_trading_ui/frontend
