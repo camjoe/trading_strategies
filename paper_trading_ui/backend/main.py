@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +47,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@contextmanager
+def _db_conn() -> Iterator[sqlite3.Connection]:
+    conn = ensure_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def _account_row(conn: sqlite3.Connection, account_name: str) -> sqlite3.Row:
@@ -111,6 +122,10 @@ def _latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dic
     ).fetchone()
     if row is None:
         return None
+    return _backtest_run_summary(row)
+
+
+def _backtest_run_summary(row: sqlite3.Row) -> dict[str, object]:
     return {
         "runId": int(row["id"]),
         "runName": row["run_name"],
@@ -122,6 +137,28 @@ def _latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dic
         "slippageBps": float(row["slippage_bps"]),
         "feePerTrade": float(row["fee_per_trade"]),
         "tickersFile": row["tickers_file"],
+    }
+
+
+def _snapshot_payload(snapshot: sqlite3.Row) -> dict[str, object]:
+    return {
+        "time": snapshot["snapshot_time"],
+        "cash": float(snapshot["cash"]),
+        "marketValue": float(snapshot["market_value"]),
+        "equity": float(snapshot["equity"]),
+        "realizedPnl": float(snapshot["realized_pnl"]),
+        "unrealizedPnl": float(snapshot["unrealized_pnl"]),
+    }
+
+
+def _trade_payload(trade: sqlite3.Row) -> dict[str, object]:
+    return {
+        "ticker": trade["ticker"],
+        "side": trade["side"],
+        "qty": float(trade["qty"]),
+        "price": float(trade["price"]),
+        "fee": float(trade["fee"]),
+        "tradeTime": trade["trade_time"],
     }
 
 
@@ -163,6 +200,53 @@ class BacktestPreflightRequest(BaseModel):
     allowApproximateLeaps: bool = False
 
 
+def _backtest_config_from_run_request(payload: BacktestRunRequest) -> BacktestConfig:
+    return BacktestConfig(
+        account_name=payload.account,
+        tickers_file=payload.tickersFile,
+        universe_history_dir=payload.universeHistoryDir,
+        start=payload.start,
+        end=payload.end,
+        lookback_months=payload.lookbackMonths,
+        slippage_bps=payload.slippageBps,
+        fee_per_trade=payload.fee,
+        run_name=payload.runName,
+        allow_approximate_leaps=payload.allowApproximateLeaps,
+    )
+
+
+def _backtest_config_from_preflight_request(payload: BacktestPreflightRequest) -> BacktestConfig:
+    return BacktestConfig(
+        account_name=payload.account,
+        tickers_file=payload.tickersFile,
+        universe_history_dir=payload.universeHistoryDir,
+        start=payload.start,
+        end=payload.end,
+        lookback_months=payload.lookbackMonths,
+        slippage_bps=0.0,
+        fee_per_trade=0.0,
+        run_name=None,
+        allow_approximate_leaps=payload.allowApproximateLeaps,
+    )
+
+
+def _walk_forward_config_from_request(payload: WalkForwardRunRequest) -> WalkForwardConfig:
+    return WalkForwardConfig(
+        account_name=payload.account,
+        tickers_file=payload.tickersFile,
+        universe_history_dir=payload.universeHistoryDir,
+        start=payload.start,
+        end=payload.end,
+        lookback_months=payload.lookbackMonths,
+        test_months=payload.testMonths,
+        step_months=payload.stepMonths,
+        slippage_bps=payload.slippageBps,
+        fee_per_trade=payload.fee,
+        run_name_prefix=payload.runNamePrefix,
+        allow_approximate_leaps=payload.allowApproximateLeaps,
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -170,8 +254,7 @@ def health() -> dict[str, str]:
 
 @app.get("/api/accounts")
 def api_accounts() -> dict[str, list[dict[str, object]]]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         rows = conn.execute(
             """
             SELECT *
@@ -181,14 +264,11 @@ def api_accounts() -> dict[str, list[dict[str, object]]]:
         ).fetchall()
         accounts = [_build_account_summary(conn, r) for r in rows]
         return {"accounts": accounts}
-    finally:
-        conn.close()
 
 
 @app.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         account = _account_row(conn, account_name)
         summary = _build_account_summary(conn, account)
 
@@ -209,31 +289,9 @@ def api_account_detail(account_name: str) -> dict[str, object]:
         return {
             "account": summary,
             "latestBacktest": latest_backtest,
-            "snapshots": [
-                {
-                    "time": s["snapshot_time"],
-                    "cash": float(s["cash"]),
-                    "marketValue": float(s["market_value"]),
-                    "equity": float(s["equity"]),
-                    "realizedPnl": float(s["realized_pnl"]),
-                    "unrealizedPnl": float(s["unrealized_pnl"]),
-                }
-                for s in snapshots
-            ],
-            "trades": [
-                {
-                    "ticker": t["ticker"],
-                    "side": t["side"],
-                    "qty": float(t["qty"]),
-                    "price": float(t["price"]),
-                    "fee": float(t["fee"]),
-                    "tradeTime": t["trade_time"],
-                }
-                for t in trades[-100:]
-            ],
+            "snapshots": [_snapshot_payload(s) for s in snapshots],
+            "trades": [_trade_payload(t) for t in trades[-100:]],
         }
-    finally:
-        conn.close()
 
 
 @app.get("/api/logs/files")
@@ -272,32 +330,25 @@ def api_log_file(
 
 @app.post("/api/actions/snapshot/{account_name}")
 def api_snapshot(account_name: str) -> dict[str, str]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         _ = _account_row(conn, account_name)
         snapshot_account(conn, account_name, snapshot_time=None)
         return {"status": "ok", "message": f"Snapshot saved for {account_name}"}
-    finally:
-        conn.close()
 
 
 @app.post("/api/actions/snapshot-all")
 def api_snapshot_all() -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         rows = conn.execute("SELECT name FROM accounts ORDER BY name").fetchall()
         names = [str(r["name"]) for r in rows]
         for name in names:
             snapshot_account(conn, name, snapshot_time=None)
         return {"status": "ok", "snapshotted": names}
-    finally:
-        conn.close()
 
 
 @app.get("/api/backtests/runs")
 def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str, list[dict[str, object]]]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         rows = conn.execute(
             """
             SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
@@ -309,73 +360,34 @@ def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str,
             """,
             (int(limit),),
         ).fetchall()
-        return {
-            "runs": [
-                {
-                    "runId": int(r["id"]),
-                    "runName": r["run_name"],
-                    "accountName": r["account_name"],
-                    "strategy": r["strategy"],
-                    "startDate": r["start_date"],
-                    "endDate": r["end_date"],
-                    "createdAt": r["created_at"],
-                    "slippageBps": float(r["slippage_bps"]),
-                    "feePerTrade": float(r["fee_per_trade"]),
-                    "tickersFile": r["tickers_file"],
-                }
-                for r in rows
-            ]
-        }
-    finally:
-        conn.close()
+        return {"runs": [_backtest_run_summary(r) for r in rows]}
 
 
 @app.get("/api/backtests/latest/{account_name}")
 def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         _ = _account_row(conn, account_name)
         latest = _latest_backtest_summary(conn, account_name)
         return {
             "accountName": account_name,
             "latestRun": latest,
         }
-    finally:
-        conn.close()
 
 
 @app.get("/api/backtests/runs/{run_id}")
 def api_backtest_run_report(run_id: int) -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         try:
             return backtest_report(conn, run_id)
         except ValueError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
-    finally:
-        conn.close()
 
 
 @app.post("/api/backtests/run")
 def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         try:
-            result = run_backtest(
-                conn,
-                BacktestConfig(
-                    account_name=payload.account,
-                    tickers_file=payload.tickersFile,
-                    universe_history_dir=payload.universeHistoryDir,
-                    start=payload.start,
-                    end=payload.end,
-                    lookback_months=payload.lookbackMonths,
-                    slippage_bps=payload.slippageBps,
-                    fee_per_trade=payload.fee,
-                    run_name=payload.runName,
-                    allow_approximate_leaps=payload.allowApproximateLeaps,
-                ),
-            )
+            result = run_backtest(conn, _backtest_config_from_run_request(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -392,30 +404,13 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
             "maxDrawdownPct": result.max_drawdown_pct,
             "warnings": result.warnings,
         }
-    finally:
-        conn.close()
 
 
 @app.post("/api/backtests/preflight")
 def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         try:
-            warnings = preview_backtest_warnings(
-                conn,
-                BacktestConfig(
-                    account_name=payload.account,
-                    tickers_file=payload.tickersFile,
-                    universe_history_dir=payload.universeHistoryDir,
-                    start=payload.start,
-                    end=payload.end,
-                    lookback_months=payload.lookbackMonths,
-                    slippage_bps=0.0,
-                    fee_per_trade=0.0,
-                    run_name=None,
-                    allow_approximate_leaps=payload.allowApproximateLeaps,
-                ),
-            )
+            warnings = preview_backtest_warnings(conn, _backtest_config_from_preflight_request(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except FileNotFoundError as error:
@@ -424,32 +419,13 @@ def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, objec
         return {
             "warnings": warnings,
         }
-    finally:
-        conn.close()
 
 
 @app.post("/api/backtests/walk-forward")
 def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
-    conn = ensure_db()
-    try:
+    with _db_conn() as conn:
         try:
-            summary = run_walk_forward_backtest(
-                conn,
-                WalkForwardConfig(
-                    account_name=payload.account,
-                    tickers_file=payload.tickersFile,
-                    universe_history_dir=payload.universeHistoryDir,
-                    start=payload.start,
-                    end=payload.end,
-                    lookback_months=payload.lookbackMonths,
-                    test_months=payload.testMonths,
-                    step_months=payload.stepMonths,
-                    slippage_bps=payload.slippageBps,
-                    fee_per_trade=payload.fee,
-                    run_name_prefix=payload.runNamePrefix,
-                    allow_approximate_leaps=payload.allowApproximateLeaps,
-                ),
-            )
+            summary = run_walk_forward_backtest(conn, _walk_forward_config_from_request(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -464,5 +440,3 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
             "bestReturnPct": summary.best_return_pct,
             "worstReturnPct": summary.worst_return_pct,
         }
-    finally:
-        conn.close()
