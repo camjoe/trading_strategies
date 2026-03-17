@@ -3,10 +3,12 @@ import sqlite3
 try:
     from trading.accounts import get_account, utc_now_iso
     from trading.accounting import compute_account_state, load_trades
+    from trading.models import AccountState
     from trading.pricing import benchmark_stats, fetch_latest_prices
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
     from accounting import compute_account_state, load_trades
+    from models import AccountState
     from pricing import benchmark_stats, fetch_latest_prices
 
 
@@ -173,7 +175,7 @@ def _compare_benchmark_line(
 def build_account_stats(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
-) -> tuple[object, dict[str, float], float, float, float]:
+) -> tuple[AccountState, dict[str, float], float, float, float]:
     trades = load_trades(conn, account["id"])
     state = compute_account_state(account["initial_cash"], trades)
     tickers = sorted(state.positions.keys())

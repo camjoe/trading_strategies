@@ -288,6 +288,7 @@ def main() -> None:
         command_handler = COMMAND_HANDLERS.get(args.command)
         if command_handler is None:
             parser.error(f"Unsupported command: {args.command}")
+            return
         command_handler(conn, args, parser)
 
     finally:

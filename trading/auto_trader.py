@@ -17,11 +17,13 @@ try:
     from trading.accounting import compute_account_state, load_trades, record_trade
     from trading.accounts import get_account
     from trading.db import ensure_db
+    from trading.models import AccountState
     from trading.pricing import fetch_latest_prices
 except ModuleNotFoundError:
     from accounting import compute_account_state, load_trades, record_trade
     from accounts import get_account
     from db import ensure_db
+    from models import AccountState
     from pricing import fetch_latest_prices
 
 
@@ -154,7 +156,7 @@ def option_candidate_allowed(
 def choose_sell_ticker_by_risk(
     can_sell: list[str],
     prices: dict[str, float],
-    state: object,
+    state: AccountState,
     risk_policy: str,
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
@@ -183,7 +185,7 @@ def choose_sell_ticker_by_risk(
     return random.choice(list(dict.fromkeys(candidates)))
 
 
-def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: object, learning_enabled: bool) -> str:
+def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool) -> str:
     if not learning_enabled:
         return random.choice(universe)
 
@@ -207,7 +209,7 @@ def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: obje
     return random.choice([t for _score, t in scored[:top_n]])
 
 
-def choose_sell_ticker(can_sell: list[str], prices: dict[str, float], state: object, learning_enabled: bool) -> str:
+def choose_sell_ticker(can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool) -> str:
     if not learning_enabled:
         return random.choice(can_sell)
 
@@ -311,7 +313,7 @@ def _prepare_buy_trade(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    state: object,
+    state: AccountState,
     learning_enabled: bool,
     fee: float,
 ) -> BuyTradeSelection | None:
@@ -357,7 +359,7 @@ def _prepare_sell_trade(
     can_sell: list[str],
     forced_sell: str | None,
     prices: dict[str, float],
-    state: object,
+    state: AccountState,
     learning_enabled: bool,
     instrument_mode: str,
 ) -> SellTradeSelection | None:

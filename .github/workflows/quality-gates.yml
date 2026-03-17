@@ -46,7 +46,7 @@ jobs:
         run: ruff check trading trends paper_trading_ui/backend --select F,E9
 
       - name: Run mypy type gate
-        run: mypy paper_trading_ui/backend/main.py --python-version 3.12 --ignore-missing-imports --follow-imports=skip
+        run: mypy paper_trading_ui/backend trading --python-version 3.12 --ignore-missing-imports --follow-imports=skip
 
   frontend-quality:
     runs-on: ubuntu-latest
