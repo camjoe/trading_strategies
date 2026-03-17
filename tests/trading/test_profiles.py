@@ -3,7 +3,8 @@ import json
 import pytest
 
 from trading.accounts import get_account
-from trading.profiles import _to_bool, apply_account_profiles, load_account_profiles
+from trading.db_coercion import coerce_bool
+from trading.profiles import apply_account_profiles, load_account_profiles
 
 
 def test_apply_account_profiles_sets_risk_and_instrument_fields(conn) -> None:
@@ -56,7 +57,7 @@ def test_apply_account_profiles_sets_risk_and_instrument_fields(conn) -> None:
 
 
 # ---------------------------------------------------------------------------
-# _to_bool
+# coerce_bool
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("value,expected", [
@@ -66,13 +67,13 @@ def test_apply_account_profiles_sets_risk_and_instrument_fields(conn) -> None:
     ("false", False), ("no", False), ("off", False), ("0", False),
     ("TRUE", True), ("YES", True),
 ])
-def test_to_bool_valid(value, expected):
-    assert _to_bool(value) == expected
+def test_coerce_bool_valid(value, expected):
+    assert coerce_bool(value) == expected
 
 
-def test_to_bool_invalid_raises():
+def test_coerce_bool_invalid_raises():
     with pytest.raises(ValueError):
-        _to_bool("maybe")
+        coerce_bool("maybe")
 
 
 # ---------------------------------------------------------------------------

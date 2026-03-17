@@ -265,6 +265,9 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
 
 def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
     accounts = conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+    if not accounts:
+        print("No paper accounts found.")
+        return
     if by_strategy:
         current_strategy = None
         for account in accounts:
