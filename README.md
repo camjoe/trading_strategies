@@ -1,161 +1,73 @@
-# Trading Trends Starter
+# Trading Strategies
 
-Simple Python workflow for charting stock trends with `yfinance` and `matplotlib`.
+A Python suite for stock trends analysis, backtesting, paper trading, and strategy development.
+
+## Project Overview
+
+This repository contains tools for:
+
+- **Trends Analysis**: Chart technical indicators and moving averages for stock tickers using `yfinance` and `matplotlib`.
+- **Backtesting**: Walk-forward simulation of trading strategies on historical data.
+- **Paper Trading**: Live strategy execution with simulated portfolio management.
+- **UI Dashboard**: Real-time monitoring of paper trading activity via a web interface.
+
+## Directory Structure
+
+| Folder | Purpose |
+|--------|---------|
+| `trends/` | Stock trends analysis and indicator calculations. |
+| `trading/` | Core trading logic: accounts, pricing, orders, reporting, backtesting. |
+| `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
+| `docs/` | Detailed documentation and guides. |
+| `tests/` | Test suite for all modules. |
 
 ## Python Setup
 
-Install the dependency set that matches your purpose:
+Choose the dependency set that matches your purpose:
 
 ```powershell
-# Core runtime for trends, trading, and the UI backend
+# Core runtime for trends, trading, and UI backend
 pip install -r requirements/base.txt
 
 # Runtime plus test dependencies
 pip install -r requirements/dev.txt
 
-# Optional notebook / modeling extras
+# Optional notebook / modeling extras (research and experimentation)
 pip install -r requirements/research.txt
 ```
 
-Compatibility note:
-- `requirements.txt` now points to `requirements/dev.txt`.
-- `paper_trading_ui/backend/requirements.txt` now points to `requirements/base.txt`.
+**Compatibility Note:**
+- `requirements.txt` points to `requirements/dev.txt` for backward compatibility.
+- `paper_trading_ui/backend/requirements.txt` points to `requirements/base.txt`.
 
 ## Quick Start
 
-1. Add your tickers in `run_tickers.txt` (one per line or comma-separated).
-2. Run the script from the project root:
+### Trends Analysis
+
+See [trends/README.md](trends/README.md) for full documentation and usage examples.
 
 ```powershell
-python trends/stock_trends.py
+python trends/stock_trends.py AAPL --period 1y
 ```
 
-3. Check output charts in `charts/`.
+### Backtesting
 
-Optional first run with explanations:
+See [docs/backtesting/README.md](docs/backtesting/README.md) for walk-forward simulation and strategy testing.
 
-```powershell
-python trends/stock_trends.py --explain
-```
+### Paper Trading
 
-## What This Script Does
-
-`trends/stock_trends.py` downloads market data and calculates:
-- Moving averages: `MA20`, `MA50`, `MA200`
-- `RS` and `RSI14`
-- `MACD`, `MACDSignal`, and `MACDHist`
-- Daily return percentage
-
-It saves chart images into `charts/` each run.
-
-## Input Files
-
-- `run_tickers.txt`: quick ticker list for normal runs.
-- `ticker_categories.txt`: grouped ticker lists using `[category]` sections.
-
-### `run_tickers.txt` format
-
-```txt
-# One per line or comma-separated
-AAPL
-MSFT, NVDA
-SPY
-```
-
-### `ticker_categories.txt` format
-
-```txt
-[tech]
-AAPL, MSFT, NVDA, AMZN
-
-[etf]
-SPY, QQQ, IWM
-```
-
-## Basic Usage
-
-From the project root:
-
-```powershell
-python trends/stock_trends.py
-```
-
-Behavior:
-- If `run_tickers.txt` exists, those tickers are used by default.
-- If multiple tickers are selected, charts are saved in batch mode (no popup windows).
-- If one ticker is selected, chart window opens and chart is also saved.
-
-## Common Examples
-
-Run one ticker directly:
-
-```powershell
-python trends/stock_trends.py AAPL --period 1y --interval 1d
-```
-
-Run using `run_tickers.txt`:
-
-```powershell
-python trends/stock_trends.py --tickers-file run_tickers.txt --period 6mo --interval 1d
-```
-
-Run a category from `ticker_categories.txt`:
-
-```powershell
-python trends/stock_trends.py --category tech --period 1y --interval 1d
-```
-
-List available categories:
-
-```powershell
-python trends/stock_trends.py --list-categories
-```
-
-Show indicator explanations while running:
-
-```powershell
-python trends/stock_trends.py --category etf --explain
-```
-
-Use a custom category file path:
-
-```powershell
-python trends/stock_trends.py --category banks --category-file ticker_categories.txt
-```
-
-Debug column structure (useful when data-provider schema changes):
-
-```powershell
-python trends/stock_trends.py NVDA --debug-columns
-```
-
-## Notes
-
-- Category names are case-insensitive.
-- Lines starting with `#` in ticker files are ignored.
-- Tickers can be written one per line or comma-separated.
-- `--debug-columns` prints dataframe column shape before and after normalization.
-
-## Backtesting
-
-Backtesting and walk-forward simulation documentation is now in:
-- `docs/backtesting/README.md`
-
-## Documentation Index
-
-For a full map of project docs, see:
-- `docs/README.md`
+See [docs/Paper Trading.md](docs/Paper%20Trading.md) for live strategy simulation and portfolio tracking.
 
 ## Testing
 
-Run the full test suite from project root:
+Run the full test suite from the project root:
 
 ```powershell
 python -m pytest
 ```
 
-Coverage is configured in `pytest.ini` and includes:
-- Terminal report with missing lines
-- `coverage.xml` output (used by CI artifact upload)
-- Coverage collection for both `trading` and `trends` packages
-- Minimum coverage threshold of 35% (baseline, can be raised over time)
+Tests cover both `trading` and `trends` packages with a baseline of 35% coverage.
+
+## Documentation Index
+
+For detailed documentation on all components, see [docs/README.md](docs/README.md).
