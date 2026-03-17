@@ -1,6 +1,66 @@
 import argparse
 
 
+def _add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False) -> None:
+    """Add shared account option/risk arguments to a sub-parser."""
+    p.add_argument("--display-name", default=None, help="Human-friendly account name")
+    p.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
+    p.add_argument("--goal-max-return-pct", type=float, default=None, help="Goal maximum return percent")
+    p.add_argument(
+        "--goal-period",
+        default=None if configure_mode else "monthly",
+        help="Goal time period label, e.g. weekly, monthly, quarterly",
+    )
+    p.add_argument(
+        "--learning-enabled",
+        action="store_true",
+        help="Turn on learning mode for this account" if configure_mode else "Enable learning mode for this account",
+    )
+    if configure_mode:
+        p.add_argument(
+            "--learning-disabled",
+            action="store_true",
+            help="Turn off learning mode for this account",
+        )
+    p.add_argument(
+        "--risk-policy",
+        default=None if configure_mode else "none",
+        choices=["none", "fixed_stop", "take_profit", "stop_and_target"],
+        help="Risk management policy",
+    )
+    p.add_argument("--stop-loss-pct", type=float, default=None, help="Stop-loss percent")
+    p.add_argument("--take-profit-pct", type=float, default=None, help="Take-profit percent")
+    p.add_argument(
+        "--instrument-mode",
+        default=None if configure_mode else "equity",
+        choices=["equity", "leaps"],
+        help="Execution style: equity shares or LEAPs-style simulation",
+    )
+    p.add_argument(
+        "--option-strike-offset-pct",
+        type=float,
+        default=None,
+        help="Option strike offset percent vs underlying (for LEAPs simulation)",
+    )
+    p.add_argument("--option-min-dte", type=int, default=None, help="Minimum days-to-expiration")
+    p.add_argument("--option-max-dte", type=int, default=None, help="Maximum days-to-expiration")
+    p.add_argument(
+        "--option-type",
+        default=None,
+        choices=["call", "put", "both"],
+        help="Preferred option type for options-style trading",
+    )
+    p.add_argument("--target-delta-min", type=float, default=None, help="Minimum target option delta (0-1)")
+    p.add_argument("--target-delta-max", type=float, default=None, help="Maximum target option delta (0-1)")
+    p.add_argument("--max-premium-per-trade", type=float, default=None, help="Max option premium budget per trade")
+    p.add_argument("--max-contracts-per-trade", type=int, default=None, help="Maximum option contracts per trade")
+    p.add_argument("--iv-rank-min", type=float, default=None, help="Minimum IV rank threshold (0-100)")
+    p.add_argument("--iv-rank-max", type=float, default=None, help="Maximum IV rank threshold (0-100)")
+    p.add_argument("--roll-dte-threshold", type=int, default=None, help="Roll position when DTE <= threshold")
+    p.add_argument("--profit-take-pct", type=float, default=None, help="Profit target percent")
+    p.add_argument("--max-loss-pct", type=float, default=None, help="Maximum tolerated loss percent")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Paper trading accounts per strategy with trade and equity tracking."
@@ -12,58 +72,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_create = sub.add_parser("create-account", help="Create a new paper account.")
     p_create.add_argument("--name", required=True, help="Account name, e.g. trend_v1")
-    p_create.add_argument("--display-name", default=None, help="Human-friendly account name")
     p_create.add_argument("--strategy", required=True, help="Strategy label")
     p_create.add_argument("--initial-cash", type=float, required=True, help="Starting cash")
-    p_create.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
-    p_create.add_argument("--goal-max-return-pct", type=float, default=None, help="Goal maximum return percent")
-    p_create.add_argument(
-        "--goal-period",
-        default="monthly",
-        help="Goal time period label, e.g. weekly, monthly, quarterly",
-    )
-    p_create.add_argument(
-        "--learning-enabled",
-        action="store_true",
-        help="Enable learning mode for this account",
-    )
-    p_create.add_argument(
-        "--risk-policy",
-        default="none",
-        choices=["none", "fixed_stop", "take_profit", "stop_and_target"],
-        help="Risk management policy",
-    )
-    p_create.add_argument("--stop-loss-pct", type=float, default=None, help="Stop-loss percent")
-    p_create.add_argument("--take-profit-pct", type=float, default=None, help="Take-profit percent")
-    p_create.add_argument(
-        "--instrument-mode",
-        default="equity",
-        choices=["equity", "leaps"],
-        help="Execution style: equity shares or LEAPs-style simulation",
-    )
-    p_create.add_argument(
-        "--option-strike-offset-pct",
-        type=float,
-        default=None,
-        help="Option strike offset percent vs underlying (for LEAPs simulation)",
-    )
-    p_create.add_argument("--option-min-dte", type=int, default=None, help="Minimum days-to-expiration")
-    p_create.add_argument("--option-max-dte", type=int, default=None, help="Maximum days-to-expiration")
-    p_create.add_argument(
-        "--option-type",
-        default=None,
-        choices=["call", "put", "both"],
-        help="Preferred option type for options-style trading",
-    )
-    p_create.add_argument("--target-delta-min", type=float, default=None, help="Minimum target option delta (0-1)")
-    p_create.add_argument("--target-delta-max", type=float, default=None, help="Maximum target option delta (0-1)")
-    p_create.add_argument("--max-premium-per-trade", type=float, default=None, help="Max option premium budget per trade")
-    p_create.add_argument("--max-contracts-per-trade", type=int, default=None, help="Maximum option contracts per trade")
-    p_create.add_argument("--iv-rank-min", type=float, default=None, help="Minimum IV rank threshold (0-100)")
-    p_create.add_argument("--iv-rank-max", type=float, default=None, help="Maximum IV rank threshold (0-100)")
-    p_create.add_argument("--roll-dte-threshold", type=int, default=None, help="Roll position when DTE <= threshold")
-    p_create.add_argument("--profit-take-pct", type=float, default=None, help="Profit target percent")
-    p_create.add_argument("--max-loss-pct", type=float, default=None, help="Maximum tolerated loss percent")
+    _add_option_args(p_create)
     p_create.add_argument(
         "--benchmark",
         default="SPY",
@@ -76,61 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_configure = sub.add_parser("configure-account", help="Update per-account metadata and goals.")
     p_configure.add_argument("--account", required=True, help="Account name")
-    p_configure.add_argument("--display-name", default=None, help="Human-friendly account name")
-    p_configure.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
-    p_configure.add_argument("--goal-max-return-pct", type=float, default=None, help="Goal maximum return percent")
-    p_configure.add_argument(
-        "--goal-period",
-        default=None,
-        help="Goal time period label, e.g. weekly, monthly, quarterly",
-    )
-    p_configure.add_argument(
-        "--learning-enabled",
-        action="store_true",
-        help="Turn on learning mode for this account",
-    )
-    p_configure.add_argument(
-        "--learning-disabled",
-        action="store_true",
-        help="Turn off learning mode for this account",
-    )
-    p_configure.add_argument(
-        "--risk-policy",
-        default=None,
-        choices=["none", "fixed_stop", "take_profit", "stop_and_target"],
-        help="Risk management policy",
-    )
-    p_configure.add_argument("--stop-loss-pct", type=float, default=None, help="Stop-loss percent")
-    p_configure.add_argument("--take-profit-pct", type=float, default=None, help="Take-profit percent")
-    p_configure.add_argument(
-        "--instrument-mode",
-        default=None,
-        choices=["equity", "leaps"],
-        help="Execution style: equity shares or LEAPs-style simulation",
-    )
-    p_configure.add_argument(
-        "--option-strike-offset-pct",
-        type=float,
-        default=None,
-        help="Option strike offset percent vs underlying (for LEAPs simulation)",
-    )
-    p_configure.add_argument("--option-min-dte", type=int, default=None, help="Minimum days-to-expiration")
-    p_configure.add_argument("--option-max-dte", type=int, default=None, help="Maximum days-to-expiration")
-    p_configure.add_argument(
-        "--option-type",
-        default=None,
-        choices=["call", "put", "both"],
-        help="Preferred option type for options-style trading",
-    )
-    p_configure.add_argument("--target-delta-min", type=float, default=None, help="Minimum target option delta (0-1)")
-    p_configure.add_argument("--target-delta-max", type=float, default=None, help="Maximum target option delta (0-1)")
-    p_configure.add_argument("--max-premium-per-trade", type=float, default=None, help="Max option premium budget per trade")
-    p_configure.add_argument("--max-contracts-per-trade", type=int, default=None, help="Maximum option contracts per trade")
-    p_configure.add_argument("--iv-rank-min", type=float, default=None, help="Minimum IV rank threshold (0-100)")
-    p_configure.add_argument("--iv-rank-max", type=float, default=None, help="Maximum IV rank threshold (0-100)")
-    p_configure.add_argument("--roll-dte-threshold", type=int, default=None, help="Roll position when DTE <= threshold")
-    p_configure.add_argument("--profit-take-pct", type=float, default=None, help="Profit target percent")
-    p_configure.add_argument("--max-loss-pct", type=float, default=None, help="Maximum tolerated loss percent")
+    _add_option_args(p_configure, configure_mode=True)
 
     p_trade = sub.add_parser("trade", help="Record a mock buy or sell.")
     p_trade.add_argument("--account", required=True, help="Account name")
