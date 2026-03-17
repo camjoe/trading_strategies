@@ -1,0 +1,78 @@
+name: Security Checks
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - requirements.txt
+      - paper_trading_ui/frontend/package-lock.json
+      - .github/workflows/security-checks.yml
+  pull_request:
+    paths:
+      - requirements.txt
+      - paper_trading_ui/frontend/package-lock.json
+      - .github/workflows/security-checks.yml
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  python-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Run pip-audit
+        run: pip-audit -r requirements.txt -f json -o pip-audit.json
+
+      - name: Upload pip-audit results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pip-audit-report
+          path: pip-audit.json
+
+  frontend-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: paper_trading_ui/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: paper_trading_ui/frontend
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: paper_trading_ui/frontend
+        run: npm audit --audit-level=high --json > npm-audit.json || true
+
+      - name: Upload npm audit results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-audit-report
+          path: paper_trading_ui/frontend/npm-audit.json
