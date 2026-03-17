@@ -242,6 +242,8 @@ body {
 }
 
 .doc-entry {
+  display: flex;
+  flex-direction: column;
   background: #ffffffd6;
   border: 1px solid #d1dceb;
   border-radius: 12px;
@@ -259,6 +261,7 @@ body {
   font-size: 0.9rem;
   color: var(--ink-soft);
   line-height: 1.5;
+  flex: 1;
 }
 
 .ref-card {
@@ -368,6 +371,7 @@ body {
   border-collapse: collapse;
   font-size: 0.88rem;
   margin-bottom: 0.5rem;
+  table-layout: fixed;
 }
 
 .ref-table th {
@@ -382,20 +386,36 @@ body {
   text-align: left;
 }
 
+.ref-table th:nth-child(1) {
+  width: 25%;
+}
+
+.ref-table th:nth-child(2) {
+  width: 30%;
+}
+
+.ref-table th:nth-child(3) {
+  width: 45%;
+}
+
 .ref-table td {
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid #e8eef5;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
-.ref-table td:first-child {
+.ref-table td:nth-child(1) {
+  width: 25%;
   font-weight: 600;
-  white-space: nowrap;
   color: var(--ink);
-  min-width: 170px;
 }
 
-.ref-table td:last-child {
+.ref-table td:nth-child(2) {
+  width: 30%;
+}
+
+.ref-table td:nth-child(3) {
+  width: 45%;
   color: var(--ink-soft);
   line-height: 1.5;
 }
@@ -406,6 +426,44 @@ body {
   font-size: 0.88rem;
   color: var(--ink-soft);
   line-height: 1.7;
+}
+
+/* 2-col endpoint tables: Purpose starts at 42% */
+.ref-table--endpoint th:nth-child(1),
+.ref-table--endpoint td:nth-child(1) {
+  width: 42%;
+}
+
+.ref-table--endpoint th:nth-child(2),
+.ref-table--endpoint td:nth-child(2) {
+  width: 58%;
+}
+
+/* Software tables: short first-col names, give the description more room */
+.ref-table--software th:nth-child(1),
+.ref-table--software td:nth-child(1) {
+  width: 20%;
+}
+
+.ref-table--software th:nth-child(2),
+.ref-table--software td:nth-child(2) {
+  width: 80%;
+}
+
+/* 3-col param tables: col1(30%) + col2(12%) = 42%, so Details aligns with Purpose */
+.ref-table--params th:nth-child(1),
+.ref-table--params td:nth-child(1) {
+  width: 30%;
+}
+
+.ref-table--params th:nth-child(2),
+.ref-table--params td:nth-child(2) {
+  width: 12%;
+}
+
+.ref-table--params th:nth-child(3),
+.ref-table--params td:nth-child(3) {
+  width: 58%;
 }
 
 .ref-subsection-label {
