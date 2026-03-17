@@ -263,27 +263,20 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
     conn.commit()
 
 
-def list_accounts(conn: sqlite3.Connection) -> None:
-    rows = conn.execute(
-        """
-        SELECT id, name, descriptive_name, strategy, initial_cash, created_at, benchmark_ticker,
-             goal_min_return_pct, goal_max_return_pct, goal_period, learning_enabled,
-             risk_policy, stop_loss_pct, take_profit_pct, instrument_mode,
-             option_strike_offset_pct, option_min_dte, option_max_dte,
-             option_type, target_delta_min, target_delta_max,
-             max_premium_per_trade, max_contracts_per_trade,
-             iv_rank_min, iv_rank_max, roll_dte_threshold,
-             profit_take_pct, max_loss_pct
-        FROM accounts
-        ORDER BY id
-        """
-    ).fetchall()
-    if not rows:
-        print("No paper accounts found.")
-        return
-
-    for row in rows:
-        print(_account_summary_line(row))
+def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
+    accounts = conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+    if by_strategy:
+        current_strategy = None
+        for account in accounts:
+            if account["strategy"] != current_strategy:
+                if current_strategy is not None:
+                    print()
+                current_strategy = account["strategy"]
+                print(f"Strategy: {current_strategy}")
+            print(f"  {_account_summary_line(account)}")
+    else:
+        for account in accounts:
+            print(_account_summary_line(account))
 
 
 def configure_account(
