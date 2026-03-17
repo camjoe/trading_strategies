@@ -19,12 +19,12 @@ try:
         load_tickers_from_file,
         resolve_backtest_dates,
     )
-    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
     from trading.backtesting.strategy_signals import resolve_signal
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
     from backtesting.backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
-    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
     from backtesting.strategy_signals import resolve_signal
 
 
@@ -201,8 +201,12 @@ def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) ->
 
     if row_str(account, "instrument_mode") == "leaps":
         warnings.append(
-            "LEAPS pricing is estimated; actual prices, IVs, and Greeks may differ materially from simulation."
+            "LEAPs mode is approximated using underlying equity prices; options chain history and Greeks are not modeled."
         )
+        if not allow_approximate_leaps:
+            warnings.append(
+                "LEAPs approximation opt-in was not enabled; proceeding with approximate LEAPs assumptions for research only."
+            )
     return warnings
 
 
@@ -212,17 +216,17 @@ def _resolve_universe(
     end_date: date,
 ) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
     default_tickers = load_tickers_from_file(cfg.tickers_file)
-    warnings: list[str] = []
+    month_to_tickers, all_tickers, warnings = build_monthly_universe(
+        default_tickers,
+        start_date,
+        end_date,
+        cfg.universe_history_dir,
+    )
 
-    if cfg.universe_history_dir is None:
-        month_to_tickers: dict[str, list[str]] = {}
-        all_tickers = default_tickers
-    else:
-        month_to_tickers, all_tickers = build_monthly_universe(cfg.universe_history_dir, start_date, end_date)
-        if not all_tickers:
-            warnings.append("No ticker history found in specified directory; using default tickers.")
-            month_to_tickers = {}
-            all_tickers = default_tickers
+    if cfg.universe_history_dir:
+        warnings.append(
+            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
+        )
 
     return default_tickers, month_to_tickers, all_tickers, warnings
 
@@ -258,6 +262,21 @@ def _benchmark_return_pct(benchmark_close: pd.Series, initial_cash: float) -> fl
 
     equity = initial_cash * (end_px / start_px)
     return ((equity / initial_cash) - 1.0) * 100.0
+
+
+def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
+    account = get_account(conn, cfg.account_name)
+    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
+    warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
+
+    _default_tickers, _month_to_tickers, _all_tickers, universe_warnings = _resolve_universe(
+        cfg,
+        start_date,
+        end_date,
+    )
+    warnings.extend(universe_warnings)
+
+    return warnings
 
 
 def _insert_run(
@@ -544,6 +563,15 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         """,
         (run_id,),
     ).fetchall()
+    trades = conn.execute(
+        """
+        SELECT trade_time, ticker, side, qty, price, fee
+        FROM backtest_trades
+        WHERE run_id = ?
+        ORDER BY trade_time, id
+        """,
+        (run_id,),
+    ).fetchall()
 
     if not snapshots:
         raise ValueError(f"No snapshots found for backtest run {run_id}")
@@ -572,6 +600,7 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "tickers_file": run["tickers_file"],
         "notes": run["notes"],
         "warnings": run["warnings"],
+        "trade_count": len(trades),
         "first_equity": first_equity,
         "last_equity": last_equity,
         "total_return_pct": ((last_equity / first_equity) - 1.0) * 100.0,
@@ -588,7 +617,7 @@ def run_walk_forward_backtest(
     windows = build_walk_forward_windows(start_date, end_date, cfg.test_months, cfg.step_months)
 
     if not windows:
-        raise ValueError("No walk-forward windows could be built with the given parameters.")
+        raise ValueError("No walk-forward windows generated for the selected date range.")
 
     run_ids: list[int] = []
     total_returns: list[float] = []
