@@ -19,16 +19,12 @@ try:
         load_tickers_from_file,
         resolve_backtest_dates,
     )
+    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
     from trading.backtesting.strategy_signals import resolve_signal
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
-    from backtesting.backtest_data import (
-        build_monthly_universe,
-        fetch_benchmark_close,
-        fetch_close_history,
-        load_tickers_from_file,
-        resolve_backtest_dates,
-    )
+    from backtesting.backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
+    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
     from backtesting.strategy_signals import resolve_signal
 
 
@@ -197,20 +193,16 @@ def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) ->
         "Universe file may include survivorship bias if it only reflects currently listed symbols.",
     ]
 
-    if account["risk_policy"] in {"fixed_stop", "take_profit", "stop_and_target"}:
+    risk_policy = row_str(account, "risk_policy")
+    if risk_policy in {"fixed_stop", "take_profit", "stop_and_target"}:
         warnings.append(
             "Stop-loss/take-profit checks are approximated on daily closes and can differ from intraday execution."
         )
 
-    if account["instrument_mode"] == "leaps":
+    if row_str(account, "instrument_mode") == "leaps":
         warnings.append(
-            "LEAPs mode is approximated using underlying equity prices; options chain history and Greeks are not modeled."
+            "LEAPS pricing is estimated; actual prices, IVs, and Greeks may differ materially from simulation."
         )
-        if not allow_approximate_leaps:
-            warnings.append(
-                "LEAPs approximation opt-in was not enabled; proceeding with approximate LEAPs assumptions for research only."
-            )
-
     return warnings
 
 
@@ -220,18 +212,17 @@ def _resolve_universe(
     end_date: date,
 ) -> tuple[list[str], dict[str, list[str]], list[str], list[str]]:
     default_tickers = load_tickers_from_file(cfg.tickers_file)
-    month_to_tickers, all_tickers, universe_warnings = build_monthly_universe(
-        default_tickers,
-        start_date,
-        end_date,
-        cfg.universe_history_dir,
-    )
+    warnings: list[str] = []
 
-    warnings = list(universe_warnings)
-    if cfg.universe_history_dir:
-        warnings.append(
-            "Monthly universe reconstitution enabled from snapshot files; ticker membership can change each month."
-        )
+    if cfg.universe_history_dir is None:
+        month_to_tickers: dict[str, list[str]] = {}
+        all_tickers = default_tickers
+    else:
+        month_to_tickers, all_tickers = build_monthly_universe(cfg.universe_history_dir, start_date, end_date)
+        if not all_tickers:
+            warnings.append("No ticker history found in specified directory; using default tickers.")
+            month_to_tickers = {}
+            all_tickers = default_tickers
 
     return default_tickers, month_to_tickers, all_tickers, warnings
 
@@ -255,19 +246,18 @@ def _median(values: list[float]) -> float:
     return float(median(values))
 
 
-def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
-    account = get_account(conn, cfg.account_name)
-    start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    warnings = _warnings_for_config(account, cfg.allow_approximate_leaps)
+def _benchmark_return_pct(benchmark_close: pd.Series, initial_cash: float) -> float | None:
+    series = benchmark_close.dropna()
+    if len(series) < 2:
+        return None
 
-    _default_tickers, _month_to_tickers, _all_tickers, universe_warnings = _resolve_universe(
-        cfg,
-        start_date,
-        end_date,
-    )
-    warnings.extend(universe_warnings)
+    start_px = float(series.iloc[0])
+    end_px = float(series.iloc[-1])
+    if start_px <= 0:
+        return None
 
-    return warnings
+    equity = initial_cash * (end_px / start_px)
+    return ((equity / initial_cash) - 1.0) * 100.0
 
 
 def _insert_run(
@@ -308,6 +298,7 @@ def _insert_run(
         ),
     )
     conn.commit()
+    assert cursor.lastrowid is not None
     return int(cursor.lastrowid)
 
 
@@ -355,20 +346,6 @@ def _insert_snapshot(
     )
 
 
-def _benchmark_return_pct(benchmark_close: pd.Series, initial_cash: float) -> float | None:
-    series = benchmark_close.dropna()
-    if len(series) < 2:
-        return None
-
-    start_px = float(series.iloc[0])
-    end_px = float(series.iloc[-1])
-    if start_px <= 0:
-        return None
-
-    equity = initial_cash * (end_px / start_px)
-    return ((equity / initial_cash) - 1.0) * 100.0
-
-
 def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
     account = get_account(conn, cfg.account_name)
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
@@ -385,11 +362,16 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
-    benchmark_series = fetch_benchmark_close(account["benchmark_ticker"], start_date, end_date)
+    benchmark_ticker = row_expect_str(account, "benchmark_ticker")
+    account_id = row_expect_int(account, "id")
+    initial_cash = row_expect_float(account, "initial_cash")
+    strategy_name = row_expect_str(account, "strategy")
 
-    run_id = _insert_run(conn, account["id"], start_date, end_date, cfg, warnings)
+    benchmark_series = fetch_benchmark_close(benchmark_ticker, start_date, end_date)
 
-    cash = float(account["initial_cash"])
+    run_id = _insert_run(conn, account_id, start_date, end_date, cfg, warnings)
+
+    cash = initial_cash
     realized_pnl = 0.0
     positions: dict[str, float] = defaultdict(float)
     avg_cost: dict[str, float] = defaultdict(float)
@@ -427,7 +409,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
 
         for ticker in strategy_tickers:
             history = close.loc[:signal_date, ticker].dropna()
-            signal = resolve_signal(str(account["strategy"]), history)
+            signal = resolve_signal(strategy_name, history)
 
             if signal == "buy" and ticker not in active_tickers:
                 continue
@@ -442,15 +424,15 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
                 if exec_px <= 0:
                     continue
 
-                qty = math.floor(max(0.0, allocation - cfg.fee_per_trade) / exec_px)
-                if qty < 1:
+                qty_int = math.floor(max(0.0, allocation - cfg.fee_per_trade) / exec_px)
+                if qty_int < 1:
                     continue
 
-                required = (qty * exec_px) + cfg.fee_per_trade
+                required = (qty_int * exec_px) + cfg.fee_per_trade
                 if required > cash:
                     continue
 
-                cash = _update_on_buy(ticker, float(qty), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
+                cash = _update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
                 trade_count += 1
                 _insert_trade(
                     conn,
@@ -458,7 +440,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
                     trade_date.date().isoformat(),
                     ticker,
                     "buy",
-                    float(qty),
+                    float(qty_int),
                     exec_px,
                     cfg.fee_per_trade,
                     cfg.slippage_bps,
@@ -471,13 +453,13 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
                     continue
 
                 exec_px = px * slippage_multiplier_sell
-                qty = float(positions[ticker])
-                if qty <= 0:
+                qty_float = float(positions[ticker])
+                if qty_float <= 0:
                     continue
 
                 cash, realized_pnl = _update_on_sell(
                     ticker,
-                    qty,
+                    qty_float,
                     exec_px,
                     cfg.fee_per_trade,
                     positions,
@@ -492,7 +474,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
                     trade_date.date().isoformat(),
                     ticker,
                     "sell",
-                    qty,
+                    qty_float,
                     exec_px,
                     cfg.fee_per_trade,
                     cfg.slippage_bps,
@@ -519,8 +501,8 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     conn.commit()
 
     ending_equity = equity_curve[-1]
-    total_return_pct = ((ending_equity / float(account["initial_cash"])) - 1.0) * 100.0
-    benchmark_return_pct = _benchmark_return_pct(benchmark_series, float(account["initial_cash"]))
+    total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
+    benchmark_return_pct = _benchmark_return_pct(benchmark_series, initial_cash)
     alpha_pct = None if benchmark_return_pct is None else total_return_pct - benchmark_return_pct
 
     return BacktestResult(
@@ -558,30 +540,26 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
         FROM backtest_equity_snapshots
         WHERE run_id = ?
-        ORDER BY snapshot_time, id
-        """,
-        (run_id,),
-    ).fetchall()
-    trades = conn.execute(
-        """
-        SELECT trade_time, ticker, side, qty, price, fee
-        FROM backtest_trades
-        WHERE run_id = ?
-        ORDER BY trade_time, id
+        ORDER BY snapshot_time ASC
         """,
         (run_id,),
     ).fetchall()
 
     if not snapshots:
-        raise ValueError(f"Backtest run id {run_id} has no equity snapshots")
+        raise ValueError(f"No snapshots found for backtest run {run_id}")
 
-    first_equity = float(snapshots[0]["equity"])
-    last_equity = float(snapshots[-1]["equity"])
-    total_return_pct = ((last_equity / first_equity) - 1.0) * 100.0 if first_equity > 0 else 0.0
-    max_drawdown = _max_drawdown_pct([float(r["equity"]) for r in snapshots])
+    first_equity = row_expect_float(snapshots[0], "equity")
+    last_equity = row_expect_float(snapshots[-1], "equity")
+
+    equity_curve = [row_float(r, "equity") for r in snapshots]
+    max_drawdown = _max_drawdown_pct([e for e in equity_curve if e is not None])
+
+    report_run_id = row_expect_int(run, "id")
+    slippage_bps = row_expect_float(run, "slippage_bps")
+    fee_per_trade = row_expect_float(run, "fee_per_trade")
 
     return {
-        "run_id": int(run["id"]),
+        "run_id": report_run_id,
         "run_name": run["run_name"],
         "account_name": run["account_name"],
         "strategy": run["strategy"],
@@ -589,61 +567,65 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "start_date": run["start_date"],
         "end_date": run["end_date"],
         "created_at": run["created_at"],
-        "slippage_bps": float(run["slippage_bps"]),
-        "fee_per_trade": float(run["fee_per_trade"]),
+        "slippage_bps": slippage_bps,
+        "fee_per_trade": fee_per_trade,
         "tickers_file": run["tickers_file"],
         "notes": run["notes"],
-        "warnings": str(run["warnings"] or ""),
-        "trade_count": len(trades),
-        "starting_equity": first_equity,
-        "ending_equity": last_equity,
-        "total_return_pct": total_return_pct,
+        "warnings": run["warnings"],
+        "first_equity": first_equity,
+        "last_equity": last_equity,
+        "total_return_pct": ((last_equity / first_equity) - 1.0) * 100.0,
         "max_drawdown_pct": max_drawdown,
+        "snapshots": snapshots,
     }
 
 
-def run_walk_forward_backtest(conn: sqlite3.Connection, cfg: WalkForwardConfig) -> WalkForwardSummary:
+def run_walk_forward_backtest(
+    conn: sqlite3.Connection,
+    cfg: WalkForwardConfig,
+) -> WalkForwardSummary:
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
-    windows = build_walk_forward_windows(
-        start_date=start_date,
-        end_date=end_date,
-        test_months=cfg.test_months,
-        step_months=cfg.step_months,
-    )
+    windows = build_walk_forward_windows(start_date, end_date, cfg.test_months, cfg.step_months)
+
     if not windows:
-        raise ValueError("No walk-forward windows generated for the selected date range.")
+        raise ValueError("No walk-forward windows could be built with the given parameters.")
 
     run_ids: list[int] = []
-    returns: list[float] = []
-    for idx, (window_start, window_end) in enumerate(windows, start=1):
-        window_name_prefix = (cfg.run_name_prefix or f"{cfg.account_name}-wf").strip()
-        run_name = f"{window_name_prefix}-w{idx:03d}-{window_start.isoformat()}-{window_end.isoformat()}"
-        result = run_backtest(
-            conn,
-            BacktestConfig(
-                account_name=cfg.account_name,
-                tickers_file=cfg.tickers_file,
-                universe_history_dir=cfg.universe_history_dir,
-                start=window_start.isoformat(),
-                end=window_end.isoformat(),
-                lookback_months=None,
-                slippage_bps=cfg.slippage_bps,
-                fee_per_trade=cfg.fee_per_trade,
-                run_name=run_name,
-                allow_approximate_leaps=cfg.allow_approximate_leaps,
-            ),
+    total_returns: list[float] = []
+
+    for i, (window_start, window_end) in enumerate(windows):
+        run_name = None
+        if cfg.run_name_prefix:
+            run_name = f"{cfg.run_name_prefix}_{i + 1:02d}"
+
+        test_cfg = BacktestConfig(
+            account_name=cfg.account_name,
+            tickers_file=cfg.tickers_file,
+            universe_history_dir=cfg.universe_history_dir,
+            start=window_start.isoformat(),
+            end=window_end.isoformat(),
+            lookback_months=None,
+            slippage_bps=cfg.slippage_bps,
+            fee_per_trade=cfg.fee_per_trade,
+            run_name=run_name,
+            allow_approximate_leaps=cfg.allow_approximate_leaps,
         )
+
+        result = run_backtest(conn, test_cfg)
         run_ids.append(result.run_id)
-        returns.append(result.total_return_pct)
+        total_returns.append(result.total_return_pct)
+
+    if not total_returns:
+        raise ValueError("No returns were computed.")
 
     return WalkForwardSummary(
         account_name=cfg.account_name,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
-        window_count=len(run_ids),
+        window_count=len(windows),
         run_ids=run_ids,
-        average_return_pct=sum(returns) / len(returns),
-        median_return_pct=_median(returns),
-        best_return_pct=max(returns),
-        worst_return_pct=min(returns),
+        average_return_pct=sum(total_returns) / len(total_returns),
+        median_return_pct=_median(total_returns),
+        best_return_pct=max(total_returns),
+        worst_return_pct=min(total_returns),
     )

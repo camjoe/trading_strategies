@@ -4,8 +4,10 @@ from pathlib import Path
 
 try:
     from trading.accounts import configure_account, create_account, get_account, set_benchmark
+    from trading.db_coercion import coerce_bool, coerce_float, coerce_int
 except ModuleNotFoundError:
     from accounts import configure_account, create_account, get_account, set_benchmark
+    from db_coercion import coerce_bool, coerce_float, coerce_int
 
 
 _CONFIGURE_KEYS = {
@@ -16,29 +18,6 @@ _CONFIGURE_KEYS = {
     "max_contracts_per_trade", "iv_rank_min", "iv_rank_max", "roll_dte_threshold",
     "profit_take_pct", "max_loss_pct",
 }
-
-
-def _opt_float(v: object) -> float | None:
-    return float(v) if v is not None else None
-
-
-def _opt_int(v: object) -> int | None:
-    return int(v) if v is not None else None
-
-
-def _to_bool(value: object) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        return value != 0
-    if isinstance(value, str):
-        v = value.strip().lower()
-        if v in {"1", "true", "yes", "on"}:
-            return True
-        if v in {"0", "false", "no", "off"}:
-            return False
-    raise ValueError(f"Invalid boolean value: {value}")
-
 
 def load_account_profiles(file_path: str) -> list[dict[str, object]]:
     path = Path(file_path)
@@ -72,27 +51,27 @@ def _extract_profile_fields(profile: dict[str, object]) -> dict[str, object]:
     learning = g("learning_enabled")
     return {
         "descriptive_name": str(g("descriptive_name")) if g("descriptive_name") is not None else None,
-        "goal_min_return_pct": _opt_float(g("goal_min_return_pct")),
-        "goal_max_return_pct": _opt_float(g("goal_max_return_pct")),
+        "goal_min_return_pct": coerce_float(g("goal_min_return_pct")),
+        "goal_max_return_pct": coerce_float(g("goal_max_return_pct")),
         "goal_period": str(g("goal_period")) if g("goal_period") is not None else None,
-        "learning_enabled": _to_bool(learning) if learning is not None else None,
+        "learning_enabled": coerce_bool(learning) if learning is not None else None,
         "risk_policy": str(g("risk_policy")) if g("risk_policy") is not None else None,
-        "stop_loss_pct": _opt_float(g("stop_loss_pct")),
-        "take_profit_pct": _opt_float(g("take_profit_pct")),
+        "stop_loss_pct": coerce_float(g("stop_loss_pct")),
+        "take_profit_pct": coerce_float(g("take_profit_pct")),
         "instrument_mode": str(g("instrument_mode")) if g("instrument_mode") is not None else None,
-        "option_strike_offset_pct": _opt_float(g("option_strike_offset_pct")),
-        "option_min_dte": _opt_int(g("option_min_dte")),
-        "option_max_dte": _opt_int(g("option_max_dte")),
+        "option_strike_offset_pct": coerce_float(g("option_strike_offset_pct")),
+        "option_min_dte": coerce_int(g("option_min_dte")),
+        "option_max_dte": coerce_int(g("option_max_dte")),
         "option_type": str(g("option_type")) if g("option_type") is not None else None,
-        "target_delta_min": _opt_float(g("target_delta_min")),
-        "target_delta_max": _opt_float(g("target_delta_max")),
-        "max_premium_per_trade": _opt_float(g("max_premium_per_trade")),
-        "max_contracts_per_trade": _opt_int(g("max_contracts_per_trade")),
-        "iv_rank_min": _opt_float(g("iv_rank_min")),
-        "iv_rank_max": _opt_float(g("iv_rank_max")),
-        "roll_dte_threshold": _opt_int(g("roll_dte_threshold")),
-        "profit_take_pct": _opt_float(g("profit_take_pct")),
-        "max_loss_pct": _opt_float(g("max_loss_pct")),
+        "target_delta_min": coerce_float(g("target_delta_min")),
+        "target_delta_max": coerce_float(g("target_delta_max")),
+        "max_premium_per_trade": coerce_float(g("max_premium_per_trade")),
+        "max_contracts_per_trade": coerce_int(g("max_contracts_per_trade")),
+        "iv_rank_min": coerce_float(g("iv_rank_min")),
+        "iv_rank_max": coerce_float(g("iv_rank_max")),
+        "roll_dte_threshold": coerce_int(g("roll_dte_threshold")),
+        "profit_take_pct": coerce_float(g("profit_take_pct")),
+        "max_loss_pct": coerce_float(g("max_loss_pct")),
     }
 
 
@@ -109,7 +88,9 @@ def apply_account_profiles(
         name = str(profile["name"]).strip()
         benchmark = str(profile.get("benchmark_ticker", "SPY")).strip().upper()
         strategy = str(profile.get("strategy", "Unspecified")).strip()
-        initial_cash = float(profile.get("initial_cash", 5000.0))
+        initial_cash = coerce_float(profile.get("initial_cash", 5000.0))
+        if initial_cash is None:
+            raise ValueError("initial_cash cannot be null")
 
         try:
             get_account(conn, name)

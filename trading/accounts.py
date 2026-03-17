@@ -2,6 +2,11 @@ import sqlite3
 from typing import Callable
 from common.time import utc_now_iso as _utc_now_iso
 
+try:
+    from trading.db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
+except ModuleNotFoundError:
+    from db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
+
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
@@ -21,6 +26,13 @@ def get_account(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
 
 def _normalize_lower(value: str) -> str:
     return value.strip().lower()
+
+
+def _normalize_lower_obj(value: object) -> object:
+    text = coerce_str(value)
+    if text is None:
+        raise ValueError("Expected non-null string value")
+    return _normalize_lower(text)
 
 
 def _normalize_risk_policy(risk_policy: str) -> str:
@@ -50,10 +62,6 @@ def _validate_goal_return_range(goal_min_return_pct: float | None, goal_max_retu
             raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
 
 
-def _resolve_setting(new_value: object | None, current_value: object | None) -> object | None:
-    return new_value if new_value is not None else current_value
-
-
 def _append_update(
     updates: list[str],
     params: list[object],
@@ -68,24 +76,27 @@ def _append_update(
 
 
 def _goal_text(row: sqlite3.Row) -> str:
-    if row["goal_min_return_pct"] is None and row["goal_max_return_pct"] is None:
+    min_goal = row_float(row, "goal_min_return_pct")
+    max_goal = row_float(row, "goal_max_return_pct")
+    goal_period = row_str(row, "goal_period") or "period"
+    if min_goal is None and max_goal is None:
         return "not-set"
-    if row["goal_min_return_pct"] is not None and row["goal_max_return_pct"] is not None:
-        return (
-            f"{float(row['goal_min_return_pct']):.2f}% to "
-            f"{float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
-        )
-    if row["goal_min_return_pct"] is not None:
-        return f">= {float(row['goal_min_return_pct']):.2f}% per {row['goal_period']}"
-    return f"<= {float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
+    if min_goal is not None and max_goal is not None:
+        return f"{min_goal:.2f}% to {max_goal:.2f}% per {goal_period}"
+    if min_goal is not None:
+        return f">= {min_goal:.2f}% per {goal_period}"
+    return f"<= {max_goal:.2f}% per {goal_period}"
 
 
 def _account_summary_line(row: sqlite3.Row) -> str:
     goal_text = _goal_text(row)
+    initial_cash = row_float(row, "initial_cash")
+    learning_enabled = row_int(row, "learning_enabled")
+    initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
     return (
         f"[{row['id']}] {row['name']} ({row['descriptive_name']}) | strategy={row['strategy']} | "
-        f"initial_cash={row['initial_cash']:.2f} | benchmark={row['benchmark_ticker']} | "
-        f"goal={goal_text} | learning={'on' if int(row['learning_enabled']) else 'off'} | "
+        f"initial_cash={initial_cash_text} | benchmark={row['benchmark_ticker']} | "
+        f"goal={goal_text} | learning={'on' if learning_enabled else 'off'} | "
         f"risk={row['risk_policy']} | instrument={row['instrument_mode']} | "
         f"created={row['created_at']}"
     )
@@ -312,10 +323,10 @@ def configure_account(
         updates.append("descriptive_name = ?")
         params.append(display)
 
-    _append_update(updates, params, "goal_period", goal_period, _normalize_lower)
-    _append_update(updates, params, "goal_min_return_pct", goal_min_return_pct, float)
-    _append_update(updates, params, "goal_max_return_pct", goal_max_return_pct, float)
-    _append_update(updates, params, "learning_enabled", learning_enabled, int)
+    _append_update(updates, params, "goal_period", goal_period, _normalize_lower_obj)
+    _append_update(updates, params, "goal_min_return_pct", goal_min_return_pct, to_float_obj)
+    _append_update(updates, params, "goal_max_return_pct", goal_max_return_pct, to_float_obj)
+    _append_update(updates, params, "learning_enabled", learning_enabled, to_int_obj)
 
     if risk_policy is not None:
         _append_update(updates, params, "risk_policy", _normalize_risk_policy(risk_policy))
@@ -327,47 +338,47 @@ def configure_account(
         _append_update(updates, params, "option_type", _normalize_option_type(option_type))
 
     numeric_fields: list[tuple[str, object | None, Callable[[object], object]]] = [
-        ("stop_loss_pct", stop_loss_pct, float),
-        ("take_profit_pct", take_profit_pct, float),
-        ("option_strike_offset_pct", option_strike_offset_pct, float),
-        ("option_min_dte", option_min_dte, int),
-        ("option_max_dte", option_max_dte, int),
-        ("target_delta_min", target_delta_min, float),
-        ("target_delta_max", target_delta_max, float),
-        ("max_premium_per_trade", max_premium_per_trade, float),
-        ("max_contracts_per_trade", max_contracts_per_trade, int),
-        ("iv_rank_min", iv_rank_min, float),
-        ("iv_rank_max", iv_rank_max, float),
-        ("roll_dte_threshold", roll_dte_threshold, int),
-        ("profit_take_pct", profit_take_pct, float),
-        ("max_loss_pct", max_loss_pct, float),
+        ("stop_loss_pct", stop_loss_pct, to_float_obj),
+        ("take_profit_pct", take_profit_pct, to_float_obj),
+        ("option_strike_offset_pct", option_strike_offset_pct, to_float_obj),
+        ("option_min_dte", option_min_dte, to_int_obj),
+        ("option_max_dte", option_max_dte, to_int_obj),
+        ("target_delta_min", target_delta_min, to_float_obj),
+        ("target_delta_max", target_delta_max, to_float_obj),
+        ("max_premium_per_trade", max_premium_per_trade, to_float_obj),
+        ("max_contracts_per_trade", max_contracts_per_trade, to_int_obj),
+        ("iv_rank_min", iv_rank_min, to_float_obj),
+        ("iv_rank_max", iv_rank_max, to_float_obj),
+        ("roll_dte_threshold", roll_dte_threshold, to_int_obj),
+        ("profit_take_pct", profit_take_pct, to_float_obj),
+        ("max_loss_pct", max_loss_pct, to_float_obj),
     ]
     for column, value, transform in numeric_fields:
         _append_update(updates, params, column, value, transform)
 
-    min_value = _resolve_setting(goal_min_return_pct, account["goal_min_return_pct"])
-    max_value = _resolve_setting(goal_max_return_pct, account["goal_max_return_pct"])
-    if min_value is not None and max_value is not None and float(min_value) > float(max_value):
+    min_value = goal_min_return_pct if goal_min_return_pct is not None else row_float(account, "goal_min_return_pct")
+    max_value = goal_max_return_pct if goal_max_return_pct is not None else row_float(account, "goal_max_return_pct")
+    if min_value is not None and max_value is not None and min_value > max_value:
         raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
 
-    min_dte = _resolve_setting(option_min_dte, account["option_min_dte"])
-    max_dte = _resolve_setting(option_max_dte, account["option_max_dte"])
-    if min_dte is not None and max_dte is not None and int(min_dte) > int(max_dte):
+    min_dte = option_min_dte if option_min_dte is not None else row_int(account, "option_min_dte")
+    max_dte = option_max_dte if option_max_dte is not None else row_int(account, "option_max_dte")
+    if min_dte is not None and max_dte is not None and min_dte > max_dte:
         raise ValueError("option_min_dte cannot be greater than option_max_dte.")
 
-    delta_min = _resolve_setting(target_delta_min, account["target_delta_min"])
-    delta_max = _resolve_setting(target_delta_max, account["target_delta_max"])
-    iv_min = _resolve_setting(iv_rank_min, account["iv_rank_min"])
-    iv_max = _resolve_setting(iv_rank_max, account["iv_rank_max"])
-    resolved_opt_type = _resolve_setting(option_type, account["option_type"])
+    delta_min = target_delta_min if target_delta_min is not None else row_float(account, "target_delta_min")
+    delta_max = target_delta_max if target_delta_max is not None else row_float(account, "target_delta_max")
+    iv_min = iv_rank_min if iv_rank_min is not None else row_float(account, "iv_rank_min")
+    iv_max = iv_rank_max if iv_rank_max is not None else row_float(account, "iv_rank_max")
+    resolved_opt_type = option_type if option_type is not None else row_str(account, "option_type")
     _validate_option_settings(
         resolved_opt_type,
-        float(delta_min) if delta_min is not None else None,
-        float(delta_max) if delta_max is not None else None,
-        int(min_dte) if min_dte is not None else None,
-        int(max_dte) if max_dte is not None else None,
-        float(iv_min) if iv_min is not None else None,
-        float(iv_max) if iv_max is not None else None,
+        delta_min,
+        delta_max,
+        min_dte,
+        max_dte,
+        iv_min,
+        iv_max,
     )
 
     if not updates:

@@ -3,26 +3,28 @@ import sqlite3
 try:
     from trading.accounts import get_account, utc_now_iso
     from trading.accounting import compute_account_state, load_trades
+    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
     from trading.models import AccountState
     from trading.pricing import benchmark_stats, fetch_latest_prices
 except ModuleNotFoundError:
     from accounts import get_account, utc_now_iso
     from accounting import compute_account_state, load_trades
+    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
     from models import AccountState
     from pricing import benchmark_stats, fetch_latest_prices
 
 
 def format_goal_text(row: sqlite3.Row) -> str:
-    if row["goal_min_return_pct"] is None and row["goal_max_return_pct"] is None:
+    min_goal = row_float(row, "goal_min_return_pct")
+    max_goal = row_float(row, "goal_max_return_pct")
+    period = row_str(row, "goal_period") or "period"
+    if min_goal is None and max_goal is None:
         return "not-set"
-    if row["goal_min_return_pct"] is not None and row["goal_max_return_pct"] is not None:
-        return (
-            f"{float(row['goal_min_return_pct']):.2f}% to "
-            f"{float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
-        )
-    if row["goal_min_return_pct"] is not None:
-        return f">= {float(row['goal_min_return_pct']):.2f}% per {row['goal_period']}"
-    return f"<= {float(row['goal_max_return_pct']):.2f}% per {row['goal_period']}"
+    if min_goal is not None and max_goal is not None:
+        return f"{min_goal:.2f}% to {max_goal:.2f}% per {period}"
+    if min_goal is not None:
+        return f">= {min_goal:.2f}% per {period}"
+    return f"<= {max_goal:.2f}% per {period}"
 
 
 def _compute_market_value_and_unrealized(
@@ -80,7 +82,7 @@ def _print_account_header(account: sqlite3.Row) -> None:
     print(f"Descriptive Name: {account['descriptive_name']}")
     print(f"Benchmark: {account['benchmark_ticker']}")
     print(f"Goal: {format_goal_text(account)}")
-    print(f"Learning Enabled: {'yes' if int(account['learning_enabled']) else 'no'}")
+    print(f"Learning Enabled: {'yes' if row_int(account, 'learning_enabled') else 'no'}")
     print(f"Risk Policy: {account['risk_policy']}")
     print(f"Instrument Mode: {account['instrument_mode']}")
     if account["instrument_mode"] == "leaps":
@@ -98,7 +100,8 @@ def _print_performance_lines(
     benchmark_equity: float | None,
     benchmark_return_pct: float | None,
 ) -> None:
-    print(f"Initial Cash: {account['initial_cash']:.2f}")
+    initial_cash = row_float(account, "initial_cash")
+    print(f"Initial Cash: {initial_cash:.2f}" if initial_cash is not None else "Initial Cash: N/A")
     print(f"Cash: {cash:.2f}")
     print(f"Market Value: {market_value:.2f}")
     print(f"Equity: {equity:.2f}")
@@ -149,9 +152,10 @@ def _positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
 
 
 def _compare_account_header(account: sqlite3.Row) -> str:
+    learning = row_int(account, "learning_enabled")
     return (
         f"- {account['name']} ({account['descriptive_name']}) | strategy={account['strategy']} | "
-        f"benchmark={account['benchmark_ticker']} | learning={'on' if int(account['learning_enabled']) else 'off'} | "
+        f"benchmark={account['benchmark_ticker']} | learning={'on' if learning else 'off'} | "
         f"risk={account['risk_policy']} | mode={account['instrument_mode']}"
     )
 
@@ -176,8 +180,10 @@ def build_account_stats(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
-    trades = load_trades(conn, account["id"])
-    state = compute_account_state(account["initial_cash"], trades)
+    account_id = row_expect_int(account, "id")
+    initial_cash = row_expect_float(account, "initial_cash")
+    trades = load_trades(conn, account_id)
+    state = compute_account_state(initial_cash, trades)
     tickers = sorted(state.positions.keys())
     prices = fetch_latest_prices(tickers) if tickers else {}
 
@@ -204,7 +210,8 @@ def infer_overall_trend(
         (account_id, int(max(lookback, 2))),
     ).fetchall()
 
-    history = [float(r["equity"]) for r in rows]
+    history = [row_float(r, "equity") for r in rows]
+    history = [h for h in history if h is not None]
     history.reverse()
     history.append(current_equity)
 
@@ -227,10 +234,13 @@ def infer_overall_trend(
 def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[str, float], dict[str, float]]:
     account = get_account(conn, account_name)
     state, prices, market_value, unrealized, equity = build_account_stats(conn, account)
+    benchmark_ticker = row_expect_str(account, "benchmark_ticker")
+    initial_cash = row_expect_float(account, "initial_cash")
+    created_at = row_expect_str(account, "created_at")
     benchmark_equity, benchmark_return_pct = benchmark_stats(
-        account["benchmark_ticker"], account["initial_cash"], account["created_at"]
+        benchmark_ticker, initial_cash, created_at
     )
-    strategy_return_pct = _strategy_return_pct(equity, account["initial_cash"])
+    strategy_return_pct = _strategy_return_pct(equity, initial_cash)
 
     _print_account_header(account)
     _print_performance_lines(
@@ -275,11 +285,15 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     print("Per-strategy comparison:")
     for account in accounts:
         state, _prices, _market_value, _unrealized, equity = build_account_stats(conn, account)
-        strategy_return_pct = _strategy_return_pct(equity, account["initial_cash"])
+        initial_cash = row_expect_float(account, "initial_cash")
+        benchmark_ticker = row_expect_str(account, "benchmark_ticker")
+        created_at = row_expect_str(account, "created_at")
+        account_id = row_expect_int(account, "id")
+        strategy_return_pct = _strategy_return_pct(equity, initial_cash)
         bench_equity, bench_return_pct = benchmark_stats(
-            account["benchmark_ticker"], account["initial_cash"], account["created_at"]
+            benchmark_ticker, initial_cash, created_at
         )
-        trend = infer_overall_trend(conn, account["id"], equity, lookback)
+        trend = infer_overall_trend(conn, account_id, equity, lookback)
 
         position_count, positions_text = _positions_summary_text(state.positions)
 
