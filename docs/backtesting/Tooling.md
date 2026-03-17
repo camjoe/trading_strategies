@@ -1,19 +1,12 @@
 # Backtesting Tooling
 
-Backtesting and performance-focused packages commonly used for Python workflows:
+Backtesting in this repository runs on the in-house engine under:
+- `trading/backtesting/`
 
-- `quantstats`
-- `vectorbt`
-- `backtrader`
+Optional external packages that may be evaluated later are tracked in:
+- `docs/Tooling and Packages.md`
 
-Install examples:
-
-```powershell
-pip install quantstats vectorbt backtrader
-```
-
-Notes:
-
+Operational notes:
 - Keep assumptions explicit (slippage, fees, execution timing).
 - Prefer chronological validation with rolling or walk-forward windows.
 - Compare against simple baselines and benchmark returns.

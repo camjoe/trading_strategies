@@ -2,7 +2,34 @@
 
 Reference list of useful Python packages, data providers, and VS Code extensions for trading research workflows.
 
-## Data Source Alternatives to yfinance
+## Currently Used in This Repo
+
+### Runtime and API
+
+- `yfinance` (market data)
+- `fastapi` and `uvicorn` (UI backend)
+- `python-dotenv` (backend config)
+- `sqlite3` from the Python standard library (database access)
+
+### Analysis and Trading Workflows
+
+- `pandas`
+- `numpy`
+- `statsmodels`
+- `matplotlib`
+
+### Testing and Quality
+
+- `pytest`
+- `pytest-cov`
+
+### Frontend and Tooling
+
+- Vite and TypeScript (under `paper_trading_ui/frontend`)
+
+## Optional / Future Evaluation
+
+### Data Source Alternatives
 
 - `yahooquery`
 - `pandas-datareader`
@@ -11,35 +38,35 @@ Reference list of useful Python packages, data providers, and VS Code extensions
 - `polygon-api-client`
 - `ccxt` (crypto exchange data)
 
-## Python Packages Often Used
-
-### Core Analysis
-- `pandas`
-- `numpy`
-- `scipy`
-- `statsmodels`
-- `scikit-learn`
-
-### Charting and Visualization
-- `matplotlib`
-- `plotly`
-- `mplfinance`
-
 ### Indicators and Technical Analysis
+
+- `scikit-learn`
+- `scipy`
 - `pandas-ta`
 - `ta`
+
+### Visualization and Reporting
+
+- `plotly`
+- `mplfinance`
 
 ### Backtesting and Performance
 
 Backtesting-specific tools and notes have been moved to:
 - `docs/backtesting/Tooling.md`
 
-### Data and API Access
-- `yfinance`
+Additional candidates:
+- `quantstats`
+- `vectorbt`
+- `backtrader`
+
+### Additional Data and API Access
+
 - `requests`
 - `httpx`
 
-### Optional for Deep Learning Workflows
+### Deep Learning Candidates
+
 - `torch`
 - `pytorch-lightning`
 
@@ -51,26 +78,6 @@ Backtesting-specific tools and notes have been moved to:
 - `charliermarsh.ruff`
 - `ms-python.black-formatter`
 - `eamodio.gitlens`
-
-## Example Install Commands
-
-Install a basic research stack:
-
-```powershell
-pip install pandas numpy scipy scikit-learn statsmodels matplotlib yfinance
-```
-
-Install optional strategy/analysis tools:
-
-```powershell
-pip install pandas-ta quantstats vectorbt backtrader plotly
-```
-
-Install crypto-focused data access:
-
-```powershell
-pip install ccxt
-```
 
 ## Notes
 

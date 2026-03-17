@@ -85,7 +85,7 @@ Current Python launcher defaults:
 - Backend: `http://127.0.0.1:8000`
 - Frontend: `http://127.0.0.1:5173`
 
-## Available API Routes
+## Core API Routes
 
 - `GET /health`
 - `GET /api/accounts`
@@ -94,3 +94,6 @@ Current Python launcher defaults:
 - `GET /api/logs/{file_name}?limit=400&contains=error`
 - `POST /api/actions/snapshot/{account_name}`
 - `POST /api/actions/snapshot-all`
+
+For the complete, always-current route list (including backtesting endpoints), see:
+- `paper_trading_ui/backend/main.py`
