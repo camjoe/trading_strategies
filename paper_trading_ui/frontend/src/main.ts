@@ -1,5 +1,5 @@
 import "./styles.css";
-import { find } from "./lib/dom";
+import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createLogsFeature } from "./features/logs";
@@ -42,8 +42,8 @@ function slugify(value: string): string {
 }
 
 function openTab(target: string): void {
-  const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
-  const tabPanels = document.querySelectorAll<HTMLElement>(".tab-panel");
+  const tabBtns = findAll<HTMLButtonElement>(".tab-btn");
+  const tabPanels = findAll<HTMLElement>(".tab-panel");
 
   tabBtns.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === target);
@@ -348,7 +348,7 @@ async function bootstrap(): Promise<void> {
 }
 
 function initTabs(): void {
-  const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
+  const tabBtns = findAll<HTMLButtonElement>(".tab-btn");
 
   tabBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -396,15 +396,11 @@ function initDocsMenu(): void {
         secondaryPane.hidden = true;
       }
 
-      docsSectionList
-        .querySelectorAll<HTMLButtonElement>(".docs-nav-group-item")
-        .forEach((button) => {
+      findAll<HTMLButtonElement>(".docs-nav-group-item", docsSectionList).forEach((button) => {
           button.classList.remove("active");
           button.setAttribute("aria-expanded", "false");
         });
-      docsSectionList
-        .querySelectorAll<HTMLElement>(".docs-nav-secondary-panel")
-        .forEach((panel) => {
+      findAll<HTMLElement>(".docs-nav-secondary-panel", docsSectionList).forEach((panel) => {
           panel.hidden = true;
         });
     }
@@ -426,7 +422,7 @@ function initDocsMenu(): void {
   const allButtons = renderDocsSectionFlyout(docsSectionList, sections);
 
   const updateActiveSection = () => {
-    if (!document.querySelector<HTMLElement>("#tab-docs:not([hidden])") || sectionElements.length === 0) {
+    if (!find<HTMLElement>("#tab-docs:not([hidden])") || sectionElements.length === 0) {
       return;
     }
 
