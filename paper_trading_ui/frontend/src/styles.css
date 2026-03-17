@@ -640,6 +640,19 @@ td {
   gap: 0.55rem;
 }
 
+.bt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.bt-field > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
 .bt-advanced {
   border: 1px solid #d4dfec;
   border-radius: 10px;

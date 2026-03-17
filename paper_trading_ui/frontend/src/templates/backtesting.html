@@ -6,13 +6,25 @@
       <article>
         <h3>Run Backtest</h3>
         <form id="runBacktestForm" class="bt-form">
-          <select id="backtestAccountSelect" name="account" required>
-            <option value="">Select account</option>
-          </select>
-          <input name="runName" placeholder="Run name (optional)" />
+          <label class="bt-field">
+            <span>Account</span>
+            <select id="backtestAccountSelect" name="account" required>
+              <option value="">Select account</option>
+            </select>
+          </label>
+          <label class="bt-field">
+            <span>Run name</span>
+            <input name="runName" placeholder="Optional" />
+          </label>
           <div class="bt-row">
-            <input name="tickersFile" value="trading/trade_universe.txt" placeholder="Tickers file" />
-            <input name="universeHistoryDir" placeholder="Universe history dir (optional)" />
+            <label class="bt-field">
+              <span>Tickers file</span>
+              <input name="tickersFile" value="trading/trade_universe.txt" />
+            </label>
+            <label class="bt-field">
+              <span>Universe history dir</span>
+              <input name="universeHistoryDir" placeholder="Optional" />
+            </label>
           </div>
           <div class="bt-quick-buttons" data-target-form="runBacktestForm">
             <button type="button" data-lookback-months="1">Last 1M</button>
@@ -24,14 +36,29 @@
             <summary>Additional options</summary>
             <div class="bt-advanced-body">
               <div class="bt-row">
-                <input name="start" type="date" placeholder="Start" />
-                <input name="end" type="date" placeholder="End" />
+                <label class="bt-field">
+                  <span>Start date</span>
+                  <input name="start" type="date" />
+                </label>
+                <label class="bt-field">
+                  <span>End date</span>
+                  <input name="end" type="date" />
+                </label>
               </div>
               <div class="bt-row">
-                <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
-                <input name="slippageBps" type="number" step="0.1" placeholder="Slippage bps (empty defaults to 5)" />
+                <label class="bt-field">
+                  <span>Lookback months</span>
+                  <input name="lookbackMonths" type="number" min="1" placeholder="Optional" />
+                </label>
+                <label class="bt-field">
+                  <span>Slippage (bps)</span>
+                  <input name="slippageBps" type="number" step="0.1" placeholder="Default: 5" />
+                </label>
               </div>
-              <input name="fee" type="number" step="0.01" placeholder="Fee" />
+              <label class="bt-field">
+                <span>Fee (per trade)</span>
+                <input name="fee" type="number" step="0.01" placeholder="Default: 0" />
+              </label>
             </div>
           </details>
           <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
@@ -65,13 +92,25 @@
       <article>
         <h3>Run Walk-Forward</h3>
         <form id="runWalkForwardForm" class="bt-form">
-          <select id="walkForwardAccountSelect" name="account" required>
-            <option value="">Select account</option>
-          </select>
-          <input name="runNamePrefix" placeholder="Run name prefix (optional)" />
+          <label class="bt-field">
+            <span>Account</span>
+            <select id="walkForwardAccountSelect" name="account" required>
+              <option value="">Select account</option>
+            </select>
+          </label>
+          <label class="bt-field">
+            <span>Run name prefix</span>
+            <input name="runNamePrefix" placeholder="Optional" />
+          </label>
           <div class="bt-row">
-            <input name="tickersFile" value="trading/trade_universe.txt" placeholder="Tickers file" />
-            <input name="universeHistoryDir" placeholder="Universe history dir (optional)" />
+            <label class="bt-field">
+              <span>Tickers file</span>
+              <input name="tickersFile" value="trading/trade_universe.txt" />
+            </label>
+            <label class="bt-field">
+              <span>Universe history dir</span>
+              <input name="universeHistoryDir" placeholder="Optional" />
+            </label>
           </div>
           <div class="bt-quick-buttons" data-target-form="runWalkForwardForm">
             <button type="button" data-lookback-months="3">Last 3M</button>
@@ -80,21 +119,42 @@
             <button type="button" data-lookback-months="24">Last 24M</button>
           </div>
           <div class="bt-row">
-            <input name="testMonths" type="number" min="1" value="1" placeholder="Test months" />
-            <input name="stepMonths" type="number" min="1" value="1" placeholder="Step months" />
+            <label class="bt-field">
+              <span>Test months</span>
+              <input name="testMonths" type="number" min="1" value="1" />
+            </label>
+            <label class="bt-field">
+              <span>Step months</span>
+              <input name="stepMonths" type="number" min="1" value="1" />
+            </label>
           </div>
           <details class="bt-advanced">
             <summary>Additional options</summary>
             <div class="bt-advanced-body">
               <div class="bt-row">
-                <input name="start" type="date" placeholder="Start" />
-                <input name="end" type="date" placeholder="End" />
+                <label class="bt-field">
+                  <span>Start date</span>
+                  <input name="start" type="date" />
+                </label>
+                <label class="bt-field">
+                  <span>End date</span>
+                  <input name="end" type="date" />
+                </label>
               </div>
               <div class="bt-row">
-                <input name="lookbackMonths" type="number" min="1" placeholder="Lookback months" />
-                <input name="slippageBps" type="number" step="0.1" placeholder="Slippage bps (empty defaults to 5)" />
+                <label class="bt-field">
+                  <span>Lookback months</span>
+                  <input name="lookbackMonths" type="number" min="1" placeholder="Optional" />
+                </label>
+                <label class="bt-field">
+                  <span>Slippage (bps)</span>
+                  <input name="slippageBps" type="number" step="0.1" placeholder="Default: 5" />
+                </label>
               </div>
-              <input name="fee" type="number" step="0.01" placeholder="Fee" />
+              <label class="bt-field">
+                <span>Fee (per trade)</span>
+                <input name="fee" type="number" step="0.01" placeholder="Default: 0" />
+              </label>
             </div>
           </details>
           <label class="bt-check"><input name="allowApproximateLeaps" type="checkbox" /> Allow approximate LEAPs</label>
