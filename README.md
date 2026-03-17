@@ -2,6 +2,25 @@
 
 Simple Python workflow for charting stock trends with `yfinance` and `matplotlib`.
 
+## Python Setup
+
+Install the dependency set that matches your purpose:
+
+```powershell
+# Core runtime for trends, trading, and the UI backend
+pip install -r requirements/base.txt
+
+# Runtime plus test dependencies
+pip install -r requirements/dev.txt
+
+# Optional notebook / modeling extras
+pip install -r requirements/research.txt
+```
+
+Compatibility note:
+- `requirements.txt` now points to `requirements/dev.txt`.
+- `paper_trading_ui/backend/requirements.txt` now points to `requirements/base.txt`.
+
 ## Quick Start
 
 1. Add your tickers in `run_tickers.txt` (one per line or comma-separated).

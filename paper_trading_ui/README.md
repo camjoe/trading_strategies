@@ -25,7 +25,7 @@ Frontend env file supports:
 From repository root:
 
 ```powershell
-pip install -r paper_trading_ui/backend/requirements.txt
+pip install -r requirements/base.txt
 Get-Content paper_trading_ui/backend/.env | ForEach-Object {
 	if ($_ -match '^(?!#)([^=]+)=(.*)$') {
 		[Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')

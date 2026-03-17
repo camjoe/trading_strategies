@@ -7,11 +7,13 @@ on:
       - master
     paths:
       - requirements.txt
+      - requirements/**
       - paper_trading_ui/frontend/package-lock.json
       - .github/workflows/security-checks.yml
   pull_request:
     paths:
       - requirements.txt
+      - requirements/**
       - paper_trading_ui/frontend/package-lock.json
       - .github/workflows/security-checks.yml
   schedule:
@@ -31,22 +33,30 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements/base.txt
+            requirements/research.txt
+            requirements.txt
 
       - name: Install pip-audit
         run: |
           python -m pip install --upgrade pip
           pip install pip-audit
 
-      - name: Run pip-audit
-        run: pip-audit -r requirements.txt -f json -o pip-audit.json
+      - name: Run pip-audit for base dependencies
+        run: pip-audit -r requirements/base.txt -f json -o pip-audit-base.json
+
+      - name: Run pip-audit for research dependencies
+        run: pip-audit -r requirements/research.txt -f json -o pip-audit-research.json
 
       - name: Upload pip-audit results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pip-audit-report
-          path: pip-audit.json
+          path: |
+            pip-audit-base.json
+            pip-audit-research.json
 
   frontend-audit:
     runs-on: ubuntu-latest

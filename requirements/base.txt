@@ -1,0 +1,9 @@
+# Core runtime dependencies for trends, trading, and the UI backend.
+fastapi==0.116.1
+matplotlib==3.10.8
+numpy==2.4.3
+pandas==3.0.1
+pydantic==2.12.5
+python-dotenv==1.2.1
+uvicorn[standard]==0.35.0
+yfinance==1.2.0

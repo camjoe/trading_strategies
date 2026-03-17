@@ -2,6 +2,13 @@
 
 Reference list of useful Python packages, data providers, and VS Code extensions for trading research workflows.
 
+## Requirement Files by Purpose
+
+- `requirements/base.txt`: core runtime for `trading/`, `trends/`, and the UI backend.
+- `requirements/dev.txt`: runtime plus test dependencies.
+- `requirements/research.txt`: optional notebook and modeling extras.
+- `requirements.txt`: compatibility alias to `requirements/dev.txt`.
+
 ## Currently Used in This Repo
 
 ### Runtime and API
@@ -83,4 +90,4 @@ Additional candidates:
 
 - Keep production-sensitive workflows on more reliable paid feeds when needed.
 - Free data is useful for prototyping but can have gaps, revisions, or rate limits.
-- Pin versions in `requirements.txt` for reproducibility.
+- Pin versions in `requirements/base.txt`, `requirements/dev.txt`, and `requirements/research.txt` for reproducibility.
