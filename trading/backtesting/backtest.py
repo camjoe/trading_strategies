@@ -244,12 +244,6 @@ def _compute_unrealized_pnl(
     return total
 
 
-def _median(values: list[float]) -> float:
-    if not values:
-        raise ValueError("values cannot be empty")
-    return float(median(values))
-
-
 def _benchmark_return_pct(benchmark_close: pd.Series, initial_cash: float) -> float | None:
     series = benchmark_close.dropna()
     if len(series) < 2:
@@ -601,8 +595,8 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "notes": run["notes"],
         "warnings": run["warnings"],
         "trade_count": len(trades),
-        "first_equity": first_equity,
-        "last_equity": last_equity,
+        "starting_equity": first_equity,
+        "ending_equity": last_equity,
         "total_return_pct": ((last_equity / first_equity) - 1.0) * 100.0,
         "max_drawdown_pct": max_drawdown,
         "snapshots": snapshots,
@@ -654,7 +648,7 @@ def run_walk_forward_backtest(
         window_count=len(windows),
         run_ids=run_ids,
         average_return_pct=sum(total_returns) / len(total_returns),
-        median_return_pct=_median(total_returns),
+        median_return_pct=float(median(total_returns)),
         best_return_pct=max(total_returns),
         worst_return_pct=min(total_returns),
     )
