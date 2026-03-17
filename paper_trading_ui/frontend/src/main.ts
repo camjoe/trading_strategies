@@ -118,7 +118,7 @@ function initDocsAccordion(): void {
       cardToggleAllBtn.setAttribute("aria-label", allExpanded ? "Collapse all sections" : "Expand all sections");
     };
 
-    sections.forEach((section, index) => {
+    sections.forEach((section) => {
       const heading = section.querySelector<HTMLHeadingElement>(":scope > h3");
       if (!heading) {
         return;
