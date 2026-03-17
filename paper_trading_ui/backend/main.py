@@ -255,13 +255,7 @@ def health() -> dict[str, str]:
 @app.get("/api/accounts")
 def api_accounts() -> dict[str, list[dict[str, object]]]:
     with _db_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM accounts
-            ORDER BY name
-            """
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
         accounts = [_build_account_summary(conn, r) for r in rows]
         return {"accounts": accounts}
 
@@ -331,7 +325,7 @@ def api_log_file(
 @app.post("/api/actions/snapshot/{account_name}")
 def api_snapshot(account_name: str) -> dict[str, str]:
     with _db_conn() as conn:
-        _ = _account_row(conn, account_name)
+        _account_row(conn, account_name)
         snapshot_account(conn, account_name, snapshot_time=None)
         return {"status": "ok", "message": f"Snapshot saved for {account_name}"}
 
@@ -366,7 +360,7 @@ def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str,
 @app.get("/api/backtests/latest/{account_name}")
 def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
     with _db_conn() as conn:
-        _ = _account_row(conn, account_name)
+        _account_row(conn, account_name)
         latest = _latest_backtest_summary(conn, account_name)
         return {
             "accountName": account_name,
