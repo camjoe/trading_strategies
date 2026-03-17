@@ -34,7 +34,7 @@ def _parse_cors_origins(raw: str) -> list[str]:
     return cleaned or ["*"]
 
 
-logs_dir_raw = os.getenv("LOGS_DIR", "logs")
+logs_dir_raw = os.getenv("LOGS_DIR", "local/logs")
 LOGS_DIR = (ROOT_DIR / logs_dir_raw).resolve() if not Path(logs_dir_raw).is_absolute() else Path(logs_dir_raw).resolve()
 cors_origins = _parse_cors_origins(os.getenv("CORS_ORIGINS", "*"))
 

@@ -11,7 +11,7 @@ Behavior:
 - Runs auto-trader for configured accounts.
 - Saves snapshots.
 - Prints strategy comparison.
-- Writes logs to `logs/`.
+- Writes logs to `local/logs/`.
 - Writes run metadata including trigger source (`RunSource`) in each log.
 - Prevents duplicate successful runs on the same date unless `-ForceRun` is used.
 

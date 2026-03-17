@@ -1,7 +1,7 @@
-personal/
-charts/
-logs/
+local/
 trading/database/*.db
+# Frontend coverage artifacts
+paper_trading_ui/frontend/coverage/
 
 #### Auto-Generated Python.gitignore file #####
 
@@ -215,6 +215,3 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
-# Frontend coverage artifacts
-paper_trading_ui/frontend/coverage/

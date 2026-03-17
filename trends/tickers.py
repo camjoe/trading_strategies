@@ -59,7 +59,7 @@ def resolve_tickers(args: object) -> list[str]:
     if args.ticker:
         return [args.ticker.strip().upper()]
 
-    default_run_file = Path("run_tickers.txt")
+    default_run_file = Path("trends/assets/run_tickers.txt")
     if default_run_file.exists():
         loaded = load_tickers_from_file(str(default_run_file))
         if loaded:

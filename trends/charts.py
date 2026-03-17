@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def build_chart_path(ticker: str, period: str, interval: str) -> Path:
-    charts_dir = Path("charts")
+    charts_dir = Path("local/charts")
     charts_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{ticker.upper()}_{period}_{interval}_{ts}.png".replace("/", "-")
