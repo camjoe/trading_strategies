@@ -641,7 +641,8 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "ending_equity": last_equity,
         "total_return_pct": ((last_equity / first_equity) - 1.0) * 100.0,
         "max_drawdown_pct": max_drawdown,
-        "snapshots": snapshots,
+        "snapshots": [dict(r) for r in snapshots],
+        "trades": [dict(r) for r in trades],
     }
 
 
