@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getJson, postJson } from "./http";
+import { getJson, postJson } from "../lib/http";
 
 describe("http helpers", () => {
   afterEach(() => {

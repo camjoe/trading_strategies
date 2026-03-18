@@ -8,7 +8,7 @@ import {
   renderBacktestRunResult,
   renderWalkForwardResult,
   warningListHtml,
-} from "../templates/backtesting";
+} from "../components/backtesting";
 import type {
   AccountSummary,
   BacktestReport,

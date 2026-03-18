@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { warningListHtml } from "./backtesting";
+import { warningListHtml } from "../components/backtesting";
 
 describe("warningListHtml", () => {
   it("renders an empty-state message when no warnings exist", () => {

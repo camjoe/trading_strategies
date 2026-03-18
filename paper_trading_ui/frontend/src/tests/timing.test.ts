@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { debounce } from "./timing";
+import { debounce } from "../lib/timing";
 
 describe("debounce", () => {
   it("coalesces rapid calls into a single invocation", () => {

@@ -4,12 +4,12 @@ import { createAccountsFeature } from "./features/accounts";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createLogsFeature } from "./features/logs";
 import { initDocsFeature } from "./features/docs";
-import appLayoutTemplate from "./templates/app-layout.html?raw";
-import navTemplate from "./templates/nav.html?raw";
-import tradesTemplate from "./templates/trades.html?raw";
-import backtestingTemplate from "./templates/backtesting.html?raw";
-import accountsTemplate from "./templates/accounts.html?raw";
-import docsTemplate from "./templates/docs.html?raw";
+import appLayoutTemplate from "./views/app-layout.html?raw";
+import navTemplate from "./views/nav.html?raw";
+import tradesTemplate from "./views/trades.html?raw";
+import backtestingTemplate from "./views/backtesting.html?raw";
+import accountsTemplate from "./views/accounts.html?raw";
+import docsTemplate from "./views/docs.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {

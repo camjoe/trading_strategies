@@ -1,8 +1,8 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
-import { accountCard } from "../templates/accounts";
-import { renderDetail } from "../templates/detail";
+import { accountCard } from "../components/accounts";
+import { renderDetail } from "../components/detail";
 import type { AccountDetail, AccountSummary } from "../types";
 
 export interface AccountsFeatureOptions {
