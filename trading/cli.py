@@ -143,7 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_apply_preset.add_argument(
         "--preset",
         required=True,
-        choices=["aggressive", "conservative"],
+        choices=["default", "aggressive", "conservative"],
         help="Preset name to apply",
     )
     p_apply_preset.add_argument(
