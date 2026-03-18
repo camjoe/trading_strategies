@@ -1,5 +1,5 @@
 import { find } from "../lib/dom";
-import { currency, esc, num, pct } from "../lib/format";
+import { currency, esc, pct } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
 import type { AccountSummary } from "../types";
 
