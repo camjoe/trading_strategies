@@ -9,6 +9,9 @@ Reference list of useful Python packages, data providers, and VS Code extensions
 - `requirements/research.txt`: optional notebook and modeling extras.
 - `requirements.txt`: compatibility alias to `requirements/dev.txt`.
 
+**Import Structure Note:**
+All trading modules use package-mode imports only. Local import fallbacks and try/except patterns are no longer used.
+
 ## Currently Used in This Repo
 
 ### Runtime and API

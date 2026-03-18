@@ -7,6 +7,12 @@ Navigation index for docs and README files across the repository.
 1. `../README.md` for the repository overview.
 2. `../trading/README.md` for paper trading commands and scheduler operations.
 
+**Execution Note:**
+All trading scripts must be run as Python modules from the repository root, e.g.,
+```powershell
+python -m trading.paper_trading
+```
+
 ## Docs Folder Files
 
 - `Strategies.md`: strategy hypotheses and evaluation framework.

@@ -36,7 +36,11 @@ pip install -r requirements/dev.txt
 pip install -r requirements/research.txt
 ```
 
-**Compatibility Note:**
+**Execution Note:**
+- All trading scripts must be run as Python modules from the repository root, e.g.,
+  ```powershell
+  python -m trading.paper_trading init
+  ```
 - `requirements.txt` points to `requirements/dev.txt` for backward compatibility.
 - `paper_trading_ui/backend/requirements.txt` points to `requirements/base.txt`.
 

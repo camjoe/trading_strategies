@@ -13,18 +13,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-try:
-    from trading.accounting import compute_account_state, load_trades, record_trade
-    from trading.accounts import get_account
-    from trading.db import ensure_db
-    from trading.models import AccountState
-    from trading.pricing import fetch_latest_prices
-except ModuleNotFoundError:
-    from accounting import compute_account_state, load_trades, record_trade
-    from accounts import get_account
-    from db import ensure_db
-    from models import AccountState
-    from pricing import fetch_latest_prices
+from trading.accounting import compute_account_state, load_trades, record_trade
+from trading.accounts import get_account
+from trading.db import ensure_db
+from trading.models import AccountState
+from trading.pricing import fetch_latest_prices
 
 
 def parse_args() -> argparse.Namespace:

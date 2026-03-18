@@ -1,12 +1,7 @@
 import sqlite3
 from collections import defaultdict
-
-try:
-    from trading.accounts import get_account, utc_now_iso
-    from trading.models import AccountState
-except ModuleNotFoundError:
-    from accounts import get_account, utc_now_iso
-    from models import AccountState
+from trading.accounts import get_account, utc_now_iso
+from trading.models import AccountState
 
 
 VALID_SIDES = {"buy", "sell"}

@@ -28,14 +28,14 @@ Data is stored in `trading/database/paper_trading.db`.
 ### Initialize
 
 ```powershell
-python trading/paper_trading.py init
+python -m trading.paper_trading init
 ```
 
 ### Create Accounts
 
 ```powershell
-python trading/paper_trading.py create-account --name trend_v1 --strategy "Trend Following" --initial-cash 100000
-python trading/paper_trading.py create-account --name meanrev_v1 --strategy "Mean Reversion" --initial-cash 100000
+python -m trading.paper_trading create-account --name trend_v1 --strategy "Trend Following" --initial-cash 100000
+python -m trading.paper_trading create-account --name meanrev_v1 --strategy "Mean Reversion" --initial-cash 100000
 ```
 
 With benchmark and configuration:
