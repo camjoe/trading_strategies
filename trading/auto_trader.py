@@ -6,29 +6,18 @@ from pathlib import Path
 from typing import TypeAlias
 
 import yfinance as yf
-from common.tickers import load_tickers_from_file as _load_tickers_from_file
-from common.time import utc_now_iso as _utc_now_iso
+from common.tickers import load_tickers_from_file
+from common.time import utc_now_iso
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-try:
-    from trading.accounting import compute_account_state, load_trades, record_trade
-    from trading.accounts import get_account
-    from trading.db import ensure_db
-    from trading.models import AccountState
-    from trading.pricing import fetch_latest_prices
-except ModuleNotFoundError:
-    from accounting import compute_account_state, load_trades, record_trade
-    from accounts import get_account
-    from db import ensure_db
-    from models import AccountState
-    from pricing import fetch_latest_prices
-
-
-def load_tickers_from_file(file_path: str) -> list[str]:
-    return _load_tickers_from_file(file_path)
+from trading.accounting import compute_account_state, load_trades, record_trade
+from trading.accounts import get_account
+from trading.db import ensure_db
+from trading.models import AccountState
+from trading.pricing import fetch_latest_prices
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,10 +39,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fee", type=float, default=0.0, help="Per-trade fee")
     parser.add_argument("--seed", type=int, default=None, help="Optional random seed")
     return parser.parse_args()
-
-
-def utc_now_iso() -> str:
-    return _utc_now_iso()
 
 
 def choose_buy_qty(cash: float, price: float, fee: float) -> int:
@@ -149,7 +134,6 @@ def option_candidate_allowed(
     if iv_max is not None and iv_rank is not None and iv_rank > float(iv_max):
         return False, delta_est, iv_rank
 
-    _ = price  # reserved for richer pricing filters
     return True, delta_est, iv_rank if iv_rank is not None else -1.0
 
 

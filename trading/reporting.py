@@ -1,30 +1,9 @@
 import sqlite3
-
-try:
-    from trading.accounts import get_account, utc_now_iso
-    from trading.accounting import compute_account_state, load_trades
-    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
-    from trading.models import AccountState
-    from trading.pricing import benchmark_stats, fetch_latest_prices
-except ModuleNotFoundError:
-    from accounts import get_account, utc_now_iso
-    from accounting import compute_account_state, load_trades
-    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
-    from models import AccountState
-    from pricing import benchmark_stats, fetch_latest_prices
-
-
-def format_goal_text(row: sqlite3.Row) -> str:
-    min_goal = row_float(row, "goal_min_return_pct")
-    max_goal = row_float(row, "goal_max_return_pct")
-    period = row_str(row, "goal_period") or "period"
-    if min_goal is None and max_goal is None:
-        return "not-set"
-    if min_goal is not None and max_goal is not None:
-        return f"{min_goal:.2f}% to {max_goal:.2f}% per {period}"
-    if min_goal is not None:
-        return f">= {min_goal:.2f}% per {period}"
-    return f"<= {max_goal:.2f}% per {period}"
+from trading.accounts import format_goal_text, get_account, utc_now_iso
+from trading.accounting import compute_account_state, load_trades
+from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
+from trading.models import AccountState
+from trading.pricing import benchmark_stats, fetch_latest_prices
 
 
 def _compute_market_value_and_unrealized(

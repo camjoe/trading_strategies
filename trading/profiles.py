@@ -1,13 +1,8 @@
 import json
 import sqlite3
 from pathlib import Path
-
-try:
-    from trading.accounts import configure_account, create_account, get_account, set_benchmark
-    from trading.db_coercion import coerce_bool, coerce_float, coerce_int
-except ModuleNotFoundError:
-    from accounts import configure_account, create_account, get_account, set_benchmark
-    from db_coercion import coerce_bool, coerce_float, coerce_int
+from trading.accounts import configure_account, create_account, get_account, set_benchmark
+from trading.db_coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 
 
 _CONFIGURE_KEYS = {
@@ -48,21 +43,20 @@ def load_account_profiles(file_path: str) -> list[dict[str, object]]:
 def _extract_profile_fields(profile: dict[str, object]) -> dict[str, object]:
     """Normalize and type-coerce all configurable fields from a raw profile dict."""
     g = profile.get
-    learning = g("learning_enabled")
     return {
-        "descriptive_name": str(g("descriptive_name")) if g("descriptive_name") is not None else None,
+        "descriptive_name": coerce_str(g("descriptive_name")),
         "goal_min_return_pct": coerce_float(g("goal_min_return_pct")),
         "goal_max_return_pct": coerce_float(g("goal_max_return_pct")),
-        "goal_period": str(g("goal_period")) if g("goal_period") is not None else None,
-        "learning_enabled": coerce_bool(learning) if learning is not None else None,
-        "risk_policy": str(g("risk_policy")) if g("risk_policy") is not None else None,
+        "goal_period": coerce_str(g("goal_period")),
+        "learning_enabled": coerce_bool(g("learning_enabled")),
+        "risk_policy": coerce_str(g("risk_policy")),
         "stop_loss_pct": coerce_float(g("stop_loss_pct")),
         "take_profit_pct": coerce_float(g("take_profit_pct")),
-        "instrument_mode": str(g("instrument_mode")) if g("instrument_mode") is not None else None,
+        "instrument_mode": coerce_str(g("instrument_mode")),
         "option_strike_offset_pct": coerce_float(g("option_strike_offset_pct")),
         "option_min_dte": coerce_int(g("option_min_dte")),
         "option_max_dte": coerce_int(g("option_max_dte")),
-        "option_type": str(g("option_type")) if g("option_type") is not None else None,
+        "option_type": coerce_str(g("option_type")),
         "target_delta_min": coerce_float(g("target_delta_min")),
         "target_delta_max": coerce_float(g("target_delta_max")),
         "max_premium_per_trade": coerce_float(g("max_premium_per_trade")),

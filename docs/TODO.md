@@ -5,7 +5,6 @@ Backlog for evolving this project from local research scripts into a more robust
 ## Near Term
 
 - [ ] Add CSV export for `compare-strategies` output.
-
 - [ ] Add database abstraction layer (repository/service pattern) to reduce SQL coupling.
 
 ## ML / Statistical Modeling Expansion
@@ -21,10 +20,58 @@ Backlog for evolving this project from local research scripts into a more robust
 
 - [ ] Add scheduled jobs for daily snapshot capture.
 
-## Add OOP
-- [] Database abstraction layer, Strategy (for easier creation), and abstraction for retrieveing data (yfinance, crypto)
+## Docs Freshness Checklist
 
-## Backlog
+- [ ] Verify command examples still run from the documented working directory.
+- [ ] Verify all documented file paths still exist.
+- [ ] Verify documented dependencies match currently used packages.
+- [ ] Verify API route examples still match backend behavior.
+- [ ] Verify cross-links between docs resolve correctly.
+
+## Strategies Backlog
 - [ ] Add first strategy hypothesis
 - [ ] Define baseline benchmark
 - [ ] Define success criteria for first test
+
+## Tooling and Packages (Optional / Future Evaluation)
+
+### Data Source Alternatives
+
+- `yahooquery`
+- `pandas-datareader`
+- `alpha_vantage`
+- `tiingo`
+- `polygon-api-client`
+- `ccxt` (crypto exchange data)
+
+### Indicators and Technical Analysis
+
+- `scikit-learn`
+- `scipy`
+- `pandas-ta`
+- `ta`
+
+### Visualization and Reporting
+
+- `plotly`
+- `mplfinance`
+
+### Backtesting and Performance
+
+Backtesting-specific tools and notes have been moved to:
+- `docs/backtesting/README.md`
+
+Additional candidates:
+- `quantstats`
+- `vectorbt`
+- `backtrader`
+
+### Additional Data and API Access
+
+- `requests`
+- `httpx`
+
+### Deep Learning Candidates
+
+- `torch`
+- `pytorch-lightning`

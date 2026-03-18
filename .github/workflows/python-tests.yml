@@ -12,6 +12,7 @@ on:
       - paper_trading_ui/backend/**
       - paper_trading_ui/__init__.py
       - requirements.txt
+      - requirements/**
       - pytest.ini
       - .coveragerc
       - .github/workflows/python-tests.yml
@@ -23,6 +24,7 @@ on:
       - paper_trading_ui/backend/**
       - paper_trading_ui/__init__.py
       - requirements.txt
+      - requirements/**
       - pytest.ini
       - .coveragerc
       - .github/workflows/python-tests.yml
@@ -41,14 +43,16 @@ jobs:
           python-version: "3.12"
           cache: "pip"
           cache-dependency-path: |
+            requirements/base.txt
+            requirements/dev.txt
+            requirements/research.txt
             requirements.txt
             paper_trading_ui/backend/requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r paper_trading_ui/backend/requirements.txt
+          pip install -r requirements/dev.txt
 
       - name: Run tests with coverage
         run: pytest

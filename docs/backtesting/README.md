@@ -41,8 +41,23 @@ python trading/paper_trading.py backtest --account trend_v1 --lookback-months 12
 - LEAPs mode is approximate and requires explicit opt-in (`--allow-approximate-leaps`).
 - Survivorship bias can occur if ticker universes are based only on present-day symbols.
 
+## Tooling Notes
+
+Backtesting in this repository runs on the in-house engine under:
+
+- `trading/backtesting/`
+
+Optional external packages that may be evaluated later are tracked in:
+
+- `docs/Tooling and Packages.md`
+
+Operational notes:
+
+- Keep assumptions explicit (slippage, fees, execution timing).
+- Prefer chronological validation with rolling or walk-forward windows.
+- Compare against simple baselines and benchmark returns.
+
 ## Related Docs
 
-- `docs/Paper Trading.md`
+- `trading/README.md`
 - `docs/Strategies.md`
-- `docs/backtesting/Tooling.md`

@@ -13,29 +13,31 @@ Copy-Item paper_trading_ui/frontend/.env.example paper_trading_ui/frontend/.env
 
 Backend env file supports:
 
-- `API_HOST` (used by run command examples)
-- `API_PORT` (used by run command examples)
 - `CORS_ORIGINS` (comma-separated or `*`)
 - `LOGS_DIR` (optional override for logs directory)
 
 Frontend env file supports:
 
 - `VITE_API_BASE` (API base URL, default `http://127.0.0.1:8000`)
-- `FRONTEND_HOST` (launcher-only dev host, default `127.0.0.1`)
-- `FRONTEND_PORT` (launcher-only dev port, default `5173`)
 
 ## Backend (FastAPI)
 
 From repository root:
 
 ```powershell
-pip install -r paper_trading_ui/backend/requirements.txt
+pip install -r requirements/base.txt
 Get-Content paper_trading_ui/backend/.env | ForEach-Object {
 	if ($_ -match '^(?!#)([^=]+)=(.*)$') {
 		[Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
 	}
 }
 uvicorn paper_trading_ui.backend.main:app --reload --host $env:API_HOST --port ([int]$env:API_PORT)
+```
+
+Or run directly with local defaults:
+
+```powershell
+uvicorn paper_trading_ui.backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 API base URL: http://127.0.0.1:8000
@@ -62,12 +64,6 @@ From repository root:
 python paper_trading_ui/scripts/launch_ui.py
 ```
 
-Dry run (show commands without starting processes):
-
-```powershell
-python paper_trading_ui/scripts/launch_ui.py --dry-run
-```
-
 This keeps both services attached to your terminal and stops both when you press `Ctrl+C`.
 
 ## One-Command Launcher (PowerShell)
@@ -84,7 +80,12 @@ Dry run (show commands without starting processes):
 powershell -ExecutionPolicy Bypass -File .\paper_trading_ui\scripts\launch-ui.ps1 -DryRun
 ```
 
-## Available API Routes
+Current Python launcher defaults:
+
+- Backend: `http://127.0.0.1:8000`
+- Frontend: `http://127.0.0.1:5173`
+
+## Core API Routes
 
 - `GET /health`
 - `GET /api/accounts`
@@ -93,3 +94,6 @@ powershell -ExecutionPolicy Bypass -File .\paper_trading_ui\scripts\launch-ui.ps
 - `GET /api/logs/{file_name}?limit=400&contains=error`
 - `POST /api/actions/snapshot/{account_name}`
 - `POST /api/actions/snapshot-all`
+
+For the complete, always-current route list (including backtesting endpoints), see:
+- `paper_trading_ui/backend/main.py`

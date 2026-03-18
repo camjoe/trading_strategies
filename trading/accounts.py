@@ -1,11 +1,7 @@
 import sqlite3
 from typing import Callable
 from common.time import utc_now_iso as _utc_now_iso
-
-try:
-    from trading.db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
-except ModuleNotFoundError:
-    from db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
+from trading.db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -75,7 +71,7 @@ def _append_update(
     params.append(transform(value) if transform is not None else value)
 
 
-def _goal_text(row: sqlite3.Row) -> str:
+def format_goal_text(row: sqlite3.Row) -> str:
     min_goal = row_float(row, "goal_min_return_pct")
     max_goal = row_float(row, "goal_max_return_pct")
     goal_period = row_str(row, "goal_period") or "period"
@@ -89,7 +85,7 @@ def _goal_text(row: sqlite3.Row) -> str:
 
 
 def _account_summary_line(row: sqlite3.Row) -> str:
-    goal_text = _goal_text(row)
+    goal_text = format_goal_text(row)
     initial_cash = row_float(row, "initial_cash")
     learning_enabled = row_int(row, "learning_enabled")
     initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
@@ -176,8 +172,6 @@ def create_account(
 
     risk = _normalize_risk_policy(risk_policy)
     mode = _normalize_instrument_mode(instrument_mode)
-    if option_min_dte is not None and option_max_dte is not None and option_min_dte > option_max_dte:
-        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
     _validate_option_settings(
         option_type,
         target_delta_min,

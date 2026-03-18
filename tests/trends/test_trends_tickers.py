@@ -1,7 +1,5 @@
 import argparse
 
-import pytest
-
 from trends.tickers import load_ticker_categories, load_tickers_from_file, resolve_tickers
 
 
@@ -27,7 +25,7 @@ def test_load_ticker_categories_parses_sections(tmp_path) -> None:
 def test_resolve_tickers_prefers_explicit_ticker() -> None:
     args = argparse.Namespace(
         category=None,
-        category_file="ticker_categories.txt",
+        category_file="trends/assets/ticker_categories.txt",
         tickers_file=None,
         ticker="nvda",
     )

@@ -5,13 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
-from common.tickers import load_tickers_from_file as _load_tickers_from_file
+from common.tickers import load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"
-
-
-def load_tickers_from_file(file_path: str) -> list[str]:
-    return _load_tickers_from_file(file_path)
 
 
 def _parse_date(value: str, label: str) -> date:

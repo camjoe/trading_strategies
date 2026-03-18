@@ -1,0 +1,6 @@
+-r base.txt
+
+# Test dependencies used by local development and CI.
+httpx>=0.23.0,<1.0.0
+pytest==8.3.5
+pytest-cov==6.0.0

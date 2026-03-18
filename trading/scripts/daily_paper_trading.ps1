@@ -16,7 +16,7 @@ if (-not (Test-Path $pythonExe)) {
     throw "Python executable not found: $pythonExe"
 }
 
-$logDir = Join-Path $repoRoot "logs"
+$logDir = Join-Path $repoRoot "local\logs"
 if (-not (Test-Path $logDir)) {
     New-Item -ItemType Directory -Path $logDir | Out-Null
 }
