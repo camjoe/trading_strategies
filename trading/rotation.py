@@ -4,6 +4,8 @@ import json
 from datetime import UTC, datetime
 from typing import Mapping
 
+from trading.database.code.db_coercion import coerce_int
+
 
 ROTATION_MODES = {"time", "optimal"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return"}
@@ -16,6 +18,11 @@ def _value(account: Mapping[str, object], key: str) -> object | None:
         if hasattr(account, "get"):
             return account.get(key)
     return None
+
+
+def _as_int(value: object | None, default: int = 0) -> int:
+    converted = coerce_int(value)
+    return default if converted is None else converted
 
 
 def resolve_rotation_mode(account: Mapping[str, object]) -> str:
@@ -98,13 +105,13 @@ def resolve_active_strategy(account: Mapping[str, object]) -> str:
         return active
 
     idx_raw = _value(account, "rotation_active_index")
-    idx = int(idx_raw) if idx_raw is not None else 0
+    idx = _as_int(idx_raw, default=0)
     return schedule[idx % len(schedule)]
 
 
 def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
     enabled_raw = _value(account, "rotation_enabled")
-    enabled = bool(int(enabled_raw)) if enabled_raw is not None else False
+    enabled = bool(_as_int(enabled_raw, default=0))
     if not enabled:
         return False
 
@@ -115,7 +122,7 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
     interval_raw = _value(account, "rotation_interval_days")
     if interval_raw is None:
         return False
-    interval_days = int(interval_raw)
+    interval_days = _as_int(interval_raw, default=0)
     if interval_days <= 0:
         return False
 
@@ -141,7 +148,7 @@ def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dic
         }
 
     idx_raw = _value(account, "rotation_active_index")
-    idx = int(idx_raw) if idx_raw is not None else 0
+    idx = _as_int(idx_raw, default=0)
     next_idx = (idx + 1) % len(schedule)
     return {
         "rotation_active_index": next_idx,

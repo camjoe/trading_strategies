@@ -12,6 +12,7 @@ from common.time import utc_now_iso
 
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
+from trading.database.code.db_coercion import coerce_float
 from trading.database.code.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
@@ -367,10 +368,9 @@ def _parse_as_of_iso(as_of_iso: str) -> datetime:
 
 
 def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    try:
-        start = float(starting_equity)
-        end = float(ending_equity)
-    except (TypeError, ValueError):
+    start = coerce_float(starting_equity)
+    end = coerce_float(ending_equity)
+    if start is None or end is None:
         return None
     if start <= 0:
         return None

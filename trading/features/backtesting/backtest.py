@@ -19,7 +19,14 @@ from trading.features.backtesting.backtest_data import (
     load_tickers_from_file,
     resolve_backtest_dates,
 )
-from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.database.code.db_coercion import (
+    coerce_float,
+    row_expect_float,
+    row_expect_int,
+    row_expect_str,
+    row_float,
+    row_str,
+)
 from trading.rotation import resolve_active_strategy
 from trading.features.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
@@ -746,7 +753,7 @@ def backtest_leaderboard(
                 "start_date": row_expect_str(row, "start_date"),
                 "end_date": row_expect_str(row, "end_date"),
                 "created_at": row_expect_str(row, "created_at"),
-                "trade_count": int(row["trade_count"]),
+                "trade_count": row_expect_int(row, "trade_count"),
                 "starting_equity": float(start_equity),
                 "ending_equity": float(end_equity),
                 "total_return_pct": float(total_return_pct),
@@ -756,7 +763,10 @@ def backtest_leaderboard(
             }
         )
 
-    entries.sort(key=lambda entry: float(entry["total_return_pct"]), reverse=True)
+    entries.sort(
+        key=lambda entry: coerce_float(entry.get("total_return_pct")) or float("-inf"),
+        reverse=True,
+    )
     return entries
 
 

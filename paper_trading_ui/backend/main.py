@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 from trading.accounts import create_account
 from trading.accounting import load_trades
-from trading.backtesting.backtest import (
+from trading.features.backtesting.backtest import (
     BacktestConfig,
     backtest_report,
     preview_backtest_warnings,

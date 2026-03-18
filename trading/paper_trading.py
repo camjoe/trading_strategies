@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 from trading.accounting import record_trade
 from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
-from trading.backtesting.backtest import (
+from trading.features.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
     WalkForwardConfig,

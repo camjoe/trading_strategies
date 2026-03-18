@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from trading.backtesting import strategy_signals
+from trading.features.backtesting import strategy_signals
 
 
 def _series_range(start: int, stop: int) -> pd.Series:
