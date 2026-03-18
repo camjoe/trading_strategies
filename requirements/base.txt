@@ -1,5 +1,5 @@
 # Core runtime dependencies for trends, trading, and the UI backend.
-fastapi==0.116.1
+fastapi==0.120.4
 matplotlib==3.10.8
 numpy==2.4.3
 pandas==3.0.1
