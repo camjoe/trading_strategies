@@ -5,6 +5,10 @@ from datetime import UTC, datetime
 from typing import Mapping
 
 
+ROTATION_MODES = {"time", "optimal"}
+OPTIMALITY_MODES = {"previous_period_best", "average_return"}
+
+
 def _value(account: Mapping[str, object], key: str) -> object | None:
     try:
         return account[key]
@@ -12,6 +16,18 @@ def _value(account: Mapping[str, object], key: str) -> object | None:
         if hasattr(account, "get"):
             return account.get(key)
     return None
+
+
+def resolve_rotation_mode(account: Mapping[str, object]) -> str:
+    mode_raw = _value(account, "rotation_mode")
+    mode = str(mode_raw or "time").strip().lower()
+    return mode if mode in ROTATION_MODES else "time"
+
+
+def resolve_optimality_mode(account: Mapping[str, object]) -> str:
+    mode_raw = _value(account, "rotation_optimality_mode")
+    mode = str(mode_raw or "previous_period_best").strip().lower()
+    return mode if mode in OPTIMALITY_MODES else "previous_period_best"
 
 
 def _parse_iso(value: str | None) -> datetime | None:

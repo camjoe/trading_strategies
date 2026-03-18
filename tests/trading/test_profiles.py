@@ -240,6 +240,33 @@ def test_apply_rotation_fields_existing_account(conn):
     assert str(account["rotation_active_strategy"]) == "breakout"
 
 
+def test_apply_rotation_optimal_fields(conn):
+    apply_account_profiles(conn, [{"name": "rot_opt", "initial_cash": 1000}], create_missing=True)
+
+    created, updated, skipped = apply_account_profiles(
+        conn,
+        [
+            {
+                "name": "rot_opt",
+                "rotation_enabled": True,
+                "rotation_interval_days": 7,
+                "rotation_schedule": ["trend", "mean_reversion"],
+                "rotation_mode": "optimal",
+                "rotation_optimality_mode": "average_return",
+                "rotation_lookback_days": 90,
+            }
+        ],
+        create_missing=False,
+    )
+
+    assert (created, updated, skipped) == (0, 1, 0)
+    account = get_account(conn, "rot_opt")
+    assert account is not None
+    assert str(account["rotation_mode"]) == "optimal"
+    assert str(account["rotation_optimality_mode"]) == "average_return"
+    assert int(account["rotation_lookback_days"]) == 90
+
+
 def test_apply_rotation_validation_errors(conn):
     with pytest.raises(ValueError, match="rotation_interval_days"):
         apply_account_profiles(
@@ -260,4 +287,31 @@ def test_apply_rotation_validation_errors(conn):
                 }
             ],
             create_missing=False,
+        )
+
+    with pytest.raises(ValueError, match="rotation_mode"):
+        apply_account_profiles(
+            conn,
+            [{"name": "bad_rot_mode", "initial_cash": 1000, "rotation_mode": "regime"}],
+            create_missing=True,
+        )
+
+    with pytest.raises(ValueError, match="rotation_optimality_mode"):
+        apply_account_profiles(
+            conn,
+            [
+                {
+                    "name": "bad_rot_opt",
+                    "initial_cash": 1000,
+                    "rotation_optimality_mode": "median_return",
+                }
+            ],
+            create_missing=True,
+        )
+
+    with pytest.raises(ValueError, match="rotation_lookback_days"):
+        apply_account_profiles(
+            conn,
+            [{"name": "bad_rot_lookback", "initial_cash": 1000, "rotation_lookback_days": 0}],
+            create_missing=True,
         )

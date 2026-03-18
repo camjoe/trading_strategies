@@ -1,11 +1,15 @@
 import pytest
 
 from trading.rotation import (
+    OPTIMALITY_MODES,
+    ROTATION_MODES,
     dump_rotation_schedule,
     is_rotation_due,
     next_rotation_state,
     parse_rotation_schedule,
     resolve_active_strategy,
+    resolve_optimality_mode,
+    resolve_rotation_mode,
 )
 
 
@@ -51,3 +55,17 @@ def test_next_rotation_state() -> None:
     assert nxt["rotation_active_index"] == 2
     assert nxt["rotation_active_strategy"] == "breakout"
     assert str(nxt["rotation_last_at"]).startswith("2026-03-17T12:00:00")
+
+
+def test_resolve_rotation_mode_defaults_and_validation() -> None:
+    assert ROTATION_MODES == {"time", "optimal"}
+    assert resolve_rotation_mode({"rotation_mode": "optimal"}) == "optimal"
+    assert resolve_rotation_mode({"rotation_mode": "TIME"}) == "time"
+    assert resolve_rotation_mode({"rotation_mode": "unknown"}) == "time"
+
+
+def test_resolve_optimality_mode_defaults_and_validation() -> None:
+    assert OPTIMALITY_MODES == {"previous_period_best", "average_return"}
+    assert resolve_optimality_mode({"rotation_optimality_mode": "average_return"}) == "average_return"
+    assert resolve_optimality_mode({"rotation_optimality_mode": "PREVIOUS_PERIOD_BEST"}) == "previous_period_best"
+    assert resolve_optimality_mode({"rotation_optimality_mode": "unknown"}) == "previous_period_best"

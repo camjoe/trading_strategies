@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from trading import auto_trader
+from trading.accounts import create_account, get_account
 
 
 def _base_account(**overrides):
@@ -32,9 +33,84 @@ def _base_account(**overrides):
         "rotation_active_index": 0,
         "rotation_last_at": None,
         "rotation_active_strategy": None,
+        "rotation_mode": "time",
+        "rotation_optimality_mode": "previous_period_best",
+        "rotation_lookback_days": 180,
     }
     base.update(overrides)
     return base
+
+
+def _insert_backtest_run(
+    conn,
+    *,
+    account_id: int,
+    strategy_name: str,
+    end_date: str,
+    start_equity: float,
+    end_equity: float,
+) -> None:
+    run_id = conn.execute(
+        """
+        INSERT INTO backtest_runs (
+            account_id,
+            strategy_name,
+            run_name,
+            start_date,
+            end_date,
+            created_at,
+            slippage_bps,
+            fee_per_trade,
+            notes,
+            warnings
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            account_id,
+            strategy_name,
+            f"{strategy_name}-{end_date}",
+            "2026-01-01",
+            end_date,
+            f"{end_date}T00:00:00Z",
+            0.0,
+            0.0,
+            "",
+            "",
+        ),
+    ).lastrowid
+
+    conn.execute(
+        """
+        INSERT INTO backtest_equity_snapshots (
+            run_id,
+            snapshot_time,
+            cash,
+            market_value,
+            equity,
+            realized_pnl,
+            unrealized_pnl
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            run_id,
+            "2026-01-01T00:00:00Z",
+            start_equity,
+            0.0,
+            start_equity,
+            0.0,
+            0.0,
+            run_id,
+            f"{end_date}T00:00:00Z",
+            end_equity,
+            0.0,
+            end_equity,
+            0.0,
+            0.0,
+        ),
+    )
+    conn.commit()
 
 
 def test_load_tickers_from_file_dedupes_ignores_comments(tmp_path):
@@ -420,6 +496,115 @@ def test_rotate_account_if_due_updates_state(monkeypatch):
     assert conn.updated is not None
     assert conn.updated[0] == "mean_reversion"
     assert out["strategy"] == "mean_reversion"
+
+
+def test_rotate_account_if_due_optimal_previous_period_best(conn) -> None:
+    create_account(conn, "acct_opt_prev", "trend", 10000.0, "SPY")
+    account = get_account(conn, "acct_opt_prev")
+    assert account is not None
+
+    conn.execute(
+        """
+        UPDATE accounts
+        SET rotation_enabled = 1,
+            rotation_interval_days = 7,
+            rotation_schedule = ?,
+            rotation_active_index = 0,
+            rotation_active_strategy = 'trend',
+            rotation_last_at = '2026-03-01T00:00:00Z',
+            rotation_mode = 'optimal',
+            rotation_optimality_mode = 'previous_period_best',
+            rotation_lookback_days = 120
+        WHERE name = 'acct_opt_prev'
+        """,
+        ('["trend","mean_reversion"]',),
+    )
+    conn.commit()
+
+    account = get_account(conn, "acct_opt_prev")
+    assert account is not None
+
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="trend",
+        end_date="2026-03-08",
+        start_equity=10000.0,
+        end_equity=10600.0,
+    )
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="mean_reversion",
+        end_date="2026-03-15",
+        start_equity=10000.0,
+        end_equity=11200.0,
+    )
+
+    rotated = auto_trader._rotate_account_if_due(conn, "acct_opt_prev", account, "2026-03-20T00:00:00Z")
+    assert rotated["strategy"] == "mean_reversion"
+    assert rotated["rotation_active_strategy"] == "mean_reversion"
+
+
+def test_rotate_account_if_due_optimal_average_return(conn) -> None:
+    create_account(conn, "acct_opt_avg", "mean_reversion", 10000.0, "SPY")
+    conn.execute(
+        """
+        UPDATE accounts
+        SET rotation_enabled = 1,
+            rotation_interval_days = 7,
+            rotation_schedule = ?,
+            rotation_active_index = 1,
+            rotation_active_strategy = 'mean_reversion',
+            rotation_last_at = '2026-03-01T00:00:00Z',
+            rotation_mode = 'optimal',
+            rotation_optimality_mode = 'average_return',
+            rotation_lookback_days = 120
+        WHERE name = 'acct_opt_avg'
+        """,
+        ('["trend","mean_reversion"]',),
+    )
+    conn.commit()
+
+    account = get_account(conn, "acct_opt_avg")
+    assert account is not None
+
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="trend",
+        end_date="2026-03-10",
+        start_equity=10000.0,
+        end_equity=11100.0,
+    )
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="trend",
+        end_date="2026-03-16",
+        start_equity=10000.0,
+        end_equity=10900.0,
+    )
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="mean_reversion",
+        end_date="2026-03-10",
+        start_equity=10000.0,
+        end_equity=12000.0,
+    )
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="mean_reversion",
+        end_date="2026-03-16",
+        start_equity=10000.0,
+        end_equity=7000.0,
+    )
+
+    rotated = auto_trader._rotate_account_if_due(conn, "acct_opt_avg", account, "2026-03-20T00:00:00Z")
+    assert rotated["strategy"] == "trend"
+    assert rotated["rotation_active_strategy"] == "trend"
 
 
 def test_run_for_account_uses_rotated_active_strategy(monkeypatch):

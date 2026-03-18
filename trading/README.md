@@ -83,6 +83,9 @@ Rotation fields supported in account profile JSON:
 - `rotation_enabled` (bool)
 - `rotation_interval_days` (int)
 - `rotation_schedule` (array of strategy ids)
+- `rotation_mode` (`time` or `optimal`, optional; default `time`)
+- `rotation_optimality_mode` (`previous_period_best` or `average_return`, optional; default `previous_period_best`)
+- `rotation_lookback_days` (int, optional; default `180`)
 - `rotation_active_index` (int, optional)
 - `rotation_last_at` (ISO datetime, optional)
 - `rotation_active_strategy` (string, optional)
@@ -90,7 +93,9 @@ Rotation fields supported in account profile JSON:
 Notes:
 
 - If `rotation_schedule` is provided and `rotation_active_strategy` is omitted, the active strategy is derived from `rotation_active_index` (or index 0).
-- Auto-trader advances rotation when due and persists the new active strategy on the account.
+- `rotation_mode=time` rotates through the schedule in order when due.
+- `rotation_mode=optimal` picks a strategy from the schedule using historical backtest performance over `rotation_lookback_days`.
+- Auto-trader persists the chosen active strategy and updates rotation state when due.
 
 Preset files:
 

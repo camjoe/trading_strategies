@@ -169,6 +169,36 @@ def test_backtest_report_returns_summary(conn, monkeypatch: pytest.MonkeyPatch) 
     assert isinstance(summary["total_return_pct"], float)
 
 
+def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_account(conn, "acct_strategy_snapshot", "trend_v1", 10000.0, "SPY")
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+
+    result = run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_strategy_snapshot",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=1.0,
+            fee_per_trade=0.0,
+            run_name="strategy-snapshot",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mean_reversion", "acct_strategy_snapshot"))
+    conn.commit()
+
+    summary = backtest_report(conn, result.run_id)
+    assert summary["strategy"] == "trend_v1"
+
+    filtered = backtest_leaderboard(conn, limit=10, strategy="trend_v1")
+    assert any(row["run_id"] == result.run_id for row in filtered)
+
+
 def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(conn, "acct_sig", "macd_trend", 10000.0, "SPY")
 

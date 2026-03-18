@@ -303,6 +303,7 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
 def _insert_run(
     conn: sqlite3.Connection,
     account_id: int,
+    strategy_name: str,
     start_date: date,
     end_date: date,
     cfg: BacktestConfig,
@@ -312,6 +313,7 @@ def _insert_run(
         """
         INSERT INTO backtest_runs (
             account_id,
+            strategy_name,
             run_name,
             start_date,
             end_date,
@@ -322,10 +324,11 @@ def _insert_run(
             notes,
             warnings
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             account_id,
+            strategy_name,
             cfg.run_name,
             start_date.isoformat(),
             end_date.isoformat(),
@@ -415,7 +418,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         feature_bundle = get_feature_provider().build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
-    run_id = _insert_run(conn, account_id, start_date, end_date, cfg, warnings)
+    run_id = _insert_run(conn, account_id, strategy_name, start_date, end_date, cfg, warnings)
 
     cash = initial_cash
     realized_pnl = 0.0
@@ -575,7 +578,9 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
     run = conn.execute(
         """
         SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
-               r.tickers_file, r.notes, r.warnings, a.name AS account_name, a.strategy, a.benchmark_ticker
+             r.tickers_file, r.notes, r.warnings, a.name AS account_name,
+             COALESCE(r.strategy_name, a.strategy) AS strategy,
+             a.benchmark_ticker
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         WHERE r.id = ?
@@ -658,7 +663,7 @@ def backtest_leaderboard(
             r.end_date,
             r.created_at,
             a.name AS account_name,
-            a.strategy,
+            COALESCE(r.strategy_name, a.strategy) AS strategy,
             a.benchmark_ticker,
             a.initial_cash,
             (
@@ -683,7 +688,7 @@ def backtest_leaderboard(
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         WHERE (? IS NULL OR a.name = ?)
-          AND (? IS NULL OR LOWER(a.strategy) LIKE '%' || LOWER(?) || '%')
+                    AND (? IS NULL OR LOWER(COALESCE(r.strategy_name, a.strategy)) LIKE '%' || LOWER(?) || '%')
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT ?
     """

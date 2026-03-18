@@ -40,7 +40,10 @@ CREATE TABLE IF NOT EXISTS accounts (
     profit_take_pct REAL,
     max_loss_pct REAL,
     rotation_enabled INTEGER NOT NULL DEFAULT 0,
+    rotation_mode TEXT NOT NULL DEFAULT 'time',
+    rotation_optimality_mode TEXT NOT NULL DEFAULT 'previous_period_best',
     rotation_interval_days INTEGER,
+    rotation_lookback_days INTEGER,
     rotation_schedule TEXT,
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
     rotation_last_at TEXT,
@@ -81,6 +84,7 @@ BACKTEST_RUNS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS backtest_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
+    strategy_name TEXT,
     run_name TEXT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -214,8 +218,20 @@ ACCOUNT_MIGRATIONS = (
         "ALTER TABLE accounts ADD COLUMN rotation_enabled INTEGER NOT NULL DEFAULT 0",
     ),
     ColumnMigration(
+        "rotation_mode",
+        "ALTER TABLE accounts ADD COLUMN rotation_mode TEXT NOT NULL DEFAULT 'time'",
+    ),
+    ColumnMigration(
+        "rotation_optimality_mode",
+        "ALTER TABLE accounts ADD COLUMN rotation_optimality_mode TEXT NOT NULL DEFAULT 'previous_period_best'",
+    ),
+    ColumnMigration(
         "rotation_interval_days",
         "ALTER TABLE accounts ADD COLUMN rotation_interval_days INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_lookback_days",
+        "ALTER TABLE accounts ADD COLUMN rotation_lookback_days INTEGER",
     ),
     ColumnMigration(
         "rotation_schedule",
@@ -232,6 +248,13 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration(
         "rotation_active_strategy",
         "ALTER TABLE accounts ADD COLUMN rotation_active_strategy TEXT",
+    ),
+)
+
+BACKTEST_RUN_MIGRATIONS = (
+    ColumnMigration(
+        "strategy_name",
+        "ALTER TABLE backtest_runs ADD COLUMN strategy_name TEXT",
     ),
 )
 
@@ -255,4 +278,6 @@ def init_schema(conn: DBConnection) -> None:
     get_backend().run_script(conn, SCHEMA_SQL)
     for migration in ACCOUNT_MIGRATIONS:
         _ensure_column(conn, "accounts", migration)
+    for migration in BACKTEST_RUN_MIGRATIONS:
+        _ensure_column(conn, "backtest_runs", migration)
     conn.commit()
