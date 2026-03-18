@@ -10,6 +10,7 @@ from statistics import median
 
 import pandas as pd
 
+from common.market_data import get_feature_provider
 from trading.accounts import get_account, utc_now_iso
 from trading.features.backtesting.backtest_data import (
     build_monthly_universe,
@@ -19,7 +20,7 @@ from trading.features.backtesting.backtest_data import (
     resolve_backtest_dates,
 )
 from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-from trading.features.backtesting.strategy_signals import resolve_signal
+from trading.features.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
 @dataclass
@@ -404,8 +405,14 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
     strategy_name = row_expect_str(account, "strategy")
+    strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close(benchmark_ticker, start_date, end_date)
+
+    feature_bundle = None
+    if strategy_spec.required_features:
+        feature_bundle = get_feature_provider().build_feature_bundle(all_tickers, start_date, end_date, close)
+        warnings.extend(feature_bundle.warnings)
 
     run_id = _insert_run(conn, account_id, start_date, end_date, cfg, warnings)
 
@@ -447,7 +454,11 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
 
         for ticker in strategy_tickers:
             history = close.loc[:signal_date, ticker].dropna()
-            signal = resolve_signal(strategy_name, history)
+            feature_history = None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+            if feature_history is None:
+                signal = resolve_signal(strategy_name, history)
+            else:
+                signal = resolve_signal(strategy_name, history, feature_history=feature_history)
 
             if signal == "buy" and ticker not in active_tickers:
                 continue

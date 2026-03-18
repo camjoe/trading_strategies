@@ -29,10 +29,32 @@ Use explicit strategy ids when creating accounts so behavior is predictable and 
 - bollinger_mean_reversion: Bollinger-band mean reversion model.
 - ma_crossover: fast/slow moving-average crossover.
 - volatility_filtered_trend: trend model gated by max annualized volatility.
+- topic_proxy_rotation: sector/theme ETF proxy relative-strength rotation layered on top of a simple price trend filter.
+- macro_proxy_regime: macro/policy-adjacent proxy filter using SPY vs TLT leadership and VIX pressure.
 
 Compatibility notes:
 - Existing labels such as trend_v1, momentum, mean reversion variants, and macd/rsi labels still resolve through a compatibility matcher.
 - Unknown strategy labels currently default to the trend model.
+
+## Proxy Feature Strategies (Phase 3)
+
+These strategies use date-indexed proxy features rather than direct NLP or news sentiment.
+
+- topic_proxy_rotation
+	- Maps tickers to a sector/theme ETF proxy using trends/assets/ticker_categories.txt plus a small ETF mapping table.
+	- Uses the proxy ETF's relative strength vs SPY and the proxy trend gap vs its rolling average.
+	- Designed as a free-first stand-in for "what themes are trending" without requiring historical headline archives.
+
+- macro_proxy_regime
+	- Uses SPY vs TLT lookback returns and VIX pressure vs its own rolling average.
+	- Treats strong equity leadership with contained volatility as a risk-on regime proxy.
+	- Serves as a politics/macro-adjacent filter without claiming direct event or policy sentiment measurement.
+
+Limitations and assumptions:
+- These are proxy signals, not direct sentiment or topic measurements.
+- Topic mappings depend on the category file and a limited sector-to-ETF map; unmapped tickers default to no topic signal.
+- Macro features currently use Yahoo Finance symbols only; no FRED, paid macro archive, or curated event calendar is included yet.
+- All proxy inputs are still evaluated on daily closes, so intraday event timing and overnight information shocks are not modeled.
 
 ## Evaluation Framework
 - Universe and timeframe

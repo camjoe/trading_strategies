@@ -32,6 +32,8 @@ Backlog for evolving this project from local research scripts into a more robust
 - [ ] Add first strategy hypothesis
 - [ ] Define baseline benchmark
 - [ ] Define success criteria for first test
+- [ ] Expand topic proxy mappings beyond the initial sector ETF set.
+- [ ] Evaluate paid or curated macro/news providers behind the Phase 3 feature-provider seam.
 
 ## Tooling and Packages (Optional / Future Evaluation)
 

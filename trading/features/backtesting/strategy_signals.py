@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 
 
 StrategyParams = Mapping[str, Any]
-SignalFunction = Callable[[pd.Series, StrategyParams], str]
+SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
 
 
 @dataclass(frozen=True)
@@ -25,9 +25,19 @@ class StrategySpec:
     default_params: dict[str, Any]
     aliases: tuple[str, ...] = ()
     description: str = ""
+    required_features: tuple[str, ...] = ()
 
 
-def _trend_signal(history: pd.Series, params: StrategyParams) -> str:
+def _feature_value(feature_history: pd.DataFrame | None, column: str) -> float | None:
+    if feature_history is None or feature_history.empty or column not in feature_history.columns:
+        return None
+    series = pd.to_numeric(feature_history[column], errors="coerce").dropna()
+    if series.empty:
+        return None
+    return float(series.iloc[-1])
+
+
+def _trend_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     fast_window = int(params.get("fast_window", 10))
     slow_window = int(params.get("slow_window", 20))
     min_history = max(30, slow_window)
@@ -44,7 +54,7 @@ def _trend_signal(history: pd.Series, params: StrategyParams) -> str:
     return "hold"
 
 
-def _mean_reversion_signal(history: pd.Series, params: StrategyParams) -> str:
+def _mean_reversion_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     window = int(params.get("window", 20))
     band_pct = float(params.get("band_pct", 0.02))
     if len(history) < 30:
@@ -59,7 +69,7 @@ def _mean_reversion_signal(history: pd.Series, params: StrategyParams) -> str:
     return "hold"
 
 
-def _rsi_signal(history: pd.Series, params: StrategyParams) -> str:
+def _rsi_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     window = int(params.get("window", 14))
     oversold = float(params.get("oversold", 30))
     overbought = float(params.get("overbought", 70))
@@ -78,7 +88,7 @@ def _rsi_signal(history: pd.Series, params: StrategyParams) -> str:
     return "hold"
 
 
-def _macd_signal(history: pd.Series, _params: StrategyParams) -> str:
+def _macd_signal(history: pd.Series, _params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     if len(history) < 35:
         return "hold"
 
@@ -94,7 +104,7 @@ def _macd_signal(history: pd.Series, _params: StrategyParams) -> str:
     return "hold"
 
 
-def _breakout_signal(history: pd.Series, params: StrategyParams) -> str:
+def _breakout_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     window = int(params.get("window", 20))
     min_history = max(30, window + 1)
     if len(history) < min_history:
@@ -112,7 +122,7 @@ def _breakout_signal(history: pd.Series, params: StrategyParams) -> str:
     return "hold"
 
 
-def _pullback_in_trend_signal(history: pd.Series, params: StrategyParams) -> str:
+def _pullback_in_trend_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     fast_window = int(params.get("fast_window", 20))
     trend_window = int(params.get("trend_window", 50))
     pullback_pct = float(params.get("pullback_pct", 0.03))
@@ -134,7 +144,7 @@ def _pullback_in_trend_signal(history: pd.Series, params: StrategyParams) -> str
     return "hold"
 
 
-def _bollinger_mean_reversion_signal(history: pd.Series, params: StrategyParams) -> str:
+def _bollinger_mean_reversion_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     window = int(params.get("window", 20))
     num_std = float(params.get("num_std", 2.0))
     min_history = max(30, window)
@@ -157,7 +167,7 @@ def _bollinger_mean_reversion_signal(history: pd.Series, params: StrategyParams)
     return "hold"
 
 
-def _ma_crossover_signal(history: pd.Series, params: StrategyParams) -> str:
+def _ma_crossover_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     fast_window = int(params.get("fast_window", 20))
     slow_window = int(params.get("slow_window", 50))
     min_history = max(60, slow_window + 1)
@@ -189,7 +199,7 @@ def _ma_crossover_signal(history: pd.Series, params: StrategyParams) -> str:
     return "hold"
 
 
-def _volatility_filtered_trend_signal(history: pd.Series, params: StrategyParams) -> str:
+def _volatility_filtered_trend_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
     fast_window = int(params.get("fast_window", 20))
     slow_window = int(params.get("slow_window", 50))
     vol_window = int(params.get("vol_window", 20))
@@ -212,6 +222,72 @@ def _volatility_filtered_trend_signal(history: pd.Series, params: StrategyParams
     if close > sma_fast > sma_slow:
         return "buy"
     if close < sma_fast:
+        return "sell"
+    return "hold"
+
+
+def _topic_proxy_rotation_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    window = int(params.get("window", 20))
+    min_history = max(40, window)
+    if len(history) < min_history:
+        return "hold"
+
+    proxy_available = _feature_value(feature_history, "topic_proxy_available")
+    rel_strength = _feature_value(feature_history, "topic_proxy_rel_strength")
+    trend_gap = _feature_value(feature_history, "topic_proxy_trend_gap")
+    if proxy_available is None or proxy_available < 0.5 or rel_strength is None or trend_gap is None:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_mid = float(history.tail(window).mean())
+    min_rel_strength = float(params.get("min_rel_strength", 0.0))
+    exit_rel_strength = float(params.get("exit_rel_strength", 0.0))
+    min_proxy_trend_gap = float(params.get("min_proxy_trend_gap", 0.0))
+
+    if close > sma_mid and rel_strength > min_rel_strength and trend_gap > min_proxy_trend_gap:
+        return "buy"
+    if close < sma_mid or rel_strength < exit_rel_strength or trend_gap < 0.0:
+        return "sell"
+    return "hold"
+
+
+def _macro_proxy_regime_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    fast_window = int(params.get("fast_window", 20))
+    slow_window = int(params.get("slow_window", 50))
+    min_history = max(60, slow_window)
+    if len(history) < min_history:
+        return "hold"
+
+    risk_on_score = _feature_value(feature_history, "macro_risk_on_score")
+    vix_pressure = _feature_value(feature_history, "macro_vix_pressure")
+    equity_bond_spread = _feature_value(feature_history, "macro_equity_bond_spread")
+    if risk_on_score is None or vix_pressure is None or equity_bond_spread is None:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    min_risk_on_score = float(params.get("min_risk_on_score", 0.0))
+    min_equity_bond_spread = float(params.get("min_equity_bond_spread", 0.0))
+    max_vix_pressure = float(params.get("max_vix_pressure", 0.12))
+    exit_risk_on_score = float(params.get("exit_risk_on_score", 0.0))
+
+    if (
+        close > sma_fast > sma_slow
+        and risk_on_score >= min_risk_on_score
+        and equity_bond_spread >= min_equity_bond_spread
+        and vix_pressure <= max_vix_pressure
+    ):
+        return "buy"
+    if close < sma_fast or risk_on_score < exit_risk_on_score or vix_pressure > max_vix_pressure:
         return "sell"
     return "hold"
 
@@ -285,6 +361,34 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         aliases=("volatility_trend", "vol_filter_trend"),
         description="Trend signal only when recent annualized volatility is below threshold.",
     ),
+    "topic_proxy_rotation": StrategySpec(
+        strategy_id="topic_proxy_rotation",
+        signal_fn=_topic_proxy_rotation_signal,
+        default_params={
+            "window": 20,
+            "min_rel_strength": 0.0,
+            "exit_rel_strength": 0.0,
+            "min_proxy_trend_gap": 0.0,
+        },
+        aliases=("topic_rotation", "sector_proxy_rotation", "theme_proxy"),
+        description="Rotate into names backed by strong sector/theme ETF proxy relative strength.",
+        required_features=("topic_proxy_rel_strength", "topic_proxy_trend_gap"),
+    ),
+    "macro_proxy_regime": StrategySpec(
+        strategy_id="macro_proxy_regime",
+        signal_fn=_macro_proxy_regime_signal,
+        default_params={
+            "fast_window": 20,
+            "slow_window": 50,
+            "min_risk_on_score": 0.0,
+            "min_equity_bond_spread": 0.0,
+            "max_vix_pressure": 0.12,
+            "exit_risk_on_score": 0.0,
+        },
+        aliases=("macro_proxy", "policy_proxy", "macro_risk"),
+        description="Use market-risk proxies like VIX and bond-vs-equity leadership as a macro regime filter.",
+        required_features=("macro_risk_on_score", "macro_vix_pressure", "macro_equity_bond_spread"),
+    ),
 }
 
 
@@ -301,6 +405,10 @@ def _resolve_by_keyword(name: str) -> StrategySpec:
         return STRATEGY_REGISTRY["pullback_trend"]
     if "vol" in name and "trend" in name:
         return STRATEGY_REGISTRY["volatility_filtered_trend"]
+    if "topic" in name or ("sector" in name and "rotation" in name) or "theme" in name:
+        return STRATEGY_REGISTRY["topic_proxy_rotation"]
+    if "macro" in name or "policy" in name:
+        return STRATEGY_REGISTRY["macro_proxy_regime"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
         return STRATEGY_REGISTRY["ma_crossover"]
     if "rsi" in name:
@@ -327,7 +435,11 @@ def resolve_strategy(strategy_name: str) -> StrategySpec:
     return _resolve_by_keyword(name)
 
 
-def resolve_signal(strategy_name: str, history: pd.Series) -> str:
+def resolve_signal(
+    strategy_name: str,
+    history: pd.Series,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
     """Resolve strategy labels to explicit signal models used during backtesting."""
     spec = resolve_strategy(strategy_name)
-    return spec.signal_fn(history, spec.default_params)
+    return spec.signal_fn(history, spec.default_params, feature_history)
