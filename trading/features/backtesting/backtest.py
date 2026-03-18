@@ -81,6 +81,20 @@ class WalkForwardSummary:
     worst_return_pct: float
 
 
+@dataclass
+class BacktestBatchConfig:
+    account_names: list[str]
+    tickers_file: str
+    universe_history_dir: str | None
+    start: str | None
+    end: str | None
+    lookback_months: int | None
+    slippage_bps: float
+    fee_per_trade: float
+    run_name_prefix: str | None
+    allow_approximate_leaps: bool
+
+
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
     if not equity_curve:
         return 0.0
@@ -238,8 +252,25 @@ def _compute_unrealized_pnl(
     return total
 
 
-def _benchmark_return_pct(benchmark_close: pd.Series, initial_cash: float) -> float | None:
-    series = benchmark_close.dropna()
+def _normalize_benchmark_series(benchmark_close: pd.Series | pd.DataFrame) -> pd.Series:
+    if isinstance(benchmark_close, pd.DataFrame):
+        if benchmark_close.empty:
+            return pd.Series(dtype=float)
+        series = benchmark_close.iloc[:, 0]
+    else:
+        series = benchmark_close
+
+    if isinstance(series, pd.DataFrame):
+        if series.empty:
+            return pd.Series(dtype=float)
+        series = series.iloc[:, 0]
+
+    normalized = pd.to_numeric(series, errors="coerce").dropna()
+    return normalized
+
+
+def _benchmark_return_pct(benchmark_close: pd.Series | pd.DataFrame, initial_cash: float) -> float | None:
+    series = _normalize_benchmark_series(benchmark_close)
     if len(series) < 2:
         return None
 
@@ -595,6 +626,152 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "max_drawdown_pct": max_drawdown,
         "snapshots": snapshots,
     }
+
+
+def backtest_leaderboard(
+    conn: sqlite3.Connection,
+    *,
+    limit: int = 10,
+    account_name: str | None = None,
+    strategy: str | None = None,
+) -> list[dict[str, object]]:
+    if limit <= 0:
+        raise ValueError("limit must be > 0")
+
+    query = """
+        SELECT
+            r.id AS run_id,
+            r.run_name,
+            r.start_date,
+            r.end_date,
+            r.created_at,
+            a.name AS account_name,
+            a.strategy,
+            a.benchmark_ticker,
+            a.initial_cash,
+            (
+                SELECT s.equity
+                FROM backtest_equity_snapshots s
+                WHERE s.run_id = r.id
+                ORDER BY s.snapshot_time ASC, s.id ASC
+                LIMIT 1
+            ) AS starting_equity,
+            (
+                SELECT s.equity
+                FROM backtest_equity_snapshots s
+                WHERE s.run_id = r.id
+                ORDER BY s.snapshot_time DESC, s.id DESC
+                LIMIT 1
+            ) AS ending_equity,
+            (
+                SELECT COUNT(*)
+                FROM backtest_trades t
+                WHERE t.run_id = r.id
+            ) AS trade_count
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        WHERE (? IS NULL OR a.name = ?)
+          AND (? IS NULL OR LOWER(a.strategy) LIKE '%' || LOWER(?) || '%')
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT ?
+    """
+    rows = conn.execute(
+        query,
+        (account_name, account_name, strategy, strategy, int(limit)),
+    ).fetchall()
+
+    entries: list[dict[str, object]] = []
+    for row in rows:
+        start_equity = row_float(row, "starting_equity")
+        end_equity = row_float(row, "ending_equity")
+        if start_equity is None or end_equity is None or start_equity <= 0:
+            continue
+
+        equity_rows = conn.execute(
+            """
+            SELECT equity
+            FROM backtest_equity_snapshots
+            WHERE run_id = ?
+            ORDER BY snapshot_time ASC, id ASC
+            """,
+            (row_expect_int(row, "run_id"),),
+        ).fetchall()
+        curve = [row_float(item, "equity") for item in equity_rows]
+        max_drawdown_pct = _max_drawdown_pct([value for value in curve if value is not None])
+
+        total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
+
+        benchmark_return_pct: float | None = None
+        alpha_pct: float | None = None
+        try:
+            benchmark_series = fetch_benchmark_close(
+                row_expect_str(row, "benchmark_ticker"),
+                date.fromisoformat(row_expect_str(row, "start_date")),
+                date.fromisoformat(row_expect_str(row, "end_date")),
+            )
+            benchmark_return_pct = _benchmark_return_pct(
+                benchmark_series,
+                row_expect_float(row, "initial_cash"),
+            )
+            if benchmark_return_pct is not None:
+                alpha_pct = total_return_pct - benchmark_return_pct
+        except Exception:
+            benchmark_return_pct = None
+            alpha_pct = None
+
+        entries.append(
+            {
+                "run_id": row_expect_int(row, "run_id"),
+                "run_name": row["run_name"],
+                "account_name": row_expect_str(row, "account_name"),
+                "strategy": row_expect_str(row, "strategy"),
+                "start_date": row_expect_str(row, "start_date"),
+                "end_date": row_expect_str(row, "end_date"),
+                "created_at": row_expect_str(row, "created_at"),
+                "trade_count": int(row["trade_count"]),
+                "starting_equity": float(start_equity),
+                "ending_equity": float(end_equity),
+                "total_return_pct": float(total_return_pct),
+                "max_drawdown_pct": float(max_drawdown_pct),
+                "benchmark_return_pct": benchmark_return_pct,
+                "alpha_pct": alpha_pct,
+            }
+        )
+
+    entries.sort(key=lambda entry: float(entry["total_return_pct"]), reverse=True)
+    return entries
+
+
+def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> list[BacktestResult]:
+    account_names = [name.strip() for name in cfg.account_names if name.strip()]
+    if not account_names:
+        raise ValueError("At least one account name is required.")
+
+    results: list[BacktestResult] = []
+    for idx, account_name in enumerate(account_names, start=1):
+        run_name = None
+        if cfg.run_name_prefix:
+            run_name = f"{cfg.run_name_prefix}_{idx:02d}_{account_name}"
+
+        result = run_backtest(
+            conn,
+            BacktestConfig(
+                account_name=account_name,
+                tickers_file=cfg.tickers_file,
+                universe_history_dir=cfg.universe_history_dir,
+                start=cfg.start,
+                end=cfg.end,
+                lookback_months=cfg.lookback_months,
+                slippage_bps=cfg.slippage_bps,
+                fee_per_trade=cfg.fee_per_trade,
+                run_name=run_name,
+                allow_approximate_leaps=cfg.allow_approximate_leaps,
+            ),
+        )
+        results.append(result)
+
+    results.sort(key=lambda item: item.total_return_pct, reverse=True)
+    return results
 
 
 def run_walk_forward_backtest(

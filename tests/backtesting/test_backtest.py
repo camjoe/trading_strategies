@@ -8,12 +8,16 @@ import pytest
 
 from trading.accounts import create_account
 from trading.backtesting.backtest import (
+    BacktestBatchConfig,
     BacktestConfig,
+    BacktestResult,
     WalkForwardConfig,
+    backtest_leaderboard,
     backtest_report,
     build_walk_forward_windows,
     preview_backtest_warnings,
     run_backtest,
+    run_backtest_batch,
     run_walk_forward_backtest,
 )
 
@@ -390,3 +394,118 @@ def test_run_walk_forward_backtest_no_generated_windows_raises(conn) -> None:
                 allow_approximate_leaps=False,
             ),
         )
+
+
+def test_backtest_leaderboard_sorts_by_total_return_and_supports_filters(
+    conn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    create_account(conn, "acct_lb_trend", "trend_v1", 10000.0, "SPY")
+    create_account(conn, "acct_lb_mean", "mean_reversion", 10000.0, "SPY")
+
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+
+    run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_lb_trend",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name="lb-trend",
+            allow_approximate_leaps=False,
+        ),
+    )
+    run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_lb_mean",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name="lb-mean",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    leaderboard = backtest_leaderboard(conn, limit=10)
+    assert len(leaderboard) >= 2
+    assert leaderboard[0]["total_return_pct"] >= leaderboard[1]["total_return_pct"]
+    assert "max_drawdown_pct" in leaderboard[0]
+    assert "benchmark_return_pct" in leaderboard[0]
+    assert "alpha_pct" in leaderboard[0]
+
+    filtered = backtest_leaderboard(conn, limit=10, strategy="mean")
+    assert len(filtered) == 1
+    assert filtered[0]["account_name"] == "acct_lb_mean"
+
+
+def test_run_backtest_batch_sorts_results_and_applies_run_name_prefix(
+    conn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    results_map = {
+        "acct_a": BacktestResult(
+            run_id=1,
+            account_name="acct_a",
+            start_date="2026-01-01",
+            end_date="2026-02-01",
+            tickers=["AAPL"],
+            trade_count=1,
+            ending_equity=10100.0,
+            total_return_pct=1.0,
+            benchmark_return_pct=0.5,
+            alpha_pct=0.5,
+            max_drawdown_pct=-1.0,
+            warnings=[],
+        ),
+        "acct_b": BacktestResult(
+            run_id=2,
+            account_name="acct_b",
+            start_date="2026-01-01",
+            end_date="2026-02-01",
+            tickers=["AAPL"],
+            trade_count=2,
+            ending_equity=10800.0,
+            total_return_pct=8.0,
+            benchmark_return_pct=0.5,
+            alpha_pct=7.5,
+            max_drawdown_pct=-2.0,
+            warnings=[],
+        ),
+    }
+
+    seen_run_names: list[str | None] = []
+
+    def _fake_run_backtest(_conn, cfg: BacktestConfig) -> BacktestResult:
+        seen_run_names.append(cfg.run_name)
+        return results_map[cfg.account_name]
+
+    monkeypatch.setattr("trading.backtesting.backtest.run_backtest", _fake_run_backtest)
+
+    results = run_backtest_batch(
+        conn,
+        BacktestBatchConfig(
+            account_names=["acct_a", "acct_b"],
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-02-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name_prefix="batch",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    assert [item.account_name for item in results] == ["acct_b", "acct_a"]
+    assert seen_run_names == ["batch_01_acct_a", "batch_02_acct_b"]
