@@ -32,6 +32,23 @@ def calculate_macd(close: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
     return macd, macd_signal, macd_hist
 
 
+def calculate_bollinger_bands(
+    close: pd.Series,
+    window: int = 20,
+    num_std: float = 2.0,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    middle = close.rolling(window=window).mean()
+    std = close.rolling(window=window).std(ddof=0)
+    upper = middle + (num_std * std)
+    lower = middle - (num_std * std)
+    return lower, middle, upper
+
+
+def calculate_annualized_volatility_pct(close: pd.Series, window: int = 20) -> pd.Series:
+    returns = close.pct_change()
+    return returns.rolling(window=window).std(ddof=0) * (252 ** 0.5) * 100.0
+
+
 def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["MA20"] = out["Close"].rolling(window=20).mean()

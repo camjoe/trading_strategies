@@ -38,7 +38,16 @@ CREATE TABLE IF NOT EXISTS accounts (
     iv_rank_max REAL,
     roll_dte_threshold INTEGER,
     profit_take_pct REAL,
-    max_loss_pct REAL
+    max_loss_pct REAL,
+    rotation_enabled INTEGER NOT NULL DEFAULT 0,
+    rotation_mode TEXT NOT NULL DEFAULT 'time',
+    rotation_optimality_mode TEXT NOT NULL DEFAULT 'previous_period_best',
+    rotation_interval_days INTEGER,
+    rotation_lookback_days INTEGER,
+    rotation_schedule TEXT,
+    rotation_active_index INTEGER NOT NULL DEFAULT 0,
+    rotation_last_at TEXT,
+    rotation_active_strategy TEXT
 );
 """
 
@@ -75,6 +84,7 @@ BACKTEST_RUNS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS backtest_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
+    strategy_name TEXT,
     run_name TEXT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -203,6 +213,49 @@ ACCOUNT_MIGRATIONS = (
     ),
     ColumnMigration("profit_take_pct", "ALTER TABLE accounts ADD COLUMN profit_take_pct REAL"),
     ColumnMigration("max_loss_pct", "ALTER TABLE accounts ADD COLUMN max_loss_pct REAL"),
+    ColumnMigration(
+        "rotation_enabled",
+        "ALTER TABLE accounts ADD COLUMN rotation_enabled INTEGER NOT NULL DEFAULT 0",
+    ),
+    ColumnMigration(
+        "rotation_mode",
+        "ALTER TABLE accounts ADD COLUMN rotation_mode TEXT NOT NULL DEFAULT 'time'",
+    ),
+    ColumnMigration(
+        "rotation_optimality_mode",
+        "ALTER TABLE accounts ADD COLUMN rotation_optimality_mode TEXT NOT NULL DEFAULT 'previous_period_best'",
+    ),
+    ColumnMigration(
+        "rotation_interval_days",
+        "ALTER TABLE accounts ADD COLUMN rotation_interval_days INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_lookback_days",
+        "ALTER TABLE accounts ADD COLUMN rotation_lookback_days INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_schedule",
+        "ALTER TABLE accounts ADD COLUMN rotation_schedule TEXT",
+    ),
+    ColumnMigration(
+        "rotation_active_index",
+        "ALTER TABLE accounts ADD COLUMN rotation_active_index INTEGER NOT NULL DEFAULT 0",
+    ),
+    ColumnMigration(
+        "rotation_last_at",
+        "ALTER TABLE accounts ADD COLUMN rotation_last_at TEXT",
+    ),
+    ColumnMigration(
+        "rotation_active_strategy",
+        "ALTER TABLE accounts ADD COLUMN rotation_active_strategy TEXT",
+    ),
+)
+
+BACKTEST_RUN_MIGRATIONS = (
+    ColumnMigration(
+        "strategy_name",
+        "ALTER TABLE backtest_runs ADD COLUMN strategy_name TEXT",
+    ),
 )
 
 def ensure_db() -> DBConnection:
@@ -225,4 +278,6 @@ def init_schema(conn: DBConnection) -> None:
     get_backend().run_script(conn, SCHEMA_SQL)
     for migration in ACCOUNT_MIGRATIONS:
         _ensure_column(conn, "accounts", migration)
+    for migration in BACKTEST_RUN_MIGRATIONS:
+        _ensure_column(conn, "backtest_runs", migration)
     conn.commit()

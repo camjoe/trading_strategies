@@ -305,3 +305,92 @@ def test_main_backtest_walk_forward_dispatches(monkeypatch, capsys):
     assert "Walk-forward complete: account=acct1" in out
     assert "Generated run ids: 101, 102, 103" in out
     assert fake_conn.closed is True
+
+
+def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys):
+    fake_conn = _FakeConn()
+    args = SimpleNamespace(
+        command="backtest-leaderboard",
+        limit=5,
+        account=None,
+        strategy="trend",
+    )
+
+    def fake_backtest_leaderboard(_conn, *, limit, account_name, strategy):
+        assert limit == 5
+        assert account_name is None
+        assert strategy == "trend"
+        return [
+            {
+                "run_id": 9,
+                "run_name": "batch_01",
+                "account_name": "acct1",
+                "strategy": "trend_v1",
+                "start_date": "2026-01-01",
+                "end_date": "2026-03-01",
+                "ending_equity": 10500.0,
+                "total_return_pct": 5.0,
+                "max_drawdown_pct": -1.2,
+                "benchmark_return_pct": 2.0,
+                "alpha_pct": 3.0,
+                "trade_count": 8,
+                "created_at": "2026-03-17T01:00:00Z",
+            }
+        ]
+
+    monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+    monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+    monkeypatch.setattr(paper_trading, "backtest_leaderboard", fake_backtest_leaderboard)
+
+    paper_trading.main()
+
+    out = capsys.readouterr().out
+    assert "run_id,run_name,account_name,strategy" in out
+    assert "9,batch_01,acct1,trend_v1" in out
+    assert fake_conn.closed is True
+
+
+def test_main_backtest_batch_dispatches(monkeypatch, capsys):
+    fake_conn = _FakeConn()
+    args = SimpleNamespace(
+        command="backtest-batch",
+        accounts="acct1, acct2",
+        tickers_file="trading/trade_universe.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-01",
+        lookback_months=None,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name_prefix="batch",
+        allow_approximate_leaps=False,
+    )
+
+    captured = {}
+
+    class _Result:
+        def __init__(self, account_name: str, run_id: int, ret: float):
+            self.account_name = account_name
+            self.run_id = run_id
+            self.total_return_pct = ret
+            self.max_drawdown_pct = -1.0
+            self.ending_equity = 10000.0 + ret
+            self.trade_count = 3
+
+    def fake_run_backtest_batch(conn, cfg):
+        captured["conn"] = conn
+        captured["cfg"] = cfg
+        return [_Result("acct2", 22, 3.0), _Result("acct1", 21, 1.0)]
+
+    monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+    monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+    monkeypatch.setattr(paper_trading, "run_backtest_batch", fake_run_backtest_batch)
+
+    paper_trading.main()
+
+    assert captured["conn"] is fake_conn
+    assert captured["cfg"].account_names == ["acct1", "acct2"]
+    out = capsys.readouterr().out
+    assert "Backtest batch complete." in out
+    assert "1,acct2,22,3.0000" in out
+    assert fake_conn.closed is True

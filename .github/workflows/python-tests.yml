@@ -47,7 +47,6 @@ jobs:
             requirements/dev.txt
             requirements/research.txt
             requirements.txt
-            paper_trading_ui/backend/requirements.txt
 
       - name: Install dependencies
         run: |

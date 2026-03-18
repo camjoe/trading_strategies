@@ -41,26 +41,26 @@ python -m trading.paper_trading create-account --name meanrev_v1 --strategy "Mea
 With benchmark and configuration:
 
 ```powershell
-python trading/paper_trading.py create-account --name crypto_momo_v1 --strategy "Crypto Momentum" --initial-cash 50000 --benchmark BTC-USD
+python -m trading.paper_trading create-account --name crypto_momo_v1 --strategy "Crypto Momentum" --initial-cash 50000 --benchmark BTC-USD
 ```
 
 With display name, return goals, learning mode, and benchmark:
 
 ```powershell
-python trading/paper_trading.py create-account --name momentum_5k --display-name "Momentum Growth Account" --strategy "Momentum" --initial-cash 5000 --goal-min-return-pct 2 --goal-max-return-pct 4 --goal-period monthly --learning-enabled
+python -m trading.paper_trading create-account --name momentum_5k --display-name "Momentum Growth Account" --strategy "Momentum" --initial-cash 5000 --goal-min-return-pct 2 --goal-max-return-pct 4 --goal-period monthly --learning-enabled
 ```
 
 ### Configure Accounts
 
 ```powershell
-python trading/paper_trading.py configure-account --account momentum_5k --goal-min-return-pct 5 --goal-max-return-pct 10 --goal-period monthly
-python trading/paper_trading.py configure-account --account meanrev_5k --display-name "Mean Reversion Income" --learning-enabled
+python -m trading.paper_trading configure-account --account momentum_5k --goal-min-return-pct 5 --goal-max-return-pct 10 --goal-period monthly
+python -m trading.paper_trading configure-account --account meanrev_5k --display-name "Mean Reversion Income" --learning-enabled
 ```
 
 Set benchmark:
 
 ```powershell
-python trading/paper_trading.py set-benchmark --account trend_v1 --benchmark QQQ
+python -m trading.paper_trading set-benchmark --account trend_v1 --benchmark QQQ
 ```
 
 ### Apply Account Profiles
@@ -68,15 +68,34 @@ python trading/paper_trading.py set-benchmark --account trend_v1 --benchmark QQQ
 Apply profile file:
 
 ```powershell
-python trading/paper_trading.py apply-account-profiles --file trading/account_profiles/default.json
+python -m trading.paper_trading apply-account-profiles --file trading/account_profiles/default.json
 ```
 
 Apply built-in preset:
 
 ```powershell
-python trading/paper_trading.py apply-account-preset --preset aggressive
-python trading/paper_trading.py apply-account-preset --preset conservative
+python -m trading.paper_trading apply-account-preset --preset aggressive
+python -m trading.paper_trading apply-account-preset --preset conservative
 ```
+
+Rotation fields supported in account profile JSON:
+
+- `rotation_enabled` (bool)
+- `rotation_interval_days` (int)
+- `rotation_schedule` (array of strategy ids)
+- `rotation_mode` (`time` or `optimal`, optional; default `time`)
+- `rotation_optimality_mode` (`previous_period_best` or `average_return`, optional; default `previous_period_best`)
+- `rotation_lookback_days` (int, optional; default `180`)
+- `rotation_active_index` (int, optional)
+- `rotation_last_at` (ISO datetime, optional)
+- `rotation_active_strategy` (string, optional)
+
+Notes:
+
+- If `rotation_schedule` is provided and `rotation_active_strategy` is omitted, the active strategy is derived from `rotation_active_index` (or index 0).
+- `rotation_mode=time` rotates through the schedule in order when due.
+- `rotation_mode=optimal` picks a strategy from the schedule using historical backtest performance over `rotation_lookback_days`.
+- Auto-trader persists the chosen active strategy and updates rotation state when due.
 
 Preset files:
 
@@ -89,27 +108,37 @@ Preset files:
 Record mock trades:
 
 ```powershell
-python trading/paper_trading.py trade --account trend_v1 --side buy --ticker NVDA --qty 10 --price 185.20 --fee 1.00 --note "breakout"
-python trading/paper_trading.py trade --account trend_v1 --side sell --ticker NVDA --qty 5 --price 191.80 --fee 1.00 --note "partial take profit"
+python -m trading.paper_trading trade --account trend_v1 --side buy --ticker NVDA --qty 10 --price 185.20 --fee 1.00 --note "breakout"
+python -m trading.paper_trading trade --account trend_v1 --side sell --ticker NVDA --qty 5 --price 191.80 --fee 1.00 --note "partial take profit"
 ```
 
 View report:
 
 ```powershell
-python trading/paper_trading.py report --account trend_v1
+python -m trading.paper_trading report --account trend_v1
 ```
 
 Save and inspect snapshots:
 
 ```powershell
-python trading/paper_trading.py snapshot --account trend_v1
-python trading/paper_trading.py snapshot-history --account trend_v1 --limit 20
+python -m trading.paper_trading snapshot --account trend_v1
+python -m trading.paper_trading snapshot-history --account trend_v1 --limit 20
 ```
 
 Compare strategies:
 
 ```powershell
-python trading/paper_trading.py compare-strategies --lookback 10
+python -m trading.paper_trading compare-strategies --lookback 10
+```
+
+Backtest comparison commands:
+
+```powershell
+python -m trading.paper_trading backtest --account trend_v1 --lookback-months 12
+python -m trading.paper_trading backtest-report --run-id 1
+python -m trading.paper_trading backtest-leaderboard --limit 10
+python -m trading.paper_trading backtest-batch --accounts trend_v1,meanrev_v1 --lookback-months 12 --run-name-prefix exp01
+python -m trading.paper_trading backtest-walk-forward --account trend_v1 --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
 ```
 
 ## Auto-Trading
@@ -119,13 +148,13 @@ Default trade universe file: `trading/trade_universe.txt`.
 Run generated daily trades:
 
 ```powershell
-python trading/auto_trader.py --accounts momentum_5k,meanrev_5k --min-trades 1 --max-trades 5
+python -m trading.auto_trader --accounts momentum_5k,meanrev_5k --min-trades 1 --max-trades 5
 ```
 
 Deterministic simulation run:
 
 ```powershell
-python trading/auto_trader.py --accounts momentum_5k,meanrev_5k --seed 42
+python -m trading.auto_trader --accounts momentum_5k,meanrev_5k --seed 42
 ```
 
 ## Daily Scheduler (Windows)

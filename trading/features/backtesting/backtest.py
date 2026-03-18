@@ -10,22 +10,25 @@ from statistics import median
 
 import pandas as pd
 
-try:
-    from trading.accounts import get_account, utc_now_iso
-    from trading.backtesting.backtest_data import (
-        build_monthly_universe,
-        fetch_benchmark_close,
-        fetch_close_history,
-        load_tickers_from_file,
-        resolve_backtest_dates,
-    )
-    from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-    from trading.backtesting.strategy_signals import resolve_signal
-except ModuleNotFoundError:
-    from trading.accounts import get_account, utc_now_iso
-    from trading.backtesting.backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
-    from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-    from backtesting.strategy_signals import resolve_signal
+from common.market_data import get_feature_provider
+from trading.accounts import get_account, utc_now_iso
+from trading.features.backtesting.backtest_data import (
+    build_monthly_universe,
+    fetch_benchmark_close,
+    fetch_close_history,
+    load_tickers_from_file,
+    resolve_backtest_dates,
+)
+from trading.database.code.db_coercion import (
+    coerce_float,
+    row_expect_float,
+    row_expect_int,
+    row_expect_str,
+    row_float,
+    row_str,
+)
+from trading.rotation import resolve_active_strategy
+from trading.features.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
 @dataclass
@@ -85,6 +88,20 @@ class WalkForwardSummary:
     median_return_pct: float
     best_return_pct: float
     worst_return_pct: float
+
+
+@dataclass
+class BacktestBatchConfig:
+    account_names: list[str]
+    tickers_file: str
+    universe_history_dir: str | None
+    start: str | None
+    end: str | None
+    lookback_months: int | None
+    slippage_bps: float
+    fee_per_trade: float
+    run_name_prefix: str | None
+    allow_approximate_leaps: bool
 
 
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
@@ -244,8 +261,25 @@ def _compute_unrealized_pnl(
     return total
 
 
-def _benchmark_return_pct(benchmark_close: pd.Series, initial_cash: float) -> float | None:
-    series = benchmark_close.dropna()
+def _normalize_benchmark_series(benchmark_close: pd.Series | pd.DataFrame) -> pd.Series:
+    if isinstance(benchmark_close, pd.DataFrame):
+        if benchmark_close.empty:
+            return pd.Series(dtype=float)
+        series = benchmark_close.iloc[:, 0]
+    else:
+        series = benchmark_close
+
+    if isinstance(series, pd.DataFrame):
+        if series.empty:
+            return pd.Series(dtype=float)
+        series = series.iloc[:, 0]
+
+    normalized = pd.to_numeric(series, errors="coerce").dropna()
+    return normalized
+
+
+def _benchmark_return_pct(benchmark_close: pd.Series | pd.DataFrame, initial_cash: float) -> float | None:
+    series = _normalize_benchmark_series(benchmark_close)
     if len(series) < 2:
         return None
 
@@ -276,6 +310,7 @@ def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> 
 def _insert_run(
     conn: sqlite3.Connection,
     account_id: int,
+    strategy_name: str,
     start_date: date,
     end_date: date,
     cfg: BacktestConfig,
@@ -285,6 +320,7 @@ def _insert_run(
         """
         INSERT INTO backtest_runs (
             account_id,
+            strategy_name,
             run_name,
             start_date,
             end_date,
@@ -295,10 +331,11 @@ def _insert_run(
             notes,
             warnings
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             account_id,
+            strategy_name,
             cfg.run_name,
             start_date.isoformat(),
             end_date.isoformat(),
@@ -378,11 +415,17 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
-    strategy_name = row_expect_str(account, "strategy")
+    strategy_name = resolve_active_strategy(account)
+    strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close(benchmark_ticker, start_date, end_date)
 
-    run_id = _insert_run(conn, account_id, start_date, end_date, cfg, warnings)
+    feature_bundle = None
+    if strategy_spec.required_features:
+        feature_bundle = get_feature_provider().build_feature_bundle(all_tickers, start_date, end_date, close)
+        warnings.extend(feature_bundle.warnings)
+
+    run_id = _insert_run(conn, account_id, strategy_name, start_date, end_date, cfg, warnings)
 
     cash = initial_cash
     realized_pnl = 0.0
@@ -422,7 +465,11 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
 
         for ticker in strategy_tickers:
             history = close.loc[:signal_date, ticker].dropna()
-            signal = resolve_signal(strategy_name, history)
+            feature_history = None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+            if feature_history is None:
+                signal = resolve_signal(strategy_name, history)
+            else:
+                signal = resolve_signal(strategy_name, history, feature_history=feature_history)
 
             if signal == "buy" and ticker not in active_tickers:
                 continue
@@ -538,7 +585,9 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
     run = conn.execute(
         """
         SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
-               r.tickers_file, r.notes, r.warnings, a.name AS account_name, a.strategy, a.benchmark_ticker
+             r.tickers_file, r.notes, r.warnings, a.name AS account_name,
+             COALESCE(r.strategy_name, a.strategy) AS strategy,
+             a.benchmark_ticker
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         WHERE r.id = ?
@@ -599,8 +648,158 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
         "ending_equity": last_equity,
         "total_return_pct": ((last_equity / first_equity) - 1.0) * 100.0,
         "max_drawdown_pct": max_drawdown,
-        "snapshots": snapshots,
+        "snapshots": [dict(r) for r in snapshots],
+        "trades": [dict(r) for r in trades],
     }
+
+
+def backtest_leaderboard(
+    conn: sqlite3.Connection,
+    *,
+    limit: int = 10,
+    account_name: str | None = None,
+    strategy: str | None = None,
+) -> list[dict[str, object]]:
+    if limit <= 0:
+        raise ValueError("limit must be > 0")
+
+    query = """
+        SELECT
+            r.id AS run_id,
+            r.run_name,
+            r.start_date,
+            r.end_date,
+            r.created_at,
+            a.name AS account_name,
+            COALESCE(r.strategy_name, a.strategy) AS strategy,
+            a.benchmark_ticker,
+            a.initial_cash,
+            (
+                SELECT s.equity
+                FROM backtest_equity_snapshots s
+                WHERE s.run_id = r.id
+                ORDER BY s.snapshot_time ASC, s.id ASC
+                LIMIT 1
+            ) AS starting_equity,
+            (
+                SELECT s.equity
+                FROM backtest_equity_snapshots s
+                WHERE s.run_id = r.id
+                ORDER BY s.snapshot_time DESC, s.id DESC
+                LIMIT 1
+            ) AS ending_equity,
+            (
+                SELECT COUNT(*)
+                FROM backtest_trades t
+                WHERE t.run_id = r.id
+            ) AS trade_count
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        WHERE (? IS NULL OR a.name = ?)
+                    AND (? IS NULL OR LOWER(COALESCE(r.strategy_name, a.strategy)) LIKE '%' || LOWER(?) || '%')
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT ?
+    """
+    rows = conn.execute(
+        query,
+        (account_name, account_name, strategy, strategy, int(limit)),
+    ).fetchall()
+
+    entries: list[dict[str, object]] = []
+    for row in rows:
+        start_equity = row_float(row, "starting_equity")
+        end_equity = row_float(row, "ending_equity")
+        if start_equity is None or end_equity is None or start_equity <= 0:
+            continue
+
+        equity_rows = conn.execute(
+            """
+            SELECT equity
+            FROM backtest_equity_snapshots
+            WHERE run_id = ?
+            ORDER BY snapshot_time ASC, id ASC
+            """,
+            (row_expect_int(row, "run_id"),),
+        ).fetchall()
+        curve = [row_float(item, "equity") for item in equity_rows]
+        max_drawdown_pct = _max_drawdown_pct([value for value in curve if value is not None])
+
+        total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
+
+        benchmark_return_pct: float | None = None
+        alpha_pct: float | None = None
+        try:
+            benchmark_series = fetch_benchmark_close(
+                row_expect_str(row, "benchmark_ticker"),
+                date.fromisoformat(row_expect_str(row, "start_date")),
+                date.fromisoformat(row_expect_str(row, "end_date")),
+            )
+            benchmark_return_pct = _benchmark_return_pct(
+                benchmark_series,
+                row_expect_float(row, "initial_cash"),
+            )
+            if benchmark_return_pct is not None:
+                alpha_pct = total_return_pct - benchmark_return_pct
+        except Exception:
+            benchmark_return_pct = None
+            alpha_pct = None
+
+        entries.append(
+            {
+                "run_id": row_expect_int(row, "run_id"),
+                "run_name": row["run_name"],
+                "account_name": row_expect_str(row, "account_name"),
+                "strategy": row_expect_str(row, "strategy"),
+                "start_date": row_expect_str(row, "start_date"),
+                "end_date": row_expect_str(row, "end_date"),
+                "created_at": row_expect_str(row, "created_at"),
+                "trade_count": row_expect_int(row, "trade_count"),
+                "starting_equity": float(start_equity),
+                "ending_equity": float(end_equity),
+                "total_return_pct": float(total_return_pct),
+                "max_drawdown_pct": float(max_drawdown_pct),
+                "benchmark_return_pct": benchmark_return_pct,
+                "alpha_pct": alpha_pct,
+            }
+        )
+
+    entries.sort(
+        key=lambda entry: coerce_float(entry.get("total_return_pct")) or float("-inf"),
+        reverse=True,
+    )
+    return entries
+
+
+def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> list[BacktestResult]:
+    account_names = [name.strip() for name in cfg.account_names if name.strip()]
+    if not account_names:
+        raise ValueError("At least one account name is required.")
+
+    results: list[BacktestResult] = []
+    for idx, account_name in enumerate(account_names, start=1):
+        run_name = None
+        if cfg.run_name_prefix:
+            run_name = f"{cfg.run_name_prefix}_{idx:02d}_{account_name}"
+
+        result = run_backtest(
+            conn,
+            BacktestConfig(
+                account_name=account_name,
+                tickers_file=cfg.tickers_file,
+                universe_history_dir=cfg.universe_history_dir,
+                start=cfg.start,
+                end=cfg.end,
+                lookback_months=cfg.lookback_months,
+                slippage_bps=cfg.slippage_bps,
+                fee_per_trade=cfg.fee_per_trade,
+                run_name=run_name,
+                allow_approximate_leaps=cfg.allow_approximate_leaps,
+            ),
+        )
+        results.append(result)
+
+    results.sort(key=lambda item: item.total_return_pct, reverse=True)
+    return results
 
 
 def run_walk_forward_backtest(

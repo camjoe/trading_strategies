@@ -42,7 +42,27 @@ pip install -r requirements/research.txt
   python -m trading.paper_trading init
   ```
 - `requirements.txt` points to `requirements/dev.txt` for backward compatibility.
-- `paper_trading_ui/backend/requirements.txt` points to `requirements/base.txt`.
+
+## CI Smoke Check
+
+Run the same core checks used by GitHub Actions from the repository root:
+
+```powershell
+python .\scripts\ci_smoke.py
+```
+
+Optional flags:
+
+```powershell
+# Skip frontend checks
+python .\scripts\ci_smoke.py --skip-frontend
+
+# Skip python checks
+python .\scripts\ci_smoke.py --skip-python
+
+# Explicitly install ruff/mypy before quality gates
+python .\scripts\ci_smoke.py --install-python-tools
+```
 
 ## Quick Start
 

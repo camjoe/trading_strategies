@@ -7,6 +7,13 @@ Backlog for evolving this project from local research scripts into a more robust
 - [ ] Add CSV export for `compare-strategies` output.
 - [ ] Add database abstraction layer (repository/service pattern) to reduce SQL coupling.
 
+## Completed Milestones
+
+- [x] Phase 1: Backtest leaderboard and batch comparison commands.
+- [x] Phase 2: Strategy registry/spec abstraction and expanded technical strategy set.
+- [x] Phase 3: Proxy feature seam plus topic and macro proxy strategies.
+- [x] Phase 4: Scheduled strategy rotation persistence and auto-trader integration.
+
 ## ML / Statistical Modeling Expansion
 
 - [ ] Define first ML use case (classification of next-day direction, return regression, or regime detection).
@@ -32,6 +39,9 @@ Backlog for evolving this project from local research scripts into a more robust
 - [ ] Add first strategy hypothesis
 - [ ] Define baseline benchmark
 - [ ] Define success criteria for first test
+- [ ] Expand topic proxy mappings beyond the initial sector ETF set.
+- [ ] Evaluate paid or curated macro/news providers behind the Phase 3 feature-provider seam.
+- [ ] Add regime-based strategy rotation policy layer (deferred by design).
 
 ## Tooling and Packages (Optional / Future Evaluation)
 

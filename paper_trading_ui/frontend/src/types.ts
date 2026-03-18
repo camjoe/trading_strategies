@@ -93,3 +93,23 @@ export type BacktestReport = {
   total_return_pct: number;
   max_drawdown_pct: number;
 };
+
+export type LatestBacktestMetrics = {
+  runId: number;
+  endDate: string;
+  totalReturnPct: number;
+  maxDrawdownPct: number;
+  alphaPct: number | null;
+};
+
+export type AccountComparisonRow = {
+  name: string;
+  displayName: string;
+  strategy: string;
+  benchmark: string;
+  equity: number;
+  initialCash: number;
+  totalChange: number;
+  totalChangePct: number;
+  latestBacktest: LatestBacktestMetrics | null;
+};

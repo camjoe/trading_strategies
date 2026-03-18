@@ -2,6 +2,7 @@ import argparse
 import random
 import sqlite3
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TypeAlias
 
@@ -9,15 +10,24 @@ from common.market_data import get_provider
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
+from trading.database.code.db_coercion import coerce_float
 from trading.database.code.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
+from trading.rotation import (
+    is_rotation_due,
+    next_rotation_state,
+    parse_rotation_schedule,
+    resolve_active_strategy,
+    resolve_optimality_mode,
+    resolve_rotation_mode,
+)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def parse_args() -> argparse.Namespace:
@@ -263,6 +273,7 @@ def _build_trade_note(
     side: str,
     delta_est: float | None,
     iv_est: float | None,
+    strategy_name: str | None,
 ) -> str:
     note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
     if forced_sell is not None:
@@ -277,15 +288,171 @@ def _build_trade_note(
             if iv_est is not None and iv_est >= 0:
                 note_parts.append(f"iv_rank={iv_est:.1f}")
 
+    if strategy_name:
+        note_parts.append(f"strategy={strategy_name}")
+
     return ";".join(note_parts)
 
 
-def _choose_side(forced_sell: str | None, can_sell: list[str]) -> str:
+def _choose_side(forced_sell: str | None, can_sell: list[str], strategy_name: str | None = None) -> str:
     if forced_sell is not None:
         return "sell"
-    if can_sell and random.random() < 0.35:
+
+    bias = 0.35
+    strategy = (strategy_name or "").strip().lower()
+    if "trend" in strategy or "momentum" in strategy or "breakout" in strategy:
+        bias = 0.20
+    elif "mean" in strategy or "reversion" in strategy or "rsi" in strategy:
+        bias = 0.45
+
+    if can_sell and random.random() < bias:
         return "sell"
     return "buy"
+
+
+def _rotate_account_if_due(
+    conn: sqlite3.Connection,
+    account_name: str,
+    account: sqlite3.Row,
+    now_iso: str,
+) -> sqlite3.Row:
+    if not is_rotation_due(account, as_of_iso=now_iso):
+        return account
+
+    rotation_mode = resolve_rotation_mode(account)
+    if rotation_mode == "optimal":
+        optimal = _select_optimal_strategy(conn, account, now_iso)
+        active = optimal or resolve_active_strategy(account)
+        schedule = parse_rotation_schedule(account["rotation_schedule"])
+        if schedule and active in schedule:
+            active_idx = schedule.index(active)
+        else:
+            active_idx = int(account["rotation_active_index"] or 0)
+        next_state = {
+            "rotation_active_index": active_idx,
+            "rotation_active_strategy": active,
+            "rotation_last_at": now_iso,
+        }
+    else:
+        next_state = next_rotation_state(account, as_of_iso=now_iso)
+
+    conn.execute(
+        """
+        UPDATE accounts
+        SET strategy = ?,
+            rotation_active_index = ?,
+            rotation_active_strategy = ?,
+            rotation_last_at = ?
+        WHERE id = ?
+        """,
+        (
+            next_state["rotation_active_strategy"],
+            int(next_state["rotation_active_index"]),
+            next_state["rotation_active_strategy"],
+            next_state["rotation_last_at"],
+            account["id"],
+        ),
+    )
+    conn.commit()
+    return get_account(conn, account_name)
+
+
+def _parse_as_of_iso(as_of_iso: str) -> datetime:
+    text = as_of_iso.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
+    start = coerce_float(starting_equity)
+    end = coerce_float(ending_equity)
+    if start is None or end is None:
+        return None
+    if start <= 0:
+        return None
+    return ((end / start) - 1.0) * 100.0
+
+
+def _select_optimal_strategy(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    as_of_iso: str,
+) -> str | None:
+    schedule = parse_rotation_schedule(account["rotation_schedule"])
+    if not schedule:
+        return None
+
+    lookback_days = int(account["rotation_lookback_days"] or 180)
+    as_of_dt = _parse_as_of_iso(as_of_iso)
+    end_day = as_of_dt.date().isoformat()
+    start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
+
+    placeholders = ",".join(["?"] * len(schedule))
+    rows = conn.execute(
+        f"""
+        SELECT
+            r.strategy_name,
+            r.end_date,
+            (
+                SELECT s.equity
+                FROM backtest_equity_snapshots s
+                WHERE s.run_id = r.id
+                ORDER BY s.snapshot_time ASC, s.id ASC
+                LIMIT 1
+            ) AS starting_equity,
+            (
+                SELECT s.equity
+                FROM backtest_equity_snapshots s
+                WHERE s.run_id = r.id
+                ORDER BY s.snapshot_time DESC, s.id DESC
+                LIMIT 1
+            ) AS ending_equity
+        FROM backtest_runs r
+        WHERE r.account_id = ?
+          AND r.strategy_name IN ({placeholders})
+          AND r.end_date >= ?
+          AND r.end_date <= ?
+        ORDER BY r.end_date DESC, r.id DESC
+        """,
+        (account["id"], *schedule, start_day, end_day),
+    ).fetchall()
+
+    if not rows:
+        return None
+
+    by_strategy: dict[str, list[float]] = {}
+    latest_by_strategy: dict[str, float] = {}
+    for row in rows:
+        strategy_name = str(row["strategy_name"] or "").strip()
+        if not strategy_name:
+            continue
+        ret = _safe_return_pct(row["starting_equity"], row["ending_equity"])
+        if ret is None:
+            continue
+        by_strategy.setdefault(strategy_name, []).append(ret)
+        if strategy_name not in latest_by_strategy:
+            latest_by_strategy[strategy_name] = ret
+
+    if not by_strategy:
+        return None
+
+    optimality_mode = resolve_optimality_mode(account)
+    scores: dict[str, float] = {}
+    if optimality_mode == "average_return":
+        for strategy_name, values in by_strategy.items():
+            scores[strategy_name] = sum(values) / len(values)
+    else:
+        scores = dict(latest_by_strategy)
+
+    if not scores:
+        return None
+
+    best_strategy = max(scores.items(), key=lambda item: item[1])[0]
+    return best_strategy if best_strategy in schedule else None
 
 
 def _prepare_buy_trade(
@@ -374,6 +541,9 @@ def run_for_account(
     fee: float,
 ) -> int:
     account = get_account(conn, account_name)
+    now_iso = utc_now_iso()
+    account = _rotate_account_if_due(conn, account_name, account, now_iso)
+    active_strategy = resolve_active_strategy(account)
     learning_enabled = bool(int(account["learning_enabled"]))
     risk_policy = str(account["risk_policy"]).strip().lower()
     stop_loss_pct = account["stop_loss_pct"]
@@ -394,7 +564,7 @@ def run_for_account(
             take_profit_pct,
         )
 
-        side = _choose_side(forced_sell, can_sell)
+        side = _choose_side(forced_sell, can_sell, active_strategy)
 
         delta_est: float | None = None
         iv_est: float | None = None
@@ -446,6 +616,7 @@ def run_for_account(
                 side,
                 delta_est,
                 iv_est,
+                active_strategy,
             ),
         )
         executed += 1

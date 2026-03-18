@@ -7,13 +7,18 @@ import pandas as pd
 import pytest
 
 from trading.accounts import create_account
-from trading.backtesting.backtest import (
+from common.market_data import FeatureBundle, ProxyFeatureDataProvider
+from trading.features.backtesting.backtest import (
+    BacktestBatchConfig,
     BacktestConfig,
+    BacktestResult,
     WalkForwardConfig,
+    backtest_leaderboard,
     backtest_report,
     build_walk_forward_windows,
     preview_backtest_warnings,
     run_backtest,
+    run_backtest_batch,
     run_walk_forward_backtest,
 )
 
@@ -35,13 +40,13 @@ def _patch_market_data(
     tickers: list[str],
     benchmark_values: list[float],
 ) -> None:
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: tickers)
+    monkeypatch.setattr("trading.features.backtesting.backtest.load_tickers_from_file", lambda _path: tickers)
     monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_close_history",
+        "trading.features.backtesting.backtest.fetch_close_history",
         lambda _tickers, _start, _end: _fake_close_history(_tickers),
     )
     monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
+        "trading.features.backtesting.backtest.fetch_benchmark_close",
         lambda _ticker, _start, _end: pd.Series(
             benchmark_values,
             index=pd.date_range("2026-01-01", periods=len(benchmark_values), freq="B"),
@@ -164,6 +169,36 @@ def test_backtest_report_returns_summary(conn, monkeypatch: pytest.MonkeyPatch) 
     assert isinstance(summary["total_return_pct"], float)
 
 
+def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_account(conn, "acct_strategy_snapshot", "trend_v1", 10000.0, "SPY")
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+
+    result = run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_strategy_snapshot",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=1.0,
+            fee_per_trade=0.0,
+            run_name="strategy-snapshot",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mean_reversion", "acct_strategy_snapshot"))
+    conn.commit()
+
+    summary = backtest_report(conn, result.run_id)
+    assert summary["strategy"] == "trend_v1"
+
+    filtered = backtest_leaderboard(conn, limit=10, strategy="trend_v1")
+    assert any(row["run_id"] == result.run_id for row in filtered)
+
+
 def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.MonkeyPatch) -> None:
     create_account(conn, "acct_sig", "macd_trend", 10000.0, "SPY")
 
@@ -174,7 +209,7 @@ def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.Mo
         return "hold"
 
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
-    monkeypatch.setattr("trading.backtesting.backtest.resolve_signal", fake_signal)
+    monkeypatch.setattr("trading.features.backtesting.backtest.resolve_signal", fake_signal)
 
     run_backtest(
         conn,
@@ -188,6 +223,95 @@ def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.Mo
             slippage_bps=5.0,
             fee_per_trade=0.0,
             run_name="sig-resolver",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    assert call_count["n"] > 0
+
+
+def test_proxy_feature_provider_builds_aligned_topic_features(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    idx = pd.date_range("2026-01-01", periods=40, freq="B")
+    close_history = pd.DataFrame(
+        {
+            "AAPL": [100.0 + i for i in range(40)],
+            "XOM": [80.0 + (i * 0.5) for i in range(40)],
+        },
+        index=idx,
+    )
+
+    category_file = tmp_path / "ticker_categories.txt"
+    category_file.write_text("[tech]\nAAPL\n[energy]\nXOM\n", encoding="utf-8")
+
+    proxy_index = pd.date_range("2025-11-01", periods=90, freq="B")
+    proxy_frame = pd.DataFrame(
+        {
+            "SPY": [100.0 + (i * 0.2) for i in range(90)],
+            "XLK": [100.0 + (i * 0.35) for i in range(90)],
+            "XLE": [100.0 + (i * 0.25) for i in range(90)],
+            "TLT": [100.0 + (i * 0.05) for i in range(90)],
+            "^VIX": [20.0 + ((i % 5) * 0.1) for i in range(90)],
+        },
+        index=proxy_index,
+    )
+
+    class StubProvider:
+        def fetch_close_history(self, tickers: list[str], _start, _end) -> pd.DataFrame:
+            return proxy_frame.loc[:, tickers]
+
+    monkeypatch.setattr("common.market_data.get_provider", lambda: StubProvider())
+
+    provider = ProxyFeatureDataProvider(category_file=str(category_file))
+    bundle = provider.build_feature_bundle(["AAPL", "XOM"], date(2026, 1, 1), date(2026, 3, 1), close_history)
+
+    aapl_features = bundle.history_for_ticker("AAPL", idx[-1])
+    assert aapl_features is not None
+    assert "topic_proxy_rel_strength" in aapl_features.columns
+    assert float(aapl_features["topic_proxy_available"].iloc[-1]) == 1.0
+    assert pd.notna(aapl_features["macro_risk_on_score"].iloc[-1])
+
+
+def test_run_backtest_passes_feature_history_for_proxy_strategies(conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    create_account(conn, "acct_topic", "topic_proxy_rotation", 10000.0, "SPY")
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+
+    idx = pd.date_range("2026-01-01", periods=40, freq="B")
+    feature_frame = pd.DataFrame(
+        {
+            "topic_proxy_available": [1.0] * 40,
+            "topic_proxy_rel_strength": [0.02] * 40,
+            "topic_proxy_trend_gap": [0.01] * 40,
+        },
+        index=idx,
+    )
+
+    class StubFeatureProvider:
+        def build_feature_bundle(self, _tickers, _start, _end, _close_history) -> FeatureBundle:
+            return FeatureBundle(ticker_features={"AAPL": feature_frame})
+
+    call_count = {"n": 0}
+
+    def fake_signal(_strategy_name: str, _history: pd.Series, feature_history: pd.DataFrame | None = None) -> str:
+        call_count["n"] += 1
+        assert feature_history is not None
+        assert "topic_proxy_rel_strength" in feature_history.columns
+        return "hold"
+
+    monkeypatch.setattr("trading.features.backtesting.backtest.get_feature_provider", lambda: StubFeatureProvider())
+    monkeypatch.setattr("trading.features.backtesting.backtest.resolve_signal", fake_signal)
+
+    run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_topic",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name="topic-proxy",
             allow_approximate_leaps=False,
         ),
     )
@@ -322,10 +446,10 @@ def test_backtest_report_persists_warning_string(conn, monkeypatch: pytest.Monke
         option_type="call",
     )
 
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
+    monkeypatch.setattr("trading.features.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr("trading.features.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
     monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
+        "trading.features.backtesting.backtest.fetch_benchmark_close",
         lambda _ticker, _start, _end: pd.Series([100.0, 102.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
     )
 
@@ -390,3 +514,118 @@ def test_run_walk_forward_backtest_no_generated_windows_raises(conn) -> None:
                 allow_approximate_leaps=False,
             ),
         )
+
+
+def test_backtest_leaderboard_sorts_by_total_return_and_supports_filters(
+    conn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    create_account(conn, "acct_lb_trend", "trend_v1", 10000.0, "SPY")
+    create_account(conn, "acct_lb_mean", "mean_reversion", 10000.0, "SPY")
+
+    _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+
+    run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_lb_trend",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name="lb-trend",
+            allow_approximate_leaps=False,
+        ),
+    )
+    run_backtest(
+        conn,
+        BacktestConfig(
+            account_name="acct_lb_mean",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name="lb-mean",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    leaderboard = backtest_leaderboard(conn, limit=10)
+    assert len(leaderboard) >= 2
+    assert leaderboard[0]["total_return_pct"] >= leaderboard[1]["total_return_pct"]
+    assert "max_drawdown_pct" in leaderboard[0]
+    assert "benchmark_return_pct" in leaderboard[0]
+    assert "alpha_pct" in leaderboard[0]
+
+    filtered = backtest_leaderboard(conn, limit=10, strategy="mean")
+    assert len(filtered) == 1
+    assert filtered[0]["account_name"] == "acct_lb_mean"
+
+
+def test_run_backtest_batch_sorts_results_and_applies_run_name_prefix(
+    conn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    results_map = {
+        "acct_a": BacktestResult(
+            run_id=1,
+            account_name="acct_a",
+            start_date="2026-01-01",
+            end_date="2026-02-01",
+            tickers=["AAPL"],
+            trade_count=1,
+            ending_equity=10100.0,
+            total_return_pct=1.0,
+            benchmark_return_pct=0.5,
+            alpha_pct=0.5,
+            max_drawdown_pct=-1.0,
+            warnings=[],
+        ),
+        "acct_b": BacktestResult(
+            run_id=2,
+            account_name="acct_b",
+            start_date="2026-01-01",
+            end_date="2026-02-01",
+            tickers=["AAPL"],
+            trade_count=2,
+            ending_equity=10800.0,
+            total_return_pct=8.0,
+            benchmark_return_pct=0.5,
+            alpha_pct=7.5,
+            max_drawdown_pct=-2.0,
+            warnings=[],
+        ),
+    }
+
+    seen_run_names: list[str | None] = []
+
+    def _fake_run_backtest(_conn, cfg: BacktestConfig) -> BacktestResult:
+        seen_run_names.append(cfg.run_name)
+        return results_map[cfg.account_name]
+
+    monkeypatch.setattr("trading.features.backtesting.backtest.run_backtest", _fake_run_backtest)
+
+    results = run_backtest_batch(
+        conn,
+        BacktestBatchConfig(
+            account_names=["acct_a", "acct_b"],
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-02-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee_per_trade=0.0,
+            run_name_prefix="batch",
+            allow_approximate_leaps=False,
+        ),
+    )
+
+    assert [item.account_name for item in results] == ["acct_b", "acct_a"]
+    assert seen_run_names == ["batch_01_acct_a", "batch_02_acct_b"]

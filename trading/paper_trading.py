@@ -2,11 +2,14 @@ from pathlib import Path
 from typing import Callable
 from trading.accounting import record_trade
 from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
-from trading.backtesting.backtest import (
+from trading.features.backtesting.backtest import (
+    BacktestBatchConfig,
     BacktestConfig,
     WalkForwardConfig,
+    backtest_leaderboard,
     backtest_report,
     run_backtest,
+    run_backtest_batch,
     run_walk_forward_backtest,
 )
 from trading.cli import build_parser
@@ -217,6 +220,63 @@ def _handle_backtest_report(conn, args, parser) -> None:
         print(f"Safeguards / notes: {report['warnings']}")
 
 
+def _handle_backtest_leaderboard(conn, args, parser) -> None:
+    rows = backtest_leaderboard(
+        conn,
+        limit=int(args.limit),
+        account_name=args.account,
+        strategy=args.strategy,
+    )
+
+    if not rows:
+        print("No backtest runs matched the selected filters.")
+        return
+
+    print(
+        "run_id,run_name,account_name,strategy,start_date,end_date,ending_equity,"
+        "total_return_pct,max_drawdown_pct,benchmark_return_pct,alpha_pct,trade_count,created_at"
+    )
+    for row in rows:
+        benchmark_return = row["benchmark_return_pct"]
+        alpha = row["alpha_pct"]
+        benchmark_text = "" if benchmark_return is None else f"{float(benchmark_return):.4f}"
+        alpha_text = "" if alpha is None else f"{float(alpha):.4f}"
+        run_name = "" if row["run_name"] is None else str(row["run_name"])
+        print(
+            f"{row['run_id']},{run_name},{row['account_name']},{row['strategy']},"
+            f"{row['start_date']},{row['end_date']},{float(row['ending_equity']):.2f},"
+            f"{float(row['total_return_pct']):.4f},{float(row['max_drawdown_pct']):.4f},"
+            f"{benchmark_text},{alpha_text},{int(row['trade_count'])},{row['created_at']}"
+        )
+
+
+def _handle_backtest_batch(conn, args, parser) -> None:
+    account_names = [name.strip() for name in args.accounts.split(",") if name.strip()]
+    results = run_backtest_batch(
+        conn,
+        BacktestBatchConfig(
+            account_names=account_names,
+            tickers_file=args.tickers_file,
+            universe_history_dir=args.universe_history_dir,
+            start=args.start,
+            end=args.end,
+            lookback_months=args.lookback_months,
+            slippage_bps=args.slippage_bps,
+            fee_per_trade=args.fee,
+            run_name_prefix=args.run_name_prefix,
+            allow_approximate_leaps=bool(args.allow_approximate_leaps),
+        ),
+    )
+
+    print("Backtest batch complete.")
+    print("rank,account_name,run_id,total_return_pct,max_drawdown_pct,ending_equity,trade_count")
+    for rank, result in enumerate(results, start=1):
+        print(
+            f"{rank},{result.account_name},{result.run_id},{result.total_return_pct:.4f},"
+            f"{result.max_drawdown_pct:.4f},{result.ending_equity:.2f},{result.trade_count}"
+        )
+
+
 def _handle_backtest_walk_forward(conn, args, parser) -> None:
     summary = run_walk_forward_backtest(
         conn,
@@ -265,6 +325,8 @@ COMMAND_HANDLERS: dict[str, Callable] = {
     "compare-strategies": _handle_compare_strategies,
     "backtest": _handle_backtest,
     "backtest-report": _handle_backtest_report,
+    "backtest-leaderboard": _handle_backtest_leaderboard,
+    "backtest-batch": _handle_backtest_batch,
     "backtest-walk-forward": _handle_backtest_walk_forward,
 }
 

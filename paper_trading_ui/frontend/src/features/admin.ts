@@ -1,0 +1,196 @@
+import { find } from "../lib/dom";
+import { currency, esc, pct } from "../lib/format";
+import { getJson, postJson } from "../lib/http";
+import type { AccountSummary } from "../types";
+
+interface DeleteResponse {
+  status: string;
+  deleted: {
+    accounts: number;
+    trades: number;
+    equitySnapshots: number;
+    backtestRuns: number;
+    backtestTrades: number;
+    backtestEquitySnapshots: number;
+  };
+}
+
+interface CreateResponse {
+  status: string;
+  account: AccountSummary;
+}
+
+export interface AdminFeatureOptions {
+  onAccountsChanged?: () => Promise<void> | void;
+}
+
+export interface AdminFeature {
+  wireActions: () => void;
+  loadDeleteAccounts: () => Promise<void>;
+}
+
+function numOrUndefined(value: FormDataEntryValue | null): number | undefined {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function intOrUndefined(value: FormDataEntryValue | null): number | undefined {
+  const parsed = numOrUndefined(value);
+  if (parsed === undefined) return undefined;
+  return Math.trunc(parsed);
+}
+
+function strOrUndefined(value: FormDataEntryValue | null): string | undefined {
+  const raw = typeof value === "string" ? value.trim() : "";
+  return raw || undefined;
+}
+
+export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
+  async function loadDeleteAccounts(): Promise<void> {
+    const select = find<HTMLSelectElement>("#deleteAccountSelect");
+    if (!select) return;
+
+    const data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+    const optionsHtml = data.accounts
+      .map((a) => `<option value="${esc(a.name)}">${esc(a.name)} (${esc(a.strategy)})</option>`)
+      .join("");
+    select.innerHTML = `<option value="">Select account</option>${optionsHtml}`;
+  }
+
+  async function onDeleteSubmit(event: Event): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const output = find<HTMLDivElement>("#deleteAccountOutput");
+    if (!output) return;
+
+    const data = new FormData(form);
+    const accountName = strOrUndefined(data.get("accountName"));
+    if (!accountName) {
+      output.className = "error";
+      output.textContent = "Select an account first.";
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete account '${accountName}' and all related trades/backtests? This cannot be undone.`,
+    );
+    if (!confirmed) {
+      output.className = "empty";
+      output.textContent = "Deletion cancelled.";
+      return;
+    }
+
+    output.className = "empty";
+    output.textContent = "Deleting account...";
+
+    try {
+      const result = await postJson<DeleteResponse>("/api/admin/accounts/delete", {
+        accountName,
+        confirm: true,
+      });
+      output.className = "success";
+      output.innerHTML =
+        `Deleted ${result.deleted.accounts} account.<br>` +
+        `Removed ${result.deleted.trades} trades, ${result.deleted.equitySnapshots} snapshots, ` +
+        `${result.deleted.backtestRuns} backtest runs.`;
+      await loadDeleteAccounts();
+      await options.onAccountsChanged?.();
+    } catch (error) {
+      output.className = "error";
+      output.textContent = error instanceof Error ? error.message : "Delete failed.";
+    }
+  }
+
+  async function onCreateSubmit(event: Event): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const output = find<HTMLDivElement>("#createAccountOutput");
+    if (!output) return;
+
+    const data = new FormData(form);
+    const rotationSchedule = (strOrUndefined(data.get("rotationScheduleCsv")) ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const payload = {
+      name: strOrUndefined(data.get("name")),
+      descriptiveName: strOrUndefined(data.get("descriptiveName")),
+      strategy: strOrUndefined(data.get("strategy")),
+      benchmarkTicker: strOrUndefined(data.get("benchmarkTicker")) ?? "SPY",
+      initialCash: numOrUndefined(data.get("initialCash")),
+      goalMinReturnPct: numOrUndefined(data.get("goalMinReturnPct")),
+      goalMaxReturnPct: numOrUndefined(data.get("goalMaxReturnPct")),
+      goalPeriod: strOrUndefined(data.get("goalPeriod")) ?? "monthly",
+      learningEnabled: data.get("learningEnabled") === "on",
+      riskPolicy: strOrUndefined(data.get("riskPolicy")) ?? "none",
+      stopLossPct: numOrUndefined(data.get("stopLossPct")),
+      takeProfitPct: numOrUndefined(data.get("takeProfitPct")),
+      instrumentMode: strOrUndefined(data.get("instrumentMode")) ?? "equity",
+      optionStrikeOffsetPct: numOrUndefined(data.get("optionStrikeOffsetPct")),
+      optionMinDte: intOrUndefined(data.get("optionMinDte")),
+      optionMaxDte: intOrUndefined(data.get("optionMaxDte")),
+      optionType: strOrUndefined(data.get("optionType")),
+      targetDeltaMin: numOrUndefined(data.get("targetDeltaMin")),
+      targetDeltaMax: numOrUndefined(data.get("targetDeltaMax")),
+      maxPremiumPerTrade: numOrUndefined(data.get("maxPremiumPerTrade")),
+      maxContractsPerTrade: intOrUndefined(data.get("maxContractsPerTrade")),
+      ivRankMin: numOrUndefined(data.get("ivRankMin")),
+      ivRankMax: numOrUndefined(data.get("ivRankMax")),
+      rollDteThreshold: intOrUndefined(data.get("rollDteThreshold")),
+      profitTakePct: numOrUndefined(data.get("profitTakePct")),
+      maxLossPct: numOrUndefined(data.get("maxLossPct")),
+      rotationEnabled: data.get("rotationEnabled") === "on",
+      rotationMode: strOrUndefined(data.get("rotationMode")) ?? "time",
+      rotationOptimalityMode: strOrUndefined(data.get("rotationOptimalityMode")) ?? "previous_period_best",
+      rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
+      rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
+      rotationSchedule,
+      rotationActiveIndex: intOrUndefined(data.get("rotationActiveIndex")) ?? 0,
+      rotationLastAt: strOrUndefined(data.get("rotationLastAt")),
+      rotationActiveStrategy: strOrUndefined(data.get("rotationActiveStrategy")),
+    };
+
+    if (!payload.name || !payload.strategy || payload.initialCash === undefined) {
+      output.className = "error";
+      output.textContent = "Name, strategy, and initial cash are required.";
+      return;
+    }
+
+    output.className = "empty";
+    output.textContent = "Creating account...";
+
+    try {
+      const result = await postJson<CreateResponse>("/api/admin/accounts/create", payload);
+      output.className = "success";
+      output.innerHTML =
+        `Created account ${esc(result.account.name)}.<br>` +
+        `Equity: ${currency.format(result.account.equity)} | Return: ${pct(result.account.totalChangePct)}`;
+      form.reset();
+      await loadDeleteAccounts();
+      await options.onAccountsChanged?.();
+    } catch (error) {
+      output.className = "error";
+      output.textContent = error instanceof Error ? error.message : "Create failed.";
+    }
+  }
+
+  function wireActions(): void {
+    const deleteForm = find<HTMLFormElement>("#deleteAccountForm");
+    const createForm = find<HTMLFormElement>("#createAccountForm");
+
+    deleteForm?.addEventListener("submit", (event) => {
+      void onDeleteSubmit(event);
+    });
+    createForm?.addEventListener("submit", (event) => {
+      void onCreateSubmit(event);
+    });
+  }
+
+  return {
+    wireActions,
+    loadDeleteAccounts,
+  };
+}
