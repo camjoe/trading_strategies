@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import yfinance as yf
+from common.market_data import get_provider
 from common.tickers import load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"
@@ -44,28 +44,6 @@ def resolve_backtest_dates(
     return start_date, end_date
 
 
-def _normalize_download_close(hist: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
-    if hist.empty:
-        raise ValueError("No historical price data returned for requested tickers/date range.")
-
-    if len(tickers) == 1:
-        close = hist[["Close"]].rename(columns={"Close": tickers[0]})
-    else:
-        if "Close" not in hist.columns.get_level_values(0):
-            raise ValueError("Downloaded price frame is missing Close column.")
-        close = hist["Close"].copy()
-
-    close = close.sort_index()
-    close = close.dropna(axis=1, how="all")
-    close = close.ffill().dropna(how="all")
-
-    if close.empty:
-        raise ValueError("Close price history is empty after cleaning.")
-
-    close.index = pd.to_datetime(close.index).tz_localize(None)
-    return close
-
-
 def fetch_close_history(
     tickers: list[str],
     start_date: date,
@@ -73,23 +51,7 @@ def fetch_close_history(
 ) -> pd.DataFrame:
     if not tickers:
         raise ValueError("At least one ticker is required for backtesting.")
-
-    # yfinance end date is exclusive, so advance by one day to include requested end_date.
-    hist = yf.download(
-        tickers=tickers,
-        start=start_date.isoformat(),
-        end=(end_date + timedelta(days=1)).isoformat(),
-        auto_adjust=True,
-        progress=False,
-        group_by="column",
-    )
-    close = _normalize_download_close(hist, tickers)
-
-    missing = [t for t in tickers if t not in close.columns]
-    if missing:
-        raise ValueError(f"Missing close history for tickers: {', '.join(missing)}")
-
-    return close[tickers]
+    return get_provider().fetch_close_history(tickers, start_date, end_date)
 
 
 def fetch_benchmark_close(benchmark_ticker: str, start_date: date, end_date: date) -> pd.Series:

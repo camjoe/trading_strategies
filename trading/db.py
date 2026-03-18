@@ -1,6 +1,12 @@
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+from trading.db_backend import get_backend
+
+# Type alias — the concrete type depends on the active DatabaseBackend.
+DBConnection = Any
 
 DB_PATH = Path(__file__).resolve().parent / "database" / "paper_trading.db"
 
@@ -203,20 +209,17 @@ ACCOUNT_MIGRATIONS = (
 )
 
 
-def ensure_db() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+def ensure_db() -> DBConnection:
+    conn = get_backend().open_connection()
     init_schema(conn)
     return conn
 
 
-def _column_names(conn: sqlite3.Connection, table_name: str) -> set[str]:
-    cols = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    return {str(c[1]) for c in cols}
+def _column_names(conn: DBConnection, table_name: str) -> set[str]:
+    return get_backend().get_table_columns(conn, table_name)
 
 
-def _ensure_column(conn: sqlite3.Connection, table_name: str, migration: ColumnMigration) -> None:
+def _ensure_column(conn: DBConnection, table_name: str, migration: ColumnMigration) -> None:
     if migration.column_name in _column_names(conn, table_name):
         return
     conn.execute(migration.ddl)
@@ -225,8 +228,8 @@ def _ensure_column(conn: sqlite3.Connection, table_name: str, migration: ColumnM
     conn.commit()
 
 
-def init_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA_SQL)
+def init_schema(conn: DBConnection) -> None:
+    get_backend().run_script(conn, SCHEMA_SQL)
     for migration in ACCOUNT_MIGRATIONS:
         _ensure_column(conn, "accounts", migration)
     conn.commit()

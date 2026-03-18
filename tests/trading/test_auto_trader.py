@@ -160,19 +160,16 @@ def test_prepare_sell_trade_leaps_forced_sell(monkeypatch):
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single(monkeypatch):
-    class _Ticker:
-        def __init__(self, ticker):
-            self.ticker = ticker
+    import common.market_data as _mdata
 
-        def history(self, **kwargs):
-            if self.ticker == "EMPTY":
-                return pd.DataFrame()
-            if self.ticker == "ONE":
-                close = pd.Series(range(1, 50), dtype=float)
-                return pd.DataFrame({"Close": close})
-            return pd.DataFrame()
+    def fake_fetch_close_series(ticker: str, period: str):
+        if ticker == "EMPTY":
+            return None
+        if ticker == "ONE":
+            return pd.Series(range(1, 50), dtype=float)
+        return None
 
-    monkeypatch.setattr(auto_trader.yf, "Ticker", _Ticker)
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series", fake_fetch_close_series)
 
     assert auto_trader.build_iv_rank_proxy(["EMPTY"]) == {}
     assert auto_trader.build_iv_rank_proxy(["ONE"]) == {"ONE": 50.0}

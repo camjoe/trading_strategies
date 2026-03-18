@@ -1,22 +1,13 @@
-import yfinance as yf
+from datetime import date
 
-
-def _fetch_close(ticker: str, **hist_kwargs: object):
-    """Return the cleaned Close series from a yfinance history call, or None on failure/empty."""
-    try:
-        hist = yf.Ticker(ticker).history(**hist_kwargs, auto_adjust=True)
-        if hist.empty:
-            return None
-        close = hist["Close"].dropna()
-        return close if not close.empty else None
-    except Exception:
-        return None
+from common.market_data import get_provider
 
 
 def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
+    provider = get_provider()
     prices: dict[str, float] = {}
     for ticker in tickers:
-        close = _fetch_close(ticker, period="5d")
+        close = provider.fetch_close_series(ticker, "5d")
         if close is not None:
             prices[ticker] = float(close.iloc[-1])
     return prices
@@ -24,10 +15,14 @@ def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
 
 def benchmark_stats(benchmark_ticker: str, initial_cash: float, created_at: str) -> tuple[float | None, float | None]:
     ticker = benchmark_ticker.upper().strip()
-    close = _fetch_close(ticker, start=created_at[:10], period="max")
-    if close is None:
+    start = date.fromisoformat(created_at[:10])
+    try:
+        close_df = get_provider().fetch_close_history([ticker], start, date.today())
+        close = close_df[ticker].dropna()
+    except Exception:
         return None, None
-
+    if close.empty:
+        return None, None
     start_price = float(close.iloc[0])
     end_price = float(close.iloc[-1])
     bench_equity = initial_cash * (end_price / start_price)

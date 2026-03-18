@@ -20,7 +20,7 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(monkeypatch: pytest.Mo
         columns=columns,
     )
 
-    monkeypatch.setattr("trends.data.yf.download", lambda *args, **kwargs: df)
+    monkeypatch.setattr("common.market_data.yf.download", lambda *args, **kwargs: df)
 
     out = fetch_data("AAPL", period="1y", interval="1d")
 
@@ -30,7 +30,7 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(monkeypatch: pytest.Mo
 
 
 def test_fetch_data_raises_for_empty_download(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("trends.data.yf.download", lambda *args, **kwargs: pd.DataFrame())
+    monkeypatch.setattr("common.market_data.yf.download", lambda *args, **kwargs: pd.DataFrame())
 
     with pytest.raises(ValueError, match="No data returned"):
         fetch_data("AAPL", period="1y", interval="1d")

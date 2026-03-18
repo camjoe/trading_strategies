@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import TypeAlias
 
-import yfinance as yf
+from common.market_data import get_provider
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 
@@ -60,11 +60,8 @@ def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
     vols: dict[str, float] = {}
     for ticker in universe:
         try:
-            hist = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
-            if hist.empty:
-                continue
-            close = hist["Close"].dropna()
-            if len(close) < 30:
+            close = get_provider().fetch_close_series(ticker, "1y")
+            if close is None or len(close) < 30:
                 continue
             daily_ret = close.pct_change().dropna()
             if daily_ret.empty:

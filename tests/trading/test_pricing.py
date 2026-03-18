@@ -1,71 +1,72 @@
-from unittest.mock import MagicMock, patch
+from datetime import date
 
+import common.market_data as _mdata
 import pandas as pd
 import pytest
 
 from trading.pricing import benchmark_stats, fetch_latest_prices
 
 
-def _hist(closes: list[float]) -> pd.DataFrame:
-    return pd.DataFrame({"Close": closes})
+def _series(*closes: float) -> pd.Series:
+    return pd.Series(list(closes), dtype=float)
+
+
+def _close_history(ticker: str, closes: list[float]) -> pd.DataFrame:
+    return pd.DataFrame({ticker: closes})
 
 
 # ---------------------------------------------------------------------------
 # fetch_latest_prices
 # ---------------------------------------------------------------------------
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_single(mock_yf):
-    mock_yf.Ticker.return_value.history.return_value = _hist([99.0, 100.5, 101.0])
+def test_fetch_latest_prices_single(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series",
+                        lambda ticker, period: _series(99.0, 100.5, 101.0))
     assert fetch_latest_prices(["AAPL"]) == {"AAPL": 101.0}
 
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_multiple(mock_yf):
-    def _side(ticker):
-        m = MagicMock()
-        m.history.return_value = _hist([{"AAPL": 150.0, "SPY": 500.0}[ticker]])
-        return m
-    mock_yf.Ticker.side_effect = _side
+def test_fetch_latest_prices_multiple(monkeypatch: pytest.MonkeyPatch):
+    prices_map = {"AAPL": 150.0, "SPY": 500.0}
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series",
+                        lambda ticker, period: _series(prices_map[ticker]))
     result = fetch_latest_prices(["AAPL", "SPY"])
     assert result == {"AAPL": 150.0, "SPY": 500.0}
 
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_empty_list(mock_yf):
+def test_fetch_latest_prices_empty_list(monkeypatch: pytest.MonkeyPatch):
+    called = []
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series",
+                        lambda ticker, period: called.append(ticker) or None)
     assert fetch_latest_prices([]) == {}
-    mock_yf.Ticker.assert_not_called()
+    assert called == []
 
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_empty_hist(mock_yf):
-    mock_yf.Ticker.return_value.history.return_value = pd.DataFrame()
+def test_fetch_latest_prices_returns_none(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series",
+                        lambda ticker, period: None)
     assert fetch_latest_prices(["AAPL"]) == {}
 
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_all_nan_closes(mock_yf):
-    mock_yf.Ticker.return_value.history.return_value = _hist([float("nan"), float("nan")])
+def test_fetch_latest_prices_all_nan_closes(monkeypatch: pytest.MonkeyPatch):
+    # Provider already dropna-s — returning None models empty/all-NaN response.
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series",
+                        lambda ticker, period: None)
     assert fetch_latest_prices(["AAPL"]) == {}
 
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_exception(mock_yf):
-    mock_yf.Ticker.return_value.history.side_effect = RuntimeError("network error")
+def test_fetch_latest_prices_exception(monkeypatch: pytest.MonkeyPatch):
+    # Provider swallows exceptions and returns None.
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series",
+                        lambda ticker, period: None)
     assert fetch_latest_prices(["AAPL"]) == {}
 
 
-@patch("trading.pricing.yf")
-def test_fetch_latest_prices_one_fails(mock_yf):
+def test_fetch_latest_prices_one_fails(monkeypatch: pytest.MonkeyPatch):
     """One bad ticker should not prevent other results from being collected."""
-    def _side(ticker):
-        m = MagicMock()
-        if ticker == "BAD":
-            m.history.return_value = pd.DataFrame()
-        else:
-            m.history.return_value = _hist([200.0])
-        return m
-    mock_yf.Ticker.side_effect = _side
+    def _stub(ticker: str, period: str) -> pd.Series | None:
+        return None if ticker == "BAD" else _series(200.0)
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_series", _stub)
     result = fetch_latest_prices(["GOOD", "BAD"])
     assert result == {"GOOD": 200.0}
 
@@ -74,39 +75,54 @@ def test_fetch_latest_prices_one_fails(mock_yf):
 # benchmark_stats
 # ---------------------------------------------------------------------------
 
-@patch("trading.pricing.yf")
-def test_benchmark_stats_normal(mock_yf):
-    mock_yf.Ticker.return_value.history.return_value = _hist([100.0, 110.0, 120.0])
+def test_benchmark_stats_normal(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history",
+                        lambda tickers, start, end: _close_history(tickers[0], [100.0, 110.0, 120.0]))
     equity, ret = benchmark_stats("SPY", 10_000.0, "2024-01-01T00:00:00")
     assert equity == pytest.approx(12_000.0)
     assert ret == pytest.approx(20.0)
 
 
-@patch("trading.pricing.yf")
-def test_benchmark_stats_ticker_normalized(mock_yf):
-    mock_yf.Ticker.return_value.history.return_value = _hist([50.0, 50.0])
+def test_benchmark_stats_ticker_normalized(monkeypatch: pytest.MonkeyPatch):
+    """Ticker is normalised to uppercase before being passed to the provider."""
+    calls: list[list[str]] = []
+
+    def _stub(tickers: list[str], start: date, end: date) -> pd.DataFrame:
+        calls.append(tickers)
+        return _close_history(tickers[0], [50.0, 50.0])
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history", _stub)
     equity, ret = benchmark_stats(" spy ", 1_000.0, "2024-01-01")
     assert equity == pytest.approx(1_000.0)
     assert ret == pytest.approx(0.0)
-    mock_yf.Ticker.assert_called_once_with("SPY")
+    assert calls == [["SPY"]]
 
 
-@patch("trading.pricing.yf")
-def test_benchmark_stats_empty_hist(mock_yf):
-    mock_yf.Ticker.return_value.history.return_value = pd.DataFrame()
+def test_benchmark_stats_empty_hist(monkeypatch: pytest.MonkeyPatch):
+    def _raises(*args, **kwargs):
+        raise ValueError("no data")
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history", _raises)
     assert benchmark_stats("SPY", 10_000.0, "2024-01-01") == (None, None)
 
 
-@patch("trading.pricing.yf")
-def test_benchmark_stats_exception(mock_yf):
-    mock_yf.Ticker.return_value.history.side_effect = OSError("timeout")
+def test_benchmark_stats_exception(monkeypatch: pytest.MonkeyPatch):
+    def _raises(*args, **kwargs):
+        raise OSError("timeout")
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history", _raises)
     assert benchmark_stats("SPY", 10_000.0, "2024-01-01") == (None, None)
 
 
-@patch("trading.pricing.yf")
-def test_benchmark_stats_uses_created_at_date(mock_yf):
-    """created_at is truncated to date before being passed to yfinance."""
-    mock_yf.Ticker.return_value.history.return_value = _hist([10.0, 20.0])
+def test_benchmark_stats_uses_created_at_date(monkeypatch: pytest.MonkeyPatch):
+    """created_at is truncated to a date before being passed to the provider."""
+    calls: list[tuple] = []
+
+    def _stub(tickers: list[str], start: date, end: date) -> pd.DataFrame:
+        calls.append((tickers, start, end))
+        return _close_history(tickers[0], [10.0, 20.0])
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history", _stub)
     benchmark_stats("QQQ", 5_000.0, "2023-06-15T12:34:56")
-    _, call_kwargs = mock_yf.Ticker.return_value.history.call_args
-    assert call_kwargs["start"] == "2023-06-15"
+    assert calls[0][1] == date(2023, 6, 15)
+

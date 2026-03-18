@@ -90,7 +90,7 @@ def test_fetch_close_history_missing_close_column_raises(monkeypatch: pytest.Mon
         index=idx,
     )
 
-    monkeypatch.setattr(backtest_data.yf, "download", lambda **_kwargs: hist)
+    monkeypatch.setattr("common.market_data.yf.download", lambda **_kwargs: hist)
 
     with pytest.raises(ValueError, match="missing Close column"):
         backtest_data.fetch_close_history(["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 31))

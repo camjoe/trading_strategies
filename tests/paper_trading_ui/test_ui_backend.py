@@ -8,17 +8,19 @@ from fastapi.testclient import TestClient
 
 from trading import db
 from trading.accounts import create_account, utc_now_iso
+from trading.db_backend import SQLiteBackend, get_backend, set_backend
 
 
 @pytest.fixture
-def api_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    test_db_path = tmp_path / "paper_trading_ui.db"
-    monkeypatch.setattr(db, "DB_PATH", test_db_path)
-
+def api_client(tmp_path: Path) -> Iterator[TestClient]:
+    original = get_backend()
+    set_backend(SQLiteBackend(tmp_path / "paper_trading_ui.db"))
     from paper_trading_ui.backend.main import app
-
-    with TestClient(app) as client:
-        yield client
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        set_backend(original)
 
 
 def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -> None:
