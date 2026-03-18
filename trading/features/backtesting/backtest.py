@@ -10,22 +10,16 @@ from statistics import median
 
 import pandas as pd
 
-try:
-    from trading.accounts import get_account, utc_now_iso
-    from trading.backtesting.backtest_data import (
-        build_monthly_universe,
-        fetch_benchmark_close,
-        fetch_close_history,
-        load_tickers_from_file,
-        resolve_backtest_dates,
-    )
-    from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-    from trading.backtesting.strategy_signals import resolve_signal
-except ModuleNotFoundError:
-    from trading.accounts import get_account, utc_now_iso
-    from trading.backtesting.backtest_data import build_monthly_universe, fetch_benchmark_close, fetch_close_history, load_tickers_from_file, resolve_backtest_dates
-    from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-    from backtesting.strategy_signals import resolve_signal
+from trading.accounts import get_account, utc_now_iso
+from trading.features.backtesting.backtest_data import (
+    build_monthly_universe,
+    fetch_benchmark_close,
+    fetch_close_history,
+    load_tickers_from_file,
+    resolve_backtest_dates,
+)
+from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.features.backtesting.strategy_signals import resolve_signal
 
 
 @dataclass

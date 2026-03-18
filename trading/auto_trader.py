@@ -9,15 +9,15 @@ from common.market_data import get_provider
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
 from trading.database.code.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def parse_args() -> argparse.Namespace:

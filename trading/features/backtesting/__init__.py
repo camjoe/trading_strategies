@@ -1,4 +1,4 @@
-from trading.backtesting.backtest import (
+from trading.features.backtesting.backtest import (
     BacktestConfig,
     BacktestResult,
     WalkForwardConfig,
