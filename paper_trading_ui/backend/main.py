@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
+from trading.accounts import create_account
 from trading.accounting import load_trades
 from trading.backtesting.backtest import (
     BacktestConfig,
@@ -200,6 +202,140 @@ class BacktestPreflightRequest(BaseModel):
     allowApproximateLeaps: bool = False
 
 
+class AdminCreateAccountRequest(BaseModel):
+    name: str
+    strategy: str
+    initialCash: float = Field(gt=0)
+    benchmarkTicker: str = "SPY"
+    descriptiveName: str | None = None
+    goalMinReturnPct: float | None = None
+    goalMaxReturnPct: float | None = None
+    goalPeriod: str = "monthly"
+    learningEnabled: bool = False
+    riskPolicy: str = "none"
+    stopLossPct: float | None = None
+    takeProfitPct: float | None = None
+    instrumentMode: str = "equity"
+    optionStrikeOffsetPct: float | None = None
+    optionMinDte: int | None = None
+    optionMaxDte: int | None = None
+    optionType: str | None = None
+    targetDeltaMin: float | None = None
+    targetDeltaMax: float | None = None
+    maxPremiumPerTrade: float | None = None
+    maxContractsPerTrade: int | None = None
+    ivRankMin: float | None = None
+    ivRankMax: float | None = None
+    rollDteThreshold: int | None = None
+    profitTakePct: float | None = None
+    maxLossPct: float | None = None
+    rotationEnabled: bool = False
+    rotationMode: str = "time"
+    rotationOptimalityMode: str = "previous_period_best"
+    rotationIntervalDays: int | None = None
+    rotationLookbackDays: int | None = None
+    rotationSchedule: list[str] | None = None
+    rotationActiveIndex: int = 0
+    rotationLastAt: str | None = None
+    rotationActiveStrategy: str | None = None
+
+
+class AdminDeleteAccountRequest(BaseModel):
+    accountName: str
+    confirm: bool = False
+
+
+def _clean_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _rotation_schedule_json(value: list[str] | None) -> str | None:
+    if not value:
+        return None
+    normalized = [item.strip() for item in value if item and item.strip()]
+    if not normalized:
+        return None
+    unique: list[str] = []
+    for item in normalized:
+        if item not in unique:
+            unique.append(item)
+    return json.dumps(unique, separators=(",", ":"))
+
+
+def _delete_account_and_dependents(conn: sqlite3.Connection, account_name: str) -> dict[str, int]:
+    account = conn.execute("SELECT id FROM accounts WHERE name = ?", (account_name,)).fetchone()
+    if account is None:
+        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.")
+
+    account_id = int(account["id"])
+    run_rows = conn.execute("SELECT id FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchall()
+    run_ids = tuple(int(row["id"]) for row in run_rows)
+
+    counts = {
+        "accounts": 1,
+        "trades": int(conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (account_id,)).fetchone()["n"]),
+        "equitySnapshots": int(
+            conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (account_id,)).fetchone()["n"]
+        ),
+        "backtestRuns": len(run_ids),
+        "backtestTrades": 0,
+        "backtestEquitySnapshots": 0,
+    }
+
+    conn.execute("BEGIN")
+    if run_ids:
+        placeholders = ",".join(["?"] * len(run_ids))
+        counts["backtestTrades"] = int(
+            conn.execute(
+                f"SELECT COUNT(*) AS n FROM backtest_trades WHERE run_id IN ({placeholders})",
+                run_ids,
+            ).fetchone()["n"]
+        )
+        counts["backtestEquitySnapshots"] = int(
+            conn.execute(
+                f"SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id IN ({placeholders})",
+                run_ids,
+            ).fetchone()["n"]
+        )
+        conn.execute(f"DELETE FROM backtest_equity_snapshots WHERE run_id IN ({placeholders})", run_ids)
+        conn.execute(f"DELETE FROM backtest_trades WHERE run_id IN ({placeholders})", run_ids)
+        conn.execute(f"DELETE FROM backtest_runs WHERE id IN ({placeholders})", run_ids)
+
+    conn.execute("DELETE FROM equity_snapshots WHERE account_id = ?", (account_id,))
+    conn.execute("DELETE FROM trades WHERE account_id = ?", (account_id,))
+    conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+    conn.commit()
+    return counts
+
+
+def _latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
+    latest_row = conn.execute(
+        """
+        SELECT r.id
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        WHERE a.name = ?
+        ORDER BY r.id DESC
+        LIMIT 1
+        """,
+        (account_name,),
+    ).fetchone()
+    if latest_row is None:
+        return None
+
+    report = backtest_report(conn, int(latest_row["id"]))
+    return {
+        "runId": int(report["run_id"]),
+        "endDate": report["end_date"],
+        "totalReturnPct": float(report["total_return_pct"]),
+        "maxDrawdownPct": float(report["max_drawdown_pct"]),
+        "alphaPct": float(report["alpha_pct"]) if report.get("alpha_pct") is not None else None,
+    }
+
+
 def _backtest_config_from_run_request(payload: BacktestRunRequest) -> BacktestConfig:
     return BacktestConfig(
         account_name=payload.account,
@@ -260,6 +396,30 @@ def api_accounts() -> dict[str, list[dict[str, object]]]:
         return {"accounts": accounts}
 
 
+@app.get("/api/accounts/compare")
+def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
+    with _db_conn() as conn:
+        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        comparison: list[dict[str, object]] = []
+        for row in rows:
+            summary = _build_account_summary(conn, row)
+            latest_backtest = _latest_backtest_metrics(conn, str(row["name"]))
+            comparison.append(
+                {
+                    "name": summary["name"],
+                    "displayName": summary["displayName"],
+                    "strategy": summary["strategy"],
+                    "benchmark": summary["benchmark"],
+                    "equity": summary["equity"],
+                    "initialCash": summary["initialCash"],
+                    "totalChange": summary["totalChange"],
+                    "totalChangePct": summary["totalChangePct"],
+                    "latestBacktest": latest_backtest,
+                }
+            )
+        return {"accounts": comparison}
+
+
 @app.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
     with _db_conn() as conn:
@@ -285,6 +445,94 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             "latestBacktest": latest_backtest,
             "snapshots": [_snapshot_payload(s) for s in snapshots],
             "trades": [_trade_payload(t) for t in trades[-100:]],
+        }
+
+
+@app.post("/api/admin/accounts/create")
+def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, object]:
+    with _db_conn() as conn:
+        try:
+            create_account(
+                conn,
+                name=payload.name.strip(),
+                strategy=payload.strategy.strip(),
+                initial_cash=float(payload.initialCash),
+                benchmark_ticker=payload.benchmarkTicker.strip().upper(),
+                descriptive_name=_clean_text(payload.descriptiveName),
+                goal_min_return_pct=payload.goalMinReturnPct,
+                goal_max_return_pct=payload.goalMaxReturnPct,
+                goal_period=payload.goalPeriod,
+                learning_enabled=bool(payload.learningEnabled),
+                risk_policy=payload.riskPolicy,
+                stop_loss_pct=payload.stopLossPct,
+                take_profit_pct=payload.takeProfitPct,
+                instrument_mode=payload.instrumentMode,
+                option_strike_offset_pct=payload.optionStrikeOffsetPct,
+                option_min_dte=payload.optionMinDte,
+                option_max_dte=payload.optionMaxDte,
+                option_type=_clean_text(payload.optionType),
+                target_delta_min=payload.targetDeltaMin,
+                target_delta_max=payload.targetDeltaMax,
+                max_premium_per_trade=payload.maxPremiumPerTrade,
+                max_contracts_per_trade=payload.maxContractsPerTrade,
+                iv_rank_min=payload.ivRankMin,
+                iv_rank_max=payload.ivRankMax,
+                roll_dte_threshold=payload.rollDteThreshold,
+                profit_take_pct=payload.profitTakePct,
+                max_loss_pct=payload.maxLossPct,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except sqlite3.IntegrityError as error:
+            raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
+
+        rotation_schedule = _rotation_schedule_json(payload.rotationSchedule)
+        conn.execute(
+            """
+            UPDATE accounts
+            SET rotation_enabled = ?,
+                rotation_mode = ?,
+                rotation_optimality_mode = ?,
+                rotation_interval_days = ?,
+                rotation_lookback_days = ?,
+                rotation_schedule = ?,
+                rotation_active_index = ?,
+                rotation_last_at = ?,
+                rotation_active_strategy = ?
+            WHERE name = ?
+            """,
+            (
+                1 if payload.rotationEnabled else 0,
+                payload.rotationMode.strip().lower(),
+                payload.rotationOptimalityMode.strip().lower(),
+                payload.rotationIntervalDays,
+                payload.rotationLookbackDays,
+                rotation_schedule,
+                int(payload.rotationActiveIndex),
+                _clean_text(payload.rotationLastAt),
+                _clean_text(payload.rotationActiveStrategy),
+                payload.name.strip(),
+            ),
+        )
+        conn.commit()
+
+        account = _account_row(conn, payload.name.strip())
+        return {
+            "status": "ok",
+            "account": _build_account_summary(conn, account),
+        }
+
+
+@app.post("/api/admin/accounts/delete")
+def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, object]:
+    if not payload.confirm:
+        raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
+
+    with _db_conn() as conn:
+        counts = _delete_account_and_dependents(conn, payload.accountName.strip())
+        return {
+            "status": "ok",
+            "deleted": counts,
         }
 
 

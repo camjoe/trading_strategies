@@ -1,7 +1,9 @@
 import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
+import { createAdminFeature } from "./features/admin";
 import { createBacktestingFeature } from "./features/backtesting";
+import { createCompareFeature } from "./features/compare";
 import { createLogsFeature } from "./features/logs";
 import { initDocsFeature } from "./features/docs";
 import appLayoutTemplate from "./views/app-layout.html?raw";
@@ -9,6 +11,8 @@ import navTemplate from "./views/nav.html?raw";
 import tradesTemplate from "./views/trades.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
+import adminTemplate from "./views/admin.html?raw";
+import compareTemplate from "./views/compare.html?raw";
 import docsTemplate from "./views/docs.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
@@ -35,6 +39,8 @@ function renderShell(): void {
     .replace("<!-- TRADES_TAB_PARTIAL -->", tradesTemplate)
     .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTemplate)
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
+    .replace("<!-- ADMIN_TAB_PARTIAL -->", adminTemplate)
+    .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", docsTemplate);
 }
 
@@ -45,6 +51,14 @@ const accountsFeature = createAccountsFeature({
   },
   onOpenRunReport: (runId) => backtestingFeature.loadBacktestReport(runId),
 });
+const compareFeature = createCompareFeature();
+const adminFeature = createAdminFeature({
+  onAccountsChanged: async () => {
+    await accountsFeature.loadAccounts();
+    await adminFeature.loadDeleteAccounts();
+    await compareFeature.loadComparison();
+  },
+});
 const logsFeature = createLogsFeature();
 
 async function bootstrap(): Promise<void> {
@@ -52,10 +66,14 @@ async function bootstrap(): Promise<void> {
   initTabs();
   initDocsFeature(openTab);
   accountsFeature.wireActions();
+  adminFeature.wireActions();
   logsFeature.wireActions();
+  compareFeature.wireActions();
   backtestingFeature.wireActions();
   await accountsFeature.loadAccounts();
+  await adminFeature.loadDeleteAccounts();
   await logsFeature.loadLogFiles();
+  await compareFeature.loadComparison();
   await backtestingFeature.loadBacktestRuns();
 }
 

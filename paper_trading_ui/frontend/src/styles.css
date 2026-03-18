@@ -242,8 +242,6 @@ body {
 }
 
 .doc-entry {
-  display: flex;
-  flex-direction: column;
   background: #ffffffd6;
   border: 1px solid #d1dceb;
   border-radius: 12px;
@@ -261,7 +259,6 @@ body {
   font-size: 0.9rem;
   color: var(--ink-soft);
   line-height: 1.5;
-  flex: 1;
 }
 
 .ref-card {
@@ -386,36 +383,24 @@ body {
   text-align: left;
 }
 
-.ref-table th:nth-child(1) {
-  width: 25%;
-}
-
-.ref-table th:nth-child(2) {
-  width: 30%;
-}
-
-.ref-table th:nth-child(3) {
-  width: 45%;
-}
-
 .ref-table td {
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid #e8eef5;
-  vertical-align: middle;
+  vertical-align: top;
 }
 
-.ref-table td:nth-child(1) {
-  width: 25%;
+.ref-table td:first-child {
   font-weight: 600;
+  white-space: normal;
   color: var(--ink);
+  width: 12%;
 }
 
 .ref-table td:nth-child(2) {
-  width: 30%;
+  width: 18%;
 }
 
-.ref-table td:nth-child(3) {
-  width: 45%;
+.ref-table td:last-child {
   color: var(--ink-soft);
   line-height: 1.5;
 }
@@ -428,42 +413,102 @@ body {
   line-height: 1.7;
 }
 
-/* 2-col endpoint tables: Purpose starts at 42% */
-.ref-table--endpoint th:nth-child(1),
-.ref-table--endpoint td:nth-child(1) {
-  width: 42%;
+.admin-card,
+.compare-card {
+  grid-column: span 12;
 }
 
-.ref-table--endpoint th:nth-child(2),
-.ref-table--endpoint td:nth-child(2) {
-  width: 58%;
+.admin-note {
+  margin: 0 0 0.75rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
 }
 
-/* Software tables: short first-col names, give the description more room */
-.ref-table--software th:nth-child(1),
-.ref-table--software td:nth-child(1) {
-  width: 20%;
+.admin-form {
+  display: grid;
+  gap: 0.75rem;
 }
 
-.ref-table--software th:nth-child(2),
-.ref-table--software td:nth-child(2) {
-  width: 80%;
+.admin-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* 3-col param tables: col1(30%) + col2(12%) = 42%, so Details aligns with Purpose */
-.ref-table--params th:nth-child(1),
-.ref-table--params td:nth-child(1) {
-  width: 30%;
+.admin-wide {
+  grid-column: 1 / -1;
 }
 
-.ref-table--params th:nth-child(2),
-.ref-table--params td:nth-child(2) {
-  width: 12%;
+.danger-btn {
+  background: #aa2a4a;
+  color: #fff;
 }
 
-.ref-table--params th:nth-child(3),
-.ref-table--params td:nth-child(3) {
-  width: 58%;
+.danger-btn:hover,
+.danger-btn:focus-visible {
+  background: #8f1d3b;
+}
+
+.success {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #bce3c7;
+  background: #ecfbf0;
+  color: #156c3f;
+  font-size: 0.9rem;
+}
+
+.error {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #efbfd0;
+  background: #fff1f6;
+  color: #912549;
+  font-size: 0.9rem;
+}
+
+.compare-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.compare-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+  font-size: 0.88rem;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid #e8eef5;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.compare-table th {
+  background: #edf4fb;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ref-subsection-label {
@@ -638,19 +683,6 @@ td {
 .bt-form {
   display: grid;
   gap: 0.55rem;
-}
-
-.bt-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.bt-field > span {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--ink-soft);
-  letter-spacing: 0.02em;
 }
 
 .bt-advanced {

@@ -142,3 +142,66 @@ def test_latest_backtest_endpoint_returns_none_when_missing(api_client: TestClie
     payload = response.json()
     assert payload["accountName"] == "acct_api_empty"
     assert payload["latestRun"] is None
+
+
+def test_admin_create_account_endpoint(api_client: TestClient) -> None:
+    response = api_client.post(
+        "/api/admin/accounts/create",
+        json={
+            "name": "acct_admin_create",
+            "strategy": "trend",
+            "initialCash": 7500,
+            "benchmarkTicker": "SPY",
+            "descriptiveName": "Admin Created",
+            "riskPolicy": "stop_and_target",
+            "stopLossPct": 4,
+            "takeProfitPct": 8,
+            "instrumentMode": "equity",
+            "rotationEnabled": True,
+            "rotationMode": "time",
+            "rotationIntervalDays": 14,
+            "rotationSchedule": ["trend", "mean_reversion"],
+            "rotationActiveIndex": 0,
+            "rotationActiveStrategy": "trend",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["account"]["name"] == "acct_admin_create"
+
+
+def test_admin_delete_account_endpoint(api_client: TestClient) -> None:
+    conn = db.ensure_db()
+    try:
+        create_account(conn, "acct_admin_delete", "trend", 5000.0, "SPY")
+    finally:
+        conn.close()
+
+    response = api_client.post(
+        "/api/admin/accounts/delete",
+        json={"accountName": "acct_admin_delete", "confirm": True},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["deleted"]["accounts"] == 1
+
+
+def test_accounts_compare_endpoint(api_client: TestClient) -> None:
+    conn = db.ensure_db()
+    try:
+        create_account(conn, "acct_cmp_a", "trend", 5000.0, "SPY")
+        create_account(conn, "acct_cmp_b", "mean_reversion", 5000.0, "SPY")
+    finally:
+        conn.close()
+
+    response = api_client.get("/api/accounts/compare")
+    assert response.status_code == 200
+
+    payload = response.json()
+    names = {item["name"] for item in payload["accounts"]}
+    assert "acct_cmp_a" in names
+    assert "acct_cmp_b" in names
