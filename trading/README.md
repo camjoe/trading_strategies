@@ -157,9 +157,9 @@ Deterministic simulation run:
 python -m trading.auto_trader --accounts momentum_5k,meanrev_5k --seed 42
 ```
 
-## Daily Scheduler (Windows)
+## Daily Scheduler (Cross-Platform)
 
-Scheduler script: `trading/scripts/daily_paper_trading.ps1`
+Scheduler script: `trading/scripts/daily_paper_trading.py`
 
 Behavior:
 
@@ -168,16 +168,16 @@ Behavior:
 - Prints strategy comparison
 - Writes logs to `local/logs/`
 - Stores run metadata including `RunSource`
-- Skips duplicate successful same-day runs unless `-ForceRun`
+- Skips duplicate successful same-day runs unless `--force-run`
 
 Manual runs:
 
 ```powershell
 # Normal run
-powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\scripts\daily_paper_trading.ps1 -RunSource manual
+python trading/scripts/daily_paper_trading.py --run-source manual
 
 # Force extra same-day run
-powershell -NoProfile -ExecutionPolicy Bypass -File .\trading\scripts\daily_paper_trading.ps1 -RunSource manual -ForceRun
+python trading/scripts/daily_paper_trading.py --run-source manual --force-run
 ```
 
 Task Scheduler recommendation:
@@ -185,11 +185,13 @@ Task Scheduler recommendation:
 - `Trading\DailyPaperTrading` (daily)
 - `Trading\DailyPaperTradingFallback` (startup fallback)
 
-Create startup fallback task:
+Create startup fallback task (Windows):
 
 ```powershell
-$scriptPath = Join-Path (Get-Location) "trading\scripts\daily_paper_trading.ps1"
-$action = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+$repoRoot = Get-Location
+$pythonExe = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$scriptPath = Join-Path $repoRoot "trading\scripts\daily_paper_trading.py"
+$action = "`"$pythonExe`" `"$scriptPath`" --run-source startup-fallback"
 schtasks /Create /TN "Trading\DailyPaperTradingFallback" /SC ONSTART /DELAY 0000:10 /TR $action /F
 ```
 
@@ -212,14 +214,45 @@ Delete fallback task:
 schtasks /Delete /TN "Trading\DailyPaperTradingFallback" /F
 ```
 
-Startup-folder fallback option:
+Startup-folder fallback option (Windows):
 
 ```powershell
 $startupDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup"
 $repoRoot = Get-Location
+$pythonExe = Join-Path $repoRoot ".venv\Scripts\python.exe"
 $cmdPath = Join-Path $startupDir "daily_paper_trading_fallback.cmd"
-$content = "@echo off`r`ncd /d `"$repoRoot`"`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File .\trading\scripts\daily_paper_trading.ps1 -RunSource startup-fallback`r`n"
+$content = "@echo off`r`ncd /d `"$repoRoot`"`r`n`"$pythonExe`" .\trading\scripts\daily_paper_trading.py --run-source startup-fallback`r`n"
 Set-Content -Path $cmdPath -Value $content -Encoding ASCII
+```
+
+## Weekly DB Backup Scheduler (Cross-Platform)
+
+Backup script: `trading/scripts/weekly_db_backup.py`
+
+Scheduler registration script: `trading/scripts/register_weekly_backup.py`
+
+Manual backup run:
+
+```powershell
+python trading/scripts/weekly_db_backup.py
+```
+
+Force a second backup in the same ISO week:
+
+```powershell
+python trading/scripts/weekly_db_backup.py --force-run
+```
+
+Register weekly schedule (uses Task Scheduler on Windows, cron on Linux):
+
+```powershell
+python trading/scripts/register_weekly_backup.py --day-of-week Sunday --time 02:00
+```
+
+Remove weekly schedule:
+
+```powershell
+python trading/scripts/register_weekly_backup.py --unregister
 ```
 
 ## Notes

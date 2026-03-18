@@ -61,24 +61,10 @@ Note: the launcher runs Vite with `--strictPort`, so if `FRONTEND_PORT` is occup
 From repository root:
 
 ```powershell
-python paper_trading_ui/scripts/launch_ui.py
+python scripts/launch_ui.py
 ```
 
 This keeps both services attached to your terminal and stops both when you press `Ctrl+C`.
-
-## One-Command Launcher (PowerShell)
-
-From repository root:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\paper_trading_ui\scripts\launch-ui.ps1
-```
-
-Dry run (show commands without starting processes):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\paper_trading_ui\scripts\launch-ui.ps1 -DryRun
-```
 
 Current Python launcher defaults:
 

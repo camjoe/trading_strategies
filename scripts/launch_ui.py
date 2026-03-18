@@ -59,8 +59,8 @@ def terminate_process(proc: subprocess.Popen[str]) -> None:
 
 def main() -> int:
     scripts_dir = Path(__file__).resolve().parent
-    ui_dir = scripts_dir.parent
-    repo_root = ui_dir.parent
+    repo_root = scripts_dir.parent
+    ui_dir = repo_root / "paper_trading_ui"
     backend_command, frontend_command = build_commands()
     env = {
         **os.environ,
