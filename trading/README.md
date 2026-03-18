@@ -164,6 +164,11 @@ Scheduler script: `trading/scripts/daily_paper_trading.py`
 Behavior:
 
 - Runs auto-trader for configured accounts
+- Defaults to all accounts in the DB (`--accounts all`)
+- Applies per-account trade caps by default:
+	- `momentum_5k`, `meanrev_5k`: 1-5/day
+	- `balanced_rotation_25k`, `core_growth_20k`, `income_defensive_15k`, `rotation_optimal_5k`, `rotation_time_5k`: 1-11/day
+- Supports per-account overrides with `--account-trade-caps account:min-max,...`
 - Saves snapshots
 - Prints strategy comparison
 - Writes logs to `local/logs/`
@@ -178,6 +183,9 @@ python trading/scripts/daily_paper_trading.py --run-source manual
 
 # Force extra same-day run
 python trading/scripts/daily_paper_trading.py --run-source manual --force-run
+
+# Example custom per-account caps
+python trading/scripts/daily_paper_trading.py --run-source manual --account-trade-caps momentum_5k:1-5,core_growth_20k:1-8,rotation_optimal_5k:1-6
 ```
 
 Task Scheduler recommendation:

@@ -126,3 +126,18 @@ def test_benchmark_stats_uses_created_at_date(monkeypatch: pytest.MonkeyPatch):
     benchmark_stats("QQQ", 5_000.0, "2023-06-15T12:34:56")
     assert calls[0][1] == date(2023, 6, 15)
 
+
+def test_benchmark_stats_duplicate_ticker_columns(monkeypatch: pytest.MonkeyPatch):
+    """If provider returns duplicate ticker columns, benchmark_stats still computes using first column."""
+
+    def _stub(_tickers: list[str], _start: date, _end: date) -> pd.DataFrame:
+        return pd.DataFrame(
+            [[100.0, 100.0], [110.0, 111.0], [120.0, 122.0]],
+            columns=["SPY", "SPY"],
+        )
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history", _stub)
+    equity, ret = benchmark_stats("SPY", 10_000.0, "2024-01-01")
+    assert equity == pytest.approx(12_000.0)
+    assert ret == pytest.approx(20.0)
+

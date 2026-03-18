@@ -1,5 +1,7 @@
 from datetime import date
 
+import pandas as pd
+
 from common.market_data import get_provider
 
 
@@ -18,7 +20,14 @@ def benchmark_stats(benchmark_ticker: str, initial_cash: float, created_at: str)
     start = date.fromisoformat(created_at[:10])
     try:
         close_df = get_provider().fetch_close_history([ticker], start, date.today())
-        close = close_df[ticker].dropna()
+        close_col = close_df[ticker]
+        if isinstance(close_col, pd.DataFrame):
+            # Some providers can return duplicate ticker columns; use the first non-empty series.
+            if close_col.shape[1] == 0:
+                return None, None
+            close = close_col.iloc[:, 0].dropna()
+        else:
+            close = close_col.dropna()
     except Exception:
         return None, None
     if close.empty:
