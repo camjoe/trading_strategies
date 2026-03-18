@@ -2,7 +2,7 @@ import json
 import sqlite3
 from pathlib import Path
 from trading.accounts import configure_account, create_account, get_account, set_benchmark
-from trading.db_coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from trading.database.code.db_coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 
 
 _CONFIGURE_KEYS = {

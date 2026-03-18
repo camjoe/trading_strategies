@@ -1,14 +1,13 @@
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from trading.db_backend import get_backend
+from trading.database.code.db_backend import get_backend
 
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any
 
-DB_PATH = Path(__file__).resolve().parent / "database" / "paper_trading.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "database" / "paper_trading.db"
 
 ACCOUNTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -137,13 +136,11 @@ SCHEMA_SQL = "\n".join(
     )
 )
 
-
 @dataclass(frozen=True)
 class ColumnMigration:
     column_name: str
     ddl: str
     post_sql: tuple[str, ...] = ()
-
 
 ACCOUNT_MIGRATIONS = (
     ColumnMigration(
@@ -208,16 +205,13 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration("max_loss_pct", "ALTER TABLE accounts ADD COLUMN max_loss_pct REAL"),
 )
 
-
 def ensure_db() -> DBConnection:
     conn = get_backend().open_connection()
     init_schema(conn)
     return conn
 
-
 def _column_names(conn: DBConnection, table_name: str) -> set[str]:
     return get_backend().get_table_columns(conn, table_name)
-
 
 def _ensure_column(conn: DBConnection, table_name: str, migration: ColumnMigration) -> None:
     if migration.column_name in _column_names(conn, table_name):
@@ -226,7 +220,6 @@ def _ensure_column(conn: DBConnection, table_name: str, migration: ColumnMigrati
     for stmt in migration.post_sql:
         conn.execute(stmt)
     conn.commit()
-
 
 def init_schema(conn: DBConnection) -> None:
     get_backend().run_script(conn, SCHEMA_SQL)

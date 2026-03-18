@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-
 class DatabaseBackend(ABC):
     """Abstract interface for database backends.
 
@@ -34,10 +33,8 @@ class DatabaseBackend(ABC):
     def get_table_columns(self, conn: Any, table: str) -> set[str]:
         """Return the set of column names that currently exist in *table*."""
 
-
 class SQLiteBackend(DatabaseBackend):
     """Concrete backend backed by SQLite via the stdlib ``sqlite3`` module.
-
     Args:
         db_path: Path to the SQLite file.  Defaults to the standard
             ``trading/database/paper_trading.db`` location.
@@ -47,7 +44,7 @@ class SQLiteBackend(DatabaseBackend):
         self.db_path: Path = (
             db_path
             if db_path is not None
-            else Path(__file__).resolve().parent / "database" / "paper_trading.db"
+            else Path(__file__).resolve().parent.parent.parent / "database" / "paper_trading.db"
         )
 
     def open_connection(self) -> sqlite3.Connection:
@@ -64,22 +61,16 @@ class SQLiteBackend(DatabaseBackend):
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
         return {str(row[1]) for row in rows}
 
-
 _backend: DatabaseBackend = SQLiteBackend()
-
 
 def get_backend() -> DatabaseBackend:
     """Return the active database backend."""
     return _backend
 
-
 def set_backend(backend: DatabaseBackend) -> None:
     """Replace the active database backend.
 
     Use this to inject a custom backend (e.g. for testing or migration):
-
-        from trading.db_backend import set_backend, SQLiteBackend
-        set_backend(SQLiteBackend(Path("/tmp/test.db")))
     """
     global _backend
     _backend = backend

@@ -10,7 +10,7 @@ from trading.backtesting.backtest import (
     run_walk_forward_backtest,
 )
 from trading.cli import build_parser
-from trading.db import DB_PATH, ensure_db
+from trading.database.code.db import DB_PATH, ensure_db
 from trading.profiles import apply_account_profiles, load_account_profiles
 from trading.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 

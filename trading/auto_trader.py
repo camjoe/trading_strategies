@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
-from trading.db import ensure_db
+from trading.database.code.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
 

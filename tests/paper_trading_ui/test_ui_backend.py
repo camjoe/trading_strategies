@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from trading import db
+from trading.database.code import db
 from trading.accounts import create_account, utc_now_iso
-from trading.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database.code.db_backend import SQLiteBackend, get_backend, set_backend
 
 
 @pytest.fixture

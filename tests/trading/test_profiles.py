@@ -3,7 +3,7 @@ import json
 import pytest
 
 from trading.accounts import get_account
-from trading.db_coercion import coerce_bool
+from trading.database.code.db_coercion import coerce_bool
 from trading.profiles import apply_account_profiles, load_account_profiles
 
 
