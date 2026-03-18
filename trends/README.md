@@ -13,21 +13,13 @@ python trends/stock_trends.py
 
 3. Charts are saved to `local/charts/`.
 
-Optional first run with explanations:
+Optional:
 
 ```powershell
 python trends/stock_trends.py --explain
 ```
 
-## What This Script Does
-
-`trends/stock_trends.py` downloads market data and calculates:
-- Moving averages: `MA20`, `MA50`, `MA200`
-- `RS` and `RSI14`
-- `MACD`, `MACDSignal`, and `MACDHist`
-- Daily return percentage
-
-It saves chart images into `local/charts/` each run.
+The script calculates moving averages, RSI/RS, MACD, and daily returns, then saves charts.
 
 ## Input Files
 
@@ -53,67 +45,55 @@ AAPL, MSFT, NVDA, AMZN
 SPY, QQQ, IWM
 ```
 
-## Usage Examples
+## Common Commands
 
-### Basic run
-
-From the project root:
-
-```powershell
-python trends/stock_trends.py
-```
-
-Behavior:
-- If `trends/assets/run_tickers.txt` exists, those tickers are used by default.
-- If multiple tickers are selected, charts are saved in batch mode (no popup windows).
-- If one ticker is selected, chart window opens and chart is also saved.
-
-### Run one ticker directly
+Run one ticker:
 
 ```powershell
 python trends/stock_trends.py AAPL --period 1y --interval 1d
 ```
 
-### Run using `trends/assets/run_tickers.txt`
+Run from file:
 
 ```powershell
 python trends/stock_trends.py --tickers-file trends/assets/run_tickers.txt --period 6mo --interval 1d
 ```
 
-### Run a category from `ticker_categories.txt`
+Run category:
 
 ```powershell
 python trends/stock_trends.py --category tech --period 1y --interval 1d
 ```
 
-### List available categories
+List categories:
 
 ```powershell
 python trends/stock_trends.py --list-categories
 ```
 
-### Show indicator explanations while running
+Show explanations:
 
 ```powershell
 python trends/stock_trends.py --category etf --explain
 ```
 
-### Use a custom category file path
+Custom category file:
 
 ```powershell
 python trends/stock_trends.py --category banks --category-file trends/assets/ticker_categories.txt
 ```
 
-### Debug column structure
+Debug data columns:
 
 ```powershell
 python trends/stock_trends.py NVDA --debug-columns
 ```
 
-(Useful when data-provider schema changes.)
-
 ## Notes
 
+- If `trends/assets/run_tickers.txt` exists, it is used by default.
+- Multiple tickers run in batch mode (saved charts, no popup).
+- Single ticker opens a chart window and also saves output.
 - Category names are case-insensitive.
 - Lines starting with `#` in ticker files are ignored.
 - Tickers can be written one per line or comma-separated.

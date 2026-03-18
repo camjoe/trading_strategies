@@ -1,7 +1,5 @@
 import argparse
 
-import pytest
-
 from trends.tickers import load_ticker_categories, load_tickers_from_file, resolve_tickers
 
 

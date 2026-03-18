@@ -26,8 +26,3 @@ Use this file to track possible strategy approaches, assumptions, and next exper
 - Risk limits
 - Validation method (walk-forward, out-of-sample)
 - Metrics (Sharpe, max drawdown, turnover, hit rate)
-
-## Backlog
-- [ ] Add first strategy hypothesis
-- [ ] Define baseline benchmark
-- [ ] Define success criteria for first test

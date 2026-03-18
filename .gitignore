@@ -1,7 +1,5 @@
 local/
 trading/database/*.db
-# Frontend coverage artifacts
-paper_trading_ui/frontend/coverage/
 
 #### Auto-Generated Python.gitignore file #####
 

@@ -46,17 +46,20 @@ pip install -r requirements/research.txt
 
 See [trends/README.md](trends/README.md) for full documentation and usage examples.
 
-```powershell
-python trends/stock_trends.py AAPL --period 1y
-```
-
 ### Backtesting
 
 See [docs/backtesting/README.md](docs/backtesting/README.md) for walk-forward simulation and strategy testing.
 
 ### Paper Trading
 
-See [docs/Paper Trading.md](docs/Paper%20Trading.md) for live strategy simulation and portfolio tracking.
+See [trading/README.md](trading/README.md) for paper trading commands, account profiles, and scheduler operations.
+
+Direct links:
+
+- [Main commands](trading/README.md#main-commands)
+- [Apply account profiles](trading/README.md#apply-account-profiles)
+- [Auto-trading](trading/README.md#auto-trading)
+- [Daily scheduler (Windows)](trading/README.md#daily-scheduler-windows)
 
 ## Testing
 

@@ -1,30 +1,24 @@
 # Docs Index
 
-This page is intentionally short and serves as a navigation index.
+Navigation index for docs and README files across the repository.
 
 ## Start Here
 
-1. `Paper Trading.md` for account setup and day-to-day commands.
-2. `backtesting/README.md` for backtest and walk-forward workflows.
-3. `Strategies.md` for strategy hypotheses and evaluation framing.
+1. `../README.md` for the repository overview.
+2. `../trading/README.md` for paper trading commands and scheduler operations.
 
-## Core Docs
+## Docs Folder Files
 
-- `Paper Trading.md`: account lifecycle, trade recording, snapshots, and comparisons.
-- `Paper Trading Scheduler.md`: Windows scheduling for daily paper trading runs.
-- `Strategies.md`: strategy ideas, assumptions, and evaluation checklist.
-- `TODO.md`: active backlog and maintenance checklist.
+- `Strategies.md`: strategy hypotheses and evaluation framework.
+- `TODO.md`: active backlog and docs freshness checklist.
+- `Tooling and Packages.md`: package inventory and optional tooling.
+- `backtesting/README.md`: backtesting workflows, safeguards, and notes.
+- `reference/Glossary.md`: finance, options, backtesting, and indicator terms.
 
-## Reference Docs
+## README Files Across Project
 
-- `reference/Glossary.md`: financial, options, backtesting, and indicator terms.
-- `Tooling and Packages.md`: tooling and package reference split by current versus optional use.
-- `backtesting/Tooling.md`: concise backtesting tooling notes.
-
-## Backtesting Docs
-
-- `backtesting/README.md`: commands, safeguards, and approximation notes.
-
-## Repo Overview
-
-- Root `README.md` is the high-level project entry point.
+- `../README.md`: repository overview and quick links.
+- `../trading/README.md`: trading module usage and scheduler operations.
+- `../trends/README.md`: trends module usage and ticker inputs.
+- `../paper_trading_ui/README.md`: UI backend/frontend setup and API routes.
+- `backtesting/README.md`: backtesting command reference.

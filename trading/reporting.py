@@ -3,13 +3,13 @@ import sqlite3
 try:
     from trading.accounts import format_goal_text, get_account, utc_now_iso
     from trading.accounting import compute_account_state, load_trades
-    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+    from trading.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
     from trading.models import AccountState
     from trading.pricing import benchmark_stats, fetch_latest_prices
 except ModuleNotFoundError:
     from accounts import format_goal_text, get_account, utc_now_iso
     from accounting import compute_account_state, load_trades
-    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+    from db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
     from models import AccountState
     from pricing import benchmark_stats, fetch_latest_prices
 
