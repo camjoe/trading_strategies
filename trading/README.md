@@ -165,9 +165,7 @@ Behavior:
 
 - Runs auto-trader for configured accounts
 - Defaults to all accounts in the DB (`--accounts all`)
-- Applies per-account trade caps by default:
-	- `momentum_5k`, `meanrev_5k`: 1-5/day
-	- `balanced_rotation_25k`, `core_growth_20k`, `income_defensive_15k`, `rotation_optimal_5k`, `rotation_time_5k`: 1-11/day
+- Applies per-account trade caps from JSON config: `trading/scripts/account_trade_caps.json`
 - Supports per-account overrides with `--account-trade-caps account:min-max,...`
 - Saves snapshots
 - Prints strategy comparison
@@ -186,6 +184,9 @@ python trading/scripts/daily_paper_trading.py --run-source manual --force-run
 
 # Example custom per-account caps
 python trading/scripts/daily_paper_trading.py --run-source manual --account-trade-caps momentum_5k:1-5,core_growth_20k:1-8,rotation_optimal_5k:1-6
+
+# Use a custom caps config file
+python trading/scripts/daily_paper_trading.py --run-source manual --trade-caps-config local/my_trade_caps.json
 ```
 
 Task Scheduler recommendation:

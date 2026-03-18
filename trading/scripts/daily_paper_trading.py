@@ -5,21 +5,14 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-DEFAULT_ACCOUNT_TRADE_CAPS: dict[str, tuple[int, int]] = {
-    "momentum_5k": (1, 5),
-    "meanrev_5k": (1, 5),
-    "balanced_rotation_25k": (1, 11),
-    "core_growth_20k": (1, 11),
-    "income_defensive_15k": (1, 11),
-    "rotation_optimal_5k": (1, 11),
-    "rotation_time_5k": (1, 11),
-}
+DEFAULT_TRADE_CAPS_CONFIG = "trading/scripts/account_trade_caps.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,6 +37,14 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Optional per-account overrides in the form "
             "account:min-max,account:min-max (example: momentum_5k:1-5,core_growth_20k:1-8)"
+        ),
+    )
+    parser.add_argument(
+        "--trade-caps-config",
+        default=DEFAULT_TRADE_CAPS_CONFIG,
+        help=(
+            "Path to JSON file with default and per-account trade caps "
+            f"(default: {DEFAULT_TRADE_CAPS_CONFIG})"
         ),
     )
     parser.add_argument("--fee", type=float, default=0.0)
@@ -89,8 +90,54 @@ def parse_account_trade_caps(value: str) -> dict[str, tuple[int, int]]:
     return caps
 
 
+def _validate_trade_cap_range(name: str, min_trades: int, max_trades: int) -> tuple[int, int]:
+    if min_trades < 1:
+        raise ValueError(f"{name}: min trades must be >= 1")
+    if max_trades < min_trades:
+        raise ValueError(f"{name}: max trades must be >= min trades")
+    return min_trades, max_trades
+
+
+def load_trade_caps_config(config_path: Path) -> tuple[tuple[int, int] | None, dict[str, tuple[int, int]]]:
+    if not config_path.exists():
+        return None, {}
+
+    raw = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("Trade caps config must be a JSON object")
+
+    default_caps: tuple[int, int] | None = None
+    raw_default = raw.get("default")
+    if raw_default is not None:
+        if not isinstance(raw_default, dict) or "min" not in raw_default or "max" not in raw_default:
+            raise ValueError("Trade caps config 'default' must contain min and max")
+        default_caps = _validate_trade_cap_range(
+            "default",
+            int(raw_default["min"]),
+            int(raw_default["max"]),
+        )
+
+    account_caps: dict[str, tuple[int, int]] = {}
+    raw_accounts = raw.get("accounts", {})
+    if not isinstance(raw_accounts, dict):
+        raise ValueError("Trade caps config 'accounts' must be an object")
+
+    for account_name, caps in raw_accounts.items():
+        if not isinstance(caps, dict) or "min" not in caps or "max" not in caps:
+            raise ValueError(f"Trade caps config for account '{account_name}' must contain min and max")
+        account_caps[account_name] = _validate_trade_cap_range(
+            account_name,
+            int(caps["min"]),
+            int(caps["max"]),
+        )
+
+    return default_caps, account_caps
+
+
 def resolve_trade_caps(
     accounts: list[str],
+    configured_default_caps: tuple[int, int] | None,
+    configured_account_caps: dict[str, tuple[int, int]],
     primary_accounts: set[str],
     primary_min_trades: int,
     primary_max_trades: int,
@@ -103,8 +150,11 @@ def resolve_trade_caps(
         if account in account_trade_cap_overrides:
             resolved[account] = account_trade_cap_overrides[account]
             continue
-        if account in DEFAULT_ACCOUNT_TRADE_CAPS:
-            resolved[account] = DEFAULT_ACCOUNT_TRADE_CAPS[account]
+        if account in configured_account_caps:
+            resolved[account] = configured_account_caps[account]
+            continue
+        if configured_default_caps is not None:
+            resolved[account] = configured_default_caps
             continue
         if account in primary_accounts:
             resolved[account] = (primary_min_trades, primary_max_trades)
@@ -195,6 +245,16 @@ def main() -> int:
         return 1
 
     primary_accounts = {item.strip() for item in args.primary_accounts.split(",") if item.strip()}
+    caps_config_path = Path(args.trade_caps_config)
+    if not caps_config_path.is_absolute():
+        caps_config_path = repo_root / caps_config_path
+
+    try:
+        configured_default_caps, configured_account_caps = load_trade_caps_config(caps_config_path)
+    except ValueError as exc:
+        print(f"Invalid trade caps config: {exc}", file=sys.stderr)
+        return 1
+
     try:
         account_trade_cap_overrides = parse_account_trade_caps(args.account_trade_caps)
     except ValueError as exc:
@@ -211,6 +271,8 @@ def main() -> int:
 
     account_trade_caps = resolve_trade_caps(
         accounts,
+        configured_default_caps,
+        configured_account_caps,
         primary_accounts,
         args.primary_min_trades,
         args.primary_max_trades,
