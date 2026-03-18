@@ -38,7 +38,13 @@ CREATE TABLE IF NOT EXISTS accounts (
     iv_rank_max REAL,
     roll_dte_threshold INTEGER,
     profit_take_pct REAL,
-    max_loss_pct REAL
+    max_loss_pct REAL,
+    rotation_enabled INTEGER NOT NULL DEFAULT 0,
+    rotation_interval_days INTEGER,
+    rotation_schedule TEXT,
+    rotation_active_index INTEGER NOT NULL DEFAULT 0,
+    rotation_last_at TEXT,
+    rotation_active_strategy TEXT
 );
 """
 
@@ -203,6 +209,30 @@ ACCOUNT_MIGRATIONS = (
     ),
     ColumnMigration("profit_take_pct", "ALTER TABLE accounts ADD COLUMN profit_take_pct REAL"),
     ColumnMigration("max_loss_pct", "ALTER TABLE accounts ADD COLUMN max_loss_pct REAL"),
+    ColumnMigration(
+        "rotation_enabled",
+        "ALTER TABLE accounts ADD COLUMN rotation_enabled INTEGER NOT NULL DEFAULT 0",
+    ),
+    ColumnMigration(
+        "rotation_interval_days",
+        "ALTER TABLE accounts ADD COLUMN rotation_interval_days INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_schedule",
+        "ALTER TABLE accounts ADD COLUMN rotation_schedule TEXT",
+    ),
+    ColumnMigration(
+        "rotation_active_index",
+        "ALTER TABLE accounts ADD COLUMN rotation_active_index INTEGER NOT NULL DEFAULT 0",
+    ),
+    ColumnMigration(
+        "rotation_last_at",
+        "ALTER TABLE accounts ADD COLUMN rotation_last_at TEXT",
+    ),
+    ColumnMigration(
+        "rotation_active_strategy",
+        "ALTER TABLE accounts ADD COLUMN rotation_active_strategy TEXT",
+    ),
 )
 
 def ensure_db() -> DBConnection:

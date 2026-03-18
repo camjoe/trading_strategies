@@ -25,6 +25,13 @@ def _base_account(**overrides):
         "instrument_mode": "equity",
         "initial_cash": 5000.0,
         "id": 1,
+        "strategy": "trend",
+        "rotation_enabled": 0,
+        "rotation_interval_days": None,
+        "rotation_schedule": None,
+        "rotation_active_index": 0,
+        "rotation_last_at": None,
+        "rotation_active_strategy": None,
     }
     base.update(overrides)
     return base
@@ -90,11 +97,13 @@ def test_build_trade_note_for_leaps_buy():
         side="buy",
         delta_est=0.33,
         iv_est=42.0,
+        strategy_name="trend",
     )
     assert "auto-daily-learn" in note
     assert "mode=leaps" in note
     assert "delta=0.33" in note
     assert "iv_rank=42.0" in note
+    assert "strategy=trend" in note
 
 
 def test_choose_side_prioritizes_forced_sell(monkeypatch):
@@ -337,6 +346,7 @@ def test_run_for_account_executes_buy_and_records_trade(monkeypatch):
     assert calls[0]["side"] == "buy"
     assert calls[0]["ticker"] == "AAPL"
     assert calls[0]["note"].startswith("auto-daily-learn")
+    assert "strategy=trend" in calls[0]["note"]
 
 
 def test_run_for_account_forced_sell_note_includes_risk(monkeypatch):
@@ -367,6 +377,99 @@ def test_run_for_account_forced_sell_note_includes_risk(monkeypatch):
     assert executed == 1
     assert calls[0]["side"] == "sell"
     assert "risk=fixed_stop" in calls[0]["note"]
+
+
+def test_rotate_account_if_due_updates_state(monkeypatch):
+    account_before = _base_account(
+        id=9,
+        rotation_enabled=1,
+        rotation_interval_days=7,
+        rotation_schedule='["trend","mean_reversion"]',
+        rotation_active_index=0,
+        rotation_last_at="2026-03-01T00:00:00Z",
+        rotation_active_strategy="trend",
+    )
+
+    class _Conn:
+        def __init__(self):
+            self.updated = None
+            self.committed = False
+
+        def execute(self, _sql, params):
+            self.updated = params
+
+        def commit(self):
+            self.committed = True
+
+    conn = _Conn()
+    account_after = _base_account(
+        id=9,
+        strategy="mean_reversion",
+        rotation_enabled=1,
+        rotation_interval_days=7,
+        rotation_schedule='["trend","mean_reversion"]',
+        rotation_active_index=1,
+        rotation_last_at="2026-03-17T00:00:00Z",
+        rotation_active_strategy="mean_reversion",
+    )
+
+    monkeypatch.setattr(auto_trader, "get_account", lambda _conn, _name: account_after)
+    out = auto_trader._rotate_account_if_due(conn, "acct", account_before, "2026-03-17T00:00:00Z")
+
+    assert conn.committed is True
+    assert conn.updated is not None
+    assert conn.updated[0] == "mean_reversion"
+    assert out["strategy"] == "mean_reversion"
+
+
+def test_run_for_account_uses_rotated_active_strategy(monkeypatch):
+    initial_account = _base_account(
+        id=11,
+        strategy="trend",
+        rotation_enabled=1,
+        rotation_interval_days=7,
+        rotation_schedule='["trend","mean_reversion"]',
+        rotation_active_index=0,
+        rotation_last_at="2026-03-01T00:00:00Z",
+        rotation_active_strategy="trend",
+    )
+    rotated_account = _base_account(
+        id=11,
+        strategy="mean_reversion",
+        rotation_enabled=1,
+        rotation_interval_days=7,
+        rotation_schedule='["trend","mean_reversion"]',
+        rotation_active_index=1,
+        rotation_last_at="2026-03-17T00:00:00Z",
+        rotation_active_strategy="mean_reversion",
+    )
+    state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
+
+    monkeypatch.setattr(auto_trader, "get_account", lambda _conn, _name: initial_account)
+    monkeypatch.setattr(auto_trader, "_rotate_account_if_due", lambda _conn, _name, _acct, _now: rotated_account)
+    monkeypatch.setattr(auto_trader, "load_trades", lambda _conn, _id: [])
+    monkeypatch.setattr(auto_trader, "compute_account_state", lambda *_args, **_kwargs: state)
+    monkeypatch.setattr(auto_trader.random, "randint", lambda a, b: 1)
+    monkeypatch.setattr(auto_trader, "_choose_side", lambda _forced, _sell, strategy_name=None: "buy" if strategy_name == "mean_reversion" else "sell")
+    monkeypatch.setattr(auto_trader, "_prepare_buy_trade", lambda *_args, **_kwargs: ("AAPL", 1, 100.0, None, None))
+    monkeypatch.setattr(auto_trader, "utc_now_iso", lambda: "2026-03-17T00:00:00Z")
+
+    calls = []
+    monkeypatch.setattr(auto_trader, "record_trade", lambda _conn, **kwargs: calls.append(kwargs))
+
+    executed = auto_trader.run_for_account(
+        conn=object(),
+        account_name="acct",
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=1,
+        fee=0.0,
+    )
+    assert executed == 1
+    assert calls[0]["side"] == "buy"
+    assert "strategy=mean_reversion" in calls[0]["note"]
 
 
 def test_main_additional_validation_paths(monkeypatch):

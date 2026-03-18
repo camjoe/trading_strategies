@@ -20,6 +20,7 @@ from trading.features.backtesting.backtest_data import (
     resolve_backtest_dates,
 )
 from trading.database.code.db_coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.rotation import resolve_active_strategy
 from trading.features.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
@@ -404,7 +405,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
-    strategy_name = row_expect_str(account, "strategy")
+    strategy_name = resolve_active_strategy(account)
     strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close(benchmark_ticker, start_date, end_date)

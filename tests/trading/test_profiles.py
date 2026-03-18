@@ -187,3 +187,77 @@ def test_apply_no_op_skipped(conn):
     )
     assert updated == 0
     assert skipped == 1
+
+
+def test_apply_rotation_fields_created_account(conn):
+    profiles = [
+        {
+            "name": "rot_new",
+            "strategy": "trend",
+            "initial_cash": 2500,
+            "rotation_enabled": True,
+            "rotation_interval_days": 7,
+            "rotation_schedule": ["trend", "mean_reversion"],
+            "rotation_active_index": 1,
+            "rotation_last_at": "2026-03-01T00:00:00Z",
+        }
+    ]
+
+    created, updated, skipped = apply_account_profiles(conn, profiles, create_missing=True)
+    assert (created, updated, skipped) == (1, 0, 0)
+
+    account = get_account(conn, "rot_new")
+    assert int(account["rotation_enabled"]) == 1
+    assert int(account["rotation_interval_days"]) == 7
+    assert str(account["rotation_schedule"]) == "[\"trend\",\"mean_reversion\"]"
+    assert int(account["rotation_active_index"]) == 1
+    assert str(account["rotation_last_at"]) == "2026-03-01T00:00:00Z"
+    assert str(account["rotation_active_strategy"]) == "mean_reversion"
+
+
+def test_apply_rotation_fields_existing_account(conn):
+    apply_account_profiles(conn, [{"name": "rot_upd", "initial_cash": 1000}], create_missing=True)
+
+    created, updated, skipped = apply_account_profiles(
+        conn,
+        [
+            {
+                "name": "rot_upd",
+                "rotation_enabled": True,
+                "rotation_interval_days": 14,
+                "rotation_schedule": ["trend", "breakout", "mean_reversion"],
+                "rotation_active_strategy": "breakout",
+            }
+        ],
+        create_missing=False,
+    )
+
+    assert (created, updated, skipped) == (0, 1, 0)
+    account = get_account(conn, "rot_upd")
+    assert int(account["rotation_enabled"]) == 1
+    assert int(account["rotation_interval_days"]) == 14
+    assert str(account["rotation_schedule"]) == "[\"trend\",\"breakout\",\"mean_reversion\"]"
+    assert str(account["rotation_active_strategy"]) == "breakout"
+
+
+def test_apply_rotation_validation_errors(conn):
+    with pytest.raises(ValueError, match="rotation_interval_days"):
+        apply_account_profiles(
+            conn,
+            [{"name": "bad_rot", "initial_cash": 1000, "rotation_enabled": True, "rotation_interval_days": 0}],
+            create_missing=True,
+        )
+
+    apply_account_profiles(conn, [{"name": "bad_rot2", "initial_cash": 1000}], create_missing=True)
+    with pytest.raises(ValueError, match="rotation_active_strategy"):
+        apply_account_profiles(
+            conn,
+            [
+                {
+                    "name": "bad_rot2",
+                    "rotation_schedule": ["trend", "mean_reversion"],
+                    "rotation_active_strategy": "macd",
+                }
+            ],
+            create_missing=False,
+        )

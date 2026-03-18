@@ -14,6 +14,7 @@ from trading.accounts import get_account
 from trading.database.code.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
+from trading.rotation import is_rotation_due, next_rotation_state, resolve_active_strategy
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -263,6 +264,7 @@ def _build_trade_note(
     side: str,
     delta_est: float | None,
     iv_est: float | None,
+    strategy_name: str | None,
 ) -> str:
     note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
     if forced_sell is not None:
@@ -277,15 +279,57 @@ def _build_trade_note(
             if iv_est is not None and iv_est >= 0:
                 note_parts.append(f"iv_rank={iv_est:.1f}")
 
+    if strategy_name:
+        note_parts.append(f"strategy={strategy_name}")
+
     return ";".join(note_parts)
 
 
-def _choose_side(forced_sell: str | None, can_sell: list[str]) -> str:
+def _choose_side(forced_sell: str | None, can_sell: list[str], strategy_name: str | None = None) -> str:
     if forced_sell is not None:
         return "sell"
-    if can_sell and random.random() < 0.35:
+
+    bias = 0.35
+    strategy = (strategy_name or "").strip().lower()
+    if "trend" in strategy or "momentum" in strategy or "breakout" in strategy:
+        bias = 0.20
+    elif "mean" in strategy or "reversion" in strategy or "rsi" in strategy:
+        bias = 0.45
+
+    if can_sell and random.random() < bias:
         return "sell"
     return "buy"
+
+
+def _rotate_account_if_due(
+    conn: sqlite3.Connection,
+    account_name: str,
+    account: sqlite3.Row,
+    now_iso: str,
+) -> sqlite3.Row:
+    if not is_rotation_due(account, as_of_iso=now_iso):
+        return account
+
+    next_state = next_rotation_state(account, as_of_iso=now_iso)
+    conn.execute(
+        """
+        UPDATE accounts
+        SET strategy = ?,
+            rotation_active_index = ?,
+            rotation_active_strategy = ?,
+            rotation_last_at = ?
+        WHERE id = ?
+        """,
+        (
+            next_state["rotation_active_strategy"],
+            int(next_state["rotation_active_index"]),
+            next_state["rotation_active_strategy"],
+            next_state["rotation_last_at"],
+            account["id"],
+        ),
+    )
+    conn.commit()
+    return get_account(conn, account_name)
 
 
 def _prepare_buy_trade(
@@ -374,6 +418,9 @@ def run_for_account(
     fee: float,
 ) -> int:
     account = get_account(conn, account_name)
+    now_iso = utc_now_iso()
+    account = _rotate_account_if_due(conn, account_name, account, now_iso)
+    active_strategy = resolve_active_strategy(account)
     learning_enabled = bool(int(account["learning_enabled"]))
     risk_policy = str(account["risk_policy"]).strip().lower()
     stop_loss_pct = account["stop_loss_pct"]
@@ -394,7 +441,7 @@ def run_for_account(
             take_profit_pct,
         )
 
-        side = _choose_side(forced_sell, can_sell)
+        side = _choose_side(forced_sell, can_sell, active_strategy)
 
         delta_est: float | None = None
         iv_est: float | None = None
@@ -446,6 +493,7 @@ def run_for_account(
                 side,
                 delta_est,
                 iv_est,
+                active_strategy,
             ),
         )
         executed += 1
