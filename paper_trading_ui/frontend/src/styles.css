@@ -1,7 +1,7 @@
 :root {
-  --topbar-height: 72px;
+  --topbar-height: 128px;
   --tab-nav-height: 56px;
-  --sticky-stack-offset: calc(var(--topbar-height) + var(--tab-nav-height) + 16px);
+  --sticky-stack-offset: calc(var(--topbar-height) + 16px);
   --bg-1: #f2efe9;
   --bg-2: #dce6f2;
   --panel: #ffffffd9;
@@ -41,13 +41,19 @@ body {
   top: 0;
   z-index: 3;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  background: #f4f8ffcc;
+  backdrop-filter: blur(6px);
+}
+
+.topbar-inner {
+  display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 1.2rem;
-  background: #f4f8ffcc;
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid var(--line);
 }
 
 .topbar h1 {
@@ -58,15 +64,10 @@ body {
 }
 
 .tab-nav {
-  position: sticky;
-  top: var(--topbar-height);
-  z-index: 2;
   display: flex;
   gap: 0;
   align-items: stretch;
   padding: 0 1rem;
-  background: #f4f8ffcc;
-  backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--line);
 }
 
@@ -669,6 +670,18 @@ button:hover {
 
 .detail-card {
   grid-column: span 8;
+}
+
+.detail-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.detail-card-head h2 {
+  margin: 0;
 }
 
 .logs-card {

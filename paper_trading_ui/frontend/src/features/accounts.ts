@@ -115,12 +115,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
   }
 
   function wireActions(): void {
-    const refreshBtn = find<HTMLButtonElement>("#refreshAccountsBtn");
     const snapshotAllBtn = find<HTMLButtonElement>("#snapshotAllBtn");
-
-    refreshBtn?.addEventListener("click", () => {
-      void loadAccounts();
-    });
 
     snapshotAllBtn?.addEventListener("click", () => {
       void snapshotAll();
