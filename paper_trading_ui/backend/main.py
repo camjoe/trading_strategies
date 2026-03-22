@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import csv
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -41,6 +42,15 @@ def _parse_cors_origins(raw: str) -> list[str]:
 logs_dir_raw = os.getenv("LOGS_DIR", "local/logs")
 LOGS_DIR = (ROOT_DIR / logs_dir_raw).resolve() if not Path(logs_dir_raw).is_absolute() else Path(logs_dir_raw).resolve()
 EXPORTS_DIR = (ROOT_DIR / "local" / "exports").resolve()
+TEST_INVESTMENTS_CANDIDATES = (
+    (ROOT_DIR / "local" / "test_investments.txt").resolve(),
+    (ROOT_DIR / "local" / "test_invesments.txt").resolve(),
+)
+TEST_ACCOUNT_NAME = "test_account"
+TEST_ACCOUNT_DISPLAY_NAME = "TEST Account"
+TEST_ACCOUNT_STRATEGY = "Manual Test Investments"
+TEST_ACCOUNT_BENCHMARK_DEFAULT = "SPY"
+TEST_ACCOUNT_TRADE_TIME = "2025-01-11T12:00:00Z"
 cors_origins = _parse_cors_origins(os.getenv("CORS_ORIGINS", "*"))
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
@@ -386,6 +396,135 @@ def _walk_forward_config_from_request(payload: WalkForwardRunRequest) -> WalkFor
     )
 
 
+def _test_investments_path() -> Path | None:
+    for candidate in TEST_INVESTMENTS_CANDIDATES:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return None
+
+
+def _parse_test_investments() -> list[dict[str, object]]:
+    """Parse checked rows from local test investments file.
+
+    Expected row format examples:
+    - [x] TICKER ($1500 - note)
+    - [ ] TICKER
+    """
+    path = _test_investments_path()
+    if path is None:
+        return []
+
+    line_re = re.compile(r"^\s*-\s*\[(?P<flag>[xX ])\]\s*(?P<ticker>[A-Za-z0-9._-]+)(?:\s*\((?P<meta>[^)]*)\))?")
+    amount_re = re.compile(r"\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)")
+
+    results: list[dict[str, object]] = []
+    for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = line_re.match(raw_line)
+        if not m:
+            continue
+
+        flag = m.group("flag")
+        if flag.lower() != "x":
+            continue
+
+        ticker = (m.group("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+
+        meta = m.group("meta") or ""
+        amount_match = amount_re.search(meta)
+        amount = 0.0
+        if amount_match:
+            amount_raw = amount_match.group(1).replace(",", "")
+            try:
+                amount = float(amount_raw)
+            except ValueError:
+                amount = 0.0
+
+        results.append(
+            {
+                "ticker": ticker,
+                "amount": amount,
+            }
+        )
+
+    return results
+
+
+def _parse_test_account_benchmark() -> str:
+    """Read benchmark override from the same test investments file.
+
+    Supported line formats (case-insensitive):
+      benchmark: QQQ
+      benchmark = SPY
+      test_benchmark: VTI
+    """
+    path = _test_investments_path()
+    if path is None:
+        return TEST_ACCOUNT_BENCHMARK_DEFAULT
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"(?im)^\s*(?:benchmark|test_benchmark)\s*[:=]\s*([A-Za-z0-9._-]+)\s*$", text)
+    if not match:
+        return TEST_ACCOUNT_BENCHMARK_DEFAULT
+
+    return str(match.group(1)).strip().upper() or TEST_ACCOUNT_BENCHMARK_DEFAULT
+
+
+def _test_account_summary() -> dict[str, object]:
+    rows = _parse_test_investments()
+    equity = float(sum(float(item["amount"]) for item in rows))
+    benchmark = _parse_test_account_benchmark()
+    return {
+        "name": TEST_ACCOUNT_NAME,
+        "displayName": TEST_ACCOUNT_DISPLAY_NAME,
+        "strategy": TEST_ACCOUNT_STRATEGY,
+        "instrumentMode": "equity",
+        "riskPolicy": "none",
+        "benchmark": benchmark,
+        "initialCash": equity,
+        "equity": equity,
+        "totalChange": 0.0,
+        "totalChangePct": 0.0,
+        "changeSinceLastSnapshot": 0.0,
+        "latestSnapshotTime": TEST_ACCOUNT_TRADE_TIME,
+    }
+
+
+def _test_account_detail_payload() -> dict[str, object]:
+    rows = _parse_test_investments()
+    equity = float(sum(float(item["amount"]) for item in rows))
+    trades = [
+        {
+            "ticker": str(item["ticker"]),
+            "side": "buy",
+            "qty": 1.0,
+            "price": float(item["amount"]),
+            "fee": 0.0,
+            "tradeTime": TEST_ACCOUNT_TRADE_TIME,
+        }
+        for item in rows
+    ]
+
+    snapshots = [
+        {
+            "time": TEST_ACCOUNT_TRADE_TIME,
+            "cash": 0.0,
+            "marketValue": equity,
+            "equity": equity,
+            "realizedPnl": 0.0,
+            "unrealizedPnl": 0.0,
+        }
+    ]
+
+    return {
+        "account": _test_account_summary(),
+        "latestBacktest": None,
+        "snapshots": snapshots,
+        "trades": trades,
+    }
+
+
 def _resolve_csv_export_file(export_name: str, file_name: str) -> Path:
     base = EXPORTS_DIR.resolve()
     candidate = (base / export_name / file_name).resolve()
@@ -408,6 +547,8 @@ def api_accounts() -> dict[str, list[dict[str, object]]]:
     with _db_conn() as conn:
         rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
         accounts = [_build_account_summary(conn, r) for r in rows]
+        accounts.append(_test_account_summary())
+        accounts.sort(key=lambda item: str(item["name"]))
         return {"accounts": accounts}
 
 
@@ -432,11 +573,30 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
                     "latestBacktest": latest_backtest,
                 }
             )
+
+        test_summary = _test_account_summary()
+        comparison.append(
+            {
+                "name": test_summary["name"],
+                "displayName": test_summary["displayName"],
+                "strategy": test_summary["strategy"],
+                "benchmark": test_summary["benchmark"],
+                "equity": test_summary["equity"],
+                "initialCash": test_summary["initialCash"],
+                "totalChange": test_summary["totalChange"],
+                "totalChangePct": test_summary["totalChangePct"],
+                "latestBacktest": None,
+            }
+        )
+        comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 
 
 @app.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
+    if account_name == TEST_ACCOUNT_NAME:
+        return _test_account_detail_payload()
+
     with _db_conn() as conn:
         account = _account_row(conn, account_name)
         summary = _build_account_summary(conn, account)
@@ -542,6 +702,9 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
 def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, object]:
     if not payload.confirm:
         raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
+
+    if payload.accountName.strip() == TEST_ACCOUNT_NAME:
+        raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
 
     with _db_conn() as conn:
         counts = _delete_account_and_dependents(conn, payload.accountName.strip())
@@ -656,6 +819,9 @@ def api_log_file(
 
 @app.post("/api/actions/snapshot/{account_name}")
 def api_snapshot(account_name: str) -> dict[str, str]:
+    if account_name == TEST_ACCOUNT_NAME:
+        return {"status": "ok", "message": "TEST Account snapshot is virtual."}
+
     with _db_conn() as conn:
         _account_row(conn, account_name)
         snapshot_account(conn, account_name, snapshot_time=None)
@@ -669,7 +835,7 @@ def api_snapshot_all() -> dict[str, object]:
         names = [str(r["name"]) for r in rows]
         for name in names:
             snapshot_account(conn, name, snapshot_time=None)
-        return {"status": "ok", "snapshotted": names}
+        return {"status": "ok", "snapshotted": names + [TEST_ACCOUNT_NAME]}
 
 
 @app.get("/api/backtests/runs")
