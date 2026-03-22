@@ -596,6 +596,22 @@ body {
   grid-column: 1 / -1;
 }
 
+.admin-csv-controls {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto auto;
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
+.admin-csv-controls .bt-field {
+  margin: 0;
+}
+
+.admin-csv-table {
+  min-width: 720px;
+}
+
 .danger-btn {
   background: #aa2a4a;
   color: #fff;
@@ -670,6 +686,10 @@ body {
   .admin-grid-section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-csv-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 600px) {
@@ -678,6 +698,10 @@ body {
   }
 
   .admin-grid-section {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-csv-controls {
     grid-template-columns: 1fr;
   }
 }
