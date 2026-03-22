@@ -533,6 +533,69 @@ body {
   min-width: 0;
 }
 
+.admin-collapsible {
+  border: 1px solid #d4dfec;
+  border-radius: 10px;
+  background: #f7fbffd6;
+}
+
+.admin-collapsible summary {
+  cursor: pointer;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+  list-style: none;
+}
+
+.admin-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-collapsible summary::before {
+  content: "+";
+  display: inline-block;
+  margin-right: 0.45rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.admin-collapsible[open] summary::before {
+  content: "−";
+}
+
+.admin-grid-section {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 0.75rem 0.75rem;
+}
+
+.admin-grid-section .bt-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.admin-grid-section .bt-field > span {
+  flex: 0 0 7.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-align: right;
+  line-height: 1.3;
+}
+
+.admin-grid-section .bt-field > input,
+.admin-grid-section .bt-field > select {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-inline-check {
+  grid-column: 1 / -1;
+}
+
 .danger-btn {
   background: #aa2a4a;
   color: #fff;
@@ -603,10 +666,18 @@ body {
   .admin-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-grid-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 600px) {
   .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-grid-section {
     grid-template-columns: 1fr;
   }
 }

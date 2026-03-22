@@ -48,6 +48,23 @@ function strOrUndefined(value: FormDataEntryValue | null): string | undefined {
 }
 
 export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
+  function syncInstrumentDetails(form?: HTMLFormElement | null): void {
+    const instrumentMode = form?.elements.namedItem("instrumentMode") as HTMLSelectElement | null;
+    const instrumentDetails = find<HTMLDetailsElement>("#adminInstrumentAdvanced");
+    if (!instrumentMode || !instrumentDetails) return;
+
+    const isLeaps = instrumentMode.value === "leaps";
+    instrumentDetails.open = isLeaps;
+  }
+
+  function syncRotationDetails(form?: HTMLFormElement | null): void {
+    const rotationEnabled = form?.elements.namedItem("rotationEnabled") as HTMLInputElement | null;
+    const rotationDetails = find<HTMLDetailsElement>("#adminRotationDetails");
+    if (!rotationEnabled || !rotationDetails) return;
+
+    rotationDetails.open = rotationEnabled.checked;
+  }
+
   async function loadDeleteAccounts(): Promise<void> {
     const select = find<HTMLSelectElement>("#deleteAccountSelect");
     if (!select) return;
@@ -169,6 +186,8 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
         `Created account ${esc(result.account.name)}.<br>` +
         `Equity: ${currency.format(result.account.equity)} | Return: ${pct(result.account.totalChangePct)}`;
       form.reset();
+      syncInstrumentDetails(form);
+      syncRotationDetails(form);
       await loadDeleteAccounts();
       await options.onAccountsChanged?.();
     } catch (error) {
@@ -180,6 +199,8 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
   function wireActions(): void {
     const deleteForm = find<HTMLFormElement>("#deleteAccountForm");
     const createForm = find<HTMLFormElement>("#createAccountForm");
+    const instrumentMode = find<HTMLSelectElement>("#adminInstrumentMode");
+    const rotationEnabled = createForm?.elements.namedItem("rotationEnabled") as HTMLInputElement | null;
 
     deleteForm?.addEventListener("submit", (event) => {
       void onDeleteSubmit(event);
@@ -187,6 +208,17 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     createForm?.addEventListener("submit", (event) => {
       void onCreateSubmit(event);
     });
+
+    instrumentMode?.addEventListener("change", () => {
+      syncInstrumentDetails(createForm);
+    });
+
+    rotationEnabled?.addEventListener("change", () => {
+      syncRotationDetails(createForm);
+    });
+
+    syncInstrumentDetails(createForm);
+    syncRotationDetails(createForm);
   }
 
   return {

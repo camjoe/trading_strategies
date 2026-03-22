@@ -102,103 +102,112 @@
         <p class="admin-section-label admin-wide">Instrument</p>
         <label class="bt-field">
           <span>Instrument mode</span>
-          <select name="instrumentMode">
+          <select id="adminInstrumentMode" name="instrumentMode">
             <option value="equity" selected>equity</option>
             <option value="leaps">leaps</option>
           </select>
         </label>
-        <label class="bt-field">
-          <span>Option type</span>
-          <select name="optionType">
-            <option value="">(none)</option>
-            <option value="call">call</option>
-            <option value="put">put</option>
-            <option value="both">both</option>
-          </select>
-        </label>
-        <label class="bt-field">
-          <span>Option strike offset %</span>
-          <input name="optionStrikeOffsetPct" type="number" step="0.1" />
-        </label>
-        <label class="bt-field">
-          <span>Option min DTE</span>
-          <input name="optionMinDte" type="number" min="0" />
-        </label>
-        <label class="bt-field">
-          <span>Option max DTE</span>
-          <input name="optionMaxDte" type="number" min="0" />
-        </label>
-        <label class="bt-field">
-          <span>Target delta min</span>
-          <input name="targetDeltaMin" type="number" min="0" max="1" step="0.01" />
-        </label>
-        <label class="bt-field">
-          <span>Target delta max</span>
-          <input name="targetDeltaMax" type="number" min="0" max="1" step="0.01" />
-        </label>
-        <label class="bt-field">
-          <span>IV rank min</span>
-          <input name="ivRankMin" type="number" min="0" max="100" step="0.1" />
-        </label>
-        <label class="bt-field">
-          <span>IV rank max</span>
-          <input name="ivRankMax" type="number" min="0" max="100" step="0.1" />
-        </label>
-        <label class="bt-field">
-          <span>Max premium per trade</span>
-          <input name="maxPremiumPerTrade" type="number" min="0" step="0.01" />
-        </label>
-        <label class="bt-field">
-          <span>Max contracts per trade</span>
-          <input name="maxContractsPerTrade" type="number" min="0" />
-        </label>
-        <label class="bt-field">
-          <span>Roll DTE threshold</span>
-          <input name="rollDteThreshold" type="number" min="0" />
-        </label>
+        <details id="adminInstrumentAdvanced" class="admin-collapsible admin-wide">
+          <summary>Instrument details</summary>
+          <div class="admin-grid-section">
+            <label class="bt-field">
+              <span>Option type</span>
+              <select name="optionType">
+                <option value="">(none)</option>
+                <option value="call">call</option>
+                <option value="put">put</option>
+                <option value="both">both</option>
+              </select>
+            </label>
+            <label class="bt-field">
+              <span>Option strike offset %</span>
+              <input name="optionStrikeOffsetPct" type="number" step="0.1" />
+            </label>
+            <label class="bt-field">
+              <span>Option min DTE</span>
+              <input name="optionMinDte" type="number" min="0" />
+            </label>
+            <label class="bt-field">
+              <span>Option max DTE</span>
+              <input name="optionMaxDte" type="number" min="0" />
+            </label>
+            <label class="bt-field">
+              <span>Target delta min</span>
+              <input name="targetDeltaMin" type="number" min="0" max="1" step="0.01" />
+            </label>
+            <label class="bt-field">
+              <span>Target delta max</span>
+              <input name="targetDeltaMax" type="number" min="0" max="1" step="0.01" />
+            </label>
+            <label class="bt-field">
+              <span>IV rank min</span>
+              <input name="ivRankMin" type="number" min="0" max="100" step="0.1" />
+            </label>
+            <label class="bt-field">
+              <span>IV rank max</span>
+              <input name="ivRankMax" type="number" min="0" max="100" step="0.1" />
+            </label>
+            <label class="bt-field">
+              <span>Max premium per trade</span>
+              <input name="maxPremiumPerTrade" type="number" min="0" step="0.01" />
+            </label>
+            <label class="bt-field">
+              <span>Max contracts per trade</span>
+              <input name="maxContractsPerTrade" type="number" min="0" />
+            </label>
+            <label class="bt-field">
+              <span>Roll DTE threshold</span>
+              <input name="rollDteThreshold" type="number" min="0" />
+            </label>
+          </div>
+        </details>
 
-        <p class="admin-section-label admin-wide">Rotation</p>
-        <label class="bt-field">
-          <span>Rotation mode</span>
-          <select name="rotationMode">
-            <option value="time" selected>time</option>
-            <option value="optimal">optimal</option>
-          </select>
-        </label>
-        <label class="bt-field">
-          <span>Optimality mode</span>
-          <select name="rotationOptimalityMode">
-            <option value="previous_period_best" selected>previous_period_best</option>
-            <option value="average_return">average_return</option>
-          </select>
-        </label>
-        <label class="bt-field">
-          <span>Interval days</span>
-          <input name="rotationIntervalDays" type="number" min="1" />
-        </label>
-        <label class="bt-field">
-          <span>Lookback days</span>
-          <input name="rotationLookbackDays" type="number" min="1" />
-        </label>
-        <label class="bt-field">
-          <span>Active index</span>
-          <input name="rotationActiveIndex" type="number" min="0" value="0" />
-        </label>
-        <label class="bt-field">
-          <span>Active strategy</span>
-          <input name="rotationActiveStrategy" />
-        </label>
-        <label class="bt-field">
-          <span>Last rotated at (ISO)</span>
-          <input name="rotationLastAt" placeholder="2026-03-18T12:00:00Z" />
-        </label>
-        <label class="bt-field admin-wide">
-          <span>Rotation schedule (comma-separated)</span>
-          <input name="rotationScheduleCsv" placeholder="trend,mean_reversion,breakout" />
-        </label>
+        <label class="bt-check"><input name="rotationEnabled" type="checkbox" /> Rotation enabled</label>
+        <details id="adminRotationDetails" class="admin-collapsible admin-wide">
+          <summary>Rotation</summary>
+          <div class="admin-grid-section">
+            <label class="bt-field">
+              <span>Rotation mode</span>
+              <select name="rotationMode">
+                <option value="time" selected>time</option>
+                <option value="optimal">optimal</option>
+              </select>
+            </label>
+            <label class="bt-field">
+              <span>Optimality mode</span>
+              <select name="rotationOptimalityMode">
+                <option value="previous_period_best" selected>previous_period_best</option>
+                <option value="average_return">average_return</option>
+              </select>
+            </label>
+            <label class="bt-field">
+              <span>Interval days</span>
+              <input name="rotationIntervalDays" type="number" min="1" />
+            </label>
+            <label class="bt-field">
+              <span>Lookback days</span>
+              <input name="rotationLookbackDays" type="number" min="1" />
+            </label>
+            <label class="bt-field">
+              <span>Active index</span>
+              <input name="rotationActiveIndex" type="number" min="0" value="0" />
+            </label>
+            <label class="bt-field">
+              <span>Active strategy</span>
+              <input name="rotationActiveStrategy" />
+            </label>
+            <label class="bt-field">
+              <span>Last rotated at (ISO)</span>
+              <input name="rotationLastAt" placeholder="2026-03-18T12:00:00Z" />
+            </label>
+            <label class="bt-field admin-wide">
+              <span>Rotation schedule (comma-separated)</span>
+              <input name="rotationScheduleCsv" placeholder="trend,mean_reversion,breakout" />
+            </label>
+          </div>
+        </details>
       </div>
       <label class="bt-check"><input name="learningEnabled" type="checkbox" /> Learning enabled</label>
-      <label class="bt-check"><input name="rotationEnabled" type="checkbox" /> Rotation enabled</label>
       <button type="submit">Create Account</button>
     </form>
     <div id="createAccountOutput" class="empty">No account created yet.</div>
