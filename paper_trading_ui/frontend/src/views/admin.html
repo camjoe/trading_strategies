@@ -212,4 +212,33 @@
     </form>
     <div id="createAccountOutput" class="empty">No account created yet.</div>
   </section>
+
+  <section class="card admin-card">
+    <h2>Admin: CSV Exports</h2>
+    <p class="admin-note">Browse CSV export snapshots from <code>local/exports</code> and preview rows directly in the app.</p>
+
+    <div class="admin-csv-controls">
+      <label class="bt-field">
+        <span>Export batch</span>
+        <select id="csvExportSelect">
+          <option value="">Select export batch</option>
+        </select>
+      </label>
+
+      <label class="bt-field">
+        <span>CSV file</span>
+        <select id="csvFileSelect">
+          <option value="">Select CSV file</option>
+        </select>
+      </label>
+
+      <button id="csvPreviewLoadBtn" type="button">Load Preview</button>
+      <button id="csvRefreshBtn" type="button">Refresh</button>
+    </div>
+
+    <div id="csvPreviewMeta" class="admin-note">No CSV loaded yet.</div>
+    <div id="csvPreviewOutput" class="compare-table-wrap">
+      <div class="empty">Choose an export and CSV file to preview.</div>
+    </div>
+  </section>
 </div>

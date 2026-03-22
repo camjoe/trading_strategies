@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import csv
 import json
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
@@ -38,6 +40,7 @@ def _parse_cors_origins(raw: str) -> list[str]:
 
 logs_dir_raw = os.getenv("LOGS_DIR", "local/logs")
 LOGS_DIR = (ROOT_DIR / logs_dir_raw).resolve() if not Path(logs_dir_raw).is_absolute() else Path(logs_dir_raw).resolve()
+EXPORTS_DIR = (ROOT_DIR / "local" / "exports").resolve()
 cors_origins = _parse_cors_origins(os.getenv("CORS_ORIGINS", "*"))
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
@@ -383,6 +386,18 @@ def _walk_forward_config_from_request(payload: WalkForwardRunRequest) -> WalkFor
     )
 
 
+def _resolve_csv_export_file(export_name: str, file_name: str) -> Path:
+    base = EXPORTS_DIR.resolve()
+    candidate = (base / export_name / file_name).resolve()
+
+    if os.path.commonpath([str(base), str(candidate)]) != str(base):
+        raise HTTPException(status_code=400, detail="Invalid export path")
+    if candidate.suffix.lower() != ".csv":
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+
+    return candidate
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -534,6 +549,75 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
             "status": "ok",
             "deleted": counts,
         }
+
+
+@app.get("/api/admin/exports/csv")
+def api_csv_exports() -> dict[str, object]:
+    if not EXPORTS_DIR.exists():
+        return {"exports": []}
+
+    export_dirs = sorted(
+        [p for p in EXPORTS_DIR.iterdir() if p.is_dir() and p.name.startswith("db_csv_")],
+        key=lambda p: p.name,
+        reverse=True,
+    )
+
+    exports: list[dict[str, object]] = []
+    for export_dir in export_dirs:
+        csv_files = sorted(export_dir.glob("*.csv"), key=lambda p: p.name)
+        files = [
+            {
+                "name": csv_file.name,
+                "sizeBytes": int(csv_file.stat().st_size),
+            }
+            for csv_file in csv_files
+        ]
+        exports.append(
+            {
+                "name": export_dir.name,
+                "modifiedAt": datetime.fromtimestamp(export_dir.stat().st_mtime).isoformat(timespec="seconds"),
+                "files": files,
+            }
+        )
+
+    return {"exports": exports}
+
+
+@app.get("/api/admin/exports/csv/preview")
+def api_csv_export_preview(
+    exportName: str = Query(..., min_length=1),
+    fileName: str = Query(..., min_length=1),
+    limit: int = Query(default=200, ge=1, le=2000),
+) -> dict[str, object]:
+    path = _resolve_csv_export_file(exportName, fileName)
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="CSV file not found")
+
+    with path.open("r", encoding="utf-8", errors="replace", newline="") as fh:
+        reader = csv.reader(fh)
+        header = next(reader, [])
+        rows: list[list[str]] = []
+        for _ in range(limit):
+            try:
+                rows.append([str(cell) for cell in next(reader)])
+            except StopIteration:
+                break
+
+        truncated = False
+        try:
+            next(reader)
+            truncated = True
+        except StopIteration:
+            truncated = False
+
+    return {
+        "exportName": exportName,
+        "fileName": fileName,
+        "header": [str(col) for col in header],
+        "rows": rows,
+        "returned": len(rows),
+        "truncated": truncated,
+    }
 
 
 @app.get("/api/logs/files")
