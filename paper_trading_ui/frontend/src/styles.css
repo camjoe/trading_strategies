@@ -242,6 +242,8 @@ body {
 }
 
 .doc-entry {
+  display: flex;
+  flex-direction: column;
   background: #ffffffd6;
   border: 1px solid #d1dceb;
   border-radius: 12px;
@@ -259,6 +261,7 @@ body {
   font-size: 0.9rem;
   color: var(--ink-soft);
   line-height: 1.5;
+  flex: 1;
 }
 
 .ref-card {
@@ -383,26 +386,69 @@ body {
   text-align: left;
 }
 
+.ref-table th:nth-child(1) {
+  width: 25%;
+}
+
+.ref-table th:nth-child(2) {
+  width: 30%;
+}
+
+.ref-table th:nth-child(3) {
+  width: 45%;
+}
+
 .ref-table td {
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid #e8eef5;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
-.ref-table td:first-child {
+.ref-table td:nth-child(1) {
+  width: 25%;
   font-weight: 600;
-  white-space: normal;
   color: var(--ink);
-  width: 12%;
 }
 
 .ref-table td:nth-child(2) {
-  width: 18%;
+  width: 30%;
 }
 
-.ref-table td:last-child {
+.ref-table td:nth-child(3) {
+  width: 45%;
   color: var(--ink-soft);
   line-height: 1.5;
+}
+
+/* 2-col tables: standardized across all variants, col2 aligns with 3-col col2 start position */
+.ref-table--endpoint th:nth-child(1),
+.ref-table--endpoint td:nth-child(1),
+.ref-table--software th:nth-child(1),
+.ref-table--software td:nth-child(1) {
+  width: 25%;
+}
+
+.ref-table--endpoint th:nth-child(2),
+.ref-table--endpoint td:nth-child(2),
+.ref-table--software th:nth-child(2),
+.ref-table--software td:nth-child(2) {
+  width: 75%;
+}
+
+/* 3-col param tables: aligned with base 3-col (col1: 25%, col2: 30%, col3: 45%) */
+.ref-table--params th:nth-child(1),
+.ref-table--params td:nth-child(1) {
+  width: 25%;
+}
+
+.ref-table--params th:nth-child(2),
+.ref-table--params td:nth-child(2) {
+  width: 30%;
+}
+
+.ref-table--params th:nth-child(3),
+.ref-table--params td:nth-child(3) {
+  width: 45%;
 }
 
 .ref-eval-list {
