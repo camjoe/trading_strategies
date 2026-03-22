@@ -21,7 +21,15 @@ The `trading/` module handles:
 - Auto-trading simulation runs
 - Backtesting and walk-forward analysis support
 
-Data is stored in `trading/database/paper_trading.db`.
+Data is stored in SQLite with a default runtime location of `local/paper_trading.db`.
+
+Runtime DB location is config-driven and defaults to `local/paper_trading.db`.
+
+Resolution order:
+
+- `TRADING_DB_PATH` environment variable
+- `db_path` in `local/db_config.json` (example template: `trading/database/db_config.example.json`)
+- built-in fallback to `local/paper_trading.db`
 
 ## Main Commands
 
@@ -245,6 +253,17 @@ Manual backup run:
 ```powershell
 python trading/scripts/weekly_db_backup.py
 ```
+
+Manual retention backup (keeps rolling recent backups plus monthly archives):
+
+```powershell
+python scripts/backup_db.py
+```
+
+Backup destinations:
+
+- `python -m dev_tools.db_admin backup-db` defaults to `local/backups/`
+- `python scripts/backup_db.py` defaults to `local/db_backups/`
 
 Force a second backup in the same ISO week:
 

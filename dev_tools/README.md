@@ -10,6 +10,12 @@ Run from the repository root:
 python -m dev_tools.db_admin <command>
 ```
 
+DB path resolution is shared with the trading module:
+
+- `TRADING_DB_PATH` environment variable
+- `db_path` in `local/db_config.json`
+- fallback `local/paper_trading.db`
+
 ## Commands
 
 ### List accounts
@@ -20,7 +26,7 @@ python -m dev_tools.db_admin list-accounts
 
 ### Backup database
 
-Create a timestamped backup in `trading/database/backups/`:
+Create a timestamped backup in `local/backups/`:
 
 ```powershell
 python -m dev_tools.db_admin backup-db
