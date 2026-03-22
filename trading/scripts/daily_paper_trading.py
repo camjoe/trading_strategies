@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from trading.database.code.db_config import get_db_path
+
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
 DEFAULT_TRADE_CAPS_CONFIG = "trading/scripts/account_trade_caps.json"
 
@@ -55,7 +57,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_all_account_names(repo_root: Path) -> list[str]:
-    db_path = repo_root / "trading" / "database" / "paper_trading.db"
+    db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:

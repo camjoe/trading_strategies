@@ -1,13 +1,13 @@
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from trading.database.code.db_backend import get_backend
+from trading.database.code.db_config import get_db_path
 
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any
 
-DB_PATH = Path(__file__).resolve().parent.parent / "database" / "paper_trading.db"
+DB_PATH = get_db_path()
 
 ACCOUNTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS accounts (

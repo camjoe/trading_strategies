@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+from trading.database.code.db_config import get_db_path
+
 class DatabaseBackend(ABC):
     """Abstract interface for database backends.
 
@@ -36,15 +38,15 @@ class DatabaseBackend(ABC):
 class SQLiteBackend(DatabaseBackend):
     """Concrete backend backed by SQLite via the stdlib ``sqlite3`` module.
     Args:
-        db_path: Path to the SQLite file.  Defaults to the standard
-            ``trading/database/paper_trading.db`` location.
+        db_path: Path to the SQLite file.  Defaults to the path resolved by
+            ``trading.database.code.db_config.get_db_path``.
     """
 
     def __init__(self, db_path: Path | None = None) -> None:
         self.db_path: Path = (
             db_path
             if db_path is not None
-            else Path(__file__).resolve().parent.parent.parent / "database" / "paper_trading.db"
+            else get_db_path()
         )
 
     def open_connection(self) -> sqlite3.Connection:

@@ -1,5 +1,6 @@
 local/
 trading/database/*.db
+trading/database/backups/*.db
 
 #### Auto-Generated Python.gitignore file #####
 
