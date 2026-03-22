@@ -644,6 +644,22 @@ h4 {
   gap: 0.65rem;
 }
 
+#tab-accounts.layout {
+  align-items: start;
+}
+
+#tab-accounts .accounts-grid {
+  /* Keep the list around one screen tall and scroll within the card. */
+  max-height: calc(100vh - 12rem);
+  min-height: 28rem;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+#tab-accounts .detail-card {
+  align-self: start;
+}
+
 .account-card {
   width: 100%;
   text-align: left;
@@ -705,6 +721,29 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.92rem;
+}
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.table-pagination button {
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.table-pagination button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
 }
 
 th,
@@ -963,5 +1002,10 @@ td {
 
   .bt-row {
     grid-template-columns: 1fr;
+  }
+
+  #tab-accounts .accounts-grid {
+    max-height: 65vh;
+    min-height: 0;
   }
 }

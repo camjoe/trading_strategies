@@ -1,7 +1,19 @@
 import { currency, esc } from "../lib/format";
 import type { AccountDetail } from "../types";
 
-export function renderDetail(detail: AccountDetail): string {
+export interface DetailRenderOptions {
+  tradePage?: number;
+  tradePageSize?: number;
+}
+
+export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
+  const tradePageSize = Math.max(1, options.tradePageSize ?? 20);
+  const totalTrades = detail.trades.length;
+  const totalTradePages = Math.max(1, Math.ceil(totalTrades / tradePageSize));
+  const tradePage = Math.min(Math.max(1, options.tradePage ?? 1), totalTradePages);
+  const viewedStart = totalTrades === 0 ? 0 : (tradePage - 1) * tradePageSize + 1;
+  const viewedEnd = totalTrades === 0 ? 0 : Math.min(tradePage * tradePageSize, totalTrades);
+
   const snapRows = detail.snapshots
     .slice(0, 25)
     .map(
@@ -16,8 +28,11 @@ export function renderDetail(detail: AccountDetail): string {
     )
     .join("");
 
+  const tradeStart = Math.max(0, totalTrades - tradePage * tradePageSize);
+  const tradeEnd = totalTrades - (tradePage - 1) * tradePageSize;
+
   const tradeRows = detail.trades
-    .slice(-25)
+    .slice(tradeStart, tradeEnd)
     .reverse()
     .map(
       (t) => `
@@ -69,6 +84,11 @@ export function renderDetail(detail: AccountDetail): string {
 
       <article>
         <h4>Recent Trades</h4>
+        <div class="table-pagination">
+          <button id="recentTradesPrevBtn" type="button" ${tradePage <= 1 ? "disabled" : ""}>Newer</button>
+          <span>${viewedStart} to ${viewedEnd} of ${totalTrades}</span>
+          <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
+        </div>
         <table>
           <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
           <tbody>${tradeRows || `<tr><td colspan="6">No trades yet.</td></tr>`}</tbody>
