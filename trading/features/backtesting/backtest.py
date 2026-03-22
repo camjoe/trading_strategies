@@ -816,9 +816,8 @@ def run_walk_forward_backtest(
     total_returns: list[float] = []
 
     for i, (window_start, window_end) in enumerate(windows):
-        run_name = None
-        if cfg.run_name_prefix:
-            run_name = f"{cfg.run_name_prefix}_{i + 1:02d}"
+        prefix = cfg.run_name_prefix.strip() if cfg.run_name_prefix else ""
+        run_name = f"wf_{prefix}_{i + 1:02d}" if prefix else f"wf_{i + 1:02d}"
 
         test_cfg = BacktestConfig(
             account_name=cfg.account_name,
