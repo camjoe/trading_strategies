@@ -812,6 +812,66 @@ td {
   padding: 0.42rem;
 }
 
+.trade-row--alt-day td {
+  background: #dfeeff;
+}
+
+.recent-trades-table {
+  border-collapse: separate;
+  border-spacing: 0 0.3rem;
+}
+
+.recent-trades-table thead th {
+  border-bottom: 1px solid #d7e2ef;
+}
+
+.recent-trades-table tbody td {
+  background: #ffffff;
+  border-top: 1px solid #d7e2ef;
+  border-bottom: 1px solid #d7e2ef;
+  border-left: none;
+  border-right: none;
+}
+
+.recent-trades-table tbody tr td:first-child {
+  border-left: 1px solid #d7e2ef;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.recent-trades-table tbody tr td:last-child {
+  border-right: 1px solid #d7e2ef;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.recent-trades-table tbody .trade-row--alt-day td:not(.up):not(.down) {
+  background: linear-gradient(180deg, #e7f2ff, #d9ebff);
+  box-shadow: 0 1px 4px #2d577f22;
+}
+
+.recent-trades-table tbody td.up,
+.recent-trades-table tbody td.down {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.recent-trades-table tbody td.up {
+  background: linear-gradient(180deg, #e6f8ef, #d1f1e0);
+  color: #0b6b43;
+  border-top: 1px solid #9fd4bc;
+  border-bottom: 1px solid #9fd4bc;
+}
+
+.recent-trades-table tbody td.down {
+  background: linear-gradient(180deg, #ffe8ee, #ffd9e2);
+  color: #a52d4b;
+  border-top: 1px solid #e9a9ba;
+  border-bottom: 1px solid #e9a9ba;
+}
+
 .log-controls {
   display: grid;
   gap: 0.5rem;

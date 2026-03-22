@@ -30,22 +30,32 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
 
   const tradeStart = Math.max(0, totalTrades - tradePage * tradePageSize);
   const tradeEnd = totalTrades - (tradePage - 1) * tradePageSize;
+  let previousDayKey = "";
+  let dayBand = 0;
 
   const tradeRows = detail.trades
     .slice(tradeStart, tradeEnd)
     .reverse()
-    .map(
-      (t) => `
-      <tr>
-        <td>${new Date(t.tradeTime).toLocaleString()}</td>
+    .map((t) => {
+      const tradeDate = new Date(t.tradeTime);
+      const dayKey = `${tradeDate.getFullYear()}-${tradeDate.getMonth() + 1}-${tradeDate.getDate()}`;
+      if (dayKey !== previousDayKey) {
+        dayBand += 1;
+        previousDayKey = dayKey;
+      }
+      const dayClass = dayBand % 2 === 0 ? " trade-row--alt-day" : "";
+
+      return `
+      <tr class="trade-row${dayClass}">
+        <td>${tradeDate.toLocaleString()}</td>
         <td>${esc(t.ticker)}</td>
         <td class="${t.side === "buy" ? "up" : "down"}">${esc(t.side)}</td>
         <td>${t.qty.toFixed(4)}</td>
         <td>${currency.format(t.price)}</td>
         <td>${currency.format(t.fee)}</td>
       </tr>
-    `,
-    )
+    `;
+    })
     .join("");
 
   const latestBacktest = detail.latestBacktest
@@ -89,7 +99,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <span>${viewedStart} to ${viewedEnd} of ${totalTrades}</span>
           <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
         </div>
-        <table>
+        <table class="recent-trades-table">
           <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
           <tbody>${tradeRows || `<tr><td colspan="6">No trades yet.</td></tr>`}</tbody>
         </table>
