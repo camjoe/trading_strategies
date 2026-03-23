@@ -40,24 +40,15 @@ jobs:
         working-directory: paper_trading_ui/frontend
         run: npm run lint -- --fix
 
-      - name: Detect frontend cleanup changes
-        id: cleanup_changes
+      - name: Commit and push frontend cleanup changes
         run: |
           if git diff --quiet; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "No frontend cleanup changes detected."
-          else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "Frontend cleanup changes detected."
+            echo "No frontend cleanup changes to commit."
+            exit 0
           fi
 
-      - name: Export frontend cleanup patch
-        if: steps.cleanup_changes.outputs.has_changes == 'true'
-        run: git diff > cleanup-frontend.patch
-
-      - name: Upload frontend cleanup patch
-        if: steps.cleanup_changes.outputs.has_changes == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: refactoring-frontend-cleanup-patch
-          path: cleanup-frontend.patch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(refactoring): auto frontend cleanup after merge"
+          git push origin HEAD:${{ github.event.pull_request.base.ref }}
