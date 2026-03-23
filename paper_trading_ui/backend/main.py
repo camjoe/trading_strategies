@@ -3,11 +3,12 @@ from __future__ import annotations
 import os
 import csv
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TypedDict
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,16 @@ def _parse_cors_origins(raw: str) -> list[str]:
 logs_dir_raw = os.getenv("LOGS_DIR", "local/logs")
 LOGS_DIR = (ROOT_DIR / logs_dir_raw).resolve() if not Path(logs_dir_raw).is_absolute() else Path(logs_dir_raw).resolve()
 EXPORTS_DIR = (ROOT_DIR / "local" / "exports").resolve()
+TEST_INVESTMENTS_CANDIDATES = (
+    (ROOT_DIR / "local" / "test_investments.txt").resolve(),
+    (ROOT_DIR / "local" / "test_invesments.txt").resolve(),
+)
+TEST_ACCOUNT_NAME = "test_account"
+TEST_BACKTEST_ACCOUNT_NAME = "test_account_bt"
+TEST_ACCOUNT_DISPLAY_NAME = "TEST Account"
+TEST_ACCOUNT_STRATEGY = "Manual Test Investments"
+TEST_ACCOUNT_BENCHMARK_DEFAULT = "SPY"
+TEST_ACCOUNT_TRADE_TIME = "2025-01-11T12:00:00Z"
 cors_origins = _parse_cors_origins(os.getenv("CORS_ORIGINS", "*"))
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
@@ -131,11 +142,15 @@ def _latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dic
 
 
 def _backtest_run_summary(row: sqlite3.Row) -> dict[str, object]:
+    account_name = str(row["account_name"])
+    display_account_name = TEST_ACCOUNT_NAME if account_name == TEST_BACKTEST_ACCOUNT_NAME else account_name
+    display_strategy = TEST_ACCOUNT_STRATEGY if account_name == TEST_BACKTEST_ACCOUNT_NAME else row["strategy"]
+
     return {
         "runId": int(row["id"]),
         "runName": row["run_name"],
-        "accountName": row["account_name"],
-        "strategy": row["strategy"],
+        "accountName": display_account_name,
+        "strategy": display_strategy,
         "startDate": row["start_date"],
         "endDate": row["end_date"],
         "createdAt": row["created_at"],
@@ -203,6 +218,11 @@ class BacktestPreflightRequest(BaseModel):
     end: str | None = None
     lookbackMonths: int | None = Field(default=None, gt=0)
     allowApproximateLeaps: bool = False
+
+
+class TestInvestmentRow(TypedDict):
+    ticker: str
+    amount: float
 
 
 class AdminCreateAccountRequest(BaseModel):
@@ -386,6 +406,140 @@ def _walk_forward_config_from_request(payload: WalkForwardRunRequest) -> WalkFor
     )
 
 
+def _test_investments_path() -> Path | None:
+    for candidate in TEST_INVESTMENTS_CANDIDATES:
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return None
+
+
+def _parse_test_investments() -> list[TestInvestmentRow]:
+    """Parse checked rows from local test investments file.
+
+    Expected row format examples:
+    - [x] TICKER ($1500 - note)
+    - [ ] TICKER
+    """
+    path = _test_investments_path()
+    if path is None:
+        return []
+
+    line_re = re.compile(r"^\s*-\s*\[(?P<flag>[xX ])\]\s*(?P<ticker>[A-Za-z0-9._-]+)(?:\s*\((?P<meta>[^)]*)\))?")
+    amount_re = re.compile(r"\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)")
+
+    results: list[TestInvestmentRow] = []
+    for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = line_re.match(raw_line)
+        if not m:
+            continue
+
+        flag = m.group("flag")
+        if flag.lower() != "x":
+            continue
+
+        ticker = (m.group("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+
+        meta = m.group("meta") or ""
+        amount_match = amount_re.search(meta)
+        amount = 0.0
+        if amount_match:
+            amount_raw = amount_match.group(1).replace(",", "")
+            try:
+                amount = float(amount_raw)
+            except ValueError:
+                amount = 0.0
+
+        results.append(
+            {
+                "ticker": ticker,
+                "amount": amount,
+            }
+        )
+
+    return results
+
+
+def _test_account_equity(rows: list[TestInvestmentRow] | None = None) -> float:
+    investments = rows if rows is not None else _parse_test_investments()
+    return sum(item["amount"] for item in investments)
+
+
+def _parse_test_account_benchmark() -> str:
+    """Read benchmark override from the same test investments file.
+
+    Supported line formats (case-insensitive):
+      benchmark: QQQ
+      benchmark = SPY
+      test_benchmark: VTI
+    """
+    path = _test_investments_path()
+    if path is None:
+        return TEST_ACCOUNT_BENCHMARK_DEFAULT
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"(?im)^\s*(?:benchmark|test_benchmark)\s*[:=]\s*([A-Za-z0-9._-]+)\s*$", text)
+    if not match:
+        return TEST_ACCOUNT_BENCHMARK_DEFAULT
+
+    return str(match.group(1)).strip().upper() or TEST_ACCOUNT_BENCHMARK_DEFAULT
+
+
+def _test_account_summary() -> dict[str, object]:
+    rows = _parse_test_investments()
+    equity = _test_account_equity(rows)
+    benchmark = _parse_test_account_benchmark()
+    return {
+        "name": TEST_ACCOUNT_NAME,
+        "displayName": TEST_ACCOUNT_DISPLAY_NAME,
+        "strategy": TEST_ACCOUNT_STRATEGY,
+        "instrumentMode": "equity",
+        "riskPolicy": "none",
+        "benchmark": benchmark,
+        "initialCash": equity,
+        "equity": equity,
+        "totalChange": 0.0,
+        "totalChangePct": 0.0,
+        "changeSinceLastSnapshot": 0.0,
+        "latestSnapshotTime": TEST_ACCOUNT_TRADE_TIME,
+    }
+
+
+def _test_account_detail_payload() -> dict[str, object]:
+    rows = _parse_test_investments()
+    equity = _test_account_equity(rows)
+    trades = [
+        {
+            "ticker": item["ticker"],
+            "side": "buy",
+            "qty": 1.0,
+            "price": item["amount"],
+            "fee": 0.0,
+            "tradeTime": TEST_ACCOUNT_TRADE_TIME,
+        }
+        for item in rows
+    ]
+
+    snapshots = [
+        {
+            "time": TEST_ACCOUNT_TRADE_TIME,
+            "cash": 0.0,
+            "marketValue": equity,
+            "equity": equity,
+            "realizedPnl": 0.0,
+            "unrealizedPnl": 0.0,
+        }
+    ]
+
+    return {
+        "account": _test_account_summary(),
+        "latestBacktest": None,
+        "snapshots": snapshots,
+        "trades": trades,
+    }
+
+
 def _resolve_csv_export_file(export_name: str, file_name: str) -> Path:
     base = EXPORTS_DIR.resolve()
     candidate = (base / export_name / file_name).resolve()
@@ -398,6 +552,42 @@ def _resolve_csv_export_file(export_name: str, file_name: str) -> Path:
     return candidate
 
 
+def _resolve_backtest_account_name(account_name: str) -> str:
+    name = account_name.strip()
+    if name == TEST_ACCOUNT_NAME:
+        return TEST_BACKTEST_ACCOUNT_NAME
+    return name
+
+
+def _ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
+    existing = conn.execute("SELECT id FROM accounts WHERE name = ?", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchone()
+    if existing is not None:
+        return
+
+    initial_cash = _test_account_equity()
+    if initial_cash <= 0:
+        initial_cash = 1.0
+
+    create_account(
+        conn,
+        name=TEST_BACKTEST_ACCOUNT_NAME,
+        strategy="trend",
+        initial_cash=initial_cash,
+        benchmark_ticker=_parse_test_account_benchmark(),
+        descriptive_name="TEST Account (Backtest Shadow)",
+        risk_policy="none",
+        instrument_mode="equity",
+    )
+    conn.commit()
+
+
+def _resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection) -> str:
+    resolved = _resolve_backtest_account_name(account_name)
+    if resolved == TEST_BACKTEST_ACCOUNT_NAME:
+        _ensure_test_backtest_account(conn)
+    return resolved
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -406,15 +596,17 @@ def health() -> dict[str, str]:
 @app.get("/api/accounts")
 def api_accounts() -> dict[str, list[dict[str, object]]]:
     with _db_conn() as conn:
-        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        rows = conn.execute("SELECT * FROM accounts WHERE name != ? ORDER BY name", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchall()
         accounts = [_build_account_summary(conn, r) for r in rows]
+        accounts.append(_test_account_summary())
+        accounts.sort(key=lambda item: str(item["name"]))
         return {"accounts": accounts}
 
 
 @app.get("/api/accounts/compare")
 def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
     with _db_conn() as conn:
-        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        rows = conn.execute("SELECT * FROM accounts WHERE name != ? ORDER BY name", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchall()
         comparison: list[dict[str, object]] = []
         for row in rows:
             summary = _build_account_summary(conn, row)
@@ -432,11 +624,34 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
                     "latestBacktest": latest_backtest,
                 }
             )
+
+        test_summary = _test_account_summary()
+        comparison.append(
+            {
+                "name": test_summary["name"],
+                "displayName": test_summary["displayName"],
+                "strategy": test_summary["strategy"],
+                "benchmark": test_summary["benchmark"],
+                "equity": test_summary["equity"],
+                "initialCash": test_summary["initialCash"],
+                "totalChange": test_summary["totalChange"],
+                "totalChangePct": test_summary["totalChangePct"],
+                "latestBacktest": None,
+            }
+        )
+        comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 
 
 @app.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
+    if account_name == TEST_ACCOUNT_NAME:
+        payload = _test_account_detail_payload()
+        with _db_conn() as conn:
+            resolved_account_name = _resolve_backtest_payload_account(account_name, conn)
+            payload["latestBacktest"] = _latest_backtest_summary(conn, resolved_account_name)
+        return payload
+
     with _db_conn() as conn:
         account = _account_row(conn, account_name)
         summary = _build_account_summary(conn, account)
@@ -542,6 +757,9 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
 def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, object]:
     if not payload.confirm:
         raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
+
+    if payload.accountName.strip() == TEST_ACCOUNT_NAME:
+        raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
 
     with _db_conn() as conn:
         counts = _delete_account_and_dependents(conn, payload.accountName.strip())
@@ -656,6 +874,9 @@ def api_log_file(
 
 @app.post("/api/actions/snapshot/{account_name}")
 def api_snapshot(account_name: str) -> dict[str, str]:
+    if account_name == TEST_ACCOUNT_NAME:
+        return {"status": "ok", "message": "TEST Account snapshot is virtual."}
+
     with _db_conn() as conn:
         _account_row(conn, account_name)
         snapshot_account(conn, account_name, snapshot_time=None)
@@ -669,7 +890,7 @@ def api_snapshot_all() -> dict[str, object]:
         names = [str(r["name"]) for r in rows]
         for name in names:
             snapshot_account(conn, name, snapshot_time=None)
-        return {"status": "ok", "snapshotted": names}
+        return {"status": "ok", "snapshotted": names + [TEST_ACCOUNT_NAME]}
 
 
 @app.get("/api/backtests/runs")
@@ -692,8 +913,9 @@ def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str,
 @app.get("/api/backtests/latest/{account_name}")
 def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
     with _db_conn() as conn:
-        _account_row(conn, account_name)
-        latest = _latest_backtest_summary(conn, account_name)
+        resolved_account_name = _resolve_backtest_payload_account(account_name, conn)
+        _account_row(conn, resolved_account_name)
+        latest = _latest_backtest_summary(conn, resolved_account_name)
         return {
             "accountName": account_name,
             "latestRun": latest,
@@ -712,14 +934,18 @@ def api_backtest_run_report(run_id: int) -> dict[str, object]:
 @app.post("/api/backtests/run")
 def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
     with _db_conn() as conn:
+        resolved_account_name = _resolve_backtest_payload_account(payload.account, conn)
+        payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             result = run_backtest(conn, _backtest_config_from_run_request(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
+        display_account_name = TEST_ACCOUNT_NAME if result.account_name == TEST_BACKTEST_ACCOUNT_NAME else result.account_name
+
         return {
             "runId": result.run_id,
-            "accountName": result.account_name,
+            "accountName": display_account_name,
             "startDate": result.start_date,
             "endDate": result.end_date,
             "tradeCount": result.trade_count,
@@ -735,6 +961,8 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
 @app.post("/api/backtests/preflight")
 def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, object]:
     with _db_conn() as conn:
+        resolved_account_name = _resolve_backtest_payload_account(payload.account, conn)
+        payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             warnings = preview_backtest_warnings(conn, _backtest_config_from_preflight_request(payload))
         except ValueError as error:
@@ -750,13 +978,17 @@ def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, objec
 @app.post("/api/backtests/walk-forward")
 def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
     with _db_conn() as conn:
+        resolved_account_name = _resolve_backtest_payload_account(payload.account, conn)
+        payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             summary = run_walk_forward_backtest(conn, _walk_forward_config_from_request(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
+        display_account_name = TEST_ACCOUNT_NAME if summary.account_name == TEST_BACKTEST_ACCOUNT_NAME else summary.account_name
+
         return {
-            "accountName": summary.account_name,
+            "accountName": display_account_name,
             "startDate": summary.start_date,
             "endDate": summary.end_date,
             "windowCount": summary.window_count,

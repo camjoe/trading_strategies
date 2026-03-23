@@ -72,6 +72,7 @@ function strOrUndefined(value: FormDataEntryValue | null): string | undefined {
 }
 
 export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
+  const TEST_ACCOUNT_NAME = "test_account";
   let cachedCsvExports: CsvExportBatch[] = [];
 
   function syncInstrumentDetails(form?: HTMLFormElement | null): void {
@@ -209,6 +210,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
 
     const data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
     const optionsHtml = data.accounts
+      .filter((a) => a.name !== TEST_ACCOUNT_NAME)
       .map((a) => `<option value="${esc(a.name)}">${esc(a.name)} (${esc(a.strategy)})</option>`)
       .join("");
     select.innerHTML = `<option value="">Select account</option>${optionsHtml}`;
