@@ -1,0 +1,54 @@
+name: Refactoring Frontend Cleanup
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - Refactoring
+    paths:
+      - paper_trading_ui/frontend/**
+      - .github/workflows/refactoring-frontend-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: paper_trading_ui/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: paper_trading_ui/frontend
+        run: npm ci
+
+      - name: Run frontend cleanup
+        working-directory: paper_trading_ui/frontend
+        run: npm run lint -- --fix
+
+      - name: Commit and push frontend cleanup changes
+        run: |
+          if git diff --quiet; then
+            echo "No frontend cleanup changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(refactoring): auto frontend cleanup after merge"
+          git push origin HEAD:${{ github.event.pull_request.base.ref }}
