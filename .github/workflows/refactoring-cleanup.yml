@@ -49,15 +49,24 @@ jobs:
           ruff check trading trends paper_trading_ui/backend --fix
           ruff format trading trends paper_trading_ui/backend
 
-      - name: Commit and push cleanup changes
+      - name: Detect cleanup changes
+        id: cleanup_changes
         run: |
           if git diff --quiet; then
-            echo "No cleanup changes to commit."
-            exit 0
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No cleanup changes detected."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Cleanup changes detected."
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore(refactoring): auto cleanup after merge"
-          git push origin HEAD:${{ github.event.pull_request.base.ref }}
+      - name: Export cleanup patch
+        if: steps.cleanup_changes.outputs.has_changes == 'true'
+        run: git diff > cleanup-python.patch
+
+      - name: Upload cleanup patch
+        if: steps.cleanup_changes.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: refactoring-python-cleanup-patch
+          path: cleanup-python.patch
