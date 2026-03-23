@@ -8,7 +8,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TypedDict
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -220,6 +220,11 @@ class BacktestPreflightRequest(BaseModel):
     allowApproximateLeaps: bool = False
 
 
+class TestInvestmentRow(TypedDict):
+    ticker: str
+    amount: float
+
+
 class AdminCreateAccountRequest(BaseModel):
     name: str
     strategy: str
@@ -408,7 +413,7 @@ def _test_investments_path() -> Path | None:
     return None
 
 
-def _parse_test_investments() -> list[dict[str, object]]:
+def _parse_test_investments() -> list[TestInvestmentRow]:
     """Parse checked rows from local test investments file.
 
     Expected row format examples:
@@ -422,7 +427,7 @@ def _parse_test_investments() -> list[dict[str, object]]:
     line_re = re.compile(r"^\s*-\s*\[(?P<flag>[xX ])\]\s*(?P<ticker>[A-Za-z0-9._-]+)(?:\s*\((?P<meta>[^)]*)\))?")
     amount_re = re.compile(r"\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)")
 
-    results: list[dict[str, object]] = []
+    results: list[TestInvestmentRow] = []
     for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         m = line_re.match(raw_line)
         if not m:
@@ -456,6 +461,11 @@ def _parse_test_investments() -> list[dict[str, object]]:
     return results
 
 
+def _test_account_equity(rows: list[TestInvestmentRow] | None = None) -> float:
+    investments = rows if rows is not None else _parse_test_investments()
+    return sum(item["amount"] for item in investments)
+
+
 def _parse_test_account_benchmark() -> str:
     """Read benchmark override from the same test investments file.
 
@@ -478,7 +488,7 @@ def _parse_test_account_benchmark() -> str:
 
 def _test_account_summary() -> dict[str, object]:
     rows = _parse_test_investments()
-    equity = float(sum(float(item["amount"]) for item in rows))
+    equity = _test_account_equity(rows)
     benchmark = _parse_test_account_benchmark()
     return {
         "name": TEST_ACCOUNT_NAME,
@@ -498,13 +508,13 @@ def _test_account_summary() -> dict[str, object]:
 
 def _test_account_detail_payload() -> dict[str, object]:
     rows = _parse_test_investments()
-    equity = float(sum(float(item["amount"]) for item in rows))
+    equity = _test_account_equity(rows)
     trades = [
         {
-            "ticker": str(item["ticker"]),
+            "ticker": item["ticker"],
             "side": "buy",
             "qty": 1.0,
-            "price": float(item["amount"]),
+            "price": item["amount"],
             "fee": 0.0,
             "tradeTime": TEST_ACCOUNT_TRADE_TIME,
         }
@@ -554,8 +564,7 @@ def _ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
     if existing is not None:
         return
 
-    summary = _test_account_summary()
-    initial_cash = float(summary["initialCash"])
+    initial_cash = _test_account_equity()
     if initial_cash <= 0:
         initial_cash = 1.0
 
@@ -564,7 +573,7 @@ def _ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
         name=TEST_BACKTEST_ACCOUNT_NAME,
         strategy="trend",
         initial_cash=initial_cash,
-        benchmark_ticker=str(summary["benchmark"]),
+        benchmark_ticker=_parse_test_account_benchmark(),
         descriptive_name="TEST Account (Backtest Shadow)",
         risk_policy="none",
         instrument_mode="equity",
