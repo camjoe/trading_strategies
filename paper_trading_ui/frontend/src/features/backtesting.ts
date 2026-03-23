@@ -5,7 +5,6 @@ import { debounce } from "../lib/timing";
 import {
   renderBacktestReport,
   renderBacktestRunCard,
-  renderBacktestRunResult,
   renderWalkForwardResult,
   warningListHtml,
 } from "../components/backtesting";
@@ -32,8 +31,6 @@ const WALK_FORWARD_ACCOUNT_SELECT_SELECTOR = "#walkForwardAccountSelect";
 
 const BACKTEST_WARNINGS_SELECTOR = "#runBacktestWarnings";
 const WALK_FORWARD_WARNINGS_SELECTOR = "#runWalkForwardWarnings";
-const BACKTEST_RUN_OUTPUT_SELECTOR = "#backtestRunOutput";
-const WALK_FORWARD_OUTPUT_SELECTOR = "#walkForwardOutput";
 
 const BACKTEST_RUNS_LIST_SELECTOR = "#backtestRunsList";
 const BACKTEST_REPORT_VIEW_SELECTOR = "#backtestReportView";
@@ -137,7 +134,7 @@ export function createBacktestingFeature(): BacktestingFeature {
   let cachedAccounts: AccountSummary[] = [];
 
   const isWalkForwardRun = (run: BacktestRunSummary): boolean =>
-    Boolean(run.runName && /-w\d{3}-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}$/.test(run.runName));
+    Boolean(run.runName && /^wf(?:_|-)/i.test(run.runName));
 
   function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
     const accountOptions = accounts
@@ -324,54 +321,54 @@ export function createBacktestingFeature(): BacktestingFeature {
 
     runBacktestForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const out = find<HTMLDivElement>(BACKTEST_RUN_OUTPUT_SELECTOR);
-      if (!out || !runBacktestForm) return;
+      const reportTarget = find<HTMLDivElement>(BACKTEST_REPORT_VIEW_SELECTOR);
+      if (!reportTarget || !runBacktestForm) return;
 
       const payload = buildBacktestRunPayload(runBacktestForm);
 
       const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
       if (validationError) {
-        out.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+        reportTarget.innerHTML = `<div class="down">${esc(validationError)}</div>`;
         return;
       }
 
-      out.innerHTML = `<div class="empty">Running backtest...</div>`;
+      reportTarget.innerHTML = `<div class="empty">Running backtest...</div>`;
       try {
         const result = await postJson<BacktestRunResult>("/api/backtests/run", payload);
-        out.innerHTML = renderBacktestRunResult(result);
         await loadBacktestRuns();
         await loadBacktestReport(result.runId);
         await refreshPreflightWarnings(runBacktestForm, BACKTEST_WARNINGS_SELECTOR);
       } catch (error) {
-        out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+        reportTarget.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
       }
     });
 
     runWalkForwardForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const out = find<HTMLDivElement>(WALK_FORWARD_OUTPUT_SELECTOR);
-      if (!out || !runWalkForwardForm) return;
+      const reportTarget = find<HTMLDivElement>(WALK_FORWARD_REPORT_VIEW_SELECTOR);
+      if (!reportTarget || !runWalkForwardForm) return;
 
       const payload = buildWalkForwardPayload(runWalkForwardForm);
 
       const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
       if (validationError) {
-        out.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+        reportTarget.innerHTML = `<div class="down">${esc(validationError)}</div>`;
         return;
       }
 
-      out.innerHTML = `<div class="empty">Running walk-forward windows...</div>`;
+      reportTarget.innerHTML = `<div class="empty">Running walk-forward windows...</div>`;
       try {
         const result = await postJson<WalkForwardResult>("/api/backtests/walk-forward", payload);
-        out.innerHTML = renderWalkForwardResult(result);
         await loadBacktestRuns();
+        reportTarget.innerHTML = renderWalkForwardResult(result);
         if (result.runIds.length) {
           const latestRunId = result.runIds[result.runIds.length - 1];
-          await loadBacktestReportTo(latestRunId, WALK_FORWARD_REPORT_VIEW_SELECTOR);
+          const report = await getJson<BacktestReport>(`/api/backtests/runs/${latestRunId}`);
+          reportTarget.innerHTML = `${renderWalkForwardResult(result)}${renderBacktestReport(report)}`;
         }
         await refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
       } catch (error) {
-        out.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+        reportTarget.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
       }
     });
 
