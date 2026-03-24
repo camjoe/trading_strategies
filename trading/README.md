@@ -31,6 +31,11 @@ Resolution order:
 - `db_path` in `local/db_config.json` (example template: `trading/database/db_config.example.json`)
 - built-in fallback to `local/paper_trading.db`
 
+DB abstraction notes:
+
+- UI/backend code now handles account-create uniqueness failures through a backend-agnostic `DuplicateRecordError` instead of catching `sqlite3.IntegrityError` directly.
+- CSV export now opens connections through the configured database backend path; when `db_path` is explicitly passed, export uses a backend instance bound to that path.
+
 ## Main Commands
 
 ### Initialize
