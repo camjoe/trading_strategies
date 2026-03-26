@@ -8,8 +8,17 @@ import datetime as dt
 import json
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
+
+
+class HealthPayload(TypedDict):
+    status: str
+    message: str
+    latest_log: str | None
+    latest_log_age_hours: float | None
+    sentinel_found: bool
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _emit(payload: dict[str, object], as_json: bool) -> None:
+def _emit(payload: HealthPayload, as_json: bool) -> None:
     if as_json:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return
@@ -47,9 +56,26 @@ def _emit(payload: dict[str, object], as_json: bool) -> None:
     print(f"[{status}] {payload['message']}")
     if payload.get("latest_log"):
         print(f"latest_log={payload['latest_log']}")
-    if payload.get("latest_log_age_hours") is not None:
-        age = float(payload["latest_log_age_hours"])
+    age = payload.get("latest_log_age_hours")
+    if age is not None:
         print(f"latest_log_age_hours={age:.2f}")
+
+
+def _make_payload(
+    *,
+    status: str,
+    message: str,
+    latest_log: str | None,
+    latest_log_age_hours: float | None,
+    sentinel_found: bool,
+) -> HealthPayload:
+    return {
+        "status": status,
+        "message": message,
+        "latest_log": latest_log,
+        "latest_log_age_hours": latest_log_age_hours,
+        "sentinel_found": sentinel_found,
+    }
 
 
 def main() -> int:
@@ -63,13 +89,13 @@ def main() -> int:
 
     logs = sorted(log_dir.glob("daily_paper_trading_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not logs:
-        payload = {
-            "status": "fail",
-            "message": f"No daily trader logs found in {log_dir}",
-            "latest_log": None,
-            "latest_log_age_hours": None,
-            "sentinel_found": False,
-        }
+        payload = _make_payload(
+            status="fail",
+            message=f"No daily trader logs found in {log_dir}",
+            latest_log=None,
+            latest_log_age_hours=None,
+            sentinel_found=False,
+        )
         _emit(payload, args.json)
         return 1
 
@@ -81,50 +107,50 @@ def main() -> int:
     try:
         text = latest.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
-        payload = {
-            "status": "fail",
-            "message": f"Unable to read latest log: {exc}",
-            "latest_log": str(latest),
-            "latest_log_age_hours": age_hours,
-            "sentinel_found": False,
-        }
+        payload = _make_payload(
+            status="fail",
+            message=f"Unable to read latest log: {exc}",
+            latest_log=str(latest),
+            latest_log_age_hours=age_hours,
+            sentinel_found=False,
+        )
         _emit(payload, args.json)
         return 1
 
     sentinel_found = COMPLETE_SENTINEL in text
 
     if age_hours > args.max_age_hours:
-        payload = {
-            "status": "fail",
-            "message": (
+        payload = _make_payload(
+            status="fail",
+            message=(
                 f"Latest daily trader log is stale ({age_hours:.2f}h old; "
                 f"threshold={args.max_age_hours:.2f}h)"
             ),
-            "latest_log": str(latest),
-            "latest_log_age_hours": age_hours,
-            "sentinel_found": sentinel_found,
-        }
+            latest_log=str(latest),
+            latest_log_age_hours=age_hours,
+            sentinel_found=sentinel_found,
+        )
         _emit(payload, args.json)
         return 1
 
     if not sentinel_found:
-        payload = {
-            "status": "fail",
-            "message": "Latest daily trader log is missing success sentinel",
-            "latest_log": str(latest),
-            "latest_log_age_hours": age_hours,
-            "sentinel_found": False,
-        }
+        payload = _make_payload(
+            status="fail",
+            message="Latest daily trader log is missing success sentinel",
+            latest_log=str(latest),
+            latest_log_age_hours=age_hours,
+            sentinel_found=False,
+        )
         _emit(payload, args.json)
         return 1
 
-    payload = {
-        "status": "ok",
-        "message": "Daily trader health check passed",
-        "latest_log": str(latest),
-        "latest_log_age_hours": age_hours,
-        "sentinel_found": True,
-    }
+    payload = _make_payload(
+        status="ok",
+        message="Daily trader health check passed",
+        latest_log=str(latest),
+        latest_log_age_hours=age_hours,
+        sentinel_found=True,
+    )
     _emit(payload, args.json)
     return 0
 
