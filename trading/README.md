@@ -235,6 +235,18 @@ schtasks /Query /TN "Trading\DailyPaperTrading" /V /FO LIST
 schtasks /Query /TN "Trading\DailyPaperTradingFallback" /V /FO LIST
 ```
 
+Health check (fails if no recent successful daily run):
+
+```powershell
+python trading/scripts/check_daily_trader_health.py --max-age-hours 24
+```
+
+JSON output for automation/alerts:
+
+```powershell
+python trading/scripts/check_daily_trader_health.py --max-age-hours 24 --json
+```
+
 Change daily time:
 
 ```powershell
