@@ -36,6 +36,17 @@ DB abstraction notes:
 - UI/backend code now handles account-create uniqueness failures through a backend-agnostic `DuplicateRecordError` instead of catching `sqlite3.IntegrityError` directly.
 - CSV export now opens connections through the configured database backend path; when `db_path` is explicitly passed, export uses a backend instance bound to that path.
 
+Market data provider notes:
+
+- Runtime market data provider is configurable and currently defaults to `yfinance`.
+- Resolution order:
+	- `TRADING_MARKET_DATA_PROVIDER` environment variable
+	- `provider` in `local/market_data_config.json` (or alternate path via `TRADING_MARKET_DATA_CONFIG`)
+	- built-in fallback to `yfinance`
+- Planned provider names are pre-wired for config/runtime selection but intentionally not implemented yet:
+	- `yahooquery`, `pandas-datareader`, `alpha_vantage`, `tiingo`, `polygon-api-client`, `ccxt`
+- Until those providers are implemented, use `yfinance` for live runs.
+
 ## Main Commands
 
 ### Initialize
@@ -224,6 +235,18 @@ schtasks /Query /TN "Trading\DailyPaperTrading" /V /FO LIST
 schtasks /Query /TN "Trading\DailyPaperTradingFallback" /V /FO LIST
 ```
 
+Health check (fails if no recent successful daily run):
+
+```powershell
+python trading/scripts/check_daily_trader_health.py --max-age-hours 24
+```
+
+JSON output for automation/alerts:
+
+```powershell
+python trading/scripts/check_daily_trader_health.py --max-age-hours 24 --json
+```
+
 Change daily time:
 
 ```powershell
@@ -304,6 +327,51 @@ Remove weekly schedule:
 
 ```powershell
 python trading/scripts/register_weekly_backup.py --unregister
+```
+
+## Daily Snapshot Scheduler (Cross-Platform)
+
+Snapshot script: `trading/scripts/daily_snapshot.py`
+
+Behavior:
+
+- Runs `snapshot` for selected accounts (default: all accounts in DB)
+- Writes log output to `local/logs/`
+- Writes timestamped run artifact metadata to `local/exports/daily_snapshots/`
+- Disabled by default until explicitly enabled with `--enable-run` or `DAILY_SNAPSHOT_ENABLED=1`
+- Skips duplicate successful same-day runs unless `--force-run` is supplied
+- Retries transient snapshot failures with exponential backoff
+
+Manual run:
+
+```powershell
+python trading/scripts/daily_snapshot.py --run-source manual --enable-run
+```
+
+Force same-day rerun:
+
+```powershell
+python trading/scripts/daily_snapshot.py --run-source manual --force-run --enable-run
+```
+
+Tune retry/backoff behavior:
+
+```powershell
+python trading/scripts/daily_snapshot.py --max-attempts 4 --backoff-seconds 3.0 --enable-run
+```
+
+Windows Task Scheduler recommendation:
+
+- `Trading\DailySnapshot` (daily)
+
+Example registration:
+
+```powershell
+$repoRoot = Get-Location
+$pythonExe = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$scriptPath = Join-Path $repoRoot "trading\scripts\daily_snapshot.py"
+$action = "`"$pythonExe`" `"$scriptPath`" --run-source scheduled-daily-snapshot --enable-run"
+schtasks /Create /TN "Trading\DailySnapshot" /SC DAILY /ST 16:00 /TR $action /F
 ```
 
 ## Notes

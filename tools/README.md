@@ -1,0 +1,14 @@
+# Tools
+
+Top-level tooling integrations and submodules.
+
+## Project Manager
+
+`project_manager/` contains the planning dashboard and commit-context tooling.
+
+For commit-context usage and documentation precheck details, see:
+- `tools/project_manager/README.md`
+
+Recent tooling note:
+
+- `tools/project_manager/scripts/generate_commit_context.py` now references `scripts/check_docs_freshness.py` as the CI docs-freshness gate entrypoint.

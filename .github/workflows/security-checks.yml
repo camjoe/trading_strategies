@@ -11,11 +11,6 @@ on:
       - paper_trading_ui/frontend/package-lock.json
       - .github/workflows/security-checks.yml
   pull_request:
-    paths:
-      - requirements.txt
-      - requirements/**
-      - paper_trading_ui/frontend/package-lock.json
-      - .github/workflows/security-checks.yml
   schedule:
     - cron: "0 9 * * 1"
   workflow_dispatch:
@@ -35,7 +30,6 @@ jobs:
           cache: "pip"
           cache-dependency-path: |
             requirements/base.txt
-            requirements/research.txt
             requirements.txt
 
       - name: Install pip-audit
@@ -46,9 +40,6 @@ jobs:
       - name: Run pip-audit for base dependencies
         run: pip-audit -r requirements/base.txt -f json -o pip-audit-base.json
 
-      - name: Run pip-audit for research dependencies
-        run: pip-audit -r requirements/research.txt -f json -o pip-audit-research.json
-
       - name: Upload pip-audit results
         if: always()
         uses: actions/upload-artifact@v7
@@ -56,7 +47,6 @@ jobs:
           name: pip-audit-report
           path: |
             pip-audit-base.json
-            pip-audit-research.json
 
   frontend-audit:
     runs-on: ubuntu-latest

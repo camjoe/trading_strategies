@@ -9,9 +9,34 @@ import json
 import sqlite3
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
-from trading.database.code.db_config import get_db_path
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
+def _startup_log(message: str) -> None:
+    log_dir = REPO_ROOT / "local" / "logs"
+    log_path = log_dir / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
+    timestamp = dt.datetime.now(dt.timezone.utc).astimezone().isoformat()
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"[{timestamp}] {message}\n")
+    except OSError:
+        pass
+
+
+_startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}")
+
+try:
+    from trading.database.code.db_config import get_db_path
+except Exception as exc:
+    _startup_log(f"IMPORT ERROR: {exc}")
+    _startup_log(traceback.format_exc().rstrip())
+    raise
 
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
 DEFAULT_TRADE_CAPS_CONFIG = "trading/scripts/account_trade_caps.json"
@@ -203,18 +228,21 @@ def already_completed_today(log_dir: Path) -> bool:
 
 
 def main() -> int:
+    _startup_log("main() entered")
     args = parse_args()
 
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPO_ROOT
     log_dir = repo_root / "local" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 
     if not args.force_run and already_completed_today(log_dir):
+        _startup_log(f"SKIP duplicate run (source={args.run_source})")
         print(f"Daily paper trading already completed today; skipping duplicate run. source={args.run_source}")
         return 0
 
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = log_dir / f"daily_paper_trading_{timestamp}.log"
+    _startup_log(f"RUN log_path={log_path}")
 
     all_accounts = load_all_account_names(repo_root)
 
