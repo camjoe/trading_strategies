@@ -1,0 +1,7 @@
+{
+  "documentationDirectories": [
+    "docs",
+    "tools/project_manager/agent_configs",
+    "tools/project_manager/assets/templates"
+  ]
+}

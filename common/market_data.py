@@ -4,12 +4,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Mapping
+import json
+import os
+from typing import Callable, Mapping
 
 import pandas as pd
 import yfinance as yf
 
 from trends.tickers import load_ticker_categories
+
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_PROVIDER_NAME = "yfinance"
+_DEFAULT_MARKET_DATA_CONFIG_PATH = _REPO_ROOT / "local" / "market_data_config.json"
 
 
 class MarketDataProvider(ABC):
@@ -280,12 +287,120 @@ class YFinanceProvider(MarketDataProvider):
             return None
 
 
+class UnavailableProvider(MarketDataProvider):
+    """Placeholder provider for planned integrations not wired yet."""
+
+    def __init__(self, provider_name: str) -> None:
+        self.provider_name = provider_name
+
+    def _raise_unavailable(self) -> None:
+        raise NotImplementedError(
+            f"Market data provider '{self.provider_name}' is not implemented yet. "
+            "Use provider 'yfinance' for now."
+        )
+
+    def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        self._raise_unavailable()
+
+    def fetch_close_history(
+        self,
+        tickers: list[str],
+        start_date: date,
+        end_date: date,
+    ) -> pd.DataFrame:
+        self._raise_unavailable()
+
+    def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
+        self._raise_unavailable()
+
+
+_PROVIDER_FACTORIES: dict[str, Callable[[], MarketDataProvider]] = {
+    "yfinance": YFinanceProvider,
+    # Planned providers: configurable names now, implementation to follow.
+    "yahooquery": lambda: UnavailableProvider("yahooquery"), # wrapper around yahoo api (unoffical), whereas yfinance is a scraper
+    "pandas-datareader": lambda: UnavailableProvider("pandas-datareader"), # can pull data from places like alpha and tiingo or iex into pandas dataframes
+    "alpha_vantage": lambda: UnavailableProvider("alpha_vantage"), # good lightweight, has bulit-in MACD, RSI
+    "tiingo": lambda: UnavailableProvider("tiingo"), # yfinance alternative - US stocks and crypto (good for backtesting large datasets - so is FMP)
+    "stooq": lambda: UnavailableProvider("stooq"), # Historical Data  - Good for EOD data (Marketstack is alternative), global assets
+    "polygon-api-client": lambda: UnavailableProvider("polygon-api-client"), # Serious real-time data, real-time websocket feeds, documentation
+    "ccxt": lambda: UnavailableProvider("ccxt"),
+    # Alpaca - Good for real-time data, serious about trading
+    # Good for screener or valuation mode - FMP
+    # Finnhub, versaile, new, quotes, technicals
+}
+
 _provider: MarketDataProvider = YFinanceProvider()
+_provider_name = _DEFAULT_PROVIDER_NAME
+_provider_source = "default"
+_provider_config_mtime: float | None = None
 _feature_provider: FeatureDataProvider = ProxyFeatureDataProvider()
+
+
+def _config_path() -> Path:
+    raw = str(os.getenv("TRADING_MARKET_DATA_CONFIG", "")).strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return _DEFAULT_MARKET_DATA_CONFIG_PATH
+
+
+def _provider_name_from_file(config_path: Path) -> str | None:
+    if not config_path.exists():
+        return None
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    value = str(payload.get("provider", "")).strip().lower()
+    return value or None
+
+
+def _resolve_provider_name() -> str:
+    env_name = str(os.getenv("TRADING_MARKET_DATA_PROVIDER", "")).strip().lower()
+    if env_name:
+        return env_name
+
+    file_name = _provider_name_from_file(_config_path())
+    if file_name:
+        return file_name
+
+    return _DEFAULT_PROVIDER_NAME
+
+
+def _sync_provider_from_config() -> None:
+    global _provider, _provider_name, _provider_source, _provider_config_mtime
+
+    target_name = _resolve_provider_name()
+    factory = _PROVIDER_FACTORIES.get(target_name)
+    if factory is None:
+        supported = ", ".join(sorted(_PROVIDER_FACTORIES))
+        raise ValueError(f"Unsupported market data provider '{target_name}'. Supported values: {supported}")
+
+    _provider = factory()
+    _provider_name = target_name
+    _provider_source = "config"
+
+    config_path = _config_path()
+    if config_path.exists():
+        _provider_config_mtime = config_path.stat().st_mtime
+    else:
+        _provider_config_mtime = None
+
+
+def _maybe_reload_provider_from_config() -> None:
+    if _provider_source != "config":
+        return
+
+    config_path = _config_path()
+    if not config_path.exists():
+        if _provider_config_mtime is not None:
+            _sync_provider_from_config()
+        return
+
+    current_mtime = config_path.stat().st_mtime
+    if _provider_config_mtime is None or current_mtime != _provider_config_mtime:
+        _sync_provider_from_config()
 
 
 def get_provider() -> MarketDataProvider:
     """Return the active market data provider."""
+    _maybe_reload_provider_from_config()
     return _provider
 
 
@@ -297,8 +412,40 @@ def set_provider(provider: MarketDataProvider) -> None:
         from common.market_data import set_provider
         set_provider(MyCustomProvider())
     """
-    global _provider
+    global _provider, _provider_name, _provider_source
     _provider = provider
+    _provider_name = provider.__class__.__name__
+    _provider_source = "manual"
+
+
+def set_provider_by_name(name: str) -> None:
+    """Set provider by configured registry name (e.g. yfinance)."""
+    global _provider, _provider_name, _provider_source
+    key = name.strip().lower()
+    factory = _PROVIDER_FACTORIES.get(key)
+    if factory is None:
+        supported = ", ".join(sorted(_PROVIDER_FACTORIES))
+        raise ValueError(f"Unsupported market data provider '{name}'. Supported values: {supported}")
+    _provider = factory()
+    _provider_name = key
+    _provider_source = "manual"
+
+
+def reload_provider_from_config() -> str:
+    """Force reload provider using env/config precedence and return provider name."""
+    _sync_provider_from_config()
+    return _provider_name
+
+
+def get_provider_name() -> str:
+    """Return the active provider identifier."""
+    _maybe_reload_provider_from_config()
+    return _provider_name
+
+
+def supported_provider_names() -> tuple[str, ...]:
+    """Return supported provider identifiers, including planned placeholders."""
+    return tuple(sorted(_PROVIDER_FACTORIES))
 
 
 def get_feature_provider() -> FeatureDataProvider:
@@ -310,3 +457,6 @@ def set_feature_provider(provider: FeatureDataProvider) -> None:
     """Replace the active non-price feature provider."""
     global _feature_provider
     _feature_provider = provider
+
+
+_sync_provider_from_config()

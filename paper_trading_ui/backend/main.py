@@ -26,6 +26,7 @@ from trading.features.backtesting.backtest import (
     run_walk_forward_backtest,
 )
 from trading.database.code.db import ensure_db
+from trading.database.code.db_backend import DuplicateRecordError
 from trading.reporting import build_account_stats, snapshot_account
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -713,7 +714,7 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
             )
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
-        except sqlite3.IntegrityError as error:
+        except DuplicateRecordError as error:
             raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
 
         rotation_schedule = _rotation_schedule_json(payload.rotationSchedule)

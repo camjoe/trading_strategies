@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Sequence
 
+from trading.database.code.db_backend import SQLiteBackend, get_backend
 from trading.database.code.db_config import get_db_path
 
 DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
@@ -113,7 +114,10 @@ def export_tables_to_csv(
     export_dir = output_base_dir.resolve() / f"db_csv_{stamp}"
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(str(resolved_db_path))
+    if db_path is None:
+        conn = get_backend().open_connection()
+    else:
+        conn = SQLiteBackend(resolved_db_path).open_connection()
     try:
         results: list[TableExportResult] = []
         for table in tables:

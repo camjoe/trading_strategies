@@ -6,7 +6,6 @@ Reference list of useful Python packages, data providers, and VS Code extensions
 
 - `requirements/base.txt`: core runtime for `trading/`, `trends/`, and the UI backend.
 - `requirements/dev.txt`: runtime plus test dependencies.
-- `requirements/research.txt`: optional notebook and modeling extras.
 - `requirements.txt`: compatibility alias to `requirements/dev.txt`.
 
 **Import Structure Note:**
@@ -25,7 +24,6 @@ All trading modules use package-mode imports only. Local import fallbacks and tr
 
 - `pandas`
 - `numpy`
-- `statsmodels`
 - `matplotlib`
 
 ### Testing and Quality

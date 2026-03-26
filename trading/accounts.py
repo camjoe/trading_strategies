@@ -1,6 +1,7 @@
 import sqlite3
 from typing import Callable
 from common.time import utc_now_iso as _utc_now_iso
+from trading.database.code.db_backend import DuplicateRecordError
 from trading.database.code.db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 
 
@@ -182,70 +183,73 @@ def create_account(
         iv_rank_max,
     )
 
-    conn.execute(
-        """
-        INSERT INTO accounts (
-            name,
-            strategy,
-            initial_cash,
-            created_at,
-            benchmark_ticker,
-            descriptive_name,
-            goal_min_return_pct,
-            goal_max_return_pct,
-            goal_period,
-            learning_enabled,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-            instrument_mode,
-            option_strike_offset_pct,
-            option_min_dte,
-            option_max_dte,
-            option_type,
-            target_delta_min,
-            target_delta_max,
-            max_premium_per_trade,
-            max_contracts_per_trade,
-            iv_rank_min,
-            iv_rank_max,
-            roll_dte_threshold,
-            profit_take_pct,
-            max_loss_pct
+    try:
+        conn.execute(
+            """
+            INSERT INTO accounts (
+                name,
+                strategy,
+                initial_cash,
+                created_at,
+                benchmark_ticker,
+                descriptive_name,
+                goal_min_return_pct,
+                goal_max_return_pct,
+                goal_period,
+                learning_enabled,
+                risk_policy,
+                stop_loss_pct,
+                take_profit_pct,
+                instrument_mode,
+                option_strike_offset_pct,
+                option_min_dte,
+                option_max_dte,
+                option_type,
+                target_delta_min,
+                target_delta_max,
+                max_premium_per_trade,
+                max_contracts_per_trade,
+                iv_rank_min,
+                iv_rank_max,
+                roll_dte_threshold,
+                profit_take_pct,
+                max_loss_pct
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                name,
+                strategy,
+                float(initial_cash),
+                utc_now_iso(),
+                benchmark_ticker.upper().strip(),
+                display,
+                goal_min_return_pct,
+                goal_max_return_pct,
+                _normalize_lower(goal_period),
+                int(learning_enabled),
+                risk,
+                stop_loss_pct,
+                take_profit_pct,
+                mode,
+                option_strike_offset_pct,
+                option_min_dte,
+                option_max_dte,
+                _normalize_option_type(option_type) if option_type else None,
+                target_delta_min,
+                target_delta_max,
+                max_premium_per_trade,
+                max_contracts_per_trade,
+                iv_rank_min,
+                iv_rank_max,
+                roll_dte_threshold,
+                profit_take_pct,
+                max_loss_pct,
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            name,
-            strategy,
-            float(initial_cash),
-            utc_now_iso(),
-            benchmark_ticker.upper().strip(),
-            display,
-            goal_min_return_pct,
-            goal_max_return_pct,
-            _normalize_lower(goal_period),
-            int(learning_enabled),
-            risk,
-            stop_loss_pct,
-            take_profit_pct,
-            mode,
-            option_strike_offset_pct,
-            option_min_dte,
-            option_max_dte,
-            _normalize_option_type(option_type) if option_type else None,
-            target_delta_min,
-            target_delta_max,
-            max_premium_per_trade,
-            max_contracts_per_trade,
-            iv_rank_min,
-            iv_rank_max,
-            roll_dte_threshold,
-            profit_take_pct,
-            max_loss_pct,
-        ),
-    )
-    conn.commit()
+        conn.commit()
+    except sqlite3.IntegrityError as exc:
+        raise DuplicateRecordError(f"Account '{name}' already exists.") from exc
 
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
