@@ -36,6 +36,17 @@ DB abstraction notes:
 - UI/backend code now handles account-create uniqueness failures through a backend-agnostic `DuplicateRecordError` instead of catching `sqlite3.IntegrityError` directly.
 - CSV export now opens connections through the configured database backend path; when `db_path` is explicitly passed, export uses a backend instance bound to that path.
 
+Market data provider notes:
+
+- Runtime market data provider is configurable and currently defaults to `yfinance`.
+- Resolution order:
+	- `TRADING_MARKET_DATA_PROVIDER` environment variable
+	- `provider` in `local/market_data_config.json` (or alternate path via `TRADING_MARKET_DATA_CONFIG`)
+	- built-in fallback to `yfinance`
+- Planned provider names are pre-wired for config/runtime selection but intentionally not implemented yet:
+	- `yahooquery`, `pandas-datareader`, `alpha_vantage`, `tiingo`, `polygon-api-client`, `ccxt`
+- Until those providers are implemented, use `yfinance` for live runs.
+
 ## Main Commands
 
 ### Initialize
