@@ -18,6 +18,20 @@ export interface AccountsFeature {
   wireActions: () => void;
 }
 
+function bindClick<T extends Element>(selector: string, handler: (element: T) => Promise<void> | void): void {
+  const element = find<T>(selector);
+  if (!element) return;
+  element.addEventListener("click", () => {
+    void handler(element);
+  });
+}
+
+function parseRunId(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function createAccountsFeature(options: AccountsFeatureOptions = {}): AccountsFeature {
   let cachedAccounts: AccountSummary[] = [];
   let currentDetail: AccountDetail | null = null;
@@ -33,45 +47,31 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       tradePageSize,
     });
 
-    const snapBtn = find<HTMLButtonElement>("#snapshotOneBtn");
-    if (snapBtn) {
-      snapBtn.addEventListener("click", async () => {
-        const acct = snapBtn.dataset.account;
-        if (!acct) return;
-        await postJson(`/api/actions/snapshot/${encodeURIComponent(acct)}`);
-        await loadAccountDetail(acct);
-        await loadAccounts();
-      });
-    }
+    bindClick<HTMLButtonElement>("#snapshotOneBtn", async (button) => {
+      const accountName = button.dataset.account;
+      if (!accountName) return;
+      await postJson(`/api/actions/snapshot/${encodeURIComponent(accountName)}`);
+      await loadAccountDetail(accountName);
+      await loadAccounts();
+    });
 
-    const openReportBtn = find<HTMLButtonElement>("#openLatestBacktestReportBtn");
-    if (openReportBtn) {
-      openReportBtn.addEventListener("click", async () => {
-        const runIdRaw = openReportBtn.dataset.runId;
-        if (!runIdRaw) return;
-        const runId = Number(runIdRaw);
-        if (!Number.isFinite(runId)) return;
-        await options.onOpenRunReport?.(runId);
-      });
-    }
+    bindClick<HTMLButtonElement>("#openLatestBacktestReportBtn", async (button) => {
+      const runId = parseRunId(button.dataset.runId);
+      if (runId === null) return;
+      await options.onOpenRunReport?.(runId);
+    });
 
-    const newerTradesBtn = find<HTMLButtonElement>("#recentTradesPrevBtn");
-    if (newerTradesBtn) {
-      newerTradesBtn.addEventListener("click", () => {
-        currentTradePage = Math.max(1, currentTradePage - 1);
-        renderCurrentDetail();
-      });
-    }
+    bindClick<HTMLButtonElement>("#recentTradesPrevBtn", () => {
+      currentTradePage = Math.max(1, currentTradePage - 1);
+      renderCurrentDetail();
+    });
 
-    const olderTradesBtn = find<HTMLButtonElement>("#recentTradesNextBtn");
-    if (olderTradesBtn) {
-      olderTradesBtn.addEventListener("click", () => {
-        if (!currentDetail) return;
-        const totalPages = Math.max(1, Math.ceil(currentDetail.trades.length / tradePageSize));
-        currentTradePage = Math.min(totalPages, currentTradePage + 1);
-        renderCurrentDetail();
-      });
-    }
+    bindClick<HTMLButtonElement>("#recentTradesNextBtn", () => {
+      if (!currentDetail) return;
+      const totalPages = Math.max(1, Math.ceil(currentDetail.trades.length / tradePageSize));
+      currentTradePage = Math.min(totalPages, currentTradePage + 1);
+      renderCurrentDetail();
+    });
   }
 
   async function loadAccounts(): Promise<void> {

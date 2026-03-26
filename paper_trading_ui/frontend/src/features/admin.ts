@@ -53,6 +53,20 @@ export interface AdminFeature {
   loadDeleteAccounts: () => Promise<void>;
 }
 
+function setOutput(
+  target: HTMLElement,
+  state: "empty" | "error" | "success",
+  message: string,
+  asHtml: boolean = false,
+): void {
+  target.className = state;
+  if (asHtml) {
+    target.innerHTML = message;
+  } else {
+    target.textContent = message;
+  }
+}
+
 function numOrUndefined(value: FormDataEntryValue | null): number | undefined {
   const raw = typeof value === "string" ? value.trim() : "";
   if (!raw) return undefined;
@@ -225,8 +239,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const data = new FormData(form);
     const accountName = strOrUndefined(data.get("accountName"));
     if (!accountName) {
-      output.className = "error";
-      output.textContent = "Select an account first.";
+      setOutput(output, "error", "Select an account first.");
       return;
     }
 
@@ -234,29 +247,29 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       `Delete account '${accountName}' and all related trades/backtests? This cannot be undone.`,
     );
     if (!confirmed) {
-      output.className = "empty";
-      output.textContent = "Deletion cancelled.";
+      setOutput(output, "empty", "Deletion cancelled.");
       return;
     }
 
-    output.className = "empty";
-    output.textContent = "Deleting account...";
+    setOutput(output, "empty", "Deleting account...");
 
     try {
       const result = await postJson<DeleteResponse>("/api/admin/accounts/delete", {
         accountName,
         confirm: true,
       });
-      output.className = "success";
-      output.innerHTML =
+      setOutput(
+        output,
+        "success",
         `Deleted ${result.deleted.accounts} account.<br>` +
         `Removed ${result.deleted.trades} trades, ${result.deleted.equitySnapshots} snapshots, ` +
-        `${result.deleted.backtestRuns} backtest runs.`;
+        `${result.deleted.backtestRuns} backtest runs.`,
+        true,
+      );
       await loadDeleteAccounts();
       await options.onAccountsChanged?.();
     } catch (error) {
-      output.className = "error";
-      output.textContent = error instanceof Error ? error.message : "Delete failed.";
+      setOutput(output, "error", error instanceof Error ? error.message : "Delete failed.");
     }
   }
 
@@ -311,28 +324,28 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     };
 
     if (!payload.name || !payload.strategy || payload.initialCash === undefined) {
-      output.className = "error";
-      output.textContent = "Name, strategy, and initial cash are required.";
+      setOutput(output, "error", "Name, strategy, and initial cash are required.");
       return;
     }
 
-    output.className = "empty";
-    output.textContent = "Creating account...";
+    setOutput(output, "empty", "Creating account...");
 
     try {
       const result = await postJson<CreateResponse>("/api/admin/accounts/create", payload);
-      output.className = "success";
-      output.innerHTML =
+      setOutput(
+        output,
+        "success",
         `Created account ${esc(result.account.name)}.<br>` +
-        `Equity: ${currency.format(result.account.equity)} | Return: ${pct(result.account.totalChangePct)}`;
+        `Equity: ${currency.format(result.account.equity)} | Return: ${pct(result.account.totalChangePct)}`,
+        true,
+      );
       form.reset();
       syncInstrumentDetails(form);
       syncRotationDetails(form);
       await loadDeleteAccounts();
       await options.onAccountsChanged?.();
     } catch (error) {
-      output.className = "error";
-      output.textContent = error instanceof Error ? error.message : "Create failed.";
+      setOutput(output, "error", error instanceof Error ? error.message : "Create failed.");
     }
   }
 
