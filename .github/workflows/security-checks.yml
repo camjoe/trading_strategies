@@ -11,11 +11,6 @@ on:
       - paper_trading_ui/frontend/package-lock.json
       - .github/workflows/security-checks.yml
   pull_request:
-    paths:
-      - requirements.txt
-      - requirements/**
-      - paper_trading_ui/frontend/package-lock.json
-      - .github/workflows/security-checks.yml
   schedule:
     - cron: "0 9 * * 1"
   workflow_dispatch:
