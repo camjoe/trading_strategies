@@ -45,7 +45,6 @@ jobs:
           cache-dependency-path: |
             requirements/base.txt
             requirements/dev.txt
-            requirements/research.txt
             requirements.txt
 
       - name: Install dependencies

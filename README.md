@@ -31,9 +31,6 @@ pip install -r requirements/base.txt
 
 # Runtime plus test dependencies
 pip install -r requirements/dev.txt
-
-# Optional notebook / modeling extras (research and experimentation)
-pip install -r requirements/research.txt
 ```
 
 **Execution Note:**
