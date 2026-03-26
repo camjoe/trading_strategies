@@ -317,6 +317,51 @@ Remove weekly schedule:
 python trading/scripts/register_weekly_backup.py --unregister
 ```
 
+## Daily Snapshot Scheduler (Cross-Platform)
+
+Snapshot script: `trading/scripts/daily_snapshot.py`
+
+Behavior:
+
+- Runs `snapshot` for selected accounts (default: all accounts in DB)
+- Writes log output to `local/logs/`
+- Writes timestamped run artifact metadata to `local/exports/daily_snapshots/`
+- Disabled by default until explicitly enabled with `--enable-run` or `DAILY_SNAPSHOT_ENABLED=1`
+- Skips duplicate successful same-day runs unless `--force-run` is supplied
+- Retries transient snapshot failures with exponential backoff
+
+Manual run:
+
+```powershell
+python trading/scripts/daily_snapshot.py --run-source manual --enable-run
+```
+
+Force same-day rerun:
+
+```powershell
+python trading/scripts/daily_snapshot.py --run-source manual --force-run --enable-run
+```
+
+Tune retry/backoff behavior:
+
+```powershell
+python trading/scripts/daily_snapshot.py --max-attempts 4 --backoff-seconds 3.0 --enable-run
+```
+
+Windows Task Scheduler recommendation:
+
+- `Trading\DailySnapshot` (daily)
+
+Example registration:
+
+```powershell
+$repoRoot = Get-Location
+$pythonExe = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$scriptPath = Join-Path $repoRoot "trading\scripts\daily_snapshot.py"
+$action = "`"$pythonExe`" `"$scriptPath`" --run-source scheduled-daily-snapshot --enable-run"
+schtasks /Create /TN "Trading\DailySnapshot" /SC DAILY /ST 16:00 /TR $action /F
+```
+
 ## Notes
 
 - Sells are restricted to current holdings (no shorting in this version).
