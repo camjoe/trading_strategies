@@ -46,6 +46,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-python", action="store_true", help="Skip Python checks.")
     parser.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
     parser.add_argument(
+        "--skip-docs-freshness",
+        action="store_true",
+        help="Skip documentation freshness check.",
+    )
+    parser.add_argument(
+        "--docs-base-ref",
+        help="Optional base ref for docs freshness check (CI mode).",
+    )
+    parser.add_argument(
+        "--docs-head-ref",
+        default="HEAD",
+        help="Optional head ref for docs freshness check when --docs-base-ref is set.",
+    )
+    parser.add_argument(
         "--install-python-tools",
         action="store_true",
         help="Install ruff and mypy before running quality gates.",
@@ -61,6 +75,20 @@ def main() -> int:
 
     try:
         if not args.skip_python:
+            if not args.skip_docs_freshness:
+                docs_cmd = [
+                    python_exe,
+                    "scripts/check_docs_freshness.py",
+                    "--repo-root",
+                    str(repo_root),
+                ]
+                if args.docs_base_ref:
+                    docs_cmd.extend(["--base-ref", args.docs_base_ref, "--head-ref", args.docs_head_ref])
+                _run_step(
+                    "Python docs: freshness",
+                    docs_cmd,
+                    repo_root,
+                )
             _run_step(
                 "Python: upgrade pip",
                 [python_exe, "-m", "pip", "install", "--upgrade", "pip"],

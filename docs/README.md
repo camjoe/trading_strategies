@@ -28,3 +28,16 @@ python -m trading.paper_trading
 - `../trends/README.md`: trends module usage and ticker inputs.
 - `../paper_trading_ui/README.md`: UI backend/frontend setup and API routes.
 - `backtesting/README.md`: backtesting command reference.
+
+## Docs Freshness Workflow
+
+Use the docs freshness checker before commit or in CI to detect stale documentation for changed code areas.
+
+```powershell
+python scripts/check_docs_freshness.py
+python scripts/check_docs_freshness.py --base-ref origin/main --head-ref HEAD
+```
+
+- Default mode checks working tree + untracked files.
+- CI mode uses a git ref diff and exits non-zero when docs are stale.
+- `scripts/ci_smoke.py --skip-frontend` includes this check by default.
