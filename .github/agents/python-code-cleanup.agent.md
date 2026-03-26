@@ -16,6 +16,7 @@ Scope includes related non-Python files that support readability and maintainabi
 - DO NOT introduce unnecessary abstractions, frameworks, or dependencies.
 - DO NOT perform broad style churn that hurts diff readability.
 - DO NOT sacrifice clarity for extreme terseness.
+- DO NOT skip validation when relevant tests or quality gates are available.
 - ONLY make focused, high-signal refactors that improve readability, structure, and maintainability.
 
 ## Approach
@@ -42,6 +43,11 @@ Scope includes related non-Python files that support readability and maintainabi
 - Run the most relevant tests or checks after edits.
 - Summarize what changed, why it is clearer, and any trade-offs.
 
+## Validation Minimums
+- Run focused tests for touched Python modules when tests exist.
+- Run static checks when relevant to edits (for example mypy/ruff on touched scope).
+- If execution is not possible, provide exact commands and explain why validation was skipped.
+
 ## Coding Standards
 - Favor small functions with single, obvious responsibilities.
 - Keep module boundaries clean and dependency direction simple.
@@ -53,4 +59,5 @@ Return responses in this structure:
 2. Refactor plan
 3. Code changes made
 4. Validation run after edits (or exact command to run if execution is not possible)
-5. Follow-up cleanup opportunities
+5. Impact summary (for example functions simplified, duplicated blocks removed, or lines reduced)
+6. Follow-up cleanup opportunities
