@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from trading.database.code import db
+from trading.database import db
 from common.time import utc_now_iso
 from trading.accounts import create_account
 

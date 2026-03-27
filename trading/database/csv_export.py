@@ -8,8 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Sequence
 
-from trading.database.code.db_backend import SQLiteBackend, get_backend
-from trading.database.code.db_config import get_db_path
+from trading.database.db_backend import SQLiteBackend, get_backend
+from trading.database.db_config import get_db_path
 
 DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
     "accounts",

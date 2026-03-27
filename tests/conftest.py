@@ -4,8 +4,8 @@ from collections.abc import Iterator
 
 import pytest
 
-from trading.database.code import db
-from trading.database.code.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database import db
+from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 
 
 @pytest.fixture

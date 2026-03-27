@@ -7,7 +7,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
 from export_db_csv import print_export_summary
-from trading.database.code.csv_export import export_tables_to_csv, zip_export_directory  # noqa: E402
+from trading.database.csv_export import export_tables_to_csv, zip_export_directory  # noqa: E402
 
 
 def main() -> int:

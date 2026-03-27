@@ -7,7 +7,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
-from trading.database.code.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv  # noqa: E402
+from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:

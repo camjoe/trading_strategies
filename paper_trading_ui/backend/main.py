@@ -25,8 +25,8 @@ from trading.backtesting.backtest import (
     WalkForwardConfig,
     run_walk_forward_backtest,
 )
-from trading.database.code.db import ensure_db
-from trading.database.code.db_backend import DuplicateRecordError
+from trading.database.db import ensure_db
+from trading.database.db_backend import DuplicateRecordError
 from trading.reporting import build_account_stats, snapshot_account
 
 ROOT_DIR = Path(__file__).resolve().parents[2]

@@ -32,7 +32,7 @@ def _startup_log(message: str) -> None:
 _startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}")
 
 try:
-    from trading.database.code.db_config import get_db_path
+    from trading.database.db_config import get_db_path
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())

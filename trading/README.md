@@ -28,7 +28,7 @@ Runtime DB location is config-driven and defaults to `local/paper_trading.db`.
 Resolution order:
 
 - `TRADING_DB_PATH` environment variable
-- `db_path` in `local/db_config.json` (example template: `trading/database/db_config.example.json`)
+- `db_path` in `local/db_config.json`
 - built-in fallback to `local/paper_trading.db`
 
 DB abstraction notes:

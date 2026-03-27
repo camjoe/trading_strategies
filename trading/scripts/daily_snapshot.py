@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from trading.database.code.db_config import get_db_path
+from trading.database.db_config import get_db_path
 
 COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
 TRANSIENT_ERROR_TOKENS = (

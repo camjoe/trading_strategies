@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from trading.database.code.db_backend import get_backend
-from trading.database.code.db_config import get_db_path
+from trading.database.db_backend import get_backend
+from trading.database.db_config import get_db_path
 
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any

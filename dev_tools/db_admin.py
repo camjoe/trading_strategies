@@ -5,8 +5,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from trading.database.code.db import ensure_db
-from trading.database.code.db_backend import SQLiteBackend, get_backend
+from trading.database.db import ensure_db
+from trading.database.db_backend import SQLiteBackend, get_backend
 
 
 def _sqlite_db_path() -> Path:
