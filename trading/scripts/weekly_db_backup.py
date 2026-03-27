@@ -69,7 +69,7 @@ def main() -> int:
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] START: Database backup")
     process = subprocess.Popen(
         cmd,
-        cwd=str(repo_root),
+        cwd=str(REPO_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
