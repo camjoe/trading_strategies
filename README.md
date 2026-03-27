@@ -25,7 +25,7 @@ This repository contains tools for:
 
 Choose the dependency set that matches your purpose:
 
-```powershell
+```sh
 # Core runtime for trends, trading, and UI backend
 pip install -r requirements/base.txt
 
@@ -35,7 +35,7 @@ pip install -r requirements/dev.txt
 
 **Execution Note:**
 - All trading scripts must be run as Python modules from the repository root, e.g.,
-  ```powershell
+  ```sh
   python -m trading.paper_trading init
   ```
 - `requirements.txt` points to `requirements/dev.txt` for backward compatibility.
@@ -44,21 +44,21 @@ pip install -r requirements/dev.txt
 
 Run the same core checks used by GitHub Actions from the repository root:
 
-```powershell
-python .\scripts\ci_smoke.py
+```sh
+python scripts/ci_smoke.py
 ```
 
 Optional flags:
 
-```powershell
+```sh
 # Skip frontend checks
-python .\scripts\ci_smoke.py --skip-frontend
+python scripts/ci_smoke.py --skip-frontend
 
 # Skip python checks
-python .\scripts\ci_smoke.py --skip-python
+python scripts/ci_smoke.py --skip-python
 
 # Explicitly install ruff/mypy before quality gates
-python .\scripts\ci_smoke.py --install-python-tools
+python scripts/ci_smoke.py --install-python-tools
 ```
 
 ## Quick Start
@@ -69,28 +69,21 @@ See [trends/README.md](trends/README.md) for full documentation and usage exampl
 
 ### Backtesting
 
-See [docs/backtesting/README.md](docs/backtesting/README.md) for walk-forward simulation and strategy testing.
+See [docs/backtesting.md](docs/backtesting.md) for walk-forward simulation and strategy testing.
 
 ### Paper Trading
 
 See [trading/README.md](trading/README.md) for paper trading commands, account profiles, and scheduler operations.
 
-Direct links:
-
-- [Main commands](trading/README.md#main-commands)
-- [Apply account profiles](trading/README.md#apply-account-profiles)
-- [Auto-trading](trading/README.md#auto-trading)
-- [Daily scheduler (Windows)](trading/README.md#daily-scheduler-windows)
-
 ## Testing
 
 Run the full test suite from the project root:
 
-```powershell
+```sh
 python -m pytest
 ```
 
-Tests cover both `trading` and `trends` packages with a baseline of 35% coverage.
+Tests cover both `trading` and `trends` packages with a minimum 70% coverage threshold.
 
 ## Documentation Index
 

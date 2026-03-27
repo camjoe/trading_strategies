@@ -4,7 +4,7 @@ Repository test suite for trading, trends, backtesting, UI backend, and supporti
 
 ## Targeted Run
 
-```powershell
+```sh
 python -m pytest -o addopts= tests/test_docs_freshness_check.py
 ```
 
@@ -18,7 +18,7 @@ Daily snapshot scheduler coverage lives in:
 
 Run only this test module:
 
-```powershell
+```sh
 python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
 ```
 

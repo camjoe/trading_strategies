@@ -2,21 +2,31 @@
 
 Use this file to track possible strategy approaches, assumptions, and next experiments.
 
+Status labels in this document:
+
+- Implemented: available in code and used by CLI/backtesting flows.
+- Partial: foundations exist, but this item is still broad or not fully formalized as a standalone model.
+- Planned: idea-level only, not currently implemented as a first-class strategy.
+
 ## Goals
+- Status: Partial
+
 - Define strategy hypotheses before coding.
 - Compare multiple approaches with clear evaluation metrics.
 - Track trade-offs (risk, complexity, data needs, and maintainability).
 
 ## Possible Approaches
-- Trend following
-- Mean reversion
-- Momentum cross-sectional ranking
-- Volatility breakout
-- Pairs/statistical arbitrage
-- Factor-based signals
-- Regime-aware models
+- Trend following - Implemented
+- Mean reversion - Implemented
+- Momentum cross-sectional ranking - Partial (proxies/rotation support exists, no dedicated ranked portfolio engine)
+- Volatility breakout - Implemented (`breakout`, plus volatility-gated trend variants)
+- Pairs/statistical arbitrage - Planned
+- Factor-based signals - Partial (proxy feature strategies exist; no broad multi-factor framework yet)
+- Regime-aware models - Implemented (`macro_proxy_regime`), broader taxonomy still evolving
 
 ## Backtest Strategy IDs (Phase 2)
+
+Status: Implemented
 
 Use explicit strategy ids when creating accounts so behavior is predictable and testable.
 
@@ -33,10 +43,14 @@ Use explicit strategy ids when creating accounts so behavior is predictable and 
 - macro_proxy_regime: macro/policy-adjacent proxy filter using SPY vs TLT leadership and VIX pressure.
 
 Compatibility notes:
+- Status: Implemented
+
 - Existing labels such as trend_v1, momentum, mean reversion variants, and macd/rsi labels still resolve through a compatibility matcher.
 - Unknown strategy labels currently default to the trend model.
 
 ## Proxy Feature Strategies (Phase 3)
+
+Status: Implemented
 
 These strategies use date-indexed proxy features rather than direct NLP or news sentiment.
 
@@ -51,12 +65,16 @@ These strategies use date-indexed proxy features rather than direct NLP or news 
 	- Serves as a politics/macro-adjacent filter without claiming direct event or policy sentiment measurement.
 
 Limitations and assumptions:
+- Status: Current constraints (Implemented behavior)
+
 - These are proxy signals, not direct sentiment or topic measurements.
 - Topic mappings depend on the category file and a limited sector-to-ETF map; unmapped tickers default to no topic signal.
 - Macro features currently use Yahoo Finance symbols only; no FRED, paid macro archive, or curated event calendar is included yet.
 - All proxy inputs are still evaluated on daily closes, so intraday event timing and overnight information shocks are not modeled.
 
 ## Evaluation Framework
+- Status: Planned/Process guidance
+
 - Universe and timeframe
 - Signal definition
 - Entry/exit rules

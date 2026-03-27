@@ -27,7 +27,7 @@ Data operation scripts (`scripts/data_ops/`):
 
 **Execution:**
 
-```powershell
+```sh
 # Backup database
 python -m scripts.data_ops.backup_db
 
@@ -52,7 +52,7 @@ If a script changes trading runtime behavior, place it in `trading/scripts/` and
 
 ### Usage
 
-```powershell
+```sh
 python -m scripts.check_docs_freshness
 python -m scripts.check_docs_freshness --base-ref origin/main --head-ref HEAD
 python -m scripts.ci_smoke --skip-frontend
@@ -64,7 +64,7 @@ python -m scripts.ci_smoke --skip-frontend
 
 ### Usage
 
-```powershell
+```sh
 # Python bot on uncommitted files
 python -m scripts.prepare_cleanup_bot_run --bot python --scope uncommitted
 
@@ -80,6 +80,6 @@ python -m scripts.prepare_cleanup_bot_run --bot structure --scope recent --base-
 
 Optional JSON output:
 
-```powershell
+```sh
 python -m scripts.prepare_cleanup_bot_run --bot both --scope uncommitted --json
 ```

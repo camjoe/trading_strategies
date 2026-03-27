@@ -4,72 +4,40 @@ A separate scaffold for viewing paper trading accounts, snapshots, trades, and l
 
 ## Environment Setup
 
-From repository root:
+Copy the example env files once before first run:
 
-```powershell
-Copy-Item paper_trading_ui/backend/.env.example paper_trading_ui/backend/.env
-Copy-Item paper_trading_ui/frontend/.env.example paper_trading_ui/frontend/.env
+```sh
+cp paper_trading_ui/backend/.env.example paper_trading_ui/backend/.env
+cp paper_trading_ui/frontend/.env.example paper_trading_ui/frontend/.env
 ```
 
-Backend env file supports:
+Backend env supports `CORS_ORIGINS` and `LOGS_DIR`. Frontend env supports `VITE_API_BASE` (default `http://127.0.0.1:8000`).
 
-- `CORS_ORIGINS` (comma-separated or `*`)
-- `LOGS_DIR` (optional override for logs directory)
+## One-Command Launcher
 
-Frontend env file supports:
+The easiest way to start both services:
 
-- `VITE_API_BASE` (API base URL, default `http://127.0.0.1:8000`)
-
-## Backend (FastAPI)
-
-From repository root:
-
-```powershell
-pip install -r requirements/base.txt
-Get-Content paper_trading_ui/backend/.env | ForEach-Object {
-	if ($_ -match '^(?!#)([^=]+)=(.*)$') {
-		[Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
-	}
-}
-uvicorn paper_trading_ui.backend.main:app --reload --host $env:API_HOST --port ([int]$env:API_PORT)
+```sh
+python scripts/launch_ui.py
 ```
 
-Or run directly with local defaults:
+Keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1:5173`.
 
-```powershell
+## Manual Startup
+
+Backend:
+
+```sh
 uvicorn paper_trading_ui.backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-API base URL: http://127.0.0.1:8000
+Frontend:
 
-## Frontend (TypeScript + Vite)
-
-From repository root:
-
-```powershell
+```sh
 cd paper_trading_ui/frontend
 npm install
 npm run dev
 ```
-
-Frontend URL (default): http://127.0.0.1:5173
-
-Note: the launcher runs Vite with `--strictPort`, so if `FRONTEND_PORT` is occupied the frontend window will show an explicit error instead of silently switching ports.
-
-## One-Command Launcher (Cross-Platform Python)
-
-From repository root:
-
-```powershell
-python scripts/launch_ui.py
-```
-
-This keeps both services attached to your terminal and stops both when you press `Ctrl+C`.
-
-Current Python launcher defaults:
-
-- Backend: `http://127.0.0.1:8000`
-- Frontend: `http://127.0.0.1:5173`
 
 ## Core API Routes
 
