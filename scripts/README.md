@@ -10,6 +10,36 @@ Automation helpers for repository operations and CI/local quality checks.
 
 Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
 
+## Script Catalog
+
+Repository workflow scripts (`scripts/`):
+
+- `check_docs_freshness.py`: validates docs updates for changed areas.
+- `ci_smoke.py`: aggregate smoke checks for docs, Python, tests, and optional frontend.
+- `prepare_cleanup_bot_run.py`: builds cleanup-agent prompts from repo change scope.
+- `launch_ui.py`: convenience launcher for the paper-trading UI stack.
+
+Data operation scripts (`scripts/`):
+
+- `data_ops/backup_db.py`: retention-oriented backup helper writing to `local/db_backups/`.
+- `data_ops/export_db_csv.py`: table export to timestamped CSV directory.
+- `data_ops/export_db_csv_zip.py`: CSV export with ZIP packaging.
+
+Compatibility entrypoints remain at:
+
+- `scripts/backup_db.py`
+- `scripts/export_db_csv.py`
+- `scripts/export_db_csv_zip.py`
+
+These wrappers delegate to `scripts/data_ops/` so existing commands keep working.
+
+What should not go here:
+
+- Trading runtime schedulers and health checks belong in `trading/scripts/`.
+- Interactive/local DB admin workflows belong in `dev_tools/`.
+
+If a script changes trading runtime behavior, place it in `trading/scripts/` and document it in `trading/README.md`.
+
 ## Docs Freshness
 
 - `check_docs_freshness.py`: checks changed areas for missing documentation updates.

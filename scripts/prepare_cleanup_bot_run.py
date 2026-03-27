@@ -17,6 +17,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+
 
 @dataclass(frozen=True)
 class BotSpec:
@@ -264,7 +266,7 @@ def main() -> int:
         print("--max-files must be >= 1", file=sys.stderr)
         return 2
 
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = get_repo_root(__file__)
     spec = BOT_SPECS[args.bot]
 
     try:

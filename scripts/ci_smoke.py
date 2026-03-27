@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+
 
 def _run_step(name: str, command: list[str], cwd: Path) -> None:
     print(f"\n==> {name}")
@@ -114,7 +116,7 @@ def _python_quality_commands(python_exe: str) -> list[tuple[str, list[str]]]:
 
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = get_repo_root(__file__)
     python_exe = _resolve_python_exe(repo_root)
     npm_exe = _resolve_npm_exe()
 

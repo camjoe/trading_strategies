@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+
 WINDOWS_DAYS = {
     "monday": "MON",
     "tuesday": "TUE",
@@ -136,7 +138,8 @@ def linux_unregister(args: argparse.Namespace) -> int:
 
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[2]
+
+    repo_root = get_repo_root(__file__)
     script_path = repo_root / "trading" / "scripts" / "weekly_db_backup.py"
 
     system = platform.system().lower()

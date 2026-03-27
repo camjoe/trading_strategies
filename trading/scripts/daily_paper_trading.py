@@ -12,9 +12,11 @@ import sys
 import traceback
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
+
+REPO_ROOT = _BOOTSTRAP_REPO_ROOT
 
 
 def _startup_log(message: str) -> None:

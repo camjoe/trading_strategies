@@ -28,8 +28,9 @@ from trading.backtesting.backtest import (
 from trading.database.db import ensure_db
 from trading.database.db_backend import DuplicateRecordError
 from trading.reporting import build_account_stats, snapshot_account
+from common.repo_paths import get_repo_root
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = get_repo_root(__file__)
 BACKEND_DIR = Path(__file__).resolve().parent
 
 load_dotenv(BACKEND_DIR / ".env")

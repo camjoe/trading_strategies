@@ -3,12 +3,12 @@ import random
 import sqlite3
 import sys
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import TypeAlias
 
 from common.market_data import get_provider
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
+from common.repo_paths import get_repo_root
 
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
@@ -25,7 +25,7 @@ from trading.rotation import (
     resolve_rotation_mode,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = get_repo_root(__file__)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

@@ -12,9 +12,10 @@ import pandas as pd
 import yfinance as yf
 
 from common.tickers import load_ticker_categories
+from common.repo_paths import get_repo_root
 
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_PROVIDER_NAME = "yfinance"
 _DEFAULT_MARKET_DATA_CONFIG_PATH = _REPO_ROOT / "local" / "market_data_config.json"
 

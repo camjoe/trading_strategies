@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+
 COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
 
 
@@ -43,7 +45,8 @@ def already_completed_this_week(log_dir: Path, tag: str) -> bool:
 
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[2]
+
+    repo_root = get_repo_root(__file__)
     log_dir = repo_root / "local" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 

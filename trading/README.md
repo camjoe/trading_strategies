@@ -192,6 +192,8 @@ python -m trading.auto_trader --accounts momentum_5k,meanrev_5k --seed 42
 
 ## Daily Scheduler (Cross-Platform)
 
+Runtime script inventory: `trading/scripts/README.md`
+
 Scheduler script: `trading/scripts/daily_paper_trading.py`
 
 Behavior:

@@ -14,11 +14,13 @@ import time
 from pathlib import Path
 from typing import Callable
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
 
-from trading.database.db_config import get_db_path
+REPO_ROOT = _BOOTSTRAP_REPO_ROOT
+
+from trading.database.db_config import get_db_path  # noqa: E402
 
 COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
 TRANSIENT_ERROR_TOKENS = (

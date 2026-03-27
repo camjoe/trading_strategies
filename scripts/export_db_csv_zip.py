@@ -1,23 +1,12 @@
 from __future__ import annotations
 
-import sys
+import runpy
 from pathlib import Path
-
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_REPO_ROOT))
-
-from export_db_csv import print_export_summary
-from trading.database.csv_export import export_tables_to_csv, zip_export_directory  # noqa: E402
 
 
 def main() -> int:
-    result = export_tables_to_csv(
-        output_base_dir=_REPO_ROOT / "local" / "exports",
-    )
-    zip_path = zip_export_directory(result.output_dir)
-
-    print_export_summary(result)
-    print(f"[export] Archive:  {zip_path}")
+    target = Path(__file__).resolve().parent / "data_ops" / "export_db_csv_zip.py"
+    runpy.run_path(str(target), run_name="__main__")
     return 0
 
 
