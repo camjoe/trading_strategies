@@ -54,7 +54,7 @@ def main() -> int:
     log_path = LOGS_DIR / f"weekly_db_backup_{tag}_{timestamp}.log"
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: force={bool(args.force_run)}")
 
-    cmd = [sys.executable, "-m", "dev_tools.db_admin", "backup-db"]
+    cmd = [sys.executable, "-m", "trading.database.admin", "backup-db"]
     if args.backup_dir:
         cmd.append(args.backup_dir)
 

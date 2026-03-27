@@ -18,7 +18,7 @@ Backend env supports `CORS_ORIGINS` and `LOGS_DIR`. Frontend env supports `VITE_
 The easiest way to start both services:
 
 ```sh
-python scripts/launch_ui.py
+python -m scripts.launch_ui
 ```
 
 Keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1:5173`.

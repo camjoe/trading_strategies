@@ -45,20 +45,20 @@ pip install -r requirements/dev.txt
 Run the same core checks used by GitHub Actions from the repository root:
 
 ```sh
-python scripts/ci_smoke.py
+python -m scripts.ci_smoke
 ```
 
 Optional flags:
 
 ```sh
 # Skip frontend checks
-python scripts/ci_smoke.py --skip-frontend
+python -m scripts.ci_smoke --skip-frontend
 
 # Skip python checks
-python scripts/ci_smoke.py --skip-python
+python -m scripts.ci_smoke --skip-python
 
 # Explicitly install ruff/mypy before quality gates
-python scripts/ci_smoke.py --install-python-tools
+python -m scripts.ci_smoke --install-python-tools
 ```
 
 ## Quick Start

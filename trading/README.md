@@ -34,8 +34,8 @@ python -m trading.auto_trader --accounts momentum_5k,meanrev_5k
 Backup and export:
 
 ```sh
-python scripts/data_ops/backup_db.py
-python scripts/data_ops/export_db_csv.py
+python -m scripts.data_ops.backup_db
+python -m scripts.data_ops.export_db_csv
 ```
 
 ## Script Boundaries
@@ -69,19 +69,19 @@ Scripts in `trading/scripts/` all accept `--help` for the full flag reference. C
 
 ```sh
 # Daily paper trading
-python trading/scripts/daily_paper_trading.py --run-source manual
+python -m trading.scripts.daily_paper_trading --run-source manual
 
 # Daily snapshot
-python trading/scripts/daily_snapshot.py --run-source manual --enable-run
+python -m trading.scripts.daily_snapshot --run-source manual --enable-run
 
 # Weekly DB backup
-python trading/scripts/weekly_db_backup.py
+python -m trading.scripts.weekly_db_backup
 
 # Health check
-python trading/scripts/check_daily_trader_health.py --max-age-hours 24
+python -m trading.scripts.check_daily_trader_health --max-age-hours 24
 
 # Register weekly backup on scheduler (Windows Task Scheduler / Linux cron)
-python trading/scripts/register_weekly_backup.py --day-of-week Sunday --time 02:00
+python -m trading.scripts.register_weekly_backup --day-of-week Sunday --time 02:00
 ```
 
 Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`.

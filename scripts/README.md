@@ -6,7 +6,7 @@ Automation helpers for repository operations and CI/local quality checks.
 
 - `scripts/`: repository-level automation and developer workflows (CI smoke, docs checks, exports, launch helpers).
 - `trading/scripts/`: trading runtime operations and scheduler tasks (daily trading, health checks, backup registration).
-- `dev_tools/`: interactive/local database administration utilities.
+- `trading/database/admin.py`: interactive/local database administration utilities.
 
 Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
 
@@ -41,7 +41,7 @@ python -m scripts.data_ops.export_db_csv_zip
 What should not go here:
 
 - Trading runtime schedulers and health checks belong in `trading/scripts/`.
-- Interactive/local DB admin workflows belong in `dev_tools/`.
+- Interactive/local DB admin workflows belong in `trading/database/admin.py`.
 
 If a script changes trading runtime behavior, place it in `trading/scripts/` and document it in `trading/README.md`.
 
