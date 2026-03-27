@@ -394,3 +394,243 @@ def test_main_backtest_batch_dispatches(monkeypatch, capsys):
     assert "Backtest batch complete." in out
     assert "1,acct2,22,3.0000" in out
     assert fake_conn.closed is True
+
+
+class TestLearningFlagResolution:
+    def test_resolve_learning_enabled_configure_mode_disabled(self):
+        args = _configure_args(learning_enabled=False, learning_disabled=True)
+
+        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+
+        assert resolved is False
+
+    def test_resolve_learning_enabled_configure_mode_none(self):
+        args = _configure_args(learning_enabled=False, learning_disabled=False)
+
+        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+
+        assert resolved is None
+
+
+class TestHandlerOutputsAndEdgeCases:
+    def test_main_init_prints_initialized_path(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(command="init")
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+
+        paper_trading.main()
+
+        out = capsys.readouterr().out
+        assert "Initialized:" in out
+        assert fake_conn.closed is True
+
+    def test_main_set_benchmark_uppercases_print(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(command="set-benchmark", account="acct1", benchmark="qqq")
+
+        captured = {}
+
+        def fake_set_benchmark(conn, account, benchmark):
+            captured["conn"] = conn
+            captured["account"] = account
+            captured["benchmark"] = benchmark
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "set_benchmark", fake_set_benchmark)
+
+        paper_trading.main()
+
+        assert captured == {"conn": fake_conn, "account": "acct1", "benchmark": "qqq"}
+        assert "Updated benchmark for 'acct1' to 'QQQ'." in capsys.readouterr().out
+        assert fake_conn.closed is True
+
+    def test_main_apply_account_profiles_passes_create_missing(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(
+            command="apply-account-profiles",
+            file="custom_profiles.json",
+            no_create_missing=True,
+        )
+
+        captured = {}
+
+        def fake_load(path):
+            captured["path"] = path
+            return [{"name": "acct1"}]
+
+        def fake_apply(conn, profiles, *, create_missing):
+            captured["conn"] = conn
+            captured["profiles"] = profiles
+            captured["create_missing"] = create_missing
+            return (1, 2, 3)
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "load_account_profiles", fake_load)
+        monkeypatch.setattr(paper_trading, "apply_account_profiles", fake_apply)
+
+        paper_trading.main()
+
+        assert captured["path"] == "custom_profiles.json"
+        assert captured["create_missing"] is False
+        assert "Applied account profiles: created=1, updated=2, skipped=3." in capsys.readouterr().out
+        assert fake_conn.closed is True
+
+    def test_main_apply_account_preset_uses_lowercased_filename(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(
+            command="apply-account-preset",
+            preset="Conservative",
+            no_create_missing=False,
+        )
+
+        captured = {}
+
+        def fake_load(path):
+            captured["path"] = path
+            return [{"name": "acct1"}]
+
+        def fake_apply(conn, profiles, *, create_missing):
+            captured["conn"] = conn
+            captured["profiles"] = profiles
+            captured["create_missing"] = create_missing
+            return (0, 1, 0)
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "load_account_profiles", fake_load)
+        monkeypatch.setattr(paper_trading, "apply_account_profiles", fake_apply)
+
+        paper_trading.main()
+
+        assert captured["path"].endswith("account_profiles\\conservative.json")
+        assert captured["create_missing"] is True
+        assert "Applied preset 'Conservative': created=0, updated=1, skipped=0." in capsys.readouterr().out
+        assert fake_conn.closed is True
+
+    def test_main_backtest_without_benchmark_prints_unavailable(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(
+            command="backtest",
+            account="acct1",
+            tickers_file="trading/trade_universe.txt",
+            universe_history_dir=None,
+            start="2026-01-01",
+            end="2026-03-01",
+            lookback_months=None,
+            slippage_bps=5.0,
+            fee=0.0,
+            run_name=None,
+            allow_approximate_leaps=False,
+        )
+
+        class _Result:
+            run_id = 8
+            account_name = "acct1"
+            start_date = "2026-01-01"
+            end_date = "2026-03-01"
+            trade_count = 3
+            ending_equity = 10300.0
+            total_return_pct = 3.0
+            max_drawdown_pct = -1.0
+            benchmark_return_pct = None
+            alpha_pct = None
+            warnings = []
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "run_backtest", lambda _conn, _cfg: _Result())
+
+        paper_trading.main()
+
+        out = capsys.readouterr().out
+        assert "Backtest complete: run_id=8" in out
+        assert "Benchmark comparison unavailable for selected date range." in out
+        assert "Backtest safeguards / approximation notes:" not in out
+        assert fake_conn.closed is True
+
+    def test_main_backtest_leaderboard_no_rows_prints_message(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(command="backtest-leaderboard", limit=10, account=None, strategy=None)
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "backtest_leaderboard", lambda *_args, **_kwargs: [])
+
+        paper_trading.main()
+
+        out = capsys.readouterr().out
+        assert "No backtest runs matched the selected filters." in out
+        assert fake_conn.closed is True
+
+    def test_main_backtest_leaderboard_formats_none_optional_fields(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(command="backtest-leaderboard", limit=1, account=None, strategy=None)
+
+        def fake_rows(*_args, **_kwargs):
+            return [
+                {
+                    "run_id": 10,
+                    "run_name": None,
+                    "account_name": "acct1",
+                    "strategy": "trend_v1",
+                    "start_date": "2026-01-01",
+                    "end_date": "2026-01-31",
+                    "ending_equity": 10050.0,
+                    "total_return_pct": 0.5,
+                    "max_drawdown_pct": -0.4,
+                    "benchmark_return_pct": None,
+                    "alpha_pct": None,
+                    "trade_count": 1,
+                    "created_at": "2026-03-20T00:00:00Z",
+                }
+            ]
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "backtest_leaderboard", fake_rows)
+
+        paper_trading.main()
+
+        out = capsys.readouterr().out
+        assert "run_id,run_name,account_name,strategy" in out
+        assert "10,,acct1,trend_v1,2026-01-01,2026-01-31,10050.00,0.5000,-0.4000,,,1,2026-03-20T00:00:00Z" in out
+        assert fake_conn.closed is True
+
+    def test_main_backtest_report_without_warnings_omits_notes_line(self, monkeypatch, capsys):
+        fake_conn = _FakeConn()
+        args = SimpleNamespace(command="backtest-report", run_id=99)
+
+        def fake_backtest_report(_conn, _run_id):
+            return {
+                "run_id": 99,
+                "run_name": None,
+                "account_name": "acct1",
+                "strategy": "Trend",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-31",
+                "created_at": "2026-03-14T00:00:00Z",
+                "trade_count": 2,
+                "starting_equity": 10000.0,
+                "ending_equity": 10100.0,
+                "total_return_pct": 1.0,
+                "max_drawdown_pct": -0.5,
+                "slippage_bps": 5.0,
+                "fee_per_trade": 0.0,
+                "tickers_file": "trading/trade_universe.txt",
+                "warnings": "",
+            }
+
+        monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
+        monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
+        monkeypatch.setattr(paper_trading, "backtest_report", fake_backtest_report)
+
+        paper_trading.main()
+
+        out = capsys.readouterr().out
+        assert "Backtest Run 99 (unnamed)" in out
+        assert "Safeguards / notes:" not in out
+        assert fake_conn.closed is True
