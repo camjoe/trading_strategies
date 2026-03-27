@@ -8,7 +8,7 @@ import pytest
 
 from trading.accounts import create_account
 from common.market_data import FeatureBundle, ProxyFeatureDataProvider
-from trading.features.backtesting.backtest import (
+from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
@@ -40,13 +40,13 @@ def _patch_market_data(
     tickers: list[str],
     benchmark_values: list[float],
 ) -> None:
-    monkeypatch.setattr("trading.features.backtesting.backtest.load_tickers_from_file", lambda _path: tickers)
+    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: tickers)
     monkeypatch.setattr(
-        "trading.features.backtesting.backtest.fetch_close_history",
+        "trading.backtesting.backtest.fetch_close_history",
         lambda _tickers, _start, _end: _fake_close_history(_tickers),
     )
     monkeypatch.setattr(
-        "trading.features.backtesting.backtest.fetch_benchmark_close",
+        "trading.backtesting.backtest.fetch_benchmark_close",
         lambda _ticker, _start, _end: pd.Series(
             benchmark_values,
             index=pd.date_range("2026-01-01", periods=len(benchmark_values), freq="B"),
@@ -216,7 +216,7 @@ def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.Mo
         return "hold"
 
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
-    monkeypatch.setattr("trading.features.backtesting.backtest.resolve_signal", fake_signal)
+    monkeypatch.setattr("trading.backtesting.backtest.resolve_signal", fake_signal)
 
     run_backtest(
         conn,
@@ -293,8 +293,8 @@ def test_run_backtest_passes_feature_history_for_proxy_strategies(conn, monkeypa
         assert "topic_proxy_rel_strength" in feature_history.columns
         return "hold"
 
-    monkeypatch.setattr("trading.features.backtesting.backtest.get_feature_provider", lambda: StubFeatureProvider())
-    monkeypatch.setattr("trading.features.backtesting.backtest.resolve_signal", fake_signal)
+    monkeypatch.setattr("trading.backtesting.backtest.get_feature_provider", lambda: StubFeatureProvider())
+    monkeypatch.setattr("trading.backtesting.backtest.resolve_signal", fake_signal)
 
     run_backtest(
         conn,
@@ -403,10 +403,10 @@ def test_backtest_report_persists_warning_string(conn, monkeypatch: pytest.Monke
         option_type="call",
     )
 
-    monkeypatch.setattr("trading.features.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr("trading.features.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
+    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr("trading.backtesting.backtest.fetch_close_history", lambda _tickers, _start, _end: _fake_close_history(_tickers))
     monkeypatch.setattr(
-        "trading.features.backtesting.backtest.fetch_benchmark_close",
+        "trading.backtesting.backtest.fetch_benchmark_close",
         lambda _ticker, _start, _end: pd.Series([100.0, 102.0], index=pd.date_range("2026-01-01", periods=2, freq="B")),
     )
 
@@ -527,7 +527,7 @@ def test_run_backtest_batch_sorts_results_and_applies_run_name_prefix(
         seen_run_names.append(cfg.run_name)
         return results_map[cfg.account_name]
 
-    monkeypatch.setattr("trading.features.backtesting.backtest.run_backtest", _fake_run_backtest)
+    monkeypatch.setattr("trading.backtesting.backtest.run_backtest", _fake_run_backtest)
 
     results = run_backtest_batch(
         conn,

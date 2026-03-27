@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from trading.features.backtesting import backtest_data
+from trading.backtesting import backtest_data
 
 
 def _business_days(periods: int) -> pd.DatetimeIndex:

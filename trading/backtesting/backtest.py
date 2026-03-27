@@ -13,7 +13,7 @@ import pandas as pd
 from common.market_data import get_feature_provider
 from common.time import utc_now_iso
 from trading.accounts import get_account
-from trading.features.backtesting.backtest_data import (
+from trading.backtesting.backtest_data import (
     build_monthly_universe,
     fetch_benchmark_close,
     fetch_close_history,
@@ -29,7 +29,7 @@ from trading.database.code.db_coercion import (
     row_str,
 )
 from trading.rotation import resolve_active_strategy
-from trading.features.backtesting.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
 @dataclass

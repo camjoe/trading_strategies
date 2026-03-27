@@ -11,7 +11,7 @@ from typing import Callable, Mapping
 import pandas as pd
 import yfinance as yf
 
-from trends.tickers import load_ticker_categories
+from common.tickers import load_ticker_categories
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
