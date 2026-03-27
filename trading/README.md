@@ -303,31 +303,31 @@ python trading/scripts/weekly_db_backup.py
 Manual retention backup (keeps rolling recent backups plus monthly archives):
 
 ```powershell
-python scripts/backup_db.py
+python scripts/data_ops/backup_db.py
 ```
 
 CSV export snapshot (timestamped folder under `local/exports/`):
 
 ```powershell
-python scripts/export_db_csv.py
+python scripts/data_ops/export_db_csv.py
 ```
 
 CSV export + ZIP archive (same folder plus `.zip`):
 
 ```powershell
-python scripts/export_db_csv_zip.py
+python scripts/data_ops/export_db_csv_zip.py
 ```
 
 Export specific tables only:
 
 ```powershell
-python scripts/export_db_csv.py --tables accounts,trades,equity_snapshots
+python scripts/data_ops/export_db_csv.py --tables accounts,trades,equity_snapshots
 ```
 
 Backup destinations:
 
-- `python -m dev_tools.db_admin backup-db` defaults to `local/backups/`
-- `python scripts/backup_db.py` defaults to `local/db_backups/`
+- `python -m trading.database.admin backup-db` defaults to `local/backups/`
+- `python scripts/data_ops/backup_db.py` defaults to `local/db_backups/`
 
 Force a second backup in the same ISO week:
 

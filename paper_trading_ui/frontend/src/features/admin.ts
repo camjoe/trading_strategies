@@ -183,7 +183,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       exportSelect.innerHTML = `<option value="">No export batches found</option>`;
       fileSelect.innerHTML = `<option value="">No CSV files found</option>`;
       output.innerHTML = `<div class="empty">No exports available in local/exports yet.</div>`;
-      meta.textContent = "Run python scripts/export_db_csv.py or python scripts/export_db_csv_zip.py first.";
+      meta.textContent = "Run python scripts/data_ops/export_db_csv.py or python scripts/data_ops/export_db_csv_zip.py first.";
       return;
     }
 
