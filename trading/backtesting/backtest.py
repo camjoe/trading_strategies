@@ -20,7 +20,7 @@ from trading.backtesting.backtest_data import (
     load_tickers_from_file,
     resolve_backtest_dates,
 )
-from trading.database.db_coercion import (
+from trading.coercion import (
     coerce_float,
     row_expect_float,
     row_expect_int,

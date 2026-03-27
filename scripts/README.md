@@ -2,6 +2,14 @@
 
 Automation helpers for repository operations and CI/local quality checks.
 
+## Ownership Boundaries
+
+- `scripts/`: repository-level automation and developer workflows (CI smoke, docs checks, exports, launch helpers).
+- `trading/scripts/`: trading runtime operations and scheduler tasks (daily trading, health checks, backup registration).
+- `dev_tools/`: interactive/local database administration utilities.
+
+Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
+
 ## Docs Freshness
 
 - `check_docs_freshness.py`: checks changed areas for missing documentation updates.

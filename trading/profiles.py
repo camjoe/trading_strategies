@@ -1,8 +1,7 @@
-import json
 import sqlite3
-from pathlib import Path
 from trading.accounts import configure_account, create_account, get_account, set_benchmark
-from trading.database.db_coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from trading.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from trading.profile_source import AccountProfileSource, JsonAccountProfileSource
 from trading.rotation import OPTIMALITY_MODES, ROTATION_MODES, dump_rotation_schedule, parse_rotation_schedule
 
 
@@ -27,30 +26,13 @@ _ROTATION_KEYS = {
     "rotation_active_strategy",
 }
 
+def load_account_profiles_from_source(source: AccountProfileSource) -> list[dict[str, object]]:
+    return source.load_profiles()
+
+
 def load_account_profiles(file_path: str) -> list[dict[str, object]]:
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Profile file not found: {file_path}")
-
-    raw = json.loads(path.read_text(encoding="utf-8"))
-
-    if isinstance(raw, dict):
-        profiles = raw.get("accounts", [])
-    else:
-        profiles = raw
-
-    if not isinstance(profiles, list):
-        raise ValueError("Profile file must be a list or an object with an 'accounts' list.")
-
-    out: list[dict[str, object]] = []
-    for i, item in enumerate(profiles, start=1):
-        if not isinstance(item, dict):
-            raise ValueError(f"Account profile at index {i} is not an object.")
-        if "name" not in item or not str(item["name"]).strip():
-            raise ValueError(f"Account profile at index {i} is missing required 'name'.")
-        out.append(item)
-
-    return out
+    # Preserve existing CLI/API behavior while routing through a source abstraction.
+    return load_account_profiles_from_source(JsonAccountProfileSource(file_path))
 
 
 def _extract_profile_fields(profile: dict[str, object]) -> dict[str, object]:

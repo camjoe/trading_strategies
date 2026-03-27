@@ -8,6 +8,7 @@ Core paper trading and backtesting engine for the repository.
 - [Main commands](#main-commands)
 - [Auto-trading](#auto-trading)
 - [Daily scheduler (Windows)](#daily-scheduler-windows)
+- [Script Boundaries](#script-boundaries)
 - [Notes](#notes)
 - [Related docs](#related-docs)
 
@@ -86,6 +87,14 @@ Set benchmark:
 ```powershell
 python -m trading.paper_trading set-benchmark --account trend_v1 --benchmark QQQ
 ```
+
+## Script Boundaries
+
+- `trading/scripts/`: production-like trading runtime tasks and schedulers.
+- `scripts/`: repository automation and CI/developer workflows.
+- `dev_tools/`: local maintenance/admin tasks for the trading database.
+
+Use `trading/scripts/` for anything that is part of trading runtime behavior; keep maintenance and repo workflows out of that folder.
 
 ### Apply Account Profiles
 

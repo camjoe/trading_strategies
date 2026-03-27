@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 from typing import Mapping
 
-from trading.database.db_coercion import coerce_int
+from trading.coercion import coerce_int
 
 
 ROTATION_MODES = {"time", "optimal"}
