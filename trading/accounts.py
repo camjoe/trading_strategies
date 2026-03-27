@@ -138,6 +138,69 @@ def _append_update(
     params.append(transform(value) if transform is not None else value)
 
 
+def _append_numeric_updates(
+    updates: list[str],
+    params: list[object],
+    numeric_fields: list[tuple[str, object | None, Callable[[object], object]]],
+) -> None:
+    for column, value, transform in numeric_fields:
+        _append_update(updates, params, column, value, transform)
+
+
+def _resolved_float(value: float | None, row: sqlite3.Row, column: str) -> float | None:
+    if value is not None:
+        return value
+    return row_float(row, column)
+
+
+def _resolved_int(value: int | None, row: sqlite3.Row, column: str) -> int | None:
+    if value is not None:
+        return value
+    return row_int(row, column)
+
+
+def _validate_goal_range_from_inputs(
+    account: sqlite3.Row,
+    goal_min_return_pct: float | None,
+    goal_max_return_pct: float | None,
+) -> None:
+    min_value = _resolved_float(goal_min_return_pct, account, "goal_min_return_pct")
+    max_value = _resolved_float(goal_max_return_pct, account, "goal_max_return_pct")
+    if min_value is not None and max_value is not None and min_value > max_value:
+        raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
+
+
+def _validate_option_settings_from_inputs(
+    account: sqlite3.Row,
+    option_type: str | None,
+    target_delta_min: float | None,
+    target_delta_max: float | None,
+    option_min_dte: int | None,
+    option_max_dte: int | None,
+    iv_rank_min: float | None,
+    iv_rank_max: float | None,
+) -> None:
+    min_dte = _resolved_int(option_min_dte, account, "option_min_dte")
+    max_dte = _resolved_int(option_max_dte, account, "option_max_dte")
+    if min_dte is not None and max_dte is not None and min_dte > max_dte:
+        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
+
+    delta_min = _resolved_float(target_delta_min, account, "target_delta_min")
+    delta_max = _resolved_float(target_delta_max, account, "target_delta_max")
+    iv_min = _resolved_float(iv_rank_min, account, "iv_rank_min")
+    iv_max = _resolved_float(iv_rank_max, account, "iv_rank_max")
+    resolved_opt_type = option_type if option_type is not None else row_str(account, "option_type")
+    _validate_option_settings(
+        resolved_opt_type,
+        delta_min,
+        delta_max,
+        min_dte,
+        max_dte,
+        iv_min,
+        iv_max,
+    )
+
+
 def format_goal_text(row: sqlite3.Row) -> str:
     min_goal = row_float(row, "goal_min_return_pct")
     max_goal = row_float(row, "goal_max_return_pct")
@@ -378,32 +441,17 @@ def configure_account(
         ("profit_take_pct", profit_take_pct, to_float_obj),
         ("max_loss_pct", max_loss_pct, to_float_obj),
     ]
-    for column, value, transform in numeric_fields:
-        _append_update(updates, params, column, value, transform)
-
-    min_value = goal_min_return_pct if goal_min_return_pct is not None else row_float(account, "goal_min_return_pct")
-    max_value = goal_max_return_pct if goal_max_return_pct is not None else row_float(account, "goal_max_return_pct")
-    if min_value is not None and max_value is not None and min_value > max_value:
-        raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
-
-    min_dte = option_min_dte if option_min_dte is not None else row_int(account, "option_min_dte")
-    max_dte = option_max_dte if option_max_dte is not None else row_int(account, "option_max_dte")
-    if min_dte is not None and max_dte is not None and min_dte > max_dte:
-        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
-
-    delta_min = target_delta_min if target_delta_min is not None else row_float(account, "target_delta_min")
-    delta_max = target_delta_max if target_delta_max is not None else row_float(account, "target_delta_max")
-    iv_min = iv_rank_min if iv_rank_min is not None else row_float(account, "iv_rank_min")
-    iv_max = iv_rank_max if iv_rank_max is not None else row_float(account, "iv_rank_max")
-    resolved_opt_type = option_type if option_type is not None else row_str(account, "option_type")
-    _validate_option_settings(
-        resolved_opt_type,
-        delta_min,
-        delta_max,
-        min_dte,
-        max_dte,
-        iv_min,
-        iv_max,
+    _append_numeric_updates(updates, params, numeric_fields)
+    _validate_goal_range_from_inputs(account, goal_min_return_pct, goal_max_return_pct)
+    _validate_option_settings_from_inputs(
+        account,
+        option_type,
+        target_delta_min,
+        target_delta_max,
+        option_min_dte,
+        option_max_dte,
+        iv_rank_min,
+        iv_rank_max,
     )
 
     if not updates:
