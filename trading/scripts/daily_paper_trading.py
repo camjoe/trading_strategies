@@ -11,7 +11,7 @@ import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from common.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
+from trading.scripts.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)

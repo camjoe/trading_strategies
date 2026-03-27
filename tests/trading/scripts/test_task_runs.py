@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-from common.task_runs import (
+from trading.scripts.task_runs import (
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     run_command,

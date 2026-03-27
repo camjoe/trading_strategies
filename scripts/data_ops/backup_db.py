@@ -38,7 +38,7 @@ BACKUP_DIR: Path = REPO_ROOT / "local" / "db_backups"
 KEEP_RECENT: int = 30
 # ---------------------------------------------------------------------------
 
-from dev_tools.db_admin import backup_database  # noqa: E402
+from trading.database.admin import backup_database  # noqa: E402
 
 
 _STEM_PREFIX = "paper_trading_"

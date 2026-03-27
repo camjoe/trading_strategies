@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from common.repo_paths import get_repo_root
-from common.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
+from trading.scripts.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
 from trading.accounts import load_all_account_names
 
 REPO_ROOT = get_repo_root(__file__)
