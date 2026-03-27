@@ -3,7 +3,7 @@ from typing import Callable
 from common.time import utc_now_iso
 from trading.database.db_backend import DuplicateRecordError
 from trading.database.db_config import get_db_path
-from trading.coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
+from trading.coercion import coerce_float, coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -64,13 +64,23 @@ def _validate_goal_return_range(goal_min_return_pct: float | None, goal_max_retu
             raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
 
 
-def _validate_range(min_val: object | None, max_val: object | None, field_prefix: str, min_name: str = None, max_name: str = None) -> None:
+def _validate_range(
+    min_val: object | None,
+    max_val: object | None,
+    field_prefix: str,
+    min_name: str | None = None,
+    max_name: str | None = None,
+) -> None:
     """Helper to validate that min <= max for a pair of numeric fields."""
     if min_val is None or max_val is None:
         return
     min_name = min_name or f"{field_prefix}_min"
     max_name = max_name or f"{field_prefix}_max"
-    if float(min_val) > float(max_val):
+    min_num = coerce_float(min_val)
+    max_num = coerce_float(max_val)
+    if min_num is None or max_num is None:
+        raise ValueError(f"{field_prefix} range values must be numeric.")
+    if min_num > max_num:
         raise ValueError(f"{min_name} cannot be greater than {max_name}.")
 
 
@@ -78,7 +88,9 @@ def _validate_or_none_range(value: object | None, min_bound: float, max_bound: f
     """Validate that a value (if present) falls within [min_bound, max_bound]."""
     if value is None:
         return
-    v = float(value)
+    v = coerce_float(value)
+    if v is None:
+        raise ValueError(f"{field_name} must be numeric.")
     # For fractional bounds (0-1, 0-100), use "between X and Y" format
     # For integer bounds like 0-9999, use single-sided checks
     if (min_bound, max_bound) in [(0.0, 1.0), (0.0, 100.0)]:
