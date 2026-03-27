@@ -10,6 +10,14 @@ def _series_range(start: int, stop: int) -> pd.Series:
     return pd.Series([float(i) for i in range(start, stop)])
 
 
+def _feature_history(**columns: list[float]) -> pd.DataFrame:
+    first_column = next(iter(columns.values()))
+    return pd.DataFrame(
+        columns,
+        index=pd.date_range("2026-01-01", periods=len(first_column), freq="B"),
+    )
+
+
 def test_resolve_signal_trend_buy() -> None:
     history = _series_range(1, 40)
     assert strategy_signals.resolve_signal("trend_v1", history) == "buy"
@@ -84,13 +92,10 @@ def test_resolve_signal_volatility_filtered_trend_holds_when_vol_too_high() -> N
 
 def test_resolve_signal_topic_proxy_rotation_buy() -> None:
     history = pd.Series([100.0 + (i * 0.7) for i in range(45)])
-    feature_history = pd.DataFrame(
-        {
-            "topic_proxy_available": [1.0] * 45,
-            "topic_proxy_rel_strength": [0.01] * 45,
-            "topic_proxy_trend_gap": [0.02] * 45,
-        },
-        index=pd.date_range("2026-01-01", periods=45, freq="B"),
+    feature_history = _feature_history(
+        topic_proxy_available=[1.0] * 45,
+        topic_proxy_rel_strength=[0.01] * 45,
+        topic_proxy_trend_gap=[0.02] * 45,
     )
 
     assert strategy_signals.resolve_signal("topic_proxy_rotation", history, feature_history) == "buy"
@@ -103,13 +108,10 @@ def test_resolve_signal_topic_proxy_rotation_holds_without_proxy_features() -> N
 
 def test_resolve_signal_macro_proxy_regime_sell_on_risk_off() -> None:
     history = pd.Series([100.0 + (i * 0.5) for i in range(65)])
-    feature_history = pd.DataFrame(
-        {
-            "macro_risk_on_score": [-0.2] * 65,
-            "macro_vix_pressure": [0.25] * 65,
-            "macro_equity_bond_spread": [-0.05] * 65,
-        },
-        index=pd.date_range("2026-01-01", periods=65, freq="B"),
+    feature_history = _feature_history(
+        macro_risk_on_score=[-0.2] * 65,
+        macro_vix_pressure=[0.25] * 65,
+        macro_equity_bond_spread=[-0.05] * 65,
     )
 
     assert strategy_signals.resolve_signal("macro_proxy_regime", history, feature_history) == "sell"

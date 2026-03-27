@@ -54,24 +54,77 @@ def _patch_market_data(
     )
 
 
+def _create_bt_account(
+    conn,
+    name: str,
+    strategy: str = "trend_v1",
+    initial_cash: float = 10000.0,
+    benchmark: str = "SPY",
+    **kwargs,
+) -> None:
+    create_account(conn, name, strategy, initial_cash, benchmark, **kwargs)
+
+
+def _backtest_config(
+    account_name: str,
+    *,
+    start: str = "2026-01-01",
+    end: str = "2026-03-01",
+    universe_history_dir: str | None = None,
+    slippage_bps: float = 5.0,
+    fee_per_trade: float = 0.0,
+    run_name: str | None = None,
+    allow_approximate_leaps: bool = False,
+) -> BacktestConfig:
+    return BacktestConfig(
+        account_name=account_name,
+        tickers_file="trading/trade_universe.txt",
+        universe_history_dir=universe_history_dir,
+        start=start,
+        end=end,
+        lookback_months=None,
+        slippage_bps=slippage_bps,
+        fee_per_trade=fee_per_trade,
+        run_name=run_name,
+        allow_approximate_leaps=allow_approximate_leaps,
+    )
+
+
+def _walk_forward_config(
+    account_name: str,
+    *,
+    start: str,
+    end: str,
+    test_months: int,
+    step_months: int,
+    slippage_bps: float = 5.0,
+    fee_per_trade: float = 0.0,
+    run_name_prefix: str | None = None,
+    allow_approximate_leaps: bool = False,
+) -> WalkForwardConfig:
+    return WalkForwardConfig(
+        account_name=account_name,
+        tickers_file="trading/trade_universe.txt",
+        universe_history_dir=None,
+        start=start,
+        end=end,
+        lookback_months=None,
+        test_months=test_months,
+        step_months=step_months,
+        slippage_bps=slippage_bps,
+        fee_per_trade=fee_per_trade,
+        run_name_prefix=run_name_prefix,
+        allow_approximate_leaps=allow_approximate_leaps,
+    )
+
+
 def test_run_backtest_persists_isolated_results(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_bt", "trend_v1", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_bt")
     _patch_market_data(monkeypatch, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 103.0])
 
     result = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_bt",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="smoke",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_bt", run_name="smoke"),
     )
 
     assert result.run_id > 0
@@ -90,12 +143,10 @@ def test_run_backtest_persists_isolated_results(conn, monkeypatch: pytest.Monkey
 
 
 def test_run_backtest_leaps_adds_financial_risk_warnings(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(
+    _create_bt_account(
         conn,
         "acct_leaps_bt",
-        "trend_v1",
-        5000.0,
-        "SPY",
+        initial_cash=5000.0,
         instrument_mode="leaps",
         option_strike_offset_pct=5.0,
         option_min_dte=120,
@@ -107,59 +158,26 @@ def test_run_backtest_leaps_adds_financial_risk_warnings(conn, monkeypatch: pyte
 
     result_without_opt_in = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_leaps_bt",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name=None,
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_leaps_bt"),
     )
     assert any("LEAPs mode is approximated" in warning for warning in result_without_opt_in.warnings)
     assert any("LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings)
 
     result = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_leaps_bt",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="approx-ok",
-            allow_approximate_leaps=True,
-        ),
+        _backtest_config("acct_leaps_bt", run_name="approx-ok", allow_approximate_leaps=True),
     )
     assert any("LEAPs mode is approximated" in warning for warning in result.warnings)
     assert not any("opt-in was not enabled" in warning for warning in result.warnings)
 
 
 def test_backtest_report_returns_summary(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_report_bt", "trend_v1", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_report_bt")
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 105.0])
 
     result = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_report_bt",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=1.0,
-            fee_per_trade=0.0,
-            run_name="for-report",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_report_bt", slippage_bps=1.0, run_name="for-report"),
     )
 
     summary = backtest_report(conn, result.run_id)
@@ -170,23 +188,12 @@ def test_backtest_report_returns_summary(conn, monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_strategy_snapshot", "trend_v1", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_strategy_snapshot")
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
 
     result = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_strategy_snapshot",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=1.0,
-            fee_per_trade=0.0,
-            run_name="strategy-snapshot",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_strategy_snapshot", slippage_bps=1.0, run_name="strategy-snapshot"),
     )
 
     conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mean_reversion", "acct_strategy_snapshot"))
@@ -200,7 +207,7 @@ def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(conn, monkeyp
 
 
 def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_sig", "macd_trend", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_sig", strategy="macd_trend")
 
     call_count = {"n": 0}
 
@@ -213,18 +220,7 @@ def test_run_backtest_uses_strategy_signal_resolver(conn, monkeypatch: pytest.Mo
 
     run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_sig",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="sig-resolver",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_sig", run_name="sig-resolver"),
     )
 
     assert call_count["n"] > 0
@@ -272,7 +268,7 @@ def test_proxy_feature_provider_builds_aligned_topic_features(monkeypatch: pytes
 
 
 def test_run_backtest_passes_feature_history_for_proxy_strategies(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_topic", "topic_proxy_rotation", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_topic", strategy="topic_proxy_rotation")
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
 
     idx = pd.date_range("2026-01-01", periods=40, freq="B")
@@ -302,18 +298,7 @@ def test_run_backtest_passes_feature_history_for_proxy_strategies(conn, monkeypa
 
     run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_topic",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="topic-proxy",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_topic", run_name="topic-proxy"),
     )
 
     assert call_count["n"] > 0
@@ -324,7 +309,7 @@ def test_run_backtest_monthly_universe_reconstitution_adds_warning(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    create_account(conn, "acct_universe", "trend_v1", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_universe")
 
     history_dir = tmp_path / "universe_history"
     history_dir.mkdir(parents=True, exist_ok=True)
@@ -334,17 +319,10 @@ def test_run_backtest_monthly_universe_reconstitution_adds_warning(
 
     result = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_universe",
-            tickers_file="trading/trade_universe.txt",
+        _backtest_config(
+            "acct_universe",
             universe_history_dir=str(history_dir),
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
             run_name="universe-reconstitution",
-            allow_approximate_leaps=False,
         ),
     )
 
@@ -369,24 +347,18 @@ def test_build_walk_forward_windows_monthly_rolls() -> None:
 
 
 def test_run_walk_forward_backtest_creates_multiple_runs(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_wf", "trend_v1", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_wf")
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
 
     summary = run_walk_forward_backtest(
         conn,
-        WalkForwardConfig(
-            account_name="acct_wf",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
+        _walk_forward_config(
+            "acct_wf",
             start="2026-01-01",
             end="2026-03-31",
-            lookback_months=None,
             test_months=1,
             step_months=1,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
             run_name_prefix="wf-test",
-            allow_approximate_leaps=False,
         ),
     )
 
@@ -398,12 +370,10 @@ def test_run_walk_forward_backtest_creates_multiple_runs(conn, monkeypatch: pyte
 
 
 def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(conn) -> None:
-    create_account(
+    _create_bt_account(
         conn,
         "acct_preview_leaps",
-        "trend_v1",
-        5000.0,
-        "SPY",
+        initial_cash=5000.0,
         instrument_mode="leaps",
         option_strike_offset_pct=5.0,
         option_min_dte=120,
@@ -413,18 +383,7 @@ def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(conn
 
     warnings = preview_backtest_warnings(
         conn,
-        BacktestConfig(
-            account_name="acct_preview_leaps",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=0.0,
-            fee_per_trade=0.0,
-            run_name=None,
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_preview_leaps", slippage_bps=0.0),
     )
 
     assert any("LEAPs mode is approximated" in warning for warning in warnings)
@@ -433,12 +392,10 @@ def test_preview_backtest_warnings_includes_leaps_and_research_only_warning(conn
 
 
 def test_backtest_report_persists_warning_string(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(
+    _create_bt_account(
         conn,
         "acct_report_warn",
-        "trend_v1",
-        5000.0,
-        "SPY",
+        initial_cash=5000.0,
         instrument_mode="leaps",
         option_strike_offset_pct=5.0,
         option_min_dte=120,
@@ -455,18 +412,7 @@ def test_backtest_report_persists_warning_string(conn, monkeypatch: pytest.Monke
 
     result = run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_report_warn",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="warn-report",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_report_warn", run_name="warn-report"),
     )
 
     summary = backtest_report(conn, result.run_id)
@@ -494,24 +440,18 @@ def test_build_walk_forward_windows_rejects_non_positive_lengths() -> None:
 
 
 def test_run_walk_forward_backtest_no_generated_windows_raises(conn) -> None:
-    create_account(conn, "acct_wf_empty", "trend_v1", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_wf_empty")
 
     with pytest.raises(ValueError, match="No walk-forward windows generated"):
         run_walk_forward_backtest(
             conn,
-            WalkForwardConfig(
-                account_name="acct_wf_empty",
-                tickers_file="trading/trade_universe.txt",
-                universe_history_dir=None,
+            _walk_forward_config(
+                "acct_wf_empty",
                 start="2026-01-31",
                 end="2026-02-01",
-                lookback_months=None,
                 test_months=1,
                 step_months=2,
-                slippage_bps=5.0,
-                fee_per_trade=0.0,
                 run_name_prefix="wf-empty",
-                allow_approximate_leaps=False,
             ),
         )
 
@@ -520,40 +460,18 @@ def test_backtest_leaderboard_sorts_by_total_return_and_supports_filters(
     conn,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    create_account(conn, "acct_lb_trend", "trend_v1", 10000.0, "SPY")
-    create_account(conn, "acct_lb_mean", "mean_reversion", 10000.0, "SPY")
+    _create_bt_account(conn, "acct_lb_trend")
+    _create_bt_account(conn, "acct_lb_mean", strategy="mean_reversion")
 
     _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
 
     run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_lb_trend",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="lb-trend",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_lb_trend", run_name="lb-trend"),
     )
     run_backtest(
         conn,
-        BacktestConfig(
-            account_name="acct_lb_mean",
-            tickers_file="trading/trade_universe.txt",
-            universe_history_dir=None,
-            start="2026-01-01",
-            end="2026-03-01",
-            lookback_months=None,
-            slippage_bps=5.0,
-            fee_per_trade=0.0,
-            run_name="lb-mean",
-            allow_approximate_leaps=False,
-        ),
+        _backtest_config("acct_lb_mean", run_name="lb-mean"),
     )
 
     leaderboard = backtest_leaderboard(conn, limit=10)

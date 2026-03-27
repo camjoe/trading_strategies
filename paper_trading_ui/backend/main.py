@@ -144,8 +144,8 @@ def _latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dic
 
 def _backtest_run_summary(row: sqlite3.Row) -> dict[str, object]:
     account_name = str(row["account_name"])
-    display_account_name = TEST_ACCOUNT_NAME if account_name == TEST_BACKTEST_ACCOUNT_NAME else account_name
-    display_strategy = TEST_ACCOUNT_STRATEGY if account_name == TEST_BACKTEST_ACCOUNT_NAME else row["strategy"]
+    display_account_name = _display_account_name(account_name)
+    display_strategy = _display_strategy(account_name, str(row["strategy"]))
 
     return {
         "runId": int(row["id"]),
@@ -158,6 +158,38 @@ def _backtest_run_summary(row: sqlite3.Row) -> dict[str, object]:
         "slippageBps": float(row["slippage_bps"]),
         "feePerTrade": float(row["fee_per_trade"]),
         "tickersFile": row["tickers_file"],
+    }
+
+
+def _display_account_name(account_name: str) -> str:
+    return TEST_ACCOUNT_NAME if account_name == TEST_BACKTEST_ACCOUNT_NAME else account_name
+
+
+def _display_strategy(account_name: str, strategy: str) -> str:
+    return TEST_ACCOUNT_STRATEGY if account_name == TEST_BACKTEST_ACCOUNT_NAME else strategy
+
+
+def _managed_account_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM accounts WHERE name != ? ORDER BY name",
+        (TEST_BACKTEST_ACCOUNT_NAME,),
+    ).fetchall()
+
+
+def _comparison_account_payload(
+    summary: dict[str, object],
+    latest_backtest: dict[str, object] | None,
+) -> dict[str, object]:
+    return {
+        "name": summary["name"],
+        "displayName": summary["displayName"],
+        "strategy": summary["strategy"],
+        "benchmark": summary["benchmark"],
+        "equity": summary["equity"],
+        "initialCash": summary["initialCash"],
+        "totalChange": summary["totalChange"],
+        "totalChangePct": summary["totalChangePct"],
+        "latestBacktest": latest_backtest,
     }
 
 
@@ -597,7 +629,7 @@ def health() -> dict[str, str]:
 @app.get("/api/accounts")
 def api_accounts() -> dict[str, list[dict[str, object]]]:
     with _db_conn() as conn:
-        rows = conn.execute("SELECT * FROM accounts WHERE name != ? ORDER BY name", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchall()
+        rows = _managed_account_rows(conn)
         accounts = [_build_account_summary(conn, r) for r in rows]
         accounts.append(_test_account_summary())
         accounts.sort(key=lambda item: str(item["name"]))
@@ -607,39 +639,15 @@ def api_accounts() -> dict[str, list[dict[str, object]]]:
 @app.get("/api/accounts/compare")
 def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
     with _db_conn() as conn:
-        rows = conn.execute("SELECT * FROM accounts WHERE name != ? ORDER BY name", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchall()
+        rows = _managed_account_rows(conn)
         comparison: list[dict[str, object]] = []
         for row in rows:
             summary = _build_account_summary(conn, row)
             latest_backtest = _latest_backtest_metrics(conn, str(row["name"]))
-            comparison.append(
-                {
-                    "name": summary["name"],
-                    "displayName": summary["displayName"],
-                    "strategy": summary["strategy"],
-                    "benchmark": summary["benchmark"],
-                    "equity": summary["equity"],
-                    "initialCash": summary["initialCash"],
-                    "totalChange": summary["totalChange"],
-                    "totalChangePct": summary["totalChangePct"],
-                    "latestBacktest": latest_backtest,
-                }
-            )
+            comparison.append(_comparison_account_payload(summary, latest_backtest))
 
         test_summary = _test_account_summary()
-        comparison.append(
-            {
-                "name": test_summary["name"],
-                "displayName": test_summary["displayName"],
-                "strategy": test_summary["strategy"],
-                "benchmark": test_summary["benchmark"],
-                "equity": test_summary["equity"],
-                "initialCash": test_summary["initialCash"],
-                "totalChange": test_summary["totalChange"],
-                "totalChangePct": test_summary["totalChangePct"],
-                "latestBacktest": None,
-            }
-        )
+        comparison.append(_comparison_account_payload(test_summary, None))
         comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 
@@ -942,7 +950,7 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        display_account_name = TEST_ACCOUNT_NAME if result.account_name == TEST_BACKTEST_ACCOUNT_NAME else result.account_name
+        display_account_name = _display_account_name(result.account_name)
 
         return {
             "runId": result.run_id,
@@ -986,7 +994,7 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        display_account_name = TEST_ACCOUNT_NAME if summary.account_name == TEST_BACKTEST_ACCOUNT_NAME else summary.account_name
+        display_account_name = _display_account_name(summary.account_name)
 
         return {
             "accountName": display_account_name,

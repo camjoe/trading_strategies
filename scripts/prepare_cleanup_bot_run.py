@@ -112,6 +112,32 @@ IGNORED_PATH_PARTS = {
     ".mypy_cache",
 }
 
+IGNORED_FILES = {
+    "package-lock.json",
+    "package.json",
+    "vite-env.d.ts",
+    "styles.css",
+    "tsconfig.json",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "README.md",
+}
+
+IGNORED_PATTERNS = {
+    ".test.ts",
+    ".test.tsx",
+    ".config.js",
+    ".config.ts",
+    ".example.json",
+    "_test.py",
+    "refactoring_branch.py",
+    "refactoring_branch_test.py",
+}
+
+IGNORED_DIRS = {
+    "account_profiles",  # JSON data files, not code
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Prepare cleanup-bot invocation prompts.")
@@ -175,6 +201,15 @@ def collect_uncommitted(repo_root: Path) -> list[str]:
     return merged
 
 
+def _is_ignored(path: Path) -> bool:
+    return (
+        any(part in IGNORED_PATH_PARTS for part in path.parts)
+        or any(part in IGNORED_DIRS for part in path.parts)
+        or path.name in IGNORED_FILES
+        or any(path.name.endswith(pattern) for pattern in IGNORED_PATTERNS)
+    )
+
+
 def collect_all(repo_root: Path, spec: BotSpec) -> list[str]:
     files: list[str] = []
     for root in spec.roots:
@@ -184,12 +219,12 @@ def collect_all(repo_root: Path, spec: BotSpec) -> list[str]:
         for path in root_path.rglob("*"):
             if not path.is_file():
                 continue
-            rel_parts = path.relative_to(repo_root).parts
-            if any(part in IGNORED_PATH_PARTS for part in rel_parts):
+            rel_path = path.relative_to(repo_root)
+            if _is_ignored(rel_path):
                 continue
             if path.suffix.lower() not in spec.extensions:
                 continue
-            files.append(path.relative_to(repo_root).as_posix())
+            files.append(rel_path.as_posix())
     return sorted(set(files))
 
 
@@ -198,9 +233,10 @@ def filter_for_bot(paths: list[str], spec: BotSpec) -> list[str]:
     roots = tuple(f"{root}/" for root in spec.roots)
     for path in paths:
         lower = path.lower()
-        if any(part in IGNORED_PATH_PARTS for part in Path(path).parts):
+        rel_path = Path(path)
+        if _is_ignored(rel_path):
             continue
-        if any(lower.startswith(root.lower()) for root in roots) and Path(path).suffix.lower() in spec.extensions:
+        if any(lower.startswith(root.lower()) for root in roots) and rel_path.suffix.lower() in spec.extensions:
             filtered.append(path)
     return sorted(set(filtered))
 

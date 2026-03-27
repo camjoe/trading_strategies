@@ -34,6 +34,15 @@ def _parse_table_list(raw: str) -> list[str]:
     return tables
 
 
+def print_export_summary(result) -> None:
+    print(f"[export] Database: {result.db_path}")
+    print(f"[export] Output:   {result.output_dir}")
+    for table_result in result.tables:
+        print(
+            f"[export] {table_result.table}: {table_result.row_count} row(s) -> {table_result.output_path.name}"
+        )
+
+
 def main() -> int:
     args = parse_args()
     tables = _parse_table_list(args.tables)
@@ -44,12 +53,7 @@ def main() -> int:
         output_base_dir=output_dir,
     )
 
-    print(f"[export] Database: {result.db_path}")
-    print(f"[export] Output:   {result.output_dir}")
-    for table_result in result.tables:
-        print(
-            f"[export] {table_result.table}: {table_result.row_count} row(s) -> {table_result.output_path.name}"
-        )
+    print_export_summary(result)
 
     return 0
 

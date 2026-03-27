@@ -24,15 +24,23 @@ def api_client(tmp_path: Path) -> Iterator[TestClient]:
         set_backend(original)
 
 
+def _create_test_account(
+    conn,
+    name: str,
+    strategy: str = "trend_v1",
+    initial_cash: float = 5000.0,
+    benchmark: str = "SPY",
+    **kwargs,
+) -> None:
+    create_account(conn, name, strategy, initial_cash, benchmark, **kwargs)
+
+
 def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
-        create_account(
+        _create_test_account(
             conn,
             "acct_api_leaps",
-            "trend_v1",
-            5000.0,
-            "SPY",
             instrument_mode="leaps",
             option_strike_offset_pct=5.0,
             option_min_dte=120,
@@ -62,7 +70,7 @@ def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -
 def test_backtest_preflight_rejects_start_and_lookback_conflict(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
-        create_account(conn, "acct_api_conflict", "trend_v1", 5000.0, "SPY")
+        _create_test_account(conn, "acct_api_conflict")
     finally:
         conn.close()
 
@@ -83,7 +91,7 @@ def test_backtest_preflight_rejects_start_and_lookback_conflict(api_client: Test
 def test_account_detail_exposes_latest_backtest_summary(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
-        create_account(conn, "acct_api_latest", "trend_v1", 10000.0, "SPY")
+        _create_test_account(conn, "acct_api_latest", initial_cash=10000.0)
         acct = conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_api_latest",)).fetchone()
         assert acct is not None
 
@@ -133,7 +141,7 @@ def test_account_detail_exposes_latest_backtest_summary(api_client: TestClient) 
 def test_latest_backtest_endpoint_returns_none_when_missing(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
-        create_account(conn, "acct_api_empty", "trend_v1", 10000.0, "SPY")
+        _create_test_account(conn, "acct_api_empty", initial_cash=10000.0)
     finally:
         conn.close()
 
@@ -176,7 +184,7 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
-        create_account(conn, "acct_admin_delete", "trend", 5000.0, "SPY")
+        _create_test_account(conn, "acct_admin_delete", strategy="trend")
     finally:
         conn.close()
 
@@ -194,8 +202,8 @@ def test_admin_delete_account_endpoint(api_client: TestClient) -> None:
 def test_accounts_compare_endpoint(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
-        create_account(conn, "acct_cmp_a", "trend", 5000.0, "SPY")
-        create_account(conn, "acct_cmp_b", "mean_reversion", 5000.0, "SPY")
+        _create_test_account(conn, "acct_cmp_a", strategy="trend")
+        _create_test_account(conn, "acct_cmp_b", strategy="mean_reversion")
     finally:
         conn.close()
 
