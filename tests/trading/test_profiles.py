@@ -315,3 +315,64 @@ def test_apply_rotation_validation_errors(conn):
             [{"name": "bad_rot_lookback", "initial_cash": 1000, "rotation_lookback_days": 0}],
             create_missing=True,
         )
+
+    with pytest.raises(ValueError, match="rotation_active_index"):
+        apply_account_profiles(
+            conn,
+            [{"name": "bad_rot_index", "initial_cash": 1000, "rotation_active_index": -1}],
+            create_missing=True,
+        )
+
+
+def test_apply_rotation_index_normalized_to_schedule_length(conn):
+    apply_account_profiles(conn, [{"name": "rot_mod", "initial_cash": 1000}], create_missing=True)
+
+    created, updated, skipped = apply_account_profiles(
+        conn,
+        [
+            {
+                "name": "rot_mod",
+                "rotation_schedule": ["trend", "breakout"],
+                "rotation_active_index": 5,
+            }
+        ],
+        create_missing=False,
+    )
+
+    assert (created, updated, skipped) == (0, 1, 0)
+    account = get_account(conn, "rot_mod")
+    assert int(account["rotation_active_index"]) == 1
+    assert str(account["rotation_active_strategy"]) == "breakout"
+
+
+def test_apply_rotation_only_active_strategy_updates_field(conn):
+    apply_account_profiles(conn, [{"name": "rot_noop", "initial_cash": 1000}], create_missing=True)
+
+    created, updated, skipped = apply_account_profiles(
+        conn,
+        [{"name": "rot_noop", "rotation_active_strategy": "trend"}],
+        create_missing=False,
+    )
+
+    assert (created, updated, skipped) == (0, 1, 0)
+    account = get_account(conn, "rot_noop")
+    assert str(account["rotation_active_strategy"]) == "trend"
+
+
+def test_apply_rotation_mode_only_updates_mode(conn):
+    apply_account_profiles(conn, [{"name": "rot_mode_only", "initial_cash": 1000}], create_missing=True)
+
+    created, updated, skipped = apply_account_profiles(
+        conn,
+        [{"name": "rot_mode_only", "rotation_mode": "optimal"}],
+        create_missing=False,
+    )
+
+    assert (created, updated, skipped) == (0, 1, 0)
+    account = get_account(conn, "rot_mode_only")
+    assert str(account["rotation_mode"]) == "optimal"
+
+
+def test_apply_rejects_null_initial_cash(conn):
+    with pytest.raises(ValueError, match="initial_cash cannot be null"):
+        apply_account_profiles(conn, [{"name": "null_cash", "initial_cash": None}], create_missing=True)

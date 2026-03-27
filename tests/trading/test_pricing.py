@@ -141,3 +141,21 @@ def test_benchmark_stats_duplicate_ticker_columns(monkeypatch: pytest.MonkeyPatc
     assert equity == pytest.approx(12_000.0)
     assert ret == pytest.approx(20.0)
 
+
+def test_benchmark_stats_duplicate_columns_zero_width_returns_none(monkeypatch: pytest.MonkeyPatch):
+    class _CloseHistory:
+        def __getitem__(self, _ticker):
+            return pd.DataFrame(index=[0, 1])
+
+    monkeypatch.setattr(_mdata._provider, "fetch_close_history", lambda *_args, **_kwargs: _CloseHistory())
+    assert benchmark_stats("SPY", 10_000.0, "2024-01-01") == (None, None)
+
+
+def test_benchmark_stats_all_nan_series_returns_none(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        _mdata._provider,
+        "fetch_close_history",
+        lambda tickers, start, end: _close_history(tickers[0], [float("nan"), float("nan")]),
+    )
+    assert benchmark_stats("SPY", 10_000.0, "2024-01-01") == (None, None)
+
