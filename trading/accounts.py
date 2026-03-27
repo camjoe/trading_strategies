@@ -1,6 +1,6 @@
 import sqlite3
 from typing import Callable
-from common.time import utc_now_iso as _utc_now_iso
+from common.time import utc_now_iso
 from trading.database.code.db_backend import DuplicateRecordError
 from trading.database.code.db_coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 
@@ -9,9 +9,12 @@ RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
 OPTION_TYPES = {"call", "put", "both"}
 
-
-def utc_now_iso() -> str:
-    return _utc_now_iso()
+# Map field names to their valid enum sets for generic validation
+_ENUM_FIELDS = {
+    "risk_policy": RISK_POLICIES,
+    "instrument_mode": INSTRUMENT_MODES,
+    "option_type": OPTION_TYPES,
+}
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
@@ -32,31 +35,81 @@ def _normalize_lower_obj(value: object) -> object:
     return _normalize_lower(text)
 
 
+def _validate_enum_value(value: str, field_name: str) -> str:
+    """Normalize and validate an enum string field against allowed values."""
+    normalized = _normalize_lower(value)
+    allowed = _ENUM_FIELDS[field_name]
+    if normalized not in allowed:
+        options = ", ".join(sorted(allowed))
+        raise ValueError(f"{field_name} must be one of: {options}")
+    return normalized
+
+
 def _normalize_risk_policy(risk_policy: str) -> str:
-    risk = _normalize_lower(risk_policy)
-    if risk not in RISK_POLICIES:
-        raise ValueError("risk_policy must be one of: none, fixed_stop, take_profit, stop_and_target")
-    return risk
+    return _validate_enum_value(risk_policy, "risk_policy")
 
 
 def _normalize_instrument_mode(instrument_mode: str) -> str:
-    mode = _normalize_lower(instrument_mode)
-    if mode not in INSTRUMENT_MODES:
-        raise ValueError("instrument_mode must be one of: equity, leaps")
-    return mode
+    return _validate_enum_value(instrument_mode, "instrument_mode")
 
 
 def _normalize_option_type(option_type: str) -> str:
-    opt_type = _normalize_lower(option_type)
-    if opt_type not in OPTION_TYPES:
-        raise ValueError("option_type must be one of: call, put, both")
-    return opt_type
+    return _validate_enum_value(option_type, "option_type")
 
 
 def _validate_goal_return_range(goal_min_return_pct: float | None, goal_max_return_pct: float | None) -> None:
     if goal_min_return_pct is not None and goal_max_return_pct is not None:
         if goal_min_return_pct > goal_max_return_pct:
             raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
+
+
+def _validate_range(min_val: object | None, max_val: object | None, field_prefix: str, min_name: str = None, max_name: str = None) -> None:
+    """Helper to validate that min <= max for a pair of numeric fields."""
+    if min_val is None or max_val is None:
+        return
+    min_name = min_name or f"{field_prefix}_min"
+    max_name = max_name or f"{field_prefix}_max"
+    if float(min_val) > float(max_val):
+        raise ValueError(f"{min_name} cannot be greater than {max_name}.")
+
+
+def _validate_or_none_range(value: object | None, min_bound: float, max_bound: float, field_name: str) -> None:
+    """Validate that a value (if present) falls within [min_bound, max_bound]."""
+    if value is None:
+        return
+    v = float(value)
+    # For fractional bounds (0-1, 0-100), use "between X and Y" format
+    # For integer bounds like 0-9999, use single-sided checks
+    if (min_bound, max_bound) in [(0.0, 1.0), (0.0, 100.0)]:
+        if not (min_bound <= v <= max_bound):
+            raise ValueError(f"{field_name} must be between {int(min_bound)} and {int(max_bound)}.")
+    else:
+        if v < min_bound:
+            raise ValueError(f"{field_name} must be >= {int(min_bound)}.")
+        if v > max_bound:
+            raise ValueError(f"{field_name} must be <= {int(max_bound)}.")
+
+
+def _validate_option_settings(
+    option_type: str | None,
+    target_delta_min: float | None,
+    target_delta_max: float | None,
+    option_min_dte: int | None,
+    option_max_dte: int | None,
+    iv_rank_min: float | None,
+    iv_rank_max: float | None,
+) -> None:
+    if option_type is not None and option_type not in OPTION_TYPES:
+        raise ValueError("option_type must be one of: call, put, both")
+    _validate_or_none_range(target_delta_min, 0, 1, "target_delta_min")
+    _validate_or_none_range(target_delta_max, 0, 1, "target_delta_max")
+    _validate_range(target_delta_min, target_delta_max, "target_delta")
+    _validate_or_none_range(option_min_dte, 0, 9999, "option_min_dte")
+    _validate_or_none_range(option_max_dte, 0, 9999, "option_max_dte")
+    _validate_range(option_min_dte, option_max_dte, "option", "option_min_dte", "option_max_dte")
+    _validate_or_none_range(iv_rank_min, 0, 100, "iv_rank_min")
+    _validate_or_none_range(iv_rank_max, 0, 100, "iv_rank_max")
+    _validate_range(iv_rank_min, iv_rank_max, "iv_rank")
 
 
 def _append_update(
@@ -97,41 +150,6 @@ def _account_summary_line(row: sqlite3.Row) -> str:
         f"risk={row['risk_policy']} | instrument={row['instrument_mode']} | "
         f"created={row['created_at']}"
     )
-
-
-def _validate_option_settings(
-    option_type: str | None,
-    target_delta_min: float | None,
-    target_delta_max: float | None,
-    option_min_dte: int | None,
-    option_max_dte: int | None,
-    iv_rank_min: float | None,
-    iv_rank_max: float | None,
-) -> None:
-    if option_type is not None and option_type not in OPTION_TYPES:
-        raise ValueError("option_type must be one of: call, put, both")
-    if target_delta_min is not None and not (0 <= float(target_delta_min) <= 1):
-        raise ValueError("target_delta_min must be between 0 and 1.")
-    if target_delta_max is not None and not (0 <= float(target_delta_max) <= 1):
-        raise ValueError("target_delta_max must be between 0 and 1.")
-    if (
-        target_delta_min is not None
-        and target_delta_max is not None
-        and float(target_delta_min) > float(target_delta_max)
-    ):
-        raise ValueError("target_delta_min cannot be greater than target_delta_max.")
-    if option_min_dte is not None and int(option_min_dte) < 0:
-        raise ValueError("option_min_dte must be >= 0.")
-    if option_max_dte is not None and int(option_max_dte) < 0:
-        raise ValueError("option_max_dte must be >= 0.")
-    if option_min_dte is not None and option_max_dte is not None and int(option_min_dte) > int(option_max_dte):
-        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
-    if iv_rank_min is not None and not (0 <= float(iv_rank_min) <= 100):
-        raise ValueError("iv_rank_min must be between 0 and 100.")
-    if iv_rank_max is not None and not (0 <= float(iv_rank_max) <= 100):
-        raise ValueError("iv_rank_max must be between 0 and 100.")
-    if iv_rank_min is not None and iv_rank_max is not None and float(iv_rank_min) > float(iv_rank_max):
-        raise ValueError("iv_rank_min cannot be greater than iv_rank_max.")
 
 
 def create_account(

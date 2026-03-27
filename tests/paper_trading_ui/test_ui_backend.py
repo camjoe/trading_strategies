@@ -7,7 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from trading.database.code import db
-from trading.accounts import create_account, utc_now_iso
+from common.time import utc_now_iso
+from trading.accounts import create_account
 from trading.database.code.db_backend import SQLiteBackend, get_backend, set_backend
 
 

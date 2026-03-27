@@ -11,7 +11,8 @@ from statistics import median
 import pandas as pd
 
 from common.market_data import get_feature_provider
-from trading.accounts import get_account, utc_now_iso
+from common.time import utc_now_iso
+from trading.accounts import get_account
 from trading.features.backtesting.backtest_data import (
     build_monthly_universe,
     fetch_benchmark_close,
