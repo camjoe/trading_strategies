@@ -16,6 +16,7 @@ from trading.coercion import coerce_float
 from trading.database.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
+from trading.backtesting.history import load_strategy_backtest_returns
 from trading.rotation import (
     is_rotation_due,
     next_rotation_state,
@@ -497,48 +498,20 @@ def _select_optimal_strategy(
     end_day = as_of_dt.date().isoformat()
     start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
 
-    placeholders = ",".join(["?"] * len(schedule))
-    rows = conn.execute(
-        f"""
-        SELECT
-            r.strategy_name,
-            r.end_date,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time ASC, s.id ASC
-                LIMIT 1
-            ) AS starting_equity,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time DESC, s.id DESC
-                LIMIT 1
-            ) AS ending_equity
-        FROM backtest_runs r
-        WHERE r.account_id = ?
-          AND r.strategy_name IN ({placeholders})
-          AND r.end_date >= ?
-          AND r.end_date <= ?
-        ORDER BY r.end_date DESC, r.id DESC
-        """,
-        (account["id"], *schedule, start_day, end_day),
-    ).fetchall()
+    returns = load_strategy_backtest_returns(
+        conn,
+        account_id=int(account["id"]),
+        strategy_names=schedule,
+        start_day=start_day,
+        end_day=end_day,
+    )
 
-    if not rows:
+    if not returns:
         return None
 
     by_strategy: dict[str, list[float]] = {}
     latest_by_strategy: dict[str, float] = {}
-    for row in rows:
-        strategy_name = str(row["strategy_name"] or "").strip()
-        if not strategy_name:
-            continue
-        ret = _safe_return_pct(row["starting_equity"], row["ending_equity"])
-        if ret is None:
-            continue
+    for strategy_name, ret in returns:
         by_strategy.setdefault(strategy_name, []).append(ret)
         if strategy_name not in latest_by_strategy:
             latest_by_strategy[strategy_name] = ret

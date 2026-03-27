@@ -18,6 +18,7 @@ python -m trading.paper_trading
 
 - `Strategies.md`: strategy hypotheses and evaluation framework.
 - `backtesting.md`: backtesting workflows, safeguards, and notes.
+- `architecture/trading-module-boundaries.md`: module ownership and dependency direction for trading.
 - `reference/Glossary.md`: finance, options, backtesting, and indicator terms.
 
 ## Docs Freshness Workflow
