@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv
+from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv, print_export_summary
 
 REPO_ROOT = get_repo_root(__file__)
 
@@ -31,15 +31,6 @@ def _parse_table_list(raw: str) -> list[str]:
     if not tables:
         raise ValueError("At least one table must be provided.")
     return tables
-
-
-def print_export_summary(result) -> None:
-    print(f"[export] Database: {result.db_path}")
-    print(f"[export] Output:   {result.output_dir}")
-    for table_result in result.tables:
-        print(
-            f"[export] {table_result.table}: {table_result.row_count} row(s) -> {table_result.output_path.name}"
-        )
 
 
 def main() -> int:

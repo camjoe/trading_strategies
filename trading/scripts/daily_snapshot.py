@@ -7,18 +7,17 @@ import argparse
 import datetime as dt
 import json
 import os
-import sqlite3
-import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Callable
 
 from common.repo_paths import get_repo_root
-from trading.database.db_config import get_db_path
+from common.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
+from trading.accounts import load_all_account_names
 
 REPO_ROOT = get_repo_root(__file__)
-LOGS_DIR = REPO_ROOT / "local" / "logs"
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 SNAPSHOTS_EXPORT_DIR = REPO_ROOT / "local" / "exports" / "daily_snapshots"
 
 COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
@@ -71,65 +70,21 @@ def is_run_enabled(args: argparse.Namespace) -> bool:
     return os.getenv("DAILY_SNAPSHOT_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def load_all_account_names() -> list[str]:
-    conn = sqlite3.connect(get_db_path())
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-    finally:
-        conn.close()
-    return [str(row["name"]) for row in rows]
-
-
-def tee_line(log_path: Path, text: str) -> None:
-    print(text)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(text + "\n")
-
-
 def _day_tag(now: dt.datetime) -> str:
     return now.strftime("%Y%m%d")
 
 
 def already_completed_today(log_dir: Path, day_tag: str) -> bool:
-    logs = sorted(log_dir.glob(f"daily_snapshot_{day_tag}_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not logs:
-        return False
-    latest = logs[0]
-    try:
-        return COMPLETE_SENTINEL in latest.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+    return latest_log_contains_sentinel(
+        log_dir,
+        f"daily_snapshot_{day_tag}_*.log",
+        COMPLETE_SENTINEL,
+    )
 
 
 def is_transient_error(output: str) -> bool:
     lowered = output.lower()
     return any(token in lowered for token in TRANSIENT_ERROR_TOKENS)
-
-
-def run_command(log_path: Path, label: str, args: list[str], cwd: Path) -> tuple[int, str]:
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] START: {label}")
-    process = subprocess.Popen(
-        [sys.executable, *args],
-        cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-    )
-    assert process.stdout is not None
-    lines: list[str] = []
-    for line in process.stdout:
-        clean = line.rstrip("\n")
-        lines.append(clean)
-        tee_line(log_path, clean)
-    exit_code = process.wait()
-    combined_output = "\n".join(lines)
-    if exit_code == 0:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] DONE: {label}")
-    else:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] ERROR: {label} exit={exit_code}")
-    return exit_code, combined_output
 
 
 def retry_delay_seconds(base_delay_seconds: float, attempt_number: int) -> float:

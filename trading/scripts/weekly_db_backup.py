@@ -10,9 +10,10 @@ import sys
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from common.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, tee_line
 
 REPO_ROOT = get_repo_root(__file__)
-LOGS_DIR = REPO_ROOT / "local" / "logs"
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
 COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
 
@@ -29,21 +30,12 @@ def week_tag(now: dt.datetime) -> str:
     return f"{iso_year}_W{iso_week:02d}"
 
 
-def tee_line(log_path: Path, text: str) -> None:
-    print(text)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(text + "\n")
-
-
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
-    logs = sorted(log_dir.glob(f"weekly_db_backup_{tag}_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not logs:
-        return False
-    latest = logs[0]
-    try:
-        return COMPLETE_SENTINEL in latest.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+    return latest_log_contains_sentinel(
+        log_dir,
+        f"weekly_db_backup_{tag}_*.log",
+        COMPLETE_SENTINEL,
+    )
 
 
 def main() -> int:

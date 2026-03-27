@@ -2,6 +2,7 @@ import sqlite3
 from typing import Callable
 from common.time import utc_now_iso
 from trading.database.db_backend import DuplicateRecordError
+from trading.database.db_config import get_db_path
 from trading.coercion import coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 
 
@@ -399,3 +400,13 @@ def configure_account(
     params.append(account["id"])
     conn.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", tuple(params))
     conn.commit()
+
+
+def load_all_account_names() -> list[str]:
+    conn = sqlite3.connect(get_db_path())
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
+    finally:
+        conn.close()
+    return [str(row["name"]) for row in rows]

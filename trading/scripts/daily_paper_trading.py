@@ -6,16 +6,15 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import sqlite3
-import subprocess
 import sys
 import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from common.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
 
 REPO_ROOT = get_repo_root(__file__)
-LOGS_DIR = REPO_ROOT / "local" / "logs"
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 DEFAULT_TRADE_CAPS_CONFIG = "trading/scripts/account_trade_caps.json"
 
 
@@ -33,7 +32,7 @@ def _startup_log(message: str) -> None:
 _startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}")
 
 try:
-    from trading.database.db_config import get_db_path
+    from trading.accounts import load_all_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())
@@ -80,17 +79,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
     parser.add_argument("--run-source", default="scheduled-daily")
     return parser.parse_args()
-
-
-def load_all_account_names() -> list[str]:
-    db_path = get_db_path()
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-    finally:
-        conn.close()
-    return [str(row["name"]) for row in rows]
 
 
 def parse_account_trade_caps(value: str) -> dict[str, tuple[int, int]]:
@@ -191,41 +179,13 @@ def resolve_trade_caps(
     return resolved
 
 
-def tee_line(log_path: Path, text: str) -> None:
-    print(text)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(text + "\n")
-
-
-def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> None:
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] START: {label}")
-    process = subprocess.Popen(
-        [sys.executable, *args],
-        cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-    )
-    assert process.stdout is not None
-    for line in process.stdout:
-        tee_line(log_path, line.rstrip("\n"))
-    exit_code = process.wait()
-    if exit_code != 0:
-        raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] DONE: {label}")
-
-
 def already_completed_today(log_dir: Path) -> bool:
     today_tag = dt.date.today().strftime("%Y%m%d")
-    logs = sorted(log_dir.glob(f"daily_paper_trading_{today_tag}_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not logs:
-        return False
-    latest = logs[0]
-    try:
-        return COMPLETE_SENTINEL in latest.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+    return latest_log_contains_sentinel(
+        log_dir,
+        f"daily_paper_trading_{today_tag}_*.log",
+        COMPLETE_SENTINEL,
+    )
 
 
 def main() -> int:
