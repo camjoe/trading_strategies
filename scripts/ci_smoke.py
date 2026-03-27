@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+
 
 def _run_step(name: str, command: list[str], cwd: Path) -> None:
     print(f"\n==> {name}")
@@ -67,26 +69,63 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _build_docs_command(args: argparse.Namespace, python_exe: str, repo_root: Path) -> list[str]:
+    docs_cmd = [
+        python_exe,
+        "scripts/check_docs_freshness.py",
+        "--repo-root",
+        str(repo_root),
+    ]
+    if args.docs_base_ref:
+        docs_cmd.extend(["--base-ref", args.docs_base_ref, "--head-ref", args.docs_head_ref])
+    return docs_cmd
+
+
+def _python_quality_commands(python_exe: str) -> list[tuple[str, list[str]]]:
+    return [
+        (
+            "Python quality: ruff",
+            [
+                python_exe,
+                "-m",
+                "ruff",
+                "check",
+                "trading",
+                "trends",
+                "paper_trading_ui/backend",
+                "--select",
+                "F,E9",
+            ],
+        ),
+        (
+            "Python quality: mypy",
+            [
+                python_exe,
+                "-m",
+                "mypy",
+                "paper_trading_ui/backend",
+                "trading",
+                "--python-version",
+                "3.12",
+                "--ignore-missing-imports",
+                "--follow-imports=skip",
+            ],
+        ),
+    ]
+
+
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = get_repo_root(__file__)
     python_exe = _resolve_python_exe(repo_root)
     npm_exe = _resolve_npm_exe()
 
     try:
         if not args.skip_python:
             if not args.skip_docs_freshness:
-                docs_cmd = [
-                    python_exe,
-                    "scripts/check_docs_freshness.py",
-                    "--repo-root",
-                    str(repo_root),
-                ]
-                if args.docs_base_ref:
-                    docs_cmd.extend(["--base-ref", args.docs_base_ref, "--head-ref", args.docs_head_ref])
                 _run_step(
                     "Python docs: freshness",
-                    docs_cmd,
+                    _build_docs_command(args, python_exe, repo_root),
                     repo_root,
                 )
             _run_step(
@@ -105,36 +144,8 @@ def main() -> int:
                     [python_exe, "-m", "pip", "install", "ruff", "mypy"],
                     repo_root,
                 )
-            _run_step(
-                "Python quality: ruff",
-                [
-                    python_exe,
-                    "-m",
-                    "ruff",
-                    "check",
-                    "trading",
-                    "trends",
-                    "paper_trading_ui/backend",
-                    "--select",
-                    "F,E9",
-                ],
-                repo_root,
-            )
-            _run_step(
-                "Python quality: mypy",
-                [
-                    python_exe,
-                    "-m",
-                    "mypy",
-                    "paper_trading_ui/backend",
-                    "trading",
-                    "--python-version",
-                    "3.12",
-                    "--ignore-missing-imports",
-                    "--follow-imports=skip",
-                ],
-                repo_root,
-            )
+            for step_name, command in _python_quality_commands(python_exe):
+                _run_step(step_name, command, repo_root)
             _run_step("Python tests: pytest", [python_exe, "-m", "pytest"], repo_root)
 
         if not args.skip_frontend:

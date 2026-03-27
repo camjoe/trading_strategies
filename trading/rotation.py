@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 from typing import Mapping
 
-from trading.database.code.db_coercion import coerce_int
+from trading.coercion import coerce_int
 
 
 ROTATION_MODES = {"time", "optimal"}
@@ -12,12 +12,13 @@ OPTIMALITY_MODES = {"previous_period_best", "average_return"}
 
 
 def _value(account: Mapping[str, object], key: str) -> object | None:
+    """Safely get a value from an account mapping, handling both dict and row objects."""
+    if hasattr(account, "get"):
+        return account.get(key)
     try:
         return account[key]
-    except Exception:
-        if hasattr(account, "get"):
-            return account.get(key)
-    return None
+    except (KeyError, TypeError):
+        return None
 
 
 def _as_int(value: object | None, default: int = 0) -> int:

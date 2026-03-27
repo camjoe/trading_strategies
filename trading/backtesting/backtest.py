@@ -11,15 +11,16 @@ from statistics import median
 import pandas as pd
 
 from common.market_data import get_feature_provider
-from trading.accounts import get_account, utc_now_iso
-from trading.features.backtesting.backtest_data import (
+from common.time import utc_now_iso
+from trading.accounts import get_account
+from trading.backtesting.backtest_data import (
     build_monthly_universe,
     fetch_benchmark_close,
     fetch_close_history,
     load_tickers_from_file,
     resolve_backtest_dates,
 )
-from trading.database.code.db_coercion import (
+from trading.coercion import (
     coerce_float,
     row_expect_float,
     row_expect_int,
@@ -28,7 +29,7 @@ from trading.database.code.db_coercion import (
     row_str,
 )
 from trading.rotation import resolve_active_strategy
-from trading.features.backtesting.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
 @dataclass

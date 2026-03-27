@@ -8,6 +8,10 @@ type DocsSectionLink = {
 
 type DocsSectionButtonIndex = Map<string, HTMLButtonElement[]>;
 
+type DocsSectionElementLink = DocsSectionLink & {
+  element: HTMLElement;
+};
+
 const DOCS_GROUP_LABEL_OVERRIDES: Record<string, string> = {
   "Financial & Market Knowledge": "Financial & Markets",
   "RESTful API Reference": "API Reference",
@@ -32,10 +36,10 @@ function setDocsSectionExpanded(section: HTMLElement, expanded: boolean): void {
   section.classList.toggle("expanded", expanded);
   button?.setAttribute("aria-expanded", String(expanded));
   if (button) {
-    if (expanded) {
-      button.removeAttribute("title");
-    } else {
+    if (!expanded) {
       button.setAttribute("title", "click to expand");
+    } else {
+      button.removeAttribute("title");
     }
   }
   if (body) {
@@ -150,28 +154,35 @@ function collectDocsSections(): DocsSectionLink[] {
     document.querySelectorAll<HTMLHeadingElement>("#tab-docs .ref-card .ref-section > h3"),
   );
 
-  return sectionHeadings.flatMap((heading) => {
-    const section = heading.closest<HTMLElement>(".ref-section");
-    const card = heading.closest<HTMLElement>(".ref-card");
-    const groupHeading = card?.querySelector<HTMLHeadingElement>("h2");
-    const sectionTitle = heading.textContent?.trim();
-    const groupLabel = groupHeading?.textContent?.trim();
+  return sectionHeadings
+    .map((heading) => {
+      const section = heading.closest<HTMLElement>(".ref-section");
+      const card = heading.closest<HTMLElement>(".ref-card");
+      const groupHeading = card?.querySelector<HTMLHeadingElement>("h2");
+      const sectionTitle = heading.textContent?.trim();
+      const groupLabel = groupHeading?.textContent?.trim();
 
-    if (!section || !sectionTitle || !groupLabel) {
-      return [];
-    }
+      if (!section || !sectionTitle || !groupLabel) {
+        return null;
+      }
 
-    if (!section.id) {
-      section.id = `docs-${slugify(sectionTitle)}`;
-    }
+      if (!section.id) {
+        section.id = `docs-${slugify(sectionTitle)}`;
+      }
 
-    return [
-      {
+      return {
         groupLabel,
         sectionId: section.id,
         sectionTitle,
-      },
-    ];
+      };
+    })
+    .filter((item): item is DocsSectionLink => item !== null);
+}
+
+function collectDocsSectionElements(sections: DocsSectionLink[]): DocsSectionElementLink[] {
+  return sections.flatMap((section) => {
+    const element = document.getElementById(section.sectionId);
+    return element ? [{ ...section, element }] : [];
   });
 }
 
@@ -304,10 +315,7 @@ function initDocsMenu(openTab: (target: string) => void): void {
   }
 
   let closeMenuTimeoutId: number | undefined;
-  const sectionElements = sections.flatMap((section) => {
-    const element = document.getElementById(section.sectionId);
-    return element ? [{ ...section, element }] : [];
-  });
+  const sectionElements = collectDocsSectionElements(sections);
 
   const clearCloseMenuTimeout = () => {
     if (closeMenuTimeoutId !== undefined) {
@@ -316,36 +324,42 @@ function initDocsMenu(openTab: (target: string) => void): void {
     }
   };
 
+  const resetFlyoutState = () => {
+    const flyoutRoot = docsSectionList.querySelector<HTMLElement>(".docs-nav-two-pane");
+    const secondaryPane = docsSectionList.querySelector<HTMLElement>(".docs-nav-secondary");
+
+    flyoutRoot?.classList.remove("has-secondary");
+    if (secondaryPane) {
+      secondaryPane.hidden = true;
+    }
+
+    findAll<HTMLButtonElement>(".docs-nav-group-item", docsSectionList).forEach((button) => {
+      button.classList.remove("active");
+      button.setAttribute("aria-expanded", "false");
+    });
+    findAll<HTMLElement>(".docs-nav-secondary-panel", docsSectionList).forEach((panel) => {
+      panel.hidden = true;
+    });
+  };
+
   const setMenuOpen = (isOpen: boolean) => {
     clearCloseMenuTimeout();
     if (isOpen) {
-      const flyoutRoot = docsSectionList.querySelector<HTMLElement>(".docs-nav-two-pane");
-      const secondaryPane = docsSectionList.querySelector<HTMLElement>(".docs-nav-secondary");
-
-      flyoutRoot?.classList.remove("has-secondary");
-      if (secondaryPane) {
-        secondaryPane.hidden = true;
-      }
-
-      findAll<HTMLButtonElement>(".docs-nav-group-item", docsSectionList).forEach((button) => {
-        button.classList.remove("active");
-        button.setAttribute("aria-expanded", "false");
-      });
-      findAll<HTMLElement>(".docs-nav-secondary-panel", docsSectionList).forEach((panel) => {
-        panel.hidden = true;
-      });
+      resetFlyoutState();
     }
     docsSectionMenu.hidden = !isOpen;
     docsNavItem.classList.toggle("open", isOpen);
     docsTabBtn.setAttribute("aria-expanded", String(isOpen));
   };
 
+  const closeMenu = () => {
+    setMenuOpen(false);
+  };
+
   const queueMenuClose = () => {
     clearCloseMenuTimeout();
     closeMenuTimeoutId = window.setTimeout(() => {
-      docsSectionMenu.hidden = true;
-      docsNavItem.classList.remove("open");
-      docsTabBtn.setAttribute("aria-expanded", "false");
+      closeMenu();
       closeMenuTimeoutId = undefined;
     }, 140);
   };
@@ -374,7 +388,7 @@ function initDocsMenu(openTab: (target: string) => void): void {
   }
 
   docsSectionList.addEventListener("click", () => {
-    setMenuOpen(false);
+    closeMenu();
   });
 
   docsNavItem.addEventListener("mouseenter", () => {
@@ -386,7 +400,7 @@ function initDocsMenu(openTab: (target: string) => void): void {
   });
 
   docsTabBtn.addEventListener("click", () => {
-    setMenuOpen(false);
+    closeMenu();
     requestAnimationFrame(updateActiveSection);
   });
 
@@ -401,7 +415,7 @@ function initDocsMenu(openTab: (target: string) => void): void {
     if (!(event.target instanceof Node) || docsNavItem.contains(event.target)) {
       return;
     }
-    setMenuOpen(false);
+    closeMenu();
   });
 
   window.addEventListener("scroll", updateActiveSection, { passive: true });

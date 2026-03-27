@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import shutil
+from typing import Callable, cast
 from datetime import datetime
 from pathlib import Path
 
-from trading.database.code.db import ensure_db
-from trading.database.code.db_backend import SQLiteBackend, get_backend
+from trading.coercion import coerce_int, row_expect_int
+from trading.database.db import ensure_db
+from trading.database.db_backend import SQLiteBackend, get_backend
 
 
 def _sqlite_db_path() -> Path:
@@ -69,12 +71,21 @@ def _resolve_accounts_for_delete(conn, names: list[str], delete_all: bool) -> li
             missing_text = ", ".join(missing)
             raise ValueError(f"Accounts not found: {missing_text}")
 
-    return [{"id": int(row["id"]), "name": str(row["name"])} for row in rows]
+    normalized: list[dict[str, object]] = []
+    for row in rows:
+        account_id = row_expect_int(row, "id")
+        normalized.append({"id": account_id, "name": str(row["name"])})
+    return normalized
 
 
 def _count_rows(conn, table: str, where_sql: str, params: tuple[object, ...]) -> int:
     row = conn.execute(f"SELECT COUNT(*) AS n FROM {table} WHERE {where_sql}", params).fetchone()
-    return int(row["n"])
+    if row is None:
+        return 0
+    count = coerce_int(row["n"])
+    if count is None:
+        raise ValueError(f"Unexpected non-integer count from table '{table}'.")
+    return count
 
 
 def delete_accounts(
@@ -96,14 +107,22 @@ def delete_accounts(
                 "backtest_equity_snapshots": 0,
             }
 
-        account_ids = tuple(int(item["id"]) for item in targets)
+        account_ids: tuple[int, ...] = tuple(
+            coerce_int(item["id"]) for item in targets if coerce_int(item["id"]) is not None
+        )
+        if len(account_ids) != len(targets):
+            raise ValueError("Unexpected non-integer account id in delete target set.")
         account_placeholders = ",".join(["?"] * len(account_ids))
 
         run_rows = conn.execute(
             f"SELECT id FROM backtest_runs WHERE account_id IN ({account_placeholders})",
             account_ids,
         ).fetchall()
-        run_ids = tuple(int(row["id"]) for row in run_rows)
+        run_ids: tuple[int, ...] = tuple(
+            coerce_int(row["id"]) for row in run_rows if coerce_int(row["id"]) is not None
+        )
+        if len(run_ids) != len(run_rows):
+            raise ValueError("Unexpected non-integer backtest run id in delete target set.")
 
         counts = {
             "accounts": len(targets),
@@ -259,7 +278,8 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     try:
-        return int(args.handler(args))
+        handler = cast(Callable[[argparse.Namespace], int], args.handler)
+        return handler(args)
     except Exception as exc:
         parser.error(str(exc))
         return 2

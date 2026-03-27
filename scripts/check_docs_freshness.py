@@ -79,11 +79,8 @@ def load_docs_config(repo_root: Path) -> dict[str, Any]:
         }
 
     configured_dirs = payload.get("documentationDirectories")
-    directories = [
-        normalize_path(entry)
-        for entry in (configured_dirs if isinstance(configured_dirs, list) else default_dirs)
-        if normalize_path(str(entry))
-    ]
+    raw_directories = configured_dirs if isinstance(configured_dirs, list) else default_dirs
+    directories = [normalized for entry in raw_directories if (normalized := normalize_path(str(entry)))]
 
     return {
         "configPath": str(config_path),

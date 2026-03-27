@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
 import pandas as pd
 
-try:
-    from trends.indicators import calculate_macd, calculate_rs_rsi
-except ModuleNotFoundError:
-    indicators = importlib.import_module("indicators")
-    calculate_macd = indicators.calculate_macd
-    calculate_rs_rsi = indicators.calculate_rs_rsi
+from trading.backtesting.indicators_adapter import calculate_macd, calculate_rs_rsi
 
 
 StrategyParams = Mapping[str, Any]

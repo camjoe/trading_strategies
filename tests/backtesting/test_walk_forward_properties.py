@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from trading.features.backtesting.backtest import build_walk_forward_windows
+from trading.backtesting.backtest import build_walk_forward_windows
 
 
 @pytest.mark.parametrize("test_months", [1, 2, 3])

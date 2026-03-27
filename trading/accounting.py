@@ -1,6 +1,7 @@
 import sqlite3
 from collections import defaultdict
-from trading.accounts import get_account, utc_now_iso
+from common.time import utc_now_iso
+from trading.accounts import get_account
 from trading.models import AccountState
 
 

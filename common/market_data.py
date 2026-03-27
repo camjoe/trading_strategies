@@ -11,10 +11,11 @@ from typing import Callable, Mapping
 import pandas as pd
 import yfinance as yf
 
-from trends.tickers import load_ticker_categories
+from common.tickers import load_ticker_categories
+from common.repo_paths import get_repo_root
 
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_PROVIDER_NAME = "yfinance"
 _DEFAULT_MARKET_DATA_CONFIG_PATH = _REPO_ROOT / "local" / "market_data_config.json"
 
@@ -336,6 +337,30 @@ _provider_config_mtime: float | None = None
 _feature_provider: FeatureDataProvider = ProxyFeatureDataProvider()
 
 
+def _supported_provider_text() -> str:
+    return ", ".join(sorted(_PROVIDER_FACTORIES))
+
+
+def _config_mtime(config_path: Path) -> float | None:
+    return config_path.stat().st_mtime if config_path.exists() else None
+
+
+def _provider_factory(name: str) -> Callable[[], MarketDataProvider]:
+    factory = _PROVIDER_FACTORIES.get(name)
+    if factory is None:
+        raise ValueError(
+            f"Unsupported market data provider '{name}'. Supported values: {_supported_provider_text()}"
+        )
+    return factory
+
+
+def _set_provider_state(provider: MarketDataProvider, *, name: str, source: str) -> None:
+    global _provider, _provider_name, _provider_source
+    _provider = provider
+    _provider_name = name
+    _provider_source = source
+
+
 def _config_path() -> Path:
     raw = str(os.getenv("TRADING_MARKET_DATA_CONFIG", "")).strip()
     if raw:
@@ -364,23 +389,14 @@ def _resolve_provider_name() -> str:
 
 
 def _sync_provider_from_config() -> None:
-    global _provider, _provider_name, _provider_source, _provider_config_mtime
+    global _provider_config_mtime
 
     target_name = _resolve_provider_name()
-    factory = _PROVIDER_FACTORIES.get(target_name)
-    if factory is None:
-        supported = ", ".join(sorted(_PROVIDER_FACTORIES))
-        raise ValueError(f"Unsupported market data provider '{target_name}'. Supported values: {supported}")
-
-    _provider = factory()
-    _provider_name = target_name
-    _provider_source = "config"
+    factory = _provider_factory(target_name)
+    _set_provider_state(factory(), name=target_name, source="config")
 
     config_path = _config_path()
-    if config_path.exists():
-        _provider_config_mtime = config_path.stat().st_mtime
-    else:
-        _provider_config_mtime = None
+    _provider_config_mtime = _config_mtime(config_path)
 
 
 def _maybe_reload_provider_from_config() -> None:
@@ -412,23 +428,14 @@ def set_provider(provider: MarketDataProvider) -> None:
         from common.market_data import set_provider
         set_provider(MyCustomProvider())
     """
-    global _provider, _provider_name, _provider_source
-    _provider = provider
-    _provider_name = provider.__class__.__name__
-    _provider_source = "manual"
+    _set_provider_state(provider, name=provider.__class__.__name__, source="manual")
 
 
 def set_provider_by_name(name: str) -> None:
     """Set provider by configured registry name (e.g. yfinance)."""
-    global _provider, _provider_name, _provider_source
     key = name.strip().lower()
-    factory = _PROVIDER_FACTORIES.get(key)
-    if factory is None:
-        supported = ", ".join(sorted(_PROVIDER_FACTORIES))
-        raise ValueError(f"Unsupported market data provider '{name}'. Supported values: {supported}")
-    _provider = factory()
-    _provider_name = key
-    _provider_source = "manual"
+    factory = _provider_factory(key)
+    _set_provider_state(factory(), name=key, source="manual")
 
 
 def reload_provider_from_config() -> str:

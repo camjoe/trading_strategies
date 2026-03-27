@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 from trading.accounting import record_trade
 from trading.accounts import configure_account, create_account, list_accounts, set_benchmark
-from trading.features.backtesting.backtest import (
+from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
     WalkForwardConfig,
@@ -13,7 +13,7 @@ from trading.features.backtesting.backtest import (
     run_walk_forward_backtest,
 )
 from trading.cli import build_parser
-from trading.database.code.db import DB_PATH, ensure_db
+from trading.database.db import DB_PATH, ensure_db
 from trading.profiles import apply_account_profiles, load_account_profiles
 from trading.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 
