@@ -2,7 +2,7 @@
 
 # Test dependencies used by local development and CI.
 httpx>=0.23.0,<1.0.0
-pytest==8.3.5
+pytest==9.0.2
 pytest-cov==6.0.0
 pytest-mock==3.14.0
 hypothesis==6.131.26
