@@ -8,17 +8,6 @@ import pytest
 import common.market_data as market_data
 
 
-@pytest.fixture(autouse=True)
-def _reset_provider_state(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("TRADING_MARKET_DATA_PROVIDER", raising=False)
-    monkeypatch.delenv("TRADING_MARKET_DATA_CONFIG", raising=False)
-    market_data.reload_provider_from_config()
-    yield
-    monkeypatch.delenv("TRADING_MARKET_DATA_PROVIDER", raising=False)
-    monkeypatch.delenv("TRADING_MARKET_DATA_CONFIG", raising=False)
-    market_data.reload_provider_from_config()
-
-
 def test_default_provider_is_yfinance() -> None:
     assert market_data.get_provider_name() == "yfinance"
 

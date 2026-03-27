@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+
 WINDOWS_DAYS = {
     "monday": "MON",
     "tuesday": "TUE",
@@ -59,10 +61,10 @@ def validate_time(value: str) -> tuple[int, int]:
     return hour, minute
 
 
-def windows_register(args: argparse.Namespace, script_path: Path) -> int:
+def windows_register(args: argparse.Namespace) -> int:
     day_key = validate_day(args.day_of_week)
     validate_time(args.time)
-    task_command = f'"{Path(args.python).resolve()}" "{script_path}"'
+    task_command = f'"{Path(args.python).resolve()}" -m trading.scripts.weekly_db_backup'
     cmd = [
         "schtasks",
         "/Create",
@@ -112,7 +114,7 @@ def write_crontab_lines(lines: list[str], dry_run: bool) -> int:
     return result.returncode
 
 
-def linux_register(args: argparse.Namespace, repo_root: Path, script_path: Path) -> int:
+def linux_register(args: argparse.Namespace, repo_root: Path) -> int:
     day_key = validate_day(args.day_of_week)
     hour, minute = validate_time(args.time)
     marker = f"# {args.task_name}"
@@ -120,7 +122,7 @@ def linux_register(args: argparse.Namespace, repo_root: Path, script_path: Path)
     log_path = repo_root / "local" / "logs" / "weekly_db_backup_cron.log"
     cron_line = (
         f"{minute} {hour} * * {CRON_DAYS[day_key]} "
-        f"cd {repo_root} && {python_exe} {script_path} >> {log_path} 2>&1 {marker}"
+        f"cd {repo_root} && {python_exe} -m trading.scripts.weekly_db_backup >> {log_path} 2>&1 {marker}"
     )
 
     lines = [line for line in load_crontab_lines() if marker not in line]
@@ -136,8 +138,8 @@ def linux_unregister(args: argparse.Namespace) -> int:
 
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[2]
-    script_path = repo_root / "trading" / "scripts" / "weekly_db_backup.py"
+
+    repo_root = get_repo_root(__file__)
 
     system = platform.system().lower()
     try:
@@ -145,12 +147,12 @@ def main() -> int:
             if args.unregister:
                 code = windows_unregister(args)
             else:
-                code = windows_register(args, script_path)
+                code = windows_register(args)
         elif system == "linux":
             if args.unregister:
                 code = linux_unregister(args)
             else:
-                code = linux_register(args, repo_root, script_path)
+                code = linux_register(args, repo_root)
         else:
             print(f"Unsupported OS for scheduler registration: {platform.system()}", file=sys.stderr)
             return 2
@@ -166,7 +168,7 @@ def main() -> int:
     print(f"Weekly backup schedule '{args.task_name}' {action}.")
     if not args.unregister:
         print(f"Runs every {args.day_of_week} at {args.time}.")
-        print(f"Script: {script_path}")
+        print(f"Repo: {repo_root}")
     return 0
 
 

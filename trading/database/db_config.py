@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from common.repo_paths import get_repo_root
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_DB_PATH = _REPO_ROOT / "local" / "paper_trading.db"
 _DEFAULT_CONFIG_PATH = _REPO_ROOT / "local" / "db_config.json"
 

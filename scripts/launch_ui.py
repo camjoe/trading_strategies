@@ -46,6 +46,10 @@ def build_commands() -> tuple[list[str], list[str]]:
     return backend_command, frontend_command
 
 
+def _service_url(port: str) -> str:
+    return f"http://{HOST}:{port}"
+
+
 def terminate_process(proc: subprocess.Popen[str]) -> None:
     if proc.poll() is not None:
         return
@@ -57,6 +61,18 @@ def terminate_process(proc: subprocess.Popen[str]) -> None:
         proc.kill()
 
 
+def _terminate_processes(*processes: subprocess.Popen[str]) -> None:
+    for process in processes:
+        terminate_process(process)
+
+
+def _exit_code_or_zero(*exit_codes: int | None) -> int:
+    for exit_code in exit_codes:
+        if exit_code is not None:
+            return exit_code
+    return 0
+
+
 def main() -> int:
     scripts_dir = Path(__file__).resolve().parent
     repo_root = scripts_dir.parent
@@ -64,7 +80,7 @@ def main() -> int:
     backend_command, frontend_command = build_commands()
     env = {
         **os.environ,
-        "VITE_API_BASE": f"http://{HOST}:{API_PORT}",
+        "VITE_API_BASE": _service_url(API_PORT),
     }
 
     if shutil.which(frontend_command[0]) is None:
@@ -83,8 +99,8 @@ def main() -> int:
     )
 
     print("Launched backend and frontend.")
-    print(f"Backend:  http://{HOST}:{API_PORT}")
-    print(f"Frontend: http://{HOST}:{FRONTEND_PORT}")
+    print(f"Backend:  {_service_url(API_PORT)}")
+    print(f"Frontend: {_service_url(FRONTEND_PORT)}")
     print("Press Ctrl+C to stop both services.")
 
     stop_requested = False
@@ -95,8 +111,7 @@ def main() -> int:
             return
         stop_requested = True
         print(f"\nReceived signal {signum}, stopping services...")
-        terminate_process(backend_proc)
-        terminate_process(frontend_proc)
+        _terminate_processes(backend_proc, frontend_proc)
 
     signal.signal(signal.SIGINT, handle_signal)
     if hasattr(signal, "SIGTERM"):
@@ -116,12 +131,11 @@ def main() -> int:
                     print("Frontend exited, stopping backend...")
                     terminate_process(backend_proc)
                     return frontend_exit
-                return backend_exit if backend_exit is not None else frontend_exit or 0
+                return _exit_code_or_zero(backend_exit, frontend_exit)
 
             time.sleep(0.2)
     finally:
-        terminate_process(backend_proc)
-        terminate_process(frontend_proc)
+        _terminate_processes(backend_proc, frontend_proc)
 
 
 if __name__ == "__main__":

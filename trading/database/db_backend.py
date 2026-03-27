@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from trading.database.code.db_config import get_db_path
+from trading.database.db_config import get_db_path
 
 
 class DuplicateRecordError(Exception):
@@ -43,7 +43,7 @@ class SQLiteBackend(DatabaseBackend):
     """Concrete backend backed by SQLite via the stdlib ``sqlite3`` module.
     Args:
         db_path: Path to the SQLite file.  Defaults to the path resolved by
-            ``trading.database.code.db_config.get_db_path``.
+            ``trading.database.db_config.get_db_path``.
     """
 
     def __init__(self, db_path: Path | None = None) -> None:

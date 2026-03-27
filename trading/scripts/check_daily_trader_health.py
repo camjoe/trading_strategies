@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import TypedDict
 
+from common.repo_paths import get_repo_root
+
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
 
 
@@ -30,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--repo-root",
-        default=str(Path(__file__).resolve().parents[2]),
+        default=str(get_repo_root(__file__)),
         help="Repository root path (default: inferred from script location)",
     )
     parser.add_argument(

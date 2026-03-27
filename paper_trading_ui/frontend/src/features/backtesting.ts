@@ -68,6 +68,20 @@ interface WalkForwardPayload extends BacktestBasePayload {
   runNamePrefix: string | null;
 }
 
+function parseRunId(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function renderDownMessage(message: string): string {
+  return `<div class="down">${esc(message)}</div>`;
+}
+
 function parseOptInt(raw: string): number | null {
   const v = raw.trim();
   if (!v) return null;
@@ -177,10 +191,8 @@ export function createBacktestingFeature(): BacktestingFeature {
 
     for (const btn of target.querySelectorAll<HTMLButtonElement>(BACKTEST_RUN_ITEM_SELECTOR)) {
       btn.addEventListener("click", () => {
-        const runIdRaw = btn.dataset.runId;
-        if (!runIdRaw) return;
-        const runId = Number(runIdRaw);
-        if (!Number.isFinite(runId)) return;
+        const runId = parseRunId(btn.dataset.runId);
+        if (runId === null) return;
         void loadBacktestReportTo(runId, reportTargetSelector);
       });
     }
@@ -241,7 +253,7 @@ export function createBacktestingFeature(): BacktestingFeature {
       const result = await postJson<{ warnings: string[] }>("/api/backtests/preflight", payload);
       target.innerHTML = warningListHtml(result.warnings);
     } catch (error) {
-      target.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+      target.innerHTML = renderDownMessage(errorMessage(error));
     }
   }
 
@@ -328,7 +340,7 @@ export function createBacktestingFeature(): BacktestingFeature {
 
       const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
       if (validationError) {
-        reportTarget.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+        reportTarget.innerHTML = renderDownMessage(validationError);
         return;
       }
 
@@ -339,7 +351,7 @@ export function createBacktestingFeature(): BacktestingFeature {
         await loadBacktestReport(result.runId);
         await refreshPreflightWarnings(runBacktestForm, BACKTEST_WARNINGS_SELECTOR);
       } catch (error) {
-        reportTarget.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+        reportTarget.innerHTML = renderDownMessage(errorMessage(error));
       }
     });
 
@@ -352,7 +364,7 @@ export function createBacktestingFeature(): BacktestingFeature {
 
       const validationError = validateDateInputs(payload.start, payload.lookbackMonths);
       if (validationError) {
-        reportTarget.innerHTML = `<div class="down">${esc(validationError)}</div>`;
+        reportTarget.innerHTML = renderDownMessage(validationError);
         return;
       }
 
@@ -368,7 +380,7 @@ export function createBacktestingFeature(): BacktestingFeature {
         }
         await refreshPreflightWarnings(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
       } catch (error) {
-        reportTarget.innerHTML = `<div class="down">${esc(error instanceof Error ? error.message : String(error))}</div>`;
+        reportTarget.innerHTML = renderDownMessage(errorMessage(error));
       }
     });
 

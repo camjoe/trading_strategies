@@ -9,6 +9,18 @@ export interface LogsFeature {
   wireActions: () => void;
 }
 
+function setLogOutput(target: HTMLElement, text: string): void {
+  target.textContent = text;
+}
+
+function buildLogsQuery(contains: string): URLSearchParams {
+  const query = new URLSearchParams({ limit: "400" });
+  if (contains) {
+    query.set("contains", contains);
+  }
+  return query;
+}
+
 export function createLogsFeature(): LogsFeature {
   async function loadLogFiles(): Promise<void> {
     const select = find<HTMLSelectElement>("#logFileSelect");
@@ -31,15 +43,12 @@ export function createLogsFeature(): LogsFeature {
 
     const file = select.value;
     if (!file) {
-      output.textContent = "No log file selected.";
+      setLogOutput(output, "No log file selected.");
       return;
     }
 
     const contains = filterInput.value.trim();
-    const query = new URLSearchParams({ limit: "400" });
-    if (contains) {
-      query.set("contains", contains);
-    }
+    const query = buildLogsQuery(contains);
 
     const data = await getJson<{ lines: string[] }>(`/api/logs/${encodeURIComponent(file)}?${query.toString()}`);
     output.innerHTML = renderLogLines(data.lines);

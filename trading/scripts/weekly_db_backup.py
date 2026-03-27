@@ -9,6 +9,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.repo_paths import get_repo_root
+from trading.scripts.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, tee_line
+
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
+
 COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
 
 
@@ -24,48 +30,38 @@ def week_tag(now: dt.datetime) -> str:
     return f"{iso_year}_W{iso_week:02d}"
 
 
-def tee_line(log_path: Path, text: str) -> None:
-    print(text)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(text + "\n")
-
-
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
-    logs = sorted(log_dir.glob(f"weekly_db_backup_{tag}_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not logs:
-        return False
-    latest = logs[0]
-    try:
-        return COMPLETE_SENTINEL in latest.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+    return latest_log_contains_sentinel(
+        log_dir,
+        f"weekly_db_backup_{tag}_*.log",
+        COMPLETE_SENTINEL,
+    )
 
 
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[2]
-    log_dir = repo_root / "local" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     now = dt.datetime.now()
     tag = week_tag(now)
 
-    if not args.force_run and already_completed_this_week(log_dir, tag):
+    if not args.force_run and already_completed_this_week(LOGS_DIR, tag):
         print("Weekly database backup already completed this week; skipping. Use --force-run to override.")
         return 0
 
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = log_dir / f"weekly_db_backup_{tag}_{timestamp}.log"
+    log_path = LOGS_DIR / f"weekly_db_backup_{tag}_{timestamp}.log"
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: force={bool(args.force_run)}")
 
-    cmd = [sys.executable, "-m", "dev_tools.db_admin", "backup-db"]
+    cmd = [sys.executable, "-m", "trading.database.admin", "backup-db"]
     if args.backup_dir:
         cmd.append(args.backup_dir)
 
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] START: Database backup")
     process = subprocess.Popen(
         cmd,
-        cwd=str(repo_root),
+        cwd=str(REPO_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

@@ -1,4 +1,4 @@
-from trading.features.backtesting.backtest import (
+from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,

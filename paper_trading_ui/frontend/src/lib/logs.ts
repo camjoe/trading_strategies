@@ -1,11 +1,4 @@
-function esc(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+import { esc } from "./format";
 
 function classifyLogLine(line: string): string {
   const upper = line.toUpperCase();

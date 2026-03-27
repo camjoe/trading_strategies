@@ -7,18 +7,18 @@ import argparse
 import datetime as dt
 import json
 import os
-import sqlite3
-import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Callable
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from common.repo_paths import get_repo_root
+from trading.scripts.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
+from trading.accounts import load_all_account_names
 
-from trading.database.code.db_config import get_db_path
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
+SNAPSHOTS_EXPORT_DIR = REPO_ROOT / "local" / "exports" / "daily_snapshots"
 
 COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
 TRANSIENT_ERROR_TOKENS = (
@@ -70,65 +70,21 @@ def is_run_enabled(args: argparse.Namespace) -> bool:
     return os.getenv("DAILY_SNAPSHOT_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def load_all_account_names() -> list[str]:
-    conn = sqlite3.connect(get_db_path())
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-    finally:
-        conn.close()
-    return [str(row["name"]) for row in rows]
-
-
-def tee_line(log_path: Path, text: str) -> None:
-    print(text)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(text + "\n")
-
-
 def _day_tag(now: dt.datetime) -> str:
     return now.strftime("%Y%m%d")
 
 
 def already_completed_today(log_dir: Path, day_tag: str) -> bool:
-    logs = sorted(log_dir.glob(f"daily_snapshot_{day_tag}_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not logs:
-        return False
-    latest = logs[0]
-    try:
-        return COMPLETE_SENTINEL in latest.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+    return latest_log_contains_sentinel(
+        log_dir,
+        f"daily_snapshot_{day_tag}_*.log",
+        COMPLETE_SENTINEL,
+    )
 
 
 def is_transient_error(output: str) -> bool:
     lowered = output.lower()
     return any(token in lowered for token in TRANSIENT_ERROR_TOKENS)
-
-
-def run_command(log_path: Path, label: str, args: list[str], cwd: Path) -> tuple[int, str]:
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] START: {label}")
-    process = subprocess.Popen(
-        [sys.executable, *args],
-        cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-    )
-    assert process.stdout is not None
-    lines: list[str] = []
-    for line in process.stdout:
-        clean = line.rstrip("\n")
-        lines.append(clean)
-        tee_line(log_path, clean)
-    exit_code = process.wait()
-    combined_output = "\n".join(lines)
-    if exit_code == 0:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] DONE: {label}")
-    else:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] ERROR: {label} exit={exit_code}")
-    return exit_code, combined_output
 
 
 def retry_delay_seconds(base_delay_seconds: float, attempt_number: int) -> float:
@@ -221,17 +177,14 @@ def main() -> int:
         )
         return 0
 
-    repo_root = REPO_ROOT
-    log_dir = repo_root / "local" / "logs"
-    output_dir = repo_root / "local" / "exports" / "daily_snapshots"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    SNAPSHOTS_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     now = dt.datetime.now()
     day_tag = _day_tag(now)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = log_dir / f"daily_snapshot_{day_tag}_{timestamp}.log"
-    artifact_path = output_dir / f"daily_snapshot_{timestamp}.json"
+    log_path = LOGS_DIR / f"daily_snapshot_{day_tag}_{timestamp}.log"
+    artifact_path = SNAPSHOTS_EXPORT_DIR / f"daily_snapshot_{timestamp}.json"
 
     all_accounts = load_all_account_names()
     if args.accounts.strip().lower() == "all":
@@ -257,13 +210,13 @@ def main() -> int:
         "accounts": accounts,
         "max_attempts": args.max_attempts,
         "backoff_seconds": args.backoff_seconds,
-        "log_path": str(log_path.relative_to(repo_root)),
-        "artifact_path": str(artifact_path.relative_to(repo_root)),
+        "log_path": str(log_path.relative_to(REPO_ROOT)),
+        "artifact_path": str(artifact_path.relative_to(REPO_ROOT)),
         "started_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
     }
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
 
-    if not args.force_run and already_completed_today(log_dir, day_tag):
+    if not args.force_run and already_completed_today(LOGS_DIR, day_tag):
         message = "Daily snapshot already completed today; skipping duplicate run."
         tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] SKIP: {message}")
         payload = {
@@ -281,7 +234,7 @@ def main() -> int:
     for account in accounts:
         result = run_snapshot_with_retry(
             log_path=log_path,
-            repo_root=repo_root,
+            repo_root=REPO_ROOT,
             account=account,
             max_attempts=args.max_attempts,
             base_backoff_seconds=args.backoff_seconds,

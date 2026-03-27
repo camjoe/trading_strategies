@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_REPO_ROOT))
+from common.repo_paths import get_repo_root
+from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv, print_export_summary
 
-from trading.database.code.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv  # noqa: E402
+REPO_ROOT = get_repo_root(__file__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        default=str(_REPO_ROOT / "local" / "exports"),
+        default=str(REPO_ROOT / "local" / "exports"),
         help="Base output directory where timestamped export folders are created.",
     )
     return parser.parse_args()
@@ -44,15 +43,11 @@ def main() -> int:
         output_base_dir=output_dir,
     )
 
-    print(f"[export] Database: {result.db_path}")
-    print(f"[export] Output:   {result.output_dir}")
-    for table_result in result.tables:
-        print(
-            f"[export] {table_result.table}: {table_result.row_count} row(s) -> {table_result.output_path.name}"
-        )
+    print_export_summary(result)
 
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

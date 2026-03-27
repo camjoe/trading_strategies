@@ -7,7 +7,7 @@ Stock trends analysis with `yfinance`, `matplotlib`, and technical indicators.
 1. Add your tickers in `trends/assets/run_tickers.txt` (one per line or comma-separated).
 2. Run from the project root:
 
-```powershell
+```sh
 python trends/stock_trends.py
 ```
 
@@ -15,7 +15,7 @@ python trends/stock_trends.py
 
 Optional:
 
-```powershell
+```sh
 python trends/stock_trends.py --explain
 ```
 
@@ -47,46 +47,19 @@ SPY, QQQ, IWM
 
 ## Common Commands
 
-Run one ticker:
+All flags accept `--help` for the full reference.
 
-```powershell
+```sh
+# Run default ticker file
+python trends/stock_trends.py
+
+# Single ticker
 python trends/stock_trends.py AAPL --period 1y --interval 1d
-```
 
-Run from file:
-
-```powershell
-python trends/stock_trends.py --tickers-file trends/assets/run_tickers.txt --period 6mo --interval 1d
-```
-
-Run category:
-
-```powershell
-python trends/stock_trends.py --category tech --period 1y --interval 1d
-```
-
-List categories:
-
-```powershell
+# From file or category
+python trends/stock_trends.py --tickers-file trends/assets/run_tickers.txt
+python trends/stock_trends.py --category tech --period 1y
 python trends/stock_trends.py --list-categories
-```
-
-Show explanations:
-
-```powershell
-python trends/stock_trends.py --category etf --explain
-```
-
-Custom category file:
-
-```powershell
-python trends/stock_trends.py --category banks --category-file trends/assets/ticker_categories.txt
-```
-
-Debug data columns:
-
-```powershell
-python trends/stock_trends.py NVDA --debug-columns
 ```
 
 ## Notes
