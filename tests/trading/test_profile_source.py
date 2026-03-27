@@ -6,48 +6,45 @@ import pytest
 from trading.profile_source import JsonAccountProfileSource
 
 
-def test_json_account_profile_source_accepts_path_instance(tmp_path: Path) -> None:
-    path = tmp_path / "profiles.json"
-    path.write_text(json.dumps([{"name": "acct1"}]), encoding="utf-8")
+class TestJsonAccountProfileSource:
+    def test_accepts_path_instance(self, tmp_path: Path) -> None:
+        path = tmp_path / "profiles.json"
+        path.write_text(json.dumps([{"name": "acct1"}]), encoding="utf-8")
 
-    source = JsonAccountProfileSource(path)
-    profiles = source.load_profiles()
+        source = JsonAccountProfileSource(path)
+        profiles = source.load_profiles()
 
-    assert profiles == [{"name": "acct1"}]
+        assert profiles == [{"name": "acct1"}]
 
+    def test_dict_without_accounts_defaults_empty(self, tmp_path: Path) -> None:
+        path = tmp_path / "profiles.json"
+        path.write_text(json.dumps({"meta": {"version": 1}}), encoding="utf-8")
 
-def test_json_account_profile_source_dict_without_accounts_defaults_empty(tmp_path: Path) -> None:
-    path = tmp_path / "profiles.json"
-    path.write_text(json.dumps({"meta": {"version": 1}}), encoding="utf-8")
+        source = JsonAccountProfileSource(path)
 
-    source = JsonAccountProfileSource(path)
+        assert source.load_profiles() == []
 
-    assert source.load_profiles() == []
+    def test_missing_file_raises(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does_not_exist.json"
+        source = JsonAccountProfileSource(missing)
 
+        with pytest.raises(FileNotFoundError, match="Profile file not found"):
+            source.load_profiles()
 
-def test_json_account_profile_source_missing_file_raises(tmp_path: Path) -> None:
-    missing = tmp_path / "does_not_exist.json"
-    source = JsonAccountProfileSource(missing)
+    def test_non_dict_item_has_indexed_error(self, tmp_path: Path) -> None:
+        path = tmp_path / "profiles.json"
+        path.write_text(json.dumps([{"name": "ok"}, "not-a-dict"]), encoding="utf-8")
 
-    with pytest.raises(FileNotFoundError, match="Profile file not found"):
-        source.load_profiles()
+        source = JsonAccountProfileSource(path)
 
+        with pytest.raises(ValueError, match="index 2"):
+            source.load_profiles()
 
-def test_json_account_profile_source_non_dict_item_has_indexed_error(tmp_path: Path) -> None:
-    path = tmp_path / "profiles.json"
-    path.write_text(json.dumps([{"name": "ok"}, 2]), encoding="utf-8")
+    def test_missing_name_has_indexed_error(self, tmp_path: Path) -> None:
+        path = tmp_path / "profiles.json"
+        path.write_text(json.dumps([{"strategy": "trend"}]), encoding="utf-8")
 
-    source = JsonAccountProfileSource(path)
+        source = JsonAccountProfileSource(path)
 
-    with pytest.raises(ValueError, match="index 2"):
-        source.load_profiles()
-
-
-def test_json_account_profile_source_missing_name_has_indexed_error(tmp_path: Path) -> None:
-    path = tmp_path / "profiles.json"
-    path.write_text(json.dumps([{"strategy": "trend"}]), encoding="utf-8")
-
-    source = JsonAccountProfileSource(path)
-
-    with pytest.raises(ValueError, match="index 1"):
-        source.load_profiles()
+        with pytest.raises(ValueError, match="index 1"):
+            source.load_profiles()
