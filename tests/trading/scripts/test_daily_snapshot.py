@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def _load_daily_snapshot_module():
-    script_path = Path(__file__).resolve().parents[2] / "trading" / "scripts" / "daily_snapshot.py"
+    script_path = Path(__file__).resolve().parents[3] / "trading" / "scripts" / "daily_snapshot.py"
     spec = importlib.util.spec_from_file_location("daily_snapshot_script", script_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
