@@ -3,6 +3,9 @@ from __future__ import annotations
 import random
 import pandas as pd
 import pytest
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 
 from trading.backtesting import strategy_signals
 
@@ -208,3 +211,45 @@ class TestResolveSignalGeneralBehavior:
 
                 signal = strategy_signals.resolve_signal(strategy_id, history, features)
                 assert signal in {"buy", "sell", "hold"}
+
+    @settings(max_examples=30, deadline=None)
+    @given(
+        strategy_id=st.sampled_from(
+            [
+                "trend",
+                "mean_reversion",
+                "rsi",
+                "macd",
+                "breakout",
+                "pullback_trend",
+                "bollinger_mean_reversion",
+                "ma_crossover",
+                "volatility_filtered_trend",
+                "topic_proxy_rotation",
+                "macro_proxy_regime",
+            ]
+        ),
+        history_values=st.lists(
+            st.floats(min_value=1.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+            min_size=30,
+            max_size=90,
+        ),
+    )
+    def test_hypothesis_resolve_signal_outputs_known_actions(
+        self,
+        strategy_id: str,
+        history_values: list[float],
+    ) -> None:
+        history = pd.Series(history_values)
+        length = len(history_values)
+        features = _feature_history(
+            topic_proxy_available=[1.0] * length,
+            topic_proxy_rel_strength=[0.0] * length,
+            topic_proxy_trend_gap=[0.0] * length,
+            macro_risk_on_score=[0.0] * length,
+            macro_vix_pressure=[0.1] * length,
+            macro_equity_bond_spread=[0.0] * length,
+        )
+
+        signal = strategy_signals.resolve_signal(strategy_id, history, features)
+        assert signal in {"buy", "sell", "hold"}
