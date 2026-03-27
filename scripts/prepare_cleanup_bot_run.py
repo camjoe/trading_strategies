@@ -131,9 +131,6 @@ IGNORED_PATTERNS = {
     ".config.js",
     ".config.ts",
     ".example.json",
-    "_test.py",
-    "refactoring_branch.py",
-    "refactoring_branch_test.py",
 }
 
 IGNORED_DIRS = {
