@@ -21,18 +21,15 @@ change BACKUP_DIR, e.g.:
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime
 from pathlib import Path
+
+from common.repo_paths import get_repo_root
 
 # ---------------------------------------------------------------------------
 # CONFIG — edit this block to reconfigure without touching any logic below
 # ---------------------------------------------------------------------------
-_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
-
-REPO_ROOT = _BOOTSTRAP_REPO_ROOT
+REPO_ROOT = get_repo_root(__file__)
 
 # Where backups are written.  Defaults to local/db_backups/ (gitignored).
 BACKUP_DIR: Path = REPO_ROOT / "local" / "db_backups"

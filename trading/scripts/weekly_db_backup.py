@@ -11,6 +11,9 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = REPO_ROOT / "local" / "logs"
+
 COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
 
 
@@ -46,19 +49,17 @@ def already_completed_this_week(log_dir: Path, tag: str) -> bool:
 def main() -> int:
     args = parse_args()
 
-    repo_root = get_repo_root(__file__)
-    log_dir = repo_root / "local" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     now = dt.datetime.now()
     tag = week_tag(now)
 
-    if not args.force_run and already_completed_this_week(log_dir, tag):
+    if not args.force_run and already_completed_this_week(LOGS_DIR, tag):
         print("Weekly database backup already completed this week; skipping. Use --force-run to override.")
         return 0
 
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = log_dir / f"weekly_db_backup_{tag}_{timestamp}.log"
+    log_path = LOGS_DIR / f"weekly_db_backup_{tag}_{timestamp}.log"
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: force={bool(args.force_run)}")
 
     cmd = [sys.executable, "-m", "dev_tools.db_admin", "backup-db"]

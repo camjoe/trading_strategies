@@ -12,19 +12,18 @@ import sys
 import traceback
 from pathlib import Path
 
-_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
+from common.repo_paths import get_repo_root
 
-REPO_ROOT = _BOOTSTRAP_REPO_ROOT
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = REPO_ROOT / "local" / "logs"
+DEFAULT_TRADE_CAPS_CONFIG = "trading/scripts/account_trade_caps.json"
 
 
 def _startup_log(message: str) -> None:
-    log_dir = REPO_ROOT / "local" / "logs"
-    log_path = log_dir / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
+    log_path = LOGS_DIR / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
     timestamp = dt.datetime.now(dt.timezone.utc).astimezone().isoformat()
     try:
-        log_dir.mkdir(parents=True, exist_ok=True)
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
         with log_path.open("a", encoding="utf-8") as handle:
             handle.write(f"[{timestamp}] {message}\n")
     except OSError:
@@ -40,8 +39,8 @@ except Exception as exc:
     _startup_log(traceback.format_exc().rstrip())
     raise
 
+
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-DEFAULT_TRADE_CAPS_CONFIG = "trading/scripts/account_trade_caps.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_all_account_names(repo_root: Path) -> list[str]:
+def load_all_account_names() -> list[str]:
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -233,20 +232,18 @@ def main() -> int:
     _startup_log("main() entered")
     args = parse_args()
 
-    repo_root = REPO_ROOT
-    log_dir = repo_root / "local" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not args.force_run and already_completed_today(log_dir):
+    if not args.force_run and already_completed_today(LOGS_DIR):
         _startup_log(f"SKIP duplicate run (source={args.run_source})")
         print(f"Daily paper trading already completed today; skipping duplicate run. source={args.run_source}")
         return 0
 
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = log_dir / f"daily_paper_trading_{timestamp}.log"
+    log_path = LOGS_DIR / f"daily_paper_trading_{timestamp}.log"
     _startup_log(f"RUN log_path={log_path}")
 
-    all_accounts = load_all_account_names(repo_root)
+    all_accounts = load_all_account_names()
 
     if args.accounts.strip().lower() == "all":
         accounts = all_accounts
@@ -279,7 +276,7 @@ def main() -> int:
     primary_accounts = {item.strip() for item in args.primary_accounts.split(",") if item.strip()}
     caps_config_path = Path(args.trade_caps_config)
     if not caps_config_path.is_absolute():
-        caps_config_path = repo_root / caps_config_path
+        caps_config_path = REPO_ROOT / caps_config_path
 
     try:
         configured_default_caps, configured_account_caps = load_trade_caps_config(caps_config_path)
@@ -341,7 +338,7 @@ def main() -> int:
             ]
             if args.seed is not None:
                 auto_trader_args.extend(["--seed", str(args.seed)])
-            stream_command(log_path, label, auto_trader_args, repo_root)
+            stream_command(log_path, label, auto_trader_args, REPO_ROOT)
 
         grouped_accounts: dict[tuple[int, int], list[str]] = {}
         for account_name in accounts:
@@ -362,14 +359,14 @@ def main() -> int:
                 log_path,
                 f"Snapshot {account}",
                 ["-m", "trading.paper_trading", "snapshot", "--account", account],
-                repo_root,
+                REPO_ROOT,
             )
 
         stream_command(
             log_path,
             "Compare Strategies",
             ["-m", "trading.paper_trading", "compare-strategies", "--lookback", "10"],
-            repo_root,
+            REPO_ROOT,
         )
 
         tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")

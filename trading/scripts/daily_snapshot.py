@@ -14,13 +14,12 @@ import time
 from pathlib import Path
 from typing import Callable
 
-_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
+from common.repo_paths import get_repo_root
+from trading.database.db_config import get_db_path
 
-REPO_ROOT = _BOOTSTRAP_REPO_ROOT
-
-from trading.database.db_config import get_db_path  # noqa: E402
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = REPO_ROOT / "local" / "logs"
+SNAPSHOTS_EXPORT_DIR = REPO_ROOT / "local" / "exports" / "daily_snapshots"
 
 COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
 TRANSIENT_ERROR_TOKENS = (
@@ -223,17 +222,14 @@ def main() -> int:
         )
         return 0
 
-    repo_root = REPO_ROOT
-    log_dir = repo_root / "local" / "logs"
-    output_dir = repo_root / "local" / "exports" / "daily_snapshots"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    SNAPSHOTS_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     now = dt.datetime.now()
     day_tag = _day_tag(now)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = log_dir / f"daily_snapshot_{day_tag}_{timestamp}.log"
-    artifact_path = output_dir / f"daily_snapshot_{timestamp}.json"
+    log_path = LOGS_DIR / f"daily_snapshot_{day_tag}_{timestamp}.log"
+    artifact_path = SNAPSHOTS_EXPORT_DIR / f"daily_snapshot_{timestamp}.json"
 
     all_accounts = load_all_account_names()
     if args.accounts.strip().lower() == "all":
@@ -259,13 +255,13 @@ def main() -> int:
         "accounts": accounts,
         "max_attempts": args.max_attempts,
         "backoff_seconds": args.backoff_seconds,
-        "log_path": str(log_path.relative_to(repo_root)),
-        "artifact_path": str(artifact_path.relative_to(repo_root)),
+        "log_path": str(log_path.relative_to(REPO_ROOT)),
+        "artifact_path": str(artifact_path.relative_to(REPO_ROOT)),
         "started_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
     }
     tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
 
-    if not args.force_run and already_completed_today(log_dir, day_tag):
+    if not args.force_run and already_completed_today(LOGS_DIR, day_tag):
         message = "Daily snapshot already completed today; skipping duplicate run."
         tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] SKIP: {message}")
         payload = {
@@ -283,7 +279,7 @@ def main() -> int:
     for account in accounts:
         result = run_snapshot_with_retry(
             log_path=log_path,
-            repo_root=repo_root,
+            repo_root=REPO_ROOT,
             account=account,
             max_attempts=args.max_attempts,
             base_backoff_seconds=args.backoff_seconds,

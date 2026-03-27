@@ -19,19 +19,24 @@ Repository workflow scripts (`scripts/`):
 - `prepare_cleanup_bot_run.py`: builds cleanup-agent prompts from repo change scope.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
 
-Data operation scripts (`scripts/`):
+Data operation scripts (`scripts/data_ops/`):
 
-- `data_ops/backup_db.py`: retention-oriented backup helper writing to `local/db_backups/`.
-- `data_ops/export_db_csv.py`: table export to timestamped CSV directory.
-- `data_ops/export_db_csv_zip.py`: CSV export with ZIP packaging.
+- `backup_db.py`: retention-oriented backup helper writing to `local/db_backups/`.
+- `export_db_csv.py`: table export to timestamped CSV directory.
+- `export_db_csv_zip.py`: CSV export with ZIP packaging.
 
-Compatibility entrypoints remain at:
+**Execution:**
 
-- `scripts/backup_db.py`
-- `scripts/export_db_csv.py`
-- `scripts/export_db_csv_zip.py`
+```powershell
+# Backup database
+python -m scripts.data_ops.backup_db
 
-These wrappers delegate to `scripts/data_ops/` so existing commands keep working.
+# Export selected tables to CSV
+python -m scripts.data_ops.export_db_csv --tables accounts,trades
+
+# Export all tables and create ZIP archive
+python -m scripts.data_ops.export_db_csv_zip
+```
 
 What should not go here:
 
@@ -48,9 +53,9 @@ If a script changes trading runtime behavior, place it in `trading/scripts/` and
 ### Usage
 
 ```powershell
-python scripts/check_docs_freshness.py
-python scripts/check_docs_freshness.py --base-ref origin/main --head-ref HEAD
-python scripts/ci_smoke.py --skip-frontend
+python -m scripts.check_docs_freshness
+python -m scripts.check_docs_freshness --base-ref origin/main --head-ref HEAD
+python -m scripts.ci_smoke --skip-frontend
 ```
 
 ## Cleanup Bot Prompt Prep
@@ -61,20 +66,20 @@ python scripts/ci_smoke.py --skip-frontend
 
 ```powershell
 # Python bot on uncommitted files
-python scripts/prepare_cleanup_bot_run.py --bot python --scope uncommitted
+python -m scripts.prepare_cleanup_bot_run --bot python --scope uncommitted
 
 # Frontend bot on files changed since origin/main
-python scripts/prepare_cleanup_bot_run.py --bot frontend --scope recent --base-ref origin/main
+python -m scripts.prepare_cleanup_bot_run --bot frontend --scope recent --base-ref origin/main
 
 # Cross-stack bot on all relevant files
-python scripts/prepare_cleanup_bot_run.py --bot both --scope all
+python -m scripts.prepare_cleanup_bot_run --bot both --scope all
 
 # Project structure bot on recent changes
-python scripts/prepare_cleanup_bot_run.py --bot structure --scope recent --base-ref origin/main
+python -m scripts.prepare_cleanup_bot_run --bot structure --scope recent --base-ref origin/main
 ```
 
 Optional JSON output:
 
 ```powershell
-python scripts/prepare_cleanup_bot_run.py --bot both --scope uncommitted --json
+python -m scripts.prepare_cleanup_bot_run --bot both --scope uncommitted --json
 ```

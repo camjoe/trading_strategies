@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
+from common.repo_paths import get_repo_root
+from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv
 
-REPO_ROOT = _BOOTSTRAP_REPO_ROOT
-
-from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv  # noqa: E402
+REPO_ROOT = get_repo_root(__file__)
 
 
 def parse_args() -> argparse.Namespace:

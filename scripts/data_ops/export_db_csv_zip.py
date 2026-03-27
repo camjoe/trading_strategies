@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from common.repo_paths import get_repo_root
+from trading.database.csv_export import export_tables_to_csv, zip_export_directory
 
-_BOOTSTRAP_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_BOOTSTRAP_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_BOOTSTRAP_REPO_ROOT))
-
-REPO_ROOT = _BOOTSTRAP_REPO_ROOT
-
-from trading.database.csv_export import export_tables_to_csv, zip_export_directory  # noqa: E402
+REPO_ROOT = get_repo_root(__file__)
 
 
 def _print_export_summary(result) -> None:

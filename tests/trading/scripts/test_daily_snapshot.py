@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import types
 from pathlib import Path
 
@@ -104,3 +105,45 @@ def test_is_run_enabled_false_by_default(monkeypatch):
 
     args = types.SimpleNamespace(enable_run=False)
     assert module.is_run_enabled(args) is False
+
+
+def test_main_uses_module_level_repo_paths(monkeypatch, tmp_path: Path):
+    module = _load_daily_snapshot_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(module, "LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr(module, "SNAPSHOTS_EXPORT_DIR", tmp_path / "exports")
+    monkeypatch.setattr(
+        module,
+        "parse_args",
+        lambda: types.SimpleNamespace(
+            accounts="all",
+            force_run=False,
+            run_source="test-run",
+            enable_run=True,
+            max_attempts=2,
+            backoff_seconds=0.0,
+        ),
+    )
+    monkeypatch.setattr(module, "load_all_account_names", lambda: ["acct1"])
+    monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
+    monkeypatch.setattr(
+        module,
+        "run_snapshot_with_retry",
+        lambda **_kwargs: {
+            "account": "acct1",
+            "status": "success",
+            "attempts": 1,
+            "started_at": "2026-03-27T00:00:00+00:00",
+            "finished_at": "2026-03-27T00:00:01+00:00",
+            "last_exit_code": 0,
+        },
+    )
+
+    assert module.main() == 0
+
+    artifacts = list((tmp_path / "exports").glob("daily_snapshot_*.json"))
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert Path(payload["log_path"]).parts[0] == "logs"
+    assert Path(payload["artifact_path"]).parts[0] == "exports"
+    assert payload["results"][0]["status"] == "success"

@@ -196,6 +196,13 @@ Runtime script inventory: `trading/scripts/README.md`
 
 Scheduler script: `trading/scripts/daily_paper_trading.py`
 
+**Execution:**
+
+```powershell
+python -m trading.scripts.daily_paper_trading --accounts momentum_5k,meanrev_5k
+python -m trading.scripts.daily_snapshot --enable-run
+```
+
 Behavior:
 
 - Runs auto-trader for configured accounts
