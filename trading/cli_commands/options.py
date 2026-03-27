@@ -1,11 +1,9 @@
+from __future__ import annotations
+
 import argparse
 
-from trading.cli_commands.accounts import add_account_commands
-from trading.cli_commands.backtesting import add_backtesting_commands
-from trading.cli_commands.reporting import add_reporting_commands
 
-
-def _add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False) -> None:
+def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False) -> None:
     """Add shared account option/risk arguments to a sub-parser."""
     p.add_argument("--display-name", default=None, help="Human-friendly account name")
     p.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
@@ -63,16 +61,3 @@ def _add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False
     p.add_argument("--roll-dte-threshold", type=int, default=None, help="Roll position when DTE <= threshold")
     p.add_argument("--profit-take-pct", type=float, default=None, help="Profit target percent")
     p.add_argument("--max-loss-pct", type=float, default=None, help="Maximum tolerated loss percent")
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Paper trading accounts per strategy with trade and equity tracking."
-    )
-    sub = parser.add_subparsers(dest="command", required=True)
-
-    add_account_commands(sub, _add_option_args)
-    add_reporting_commands(sub)
-    add_backtesting_commands(sub)
-
-    return parser

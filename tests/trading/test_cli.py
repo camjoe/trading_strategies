@@ -1,17 +1,17 @@
 import pytest
 
-from trading import cli
+from trading.cli_commands import build_parser
 
 
 class TestBuildParserCore:
     def test_requires_command(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         with pytest.raises(SystemExit):
             parser.parse_args([])
 
     def test_create_account_defaults_and_required_fields(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(
             [
@@ -34,7 +34,7 @@ class TestBuildParserCore:
         assert args.option_type is None
 
     def test_configure_account_defaults_do_not_force_values(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(["configure-account", "--account", "acct1"])
 
@@ -52,7 +52,7 @@ class TestOptionAndEnumArguments:
         ["call", "put", "both"],
     )
     def test_option_type_choices_parse_for_create_account(self, option_type: str):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(
             [
@@ -80,7 +80,7 @@ class TestOptionAndEnumArguments:
         ],
     )
     def test_enum_choices_parse_for_configure_account(self, instrument_mode: str, risk_policy: str):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(
             [
@@ -98,7 +98,7 @@ class TestOptionAndEnumArguments:
         assert args.risk_policy == risk_policy
 
     def test_trade_command_parses_optionals(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(
             [
@@ -129,7 +129,7 @@ class TestOptionAndEnumArguments:
 
 class TestBacktestParserDefaults:
     def test_backtest_defaults(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(["backtest", "--account", "acct1"])
 
@@ -139,7 +139,7 @@ class TestBacktestParserDefaults:
         assert args.allow_approximate_leaps is False
 
     def test_backtest_batch_parses_accounts_and_defaults(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(["backtest-batch", "--accounts", "acct1,acct2"])
 
@@ -148,7 +148,7 @@ class TestBacktestParserDefaults:
         assert args.allow_approximate_leaps is False
 
     def test_compare_strategies_and_snapshot_history_defaults(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         compare_args = parser.parse_args(["compare-strategies"])
         history_args = parser.parse_args(["snapshot-history", "--account", "acct1"])
@@ -159,7 +159,7 @@ class TestBacktestParserDefaults:
 
 class TestProfileParserDefaults:
     def test_apply_account_profiles_defaults(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(["apply-account-profiles"])
 
@@ -167,7 +167,7 @@ class TestProfileParserDefaults:
         assert args.no_create_missing is False
 
     def test_apply_account_preset_requires_choice(self):
-        parser = cli.build_parser()
+        parser = build_parser()
 
         args = parser.parse_args(["apply-account-preset", "--preset", "aggressive"])
 
