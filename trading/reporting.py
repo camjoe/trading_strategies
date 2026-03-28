@@ -5,6 +5,7 @@ from trading.accounting import compute_account_state, load_trades
 from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
 from trading.models import AccountState
 from trading.pricing import benchmark_stats, fetch_latest_prices
+from trading.repositories.accounts_repository import fetch_account_listing_rows
 from trading.repositories.snapshots_repository import (
     fetch_recent_equity_rows,
     fetch_snapshot_history_rows,
@@ -248,15 +249,7 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
 
 
 def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
-    accounts = conn.execute(
-        """
-         SELECT id, name, descriptive_name, strategy, initial_cash, created_at, benchmark_ticker,
-             goal_min_return_pct, goal_max_return_pct, goal_period, learning_enabled,
-             risk_policy, instrument_mode
-        FROM accounts
-        ORDER BY strategy, name
-        """
-    ).fetchall()
+    accounts = fetch_account_listing_rows(conn)
 
     if not accounts:
         print("No paper accounts found.")

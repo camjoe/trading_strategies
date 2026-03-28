@@ -2,6 +2,7 @@ import sqlite3
 from trading.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.profile_source import AccountProfileSource, JsonAccountProfileSource
+from trading.repositories.accounts_repository import update_account_fields
 from trading.rotation import OPTIMALITY_MODES, ROTATION_MODES, dump_rotation_schedule, parse_rotation_schedule
 
 
@@ -156,9 +157,12 @@ def _apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[st
     if not updates:
         return False
 
-    params.append(account["id"])
-    conn.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", tuple(params))
-    conn.commit()
+    update_account_fields(
+        conn,
+        account_id=account["id"],
+        updates=updates,
+        params=params,
+    )
     return True
 
 
@@ -209,8 +213,12 @@ def apply_account_profiles(
 
         if "strategy" in profile and strategy:
             account = get_account(conn, name)
-            conn.execute("UPDATE accounts SET strategy = ? WHERE id = ?", (strategy, account["id"]))
-            conn.commit()
+            update_account_fields(
+                conn,
+                account_id=account["id"],
+                updates=["strategy = ?"],
+                params=[strategy],
+            )
             fields_updated = True
 
         if any(key in profile for key in _CONFIGURE_KEYS):

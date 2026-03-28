@@ -20,3 +20,4 @@ Additional workflow notes:
 - Low-coverage runtime follow-up notes and a ready-to-use testing prompt are tracked in `docs/architecture/runtime-job-coverage-follow-up.md`.
 - Runtime data operations use canonical module entrypoints under `trading/interfaces/runtime/data_ops/`.
 - Repository-backed backend abstraction updates should keep focused validation in `tests/trading` and `tests/paper_trading_ui/backend` aligned.
+- Repository extraction slices in `trading/` should include focused profile/reporting tests when account update/list paths are touched.
