@@ -110,3 +110,5 @@ Built-in account profile presets now live under:
 - `trading/config/account_profiles/`
 
 CLI defaults use `trading/config/account_profiles/default.json`.
+
+Account-name loading helpers in `trading/accounts.py` delegate through `trading/repositories/accounts_repository.py`.

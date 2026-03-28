@@ -1,8 +1,8 @@
 import pytest
 import sqlite3
 
-from trading import accounts
 from trading.accounts import configure_account, create_account, get_account, list_accounts, load_all_account_names, set_benchmark
+from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 
 
 class TestAccountLookupAndListing:
@@ -80,7 +80,7 @@ class TestAccountLookupAndListing:
         assert "acct_b" in out
 
 
-    def test_load_all_account_names_sorted(self, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_load_all_account_names_sorted(self, tmp_path: pytest.TempPathFactory) -> None:
         db_path = tmp_path / "accounts_names.db"
         conn = sqlite3.connect(db_path)
         conn.execute("CREATE TABLE accounts (name TEXT NOT NULL)")
@@ -88,9 +88,12 @@ class TestAccountLookupAndListing:
         conn.commit()
         conn.close()
 
-        monkeypatch.setattr(accounts, "get_db_path", lambda: str(db_path))
-
-        assert load_all_account_names() == ["alpha", "mike", "zulu"]
+        original = get_backend()
+        set_backend(SQLiteBackend(db_path))
+        try:
+            assert load_all_account_names() == ["alpha", "mike", "zulu"]
+        finally:
+            set_backend(original)
 
 
 class TestCreateAccount:

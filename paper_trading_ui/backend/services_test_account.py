@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from trading.accounts import create_account
+from trading.repositories.accounts_repository import fetch_account_by_name
 
 from .config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
@@ -155,7 +156,7 @@ def resolve_backtest_account_name(account_name: str) -> str:
 
 
 def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
-    existing = conn.execute("SELECT id FROM accounts WHERE name = ?", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchone()
+    existing = fetch_account_by_name(conn, TEST_BACKTEST_ACCOUNT_NAME)
     if existing is not None:
         return
 

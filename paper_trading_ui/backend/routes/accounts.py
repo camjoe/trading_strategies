@@ -9,6 +9,7 @@ from ..services import (
     get_account_row,
     build_account_summary,
     build_comparison_account_payload,
+    fetch_account_snapshot_rows,
     db_conn,
     get_latest_backtest_metrics,
     get_latest_backtest_summary,
@@ -60,16 +61,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
         account = get_account_row(conn, account_name)
         summary = build_account_summary(conn, account)
 
-        snapshots = conn.execute(
-            """
-            SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-            FROM equity_snapshots
-            WHERE account_id = ?
-            ORDER BY snapshot_time DESC, id DESC
-            LIMIT 100
-            """,
-            (int(account["id"]),),
-        ).fetchall()
+        snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
 
         trades = load_trades(conn, int(account["id"]))
         latest_backtest = get_latest_backtest_summary(conn, account_name)

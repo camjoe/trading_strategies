@@ -3,6 +3,52 @@ from __future__ import annotations
 import sqlite3
 
 
+def fetch_recent_backtest_runs(conn: sqlite3.Connection, *, limit: int) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
+               r.tickers_file, a.name AS account_name, a.strategy
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        ORDER BY r.id DESC
+        LIMIT ?
+        """,
+        (int(limit),),
+    ).fetchall()
+
+
+def fetch_latest_backtest_run_for_account(conn: sqlite3.Connection, *, account_name: str) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
+               r.tickers_file, a.name AS account_name, a.strategy
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        WHERE a.name = ?
+        ORDER BY r.id DESC
+        LIMIT 1
+        """,
+        (account_name,),
+    ).fetchone()
+
+
+def fetch_latest_backtest_run_id_for_account(conn: sqlite3.Connection, *, account_name: str) -> int | None:
+    row = conn.execute(
+        """
+        SELECT r.id
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        WHERE a.name = ?
+        ORDER BY r.id DESC
+        LIMIT 1
+        """,
+        (account_name,),
+    ).fetchone()
+    if row is None:
+        return None
+    return int(row["id"])
+
+
 def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row | None:
     return conn.execute(
         """

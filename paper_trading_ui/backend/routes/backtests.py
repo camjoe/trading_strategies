@@ -14,7 +14,7 @@ from ..services import (
     get_account_row,
     build_backtest_config_from_preflight_request,
     build_backtest_config_from_run_request,
-    build_backtest_run_summary,
+    fetch_recent_backtest_run_summaries,
     db_conn,
     display_account_name,
     get_latest_backtest_summary,
@@ -28,18 +28,7 @@ router = APIRouter()
 @router.get("/api/backtests/runs")
 def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
-                   r.tickers_file, a.name AS account_name, a.strategy
-            FROM backtest_runs r
-            JOIN accounts a ON a.id = r.account_id
-            ORDER BY r.id DESC
-            LIMIT ?
-            """,
-            (int(limit),),
-        ).fetchall()
-        return {"runs": [build_backtest_run_summary(row) for row in rows]}
+        return {"runs": fetch_recent_backtest_run_summaries(conn, limit=int(limit))}
 
 
 @router.get("/api/backtests/latest/{account_name}")

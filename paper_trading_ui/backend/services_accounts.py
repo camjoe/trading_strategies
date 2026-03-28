@@ -3,6 +3,13 @@ from __future__ import annotations
 import sqlite3
 
 from trading.backtesting.backtest import backtest_report_summary
+from trading.backtesting.repositories.report_repository import (
+    fetch_latest_backtest_run_for_account,
+    fetch_latest_backtest_run_id_for_account,
+    fetch_recent_backtest_runs,
+)
+from trading.repositories.accounts_repository import fetch_all_account_names_from_conn, fetch_account_rows_excluding_name
+from trading.repositories.snapshots_repository import fetch_snapshot_history_rows
 from trading.reporting import build_account_stats
 
 from .config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
@@ -39,18 +46,7 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
 
 
 def get_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
-    row = conn.execute(
-        """
-        SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
-               r.tickers_file, a.name AS account_name, a.strategy
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        WHERE a.name = ?
-        ORDER BY r.id DESC
-        LIMIT 1
-        """,
-        (account_name,),
-    ).fetchone()
+    row = fetch_latest_backtest_run_for_account(conn, account_name=account_name)
     if row is None:
         return None
     return build_backtest_run_summary(row)
@@ -84,10 +80,20 @@ def display_strategy(account_name: str, strategy: str) -> str:
 
 
 def get_managed_account_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    return conn.execute(
-        "SELECT * FROM accounts WHERE name != ? ORDER BY name",
-        (TEST_BACKTEST_ACCOUNT_NAME,),
-    ).fetchall()
+    return fetch_account_rows_excluding_name(conn, excluded_name=TEST_BACKTEST_ACCOUNT_NAME)
+
+
+def fetch_account_names(conn: sqlite3.Connection) -> list[str]:
+    return fetch_all_account_names_from_conn(conn)
+
+
+def fetch_account_snapshot_rows(conn: sqlite3.Connection, account_id: int, *, limit: int = 100) -> list[sqlite3.Row]:
+    return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
+
+
+def fetch_recent_backtest_run_summaries(conn: sqlite3.Connection, *, limit: int) -> list[dict[str, object]]:
+    rows = fetch_recent_backtest_runs(conn, limit=limit)
+    return [build_backtest_run_summary(row) for row in rows]
 
 
 def build_comparison_account_payload(
@@ -130,21 +136,11 @@ def build_trade_payload(trade: sqlite3.Row) -> dict[str, object]:
 
 
 def get_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
-    latest_row = conn.execute(
-        """
-        SELECT r.id
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        WHERE a.name = ?
-        ORDER BY r.id DESC
-        LIMIT 1
-        """,
-        (account_name,),
-    ).fetchone()
-    if latest_row is None:
+    latest_run_id = fetch_latest_backtest_run_id_for_account(conn, account_name=account_name)
+    if latest_run_id is None:
         return None
 
-    report = backtest_report_summary(conn, int(latest_row["id"]))
+    report = backtest_report_summary(conn, int(latest_run_id))
     return {
         "runId": report.run_id,
         "endDate": report.end_date,

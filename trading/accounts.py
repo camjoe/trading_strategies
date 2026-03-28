@@ -2,12 +2,11 @@ import sqlite3
 from typing import Callable
 from common.time import utc_now_iso
 from trading.database.db_backend import DuplicateRecordError
-from trading.database.db_config import get_db_path
 from trading.coercion import coerce_float, coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 from trading.repositories.accounts_repository import (
     fetch_account_by_name,
+    fetch_all_account_names,
     fetch_account_listing_rows,
-    fetch_all_account_names_from_conn,
     insert_account,
     update_account_benchmark,
     update_account_fields,
@@ -440,9 +439,4 @@ def configure_account(
 
 
 def load_all_account_names() -> list[str]:
-    conn = sqlite3.connect(get_db_path())
-    conn.row_factory = sqlite3.Row
-    try:
-        return fetch_all_account_names_from_conn(conn)
-    finally:
-        conn.close()
+    return fetch_all_account_names()

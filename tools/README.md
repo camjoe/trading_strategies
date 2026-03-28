@@ -19,3 +19,4 @@ Additional workflow notes:
 - Trading structure guidance is tracked in `docs/architecture/trading-module-boundaries.md`.
 - Low-coverage runtime follow-up notes and a ready-to-use testing prompt are tracked in `docs/architecture/runtime-job-coverage-follow-up.md`.
 - Runtime data operations use canonical module entrypoints under `trading/interfaces/runtime/data_ops/`.
+- Repository-backed backend abstraction updates should keep focused validation in `tests/trading` and `tests/paper_trading_ui/backend` aligned.

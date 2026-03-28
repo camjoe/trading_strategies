@@ -43,3 +43,4 @@ python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
 ## Runtime Data Ops Tests
 
 - Database admin/export tests now target canonical runtime data-ops modules under `trading/interfaces/runtime/data_ops/`.
+- Account-name loading tests validate repository-backed behavior via configured DB backend instances.

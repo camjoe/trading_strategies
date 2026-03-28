@@ -13,6 +13,7 @@ This package uses explicit layers to keep responsibilities clear.
   - `backtest_repository.py`: write-side backtest run/trade/snapshot inserts.
   - `leaderboard_repository.py`: leaderboard row/equity reads.
   - `report_repository.py`: full report run/snapshot/trade reads.
+  - `report_repository.py` also exposes recent run-list reads used by backend service adapters.
   - `history_repository.py`: strategy-return history rows for auto-trader decisions.
 
 - `services/`: business flow, model mapping, orchestration.

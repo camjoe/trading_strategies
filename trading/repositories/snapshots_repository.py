@@ -68,3 +68,16 @@ def fetch_snapshot_history_rows(
         """,
         (account_id, int(limit)),
     ).fetchall()
+
+
+def fetch_latest_snapshot_row(conn: sqlite3.Connection, *, account_id: int) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT snapshot_time, equity
+        FROM equity_snapshots
+        WHERE account_id = ?
+        ORDER BY snapshot_time DESC, id DESC
+        LIMIT 1
+        """,
+        (int(account_id),),
+    ).fetchone()

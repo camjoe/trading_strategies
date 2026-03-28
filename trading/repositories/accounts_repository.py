@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.database.db_config import get_db_path
+from trading.database.db_backend import get_backend
 
 
 def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> sqlite3.Row | None:
@@ -118,6 +118,13 @@ def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
 
 
+def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM accounts WHERE name != ? ORDER BY name",
+        (excluded_name,),
+    ).fetchall()
+
+
 def update_account_fields(
     conn: sqlite3.Connection,
     *,
@@ -136,8 +143,7 @@ def fetch_all_account_names_from_conn(conn: sqlite3.Connection) -> list[str]:
 
 
 def fetch_all_account_names() -> list[str]:
-    conn = sqlite3.connect(get_db_path())
-    conn.row_factory = sqlite3.Row
+    conn = get_backend().open_connection()
     try:
         return fetch_all_account_names_from_conn(conn)
     finally:
