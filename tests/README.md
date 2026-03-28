@@ -33,3 +33,8 @@ python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
 - Database backend is switched to a `tmp_path` SQLite file inside fixtures and restored in a `finally` block.
 - Market data provider environment variables are reset before and after each `tests/common` test.
 - Tests that mutate global state should always restore it in fixture teardown.
+
+## Audit Notes
+
+- Full repository validation remains `python -m pytest` from repo root.
+- Cross-stack smoke validation is `python -m scripts.ci_smoke`.

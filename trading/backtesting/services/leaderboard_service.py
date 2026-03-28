@@ -13,7 +13,7 @@ from trading.models.backtesting_reports import BacktestLeaderboardEntry
 BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]
 
 
-def load_backtest_leaderboard_entries(
+def fetch_backtest_leaderboard_entries(
     conn,
     *,
     limit: int,

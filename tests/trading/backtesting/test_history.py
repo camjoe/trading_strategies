@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.accounts import create_account, get_account
-from trading.backtesting.services.history_service import load_strategy_backtest_returns
+from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 
 
 def _insert_run_with_snapshots(
@@ -48,7 +48,7 @@ def _insert_run_with_snapshots(
     conn.commit()
 
 
-class TestLoadStrategyBacktestReturns:
+class TestFetchStrategyBacktestReturns:
     def test_returns_rows_for_selected_strategies_within_date_range(self, conn) -> None:
         create_account(conn, "acct", "trend", 10000.0, "SPY")
         account = get_account(conn, "acct")
@@ -71,7 +71,7 @@ class TestLoadStrategyBacktestReturns:
             end_equity=11000.0,
         )
 
-        out = load_strategy_backtest_returns(
+        out = fetch_strategy_backtest_returns(
             conn,
             account_id=int(account["id"]),
             strategy_names=["trend", "mean_reversion"],
@@ -97,7 +97,7 @@ class TestLoadStrategyBacktestReturns:
             end_equity=1000.0,
         )
 
-        out = load_strategy_backtest_returns(
+        out = fetch_strategy_backtest_returns(
             conn,
             account_id=int(account["id"]),
             strategy_names=["trend"],

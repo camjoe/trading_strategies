@@ -4,6 +4,14 @@ from common.time import utc_now_iso
 from trading.database.db_backend import DuplicateRecordError
 from trading.database.db_config import get_db_path
 from trading.coercion import coerce_float, coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
+from trading.repositories.accounts_repository import (
+    fetch_account_by_name,
+    fetch_account_listing_rows,
+    fetch_all_account_names_from_conn,
+    insert_account,
+    update_account_benchmark,
+    update_account_fields,
+)
 
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -19,7 +27,7 @@ _ENUM_FIELDS = {
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
-    row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    row = fetch_account_by_name(conn, name)
     if row is None:
         raise ValueError(f"Account '{name}' not found.")
     return row
@@ -278,85 +286,51 @@ def create_account(
     )
 
     try:
-        conn.execute(
-            """
-            INSERT INTO accounts (
-                name,
-                strategy,
-                initial_cash,
-                created_at,
-                benchmark_ticker,
-                descriptive_name,
-                goal_min_return_pct,
-                goal_max_return_pct,
-                goal_period,
-                learning_enabled,
-                risk_policy,
-                stop_loss_pct,
-                take_profit_pct,
-                instrument_mode,
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                option_type,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
-                profit_take_pct,
-                max_loss_pct
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                name,
-                strategy,
-                float(initial_cash),
-                utc_now_iso(),
-                benchmark_ticker.upper().strip(),
-                display,
-                goal_min_return_pct,
-                goal_max_return_pct,
-                _normalize_lower(goal_period),
-                int(learning_enabled),
-                risk,
-                stop_loss_pct,
-                take_profit_pct,
-                mode,
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                _normalize_option_type(option_type) if option_type else None,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
-                profit_take_pct,
-                max_loss_pct,
-            ),
+        insert_account(
+            conn,
+            name=name,
+            strategy=strategy,
+            initial_cash=float(initial_cash),
+            created_at=utc_now_iso(),
+            benchmark_ticker=benchmark_ticker.upper().strip(),
+            descriptive_name=display,
+            goal_min_return_pct=goal_min_return_pct,
+            goal_max_return_pct=goal_max_return_pct,
+            goal_period=_normalize_lower(goal_period),
+            learning_enabled=int(learning_enabled),
+            risk_policy=risk,
+            stop_loss_pct=stop_loss_pct,
+            take_profit_pct=take_profit_pct,
+            instrument_mode=mode,
+            option_strike_offset_pct=option_strike_offset_pct,
+            option_min_dte=option_min_dte,
+            option_max_dte=option_max_dte,
+            option_type=_normalize_option_type(option_type) if option_type else None,
+            target_delta_min=target_delta_min,
+            target_delta_max=target_delta_max,
+            max_premium_per_trade=max_premium_per_trade,
+            max_contracts_per_trade=max_contracts_per_trade,
+            iv_rank_min=iv_rank_min,
+            iv_rank_max=iv_rank_max,
+            roll_dte_threshold=roll_dte_threshold,
+            profit_take_pct=profit_take_pct,
+            max_loss_pct=max_loss_pct,
         )
-        conn.commit()
     except sqlite3.IntegrityError as exc:
         raise DuplicateRecordError(f"Account '{name}' already exists.") from exc
 
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
     account = get_account(conn, account_name)
-    conn.execute(
-        "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",
-        (benchmark_ticker.upper().strip(), account["id"]),
+    update_account_benchmark(
+        conn,
+        account_id=account["id"],
+        benchmark_ticker=benchmark_ticker.upper().strip(),
     )
-    conn.commit()
 
 
 def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
-    accounts = conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+    accounts = fetch_account_listing_rows(conn)
     if not accounts:
         print("No paper accounts found.")
         return
@@ -457,16 +431,18 @@ def configure_account(
     if not updates:
         return
 
-    params.append(account["id"])
-    conn.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", tuple(params))
-    conn.commit()
+    update_account_fields(
+        conn,
+        account_id=account["id"],
+        updates=updates,
+        params=params,
+    )
 
 
 def load_all_account_names() -> list[str]:
     conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
+        return fetch_all_account_names_from_conn(conn)
     finally:
         conn.close()
-    return [str(row["name"]) for row in rows]

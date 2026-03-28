@@ -5,6 +5,11 @@ from trading.accounting import compute_account_state, load_trades
 from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
 from trading.models import AccountState
 from trading.pricing import benchmark_stats, fetch_latest_prices
+from trading.repositories.snapshots_repository import (
+    fetch_recent_equity_rows,
+    fetch_snapshot_history_rows,
+    insert_snapshot_row,
+)
 
 
 def _compute_market_value_and_unrealized(
@@ -179,16 +184,11 @@ def infer_overall_trend(
     current_equity: float,
     lookback: int,
 ) -> str:
-    rows = conn.execute(
-        """
-        SELECT equity
-        FROM equity_snapshots
-        WHERE account_id = ?
-        ORDER BY snapshot_time DESC, id DESC
-        LIMIT ?
-        """,
-        (account_id, int(max(lookback, 2))),
-    ).fetchall()
+    rows = fetch_recent_equity_rows(
+        conn,
+        account_id=account_id,
+        limit=int(max(lookback, 2)),
+    )
 
     history = [row_float(r, "equity") for r in rows]
     history = [h for h in history if h is not None]
@@ -290,39 +290,26 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
 def snapshot_account(conn: sqlite3.Connection, account_name: str, snapshot_time: str | None) -> None:
     account = get_account(conn, account_name)
     stats, _ = account_report(conn, account_name)
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account["id"],
-            snapshot_time or utc_now_iso(),
-            stats["cash"],
-            stats["market_value"],
-            stats["equity"],
-            stats["realized_pnl"],
-            stats["unrealized_pnl"],
-        ),
+    insert_snapshot_row(
+        conn,
+        account_id=account["id"],
+        snapshot_time=snapshot_time or utc_now_iso(),
+        cash=stats["cash"],
+        market_value=stats["market_value"],
+        equity=stats["equity"],
+        realized_pnl=stats["realized_pnl"],
+        unrealized_pnl=stats["unrealized_pnl"],
     )
-    conn.commit()
     print("Snapshot saved.")
 
 
 def show_snapshots(conn: sqlite3.Connection, account_name: str, limit: int) -> None:
     account = get_account(conn, account_name)
-    rows = conn.execute(
-        """
-        SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        FROM equity_snapshots
-        WHERE account_id = ?
-        ORDER BY snapshot_time DESC, id DESC
-        LIMIT ?
-        """,
-        (account["id"], int(limit)),
-    ).fetchall()
+    rows = fetch_snapshot_history_rows(
+        conn,
+        account_id=account["id"],
+        limit=int(limit),
+    )
 
     if not rows:
         print("No snapshots found.")

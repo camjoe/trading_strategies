@@ -14,7 +14,7 @@ from trading.backtesting.backtest import (
     run_backtest_batch,
     run_walk_forward_backtest,
 )
-from trading.backtesting.services.history_service import load_strategy_backtest_returns
+from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 
 __all__ = [
     "BacktestBatchConfig",
@@ -31,5 +31,5 @@ __all__ = [
     "run_backtest",
     "run_backtest_batch",
     "run_walk_forward_backtest",
-    "load_strategy_backtest_returns",
+    "fetch_strategy_backtest_returns",
 ]

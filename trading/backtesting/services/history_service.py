@@ -4,19 +4,18 @@ import sqlite3
 
 from trading.backtesting.repositories.history_repository import fetch_strategy_backtest_rows
 from trading.coercion import coerce_float
+from trading.domain.returns import safe_return_pct as safe_return_pct_impl
 
 
 def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    start = coerce_float(starting_equity)
-    end = coerce_float(ending_equity)
-    if start is None or end is None:
-        return None
-    if start <= 0:
-        return None
-    return ((end / start) - 1.0) * 100.0
+    return safe_return_pct_impl(
+        starting_equity,
+        ending_equity,
+        coerce_float_fn=coerce_float,
+    )
 
 
-def load_strategy_backtest_returns(
+def fetch_strategy_backtest_returns(
     conn: sqlite3.Connection,
     account_id: int,
     strategy_names: list[str],

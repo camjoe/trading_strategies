@@ -22,7 +22,7 @@ from trading.models.backtesting_reports import (
 BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]
 
 
-def load_backtest_report_data(
+def fetch_backtest_report_data(
     conn,
     *,
     run_id: int,

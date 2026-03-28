@@ -12,3 +12,7 @@ For commit-context usage and documentation precheck details, see:
 Recent tooling note:
 
 - `tools/project_manager/scripts/generate_commit_context.py` now references `scripts/check_docs_freshness.py` as the CI docs-freshness gate entrypoint.
+
+Additional workflow notes:
+
+- `python -m scripts.ci_smoke` is the primary local audit command mirroring CI core checks.

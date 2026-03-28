@@ -10,7 +10,7 @@ from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
 )
-from trading.backtesting.services.report_service import load_backtest_report_data
+from trading.backtesting.services.report_service import fetch_backtest_report_data
 from trading.models import BacktestFullReport
 
 
@@ -82,7 +82,7 @@ def test_report_service_contract_builds_typed_model(conn, monkeypatch: pytest.Mo
 
     result = run_backtest(conn, _backtest_config("acct_report_service"))
 
-    report = load_backtest_report_data(
+    report = fetch_backtest_report_data(
         conn,
         run_id=result.run_id,
         fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 102.0]),
@@ -110,7 +110,7 @@ def test_report_service_contract_handles_benchmark_fetch_error(conn, monkeypatch
 
     result = run_backtest(conn, _backtest_config("acct_report_error"))
 
-    report = load_backtest_report_data(
+    report = fetch_backtest_report_data(
         conn,
         run_id=result.run_id,
         fetch_benchmark_close_fn=lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")),

@@ -2,7 +2,7 @@ import argparse
 import random
 import sqlite3
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from typing import TypeAlias
 
 from common.market_data import get_provider
@@ -11,11 +11,13 @@ from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
-from trading.backtesting.services.history_service import load_strategy_backtest_returns
+from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.coercion import coerce_float
 from trading.database.db import ensure_db
+from trading.domain import auto_trader_policy
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
+from trading.repositories.rotation_repository import update_account_rotation_state
 from trading.rotation import (
     is_rotation_due,
     next_rotation_state,
@@ -23,6 +25,18 @@ from trading.rotation import (
     resolve_active_strategy,
     resolve_optimality_mode,
     resolve_rotation_mode,
+)
+from trading.services.rotation_service import (
+    parse_as_of_iso as parse_as_of_iso_impl,
+    rotate_account_if_due as rotate_account_if_due_impl,
+    safe_return_pct as safe_return_pct_impl,
+    select_optimal_strategy as select_optimal_strategy_impl,
+)
+from trading.services.trade_execution_service import (
+    prepare_trade_selection as prepare_trade_selection_impl,
+    record_prepared_trade as record_prepared_trade_impl,
+    refresh_account_state as refresh_account_state_impl,
+    run_for_account as run_for_account_impl,
 )
 
 PROJECT_ROOT = get_repo_root(__file__)
@@ -52,17 +66,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def choose_buy_qty(cash: float, price: float, fee: float) -> int:
-    max_qty = int((cash - fee) // price)
-    if max_qty < 1:
-        return 0
-    return random.randint(1, min(5, max_qty))
+    return auto_trader_policy.choose_buy_qty(cash, price, fee)
 
 
 def choose_sell_qty(position_qty: float) -> int:
-    max_qty = int(position_qty)
-    if max_qty < 1:
-        return 0
-    return random.randint(1, min(5, max_qty))
+    return auto_trader_policy.choose_sell_qty(position_qty)
 
 
 def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
@@ -96,25 +104,18 @@ def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
 
 
 def estimate_delta(abs_strike_offset_pct: float) -> float:
-    # Simple monotonic mapping: farther OTM implies lower delta.
-    return max(0.05, min(0.95, 0.55 - (abs(abs_strike_offset_pct) / 100.0)))
+    return auto_trader_policy.estimate_delta(abs_strike_offset_pct)
 
 
 def estimate_option_premium(
     underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None
 ) -> float:
-    dte_mid = 240.0
-    if min_dte is not None and max_dte is not None:
-        dte_mid = (float(min_dte) + float(max_dte)) / 2.0
-    elif min_dte is not None:
-        dte_mid = float(min_dte)
-    elif max_dte is not None:
-        dte_mid = float(max_dte)
-
-    time_factor = max(0.08, min(0.35, dte_mid / 1000.0))
-    delta_factor = 0.4 + delta_est
-    premium = underlying_price * time_factor * delta_factor
-    return max(0.5, premium)
+    return auto_trader_policy.estimate_option_premium(
+        underlying_price,
+        delta_est,
+        min_dte,
+        max_dte,
+    )
 
 
 def option_candidate_allowed(
@@ -123,27 +124,13 @@ def option_candidate_allowed(
     price: float,
     iv_rank_proxy: dict[str, float],
 ) -> tuple[bool, float, float]:
-    strike_offset = float(account["option_strike_offset_pct"] or 0.0)
-    delta_est = estimate_delta(strike_offset)
-    iv_rank = iv_rank_proxy.get(ticker)
-
-    delta_min = account["target_delta_min"]
-    delta_max = account["target_delta_max"]
-    if delta_min is not None and delta_est < float(delta_min):
-        return False, delta_est, iv_rank if iv_rank is not None else -1.0
-    if delta_max is not None and delta_est > float(delta_max):
-        return False, delta_est, iv_rank if iv_rank is not None else -1.0
-
-    iv_min = account["iv_rank_min"]
-    iv_max = account["iv_rank_max"]
-    if (iv_min is not None or iv_max is not None) and iv_rank is None:
-        return False, delta_est, -1.0
-    if iv_min is not None and iv_rank is not None and iv_rank < float(iv_min):
-        return False, delta_est, iv_rank
-    if iv_max is not None and iv_rank is not None and iv_rank > float(iv_max):
-        return False, delta_est, iv_rank
-
-    return True, delta_est, iv_rank if iv_rank is not None else -1.0
+    return auto_trader_policy.option_candidate_allowed(
+        account,
+        ticker,
+        price,
+        iv_rank_proxy,
+        estimate_delta_fn=estimate_delta,
+    )
 
 
 def choose_sell_ticker_by_risk(
@@ -154,75 +141,26 @@ def choose_sell_ticker_by_risk(
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
 ) -> str | None:
-    if not can_sell:
-        return None
-
-    candidates: list[str] = []
-    for ticker in can_sell:
-        price = prices.get(ticker)
-        avg_cost = state.avg_cost.get(ticker, 0.0)
-        if price is None or price <= 0 or avg_cost <= 0:
-            continue
-
-        move_pct = ((price / avg_cost) - 1.0) * 100.0
-        if risk_policy in {"fixed_stop", "stop_and_target"} and stop_loss_pct is not None:
-            if move_pct <= -abs(float(stop_loss_pct)):
-                candidates.append(ticker)
-        if risk_policy in {"take_profit", "stop_and_target"} and take_profit_pct is not None:
-            if move_pct >= abs(float(take_profit_pct)):
-                candidates.append(ticker)
-
-    if not candidates:
-        return None
-
-    return random.choice(list(dict.fromkeys(candidates)))
+    return auto_trader_policy.choose_sell_ticker_by_risk(
+        can_sell,
+        prices,
+        state,
+        risk_policy,
+        stop_loss_pct,
+        take_profit_pct,
+    )
 
 
 def choose_buy_ticker(
     universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
 ) -> str:
-    if not learning_enabled:
-        return random.choice(universe)
-
-    scored: list[tuple[float, str]] = []
-    for ticker in universe:
-        price = prices.get(ticker)
-        if price is None or price <= 0:
-            continue
-        avg_cost = state.avg_cost.get(ticker, 0.0)
-        if avg_cost > 0:
-            score = (price / avg_cost) - 1.0
-        else:
-            score = 0.0
-        scored.append((score, ticker))
-
-    if not scored:
-        return random.choice(universe)
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top_n = max(1, len(scored) // 2)
-    return random.choice([t for _score, t in scored[:top_n]])
+    return auto_trader_policy.choose_buy_ticker(universe, prices, state, learning_enabled)
 
 
 def choose_sell_ticker(
     can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
 ) -> str:
-    if not learning_enabled:
-        return random.choice(can_sell)
-
-    scored: list[tuple[float, str]] = []
-    for ticker in can_sell:
-        price = prices.get(ticker)
-        avg_cost = state.avg_cost.get(ticker, 0.0)
-        if price is None or price <= 0 or avg_cost <= 0:
-            score = 0.0
-        else:
-            score = (price / avg_cost) - 1.0
-        scored.append((score, ticker))
-
-    scored.sort(key=lambda x: x[0])
-    worst_n = max(1, len(scored) // 2)
-    return random.choice([t for _score, t in scored[:worst_n]])
+    return auto_trader_policy.choose_sell_ticker(can_sell, prices, state, learning_enabled)
 
 
 BuyTradeSelection: TypeAlias = tuple[str, int, float, float | None, float | None]
@@ -230,7 +168,12 @@ SellTradeSelection: TypeAlias = tuple[str, int, float]
 
 
 def _refresh_account_state(conn: sqlite3.Connection, account: sqlite3.Row) -> AccountState:
-    return compute_account_state(account["initial_cash"], load_trades(conn, account["id"]))
+    return refresh_account_state_impl(
+        conn,
+        account,
+        compute_account_state_fn=compute_account_state,
+        load_trades_fn=load_trades,
+    )
 
 
 def _resolve_forced_sell_ticker(
@@ -264,39 +207,22 @@ def _prepare_trade_selection(
     instrument_mode: str,
     fee: float,
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
-    side = _choose_side(forced_sell, can_sell, active_strategy)
-
-    delta_est: float | None = None
-    iv_est: float | None = None
-
-    if side == "buy":
-        prepared_buy = _prepare_buy_trade(
-            account,
-            instrument_mode,
-            universe,
-            prices,
-            iv_rank_proxy,
-            state,
-            learning_enabled,
-            fee,
-        )
-        if prepared_buy is None:
-            return None
-        ticker, qty, trade_price, delta_est, iv_est = prepared_buy
-    else:
-        prepared_sell = _prepare_sell_trade(
-            can_sell,
-            forced_sell,
-            prices,
-            state,
-            learning_enabled,
-            instrument_mode,
-        )
-        if prepared_sell is None:
-            return None
-        ticker, qty, trade_price = prepared_sell
-
-    return side, ticker, qty, trade_price, delta_est, iv_est
+    return prepare_trade_selection_impl(
+        account,
+        active_strategy,
+        state,
+        can_sell,
+        forced_sell,
+        universe,
+        prices,
+        iv_rank_proxy,
+        learning_enabled,
+        instrument_mode,
+        fee,
+        choose_side_fn=_choose_side,
+        prepare_buy_trade_fn=_prepare_buy_trade,
+        prepare_sell_trade_fn=_prepare_sell_trade,
+    )
 
 
 def _record_prepared_trade(
@@ -311,27 +237,20 @@ def _record_prepared_trade(
     selection: tuple[str, str, int, float, float | None, float | None],
     forced_sell: str | None,
 ) -> None:
-    side, ticker, qty, trade_price, delta_est, iv_est = selection
-    record_trade(
+    record_prepared_trade_impl(
         conn,
-        account_name=account_name,
-        side=side,
-        ticker=ticker,
-        qty=qty,
-        price=trade_price,
-        fee=fee,
-        trade_time=utc_now_iso(),
-        note=_build_trade_note(
-            learning_enabled,
-            forced_sell,
-            risk_policy,
-            instrument_mode,
-            account,
-            side,
-            delta_est,
-            iv_est,
-            active_strategy,
-        ),
+        account_name,
+        account,
+        learning_enabled,
+        risk_policy,
+        instrument_mode,
+        active_strategy,
+        fee,
+        selection,
+        forced_sell,
+        record_trade_fn=record_trade,
+        utc_now_iso_fn=utc_now_iso,
+        build_trade_note_fn=_build_trade_note,
     )
 
 
@@ -364,16 +283,7 @@ def _apply_leaps_buy_qty_limits(
     option_price: float,
     account: sqlite3.Row,
 ) -> int:
-    max_contracts = account["max_contracts_per_trade"]
-    if max_contracts is not None:
-        qty = min(qty, int(max_contracts))
-
-    max_premium = account["max_premium_per_trade"]
-    if max_premium is not None:
-        premium_qty = int(float(max_premium) // option_price)
-        qty = min(qty, premium_qty)
-
-    return qty
+    return auto_trader_policy.apply_leaps_buy_qty_limits(qty, option_price, account)
 
 
 def _build_trade_note(
@@ -387,39 +297,21 @@ def _build_trade_note(
     iv_est: float | None,
     strategy_name: str | None,
 ) -> str:
-    note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
-    if forced_sell is not None:
-        note_parts.append(f"risk={risk_policy}")
-    if instrument_mode == "leaps":
-        note_parts.append("mode=leaps")
-        note_parts.append(f"strike_offset={account['option_strike_offset_pct']}")
-        note_parts.append(f"dte={account['option_min_dte']}-{account['option_max_dte']}")
-        note_parts.append(f"type={account['option_type']}")
-        if side == "buy" and delta_est is not None:
-            note_parts.append(f"delta={delta_est:.2f}")
-            if iv_est is not None and iv_est >= 0:
-                note_parts.append(f"iv_rank={iv_est:.1f}")
-
-    if strategy_name:
-        note_parts.append(f"strategy={strategy_name}")
-
-    return ";".join(note_parts)
+    return auto_trader_policy.build_trade_note(
+        learning_enabled,
+        forced_sell,
+        risk_policy,
+        instrument_mode,
+        account,
+        side,
+        delta_est,
+        iv_est,
+        strategy_name,
+    )
 
 
 def _choose_side(forced_sell: str | None, can_sell: list[str], strategy_name: str | None = None) -> str:
-    if forced_sell is not None:
-        return "sell"
-
-    bias = 0.35
-    strategy = (strategy_name or "").strip().lower()
-    if "trend" in strategy or "momentum" in strategy or "breakout" in strategy:
-        bias = 0.20
-    elif "mean" in strategy or "reversion" in strategy or "rsi" in strategy:
-        bias = 0.45
-
-    if can_sell and random.random() < bias:
-        return "sell"
-    return "buy"
+    return auto_trader_policy.choose_side(forced_sell, can_sell, strategy_name)
 
 
 def _rotate_account_if_due(
@@ -428,65 +320,32 @@ def _rotate_account_if_due(
     account: sqlite3.Row,
     now_iso: str,
 ) -> sqlite3.Row:
-    if not is_rotation_due(account, as_of_iso=now_iso):
-        return account
-
-    rotation_mode = resolve_rotation_mode(account)
-    if rotation_mode == "optimal":
-        optimal = _select_optimal_strategy(conn, account, now_iso)
-        active = optimal or resolve_active_strategy(account)
-        schedule = parse_rotation_schedule(account["rotation_schedule"])
-        if schedule and active in schedule:
-            active_idx = schedule.index(active)
-        else:
-            active_idx = int(account["rotation_active_index"] or 0)
-        next_state = {
-            "rotation_active_index": active_idx,
-            "rotation_active_strategy": active,
-            "rotation_last_at": now_iso,
-        }
-    else:
-        next_state = next_rotation_state(account, as_of_iso=now_iso)
-
-    conn.execute(
-        """
-        UPDATE accounts
-        SET strategy = ?,
-            rotation_active_index = ?,
-            rotation_active_strategy = ?,
-            rotation_last_at = ?
-        WHERE id = ?
-        """,
-        (
-            next_state["rotation_active_strategy"],
-            int(next_state["rotation_active_index"]),
-            next_state["rotation_active_strategy"],
-            next_state["rotation_last_at"],
-            account["id"],
-        ),
+    return rotate_account_if_due_impl(
+        conn,
+        account_name,
+        account,
+        now_iso,
+        is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
+        resolve_rotation_mode_fn=resolve_rotation_mode,
+        select_optimal_strategy_fn=_select_optimal_strategy,
+        resolve_active_strategy_fn=resolve_active_strategy,
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
+        update_account_rotation_state_fn=update_account_rotation_state,
+        get_account_fn=get_account,
     )
-    conn.commit()
-    return get_account(conn, account_name)
 
 
 def _parse_as_of_iso(as_of_iso: str) -> datetime:
-    text = as_of_iso.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-    parsed = datetime.fromisoformat(text)
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)
+    return parse_as_of_iso_impl(as_of_iso)
 
 
 def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    start = coerce_float(starting_equity)
-    end = coerce_float(ending_equity)
-    if start is None or end is None:
-        return None
-    if start <= 0:
-        return None
-    return ((end / start) - 1.0) * 100.0
+    return safe_return_pct_impl(
+        starting_equity,
+        ending_equity,
+        coerce_float_fn=coerce_float,
+    )
 
 
 def _select_optimal_strategy(
@@ -494,49 +353,15 @@ def _select_optimal_strategy(
     account: sqlite3.Row,
     as_of_iso: str,
 ) -> str | None:
-    schedule = parse_rotation_schedule(account["rotation_schedule"])
-    if not schedule:
-        return None
-
-    lookback_days = int(account["rotation_lookback_days"] or 180)
-    as_of_dt = _parse_as_of_iso(as_of_iso)
-    end_day = as_of_dt.date().isoformat()
-    start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
-
-    returns = load_strategy_backtest_returns(
+    return select_optimal_strategy_impl(
         conn,
-        account_id=int(account["id"]),
-        strategy_names=schedule,
-        start_day=start_day,
-        end_day=end_day,
+        account,
+        as_of_iso,
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        parse_as_of_iso_fn=_parse_as_of_iso,
+        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
+        resolve_optimality_mode_fn=resolve_optimality_mode,
     )
-
-    if not returns:
-        return None
-
-    by_strategy: dict[str, list[float]] = {}
-    latest_by_strategy: dict[str, float] = {}
-    for strategy_name, ret in returns:
-        by_strategy.setdefault(strategy_name, []).append(ret)
-        if strategy_name not in latest_by_strategy:
-            latest_by_strategy[strategy_name] = ret
-
-    if not by_strategy:
-        return None
-
-    optimality_mode = resolve_optimality_mode(account)
-    scores: dict[str, float] = {}
-    if optimality_mode == "average_return":
-        for strategy_name, values in by_strategy.items():
-            scores[strategy_name] = sum(values) / len(values)
-    else:
-        scores = dict(latest_by_strategy)
-
-    if not scores:
-        return None
-
-    best_strategy = max(scores.items(), key=lambda item: item[1])[0]
-    return best_strategy if best_strategy in schedule else None
 
 
 def _prepare_buy_trade(
@@ -624,60 +449,24 @@ def run_for_account(
     max_trades: int,
     fee: float,
 ) -> int:
-    account = get_account(conn, account_name)
-    now_iso = utc_now_iso()
-    account = _rotate_account_if_due(conn, account_name, account, now_iso)
-    active_strategy = resolve_active_strategy(account)
-    learning_enabled = bool(int(account["learning_enabled"]))
-    risk_policy = str(account["risk_policy"]).strip().lower()
-    stop_loss_pct = account["stop_loss_pct"]
-    take_profit_pct = account["take_profit_pct"]
-    instrument_mode = str(account["instrument_mode"]).strip().lower()
-    target = random.randint(min_trades, max_trades)
-    executed = 0
-    for _ in range(target):
-        state = _refresh_account_state(conn, account)
-        can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
-        forced_sell = _resolve_forced_sell_ticker(
-            can_sell,
-            prices,
-            state,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-        )
-
-        selection = _prepare_trade_selection(
-            account,
-            active_strategy,
-            state,
-            can_sell,
-            forced_sell,
-            universe,
-            prices,
-            iv_rank_proxy,
-            learning_enabled,
-            instrument_mode,
-            fee,
-        )
-        if selection is None:
-            continue
-
-        _record_prepared_trade(
-            conn,
-            account_name,
-            account,
-            learning_enabled,
-            risk_policy,
-            instrument_mode,
-            active_strategy,
-            fee,
-            selection,
-            forced_sell,
-        )
-        executed += 1
-
-    return executed
+    return run_for_account_impl(
+        conn,
+        account_name,
+        universe,
+        prices,
+        iv_rank_proxy,
+        min_trades,
+        max_trades,
+        fee,
+        get_account_fn=get_account,
+        utc_now_iso_fn=utc_now_iso,
+        rotate_account_if_due_fn=_rotate_account_if_due,
+        resolve_active_strategy_fn=resolve_active_strategy,
+        refresh_account_state_fn=_refresh_account_state,
+        resolve_forced_sell_ticker_fn=_resolve_forced_sell_ticker,
+        prepare_trade_selection_fn=_prepare_trade_selection,
+        record_prepared_trade_fn=_record_prepared_trade,
+    )
 
 
 def main() -> None:
