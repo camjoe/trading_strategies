@@ -20,13 +20,18 @@ from trading.backtesting.backtest import (
     _max_drawdown_pct,
     _normalize_benchmark_series,
     backtest_leaderboard,
+    backtest_leaderboard_entries,
+    backtest_report_full,
     backtest_report,
+    backtest_report_summary,
     build_walk_forward_windows,
     preview_backtest_warnings,
     run_backtest,
     run_backtest_batch,
     run_walk_forward_backtest,
 )
+from trading.models import BacktestLeaderboardEntry, BacktestReportSummary
+from trading.models import BacktestFullReport, BacktestReportSnapshot, BacktestReportTrade
 
 
 def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
@@ -190,6 +195,45 @@ class TestBacktestRunFlow:
         assert summary["account_name"] == "acct_report_bt"
         assert summary["trade_count"] >= 0
         assert isinstance(summary["total_return_pct"], float)
+
+    def test_backtest_report_summary_returns_model(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _create_bt_account(conn, "acct_report_model")
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+
+        result = run_backtest(
+            conn,
+            _backtest_config("acct_report_model", run_name="for-report-model"),
+        )
+
+        summary = backtest_report_summary(conn, result.run_id)
+        assert isinstance(summary, BacktestReportSummary)
+        assert summary.run_id == result.run_id
+        assert summary.account_name == "acct_report_model"
+
+    def test_backtest_report_full_returns_typed_model_and_payload(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _create_bt_account(conn, "acct_report_full")
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+
+        result = run_backtest(
+            conn,
+            _backtest_config("acct_report_full", run_name="for-report-full"),
+        )
+
+        report = backtest_report_full(conn, result.run_id)
+        assert isinstance(report, BacktestFullReport)
+        assert isinstance(report.summary, BacktestReportSummary)
+        assert report.summary.run_id == result.run_id
+        assert report.summary.account_name == "acct_report_full"
+        assert isinstance(report.snapshots, list)
+        assert isinstance(report.trades, list)
+        if report.snapshots:
+            assert isinstance(report.snapshots[0], BacktestReportSnapshot)
+        if report.trades:
+            assert isinstance(report.trades[0], BacktestReportTrade)
+
+        payload = report.to_payload()
+        legacy_payload = backtest_report(conn, result.run_id)
+        assert payload == legacy_payload
 
     def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(
         self,
@@ -503,6 +547,26 @@ class TestBacktestLeaderboardAndBatch:
         filtered = backtest_leaderboard(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
         assert filtered[0]["account_name"] == "acct_lb_mean"
+
+    def test_backtest_leaderboard_entries_returns_models(
+        self,
+        conn,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _create_bt_account(conn, "acct_lb_entries")
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+
+        result = run_backtest(
+            conn,
+            _backtest_config("acct_lb_entries", run_name="lb-entries"),
+        )
+
+        entries = backtest_leaderboard_entries(conn, limit=5, account_name="acct_lb_entries")
+        assert len(entries) == 1
+        entry = entries[0]
+        assert isinstance(entry, BacktestLeaderboardEntry)
+        assert entry.run_id == result.run_id
+        assert entry.account_name == "acct_lb_entries"
 
     def test_run_backtest_batch_sorts_results_and_applies_run_name_prefix(
         self,

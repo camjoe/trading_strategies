@@ -4,7 +4,6 @@ import math
 import sqlite3
 from calendar import monthrange
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import date, timedelta
 from statistics import median
 
@@ -21,88 +20,27 @@ from trading.backtesting.backtest_data import (
     resolve_backtest_dates,
 )
 from trading.coercion import (
-    coerce_float,
     row_expect_float,
     row_expect_int,
     row_expect_str,
     row_float,
     row_str,
 )
+from trading.models.backtesting import (
+    BacktestBatchConfig,
+    BacktestConfig,
+    BacktestResult,
+    WalkForwardConfig,
+    WalkForwardSummary,
+)
+from trading.models.backtesting_reports import BacktestLeaderboardEntry, BacktestReportSummary
+from trading.models.backtesting_reports import (
+    BacktestFullReport,
+    BacktestReportSnapshot,
+    BacktestReportTrade,
+)
 from trading.rotation import resolve_active_strategy
 from trading.backtesting.strategy_signals import resolve_signal, resolve_strategy
-
-
-@dataclass
-class BacktestConfig:
-    account_name: str
-    tickers_file: str
-    universe_history_dir: str | None
-    start: str | None
-    end: str | None
-    lookback_months: int | None
-    slippage_bps: float
-    fee_per_trade: float
-    run_name: str | None
-    allow_approximate_leaps: bool
-
-
-@dataclass
-class BacktestResult:
-    run_id: int
-    account_name: str
-    start_date: str
-    end_date: str
-    tickers: list[str]
-    trade_count: int
-    ending_equity: float
-    total_return_pct: float
-    benchmark_return_pct: float | None
-    alpha_pct: float | None
-    max_drawdown_pct: float
-    warnings: list[str]
-
-
-@dataclass
-class WalkForwardConfig:
-    account_name: str
-    tickers_file: str
-    universe_history_dir: str | None
-    start: str | None
-    end: str | None
-    lookback_months: int | None
-    test_months: int
-    step_months: int
-    slippage_bps: float
-    fee_per_trade: float
-    run_name_prefix: str | None
-    allow_approximate_leaps: bool
-
-
-@dataclass
-class WalkForwardSummary:
-    account_name: str
-    start_date: str
-    end_date: str
-    window_count: int
-    run_ids: list[int]
-    average_return_pct: float
-    median_return_pct: float
-    best_return_pct: float
-    worst_return_pct: float
-
-
-@dataclass
-class BacktestBatchConfig:
-    account_names: list[str]
-    tickers_file: str
-    universe_history_dir: str | None
-    start: str | None
-    end: str | None
-    lookback_months: int | None
-    slippage_bps: float
-    fee_per_trade: float
-    run_name_prefix: str | None
-    allow_approximate_leaps: bool
 
 
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
@@ -583,12 +521,24 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
 
 
 def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
+    return backtest_report_full(conn, run_id).to_payload()
+
+
+def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
+    return _load_backtest_report_data(conn, run_id)
+
+
+def _load_backtest_report_data(
+    conn: sqlite3.Connection,
+    run_id: int,
+) -> BacktestFullReport:
     run = conn.execute(
         """
         SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
              r.tickers_file, r.notes, r.warnings, a.name AS account_name,
              COALESCE(r.strategy_name, a.strategy) AS strategy,
-             a.benchmark_ticker
+             a.benchmark_ticker,
+             a.initial_cash
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
         WHERE r.id = ?
@@ -630,28 +580,79 @@ def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
     slippage_bps = row_expect_float(run, "slippage_bps")
     fee_per_trade = row_expect_float(run, "fee_per_trade")
 
-    return {
-        "run_id": report_run_id,
-        "run_name": run["run_name"],
-        "account_name": run["account_name"],
-        "strategy": run["strategy"],
-        "benchmark_ticker": run["benchmark_ticker"],
-        "start_date": run["start_date"],
-        "end_date": run["end_date"],
-        "created_at": run["created_at"],
-        "slippage_bps": slippage_bps,
-        "fee_per_trade": fee_per_trade,
-        "tickers_file": run["tickers_file"],
-        "notes": run["notes"],
-        "warnings": run["warnings"],
-        "trade_count": len(trades),
-        "starting_equity": first_equity,
-        "ending_equity": last_equity,
-        "total_return_pct": ((last_equity / first_equity) - 1.0) * 100.0,
-        "max_drawdown_pct": max_drawdown,
-        "snapshots": [dict(r) for r in snapshots],
-        "trades": [dict(r) for r in trades],
-    }
+    summary = BacktestReportSummary(
+        run_id=report_run_id,
+        run_name=row_str(run, "run_name"),
+        account_name=row_expect_str(run, "account_name"),
+        strategy=row_expect_str(run, "strategy"),
+        start_date=row_expect_str(run, "start_date"),
+        end_date=row_expect_str(run, "end_date"),
+        created_at=row_expect_str(run, "created_at"),
+        slippage_bps=slippage_bps,
+        fee_per_trade=fee_per_trade,
+        tickers_file=row_expect_str(run, "tickers_file"),
+        warnings=run["warnings"],
+        trade_count=len(trades),
+        starting_equity=first_equity,
+        ending_equity=last_equity,
+        total_return_pct=((last_equity / first_equity) - 1.0) * 100.0,
+        max_drawdown_pct=max_drawdown,
+    )
+
+    report_snapshots = [
+        BacktestReportSnapshot(
+            snapshot_time=row_expect_str(item, "snapshot_time"),
+            cash=row_expect_float(item, "cash"),
+            market_value=row_expect_float(item, "market_value"),
+            equity=row_expect_float(item, "equity"),
+            realized_pnl=row_expect_float(item, "realized_pnl"),
+            unrealized_pnl=row_expect_float(item, "unrealized_pnl"),
+        )
+        for item in snapshots
+    ]
+    report_trades = [
+        BacktestReportTrade(
+            trade_time=row_expect_str(item, "trade_time"),
+            ticker=row_expect_str(item, "ticker"),
+            side=row_expect_str(item, "side"),
+            qty=row_expect_float(item, "qty"),
+            price=row_expect_float(item, "price"),
+            fee=row_expect_float(item, "fee"),
+        )
+        for item in trades
+    ]
+
+    benchmark_return_pct: float | None = None
+    alpha_pct: float | None = None
+    try:
+        benchmark_series = fetch_benchmark_close(
+            row_expect_str(run, "benchmark_ticker"),
+            date.fromisoformat(row_expect_str(run, "start_date")),
+            date.fromisoformat(row_expect_str(run, "end_date")),
+        )
+        benchmark_return_pct = _benchmark_return_pct(
+            benchmark_series,
+            row_expect_float(run, "initial_cash"),
+        )
+        if benchmark_return_pct is not None:
+            alpha_pct = summary.total_return_pct - benchmark_return_pct
+    except Exception:
+        benchmark_return_pct = None
+        alpha_pct = None
+
+    return BacktestFullReport(
+        summary=summary,
+        benchmark_ticker=row_expect_str(run, "benchmark_ticker"),
+        notes=run["notes"],
+        snapshots=report_snapshots,
+        trades=report_trades,
+        benchmark_return_pct=benchmark_return_pct,
+        alpha_pct=alpha_pct,
+    )
+
+
+def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestReportSummary:
+    return _load_backtest_report_data(conn, run_id).summary
 
 
 def backtest_leaderboard(
@@ -661,6 +662,58 @@ def backtest_leaderboard(
     account_name: str | None = None,
     strategy: str | None = None,
 ) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for entry, starting_equity in _load_backtest_leaderboard_entries(
+        conn,
+        limit=limit,
+        account_name=account_name,
+        strategy=strategy,
+    ):
+        row = {
+            "run_id": entry.run_id,
+            "run_name": entry.run_name,
+            "account_name": entry.account_name,
+            "strategy": entry.strategy,
+            "start_date": entry.start_date,
+            "end_date": entry.end_date,
+            "created_at": entry.created_at,
+            "trade_count": entry.trade_count,
+            "ending_equity": entry.ending_equity,
+            "total_return_pct": entry.total_return_pct,
+            "max_drawdown_pct": entry.max_drawdown_pct,
+            "benchmark_return_pct": entry.benchmark_return_pct,
+            "alpha_pct": entry.alpha_pct,
+        }
+        row["starting_equity"] = starting_equity
+        rows.append(row)
+    return rows
+
+
+def backtest_leaderboard_entries(
+    conn: sqlite3.Connection,
+    *,
+    limit: int = 10,
+    account_name: str | None = None,
+    strategy: str | None = None,
+) -> list[BacktestLeaderboardEntry]:
+    return [
+        entry
+        for entry, _starting_equity in _load_backtest_leaderboard_entries(
+            conn,
+            limit=limit,
+            account_name=account_name,
+            strategy=strategy,
+        )
+    ]
+
+
+def _load_backtest_leaderboard_entries(
+    conn: sqlite3.Connection,
+    *,
+    limit: int,
+    account_name: str | None,
+    strategy: str | None,
+) -> list[tuple[BacktestLeaderboardEntry, float]]:
     if limit <= 0:
         raise ValueError("limit must be > 0")
 
@@ -706,7 +759,7 @@ def backtest_leaderboard(
         (account_name, account_name, strategy, strategy, int(limit)),
     ).fetchall()
 
-    entries: list[dict[str, object]] = []
+    entries: list[tuple[BacktestLeaderboardEntry, float]] = []
     for row in rows:
         start_equity = row_float(row, "starting_equity")
         end_equity = row_float(row, "ending_equity")
@@ -745,27 +798,25 @@ def backtest_leaderboard(
             benchmark_return_pct = None
             alpha_pct = None
 
-        entries.append(
-            {
-                "run_id": row_expect_int(row, "run_id"),
-                "run_name": row["run_name"],
-                "account_name": row_expect_str(row, "account_name"),
-                "strategy": row_expect_str(row, "strategy"),
-                "start_date": row_expect_str(row, "start_date"),
-                "end_date": row_expect_str(row, "end_date"),
-                "created_at": row_expect_str(row, "created_at"),
-                "trade_count": row_expect_int(row, "trade_count"),
-                "starting_equity": float(start_equity),
-                "ending_equity": float(end_equity),
-                "total_return_pct": float(total_return_pct),
-                "max_drawdown_pct": float(max_drawdown_pct),
-                "benchmark_return_pct": benchmark_return_pct,
-                "alpha_pct": alpha_pct,
-            }
+        entry = BacktestLeaderboardEntry(
+            run_id=row_expect_int(row, "run_id"),
+            run_name=row_str(row, "run_name"),
+            account_name=row_expect_str(row, "account_name"),
+            strategy=row_expect_str(row, "strategy"),
+            start_date=row_expect_str(row, "start_date"),
+            end_date=row_expect_str(row, "end_date"),
+            created_at=row_expect_str(row, "created_at"),
+            trade_count=row_expect_int(row, "trade_count"),
+            ending_equity=float(end_equity),
+            total_return_pct=float(total_return_pct),
+            max_drawdown_pct=float(max_drawdown_pct),
+            benchmark_return_pct=benchmark_return_pct,
+            alpha_pct=alpha_pct,
         )
+        entries.append((entry, float(start_equity)))
 
     entries.sort(
-        key=lambda entry: coerce_float(entry.get("total_return_pct")) or float("-inf"),
+        key=lambda item: item[0].total_return_pct,
         reverse=True,
     )
     return entries

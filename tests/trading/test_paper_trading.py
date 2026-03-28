@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from trading import paper_trading
+from trading.models import BacktestLeaderboardEntry
 
 
 class _FakeParser:
@@ -316,31 +317,31 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys):
         strategy="trend",
     )
 
-    def fake_backtest_leaderboard(_conn, *, limit, account_name, strategy):
+    def fake_backtest_leaderboard_entries(_conn, *, limit, account_name, strategy):
         assert limit == 5
         assert account_name is None
         assert strategy == "trend"
         return [
-            {
-                "run_id": 9,
-                "run_name": "batch_01",
-                "account_name": "acct1",
-                "strategy": "trend_v1",
-                "start_date": "2026-01-01",
-                "end_date": "2026-03-01",
-                "ending_equity": 10500.0,
-                "total_return_pct": 5.0,
-                "max_drawdown_pct": -1.2,
-                "benchmark_return_pct": 2.0,
-                "alpha_pct": 3.0,
-                "trade_count": 8,
-                "created_at": "2026-03-17T01:00:00Z",
-            }
+            BacktestLeaderboardEntry(
+                run_id=9,
+                run_name="batch_01",
+                account_name="acct1",
+                strategy="trend_v1",
+                start_date="2026-01-01",
+                end_date="2026-03-01",
+                created_at="2026-03-17T01:00:00Z",
+                trade_count=8,
+                ending_equity=10500.0,
+                total_return_pct=5.0,
+                max_drawdown_pct=-1.2,
+                benchmark_return_pct=2.0,
+                alpha_pct=3.0,
+            )
         ]
 
     monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
     monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
-    monkeypatch.setattr(paper_trading, "backtest_leaderboard", fake_backtest_leaderboard)
+    monkeypatch.setattr(paper_trading, "backtest_leaderboard_entries", fake_backtest_leaderboard_entries)
 
     paper_trading.main()
 
@@ -565,7 +566,7 @@ class TestHandlerOutputsAndEdgeCases:
 
         monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
         monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
-        monkeypatch.setattr(paper_trading, "backtest_leaderboard", lambda *_args, **_kwargs: [])
+        monkeypatch.setattr(paper_trading, "backtest_leaderboard_entries", lambda *_args, **_kwargs: [])
 
         paper_trading.main()
 
@@ -579,26 +580,26 @@ class TestHandlerOutputsAndEdgeCases:
 
         def fake_rows(*_args, **_kwargs):
             return [
-                {
-                    "run_id": 10,
-                    "run_name": None,
-                    "account_name": "acct1",
-                    "strategy": "trend_v1",
-                    "start_date": "2026-01-01",
-                    "end_date": "2026-01-31",
-                    "ending_equity": 10050.0,
-                    "total_return_pct": 0.5,
-                    "max_drawdown_pct": -0.4,
-                    "benchmark_return_pct": None,
-                    "alpha_pct": None,
-                    "trade_count": 1,
-                    "created_at": "2026-03-20T00:00:00Z",
-                }
+                BacktestLeaderboardEntry(
+                    run_id=10,
+                    run_name=None,
+                    account_name="acct1",
+                    strategy="trend_v1",
+                    start_date="2026-01-01",
+                    end_date="2026-01-31",
+                    created_at="2026-03-20T00:00:00Z",
+                    trade_count=1,
+                    ending_equity=10050.0,
+                    total_return_pct=0.5,
+                    max_drawdown_pct=-0.4,
+                    benchmark_return_pct=None,
+                    alpha_pct=None,
+                )
             ]
 
         monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
         monkeypatch.setattr(paper_trading, "ensure_db", lambda: fake_conn)
-        monkeypatch.setattr(paper_trading, "backtest_leaderboard", fake_rows)
+        monkeypatch.setattr(paper_trading, "backtest_leaderboard_entries", fake_rows)
 
         paper_trading.main()
 

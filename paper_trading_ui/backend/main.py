@@ -19,7 +19,8 @@ from trading.accounts import create_account
 from trading.accounting import load_trades
 from trading.backtesting.backtest import (
     BacktestConfig,
-    backtest_report,
+    backtest_report_full,
+    backtest_report_summary,
     preview_backtest_warnings,
     run_backtest,
     WalkForwardConfig,
@@ -383,13 +384,13 @@ def _latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dic
     if latest_row is None:
         return None
 
-    report = backtest_report(conn, int(latest_row["id"]))
+    report = backtest_report_summary(conn, int(latest_row["id"]))
     return {
-        "runId": int(report["run_id"]),
-        "endDate": report["end_date"],
-        "totalReturnPct": float(report["total_return_pct"]),
-        "maxDrawdownPct": float(report["max_drawdown_pct"]),
-        "alphaPct": float(report["alpha_pct"]) if report.get("alpha_pct") is not None else None,
+        "runId": report.run_id,
+        "endDate": report.end_date,
+        "totalReturnPct": report.total_return_pct,
+        "maxDrawdownPct": report.max_drawdown_pct,
+        "alphaPct": None,
     }
 
 
@@ -936,7 +937,7 @@ def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
 def api_backtest_run_report(run_id: int) -> dict[str, object]:
     with _db_conn() as conn:
         try:
-            return backtest_report(conn, run_id)
+            return backtest_report_full(conn, run_id).to_payload()
         except ValueError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
 

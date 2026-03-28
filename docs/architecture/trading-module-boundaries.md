@@ -41,12 +41,14 @@ Completed in this iteration:
 2. Moved auto-trader optimal-strategy history query behind `load_strategy_backtest_returns(...)`.
 3. Split CLI parser assembly into grouped modules in `trading/cli_commands/`.
 4. Converted `trading.models` from a single file to a package (`trading/models/`).
+5. Extracted paper trading command handlers into `trading/paper_trading_handlers.py` with explicit dependency wiring.
+6. Added backtesting config/result dataclasses in `trading/models/backtesting.py`.
 
 Planned next slices:
 
 1. Continue extracting any future backtest-table reads in non-backtesting modules into `trading/backtesting/history.py`.
-2. Evaluate splitting command dispatch handlers in `trading/paper_trading.py` into grouped modules.
-3. Add domain-specific model modules for backtesting summaries/configs to improve discoverability.
+2. Evaluate splitting `trading/paper_trading_handlers.py` into account/report/backtest handler groups if it grows.
+3. Consider moving additional shared reporting/output DTOs into `trading/models/`.
 
 ## Why Only One Model File Exists Today
 
