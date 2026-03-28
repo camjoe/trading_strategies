@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from trading.backtesting.backtest import BacktestConfig, WalkForwardConfig
 
-from .schemas import BacktestPreflightRequest, BacktestRunRequest, WalkForwardRunRequest
+from ..schemas import BacktestPreflightRequest, BacktestRunRequest, WalkForwardRunRequest
 
 
 def build_backtest_config_from_run_request(payload: BacktestRunRequest) -> BacktestConfig:

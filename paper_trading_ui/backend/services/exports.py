@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-from .config import EXPORTS_DIR
+from ..config import EXPORTS_DIR
 
 
 def resolve_csv_export_file(export_name: str, file_name: str) -> Path:

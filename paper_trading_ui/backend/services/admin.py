@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from trading.interfaces.runtime.data_ops.admin import delete_accounts
 from trading.repositories.accounts_repository import update_account_fields
 
-from .services_db import get_account_row
+from .db import get_account_row
 
 
 def clean_text(value: str | None) -> str | None:

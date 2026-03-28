@@ -12,8 +12,8 @@ from trading.repositories.accounts_repository import fetch_all_account_names_fro
 from trading.repositories.snapshots_repository import fetch_snapshot_history_rows
 from trading.reporting import build_account_stats
 
-from .config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
-from .services_db import get_latest_snapshot_row
+from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
+from .db import get_latest_snapshot_row
 
 
 def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
