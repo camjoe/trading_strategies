@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -514,7 +515,7 @@ class TestHandlerOutputsAndEdgeCases:
 
         paper_trading.main()
 
-        assert captured["path"].endswith("account_profiles\\conservative.json")
+        assert Path(captured["path"]).as_posix().endswith("account_profiles/conservative.json")
         assert captured["create_missing"] is True
         assert "Applied preset 'Conservative': created=0, updated=1, skipped=0." in capsys.readouterr().out
         assert fake_conn.closed is True

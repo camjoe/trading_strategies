@@ -7,6 +7,15 @@ from ..config import LOGS_DIR
 router = APIRouter()
 
 
+def _has_invalid_log_path_components(file_name: str) -> bool:
+    normalized = file_name.replace("\\", "/")
+    if normalized != file_name:
+        return True
+
+    parts = normalized.split("/")
+    return any(part in {"", ".", ".."} for part in parts)
+
+
 @router.get("/api/logs/files")
 def api_log_files() -> dict[str, list[str]]:
     if not LOGS_DIR.exists():
@@ -21,6 +30,9 @@ def api_log_file(
     limit: int = Query(default=400, ge=10, le=4000),
     contains: str | None = Query(default=None),
 ) -> dict[str, object]:
+    if _has_invalid_log_path_components(file_name):
+        raise HTTPException(status_code=400, detail="Invalid log path")
+
     path = (LOGS_DIR / file_name).resolve()
     if not str(path).startswith(str(LOGS_DIR.resolve())):
         raise HTTPException(status_code=400, detail="Invalid log path")
