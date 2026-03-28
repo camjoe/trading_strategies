@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from common.time import utc_now_iso
-from paper_trading_ui.backend import services_accounts
+from paper_trading_ui.backend.services import accounts as services_accounts
 from paper_trading_ui.backend.config import (
     TEST_ACCOUNT_NAME,
     TEST_ACCOUNT_STRATEGY,

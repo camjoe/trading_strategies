@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from common.time import utc_now_iso
-from paper_trading_ui.backend import services_admin
+from paper_trading_ui.backend.services import admin as services_admin
 
 from tests.paper_trading_ui.backend._service_test_utils import create_test_account
 

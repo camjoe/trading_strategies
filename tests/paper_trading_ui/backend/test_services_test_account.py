@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from paper_trading_ui.backend import services_test_account
+from paper_trading_ui.backend.services import test_account as services_test_account
 from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME, TEST_BACKTEST_ACCOUNT_NAME
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from paper_trading_ui.backend import services_db
+from paper_trading_ui.backend.services import db as services_db
 
 from tests.paper_trading_ui.backend._service_test_utils import create_test_account
 

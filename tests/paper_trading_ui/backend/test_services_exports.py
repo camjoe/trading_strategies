@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from paper_trading_ui.backend import services_exports
+from paper_trading_ui.backend.services import exports as services_exports
 
 
 def test_resolve_csv_export_file_guards_path_and_suffix(monkeypatch, tmp_path) -> None:

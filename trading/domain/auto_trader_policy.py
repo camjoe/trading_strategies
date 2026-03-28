@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import random
-import sqlite3
+from typing import Protocol
 
 from trading.models import AccountState
+
+
+class AccountConfig(Protocol):
+    def __getitem__(self, key: str) -> object: ...
 
 
 def choose_buy_qty(cash: float, price: float, fee: float) -> int:
@@ -46,7 +50,7 @@ def estimate_option_premium(
 
 
 def option_candidate_allowed(
-    account: sqlite3.Row,
+    account: AccountConfig,
     ticker: str,
     price: float,
     iv_rank_proxy: dict[str, float],
@@ -164,7 +168,7 @@ def choose_sell_ticker(
 def apply_leaps_buy_qty_limits(
     qty: int,
     option_price: float,
-    account: sqlite3.Row,
+    account: AccountConfig,
 ) -> int:
     max_contracts = account["max_contracts_per_trade"]
     if max_contracts is not None:
@@ -183,7 +187,7 @@ def build_trade_note(
     forced_sell: str | None,
     risk_policy: str,
     instrument_mode: str,
-    account: sqlite3.Row,
+    account: AccountConfig,
     side: str,
     delta_est: float | None,
     iv_est: float | None,
