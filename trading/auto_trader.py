@@ -6,17 +6,16 @@ from datetime import UTC, datetime, timedelta
 from typing import TypeAlias
 
 from common.market_data import get_provider
+from common.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
-from common.repo_paths import get_repo_root
-
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
+from trading.backtesting.services.history_service import load_strategy_backtest_returns
 from trading.coercion import coerce_float
 from trading.database.db import ensure_db
 from trading.models import AccountState
 from trading.pricing import fetch_latest_prices
-from trading.backtesting.history import load_strategy_backtest_returns
 from trading.rotation import (
     is_rotation_due,
     next_rotation_state,
@@ -101,7 +100,9 @@ def estimate_delta(abs_strike_offset_pct: float) -> float:
     return max(0.05, min(0.95, 0.55 - (abs(abs_strike_offset_pct) / 100.0)))
 
 
-def estimate_option_premium(underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None) -> float:
+def estimate_option_premium(
+    underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None
+) -> float:
     dte_mid = 240.0
     if min_dte is not None and max_dte is not None:
         dte_mid = (float(min_dte) + float(max_dte)) / 2.0
@@ -177,7 +178,9 @@ def choose_sell_ticker_by_risk(
     return random.choice(list(dict.fromkeys(candidates)))
 
 
-def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool) -> str:
+def choose_buy_ticker(
+    universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
+) -> str:
     if not learning_enabled:
         return random.choice(universe)
 
@@ -201,7 +204,9 @@ def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: Acco
     return random.choice([t for _score, t in scored[:top_n]])
 
 
-def choose_sell_ticker(can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool) -> str:
+def choose_sell_ticker(
+    can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
+) -> str:
     if not learning_enabled:
         return random.choice(can_sell)
 

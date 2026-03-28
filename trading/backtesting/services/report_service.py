@@ -5,8 +5,8 @@ from typing import Callable
 
 import pandas as pd
 
-from trading.backtesting.metrics import benchmark_return_pct, max_drawdown_pct
-from trading.backtesting.report_repository import (
+from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
+from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
@@ -18,7 +18,6 @@ from trading.models.backtesting_reports import (
     BacktestReportSummary,
     BacktestReportTrade,
 )
-
 
 BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]
 

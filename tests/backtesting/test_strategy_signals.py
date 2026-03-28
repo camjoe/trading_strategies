@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import random
+
 import pandas as pd
 import pytest
-from hypothesis import given
-from hypothesis import settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from trading.backtesting import strategy_signals
+from trading.backtesting.domain import strategy_signals
 
 
 def _series_range(start: int, stop: int) -> pd.Series:

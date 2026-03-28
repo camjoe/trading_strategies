@@ -2,35 +2,43 @@ from __future__ import annotations
 
 import math
 import sqlite3
-from calendar import monthrange
 from collections import defaultdict
-from datetime import date, timedelta
-from statistics import median
+from datetime import date
 
 import pandas as pd
 
 from common.market_data import get_feature_provider
 from trading.accounts import get_account
-from trading.backtesting.backtest_data import (
+from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, normalize_benchmark_series
+from trading.backtesting.domain.risk_warnings import build_backtest_warnings
+from trading.backtesting.domain.simulation_math import (
+    compute_market_value,
+    compute_unrealized_pnl,
+    update_on_buy,
+    update_on_sell,
+)
+from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.domain.windowing import add_months
+from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
+from trading.backtesting.repositories.backtest_repository import (
+    insert_backtest_run,
+    insert_backtest_snapshot,
+    insert_backtest_trade,
+)
+from trading.backtesting.services.backtest_data_service import (
     build_monthly_universe,
     fetch_benchmark_close,
     fetch_close_history,
     load_tickers_from_file,
     resolve_backtest_dates,
 )
-from trading.backtesting.backtest_repository import (
-    insert_backtest_run,
-    insert_backtest_snapshot,
-    insert_backtest_trade,
-)
-from trading.backtesting.leaderboard_service import load_backtest_leaderboard_entries
-from trading.backtesting.metrics import benchmark_return_pct, max_drawdown_pct, normalize_benchmark_series
-from trading.backtesting.report_service import load_backtest_report_data
+from trading.backtesting.services.leaderboard_service import load_backtest_leaderboard_entries
+from trading.backtesting.services.report_service import load_backtest_report_data
+from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
 from trading.coercion import (
     row_expect_float,
     row_expect_int,
     row_expect_str,
-    row_str,
 )
 from trading.models.backtesting import (
     BacktestBatchConfig,
@@ -41,7 +49,6 @@ from trading.models.backtesting import (
 )
 from trading.models.backtesting_reports import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from trading.rotation import resolve_active_strategy
-from trading.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
@@ -49,14 +56,7 @@ def _max_drawdown_pct(equity_curve: list[float]) -> float:
 
 
 def _add_months(base: date, months: int) -> date:
-    if months < 0:
-        raise ValueError("months must be >= 0")
-
-    month_index = (base.year * 12 + (base.month - 1)) + months
-    target_year = month_index // 12
-    target_month = (month_index % 12) + 1
-    target_day = min(base.day, monthrange(target_year, target_month)[1])
-    return date(target_year, target_month, target_day)
+    return add_months(base, months)
 
 
 def build_walk_forward_windows(
@@ -65,34 +65,11 @@ def build_walk_forward_windows(
     test_months: int,
     step_months: int,
 ) -> list[tuple[date, date]]:
-    if test_months <= 0:
-        raise ValueError("test_months must be > 0")
-    if step_months <= 0:
-        raise ValueError("step_months must be > 0")
-    if start_date >= end_date:
-        raise ValueError("start_date must be before end_date")
-
-    windows: list[tuple[date, date]] = []
-    cursor = date(start_date.year, start_date.month, 1)
-    while cursor <= end_date:
-        next_cursor = _add_months(cursor, test_months)
-        window_start = max(start_date, cursor)
-        window_end = min(end_date, next_cursor - timedelta(days=1))
-        if window_start < window_end:
-            windows.append((window_start, window_end))
-        cursor = _add_months(cursor, step_months)
-
-    return windows
+    return build_walk_forward_windows_impl(start_date, end_date, test_months, step_months)
 
 
 def _compute_market_value(positions: dict[str, float], prices: dict[str, float]) -> float:
-    total = 0.0
-    for ticker, qty in positions.items():
-        px = prices.get(ticker)
-        if px is None:
-            continue
-        total += qty * px
-    return total
+    return compute_market_value(positions, prices)
 
 
 def _update_on_buy(
@@ -104,13 +81,7 @@ def _update_on_buy(
     avg_cost: dict[str, float],
     cash: float,
 ) -> float:
-    old_qty = positions[ticker]
-    new_qty = old_qty + qty
-    old_value = old_qty * avg_cost[ticker]
-    trade_value = (qty * price) + fee
-    avg_cost[ticker] = (old_value + trade_value) / new_qty
-    positions[ticker] = new_qty
-    return cash - trade_value
+    return update_on_buy(ticker, qty, price, fee, positions, avg_cost, cash)
 
 
 def _update_on_sell(
@@ -123,37 +94,11 @@ def _update_on_sell(
     cash: float,
     realized_pnl: float,
 ) -> tuple[float, float]:
-    proceeds = (qty * price) - fee
-    cash += proceeds
-    realized_pnl += ((price - avg_cost[ticker]) * qty) - fee
-    positions[ticker] -= qty
-    if positions[ticker] <= 0:
-        positions[ticker] = 0.0
-        avg_cost[ticker] = 0.0
-    return cash, realized_pnl
+    return update_on_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized_pnl)
 
 
 def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) -> list[str]:
-    warnings: list[str] = [
-        "Backtest uses adjusted daily close data only; intraday price path is not modeled.",
-        "Universe file may include survivorship bias if it only reflects currently listed symbols.",
-    ]
-
-    risk_policy = row_str(account, "risk_policy")
-    if risk_policy in {"fixed_stop", "take_profit", "stop_and_target"}:
-        warnings.append(
-            "Stop-loss/take-profit checks are approximated on daily closes and can differ from intraday execution."
-        )
-
-    if row_str(account, "instrument_mode") == "leaps":
-        warnings.append(
-            "LEAPs mode is approximated using underlying equity prices; options chain history and Greeks are not modeled."
-        )
-        if not allow_approximate_leaps:
-            warnings.append(
-                "LEAPs approximation opt-in was not enabled; proceeding with approximate LEAPs assumptions for research only."
-            )
-    return warnings
+    return build_backtest_warnings(account, allow_approximate_leaps=allow_approximate_leaps)
 
 
 def _resolve_universe(
@@ -182,12 +127,7 @@ def _compute_unrealized_pnl(
     avg_cost: dict[str, float],
     marks: dict[str, float],
 ) -> float:
-    total = 0.0
-    for ticker, qty in positions.items():
-        if qty <= 0:
-            continue
-        total += (marks[ticker] - avg_cost[ticker]) * qty
-    return total
+    return compute_unrealized_pnl(positions, avg_cost, marks)
 
 
 def _normalize_benchmark_series(benchmark_close: pd.Series | pd.DataFrame) -> pd.Series:
@@ -589,44 +529,11 @@ def run_walk_forward_backtest(
     start_date, end_date = resolve_backtest_dates(cfg.start, cfg.end, cfg.lookback_months)
     windows = build_walk_forward_windows(start_date, end_date, cfg.test_months, cfg.step_months)
 
-    if not windows:
-        raise ValueError("No walk-forward windows generated for the selected date range.")
-
-    run_ids: list[int] = []
-    total_returns: list[float] = []
-
-    for i, (window_start, window_end) in enumerate(windows):
-        prefix = cfg.run_name_prefix.strip() if cfg.run_name_prefix else ""
-        run_name = f"wf_{prefix}_{i + 1:02d}" if prefix else f"wf_{i + 1:02d}"
-
-        test_cfg = BacktestConfig(
-            account_name=cfg.account_name,
-            tickers_file=cfg.tickers_file,
-            universe_history_dir=cfg.universe_history_dir,
-            start=window_start.isoformat(),
-            end=window_end.isoformat(),
-            lookback_months=None,
-            slippage_bps=cfg.slippage_bps,
-            fee_per_trade=cfg.fee_per_trade,
-            run_name=run_name,
-            allow_approximate_leaps=cfg.allow_approximate_leaps,
-        )
-
-        result = run_backtest(conn, test_cfg)
-        run_ids.append(result.run_id)
-        total_returns.append(result.total_return_pct)
-
-    if not total_returns:
-        raise ValueError("No returns were computed.")
-
-    return WalkForwardSummary(
-        account_name=cfg.account_name,
-        start_date=start_date.isoformat(),
-        end_date=end_date.isoformat(),
-        window_count=len(windows),
-        run_ids=run_ids,
-        average_return_pct=sum(total_returns) / len(total_returns),
-        median_return_pct=float(median(total_returns)),
-        best_return_pct=max(total_returns),
-        worst_return_pct=min(total_returns),
+    return execute_walk_forward_backtest(
+        conn,
+        cfg=cfg,
+        start_date=start_date,
+        end_date=end_date,
+        windows=windows,
+        run_backtest_fn=run_backtest,
     )

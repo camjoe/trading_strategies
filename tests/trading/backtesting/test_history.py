@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.accounts import create_account, get_account
-from trading.backtesting.history import load_strategy_backtest_returns
+from trading.backtesting.services.history_service import load_strategy_backtest_returns
 
 
 def _insert_run_with_snapshots(

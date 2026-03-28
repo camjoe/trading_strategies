@@ -5,8 +5,7 @@ from typing import Any, Callable, Mapping
 
 import pandas as pd
 
-from trading.backtesting.indicators_adapter import calculate_macd, calculate_rs_rsi
-
+from trading.backtesting.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
 
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
@@ -31,7 +30,11 @@ def _feature_value(feature_history: pd.DataFrame | None, column: str) -> float |
     return float(series.iloc[-1])
 
 
-def _trend_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _trend_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     fast_window = int(params.get("fast_window", 10))
     slow_window = int(params.get("slow_window", 20))
     min_history = max(30, slow_window)
@@ -48,7 +51,11 @@ def _trend_signal(history: pd.Series, params: StrategyParams, _feature_history: 
     return "hold"
 
 
-def _mean_reversion_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _mean_reversion_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     window = int(params.get("window", 20))
     band_pct = float(params.get("band_pct", 0.02))
     if len(history) < 30:
@@ -63,7 +70,11 @@ def _mean_reversion_signal(history: pd.Series, params: StrategyParams, _feature_
     return "hold"
 
 
-def _rsi_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _rsi_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     window = int(params.get("window", 14))
     oversold = float(params.get("oversold", 30))
     overbought = float(params.get("overbought", 70))
@@ -82,7 +93,11 @@ def _rsi_signal(history: pd.Series, params: StrategyParams, _feature_history: pd
     return "hold"
 
 
-def _macd_signal(history: pd.Series, _params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _macd_signal(
+    history: pd.Series,
+    _params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     if len(history) < 35:
         return "hold"
 
@@ -98,14 +113,18 @@ def _macd_signal(history: pd.Series, _params: StrategyParams, _feature_history: 
     return "hold"
 
 
-def _breakout_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _breakout_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     window = int(params.get("window", 20))
     min_history = max(30, window + 1)
     if len(history) < min_history:
         return "hold"
 
     current_close = float(history.iloc[-1])
-    prior_window = history.iloc[-(window + 1):-1]
+    prior_window = history.iloc[-(window + 1) : -1]
     highest_breakout = float(prior_window.max())
     lowest_breakdown = float(prior_window.min())
 
@@ -116,7 +135,11 @@ def _breakout_signal(history: pd.Series, params: StrategyParams, _feature_histor
     return "hold"
 
 
-def _pullback_in_trend_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _pullback_in_trend_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     fast_window = int(params.get("fast_window", 20))
     trend_window = int(params.get("trend_window", 50))
     pullback_pct = float(params.get("pullback_pct", 0.03))
@@ -138,7 +161,11 @@ def _pullback_in_trend_signal(history: pd.Series, params: StrategyParams, _featu
     return "hold"
 
 
-def _bollinger_mean_reversion_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _bollinger_mean_reversion_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     window = int(params.get("window", 20))
     num_std = float(params.get("num_std", 2.0))
     min_history = max(30, window)
@@ -161,7 +188,11 @@ def _bollinger_mean_reversion_signal(history: pd.Series, params: StrategyParams,
     return "hold"
 
 
-def _ma_crossover_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _ma_crossover_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     fast_window = int(params.get("fast_window", 20))
     slow_window = int(params.get("slow_window", 50))
     min_history = max(60, slow_window + 1)
@@ -193,7 +224,11 @@ def _ma_crossover_signal(history: pd.Series, params: StrategyParams, _feature_hi
     return "hold"
 
 
-def _volatility_filtered_trend_signal(history: pd.Series, params: StrategyParams, _feature_history: pd.DataFrame | None = None) -> str:
+def _volatility_filtered_trend_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    _feature_history: pd.DataFrame | None = None,
+) -> str:
     fast_window = int(params.get("fast_window", 20))
     slow_window = int(params.get("slow_window", 50))
     vol_window = int(params.get("vol_window", 20))
@@ -206,7 +241,7 @@ def _volatility_filtered_trend_signal(history: pd.Series, params: StrategyParams
     recent_returns = returns.tail(vol_window)
     if recent_returns.empty:
         return "hold"
-    annualized_vol_pct = float(recent_returns.std(ddof=0) * (252 ** 0.5) * 100.0)
+    annualized_vol_pct = float(recent_returns.std(ddof=0) * (252**0.5) * 100.0)
     if pd.isna(annualized_vol_pct) or annualized_vol_pct > max_annualized_vol_pct:
         return "hold"
 

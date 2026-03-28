@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from trading.accounts import create_account
 from common.market_data import FeatureBundle, ProxyFeatureDataProvider
+from trading.accounts import create_account
 from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
@@ -21,8 +21,8 @@ from trading.backtesting.backtest import (
     _normalize_benchmark_series,
     backtest_leaderboard,
     backtest_leaderboard_entries,
-    backtest_report_full,
     backtest_report,
+    backtest_report_full,
     backtest_report_summary,
     build_walk_forward_windows,
     preview_backtest_warnings,
@@ -30,8 +30,13 @@ from trading.backtesting.backtest import (
     run_backtest_batch,
     run_walk_forward_backtest,
 )
-from trading.models import BacktestLeaderboardEntry, BacktestReportSummary
-from trading.models import BacktestFullReport, BacktestReportSnapshot, BacktestReportTrade
+from trading.models import (
+    BacktestFullReport,
+    BacktestLeaderboardEntry,
+    BacktestReportSnapshot,
+    BacktestReportSummary,
+    BacktestReportTrade,
+)
 
 
 def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
@@ -172,7 +177,10 @@ class TestBacktestRunFlow:
             _backtest_config("acct_leaps_bt"),
         )
         assert any("LEAPs mode is approximated" in warning for warning in result_without_opt_in.warnings)
-        assert any("LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings)
+        assert any(
+            "LEAPs approximation opt-in was not enabled" in warning
+            for warning in result_without_opt_in.warnings
+        )
 
         result = run_backtest(
             conn,

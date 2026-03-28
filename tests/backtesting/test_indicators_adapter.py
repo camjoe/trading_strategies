@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from trading.backtesting import indicators_adapter
+from trading.backtesting.domain import indicators_adapter
 
 
 class TestIndicatorsAdapter:
