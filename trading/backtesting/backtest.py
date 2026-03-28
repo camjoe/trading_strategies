@@ -10,7 +10,6 @@ from statistics import median
 import pandas as pd
 
 from common.market_data import get_feature_provider
-from common.time import utc_now_iso
 from trading.accounts import get_account
 from trading.backtesting.backtest_data import (
     build_monthly_universe,
@@ -19,11 +18,18 @@ from trading.backtesting.backtest_data import (
     load_tickers_from_file,
     resolve_backtest_dates,
 )
+from trading.backtesting.backtest_repository import (
+    insert_backtest_run,
+    insert_backtest_snapshot,
+    insert_backtest_trade,
+)
+from trading.backtesting.leaderboard_service import load_backtest_leaderboard_entries
+from trading.backtesting.metrics import benchmark_return_pct, max_drawdown_pct, normalize_benchmark_series
+from trading.backtesting.report_service import load_backtest_report_data
 from trading.coercion import (
     row_expect_float,
     row_expect_int,
     row_expect_str,
-    row_float,
     row_str,
 )
 from trading.models.backtesting import (
@@ -33,29 +39,13 @@ from trading.models.backtesting import (
     WalkForwardConfig,
     WalkForwardSummary,
 )
-from trading.models.backtesting_reports import BacktestLeaderboardEntry, BacktestReportSummary
-from trading.models.backtesting_reports import (
-    BacktestFullReport,
-    BacktestReportSnapshot,
-    BacktestReportTrade,
-)
+from trading.models.backtesting_reports import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from trading.rotation import resolve_active_strategy
 from trading.backtesting.strategy_signals import resolve_signal, resolve_strategy
 
 
 def _max_drawdown_pct(equity_curve: list[float]) -> float:
-    if not equity_curve:
-        return 0.0
-
-    peak = equity_curve[0]
-    max_dd = 0.0
-    for equity in equity_curve:
-        peak = max(peak, equity)
-        if peak <= 0:
-            continue
-        dd = (equity / peak) - 1.0
-        max_dd = min(max_dd, dd)
-    return max_dd * 100.0
+    return max_drawdown_pct(equity_curve)
 
 
 def _add_months(base: date, months: int) -> date:
@@ -201,34 +191,11 @@ def _compute_unrealized_pnl(
 
 
 def _normalize_benchmark_series(benchmark_close: pd.Series | pd.DataFrame) -> pd.Series:
-    if isinstance(benchmark_close, pd.DataFrame):
-        if benchmark_close.empty:
-            return pd.Series(dtype=float)
-        series = benchmark_close.iloc[:, 0]
-    else:
-        series = benchmark_close
-
-    if isinstance(series, pd.DataFrame):
-        if series.empty:
-            return pd.Series(dtype=float)
-        series = series.iloc[:, 0]
-
-    normalized = pd.to_numeric(series, errors="coerce").dropna()
-    return normalized
+    return normalize_benchmark_series(benchmark_close)
 
 
 def _benchmark_return_pct(benchmark_close: pd.Series | pd.DataFrame, initial_cash: float) -> float | None:
-    series = _normalize_benchmark_series(benchmark_close)
-    if len(series) < 2:
-        return None
-
-    start_px = float(series.iloc[0])
-    end_px = float(series.iloc[-1])
-    if start_px <= 0:
-        return None
-
-    equity = initial_cash * (end_px / start_px)
-    return ((equity / initial_cash) - 1.0) * 100.0
+    return benchmark_return_pct(benchmark_close, initial_cash)
 
 
 def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
@@ -255,40 +222,15 @@ def _insert_run(
     cfg: BacktestConfig,
     warnings: list[str],
 ) -> int:
-    cursor = conn.execute(
-        """
-        INSERT INTO backtest_runs (
-            account_id,
-            strategy_name,
-            run_name,
-            start_date,
-            end_date,
-            created_at,
-            slippage_bps,
-            fee_per_trade,
-            tickers_file,
-            notes,
-            warnings
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account_id,
-            strategy_name,
-            cfg.run_name,
-            start_date.isoformat(),
-            end_date.isoformat(),
-            utc_now_iso(),
-            float(cfg.slippage_bps),
-            float(cfg.fee_per_trade),
-            cfg.tickers_file,
-            "First working backtest version: deterministic daily-bar simulator.",
-            " | ".join(warnings),
-        ),
+    return insert_backtest_run(
+        conn,
+        account_id=account_id,
+        strategy_name=strategy_name,
+        start_date=start_date,
+        end_date=end_date,
+        cfg=cfg,
+        warnings=warnings,
     )
-    conn.commit()
-    assert cursor.lastrowid is not None
-    return int(cursor.lastrowid)
 
 
 def _insert_trade(
@@ -303,14 +245,17 @@ def _insert_trade(
     slippage_bps: float,
     note: str | None,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO backtest_trades (
-            run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note),
+    insert_backtest_trade(
+        conn,
+        run_id=run_id,
+        trade_time=trade_time,
+        ticker=ticker,
+        side=side,
+        qty=qty,
+        price=price,
+        fee=fee,
+        slippage_bps=slippage_bps,
+        note=note,
     )
 
 
@@ -324,14 +269,15 @@ def _insert_snapshot(
     realized_pnl: float,
     unrealized_pnl: float,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO backtest_equity_snapshots (
-            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl),
+    insert_backtest_snapshot(
+        conn,
+        run_id=run_id,
+        snapshot_time=snapshot_time,
+        cash=cash,
+        market_value=market_value,
+        equity=equity,
+        realized_pnl=realized_pnl,
+        unrealized_pnl=unrealized_pnl,
     )
 
 
@@ -528,127 +474,8 @@ def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullR
     return _load_backtest_report_data(conn, run_id)
 
 
-def _load_backtest_report_data(
-    conn: sqlite3.Connection,
-    run_id: int,
-) -> BacktestFullReport:
-    run = conn.execute(
-        """
-        SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
-             r.tickers_file, r.notes, r.warnings, a.name AS account_name,
-             COALESCE(r.strategy_name, a.strategy) AS strategy,
-             a.benchmark_ticker,
-             a.initial_cash
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        WHERE r.id = ?
-        """,
-        (run_id,),
-    ).fetchone()
-    if run is None:
-        raise ValueError(f"Backtest run id {run_id} not found")
-
-    snapshots = conn.execute(
-        """
-        SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        FROM backtest_equity_snapshots
-        WHERE run_id = ?
-        ORDER BY snapshot_time ASC
-        """,
-        (run_id,),
-    ).fetchall()
-    trades = conn.execute(
-        """
-        SELECT trade_time, ticker, side, qty, price, fee
-        FROM backtest_trades
-        WHERE run_id = ?
-        ORDER BY trade_time, id
-        """,
-        (run_id,),
-    ).fetchall()
-
-    if not snapshots:
-        raise ValueError(f"No snapshots found for backtest run {run_id}")
-
-    first_equity = row_expect_float(snapshots[0], "equity")
-    last_equity = row_expect_float(snapshots[-1], "equity")
-
-    equity_curve = [row_float(r, "equity") for r in snapshots]
-    max_drawdown = _max_drawdown_pct([e for e in equity_curve if e is not None])
-
-    report_run_id = row_expect_int(run, "id")
-    slippage_bps = row_expect_float(run, "slippage_bps")
-    fee_per_trade = row_expect_float(run, "fee_per_trade")
-
-    summary = BacktestReportSummary(
-        run_id=report_run_id,
-        run_name=row_str(run, "run_name"),
-        account_name=row_expect_str(run, "account_name"),
-        strategy=row_expect_str(run, "strategy"),
-        start_date=row_expect_str(run, "start_date"),
-        end_date=row_expect_str(run, "end_date"),
-        created_at=row_expect_str(run, "created_at"),
-        slippage_bps=slippage_bps,
-        fee_per_trade=fee_per_trade,
-        tickers_file=row_expect_str(run, "tickers_file"),
-        warnings=run["warnings"],
-        trade_count=len(trades),
-        starting_equity=first_equity,
-        ending_equity=last_equity,
-        total_return_pct=((last_equity / first_equity) - 1.0) * 100.0,
-        max_drawdown_pct=max_drawdown,
-    )
-
-    report_snapshots = [
-        BacktestReportSnapshot(
-            snapshot_time=row_expect_str(item, "snapshot_time"),
-            cash=row_expect_float(item, "cash"),
-            market_value=row_expect_float(item, "market_value"),
-            equity=row_expect_float(item, "equity"),
-            realized_pnl=row_expect_float(item, "realized_pnl"),
-            unrealized_pnl=row_expect_float(item, "unrealized_pnl"),
-        )
-        for item in snapshots
-    ]
-    report_trades = [
-        BacktestReportTrade(
-            trade_time=row_expect_str(item, "trade_time"),
-            ticker=row_expect_str(item, "ticker"),
-            side=row_expect_str(item, "side"),
-            qty=row_expect_float(item, "qty"),
-            price=row_expect_float(item, "price"),
-            fee=row_expect_float(item, "fee"),
-        )
-        for item in trades
-    ]
-
-    benchmark_return_pct: float | None = None
-    alpha_pct: float | None = None
-    try:
-        benchmark_series = fetch_benchmark_close(
-            row_expect_str(run, "benchmark_ticker"),
-            date.fromisoformat(row_expect_str(run, "start_date")),
-            date.fromisoformat(row_expect_str(run, "end_date")),
-        )
-        benchmark_return_pct = _benchmark_return_pct(
-            benchmark_series,
-            row_expect_float(run, "initial_cash"),
-        )
-        if benchmark_return_pct is not None:
-            alpha_pct = summary.total_return_pct - benchmark_return_pct
-    except Exception:
-        benchmark_return_pct = None
-        alpha_pct = None
-
-    return BacktestFullReport(
-        summary=summary,
-        benchmark_ticker=row_expect_str(run, "benchmark_ticker"),
-        notes=run["notes"],
-        snapshots=report_snapshots,
-        trades=report_trades,
-        benchmark_return_pct=benchmark_return_pct,
-        alpha_pct=alpha_pct,
-    )
+def _load_backtest_report_data(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
+    return load_backtest_report_data(conn, run_id=run_id, fetch_benchmark_close_fn=fetch_benchmark_close)
 
 
 def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestReportSummary:
@@ -714,112 +541,13 @@ def _load_backtest_leaderboard_entries(
     account_name: str | None,
     strategy: str | None,
 ) -> list[tuple[BacktestLeaderboardEntry, float]]:
-    if limit <= 0:
-        raise ValueError("limit must be > 0")
-
-    query = """
-        SELECT
-            r.id AS run_id,
-            r.run_name,
-            r.start_date,
-            r.end_date,
-            r.created_at,
-            a.name AS account_name,
-            COALESCE(r.strategy_name, a.strategy) AS strategy,
-            a.benchmark_ticker,
-            a.initial_cash,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time ASC, s.id ASC
-                LIMIT 1
-            ) AS starting_equity,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time DESC, s.id DESC
-                LIMIT 1
-            ) AS ending_equity,
-            (
-                SELECT COUNT(*)
-                FROM backtest_trades t
-                WHERE t.run_id = r.id
-            ) AS trade_count
-        FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
-        WHERE (? IS NULL OR a.name = ?)
-                    AND (? IS NULL OR LOWER(COALESCE(r.strategy_name, a.strategy)) LIKE '%' || LOWER(?) || '%')
-        ORDER BY r.created_at DESC, r.id DESC
-        LIMIT ?
-    """
-    rows = conn.execute(
-        query,
-        (account_name, account_name, strategy, strategy, int(limit)),
-    ).fetchall()
-
-    entries: list[tuple[BacktestLeaderboardEntry, float]] = []
-    for row in rows:
-        start_equity = row_float(row, "starting_equity")
-        end_equity = row_float(row, "ending_equity")
-        if start_equity is None or end_equity is None or start_equity <= 0:
-            continue
-
-        equity_rows = conn.execute(
-            """
-            SELECT equity
-            FROM backtest_equity_snapshots
-            WHERE run_id = ?
-            ORDER BY snapshot_time ASC, id ASC
-            """,
-            (row_expect_int(row, "run_id"),),
-        ).fetchall()
-        curve = [row_float(item, "equity") for item in equity_rows]
-        max_drawdown_pct = _max_drawdown_pct([value for value in curve if value is not None])
-
-        total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
-
-        benchmark_return_pct: float | None = None
-        alpha_pct: float | None = None
-        try:
-            benchmark_series = fetch_benchmark_close(
-                row_expect_str(row, "benchmark_ticker"),
-                date.fromisoformat(row_expect_str(row, "start_date")),
-                date.fromisoformat(row_expect_str(row, "end_date")),
-            )
-            benchmark_return_pct = _benchmark_return_pct(
-                benchmark_series,
-                row_expect_float(row, "initial_cash"),
-            )
-            if benchmark_return_pct is not None:
-                alpha_pct = total_return_pct - benchmark_return_pct
-        except Exception:
-            benchmark_return_pct = None
-            alpha_pct = None
-
-        entry = BacktestLeaderboardEntry(
-            run_id=row_expect_int(row, "run_id"),
-            run_name=row_str(row, "run_name"),
-            account_name=row_expect_str(row, "account_name"),
-            strategy=row_expect_str(row, "strategy"),
-            start_date=row_expect_str(row, "start_date"),
-            end_date=row_expect_str(row, "end_date"),
-            created_at=row_expect_str(row, "created_at"),
-            trade_count=row_expect_int(row, "trade_count"),
-            ending_equity=float(end_equity),
-            total_return_pct=float(total_return_pct),
-            max_drawdown_pct=float(max_drawdown_pct),
-            benchmark_return_pct=benchmark_return_pct,
-            alpha_pct=alpha_pct,
-        )
-        entries.append((entry, float(start_equity)))
-
-    entries.sort(
-        key=lambda item: item[0].total_return_pct,
-        reverse=True,
+    return load_backtest_leaderboard_entries(
+        conn,
+        limit=limit,
+        account_name=account_name,
+        strategy=strategy,
+        fetch_benchmark_close_fn=fetch_benchmark_close,
     )
-    return entries
 
 
 def run_backtest_batch(conn: sqlite3.Connection, cfg: BacktestBatchConfig) -> list[BacktestResult]:

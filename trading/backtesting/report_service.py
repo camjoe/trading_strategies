@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+from datetime import date
+from typing import Callable
+
+import pandas as pd
+
+from trading.backtesting.metrics import benchmark_return_pct, max_drawdown_pct
+from trading.backtesting.report_repository import (
+    fetch_backtest_report_run,
+    fetch_backtest_report_snapshots,
+    fetch_backtest_report_trades,
+)
+from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.models.backtesting_reports import (
+    BacktestFullReport,
+    BacktestReportSnapshot,
+    BacktestReportSummary,
+    BacktestReportTrade,
+)
+
+
+BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]
+
+
+def load_backtest_report_data(
+    conn,
+    *,
+    run_id: int,
+    fetch_benchmark_close_fn: BenchmarkFetcher,
+) -> BacktestFullReport:
+    run = fetch_backtest_report_run(conn, run_id)
+    if run is None:
+        raise ValueError(f"Backtest run id {run_id} not found")
+
+    snapshots = fetch_backtest_report_snapshots(conn, run_id)
+    trades = fetch_backtest_report_trades(conn, run_id)
+
+    if not snapshots:
+        raise ValueError(f"No snapshots found for backtest run {run_id}")
+
+    first_equity = row_expect_float(snapshots[0], "equity")
+    last_equity = row_expect_float(snapshots[-1], "equity")
+
+    equity_curve = [row_float(item, "equity") for item in snapshots]
+    max_drawdown = max_drawdown_pct([value for value in equity_curve if value is not None])
+
+    summary = BacktestReportSummary(
+        run_id=row_expect_int(run, "id"),
+        run_name=row_str(run, "run_name"),
+        account_name=row_expect_str(run, "account_name"),
+        strategy=row_expect_str(run, "strategy"),
+        start_date=row_expect_str(run, "start_date"),
+        end_date=row_expect_str(run, "end_date"),
+        created_at=row_expect_str(run, "created_at"),
+        slippage_bps=row_expect_float(run, "slippage_bps"),
+        fee_per_trade=row_expect_float(run, "fee_per_trade"),
+        tickers_file=row_expect_str(run, "tickers_file"),
+        warnings=run["warnings"],
+        trade_count=len(trades),
+        starting_equity=first_equity,
+        ending_equity=last_equity,
+        total_return_pct=((last_equity / first_equity) - 1.0) * 100.0,
+        max_drawdown_pct=max_drawdown,
+    )
+
+    report_snapshots = [
+        BacktestReportSnapshot(
+            snapshot_time=row_expect_str(item, "snapshot_time"),
+            cash=row_expect_float(item, "cash"),
+            market_value=row_expect_float(item, "market_value"),
+            equity=row_expect_float(item, "equity"),
+            realized_pnl=row_expect_float(item, "realized_pnl"),
+            unrealized_pnl=row_expect_float(item, "unrealized_pnl"),
+        )
+        for item in snapshots
+    ]
+    report_trades = [
+        BacktestReportTrade(
+            trade_time=row_expect_str(item, "trade_time"),
+            ticker=row_expect_str(item, "ticker"),
+            side=row_expect_str(item, "side"),
+            qty=row_expect_float(item, "qty"),
+            price=row_expect_float(item, "price"),
+            fee=row_expect_float(item, "fee"),
+        )
+        for item in trades
+    ]
+
+    benchmark_ret: float | None = None
+    alpha_pct: float | None = None
+    try:
+        benchmark_series = fetch_benchmark_close_fn(
+            row_expect_str(run, "benchmark_ticker"),
+            date.fromisoformat(row_expect_str(run, "start_date")),
+            date.fromisoformat(row_expect_str(run, "end_date")),
+        )
+        benchmark_ret = benchmark_return_pct(benchmark_series, row_expect_float(run, "initial_cash"))
+        if benchmark_ret is not None:
+            alpha_pct = summary.total_return_pct - benchmark_ret
+    except Exception:
+        benchmark_ret = None
+        alpha_pct = None
+
+    return BacktestFullReport(
+        summary=summary,
+        benchmark_ticker=row_expect_str(run, "benchmark_ticker"),
+        notes=run["notes"],
+        snapshots=report_snapshots,
+        trades=report_trades,
+        benchmark_return_pct=benchmark_ret,
+        alpha_pct=alpha_pct,
+    )
