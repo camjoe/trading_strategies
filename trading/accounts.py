@@ -1,5 +1,6 @@
 import sqlite3
 from typing import Callable
+
 from common.time import utc_now_iso
 from trading.database.db_backend import DuplicateRecordError
 from trading.coercion import coerce_float, coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
@@ -11,6 +12,7 @@ from trading.repositories.accounts_repository import (
     update_account_benchmark,
     update_account_fields,
 )
+from trading.services.accounts_service import build_account_listing_lines
 
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -207,34 +209,6 @@ def _validate_option_settings_from_inputs(
         iv_max,
     )
 
-
-def format_goal_text(row: sqlite3.Row) -> str:
-    min_goal = row_float(row, "goal_min_return_pct")
-    max_goal = row_float(row, "goal_max_return_pct")
-    goal_period = row_str(row, "goal_period") or "period"
-    if min_goal is None and max_goal is None:
-        return "not-set"
-    if min_goal is not None and max_goal is not None:
-        return f"{min_goal:.2f}% to {max_goal:.2f}% per {goal_period}"
-    if min_goal is not None:
-        return f">= {min_goal:.2f}% per {goal_period}"
-    return f"<= {max_goal:.2f}% per {goal_period}"
-
-
-def _account_summary_line(row: sqlite3.Row) -> str:
-    goal_text = format_goal_text(row)
-    initial_cash = row_float(row, "initial_cash")
-    learning_enabled = row_int(row, "learning_enabled")
-    initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
-    return (
-        f"[{row['id']}] {row['name']} ({row['descriptive_name']}) | strategy={row['strategy']} | "
-        f"initial_cash={initial_cash_text} | benchmark={row['benchmark_ticker']} | "
-        f"goal={goal_text} | learning={'on' if learning_enabled else 'off'} | "
-        f"risk={row['risk_policy']} | instrument={row['instrument_mode']} | "
-        f"created={row['created_at']}"
-    )
-
-
 def create_account(
     conn: sqlite3.Connection,
     name: str,
@@ -333,18 +307,8 @@ def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
     if not accounts:
         print("No paper accounts found.")
         return
-    if by_strategy:
-        current_strategy = None
-        for account in accounts:
-            if account["strategy"] != current_strategy:
-                if current_strategy is not None:
-                    print()
-                current_strategy = account["strategy"]
-                print(f"Strategy: {current_strategy}")
-            print(f"  {_account_summary_line(account)}")
-    else:
-        for account in accounts:
-            print(_account_summary_line(account))
+    for line in build_account_listing_lines(accounts, by_strategy=by_strategy):
+        print(line)
 
 
 def configure_account(

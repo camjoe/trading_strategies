@@ -113,3 +113,5 @@ CLI defaults use `trading/config/account_profiles/default.json`.
 
 Account-name loading helpers in `trading/accounts.py` delegate through `trading/repositories/accounts_repository.py`.
 Profile update and compare-strategies account-listing paths also delegate through repository adapters.
+Trade loading and insert paths in `trading/accounting.py` now delegate through `trading/repositories/trades_repository.py`.
+Account listing presentation is composed in `trading/services/accounts_service.py` so `trading/accounts.py` stays focused on account lifecycle validation and orchestration.
