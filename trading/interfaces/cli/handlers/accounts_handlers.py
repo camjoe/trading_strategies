@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-from trading.handlers.shared import common_account_config_kwargs
+from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
+from trading.profile_source import get_builtin_profile_preset_path
 
 
 def _print_profiles_result(prefix: str, created: int, updated: int, skipped: int) -> None:
@@ -54,11 +54,7 @@ def handle_apply_account_profiles(conn, args, parser, *, deps: dict[str, Any], m
 
 
 def handle_apply_account_preset(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
-    preset_file = (
-        Path(module_file).resolve().parent
-        / "account_profiles"
-        / f"{args.preset.strip().lower()}.json"
-    )
+    preset_file = get_builtin_profile_preset_path(args.preset)
     profiles = deps["load_account_profiles"](str(preset_file))
     created, updated, skipped = deps["apply_account_profiles"](
         conn,

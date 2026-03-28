@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import argparse
 
-from trading.cli_commands.accounts import add_account_commands
-from trading.cli_commands.backtesting import add_backtesting_commands
-from trading.cli_commands.options import add_option_args
-from trading.cli_commands.reporting import add_reporting_commands
+from trading.interfaces.cli.commands.accounts import add_account_commands
+from trading.interfaces.cli.commands.backtesting import add_backtesting_commands
+from trading.interfaces.cli.commands.options import add_option_args
+from trading.interfaces.cli.commands.reporting import add_reporting_commands
 
 
 def build_parser() -> argparse.ArgumentParser:

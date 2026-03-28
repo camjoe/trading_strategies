@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
+from trading.profile_source import DEFAULT_ACCOUNT_PROFILES_FILE
+
 
 def add_account_commands(
     sub: argparse._SubParsersAction[argparse.ArgumentParser],
@@ -36,8 +38,8 @@ def add_account_commands(
     )
     p_apply_profiles.add_argument(
         "--file",
-        default="trading/account_profiles/default.json",
-        help="Path to JSON account profile file (default: trading/account_profiles/default.json)",
+        default=DEFAULT_ACCOUNT_PROFILES_FILE,
+        help=f"Path to JSON account profile file (default: {DEFAULT_ACCOUNT_PROFILES_FILE})",
     )
     p_apply_profiles.add_argument(
         "--no-create-missing",

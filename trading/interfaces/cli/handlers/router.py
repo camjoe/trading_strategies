@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from trading.handlers.accounts_handlers import (
+from trading.interfaces.cli.handlers.accounts_handlers import (
     handle_apply_account_preset,
     handle_apply_account_profiles,
     handle_configure_account,
@@ -12,14 +12,14 @@ from trading.handlers.accounts_handlers import (
     handle_set_benchmark,
     handle_trade,
 )
-from trading.handlers.backtesting_handlers import (
+from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
     handle_backtest_leaderboard,
     handle_backtest_report,
     handle_backtest_walk_forward,
 )
-from trading.handlers.reporting_handlers import (
+from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
     handle_report,
     handle_snapshot,

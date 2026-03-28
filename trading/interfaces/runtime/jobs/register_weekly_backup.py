@@ -31,6 +31,8 @@ CRON_DAYS = {
     "sunday": 0,
 }
 
+WEEKLY_BACKUP_MODULE = "trading.interfaces.runtime.jobs.weekly_db_backup"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Register weekly backup schedule.")
@@ -64,7 +66,7 @@ def validate_time(value: str) -> tuple[int, int]:
 def windows_register(args: argparse.Namespace) -> int:
     day_key = validate_day(args.day_of_week)
     validate_time(args.time)
-    task_command = f'"{Path(args.python).resolve()}" -m trading.scripts.weekly_db_backup'
+    task_command = f'"{Path(args.python).resolve()}" -m {WEEKLY_BACKUP_MODULE}'
     cmd = [
         "schtasks",
         "/Create",
@@ -122,7 +124,7 @@ def linux_register(args: argparse.Namespace, repo_root: Path) -> int:
     log_path = repo_root / "local" / "logs" / "weekly_db_backup_cron.log"
     cron_line = (
         f"{minute} {hour} * * {CRON_DAYS[day_key]} "
-        f"cd {repo_root} && {python_exe} -m trading.scripts.weekly_db_backup >> {log_path} 2>&1 {marker}"
+        f"cd {repo_root} && {python_exe} -m {WEEKLY_BACKUP_MODULE} >> {log_path} 2>&1 {marker}"
     )
 
     lines = [line for line in load_crontab_lines() if marker not in line]

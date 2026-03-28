@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Callable
 
 from common.repo_paths import get_repo_root
-from trading.scripts.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
 from trading.accounts import load_all_account_names
+from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -88,7 +88,6 @@ def is_transient_error(output: str) -> bool:
 
 
 def retry_delay_seconds(base_delay_seconds: float, attempt_number: int) -> float:
-    # attempt_number is 1-based for human-readable logging.
     return max(base_delay_seconds, 0.0) * (2 ** (attempt_number - 1))
 
 

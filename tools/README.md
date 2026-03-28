@@ -16,3 +16,4 @@ Recent tooling note:
 Additional workflow notes:
 
 - `python -m scripts.ci_smoke` is the primary local audit command mirroring CI core checks.
+- Trading structure planning notes are tracked in `docs/architecture/trading-structure-migration-plan.md`.

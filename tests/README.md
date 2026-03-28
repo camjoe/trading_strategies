@@ -38,3 +38,4 @@ python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
 
 - Full repository validation remains `python -m pytest` from repo root.
 - Cross-stack smoke validation is `python -m scripts.ci_smoke`.
+- For parser/default-path changes, include focused checks for `tests/trading/test_cli.py` and `tests/trading/test_paper_trading.py`.

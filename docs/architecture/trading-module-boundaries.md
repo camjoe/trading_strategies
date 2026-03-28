@@ -2,6 +2,8 @@
 
 Purpose: clarify ownership and dependency direction so the trading app is easier to extend safely.
 
+Related plan: `docs/architecture/trading-structure-migration-plan.md`
+
 ## Current Domain Areas
 
 - Account domain
@@ -39,11 +41,11 @@ Completed in this iteration:
 
 1. Introduced `trading/backtesting/history.py`.
 2. Moved auto-trader optimal-strategy history query behind `fetch_strategy_backtest_returns(...)`.
-3. Split CLI parser assembly into grouped modules in `trading/cli_commands/`.
+3. Split CLI parser assembly into grouped modules in `trading/interfaces/cli/commands/`.
 4. Converted `trading.models` from a single file to a package (`trading/models/`).
-5. Extracted paper trading command handlers into grouped modules under `trading/handlers/` with explicit dependency wiring.
+5. Extracted paper trading command handlers into grouped modules under `trading/interfaces/cli/handlers/` with explicit dependency wiring.
 6. Added backtesting config/result dataclasses in `trading/models/backtesting.py`.
-7. Split command dispatch implementation into grouped modules under `trading/handlers/`.
+7. Split command dispatch implementation into grouped modules under `trading/interfaces/cli/handlers/`.
 8. Extracted account persistence SQL into `trading/repositories/accounts_repository.py` and rewired `trading/accounts.py` as a domain/service facade.
 9. Extracted snapshot persistence SQL into `trading/repositories/snapshots_repository.py` and rewired `trading/reporting.py` to consume repository adapters.
 10. Extracted auto-trader orchestration into dedicated services consumed by `trading/auto_trader.py` wrappers for API/test compatibility.
@@ -94,8 +96,9 @@ Use direct imports from concrete grouped modules rather than import-only facades
 Preferred:
 
 ```python
-from trading.handlers.router import dispatch_command
-from trading.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
+from trading.interfaces.cli.commands import build_parser
+from trading.interfaces.cli.handlers.router import dispatch_command
+from trading.interfaces.cli.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
 from trading.services.rotation_service import select_optimal_strategy
 from trading.services.trade_execution_service import run_for_account
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns

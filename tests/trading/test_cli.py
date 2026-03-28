@@ -1,6 +1,6 @@
 import pytest
 
-from trading.cli_commands import build_parser
+from trading.interfaces.cli.commands import build_parser
 
 
 class TestBuildParserCore:
@@ -163,7 +163,7 @@ class TestProfileParserDefaults:
 
         args = parser.parse_args(["apply-account-profiles"])
 
-        assert args.file == "trading/account_profiles/default.json"
+        assert args.file == "trading/config/account_profiles/default.json"
         assert args.no_create_missing is False
 
     def test_apply_account_preset_requires_choice(self):
