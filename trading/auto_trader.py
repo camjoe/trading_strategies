@@ -6,12 +6,12 @@ from datetime import UTC, datetime, timedelta
 from typing import TypeAlias
 
 from common.market_data import get_provider
+from common.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
 from common.time import utc_now_iso
-from common.repo_paths import get_repo_root
-
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
+from trading.backtesting.services.history_service import load_strategy_backtest_returns
 from trading.coercion import coerce_float
 from trading.database.db import ensure_db
 from trading.models import AccountState
@@ -100,7 +100,9 @@ def estimate_delta(abs_strike_offset_pct: float) -> float:
     return max(0.05, min(0.95, 0.55 - (abs(abs_strike_offset_pct) / 100.0)))
 
 
-def estimate_option_premium(underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None) -> float:
+def estimate_option_premium(
+    underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None
+) -> float:
     dte_mid = 240.0
     if min_dte is not None and max_dte is not None:
         dte_mid = (float(min_dte) + float(max_dte)) / 2.0
@@ -176,7 +178,9 @@ def choose_sell_ticker_by_risk(
     return random.choice(list(dict.fromkeys(candidates)))
 
 
-def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool) -> str:
+def choose_buy_ticker(
+    universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
+) -> str:
     if not learning_enabled:
         return random.choice(universe)
 
@@ -200,7 +204,9 @@ def choose_buy_ticker(universe: list[str], prices: dict[str, float], state: Acco
     return random.choice([t for _score, t in scored[:top_n]])
 
 
-def choose_sell_ticker(can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool) -> str:
+def choose_sell_ticker(
+    can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
+) -> str:
     if not learning_enabled:
         return random.choice(can_sell)
 
@@ -221,6 +227,112 @@ def choose_sell_ticker(can_sell: list[str], prices: dict[str, float], state: Acc
 
 BuyTradeSelection: TypeAlias = tuple[str, int, float, float | None, float | None]
 SellTradeSelection: TypeAlias = tuple[str, int, float]
+
+
+def _refresh_account_state(conn: sqlite3.Connection, account: sqlite3.Row) -> AccountState:
+    return compute_account_state(account["initial_cash"], load_trades(conn, account["id"]))
+
+
+def _resolve_forced_sell_ticker(
+    can_sell: list[str],
+    prices: dict[str, float],
+    state: AccountState,
+    risk_policy: str,
+    stop_loss_pct: float | None,
+    take_profit_pct: float | None,
+) -> str | None:
+    return choose_sell_ticker_by_risk(
+        can_sell,
+        prices,
+        state,
+        risk_policy,
+        stop_loss_pct,
+        take_profit_pct,
+    )
+
+
+def _prepare_trade_selection(
+    account: sqlite3.Row,
+    active_strategy: str | None,
+    state: AccountState,
+    can_sell: list[str],
+    forced_sell: str | None,
+    universe: list[str],
+    prices: dict[str, float],
+    iv_rank_proxy: dict[str, float],
+    learning_enabled: bool,
+    instrument_mode: str,
+    fee: float,
+) -> tuple[str, str, int, float, float | None, float | None] | None:
+    side = _choose_side(forced_sell, can_sell, active_strategy)
+
+    delta_est: float | None = None
+    iv_est: float | None = None
+
+    if side == "buy":
+        prepared_buy = _prepare_buy_trade(
+            account,
+            instrument_mode,
+            universe,
+            prices,
+            iv_rank_proxy,
+            state,
+            learning_enabled,
+            fee,
+        )
+        if prepared_buy is None:
+            return None
+        ticker, qty, trade_price, delta_est, iv_est = prepared_buy
+    else:
+        prepared_sell = _prepare_sell_trade(
+            can_sell,
+            forced_sell,
+            prices,
+            state,
+            learning_enabled,
+            instrument_mode,
+        )
+        if prepared_sell is None:
+            return None
+        ticker, qty, trade_price = prepared_sell
+
+    return side, ticker, qty, trade_price, delta_est, iv_est
+
+
+def _record_prepared_trade(
+    conn: sqlite3.Connection,
+    account_name: str,
+    account: sqlite3.Row,
+    learning_enabled: bool,
+    risk_policy: str,
+    instrument_mode: str,
+    active_strategy: str | None,
+    fee: float,
+    selection: tuple[str, str, int, float, float | None, float | None],
+    forced_sell: str | None,
+) -> None:
+    side, ticker, qty, trade_price, delta_est, iv_est = selection
+    record_trade(
+        conn,
+        account_name=account_name,
+        side=side,
+        ticker=ticker,
+        qty=qty,
+        price=trade_price,
+        fee=fee,
+        trade_time=utc_now_iso(),
+        note=_build_trade_note(
+            learning_enabled,
+            forced_sell,
+            risk_policy,
+            instrument_mode,
+            account,
+            side,
+            delta_est,
+            iv_est,
+            active_strategy,
+        ),
+    )
 
 
 def _build_leaps_candidates(
@@ -391,48 +503,20 @@ def _select_optimal_strategy(
     end_day = as_of_dt.date().isoformat()
     start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
 
-    placeholders = ",".join(["?"] * len(schedule))
-    rows = conn.execute(
-        f"""
-        SELECT
-            r.strategy_name,
-            r.end_date,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time ASC, s.id ASC
-                LIMIT 1
-            ) AS starting_equity,
-            (
-                SELECT s.equity
-                FROM backtest_equity_snapshots s
-                WHERE s.run_id = r.id
-                ORDER BY s.snapshot_time DESC, s.id DESC
-                LIMIT 1
-            ) AS ending_equity
-        FROM backtest_runs r
-        WHERE r.account_id = ?
-          AND r.strategy_name IN ({placeholders})
-          AND r.end_date >= ?
-          AND r.end_date <= ?
-        ORDER BY r.end_date DESC, r.id DESC
-        """,
-        (account["id"], *schedule, start_day, end_day),
-    ).fetchall()
+    returns = load_strategy_backtest_returns(
+        conn,
+        account_id=int(account["id"]),
+        strategy_names=schedule,
+        start_day=start_day,
+        end_day=end_day,
+    )
 
-    if not rows:
+    if not returns:
         return None
 
     by_strategy: dict[str, list[float]] = {}
     latest_by_strategy: dict[str, float] = {}
-    for row in rows:
-        strategy_name = str(row["strategy_name"] or "").strip()
-        if not strategy_name:
-            continue
-        ret = _safe_return_pct(row["starting_equity"], row["ending_equity"])
-        if ret is None:
-            continue
+    for strategy_name, ret in returns:
         by_strategy.setdefault(strategy_name, []).append(ret)
         if strategy_name not in latest_by_strategy:
             latest_by_strategy[strategy_name] = ret
@@ -552,10 +636,9 @@ def run_for_account(
     target = random.randint(min_trades, max_trades)
     executed = 0
     for _ in range(target):
-        state = compute_account_state(account["initial_cash"], load_trades(conn, account["id"]))
-        can_sell = [t for t, q in state.positions.items() if q >= 1]
-
-        forced_sell = choose_sell_ticker_by_risk(
+        state = _refresh_account_state(conn, account)
+        can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
+        forced_sell = _resolve_forced_sell_ticker(
             can_sell,
             prices,
             state,
@@ -564,60 +647,33 @@ def run_for_account(
             take_profit_pct,
         )
 
-        side = _choose_side(forced_sell, can_sell, active_strategy)
+        selection = _prepare_trade_selection(
+            account,
+            active_strategy,
+            state,
+            can_sell,
+            forced_sell,
+            universe,
+            prices,
+            iv_rank_proxy,
+            learning_enabled,
+            instrument_mode,
+            fee,
+        )
+        if selection is None:
+            continue
 
-        delta_est: float | None = None
-        iv_est: float | None = None
-
-        if side == "buy":
-            prepared_buy = _prepare_buy_trade(
-                account,
-                instrument_mode,
-                universe,
-                prices,
-                iv_rank_proxy,
-                state,
-                learning_enabled,
-                fee,
-            )
-            if prepared_buy is None:
-                continue
-
-            ticker, qty, trade_price, delta_est, iv_est = prepared_buy
-        else:
-            prepared_sell = _prepare_sell_trade(
-                can_sell,
-                forced_sell,
-                prices,
-                state,
-                learning_enabled,
-                instrument_mode,
-            )
-            if prepared_sell is None:
-                continue
-
-            ticker, qty, trade_price = prepared_sell
-
-        record_trade(
+        _record_prepared_trade(
             conn,
-            account_name=account_name,
-            side=side,
-            ticker=ticker,
-            qty=qty,
-            price=trade_price,
-            fee=fee,
-            trade_time=utc_now_iso(),
-            note=_build_trade_note(
-                learning_enabled,
-                forced_sell,
-                risk_policy,
-                instrument_mode,
-                account,
-                side,
-                delta_est,
-                iv_est,
-                active_strategy,
-            ),
+            account_name,
+            account,
+            learning_enabled,
+            risk_policy,
+            instrument_mode,
+            active_strategy,
+            fee,
+            selection,
+            forced_sell,
         )
         executed += 1
 

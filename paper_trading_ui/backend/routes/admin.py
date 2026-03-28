@@ -1,0 +1,120 @@
+﻿from __future__ import annotations
+
+from fastapi import APIRouter, HTTPException, Query
+
+from trading.accounts import create_account
+from trading.database.db_backend import DuplicateRecordError
+
+from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
+from ..services import (
+    get_account_row,
+    build_account_summary,
+    clean_text,
+    db_conn,
+    delete_account_and_dependents,
+    build_rotation_schedule_json,
+    list_csv_exports,
+    preview_csv_export,
+)
+from ..config import TEST_ACCOUNT_NAME
+
+router = APIRouter()
+
+
+@router.post("/api/admin/accounts/create")
+def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, object]:
+    with db_conn() as conn:
+        try:
+            create_account(
+                conn,
+                name=payload.name.strip(),
+                strategy=payload.strategy.strip(),
+                initial_cash=float(payload.initialCash),
+                benchmark_ticker=payload.benchmarkTicker.strip().upper(),
+                descriptive_name=clean_text(payload.descriptiveName),
+                goal_min_return_pct=payload.goalMinReturnPct,
+                goal_max_return_pct=payload.goalMaxReturnPct,
+                goal_period=payload.goalPeriod,
+                learning_enabled=bool(payload.learningEnabled),
+                risk_policy=payload.riskPolicy,
+                stop_loss_pct=payload.stopLossPct,
+                take_profit_pct=payload.takeProfitPct,
+                instrument_mode=payload.instrumentMode,
+                option_strike_offset_pct=payload.optionStrikeOffsetPct,
+                option_min_dte=payload.optionMinDte,
+                option_max_dte=payload.optionMaxDte,
+                option_type=clean_text(payload.optionType),
+                target_delta_min=payload.targetDeltaMin,
+                target_delta_max=payload.targetDeltaMax,
+                max_premium_per_trade=payload.maxPremiumPerTrade,
+                max_contracts_per_trade=payload.maxContractsPerTrade,
+                iv_rank_min=payload.ivRankMin,
+                iv_rank_max=payload.ivRankMax,
+                roll_dte_threshold=payload.rollDteThreshold,
+                profit_take_pct=payload.profitTakePct,
+                max_loss_pct=payload.maxLossPct,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except DuplicateRecordError as error:
+            raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
+
+        conn.execute(
+            """
+            UPDATE accounts
+            SET rotation_enabled = ?,
+                rotation_mode = ?,
+                rotation_optimality_mode = ?,
+                rotation_interval_days = ?,
+                rotation_lookback_days = ?,
+                rotation_schedule = ?,
+                rotation_active_index = ?,
+                rotation_last_at = ?,
+                rotation_active_strategy = ?
+            WHERE name = ?
+            """,
+            (
+                1 if payload.rotationEnabled else 0,
+                payload.rotationMode.strip().lower(),
+                payload.rotationOptimalityMode.strip().lower(),
+                payload.rotationIntervalDays,
+                payload.rotationLookbackDays,
+                build_rotation_schedule_json(payload.rotationSchedule),
+                int(payload.rotationActiveIndex),
+                clean_text(payload.rotationLastAt),
+                clean_text(payload.rotationActiveStrategy),
+                payload.name.strip(),
+            ),
+        )
+        conn.commit()
+
+        account = get_account_row(conn, payload.name.strip())
+        return {"status": "ok", "account": build_account_summary(conn, account)}
+
+
+@router.post("/api/admin/accounts/delete")
+def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, object]:
+    if not payload.confirm:
+        raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
+
+    if payload.accountName.strip() == TEST_ACCOUNT_NAME:
+        raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
+
+    with db_conn() as conn:
+        counts = delete_account_and_dependents(conn, payload.accountName.strip())
+        return {"status": "ok", "deleted": counts}
+
+
+@router.get("/api/admin/exports/csv")
+def api_csv_exports() -> dict[str, object]:
+    return list_csv_exports()
+
+
+@router.get("/api/admin/exports/csv/preview")
+def api_csv_export_preview(
+    exportName: str = Query(..., min_length=1),
+    fileName: str = Query(..., min_length=1),
+    limit: int = Query(default=200, ge=1, le=2000),
+) -> dict[str, object]:
+    return preview_csv_export(exportName, fileName, limit)
+

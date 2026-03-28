@@ -77,6 +77,24 @@ def _compact_positions(
     return open_positions, open_avg_cost
 
 
+def _apply_trade_to_state(
+    trade: sqlite3.Row,
+    positions: dict[str, float],
+    avg_cost: dict[str, float],
+    cash: float,
+    realized: float,
+) -> tuple[float, float]:
+    ticker, side, qty, price, fee = _normalize_trade_fields(trade)
+    _validate_trade_values(qty, price)
+
+    if side == "buy":
+        return _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized
+    if side == "sell":
+        return _apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
+
+    raise ValueError(f"Unsupported side: {side}")
+
+
 def _normalize_order_input(side: str, ticker: str) -> tuple[str, str]:
     normalized_side = side.lower().strip()
     normalized_ticker = ticker.upper().strip()
@@ -126,27 +144,7 @@ def compute_account_state(initial_cash: float, trades: list[sqlite3.Row]) -> Acc
     realized = 0.0
 
     for trade in trades:
-        ticker, side, qty, price, fee = _normalize_trade_fields(trade)
-        _validate_trade_values(qty, price)
-
-        if side == "buy":
-            cash = _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash)
-            continue
-
-        if side == "sell":
-            cash, realized = _apply_sell(
-                ticker,
-                qty,
-                price,
-                fee,
-                positions,
-                avg_cost,
-                cash,
-                realized,
-            )
-            continue
-
-        raise ValueError(f"Unsupported side: {side}")
+        cash, realized = _apply_trade_to_state(trade, positions, avg_cost, cash, realized)
 
     positions, avg_cost = _compact_positions(positions, avg_cost)
 

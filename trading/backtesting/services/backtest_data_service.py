@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+
 from common.market_data import get_provider
 from common.tickers import load_tickers_from_file
 
