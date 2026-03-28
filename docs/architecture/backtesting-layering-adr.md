@@ -34,30 +34,14 @@ Adopt a layered structure for backtesting:
 - Keep existing public APIs stable while internals move behind layers.
 - Wrappers convert typed models to legacy payload shapes where needed.
 
-## Current Module Map
+## Implementation Map
 
-Repository modules:
+Use these docs for the current module map and ownership locations:
 
-- trading/backtesting/repositories/backtest_repository.py
-- trading/backtesting/repositories/leaderboard_repository.py
-- trading/backtesting/repositories/report_repository.py
+- `docs/backtesting.md`
+- `trading/backtesting/README.md`
 
-Service modules:
-
-- trading/backtesting/services/leaderboard_service.py
-- trading/backtesting/services/report_service.py
-- trading/backtesting/services/walk_forward_service.py
-
-Domain helpers:
-
-- trading/backtesting/domain/metrics.py
-- trading/backtesting/domain/windowing.py
-- trading/backtesting/domain/risk_warnings.py
-- trading/backtesting/domain/simulation_math.py
-
-Orchestration and compatibility entrypoints:
-
-- trading/backtesting/backtest.py
+This ADR intentionally records the decision and guardrails, not a volatile file inventory.
 
 ## Consequences
 

@@ -4,9 +4,8 @@ This package uses explicit layers to keep responsibilities clear.
 
 ## Entry Points
 
-- `backtest.py`: public API and compatibility wrappers.
+- `backtest.py`: public API entrypoint.
   - Orchestrates calls into service and repository layers.
-  - Preserves stable function signatures used by CLI and backend.
 
 ## Layers
 
@@ -26,26 +25,16 @@ This package uses explicit layers to keep responsibilities clear.
 - `domain/`: pure reusable backtesting logic.
   - `indicators_adapter.py`: indicator import adapter boundary for trends package.
   - `metrics.py`: drawdown and benchmark-return calculations.
-  - `strategy_signals.py`: strategy signal rules and registry.
   - `windowing.py`: walk-forward date window generation.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
-
-## Compatibility Modules
-
-Top-level modules are retained as thin wrappers for backward compatibility:
-
-- `backtest_data.py`
-- `history.py`
-- `strategy_signals.py`
-- `indicators_adapter.py`
 
 ## Hook-Up Flow
 
 1. Caller invokes `backtest.py` public function.
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
-4. Typed models remain in `trading/models/`; wrappers convert to legacy payloads where required.
+4. Typed models remain in `trading/models/` for shared contracts.
 
 ## Naming Convention
 

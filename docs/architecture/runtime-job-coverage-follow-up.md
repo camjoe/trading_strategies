@@ -72,7 +72,7 @@ These are worth covering, but they are less urgent than the runtime jobs above.
      - default `trends/assets/run_tickers.txt` fallback branch
      - final default `['AAPL']` fallback
 
-4. `trading/database/admin.py`
+4. `trading/interfaces/runtime/data_ops/admin.py`
    - Core destructive paths already have meaningful tests.
    - Remaining gaps are mostly parser/listing/output paths, so this is a cleanup target rather than an immediate operational risk.
 
@@ -102,7 +102,7 @@ Context:
   1. trends/charts.py
   2. trends/indicators.py
   3. trends/tickers.py
-  4. trading/database/admin.py
+  4. trading/interfaces/runtime/data_ops/admin.py
 
 Instructions:
 - First inspect current tests and coverage gaps before editing.

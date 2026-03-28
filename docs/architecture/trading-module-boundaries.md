@@ -1,118 +1,98 @@
-# Trading Module Boundaries (Draft)
+# Trading Architecture Guide
 
-Purpose: clarify ownership and dependency direction so the trading app is easier to extend safely.
+Purpose: single source of truth for trading project structure, ownership boundaries, naming conventions, and active cleanup priorities.
 
-Related plan: `docs/architecture/trading-structure-migration-plan.md`
+## Canonical Package Map
 
-## Current Domain Areas
+- `trading/interfaces/cli/`
+  - CLI adapters (parser composition and command handlers).
+  - Keep transport/input wiring here, not domain logic.
 
-- Account domain
-  - Files: `trading/accounts.py`, `trading/accounting.py`, `trading/reporting.py`
-  - Responsibility: account metadata, trade ledger accounting, account-level reporting.
+- `trading/interfaces/runtime/jobs/`
+  - Scheduler and runtime orchestration entrypoints (daily runs, health checks, registration tasks).
 
-- Execution domain
-  - Files: `trading/auto_trader.py`, `trading/paper_trading.py`
-  - Responsibility: orchestrating daily paper trades and command dispatch.
+- `trading/interfaces/runtime/data_ops/`
+  - Operator-facing DB admin/export flows.
+  - Canonical location for backup/export/delete operations.
 
-- Backtesting domain
-  - Folder: `trading/backtesting/`
-  - Responsibility: historical simulation, walk-forward runs, and backtest analytics.
+- `trading/services/`
+  - Application orchestration that coordinates domain logic and repositories.
 
-- Infrastructure domain
-  - Folder: `trading/database/`
-  - Responsibility: SQLite schema/backends, DB config, and DB value coercion.
+- `trading/domain/`
+  - Pure policy and decision logic.
+  - No DB, CLI, subprocess, or network side effects.
 
-- Runtime data operations
-  - Folder: `trading/interfaces/runtime/data_ops/`
-  - Responsibility: operator-facing database admin and CSV export tooling.
+- `trading/repositories/`
+  - SQL persistence adapters and row-level data access helpers.
 
-## Dependency Direction (Target)
+- `trading/database/`
+  - DB infrastructure only: schema init/evolution, backend selection, path/config, and coercion helpers.
+  - Note: `trading/database/admin.py` and `trading/database/csv_export.py` are compatibility shims, not canonical implementations.
+
+- `trading/backtesting/`
+  - Backtesting feature package with its own repository/service/domain layering.
+  - See `docs/architecture/backtesting-layering-adr.md` for backtesting-specific layering decisions.
+
+- `trading/config/`
+  - File-backed static config assets (for example account profile presets).
+
+## Dependency Direction
 
 Preferred direction:
 
-1. Entry points and orchestrators may depend on domain services.
-2. Domain services may depend on infrastructure adapters.
-3. Domain modules should avoid reaching into another domain's private tables or SQL directly.
-
-Concretely:
-
-- `trading/auto_trader.py` should consume backtesting history through backtesting helpers, not inline SQL against `backtest_*` tables.
-- Backtesting SQL and backtest-specific schema assumptions should stay inside `trading/backtesting/`.
-
-## Low-Risk Refactor Slices
-
-Completed in this iteration:
-
-1. Introduced `trading/backtesting/history.py`.
-2. Moved auto-trader optimal-strategy history query behind `fetch_strategy_backtest_returns(...)`.
-3. Split CLI parser assembly into grouped modules in `trading/interfaces/cli/commands/`.
-4. Converted `trading.models` from a single file to a package (`trading/models/`).
-5. Extracted paper trading command handlers into grouped modules under `trading/interfaces/cli/handlers/` with explicit dependency wiring.
-6. Added backtesting config/result dataclasses in `trading/models/backtesting.py`.
-7. Split command dispatch implementation into grouped modules under `trading/interfaces/cli/handlers/`.
-8. Extracted account persistence SQL into `trading/repositories/accounts_repository.py` and rewired `trading/accounts.py` as a domain/service facade.
-9. Extracted snapshot persistence SQL into `trading/repositories/snapshots_repository.py` and rewired `trading/reporting.py` to consume repository adapters.
-10. Extracted auto-trader orchestration into dedicated services consumed by `trading/auto_trader.py` wrappers for API/test compatibility.
-11. Extracted auto-trader policy logic into `trading/domain/auto_trader_policy.py` and moved rotation state update SQL into `trading/repositories/rotation_repository.py`.
-12. Split auto-trader services into `trading/services/rotation_service.py` and `trading/services/trade_execution_service.py`.
-13. Extracted `run_backtest(...)` orchestration into `trading/backtesting/services/execution_service.py` and kept `trading/backtesting/backtest.py` as wrapper preserving existing monkeypatch seams.
-14. Standardized backtesting service read APIs to `fetch_*` and removed legacy `load_*` aliases.
-15. Migrated direct imports to concrete handler/service modules and removed import-only facades.
-16. Moved DB admin/export logic to `trading/interfaces/runtime/data_ops/` and narrowed `trading/database/` to infrastructure concerns.
-
-Planned next slices:
-
-1. Continue extracting any future backtest-table reads in non-backtesting modules into `trading/backtesting/history.py`.
-2. Consider moving additional shared reporting/output DTOs into `trading/models/`.
-3. Continue replacing compatibility wrappers with direct imports once test monkeypatch seams are no longer required.
-
-## Why Only One Model File Exists Today
-
-- `trading/models.py` currently holds only `AccountState`, shared by accounting/reporting/auto-trader.
-- Backtesting dataclasses are currently defined in `trading/backtesting/backtest.py`.
-- This is functional, but less discoverable. A package-based model layout can make ownership clearer.
+1. Interfaces -> Services -> Repositories/Domain -> Database infrastructure.
+2. Domain modules must not import interface or infrastructure modules.
+3. Repositories should not depend on CLI/runtime adapters.
+4. Runtime jobs should orchestrate via services and interfaces, not duplicate domain or persistence logic.
 
 ## Naming Conventions
 
-To keep module intent obvious, use verb prefixes by layer:
+- Repositories (`trading/repositories/*`)
+  - Reads: `fetch_*`
+  - Writes: `insert_*`, `update_*`, `delete_*`
 
-- Repositories (`.../repositories/...`)
-  - `fetch_*` for reads/queries.
-  - `insert_*`, `update_*`, `delete_*` for writes.
-  - Avoid domain words like `resolve_*` in repository functions.
+- Services (`trading/services/*`, `trading/backtesting/services/*`)
+  - Read orchestration: `fetch_*`
+  - Side-effect workflows: `run_*` or `execute_*`
+  - Input/config derivation: `resolve_*`
 
-- Services (`.../services/...`)
-  - `fetch_*` when primarily orchestrating retrieval and shaping data.
-  - `run_*` / `execute_*` for workflows with side effects.
-  - `resolve_*` for derivation/normalization of inputs or config.
+- Domain (`trading/domain/*`, `trading/backtesting/domain/*`)
+  - Prefer descriptive policy/math names.
+  - Avoid transport and persistence verbs.
 
-- Domain (`.../domain/...`)
-  - Prefer descriptive pure-function names over transport/data-access verbs.
-  - Keep dependencies on DB, network, and CLI I/O out of domain modules.
+- Compatibility shims
+  - Keep temporary and explicit.
+  - New internal code should not add new imports to shim paths.
 
-Compatibility rule:
+## Import Rules
 
-- When renaming existing functions for consistency, keep legacy aliases in place only during explicit migration windows, then remove them after callers and tests are updated.
+- Prefer direct imports from concrete modules.
+- Avoid import-only facades unless they are the declared public entrypoint.
+- New code should target canonical runtime data-ops modules instead of compatibility paths under `trading/database/`.
 
-## Preferred Imports
+## Next Recommended Cleanup Step
 
-Use direct imports from concrete grouped modules rather than import-only facades.
+Highest-value next structural slice:
 
-Preferred:
+1. Retire compatibility shims in `trading/database/admin.py` and `trading/database/csv_export.py`.
+2. Migrate remaining tests/importers to canonical modules under `trading/interfaces/runtime/data_ops/`.
+3. Remove the shim files after:
+   - zero internal imports to shim paths,
+   - focused tests are green,
+   - docs references point only to canonical paths.
 
-```python
-from trading.interfaces.cli.commands import build_parser
-from trading.interfaces.cli.handlers.router import dispatch_command
-from trading.interfaces.cli.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
-from trading.services.rotation_service import select_optimal_strategy
-from trading.services.trade_execution_service import run_for_account
-from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
-```
+Why this next step:
 
-Avoid:
+- It completes the database infrastructure vs runtime data-ops boundary.
+- It reduces ambiguity for bots and contributors about where admin/export logic belongs.
+- It removes duplicate entrypoint semantics while preserving behavior through canonical modules.
 
-```python
-from trading.paper_trading_handlers import ...
-from trading.services import auto_trader_service
-from trading.backtesting.services.history_service import load_strategy_backtest_returns
-```
+## Bot Orientation Checklist
+
+When a bot is asked to place or refactor code in `trading/`:
+
+1. Determine whether the change is interface, service, domain, repository, or DB infrastructure.
+2. Place runtime schedulers in `trading/interfaces/runtime/jobs/`.
+3. Place operator-facing DB utilities in `trading/interfaces/runtime/data_ops/`.
+4. Keep SQL in repositories or backtesting repositories, not in routes/CLI handlers.
+5. Update this file when ownership or conventions change.

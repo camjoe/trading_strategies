@@ -18,7 +18,7 @@ python -m trading.paper_trading
 
 - `Strategies.md`: strategy hypotheses and evaluation framework.
 - `backtesting.md`: backtesting workflows, safeguards, and notes.
-- `architecture/trading-module-boundaries.md`: module ownership and dependency direction for trading.
+- `architecture/trading-module-boundaries.md`: canonical trading structure guide (ownership, naming conventions, and active cleanup priorities).
 - `architecture/backtesting-layering-adr.md`: accepted layering decision for backtesting modules.
 - `architecture/runtime-job-coverage-follow-up.md`: prioritized testing backlog for low-coverage runtime and support modules.
 - `reference/Glossary.md`: finance, options, backtesting, and indicator terms.

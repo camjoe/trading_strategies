@@ -99,7 +99,7 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Backtesting: `docs/backtesting.md`
 - UI dashboard: `paper_trading_ui/README.md`
-- Structure migration plan: `docs/architecture/trading-structure-migration-plan.md`
+- Trading architecture guide: `docs/architecture/trading-module-boundaries.md`
 
 ## Preset Profiles
 
@@ -107,4 +107,4 @@ Built-in account profile presets now live under:
 
 - `trading/config/account_profiles/`
 
-CLI defaults use `trading/config/account_profiles/default.json`. Legacy `trading/account_profiles/...` paths are still resolved for compatibility.
+CLI defaults use `trading/config/account_profiles/default.json`.
