@@ -15,7 +15,7 @@ trading/
     repositories/
       ... (existing repositories)
     database/
-      ... (existing database backends/admin)
+      ... (existing database backends/config/coercion)
   interfaces/
     cli/
       commands/
@@ -27,6 +27,9 @@ trading/
     runtime/
       jobs/
         ... (from trading/scripts)
+      data_ops/
+        admin.py
+        csv_export.py
       config/
         account_trade_caps.json
   features/
@@ -50,7 +53,8 @@ trading/
 1. Keep domain and application layers independent of CLI/runtime adapter code.
 2. Keep all file-backed static configuration under `trading/config/`.
 3. Keep operational scripts and schedulers under one runtime adapter namespace.
-4. Move into `trading/features/` only when at least two feature packages are ready.
+4. Keep operator-facing data utilities separate from core database infrastructure.
+5. Move into `trading/features/` only when at least two feature packages are ready.
 
 ## No-Break Migration Sequence
 

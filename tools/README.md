@@ -17,3 +17,4 @@ Additional workflow notes:
 
 - `python -m scripts.ci_smoke` is the primary local audit command mirroring CI core checks.
 - Trading structure planning notes are tracked in `docs/architecture/trading-structure-migration-plan.md`.
+- Low-coverage runtime follow-up notes and a ready-to-use testing prompt are tracked in `docs/architecture/runtime-job-coverage-follow-up.md`.

@@ -36,15 +36,17 @@ Backup and export:
 ```sh
 python -m scripts.data_ops.backup_db
 python -m scripts.data_ops.export_db_csv
+python -m trading.interfaces.runtime.data_ops.admin backup-db
 ```
 
 ## Script Boundaries
 
 - `trading/interfaces/runtime/jobs/`: production-like trading runtime tasks and schedulers.
+- `trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
-- `trading/database/admin.py`: local DB maintenance/admin tasks (CLI: `python -m trading.database.admin`).
+- `trading/database/`: database infrastructure (schema init, backend, config, coercion).
 
-Use `trading/interfaces/runtime/jobs/` for runtime scheduler jobs; keep maintenance and repo workflows out of that folder.
+Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
 
 ### Runtime Script Catalog
 

@@ -12,7 +12,7 @@ from ..services import (
     clean_text,
     db_conn,
     delete_account_and_dependents,
-    build_rotation_schedule_json,
+    update_account_rotation_settings,
     list_csv_exports,
     preview_csv_export,
 )
@@ -59,34 +59,19 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
         except DuplicateRecordError as error:
             raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
 
-        conn.execute(
-            """
-            UPDATE accounts
-            SET rotation_enabled = ?,
-                rotation_mode = ?,
-                rotation_optimality_mode = ?,
-                rotation_interval_days = ?,
-                rotation_lookback_days = ?,
-                rotation_schedule = ?,
-                rotation_active_index = ?,
-                rotation_last_at = ?,
-                rotation_active_strategy = ?
-            WHERE name = ?
-            """,
-            (
-                1 if payload.rotationEnabled else 0,
-                payload.rotationMode.strip().lower(),
-                payload.rotationOptimalityMode.strip().lower(),
-                payload.rotationIntervalDays,
-                payload.rotationLookbackDays,
-                build_rotation_schedule_json(payload.rotationSchedule),
-                int(payload.rotationActiveIndex),
-                clean_text(payload.rotationLastAt),
-                clean_text(payload.rotationActiveStrategy),
-                payload.name.strip(),
-            ),
+        update_account_rotation_settings(
+            conn,
+            account_name=payload.name.strip(),
+            rotation_enabled=bool(payload.rotationEnabled),
+            rotation_mode=payload.rotationMode,
+            rotation_optimality_mode=payload.rotationOptimalityMode,
+            rotation_interval_days=payload.rotationIntervalDays,
+            rotation_lookback_days=payload.rotationLookbackDays,
+            rotation_schedule=payload.rotationSchedule,
+            rotation_active_index=int(payload.rotationActiveIndex),
+            rotation_last_at=payload.rotationLastAt,
+            rotation_active_strategy=payload.rotationActiveStrategy,
         )
-        conn.commit()
 
         account = get_account_row(conn, payload.name.strip())
         return {"status": "ok", "account": build_account_summary(conn, account)}
@@ -100,9 +85,8 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
     if payload.accountName.strip() == TEST_ACCOUNT_NAME:
         raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
 
-    with db_conn() as conn:
-        counts = delete_account_and_dependents(conn, payload.accountName.strip())
-        return {"status": "ok", "deleted": counts}
+    counts = delete_account_and_dependents(payload.accountName.strip())
+    return {"status": "ok", "deleted": counts}
 
 
 @router.get("/api/admin/exports/csv")

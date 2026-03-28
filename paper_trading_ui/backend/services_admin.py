@@ -5,6 +5,11 @@ import sqlite3
 
 from fastapi import HTTPException
 
+from trading.interfaces.runtime.data_ops.admin import delete_accounts
+from trading.repositories.accounts_repository import update_account_fields
+
+from .services_db import get_account_row
+
 
 def clean_text(value: str | None) -> str | None:
     if value is None:
@@ -26,47 +31,66 @@ def build_rotation_schedule_json(value: list[str] | None) -> str | None:
     return json.dumps(unique, separators=(",", ":"))
 
 
-def delete_account_and_dependents(conn: sqlite3.Connection, account_name: str) -> dict[str, int]:
-    account = conn.execute("SELECT id FROM accounts WHERE name = ?", (account_name,)).fetchone()
-    if account is None:
-        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.")
+def update_account_rotation_settings(
+    conn: sqlite3.Connection,
+    *,
+    account_name: str,
+    rotation_enabled: bool,
+    rotation_mode: str,
+    rotation_optimality_mode: str,
+    rotation_interval_days: int,
+    rotation_lookback_days: int,
+    rotation_schedule: list[str] | None,
+    rotation_active_index: int,
+    rotation_last_at: str | None,
+    rotation_active_strategy: str | None,
+) -> None:
+    account = get_account_row(conn, account_name)
+    update_account_fields(
+        conn,
+        account_id=int(account["id"]),
+        updates=[
+            "rotation_enabled = ?",
+            "rotation_mode = ?",
+            "rotation_optimality_mode = ?",
+            "rotation_interval_days = ?",
+            "rotation_lookback_days = ?",
+            "rotation_schedule = ?",
+            "rotation_active_index = ?",
+            "rotation_last_at = ?",
+            "rotation_active_strategy = ?",
+        ],
+        params=[
+            1 if rotation_enabled else 0,
+            rotation_mode.strip().lower(),
+            rotation_optimality_mode.strip().lower(),
+            rotation_interval_days,
+            rotation_lookback_days,
+            build_rotation_schedule_json(rotation_schedule),
+            int(rotation_active_index),
+            clean_text(rotation_last_at),
+            clean_text(rotation_active_strategy),
+        ],
+    )
 
-    account_id = int(account["id"])
-    run_rows = conn.execute("SELECT id FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchall()
-    run_ids = tuple(int(row["id"]) for row in run_rows)
 
-    counts = {
-        "accounts": 1,
-        "trades": int(conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (account_id,)).fetchone()["n"]),
-        "equitySnapshots": int(
-            conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (account_id,)).fetchone()["n"]
-        ),
-        "backtestRuns": len(run_ids),
-        "backtestTrades": 0,
-        "backtestEquitySnapshots": 0,
+def delete_account_and_dependents(account_name: str) -> dict[str, int]:
+    try:
+        deleted = delete_accounts(
+            account_names=[account_name],
+            delete_all=False,
+            dry_run=False,
+        )
+    except ValueError as error:
+        if "Accounts not found:" in str(error):
+            raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from error
+        raise
+
+    return {
+        "accounts": int(deleted["accounts"]),
+        "trades": int(deleted["trades"]),
+        "equitySnapshots": int(deleted["equity_snapshots"]),
+        "backtestRuns": int(deleted["backtest_runs"]),
+        "backtestTrades": int(deleted["backtest_trades"]),
+        "backtestEquitySnapshots": int(deleted["backtest_equity_snapshots"]),
     }
-
-    conn.execute("BEGIN")
-    if run_ids:
-        placeholders = ",".join(["?"] * len(run_ids))
-        counts["backtestTrades"] = int(
-            conn.execute(
-                f"SELECT COUNT(*) AS n FROM backtest_trades WHERE run_id IN ({placeholders})",
-                run_ids,
-            ).fetchone()["n"]
-        )
-        counts["backtestEquitySnapshots"] = int(
-            conn.execute(
-                f"SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id IN ({placeholders})",
-                run_ids,
-            ).fetchone()["n"]
-        )
-        conn.execute(f"DELETE FROM backtest_equity_snapshots WHERE run_id IN ({placeholders})", run_ids)
-        conn.execute(f"DELETE FROM backtest_trades WHERE run_id IN ({placeholders})", run_ids)
-        conn.execute(f"DELETE FROM backtest_runs WHERE id IN ({placeholders})", run_ids)
-
-    conn.execute("DELETE FROM equity_snapshots WHERE account_id = ?", (account_id,))
-    conn.execute("DELETE FROM trades WHERE account_id = ?", (account_id,))
-    conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
-    conn.commit()
-    return counts

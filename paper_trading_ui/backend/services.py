@@ -16,6 +16,7 @@ from .services_admin import (
     build_rotation_schedule_json,
     clean_text,
     delete_account_and_dependents,
+    update_account_rotation_settings,
 )
 from .services_backtests import (
     build_backtest_config_from_preflight_request,
@@ -54,4 +55,5 @@ __all__ = [
     "list_csv_exports",
     "preview_csv_export",
     "resolve_backtest_payload_account",
+    "update_account_rotation_settings",
 ]

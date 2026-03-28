@@ -20,7 +20,11 @@ Related plan: `docs/architecture/trading-structure-migration-plan.md`
 
 - Infrastructure domain
   - Folder: `trading/database/`
-  - Responsibility: SQLite schema/backends and DB admin/export helpers.
+  - Responsibility: SQLite schema/backends, DB config, and DB value coercion.
+
+- Runtime data operations
+  - Folder: `trading/interfaces/runtime/data_ops/`
+  - Responsibility: operator-facing database admin and CSV export tooling.
 
 ## Dependency Direction (Target)
 
@@ -54,6 +58,7 @@ Completed in this iteration:
 13. Extracted `run_backtest(...)` orchestration into `trading/backtesting/services/execution_service.py` and kept `trading/backtesting/backtest.py` as wrapper preserving existing monkeypatch seams.
 14. Standardized backtesting service read APIs to `fetch_*` and removed legacy `load_*` aliases.
 15. Migrated direct imports to concrete handler/service modules and removed import-only facades.
+16. Moved DB admin/export logic to `trading/interfaces/runtime/data_ops/` and narrowed `trading/database/` to infrastructure concerns.
 
 Planned next slices:
 

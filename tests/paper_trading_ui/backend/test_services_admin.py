@@ -20,7 +20,7 @@ def test_clean_text_and_rotation_schedule_json() -> None:
 
 def test_delete_account_and_dependents_not_found_raises(conn) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        services_admin.delete_account_and_dependents(conn, "missing")
+        services_admin.delete_account_and_dependents("missing")
     assert exc_info.value.status_code == 404
 
 
@@ -64,7 +64,7 @@ def test_delete_account_and_dependents_removes_related_rows(conn) -> None:
     )
     conn.commit()
 
-    counts = services_admin.delete_account_and_dependents(conn, "acct_delete")
+    counts = services_admin.delete_account_and_dependents("acct_delete")
     assert counts == {
         "accounts": 1,
         "trades": 1,

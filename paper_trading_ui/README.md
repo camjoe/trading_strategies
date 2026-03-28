@@ -51,3 +51,9 @@ npm run dev
 
 For the complete, always-current route list (including backtesting endpoints), see:
 - `paper_trading_ui/backend/main.py`
+
+## Backend Boundary Notes
+
+- Route modules under `paper_trading_ui/backend/routes/` should stay thin and delegate DB mutations to backend service helpers.
+- Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `paper_trading_ui/backend/services_admin.py`.
+- Legacy `trading.database.admin` and `trading.database.csv_export` remain compatibility shims only; new UI/backend code should use canonical runtime data-ops modules.
