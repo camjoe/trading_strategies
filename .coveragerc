@@ -1,8 +1,0 @@
-[run]
-omit =
-    trends/stock_trends.py
-    trends/cli.py
-
-[report]
-skip_covered = False
-show_missing = True
