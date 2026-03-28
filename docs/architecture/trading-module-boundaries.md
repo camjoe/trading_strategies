@@ -27,7 +27,6 @@ Purpose: single source of truth for trading project structure, ownership boundar
 
 - `trading/database/`
   - DB infrastructure only: schema init/evolution, backend selection, path/config, and coercion helpers.
-  - Note: `trading/database/admin.py` and `trading/database/csv_export.py` are compatibility shims, not canonical implementations.
 
 - `trading/backtesting/`
   - Backtesting feature package with its own repository/service/domain layering.
@@ -74,18 +73,15 @@ Preferred direction:
 
 Highest-value next structural slice:
 
-1. Retire compatibility shims in `trading/database/admin.py` and `trading/database/csv_export.py`.
-2. Migrate remaining tests/importers to canonical modules under `trading/interfaces/runtime/data_ops/`.
-3. Remove the shim files after:
-   - zero internal imports to shim paths,
-   - focused tests are green,
-   - docs references point only to canonical paths.
+1. Continue reducing boundary leaks where UI/backend and domain modules still own inline SQL.
+2. Prefer repository/service adapters for persistence access from route and orchestration layers.
+3. Keep `trading/database/` focused on DB infrastructure concerns only.
 
 Why this next step:
 
-- It completes the database infrastructure vs runtime data-ops boundary.
-- It reduces ambiguity for bots and contributors about where admin/export logic belongs.
-- It removes duplicate entrypoint semantics while preserving behavior through canonical modules.
+- It tightens dependency direction from interfaces to repositories/services.
+- It reduces duplication of persistence logic outside repository boundaries.
+- It keeps project structure predictable for future feature work.
 
 ## Bot Orientation Checklist
 

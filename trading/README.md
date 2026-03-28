@@ -39,6 +39,8 @@ python -m scripts.data_ops.export_db_csv
 python -m trading.interfaces.runtime.data_ops.admin backup-db
 ```
 
+Canonical admin/export modules live in `trading/interfaces/runtime/data_ops/`.
+
 ## Script Boundaries
 
 - `trading/interfaces/runtime/jobs/`: production-like trading runtime tasks and schedulers.

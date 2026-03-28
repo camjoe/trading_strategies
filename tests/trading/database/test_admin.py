@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from trading.database import admin, db
+from trading.database import db
+from trading.interfaces.runtime.data_ops import admin
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 
 
