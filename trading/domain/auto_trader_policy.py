@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import random
-from typing import Protocol
+from typing import Any, Protocol
 
 from trading.models import AccountState
 
 
 class AccountConfig(Protocol):
-    def __getitem__(self, key: str) -> object: ...
+    def __getitem__(self, key: str) -> Any: ...
 
 
 def choose_buy_qty(cash: float, price: float, fee: float) -> int:

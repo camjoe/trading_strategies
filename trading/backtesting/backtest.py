@@ -280,7 +280,7 @@ def backtest_leaderboard(
         account_name=account_name,
         strategy=strategy,
     ):
-        row = {
+        row: dict[str, object] = {
             "run_id": entry.run_id,
             "run_name": entry.run_name,
             "account_name": entry.account_name,

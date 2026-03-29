@@ -4,10 +4,12 @@ import sqlite3
 from datetime import datetime
 from typing import Callable
 
+import pandas as pd
+
 def build_iv_rank_proxy(
     universe: list[str],
     *,
-    fetch_close_series_fn: Callable[[str, str], object],
+    fetch_close_series_fn: Callable[[str, str], pd.Series | None],
 ) -> dict[str, float]:
     vols: dict[str, float] = {}
     for ticker in universe:

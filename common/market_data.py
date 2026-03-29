@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from pathlib import Path
 import json
 import os
-from typing import Callable, Mapping
+from typing import Callable, Mapping, NoReturn
 
 import pandas as pd
 import yfinance as yf
@@ -294,7 +294,7 @@ class UnavailableProvider(MarketDataProvider):
     def __init__(self, provider_name: str) -> None:
         self.provider_name = provider_name
 
-    def _raise_unavailable(self) -> None:
+    def _raise_unavailable(self) -> NoReturn:
         raise NotImplementedError(
             f"Market data provider '{self.provider_name}' is not implemented yet. "
             "Use provider 'yfinance' for now."
