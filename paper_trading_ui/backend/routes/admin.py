@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from trading.accounts import create_account
 from trading.database.db_backend import DuplicateRecordError
+from trading.models import AccountConfig
 
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services import (
@@ -22,11 +23,7 @@ router = APIRouter()
 
 
 def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str, object]:
-    return dict(
-        name=payload.name.strip(),
-        strategy=payload.strategy.strip(),
-        initial_cash=float(payload.initialCash),
-        benchmark_ticker=payload.benchmarkTicker.strip().upper(),
+    config = AccountConfig(
         descriptive_name=clean_text(payload.descriptiveName),
         goal_min_return_pct=payload.goalMinReturnPct,
         goal_max_return_pct=payload.goalMaxReturnPct,
@@ -49,6 +46,13 @@ def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str
         roll_dte_threshold=payload.rollDteThreshold,
         profit_take_pct=payload.profitTakePct,
         max_loss_pct=payload.maxLossPct,
+    )
+    return dict(
+        name=payload.name.strip(),
+        strategy=payload.strategy.strip(),
+        initial_cash=float(payload.initialCash),
+        benchmark_ticker=payload.benchmarkTicker.strip().upper(),
+        config=config,
     )
 
 

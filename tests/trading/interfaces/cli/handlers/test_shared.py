@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import types
 
 import pytest
@@ -8,6 +9,7 @@ from trading.interfaces.cli.handlers.shared import (
     common_account_config_kwargs,
     resolve_learning_enabled,
 )
+from trading.models import AccountConfig
 
 
 def _args(**kwargs) -> types.SimpleNamespace:
@@ -65,7 +67,8 @@ def test_resolve_learning_enabled_coerces_bool_when_include_disabled_false() -> 
 def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
     result = common_account_config_kwargs(_args(display_name="My Acct"), include_learning_disabled=False)
 
-    assert set(result.keys()) == {
+    assert isinstance(result, AccountConfig)
+    assert set(f.name for f in dataclasses.fields(result)) == {
         "descriptive_name",
         "goal_min_return_pct",
         "goal_max_return_pct",
@@ -93,4 +96,4 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
 
 def test_common_account_config_kwargs_maps_display_name_to_descriptive_name() -> None:
     result = common_account_config_kwargs(_args(display_name="Test Account"), include_learning_disabled=False)
-    assert result["descriptive_name"] == "Test Account"
+    assert result.descriptive_name == "Test Account"

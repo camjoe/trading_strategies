@@ -4,6 +4,7 @@ import sqlite3
 
 from trading.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from trading.models.account_config import AccountConfig
 from trading.profile_source import AccountProfileSource, JsonAccountProfileSource
 from trading.repositories.accounts_repository import update_account_fields
 from trading.rotation import OPTIMALITY_MODES, ROTATION_MODES, dump_rotation_schedule, parse_rotation_schedule
@@ -39,32 +40,32 @@ def load_account_profiles(file_path: str) -> list[dict[str, object]]:
     return load_account_profiles_from_source(JsonAccountProfileSource(file_path))
 
 
-def extract_profile_fields(profile: dict[str, object]) -> dict[str, object]:
+def extract_profile_fields(profile: dict[str, object]) -> AccountConfig:
     g = profile.get
-    return {
-        "descriptive_name": coerce_str(g("descriptive_name")),
-        "goal_min_return_pct": coerce_float(g("goal_min_return_pct")),
-        "goal_max_return_pct": coerce_float(g("goal_max_return_pct")),
-        "goal_period": coerce_str(g("goal_period")),
-        "learning_enabled": coerce_bool(g("learning_enabled")),
-        "risk_policy": coerce_str(g("risk_policy")),
-        "stop_loss_pct": coerce_float(g("stop_loss_pct")),
-        "take_profit_pct": coerce_float(g("take_profit_pct")),
-        "instrument_mode": coerce_str(g("instrument_mode")),
-        "option_strike_offset_pct": coerce_float(g("option_strike_offset_pct")),
-        "option_min_dte": coerce_int(g("option_min_dte")),
-        "option_max_dte": coerce_int(g("option_max_dte")),
-        "option_type": coerce_str(g("option_type")),
-        "target_delta_min": coerce_float(g("target_delta_min")),
-        "target_delta_max": coerce_float(g("target_delta_max")),
-        "max_premium_per_trade": coerce_float(g("max_premium_per_trade")),
-        "max_contracts_per_trade": coerce_int(g("max_contracts_per_trade")),
-        "iv_rank_min": coerce_float(g("iv_rank_min")),
-        "iv_rank_max": coerce_float(g("iv_rank_max")),
-        "roll_dte_threshold": coerce_int(g("roll_dte_threshold")),
-        "profit_take_pct": coerce_float(g("profit_take_pct")),
-        "max_loss_pct": coerce_float(g("max_loss_pct")),
-    }
+    return AccountConfig(
+        descriptive_name=coerce_str(g("descriptive_name")),
+        goal_min_return_pct=coerce_float(g("goal_min_return_pct")),
+        goal_max_return_pct=coerce_float(g("goal_max_return_pct")),
+        goal_period=coerce_str(g("goal_period")),
+        learning_enabled=coerce_bool(g("learning_enabled")),
+        risk_policy=coerce_str(g("risk_policy")),
+        stop_loss_pct=coerce_float(g("stop_loss_pct")),
+        take_profit_pct=coerce_float(g("take_profit_pct")),
+        instrument_mode=coerce_str(g("instrument_mode")),
+        option_strike_offset_pct=coerce_float(g("option_strike_offset_pct")),
+        option_min_dte=coerce_int(g("option_min_dte")),
+        option_max_dte=coerce_int(g("option_max_dte")),
+        option_type=coerce_str(g("option_type")),
+        target_delta_min=coerce_float(g("target_delta_min")),
+        target_delta_max=coerce_float(g("target_delta_max")),
+        max_premium_per_trade=coerce_float(g("max_premium_per_trade")),
+        max_contracts_per_trade=coerce_int(g("max_contracts_per_trade")),
+        iv_rank_min=coerce_float(g("iv_rank_min")),
+        iv_rank_max=coerce_float(g("iv_rank_max")),
+        roll_dte_threshold=coerce_int(g("roll_dte_threshold")),
+        profit_take_pct=coerce_float(g("profit_take_pct")),
+        max_loss_pct=coerce_float(g("max_loss_pct")),
+    )
 
 
 def extract_rotation_fields(profile: dict[str, object]) -> dict[str, object]:
@@ -196,13 +197,7 @@ def apply_account_profiles(
                 skipped += 1
                 continue
 
-            fields = extract_profile_fields(profile)
-            create_kwargs = {**fields}
-            create_kwargs["goal_period"] = fields["goal_period"] or "monthly"
-            create_kwargs["learning_enabled"] = fields["learning_enabled"] if fields["learning_enabled"] is not None else False
-            create_kwargs["risk_policy"] = fields["risk_policy"] or "none"
-            create_kwargs["instrument_mode"] = fields["instrument_mode"] or "equity"
-            create_account(conn, name=name, strategy=strategy, initial_cash=initial_cash, benchmark_ticker=benchmark, **create_kwargs)
+            create_account(conn, name, strategy, initial_cash, benchmark, config=extract_profile_fields(profile))
             apply_rotation_fields(conn, name, profile)
             created += 1
             continue
@@ -224,8 +219,7 @@ def apply_account_profiles(
             fields_updated = True
 
         if any(key in profile for key in CONFIGURE_KEYS):
-            fields = extract_profile_fields(profile)
-            configure_account(conn, account_name=name, **fields)
+            configure_account(conn, account_name=name, config=extract_profile_fields(profile))
             fields_updated = True
 
         if apply_rotation_fields(conn, name, profile):

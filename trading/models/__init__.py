@@ -1,3 +1,4 @@
+from trading.models.account_config import AccountConfig
 from trading.models.account_state import AccountState
 from trading.models.backtesting import (
 	BacktestBatchConfig,
@@ -15,6 +16,7 @@ from trading.models.backtesting_reports import (
 )
 
 __all__ = [
+	"AccountConfig",
 	"AccountState",
 	"BacktestBatchConfig",
 	"BacktestConfig",

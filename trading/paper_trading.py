@@ -16,7 +16,7 @@ from trading.profiles import apply_account_profiles, load_account_profiles
 from trading.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 
 
-def _common_account_config_kwargs(args, *, include_learning_disabled: bool) -> dict:
+def _common_account_config_kwargs(args, *, include_learning_disabled: bool):
     return common_account_config_kwargs(args, include_learning_disabled=include_learning_disabled)
 
 

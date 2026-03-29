@@ -2,6 +2,7 @@ import pytest
 
 from trading.accounts import create_account, get_account
 from trading import reporting
+from trading.models import AccountConfig
 from trading.reporting import (
     account_report,
     build_account_stats,
@@ -135,9 +136,11 @@ def test_format_goal_text_variants(conn, goal_min, goal_max, goal_period, expect
         "Trend",
         1000.0,
         "SPY",
-        goal_min_return_pct=goal_min,
-        goal_max_return_pct=goal_max,
-        goal_period=goal_period,
+        config=AccountConfig(
+            goal_min_return_pct=goal_min,
+            goal_max_return_pct=goal_max,
+            goal_period=goal_period,
+        ),
     )
     account = get_account(conn, "acct_goal")
     assert format_goal_text(account) == expected
@@ -175,20 +178,22 @@ class TestAccountReportOutput:
             "Trend",
             5000.0,
             "SPY",
-            instrument_mode="leaps",
-            option_strike_offset_pct=5.0,
-            option_min_dte=120,
-            option_max_dte=365,
-            option_type="call",
-            target_delta_min=0.2,
-            target_delta_max=0.4,
-            iv_rank_min=20.0,
-            iv_rank_max=70.0,
-            max_premium_per_trade=500.0,
-            max_contracts_per_trade=2,
-            roll_dte_threshold=45,
-            profit_take_pct=30.0,
-            max_loss_pct=20.0,
+            config=AccountConfig(
+                instrument_mode="leaps",
+                option_strike_offset_pct=5.0,
+                option_min_dte=120,
+                option_max_dte=365,
+                option_type="call",
+                target_delta_min=0.2,
+                target_delta_max=0.4,
+                iv_rank_min=20.0,
+                iv_rank_max=70.0,
+                max_premium_per_trade=500.0,
+                max_contracts_per_trade=2,
+                roll_dte_threshold=45,
+                profit_take_pct=30.0,
+                max_loss_pct=20.0,
+            ),
         )
         monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda _tickers: {})
         monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (None, None))
@@ -207,7 +212,7 @@ class TestCompareStrategies:
         assert "No paper accounts found." in out
 
     def test_outputs_summary_and_na_benchmark(self, conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
-        create_account(conn, "acct_cmp", "Trend", 1000.0, "SPY", descriptive_name="Compare")
+        create_account(conn, "acct_cmp", "Trend", 1000.0, "SPY", config=AccountConfig(descriptive_name="Compare"))
         account = get_account(conn, "acct_cmp")
         _insert_trade(conn, account["id"], "AAPL", 1.0, 100.0)
         conn.commit()
@@ -222,7 +227,7 @@ class TestCompareStrategies:
         assert "positions: AAPL:1.00" in out
 
     def test_truncates_positions_list(self, conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
-        create_account(conn, "acct_many", "Trend", 10000.0, "SPY", descriptive_name="Many")
+        create_account(conn, "acct_many", "Trend", 10000.0, "SPY", config=AccountConfig(descriptive_name="Many"))
         account = get_account(conn, "acct_many")
 
         tickers = ["AAPL", "AMZN", "GOOG", "META", "MSFT", "NVDA"]
@@ -244,7 +249,7 @@ class TestCompareStrategies:
         monkeypatch: pytest.MonkeyPatch,
         capsys,
     ) -> None:
-        create_account(conn, "acct_none", "Trend", 1000.0, "SPY", descriptive_name="No Trades")
+        create_account(conn, "acct_none", "Trend", 1000.0, "SPY", config=AccountConfig(descriptive_name="No Trades"))
         monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (None, None))
 
         compare_strategies(conn, lookback=5)

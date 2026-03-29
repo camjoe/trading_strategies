@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from trading.database import db
 from common.time import utc_now_iso
 from trading.accounts import create_account
+from trading.models import AccountConfig
 
 
 def _create_test_account(
@@ -15,7 +16,7 @@ def _create_test_account(
     benchmark: str = "SPY",
     **kwargs,
 ) -> None:
-    create_account(conn, name, strategy, initial_cash, benchmark, **kwargs)
+    create_account(conn, name, strategy, initial_cash, benchmark, config=AccountConfig(**kwargs) if kwargs else None)
 
 
 def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -> None:

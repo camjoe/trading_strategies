@@ -21,7 +21,7 @@ def handle_create_account(conn, args, parser, *, deps: dict[str, Any], module_fi
         args.strategy,
         args.initial_cash,
         args.benchmark,
-        **common_account_config_kwargs(args, include_learning_disabled=False),
+        config=common_account_config_kwargs(args, include_learning_disabled=False),
     )
     print(
         f"Created account '{args.name}' for strategy '{args.strategy}' "
@@ -31,14 +31,15 @@ def handle_create_account(conn, args, parser, *, deps: dict[str, Any], module_fi
 
 def handle_configure_account(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
     try:
-        config_kwargs = common_account_config_kwargs(args, include_learning_disabled=True)
+        config = common_account_config_kwargs(args, include_learning_disabled=True)
     except ValueError as error:
         parser.error(str(error))
+        return
 
     deps["configure_account"](
         conn,
         account_name=args.account,
-        **config_kwargs,
+        config=config,
     )
     print(f"Updated account configuration for '{args.account}'.")
 

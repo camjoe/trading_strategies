@@ -132,7 +132,7 @@ def test_main_unknown_command_errors_and_closes_connection(monkeypatch):
 def test_common_account_config_kwargs_create_sets_learning_enabled():
     args = _configure_args(command="create-account", learning_enabled=True)
     kwargs = paper_trading._common_account_config_kwargs(args, include_learning_disabled=False)
-    assert kwargs["learning_enabled"] is True
+    assert kwargs.learning_enabled is True
 
 
 def test_main_create_account_defaults_learning_disabled(monkeypatch):
@@ -167,7 +167,7 @@ def test_main_create_account_defaults_learning_disabled(monkeypatch):
     assert captured["strategy"] == "Momentum"
     assert captured["initial_cash"] == 5000.0
     assert captured["benchmark"] == "SPY"
-    assert captured["kwargs"]["learning_enabled"] is False
+    assert captured["kwargs"]["config"].learning_enabled is False
     assert fake_conn.closed is True
 
 
@@ -671,7 +671,7 @@ class TestAdditionalCommandDispatch:
 
         assert captured["conn"] is fake_conn
         assert captured["account_name"] == "acct1"
-        assert captured["kwargs"]["learning_enabled"] is True
+        assert captured["kwargs"]["config"].learning_enabled is True
         assert "Updated account configuration for 'acct1'." in capsys.readouterr().out
         assert fake_conn.closed is True
 

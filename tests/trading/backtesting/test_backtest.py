@@ -8,6 +8,7 @@ import pytest
 
 from common.market_data import FeatureBundle, ProxyFeatureDataProvider
 from trading.accounts import create_account
+from trading.models import AccountConfig
 from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,
@@ -71,7 +72,7 @@ def _create_bt_account(
     benchmark: str = "SPY",
     **kwargs,
 ) -> None:
-    create_account(conn, name, strategy, initial_cash, benchmark, **kwargs)
+    create_account(conn, name, strategy, initial_cash, benchmark, config=AccountConfig(**kwargs) if kwargs else None)
 
 
 def _backtest_config(

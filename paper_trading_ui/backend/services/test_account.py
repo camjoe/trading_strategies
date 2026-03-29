@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from trading.accounts import create_account
+from trading.models import AccountConfig
 from trading.repositories.accounts_repository import fetch_account_by_name
 
 from ..config import (
@@ -170,9 +171,11 @@ def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
         strategy="trend",
         initial_cash=initial_cash,
         benchmark_ticker=parse_test_account_benchmark(),
-        descriptive_name="TEST Account (Backtest Shadow)",
-        risk_policy="none",
-        instrument_mode="equity",
+        config=AccountConfig(
+            descriptive_name="TEST Account (Backtest Shadow)",
+            risk_policy="none",
+            instrument_mode="equity",
+        ),
     )
     conn.commit()
 

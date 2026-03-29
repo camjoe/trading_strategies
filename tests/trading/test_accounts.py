@@ -3,6 +3,9 @@ import sqlite3
 
 from trading.accounts import configure_account, create_account, get_account, list_accounts, load_all_account_names, set_benchmark
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.models import AccountConfig
+
+_IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})
 
 
 class TestAccountLookupAndListing:
@@ -56,9 +59,11 @@ class TestAccountLookupAndListing:
             strategy="Trend",
             initial_cash=5000.0,
             benchmark_ticker="spy",
-            goal_min_return_pct=goal_min,
-            goal_max_return_pct=goal_max,
-            goal_period=goal_period,
+            config=AccountConfig(
+                goal_min_return_pct=goal_min,
+                goal_max_return_pct=goal_max,
+                goal_period=goal_period,
+            ),
         )
 
         list_accounts(conn)
@@ -108,16 +113,18 @@ class TestCreateAccount:
         ],
     )
     def test_rejects_invalid_inputs(self, conn, kwargs: dict[str, object], error_text: str) -> None:
-        base_kwargs: dict[str, object] = {
+        all_kwargs: dict[str, object] = {
             "name": "acct_bad",
             "strategy": "Trend",
             "initial_cash": 1000.0,
             "benchmark_ticker": "SPY",
         }
-        base_kwargs.update(kwargs)
+        all_kwargs.update(kwargs)
+        identity = {k: v for k, v in all_kwargs.items() if k in _IDENTITY_KEYS}
+        config_kw = {k: v for k, v in all_kwargs.items() if k not in _IDENTITY_KEYS}
 
         with pytest.raises(ValueError, match=error_text):
-            create_account(conn, **base_kwargs)
+            create_account(conn, **identity, config=AccountConfig(**config_kw))
 
 
     @pytest.mark.parametrize(
@@ -136,16 +143,18 @@ class TestCreateAccount:
         kwargs: dict[str, object],
         error_text: str,
     ) -> None:
-        base_kwargs: dict[str, object] = {
+        all_kwargs: dict[str, object] = {
             "name": "acct_bad_bounds",
             "strategy": "Trend",
             "initial_cash": 1000.0,
             "benchmark_ticker": "SPY",
         }
-        base_kwargs.update(kwargs)
+        all_kwargs.update(kwargs)
+        identity = {k: v for k, v in all_kwargs.items() if k in _IDENTITY_KEYS}
+        config_kw = {k: v for k, v in all_kwargs.items() if k not in _IDENTITY_KEYS}
 
         with pytest.raises(ValueError, match=error_text):
-            create_account(conn, **base_kwargs)
+            create_account(conn, **identity, config=AccountConfig(**config_kw))
 
 
     def test_normalizes_fields(self, conn) -> None:
@@ -155,9 +164,11 @@ class TestCreateAccount:
             strategy="Trend",
             initial_cash=2000.0,
             benchmark_ticker=" qqq ",
-            descriptive_name="  Growth Focus  ",
-            goal_period=" Weekly ",
-            option_type="call",
+            config=AccountConfig(
+                descriptive_name="  Growth Focus  ",
+                goal_period=" Weekly ",
+                option_type="call",
+            ),
         )
 
         account = get_account(conn, "acct_norm")
@@ -182,7 +193,7 @@ class TestConfigureAccount:
         create_account(conn, "acct_empty_name", "Trend", 3000.0, "SPY")
 
         with pytest.raises(ValueError, match="descriptive_name cannot be empty"):
-            configure_account(conn, "acct_empty_name", descriptive_name="   ")
+            configure_account(conn, "acct_empty_name", config=AccountConfig(descriptive_name="   "))
 
 
     def test_validates_goal_range_against_existing_values(self, conn) -> None:
@@ -192,12 +203,11 @@ class TestConfigureAccount:
             "Trend",
             3000.0,
             "SPY",
-            goal_min_return_pct=5.0,
-            goal_max_return_pct=10.0,
+            config=AccountConfig(goal_min_return_pct=5.0, goal_max_return_pct=10.0),
         )
 
         with pytest.raises(ValueError, match="goal_min_return_pct cannot be greater than goal_max_return_pct"):
-            configure_account(conn, "acct_goal_validate", goal_max_return_pct=4.0)
+            configure_account(conn, "acct_goal_validate", config=AccountConfig(goal_max_return_pct=4.0))
 
 
     def test_validates_existing_option_settings(self, conn) -> None:
@@ -207,15 +217,17 @@ class TestConfigureAccount:
             "Trend",
             3000.0,
             "SPY",
-            option_type="call",
-            target_delta_min=0.6,
-            target_delta_max=0.9,
-            iv_rank_min=10.0,
-            iv_rank_max=80.0,
+            config=AccountConfig(
+                option_type="call",
+                target_delta_min=0.6,
+                target_delta_max=0.9,
+                iv_rank_min=10.0,
+                iv_rank_max=80.0,
+            ),
         )
 
         with pytest.raises(ValueError, match="target_delta_min cannot be greater than target_delta_max"):
-            configure_account(conn, "acct_opt_validate", target_delta_max=0.5)
+            configure_account(conn, "acct_opt_validate", config=AccountConfig(target_delta_max=0.5))
 
 
     def test_validates_iv_range_against_existing_values(self, conn) -> None:
@@ -225,12 +237,11 @@ class TestConfigureAccount:
             "Trend",
             3000.0,
             "SPY",
-            iv_rank_min=20.0,
-            iv_rank_max=90.0,
+            config=AccountConfig(iv_rank_min=20.0, iv_rank_max=90.0),
         )
 
         with pytest.raises(ValueError, match="iv_rank_min cannot be greater than iv_rank_max"):
-            configure_account(conn, "acct_iv_validate", iv_rank_max=10.0)
+            configure_account(conn, "acct_iv_validate", config=AccountConfig(iv_rank_max=10.0))
 
 
     def test_normalizes_goal_period_and_learning_enabled(self, conn) -> None:
@@ -239,8 +250,7 @@ class TestConfigureAccount:
         configure_account(
             conn,
             "acct_config_norm",
-            goal_period=" Weekly ",
-            learning_enabled=True,
+            config=AccountConfig(goal_period=" Weekly ", learning_enabled=True),
         )
 
         account = get_account(conn, "acct_config_norm")
@@ -265,4 +275,4 @@ class TestConfigureAccount:
         create_account(conn, "acct_bad_enum", "Trend", 3000.0, "SPY")
 
         with pytest.raises(ValueError, match=error_text):
-            configure_account(conn, "acct_bad_enum", **kwargs)
+            configure_account(conn, "acct_bad_enum", config=AccountConfig(**kwargs))

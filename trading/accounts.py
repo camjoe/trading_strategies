@@ -3,6 +3,7 @@ from typing import Callable
 
 from common.time import utc_now_iso
 
+from trading.models.account_config import AccountConfig
 from trading.coercion import (
     coerce_float,
     coerce_str,
@@ -224,47 +225,27 @@ def create_account(
     strategy: str,
     initial_cash: float,
     benchmark_ticker: str,
-    descriptive_name: str | None = None,
-    goal_min_return_pct: float | None = None,
-    goal_max_return_pct: float | None = None,
-    goal_period: str = "monthly",
-    learning_enabled: bool = False,
-    risk_policy: str = "none",
-    stop_loss_pct: float | None = None,
-    take_profit_pct: float | None = None,
-    instrument_mode: str = "equity",
-    option_strike_offset_pct: float | None = None,
-    option_min_dte: int | None = None,
-    option_max_dte: int | None = None,
-    option_type: str | None = None,
-    target_delta_min: float | None = None,
-    target_delta_max: float | None = None,
-    max_premium_per_trade: float | None = None,
-    max_contracts_per_trade: int | None = None,
-    iv_rank_min: float | None = None,
-    iv_rank_max: float | None = None,
-    roll_dte_threshold: int | None = None,
-    profit_take_pct: float | None = None,
-    max_loss_pct: float | None = None,
+    config: AccountConfig | None = None,
 ) -> None:
+    cfg = config or AccountConfig()
     if initial_cash <= 0:
         raise ValueError("initial_cash must be greater than 0.")
-    _validate_goal_return_range(goal_min_return_pct, goal_max_return_pct)
+    _validate_goal_return_range(cfg.goal_min_return_pct, cfg.goal_max_return_pct)
 
-    display = (descriptive_name or name).strip()
+    display = (cfg.descriptive_name or name).strip()
     if not display:
         display = name
 
-    risk = _normalize_risk_policy(risk_policy)
-    mode = _normalize_instrument_mode(instrument_mode)
+    risk = _normalize_risk_policy(cfg.risk_policy or "none")
+    mode = _normalize_instrument_mode(cfg.instrument_mode or "equity")
     _validate_option_settings(
-        option_type,
-        target_delta_min,
-        target_delta_max,
-        option_min_dte,
-        option_max_dte,
-        iv_rank_min,
-        iv_rank_max,
+        cfg.option_type,
+        cfg.target_delta_min,
+        cfg.target_delta_max,
+        cfg.option_min_dte,
+        cfg.option_max_dte,
+        cfg.iv_rank_min,
+        cfg.iv_rank_max,
     )
 
     try:
@@ -276,27 +257,27 @@ def create_account(
             created_at=utc_now_iso(),
             benchmark_ticker=benchmark_ticker.upper().strip(),
             descriptive_name=display,
-            goal_min_return_pct=goal_min_return_pct,
-            goal_max_return_pct=goal_max_return_pct,
-            goal_period=_normalize_lower(goal_period),
-            learning_enabled=int(learning_enabled),
+            goal_min_return_pct=cfg.goal_min_return_pct,
+            goal_max_return_pct=cfg.goal_max_return_pct,
+            goal_period=_normalize_lower(cfg.goal_period or "monthly"),
+            learning_enabled=int(cfg.learning_enabled if cfg.learning_enabled is not None else False),
             risk_policy=risk,
-            stop_loss_pct=stop_loss_pct,
-            take_profit_pct=take_profit_pct,
+            stop_loss_pct=cfg.stop_loss_pct,
+            take_profit_pct=cfg.take_profit_pct,
             instrument_mode=mode,
-            option_strike_offset_pct=option_strike_offset_pct,
-            option_min_dte=option_min_dte,
-            option_max_dte=option_max_dte,
-            option_type=_normalize_option_type(option_type) if option_type else None,
-            target_delta_min=target_delta_min,
-            target_delta_max=target_delta_max,
-            max_premium_per_trade=max_premium_per_trade,
-            max_contracts_per_trade=max_contracts_per_trade,
-            iv_rank_min=iv_rank_min,
-            iv_rank_max=iv_rank_max,
-            roll_dte_threshold=roll_dte_threshold,
-            profit_take_pct=profit_take_pct,
-            max_loss_pct=max_loss_pct,
+            option_strike_offset_pct=cfg.option_strike_offset_pct,
+            option_min_dte=cfg.option_min_dte,
+            option_max_dte=cfg.option_max_dte,
+            option_type=_normalize_option_type(cfg.option_type) if cfg.option_type else None,
+            target_delta_min=cfg.target_delta_min,
+            target_delta_max=cfg.target_delta_max,
+            max_premium_per_trade=cfg.max_premium_per_trade,
+            max_contracts_per_trade=cfg.max_contracts_per_trade,
+            iv_rank_min=cfg.iv_rank_min,
+            iv_rank_max=cfg.iv_rank_max,
+            roll_dte_threshold=cfg.roll_dte_threshold,
+            profit_take_pct=cfg.profit_take_pct,
+            max_loss_pct=cfg.max_loss_pct,
         )
     except sqlite3.IntegrityError as exc:
         raise DuplicateRecordError(f"Account '{name}' already exists.") from exc
@@ -323,81 +304,61 @@ def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
 def configure_account(
     conn: sqlite3.Connection,
     account_name: str,
-    descriptive_name: str | None = None,
-    goal_min_return_pct: float | None = None,
-    goal_max_return_pct: float | None = None,
-    goal_period: str | None = None,
-    learning_enabled: bool | None = None,
-    risk_policy: str | None = None,
-    stop_loss_pct: float | None = None,
-    take_profit_pct: float | None = None,
-    instrument_mode: str | None = None,
-    option_strike_offset_pct: float | None = None,
-    option_min_dte: int | None = None,
-    option_max_dte: int | None = None,
-    option_type: str | None = None,
-    target_delta_min: float | None = None,
-    target_delta_max: float | None = None,
-    max_premium_per_trade: float | None = None,
-    max_contracts_per_trade: int | None = None,
-    iv_rank_min: float | None = None,
-    iv_rank_max: float | None = None,
-    roll_dte_threshold: int | None = None,
-    profit_take_pct: float | None = None,
-    max_loss_pct: float | None = None,
+    config: AccountConfig | None = None,
 ) -> None:
+    cfg = config or AccountConfig()
     account = get_account(conn, account_name)
     updates: list[str] = []
     params: list[object] = []
 
-    if descriptive_name is not None:
-        display = descriptive_name.strip()
+    if cfg.descriptive_name is not None:
+        display = cfg.descriptive_name.strip()
         if not display:
             raise ValueError("descriptive_name cannot be empty.")
         updates.append("descriptive_name = ?")
         params.append(display)
 
-    _append_update(updates, params, "goal_period", goal_period, _normalize_lower_obj)
-    _append_update(updates, params, "goal_min_return_pct", goal_min_return_pct, to_float_obj)
-    _append_update(updates, params, "goal_max_return_pct", goal_max_return_pct, to_float_obj)
-    _append_update(updates, params, "learning_enabled", learning_enabled, to_int_obj)
+    _append_update(updates, params, "goal_period", cfg.goal_period, _normalize_lower_obj)
+    _append_update(updates, params, "goal_min_return_pct", cfg.goal_min_return_pct, to_float_obj)
+    _append_update(updates, params, "goal_max_return_pct", cfg.goal_max_return_pct, to_float_obj)
+    _append_update(updates, params, "learning_enabled", cfg.learning_enabled, to_int_obj)
 
-    if risk_policy is not None:
-        _append_update(updates, params, "risk_policy", _normalize_risk_policy(risk_policy))
+    if cfg.risk_policy is not None:
+        _append_update(updates, params, "risk_policy", _normalize_risk_policy(cfg.risk_policy))
 
-    if instrument_mode is not None:
-        _append_update(updates, params, "instrument_mode", _normalize_instrument_mode(instrument_mode))
+    if cfg.instrument_mode is not None:
+        _append_update(updates, params, "instrument_mode", _normalize_instrument_mode(cfg.instrument_mode))
 
-    if option_type is not None:
-        _append_update(updates, params, "option_type", _normalize_option_type(option_type))
+    if cfg.option_type is not None:
+        _append_update(updates, params, "option_type", _normalize_option_type(cfg.option_type))
 
     numeric_fields: list[tuple[str, object | None, Callable[[object], object]]] = [
-        ("stop_loss_pct", stop_loss_pct, to_float_obj),
-        ("take_profit_pct", take_profit_pct, to_float_obj),
-        ("option_strike_offset_pct", option_strike_offset_pct, to_float_obj),
-        ("option_min_dte", option_min_dte, to_int_obj),
-        ("option_max_dte", option_max_dte, to_int_obj),
-        ("target_delta_min", target_delta_min, to_float_obj),
-        ("target_delta_max", target_delta_max, to_float_obj),
-        ("max_premium_per_trade", max_premium_per_trade, to_float_obj),
-        ("max_contracts_per_trade", max_contracts_per_trade, to_int_obj),
-        ("iv_rank_min", iv_rank_min, to_float_obj),
-        ("iv_rank_max", iv_rank_max, to_float_obj),
-        ("roll_dte_threshold", roll_dte_threshold, to_int_obj),
-        ("profit_take_pct", profit_take_pct, to_float_obj),
-        ("max_loss_pct", max_loss_pct, to_float_obj),
+        ("stop_loss_pct", cfg.stop_loss_pct, to_float_obj),
+        ("take_profit_pct", cfg.take_profit_pct, to_float_obj),
+        ("option_strike_offset_pct", cfg.option_strike_offset_pct, to_float_obj),
+        ("option_min_dte", cfg.option_min_dte, to_int_obj),
+        ("option_max_dte", cfg.option_max_dte, to_int_obj),
+        ("target_delta_min", cfg.target_delta_min, to_float_obj),
+        ("target_delta_max", cfg.target_delta_max, to_float_obj),
+        ("max_premium_per_trade", cfg.max_premium_per_trade, to_float_obj),
+        ("max_contracts_per_trade", cfg.max_contracts_per_trade, to_int_obj),
+        ("iv_rank_min", cfg.iv_rank_min, to_float_obj),
+        ("iv_rank_max", cfg.iv_rank_max, to_float_obj),
+        ("roll_dte_threshold", cfg.roll_dte_threshold, to_int_obj),
+        ("profit_take_pct", cfg.profit_take_pct, to_float_obj),
+        ("max_loss_pct", cfg.max_loss_pct, to_float_obj),
     ]
     _append_numeric_updates(updates, params, numeric_fields)
-    _validate_goal_range_from_inputs(account, goal_min_return_pct, goal_max_return_pct)
+    _validate_goal_range_from_inputs(account, cfg.goal_min_return_pct, cfg.goal_max_return_pct)
     _validate_option_settings_from_inputs(
         account,
-        option_type,
-        target_delta_min,
-        target_delta_max,
-        option_min_dte,
-        option_max_dte,
-        iv_rank_min,
-        iv_rank_max,
+        cfg.option_type,
+        cfg.target_delta_min,
+        cfg.target_delta_max,
+        cfg.option_min_dte,
+        cfg.option_max_dte,
+        cfg.iv_rank_min,
+        cfg.iv_rank_max,
     )
 
     if not updates:
