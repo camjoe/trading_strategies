@@ -202,8 +202,8 @@ class TestTradeLoopOrchestration:
         monkeypatch.setattr(auto_trader, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(auto_trader, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(auto_trader.random, "randint", lambda a, b: 1)  # target trades = 1
-        monkeypatch.setattr(auto_trader, "_choose_side", lambda *_args, **_kwargs: "buy")
-        monkeypatch.setattr(auto_trader, "_prepare_buy_trade", lambda *_args, **_kwargs: ("AAPL", 2, 101.0, None, None))
+        monkeypatch.setattr(auto_trader.auto_trader_policy, "choose_side", lambda *_args, **_kwargs: "buy")
+        monkeypatch.setattr(auto_trader, "prepare_buy_trade_impl", lambda *_args, **_kwargs: ("AAPL", 2, 101.0, None, None))
         monkeypatch.setattr(auto_trader, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
 
         calls = []
@@ -234,8 +234,8 @@ class TestTradeLoopOrchestration:
         monkeypatch.setattr(auto_trader, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(auto_trader, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(auto_trader.random, "randint", lambda a, b: 1)
-        monkeypatch.setattr(auto_trader, "_resolve_forced_sell_ticker", lambda *_args, **_kwargs: "AAPL")
-        monkeypatch.setattr(auto_trader, "_prepare_sell_trade", lambda *_args, **_kwargs: ("AAPL", 1, 95.0))
+        monkeypatch.setattr(auto_trader.auto_trader_policy, "choose_sell_ticker_by_risk", lambda *_args, **_kwargs: "AAPL")
+        monkeypatch.setattr(auto_trader, "prepare_sell_trade_impl", lambda *_args, **_kwargs: ("AAPL", 1, 95.0))
         monkeypatch.setattr(auto_trader, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
 
         calls = []
@@ -264,7 +264,7 @@ class TestTradeLoopOrchestration:
         monkeypatch.setattr(auto_trader, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(auto_trader, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(auto_trader.random, "randint", lambda a, b: 1)
-        monkeypatch.setattr(auto_trader, "_prepare_trade_selection", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(auto_trader, "prepare_trade_selection_impl", lambda *_args, **_kwargs: None)
 
         calls = []
         monkeypatch.setattr(auto_trader, "record_trade", lambda conn, **kwargs: calls.append(kwargs))
@@ -282,7 +282,9 @@ class TestTradeLoopOrchestration:
 
         assert executed == 0
         assert calls == []
-class TestTradeLoopOrchestration:
+
+
+class TestRotationAwareTradeLoop:
     def test_run_for_account_uses_rotated_active_strategy(self, monkeypatch):
         initial_account = _base_account(
             id=11,
@@ -307,12 +309,16 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(auto_trader, "get_account", lambda _conn, _name: initial_account)
-        monkeypatch.setattr(auto_trader, "_rotate_account_if_due", lambda _conn, _name, _acct, _now: rotated_account)
+        monkeypatch.setattr(auto_trader, "rotate_runtime_account_if_due_impl", lambda _conn, _name, _acct, _now, **_kwargs: rotated_account)
         monkeypatch.setattr(auto_trader, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(auto_trader, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(auto_trader.random, "randint", lambda a, b: 1)
-        monkeypatch.setattr(auto_trader, "_choose_side", lambda _forced, _sell, strategy_name=None: "buy" if strategy_name == "mean_reversion" else "sell")
-        monkeypatch.setattr(auto_trader, "_prepare_buy_trade", lambda *_args, **_kwargs: ("AAPL", 1, 100.0, None, None))
+        monkeypatch.setattr(
+            auto_trader.auto_trader_policy,
+            "choose_side",
+            lambda _forced, _sell, strategy_name=None: "buy" if strategy_name == "mean_reversion" else "sell",
+        )
+        monkeypatch.setattr(auto_trader, "prepare_buy_trade_impl", lambda *_args, **_kwargs: ("AAPL", 1, 100.0, None, None))
         monkeypatch.setattr(auto_trader, "utc_now_iso", lambda: "2026-03-17T00:00:00Z")
 
         calls = []

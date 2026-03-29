@@ -12,6 +12,7 @@ For commit-context usage and documentation precheck details, see:
 Repository note:
 
 - `tools/project_manager/` is a git submodule, so structure or workflow changes inside that area can make the top-level `tools/` area appear stale until this README or submodule docs are updated alongside the submodule state.
+- A dirty submodule pointer in the workspace is enough to trigger top-level `tools/` docs freshness, even when no top-level Python tooling file changed.
 
 Recent tooling note:
 

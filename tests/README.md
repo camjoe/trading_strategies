@@ -46,4 +46,5 @@ python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
 - Auto-trader policy rules live under `tests/trading/test_auto_trader_policy.py`.
 - Runtime orchestration and rotation adapter coverage lives under `tests/trading/test_auto_trader_service.py`.
 - Trade-preparation and execution-helper coverage lives under `tests/trading/test_trade_execution_service.py`.
+- `tests/trading/test_auto_trader.py` should patch service and domain owners directly when facade wiring changes, rather than restoring removed private wrappers in `trading.auto_trader`.
 
