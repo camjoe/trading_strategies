@@ -102,13 +102,7 @@ python -m scripts.run_checks --profile ci --skip-frontend
 python -m scripts.run_checks --profile ci --with-term-definitions-check
 python -m scripts.run_checks --profile ci --with-reference-doc-checks
 
-# Finance registry tools
-python -m scripts.documentation_ui.finance.build_registry
-python -m scripts.documentation_ui.finance.sync_glossary
-python -m scripts.documentation_ui.finance.sync_ui_docs
-python -m scripts.documentation_ui.finance.check
-
-# Combined reference-doc tools
+# Combined reference-doc tools (default user-facing workflow)
 python -m scripts.reference_docs.check
 python -m scripts.reference_docs.sync_all
 
