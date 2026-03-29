@@ -1,4 +1,4 @@
-# Glossary
+# Finance
 
 Reference terms used across paper trading and backtesting workflows.
 

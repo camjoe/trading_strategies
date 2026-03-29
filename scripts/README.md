@@ -22,12 +22,33 @@ Repository workflow scripts (`scripts/`):
 - `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
 
-Term registry scripts (`scripts/terms/`):
+Documentation page workflows:
 
-- `build_registry.py`: rebuilds `docs/reference/term_definitions.json` from Glossary + UI docs while preserving per-term visibility (`both`, `glossary`, `ui`).
-- `sync_glossary.py`: syncs Glossary definitions from canonical values in `docs/reference/term_definitions.json`.
-- `sync_ui_docs.py`: syncs the Financial & Market Knowledge tables in the UI docs page from canonical values in `docs/reference/term_definitions.json`.
-- `check.py`: standalone sync check that validates Glossary/UI docs match the canonical term registry.
+Financial & Market Knowledge (`scripts/documentation_ui/finance/`):
+
+- `build_registry.py`: rebuilds `docs/reference/finance.json` from Finance + UI docs while preserving per-term visibility (`both`, `glossary`, `ui`).
+- `sync_glossary.py`: syncs Finance definitions from canonical values in `docs/reference/finance.json`.
+- `sync_ui_docs.py`: syncs the Financial & Market Knowledge tables in the UI docs page from canonical values in `docs/reference/finance.json`.
+- `check.py`: standalone sync check that validates Finance/UI docs match the canonical term registry.
+
+Software (`scripts/documentation_ui/software/`):
+
+- `build_registry.py`: rebuilds `docs/reference/software.json` from `requirements/base.txt` and `requirements/dev.txt` while preserving curated package purposes.
+- `sync_markdown.py`: syncs `docs/reference/Software.md` from canonical values in `docs/reference/software.json`.
+- `sync_ui_docs.py`: syncs the Software card's Key Python Packages tables in the UI docs page from `docs/reference/software.json`.
+- `check.py`: standalone sync check that validates requirements, markdown, and UI docs match the canonical software registry.
+
+API Reference (`scripts/documentation_ui/api/`):
+
+- `build_registry.py`: rebuilds `docs/reference/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
+- `sync_markdown.py`: syncs `docs/reference/API.md` from canonical values in `docs/reference/api.json`.
+- `sync_ui_docs.py`: syncs the API endpoint tables in the UI docs page from `docs/reference/api.json`.
+- `check.py`: standalone sync check that validates route code, markdown, and UI docs match the canonical API registry.
+
+Reference orchestration (`scripts/reference_docs/`):
+
+- `check.py`: runs Financial & Market, Software, and API reference checks together.
+- `sync_all.py`: refreshes Finance.md, Software.md, API.md, and the Documentation page from the three canonical registries.
 
 Modular check scripts (`scripts/checks/`):
 
@@ -75,15 +96,35 @@ If a script changes trading runtime behavior, place it in `trading/interfaces/ru
 python -m scripts.run_checks --profile quick
 python -m scripts.run_checks --profile quick --with-frontend
 python -m scripts.run_checks --profile quick --with-term-definitions-check
+python -m scripts.run_checks --profile quick --with-reference-doc-checks
 python -m scripts.run_checks --profile ci
 python -m scripts.run_checks --profile ci --skip-frontend
 python -m scripts.run_checks --profile ci --with-term-definitions-check
+python -m scripts.run_checks --profile ci --with-reference-doc-checks
 
-# Term registry tools
-python -m scripts.terms.build_registry
-python -m scripts.terms.sync_glossary
-python -m scripts.terms.sync_ui_docs
-python -m scripts.terms.check
+# Finance registry tools
+python -m scripts.documentation_ui.finance.build_registry
+python -m scripts.documentation_ui.finance.sync_glossary
+python -m scripts.documentation_ui.finance.sync_ui_docs
+python -m scripts.documentation_ui.finance.check
+
+# Combined reference-doc tools
+python -m scripts.reference_docs.check
+python -m scripts.reference_docs.sync_all
+
+# Underlying section workflows (for automation/internal use)
+python -m scripts.documentation_ui.finance.build_registry
+python -m scripts.documentation_ui.finance.sync_glossary
+python -m scripts.documentation_ui.finance.sync_ui_docs
+python -m scripts.documentation_ui.finance.check
+python -m scripts.documentation_ui.software.build_registry
+python -m scripts.documentation_ui.software.sync_markdown
+python -m scripts.documentation_ui.software.sync_ui_docs
+python -m scripts.documentation_ui.software.check
+python -m scripts.documentation_ui.api.build_registry
+python -m scripts.documentation_ui.api.sync_markdown
+python -m scripts.documentation_ui.api.sync_ui_docs
+python -m scripts.documentation_ui.api.check
 
 # Modular checks (direct use)
 python -m scripts.checks.readme_check

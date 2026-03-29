@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from common.repo_paths import get_repo_root
+from scripts.documentation_ui.software.registry import build_registry, load_existing_state, parse_requirements
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Build docs/reference/software.json from requirements files.",
+    )
+    parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
+    parser.add_argument("--registry", default="docs/reference/software.json")
+    parser.add_argument("--base", default="requirements/base.txt")
+    parser.add_argument("--dev", default="requirements/dev.txt")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
+    registry_path = repo_root / args.registry
+    parsed_requirements = parse_requirements(repo_root / args.base, repo_root / args.dev)
+    existing_state = load_existing_state(registry_path)
+    packages = build_registry(parsed_requirements, existing_state)
+    payload = {
+        "schema_version": 1,
+        "packages": packages,
+    }
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote software registry: {registry_path}")
+    print(f"Packages: {len(packages)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

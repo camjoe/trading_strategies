@@ -165,40 +165,51 @@
 
     <div class="ref-section">
       <h3>Key Python Packages</h3>
-
       <p class="ref-subsection-label">Data &amp; Market Access</p>
       <table class="ref-table ref-table--software">
-        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>yfinance</td><td>Primary market data source — daily OHLCV and adjusted close via Yahoo Finance.</td></tr>
+          <tr><td>yfinance</td><td>Primary market data source for daily OHLCV, adjusted close, and related Yahoo Finance history.</td></tr>
         </tbody>
       </table>
 
       <p class="ref-subsection-label">Analysis &amp; Modeling</p>
       <table class="ref-table ref-table--software">
-        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>pandas</td><td>Core data manipulation and time-series handling.</td></tr>
-          <tr><td>numpy</td><td>Numerical computing.</td></tr>
+          <tr><td>numpy</td><td>Numerical array and vectorized math foundation for analytics and signal calculations.</td></tr>
+          <tr><td>pandas</td><td>Core tabular and time-series data handling across trading, trends, and reporting flows.</td></tr>
         </tbody>
       </table>
 
       <p class="ref-subsection-label">Visualization</p>
       <table class="ref-table ref-table--software">
-        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>matplotlib</td><td>Static charting.</td></tr>
+          <tr><td>matplotlib</td><td>Static chart rendering for trend analysis and exploratory visuals.</td></tr>
         </tbody>
       </table>
 
       <p class="ref-subsection-label">Backend &amp; Validation</p>
       <table class="ref-table ref-table--software">
-        <thead><tr><th>Package</th><th>Description</th></tr></thead>
+        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>fastapi</td><td>API framework for paper trading UI backend routes.</td></tr>
-          <tr><td>pydantic</td><td>Request/response schema and validation models.</td></tr>
-          <tr><td>python-dotenv</td><td>Environment variable loading for backend configuration.</td></tr>
-          <tr><td>pytest</td><td>Test framework used across repository test suites.</td></tr>
+          <tr><td>fastapi</td><td>REST API framework for the paper_trading_ui backend.</td></tr>
+          <tr><td>pydantic</td><td>Validation and schema modeling for backend requests, responses, and settings.</td></tr>
+          <tr><td>python-dotenv</td><td>Loads environment variables for local backend and script configuration.</td></tr>
+          <tr><td>uvicorn[standard]</td><td>ASGI server used to run the FastAPI application locally and in lightweight deployments.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Developer Tooling</p>
+      <table class="ref-table ref-table--software">
+        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>httpx</td><td>HTTP client used in API and integration tests.</td></tr>
+          <tr><td>hypothesis</td><td>Property-based testing library for broader edge-case coverage.</td></tr>
+          <tr><td>pytest</td><td>Primary test runner for unit and integration suites.</td></tr>
+          <tr><td>pytest-cov</td><td>Coverage plugin layered onto pytest for repository quality gates.</td></tr>
+          <tr><td>pytest-mock</td><td>pytest integration for mocking and patch-based test setup.</td></tr>
         </tbody>
       </table>
     </div>
@@ -231,12 +242,12 @@
       <table class="ref-table ref-table--endpoint">
         <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>GET /health</td><td>Simple health check. Returns {"status":"ok"} when backend is up.</td></tr>
-          <tr><td>GET /api/accounts</td><td>List account summaries (equity, benchmark, PnL deltas, latest snapshot time).</td></tr>
-          <tr><td>GET /api/accounts/compare</td><td>Return all accounts with live equity stats and latest backtest metrics for side-by-side comparison. Sorted by total return.</td></tr>
+          <tr><td>GET /api/accounts</td><td>List account summaries including equity, benchmark, PnL deltas, and latest snapshot timing.</td></tr>
+          <tr><td>GET /api/accounts/compare</td><td>Return all accounts with live equity stats and latest backtest metrics for side-by-side comparison.</td></tr>
           <tr><td>GET /api/accounts/{account_name}</td><td>Get one account detail, latest backtest summary, recent snapshots, and recent trades.</td></tr>
+          <tr><td>POST /api/actions/snapshot-all</td><td>Create equity snapshots for all managed accounts.</td></tr>
           <tr><td>POST /api/actions/snapshot/{account_name}</td><td>Create an equity snapshot for one account.</td></tr>
-          <tr><td>POST /api/actions/snapshot-all</td><td>Create equity snapshots for all accounts.</td></tr>
+          <tr><td>GET /health</td><td>Simple health check. Returns {"status":"ok"} when backend is up.</td></tr>
         </tbody>
       </table>
     </div>
@@ -246,8 +257,10 @@
       <table class="ref-table ref-table--endpoint">
         <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>POST /api/admin/accounts/create</td><td>Create a new account with full configuration — core fields, risk policy, options settings, and rotation settings.</td></tr>
-          <tr><td>POST /api/admin/accounts/delete</td><td>Delete an account and all dependent data (trades, snapshots, backtest runs and their trades/snapshots). Requires <code>confirm: true</code> in the request body.</td></tr>
+          <tr><td>POST /api/admin/accounts/create</td><td>Create a new account with core fields, risk policy, options settings, and rotation settings.</td></tr>
+          <tr><td>POST /api/admin/accounts/delete</td><td>Delete an account and its dependent data after explicit confirmation.</td></tr>
+          <tr><td>GET /api/admin/exports/csv</td><td>List available CSV exports generated by repository data operations.</td></tr>
+          <tr><td>GET /api/admin/exports/csv/preview</td><td>Preview rows from a selected CSV export file with a configurable row limit.</td></tr>
         </tbody>
       </table>
 
@@ -301,7 +314,7 @@
       <table class="ref-table ref-table--endpoint">
         <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td>GET /api/logs/files</td><td>Return available .log files from configured logs directory.</td></tr>
+          <tr><td>GET /api/logs/files</td><td>Return available .log files from the configured logs directory.</td></tr>
           <tr><td>GET /api/logs/{file_name}</td><td>Return recent lines from a log file with optional filtering.</td></tr>
         </tbody>
       </table>
@@ -321,12 +334,12 @@
       <table class="ref-table ref-table--endpoint">
         <thead><tr><th>Method + Path</th><th>Purpose</th></tr></thead>
         <tbody>
+          <tr><td>GET /api/backtests/latest/{account_name}</td><td>Get the latest persisted backtest run summary for one account.</td></tr>
+          <tr><td>POST /api/backtests/preflight</td><td>Preview warnings for a proposed backtest configuration without executing it.</td></tr>
+          <tr><td>POST /api/backtests/run</td><td>Run a single backtest window and persist the result payload.</td></tr>
           <tr><td>GET /api/backtests/runs</td><td>List recent backtest runs across accounts.</td></tr>
-          <tr><td>GET /api/backtests/latest/{account_name}</td><td>Get latest run metadata for a single account.</td></tr>
-          <tr><td>GET /api/backtests/runs/{run_id}</td><td>Get full report for one run id.</td></tr>
-          <tr><td>POST /api/backtests/run</td><td>Run a single backtest window and persist results.</td></tr>
-          <tr><td>POST /api/backtests/preflight</td><td>Preview warnings before executing a run (no execution).</td></tr>
-          <tr><td>POST /api/backtests/walk-forward</td><td>Execute rolling walk-forward windows and return aggregate summary.</td></tr>
+          <tr><td>GET /api/backtests/runs/{run_id}</td><td>Get the full backtest report payload for a single run id.</td></tr>
+          <tr><td>POST /api/backtests/walk-forward</td><td>Execute rolling walk-forward windows and return aggregate summary metrics.</td></tr>
         </tbody>
       </table>
 

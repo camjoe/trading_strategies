@@ -69,18 +69,36 @@ If multiple bots seem valid, default to `Cross-Stack Cleanup Coordinator` and st
 - The default command is `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` from the repo root.
 - After the command finishes, report findings clearly and call out which README files need updates.
 
-# Term Definitions Checks Shortcut
-
-- If a user message is exactly `run term checks` (ignoring leading/trailing whitespace and case), run the optional term definitions synchronization check.
-- The default command is `python -m scripts.run_checks --profile quick --with-term-definitions-check` from the repo root.
-- After the command finishes, report pass/fail status by step and include drift details if term registry sync fails.
-
 # Sync Term Docs Shortcut
 
-- If a user message is exactly `sync term docs` (ignoring leading/trailing whitespace and case), synchronize both Glossary and UI documentation from the canonical term registry.
-- The default command sequence is `python -m scripts.terms.sync_glossary` followed by `python -m scripts.terms.sync_ui_docs` from the repo root.
+- If a user message is exactly `sync term docs` (ignoring leading/trailing whitespace and case), synchronize both Finance and UI documentation from the canonical term registry.
+- The default command sequence is `python -m scripts.documentation_ui.finance.sync_glossary` followed by `python -m scripts.documentation_ui.finance.sync_ui_docs` from the repo root.
 - After the commands finish, report which terms were updated in each document.
-- Use this after adding new terms to sources or after running `run term checks` if drift is detected.
+- Use this after adding new terms to sources or after running `run reference doc checks` if drift is detected.
+
+# Reference Docs Checks Shortcut
+
+- If a user message is exactly `run reference doc checks` (ignoring leading/trailing whitespace and case), validate the Financial & Market, Software, and API reference workflows together.
+- The default command is `python -m scripts.reference_docs.check` from the repo root.
+- After the command finishes, report pass/fail status by section and call out any drift or missing descriptions/purposes.
+
+# Sync Reference Docs Shortcut
+
+- If a user message is exactly `sync reference docs` (ignoring leading/trailing whitespace and case), synchronize the markdown and Documentation page surfaces for Financial & Market, Software, and API references.
+- The default command is `python -m scripts.reference_docs.sync_all` from the repo root.
+- After the command finishes, report which sections were updated.
+
+# Sync Software Docs Shortcut
+
+- If a user message is exactly `sync software docs` (ignoring leading/trailing whitespace and case), synchronize both the markdown and UI Software reference surfaces from the canonical software registry.
+- The default command sequence is `python -m scripts.documentation_ui.software.sync_markdown` followed by `python -m scripts.documentation_ui.software.sync_ui_docs` from the repo root.
+- After the commands finish, report which package groups were updated.
+
+# Sync API Docs Shortcut
+
+- If a user message is exactly `sync api docs` (ignoring leading/trailing whitespace and case), synchronize both the markdown and UI API reference surfaces from the canonical API registry.
+- The default command sequence is `python -m scripts.documentation_ui.api.sync_markdown` followed by `python -m scripts.documentation_ui.api.sync_ui_docs` from the repo root.
+- After the commands finish, report which endpoint sections were updated.
 
 # Run All Checks Shortcut
 
@@ -120,14 +138,26 @@ Current shortcut catalog to show:
 	- Action: runs `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` and reports documentation findings.
 	- Example: `update documentation`
 
-7. Trigger: `run term checks`
-	- Action: runs `python -m scripts.run_checks --profile quick --with-term-definitions-check` and reports term registry sync status with quality checks.
-	- Example: `run term checks`
-
-8. Trigger: `sync term docs`
-	- Action: synchronizes both Glossary and UI documentation from the canonical term registry by running sync_glossary and sync_ui_docs.
+7. Trigger: `sync term docs`
+	- Action: synchronizes both Finance and UI documentation from the canonical term registry by running sync_glossary and sync_ui_docs.
 	- Example: `sync term docs`
 
-9. Trigger: `run all checks`
+8. Trigger: `run reference doc checks`
+	- Action: runs `python -m scripts.reference_docs.check` and reports Financial & Market, Software, and API reference sync status together.
+	- Example: `run reference doc checks`
+
+9. Trigger: `sync reference docs`
+	- Action: synchronizes Finance, Software, and API markdown and UI surfaces from the canonical registries.
+	- Example: `sync reference docs`
+
+10. Trigger: `sync software docs`
+	- Action: synchronizes Software markdown and UI package tables from the canonical software registry.
+	- Example: `sync software docs`
+
+11. Trigger: `sync api docs`
+	- Action: synchronizes API markdown and UI endpoint tables from the canonical API registry.
+	- Example: `sync api docs`
+
+12. Trigger: `run all checks`
 	- Action: runs `python -m scripts.run_checks --profile ci` for docs checks, audits, and test suites.
 	- Example: `run all checks`

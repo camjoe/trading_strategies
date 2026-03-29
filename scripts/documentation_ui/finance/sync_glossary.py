@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from scripts.terms.registry import normalize_term
+from scripts.documentation_ui.finance.registry import normalize_term
 
 
 TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$")
@@ -66,27 +66,27 @@ def rewrite_glossary(glossary_path: Path, overrides: dict[str, str]) -> tuple[in
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Sync docs/reference/Glossary.md definitions from canonical values in "
-            "docs/reference/term_definitions.json for terms whose use includes glossary."
+            "Sync docs/reference/Finance.md definitions from canonical values in "
+            "docs/reference/finance.json for terms whose use includes glossary."
         )
     )
     parser.add_argument(
         "--repo-root",
         type=Path,
-        default=Path(__file__).resolve().parents[2],
+        default=Path(__file__).resolve().parents[3],
         help="Repository root path (default: inferred from this script location).",
     )
     parser.add_argument(
         "--registry",
         type=Path,
-        default=Path("docs/reference/term_definitions.json"),
+        default=Path("docs/reference/finance.json"),
         help="Registry path relative to repo root unless absolute.",
     )
     parser.add_argument(
         "--glossary",
         type=Path,
-        default=Path("docs/reference/Glossary.md"),
-        help="Glossary path relative to repo root unless absolute.",
+        default=Path("docs/reference/Finance.md"),
+        help="Finance path relative to repo root unless absolute.",
     )
     args = parser.parse_args()
 
@@ -97,8 +97,8 @@ def main() -> int:
     overrides = load_registry_overrides(registry_path)
     matched, updated = rewrite_glossary(glossary_path, overrides)
 
-    print(f"Registry terms applied to glossary rows: {matched}")
-    print(f"Glossary definitions updated from registry: {updated}")
+    print(f"Registry terms applied to finance rows: {matched}")
+    print(f"Finance definitions updated from registry: {updated}")
     print(f"Updated file: {glossary_path}")
     return 0
 

@@ -167,19 +167,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Sync Financial & Market Knowledge tables in paper_trading_ui/frontend/src/views/docs.html "
-            "from docs/reference/term_definitions.json."
+            "from docs/reference/finance.json."
         )
     )
     parser.add_argument(
         "--repo-root",
         type=Path,
-        default=Path(__file__).resolve().parents[2],
+        default=Path(__file__).resolve().parents[3],
         help="Repository root path (default: inferred from this script location).",
     )
     parser.add_argument(
         "--registry",
         type=Path,
-        default=Path("docs/reference/term_definitions.json"),
+        default=Path("docs/reference/finance.json"),
         help="Registry path relative to repo root unless absolute.",
     )
     parser.add_argument(

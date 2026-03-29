@@ -53,35 +53,11 @@ These files coordinate scheduler-facing behavior, subprocess execution, log/sent
      - successful backup subprocess path
      - failing backup subprocess path
 
-## Lower-Priority Gaps
-
-These are worth covering, but they are less urgent than the runtime jobs above.
-
-1. `trends/charts.py`
-   - Test deterministic chart-path generation and save behavior.
-
-2. `trends/indicators.py`
-   - Add tests for:
-     - `calculate_bollinger_bands(...)`
-     - `calculate_annualized_volatility_pct(...)`
-     - `print_indicator_explanations()`
-
-3. `trends/tickers.py`
-   - Add tests for:
-     - unknown category error branch
-     - default `trends/assets/run_tickers.txt` fallback branch
-     - final default `['AAPL']` fallback
-
-4. `trading/interfaces/runtime/data_ops/admin.py`
-   - Core destructive paths already have meaningful tests.
-   - Remaining gaps are mostly parser/listing/output paths, so this is a cleanup target rather than an immediate operational risk.
-
 ## Recommended Work Order
 
 1. Add tests for `daily_paper_trading.py`.
 2. Add tests for `check_daily_trader_health.py`.
 3. Add tests for `weekly_db_backup.py` and `register_weekly_backup.py`.
-4. Add small deterministic tests for `trends/charts.py`, `trends/indicators.py`, and `trends/tickers.py`.
 
 ## Ready-To-Use Prompt
 
@@ -98,22 +74,12 @@ Context:
   2. trading/interfaces/runtime/jobs/check_daily_trader_health.py
   3. trading/interfaces/runtime/jobs/register_weekly_backup.py
   4. trading/interfaces/runtime/jobs/weekly_db_backup.py
-- Lower-priority follow-up files are:
-  1. trends/charts.py
-  2. trends/indicators.py
-  3. trends/tickers.py
-  4. trading/interfaces/runtime/data_ops/admin.py
 
 Instructions:
 - First inspect current tests and coverage gaps before editing.
 - Prioritize operational risk over raw percentage improvement.
 - Add focused tests, not broad refactors, unless a small refactor is needed to make the code testable.
 - Preserve runtime behavior and public CLI/module entrypoints.
-- After changes, run:
-  1. python -m pytest -o addopts="" tests/trading tests/trends
-  2. python -m mypy trading paper_trading_ui/backend --python-version 3.12 --ignore-missing-imports --follow-imports=skip
-  3. python -m scripts.checks.readme_check --max-age-days 90
-- Report which low-coverage branches were actually exercised by the new tests and call out any remaining notable gaps.
 ```
 
 ## Completion Goal

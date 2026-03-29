@@ -1,16 +1,16 @@
 {
   "schema_version": 2,
   "use_semantics": "surfaces",
-  "generated_at_utc": "2026-03-29T21:40:16+00:00",
+  "generated_at_utc": "2026-03-29T22:35:45+00:00",
   "sources": {
-    "glossary": "docs/reference/Glossary.md",
+    "glossary": "docs/reference/Finance.md",
     "ui_docs": "paper_trading_ui/frontend/src/views/docs.html"
   },
   "instructions": "Edit use to 'both', 'glossary', or 'ui' and edit definition as needed, then re-run this script.",
   "editing_notes": [
     "Terms using both surfaces appear first, then glossary-only, then ui-only.",
-    "Group is the display section, preferring Glossary section when present.",
-    "Use controls whether the definition should exist in both docs, only Glossary, or only the UI docs page."
+    "Group is the display section, preferring Finance section when present.",
+    "Use controls whether the definition should exist in both docs, only Finance, or only the UI docs page."
   ],
   "terms": [
     {

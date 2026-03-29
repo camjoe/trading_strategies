@@ -40,6 +40,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Quick/CI profile: also run term registry sync check.",
     )
+    parser.add_argument(
+        "--with-reference-doc-checks",
+        action="store_true",
+        help="Quick/CI profile: run Financial & Market, Software, and API reference sync checks.",
+    )
 
     # CI profile options
     parser.add_argument("--skip-python", action="store_true", help="CI profile: skip Python checks.")
@@ -73,6 +78,7 @@ def main() -> int:
             readme_max_age_days=args.readme_max_age_days,
             with_frontend=args.with_frontend,
             with_term_definitions_check=args.with_term_definitions_check,
+            with_reference_doc_checks=args.with_reference_doc_checks,
         )
 
     return run_ci(
@@ -84,6 +90,7 @@ def main() -> int:
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_term_definitions_check=args.with_term_definitions_check,
+        with_reference_doc_checks=args.with_reference_doc_checks,
     )
 
 

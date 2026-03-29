@@ -5,33 +5,33 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from scripts.terms.registry import build_registry, load_existing_state, parse_glossary, parse_ui_terms
+from scripts.documentation_ui.finance.registry import build_registry, load_existing_state, parse_glossary, parse_ui_terms
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Build canonical term registry from docs/reference/Glossary.md and "
+            "Build canonical term registry from docs/reference/Finance.md and "
             "paper_trading_ui/frontend/src/views/docs.html."
         )
     )
     parser.add_argument(
         "--repo-root",
         type=Path,
-        default=Path(__file__).resolve().parents[2],
+        default=Path(__file__).resolve().parents[3],
         help="Repository root path (default: inferred from this script location).",
     )
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path("docs/reference/term_definitions.json"),
+        default=Path("docs/reference/finance.json"),
         help="Output registry path relative to repo root unless absolute.",
     )
     args = parser.parse_args()
 
     repo_root = args.repo_root.resolve()
     out_path = args.out if args.out.is_absolute() else repo_root / args.out
-    glossary_path = repo_root / "docs/reference/Glossary.md"
+    glossary_path = repo_root / "docs/reference/Finance.md"
     ui_docs_path = repo_root / "paper_trading_ui/frontend/src/views/docs.html"
 
     glossary_terms = parse_glossary(glossary_path)
@@ -53,8 +53,8 @@ def main() -> int:
         ),
         "editing_notes": [
             "Terms using both surfaces appear first, then glossary-only, then ui-only.",
-            "Group is the display section, preferring Glossary section when present.",
-            "Use controls whether the definition should exist in both docs, only Glossary, or only the UI docs page.",
+            "Group is the display section, preferring Finance section when present.",
+            "Use controls whether the definition should exist in both docs, only Finance, or only the UI docs page.",
         ],
         "terms": rows,
     }

@@ -16,7 +16,7 @@ Required updates:
    - `README.md`
    - `docs/README.md`
    - `trading/README.md` (if trading workflow is affected)
-4. If new terminology appears in routes or payloads, add/update the definition in `docs/reference/Glossary.md`.
+4. If new terminology appears in routes or payloads, add/update the definition in `docs/reference/Finance.md`.
 
 ### B. Command/module/path changes (CLI paths, script paths, endpoint paths, import paths exposed to users)
 

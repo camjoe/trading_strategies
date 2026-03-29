@@ -1,1 +1,0 @@
-"""Canonical term registry tooling for Glossary and UI docs sync."""
