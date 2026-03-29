@@ -12,33 +12,12 @@ from trading.repositories.snapshots_repository import (
     insert_snapshot_row,
 )
 from trading.services.accounts_service import format_goal_text
-from trading.services.reporting_service import alpha_pct as alpha_pct_impl
-from trading.services.reporting_service import benchmark_available as benchmark_available_impl
+from trading.services.reporting_service import alpha_pct
+from trading.services.reporting_service import benchmark_available
 from trading.services.reporting_service import build_account_stats as build_account_stats_impl
-from trading.services.reporting_service import compute_market_value_and_unrealized as compute_market_value_and_unrealized_impl
 from trading.services.reporting_service import infer_overall_trend as infer_overall_trend_impl
-from trading.services.reporting_service import positions_summary_text as positions_summary_text_impl
-from trading.services.reporting_service import strategy_return_pct as strategy_return_pct_impl
-
-
-def _compute_market_value_and_unrealized(
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    prices: dict[str, float],
-) -> tuple[float, float]:
-    return compute_market_value_and_unrealized_impl(positions, avg_cost, prices)
-
-
-def _strategy_return_pct(equity: float, initial_cash: float) -> float:
-    return strategy_return_pct_impl(equity, initial_cash)
-
-
-def _benchmark_available(benchmark_equity: float | None, benchmark_return_pct: float | None) -> bool:
-    return benchmark_available_impl(benchmark_equity, benchmark_return_pct)
-
-
-def _alpha_pct(strategy_return_pct: float, benchmark_return_pct: float) -> float:
-    return alpha_pct_impl(strategy_return_pct, benchmark_return_pct)
+from trading.services.reporting_service import positions_summary_text
+from trading.services.reporting_service import strategy_return_pct
 
 
 def _print_leaps_params(account: sqlite3.Row) -> None:
@@ -95,13 +74,13 @@ def _print_performance_lines(
     print(f"Realized PnL: {realized_pnl:.2f}")
     print(f"Unrealized PnL: {unrealized:.2f}")
 
-    if _benchmark_available(benchmark_equity, benchmark_return_pct):
+    if benchmark_available(benchmark_equity, benchmark_return_pct):
         assert benchmark_return_pct is not None
         assert benchmark_equity is not None
-        alpha_pct = _alpha_pct(strategy_return_pct, benchmark_return_pct)
+        alpha_value = alpha_pct(strategy_return_pct, benchmark_return_pct)
         print(f"Benchmark Equity: {benchmark_equity:.2f}")
         print(f"Benchmark Return %: {benchmark_return_pct:.2f}")
-        print(f"Strategy Alpha vs Benchmark %: {alpha_pct:.2f}")
+        print(f"Strategy Alpha vs Benchmark %: {alpha_value:.2f}")
         return
 
     print("Benchmark comparison: unavailable (price history not found)")
@@ -125,10 +104,6 @@ def _print_open_positions(
         print(f"- {ticker}: qty={qty:.4f}, avg_cost={avg:.2f}, last_price={px_display}")
 
 
-def _positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
-    return positions_summary_text_impl(positions)
-
-
 def _compare_account_header(account: sqlite3.Row) -> str:
     learning = row_int(account, "learning_enabled")
     return (
@@ -143,13 +118,13 @@ def _compare_benchmark_line(
     benchmark_equity: float | None,
     benchmark_return_pct: float | None,
 ) -> str:
-    if _benchmark_available(benchmark_equity, benchmark_return_pct):
+    if benchmark_available(benchmark_equity, benchmark_return_pct):
         assert benchmark_equity is not None
         assert benchmark_return_pct is not None
-        alpha_pct = _alpha_pct(strategy_return_pct, benchmark_return_pct)
+        alpha_value = alpha_pct(strategy_return_pct, benchmark_return_pct)
         return (
             f"  benchmark_equity={benchmark_equity:.2f} benchmark_return={benchmark_return_pct:.2f}% "
-            f"alpha={alpha_pct:.2f}%"
+            f"alpha={alpha_value:.2f}%"
         )
     return "  benchmark_equity=N/A benchmark_return=N/A alpha=N/A"
 
@@ -195,7 +170,7 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
     benchmark_equity, benchmark_return_pct = benchmark_stats(
         benchmark_ticker, initial_cash, created_at
     )
-    strategy_return_pct = _strategy_return_pct(equity, initial_cash)
+    strategy_return_pct_value = strategy_return_pct(equity, initial_cash)
 
     _print_account_header(account)
     _print_performance_lines(
@@ -205,7 +180,7 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
         equity,
         state.realized_pnl,
         unrealized,
-        strategy_return_pct,
+        strategy_return_pct_value,
         benchmark_equity,
         benchmark_return_pct,
     )
@@ -217,7 +192,7 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
         "equity": equity,
         "realized_pnl": state.realized_pnl,
         "unrealized_pnl": unrealized,
-        "strategy_return_pct": strategy_return_pct,
+        "strategy_return_pct": strategy_return_pct_value,
     }
     return stats, state.positions
 
@@ -236,21 +211,21 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
         benchmark_ticker = row_expect_str(account, "benchmark_ticker")
         created_at = row_expect_str(account, "created_at")
         account_id = row_expect_int(account, "id")
-        strategy_return_pct = _strategy_return_pct(equity, initial_cash)
+        strategy_return_pct_value = strategy_return_pct(equity, initial_cash)
         bench_equity, bench_return_pct = benchmark_stats(
             benchmark_ticker, initial_cash, created_at
         )
         trend = infer_overall_trend(conn, account_id, equity, lookback)
 
-        position_count, positions_text = _positions_summary_text(state.positions)
+        position_count, positions_text = positions_summary_text(state.positions)
 
         print(_compare_account_header(account))
         print(f"  goal={format_goal_text(account)}")
         print(
-            f"  equity={equity:.2f} return={strategy_return_pct:.2f}% "
+            f"  equity={equity:.2f} return={strategy_return_pct_value:.2f}% "
             f"positions={position_count} trend={trend}"
         )
-        print(_compare_benchmark_line(strategy_return_pct, bench_equity, bench_return_pct))
+        print(_compare_benchmark_line(strategy_return_pct_value, bench_equity, bench_return_pct))
         print(f"  positions: {positions_text}")
 
 
