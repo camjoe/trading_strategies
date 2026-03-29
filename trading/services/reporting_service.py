@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Callable
 
+from trading.models import AccountState
+
 
 def compute_market_value_and_unrealized(
     positions: dict[str, float],
@@ -49,11 +51,11 @@ def build_account_stats(
     account: sqlite3.Row,
     *,
     load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], AccountState],
     fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
     row_expect_int_fn: Callable[[sqlite3.Row, str], int],
     row_expect_float_fn: Callable[[sqlite3.Row, str], float],
-) -> tuple[object, dict[str, float], float, float, float]:
+) -> tuple[AccountState, dict[str, float], float, float, float]:
     account_id = row_expect_int_fn(account, "id")
     initial_cash = row_expect_float_fn(account, "initial_cash")
     trades = load_trades_fn(conn, account_id)
@@ -81,8 +83,7 @@ def infer_overall_trend(
         limit=int(max(lookback, 2)),
     )
 
-    history = [row_float_fn(r, "equity") for r in rows]
-    history = [h for h in history if h is not None]
+    history: list[float] = [h for h in (row_float_fn(r, "equity") for r in rows) if h is not None]
     history.reverse()
     history.append(current_equity)
 
