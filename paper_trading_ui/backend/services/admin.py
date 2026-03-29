@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 
 from fastapi import HTTPException
 
 from trading.interfaces.runtime.data_ops.admin import delete_accounts
+from trading.models import RotationConfig
 from trading.repositories.accounts_repository import update_account_fields
 
 from .db import get_account_row
@@ -18,59 +18,20 @@ def clean_text(value: str | None) -> str | None:
     return text or None
 
 
-def build_rotation_schedule_json(value: list[str] | None) -> str | None:
-    if not value:
-        return None
-    normalized = [item.strip() for item in value if item and item.strip()]
-    if not normalized:
-        return None
-    unique: list[str] = []
-    for item in normalized:
-        if item not in unique:
-            unique.append(item)
-    return json.dumps(unique, separators=(",", ":"))
-
-
 def update_account_rotation_settings(
     conn: sqlite3.Connection,
-    *,
     account_name: str,
-    rotation_enabled: bool,
-    rotation_mode: str,
-    rotation_optimality_mode: str,
-    rotation_interval_days: int,
-    rotation_lookback_days: int,
-    rotation_schedule: list[str] | None,
-    rotation_active_index: int,
-    rotation_last_at: str | None,
-    rotation_active_strategy: str | None,
+    rotation: RotationConfig,
 ) -> None:
     account = get_account_row(conn, account_name)
+    db_values = rotation.to_db_dict()
+    updates = [f"{key} = ?" for key in db_values]
+    params = list(db_values.values())
     update_account_fields(
         conn,
         account_id=int(account["id"]),
-        updates=[
-            "rotation_enabled = ?",
-            "rotation_mode = ?",
-            "rotation_optimality_mode = ?",
-            "rotation_interval_days = ?",
-            "rotation_lookback_days = ?",
-            "rotation_schedule = ?",
-            "rotation_active_index = ?",
-            "rotation_last_at = ?",
-            "rotation_active_strategy = ?",
-        ],
-        params=[
-            1 if rotation_enabled else 0,
-            rotation_mode.strip().lower(),
-            rotation_optimality_mode.strip().lower(),
-            rotation_interval_days,
-            rotation_lookback_days,
-            build_rotation_schedule_json(rotation_schedule),
-            int(rotation_active_index),
-            clean_text(rotation_last_at),
-            clean_text(rotation_active_strategy),
-        ],
+        updates=updates,
+        params=params,
     )
 
 

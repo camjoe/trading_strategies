@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class AccountConfig:
     """Configurable fields shared by create_account and configure_account."""
 

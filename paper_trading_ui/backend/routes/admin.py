@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from trading.accounts import create_account
 from trading.database.db_backend import DuplicateRecordError
-from trading.models import AccountConfig
+from trading.models import AccountConfig, RotationConfig
 
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services import (
@@ -56,19 +56,18 @@ def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str
     )
 
 
-def _build_rotation_kwargs(payload: AdminCreateAccountRequest) -> dict[str, object]:
-    return dict(
-        account_name=payload.name.strip(),
-        rotation_enabled=bool(payload.rotationEnabled),
-        rotation_mode=payload.rotationMode,
-        rotation_optimality_mode=payload.rotationOptimalityMode,
-        rotation_interval_days=payload.rotationIntervalDays,
-        rotation_lookback_days=payload.rotationLookbackDays,
-        rotation_schedule=payload.rotationSchedule,
-        rotation_active_index=int(payload.rotationActiveIndex),
-        rotation_last_at=payload.rotationLastAt,
-        rotation_active_strategy=payload.rotationActiveStrategy,
-    )
+def _build_rotation_config(payload: AdminCreateAccountRequest) -> RotationConfig:
+    return RotationConfig.from_profile({
+        "rotation_enabled": bool(payload.rotationEnabled),
+        "rotation_mode": payload.rotationMode,
+        "rotation_optimality_mode": payload.rotationOptimalityMode,
+        "rotation_interval_days": payload.rotationIntervalDays,
+        "rotation_lookback_days": payload.rotationLookbackDays,
+        "rotation_schedule": payload.rotationSchedule,
+        "rotation_active_index": int(payload.rotationActiveIndex),
+        "rotation_last_at": payload.rotationLastAt,
+        "rotation_active_strategy": payload.rotationActiveStrategy,
+    })
 
 
 @router.post("/api/admin/accounts/create")
@@ -81,7 +80,7 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
         except DuplicateRecordError as error:
             raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
 
-        update_account_rotation_settings(conn, **_build_rotation_kwargs(payload))
+        update_account_rotation_settings(conn, payload.name.strip(), _build_rotation_config(payload))
 
         account = get_account_row(conn, payload.name.strip())
         return {"status": "ok", "account": build_account_summary(conn, account)}

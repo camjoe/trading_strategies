@@ -16,7 +16,6 @@ from .accounts import (
     get_managed_account_rows,
 )
 from .admin import (
-    build_rotation_schedule_json,
     clean_text,
     delete_account_and_dependents,
     update_account_rotation_settings,
@@ -40,7 +39,6 @@ __all__ = [
     "build_backtest_config_from_run_request",
     "build_backtest_run_summary",
     "build_comparison_account_payload",
-    "build_rotation_schedule_json",
     "build_snapshot_payload",
     "build_test_account_detail_payload",
     "build_test_account_summary",

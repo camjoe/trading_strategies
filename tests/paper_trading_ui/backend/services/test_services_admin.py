@@ -9,13 +9,10 @@ from paper_trading_ui.backend.services import admin as services_admin
 from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
 
 
-def test_clean_text_and_rotation_schedule_json() -> None:
+def test_clean_text() -> None:
     assert services_admin.clean_text(None) is None
     assert services_admin.clean_text("   ") is None
     assert services_admin.clean_text("  hello  ") == "hello"
-
-    schedule = services_admin.build_rotation_schedule_json([" trend ", "mean_reversion", "trend", " "])
-    assert schedule == '["trend","mean_reversion"]'
 
 
 def test_delete_account_and_dependents_not_found_raises(conn) -> None:

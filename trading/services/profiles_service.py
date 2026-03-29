@@ -5,9 +5,9 @@ import sqlite3
 from trading.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.models.account_config import AccountConfig
+from trading.models.rotation_config import RotationConfig
 from trading.profile_source import AccountProfileSource, JsonAccountProfileSource
 from trading.repositories.accounts_repository import update_account_fields
-from trading.rotation import OPTIMALITY_MODES, ROTATION_MODES, dump_rotation_schedule, parse_rotation_schedule
 
 
 CONFIGURE_KEYS = {
@@ -68,92 +68,29 @@ def extract_profile_fields(profile: dict[str, object]) -> AccountConfig:
     )
 
 
-def extract_rotation_fields(profile: dict[str, object]) -> dict[str, object]:
-    enabled = coerce_bool(profile.get("rotation_enabled"))
-    rotation_mode_raw = coerce_str(profile.get("rotation_mode"))
-    optimality_mode_raw = coerce_str(profile.get("rotation_optimality_mode"))
-    interval_days = coerce_int(profile.get("rotation_interval_days"))
-    lookback_days = coerce_int(profile.get("rotation_lookback_days"))
-    active_index = coerce_int(profile.get("rotation_active_index"))
-    last_at = coerce_str(profile.get("rotation_last_at"))
-    active_strategy = coerce_str(profile.get("rotation_active_strategy"))
-    schedule = parse_rotation_schedule(profile.get("rotation_schedule"))
-
-    rotation_mode = (rotation_mode_raw or "time").strip().lower()
-    if rotation_mode not in ROTATION_MODES:
-        raise ValueError("rotation_mode must be one of: time, optimal")
-
-    optimality_mode = (optimality_mode_raw or "previous_period_best").strip().lower()
-    if optimality_mode not in OPTIMALITY_MODES:
-        allowed = ", ".join(sorted(OPTIMALITY_MODES))
-        raise ValueError(f"rotation_optimality_mode must be one of: {allowed}")
-
-    if enabled and (interval_days is None or interval_days <= 0):
-        raise ValueError("rotation_interval_days must be > 0 when rotation_enabled is true")
-    if lookback_days is not None and lookback_days <= 0:
-        raise ValueError("rotation_lookback_days must be > 0")
-    if active_index is not None and active_index < 0:
-        raise ValueError("rotation_active_index must be >= 0")
-
-    if schedule and active_index is not None and active_index >= len(schedule):
-        active_index = active_index % len(schedule)
-
-    if schedule and not active_strategy:
-        if active_index is None:
-            active_index = 0
-        active_strategy = schedule[active_index]
-
-    if active_strategy and schedule and active_strategy not in schedule:
-        raise ValueError("rotation_active_strategy must be a member of rotation_schedule")
-
-    if schedule and active_strategy and active_index is None:
-        active_index = schedule.index(active_strategy)
-
-    return {
-        "rotation_enabled": enabled,
-        "rotation_mode": rotation_mode,
-        "rotation_optimality_mode": optimality_mode,
-        "rotation_interval_days": interval_days,
-        "rotation_lookback_days": lookback_days,
-        "rotation_schedule": dump_rotation_schedule(schedule) if schedule else None,
-        "rotation_active_index": active_index,
-        "rotation_last_at": last_at.strip() if last_at is not None else None,
-        "rotation_active_strategy": active_strategy.strip() if active_strategy is not None else None,
-    }
-
-
 def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str, object]) -> bool:
     if not any(key in profile for key in ROTATION_KEYS):
         return False
 
     account = get_account(conn, name)
-    rotation_fields = extract_rotation_fields(profile)
-
-    updates: list[str] = []
-    params: list[object] = []
+    cfg = RotationConfig.from_profile(profile)
 
     has_schedule_input = "rotation_schedule" in profile
     has_index_input = "rotation_active_index" in profile
-    for key, value in rotation_fields.items():
-        if key == "rotation_schedule" and "rotation_schedule" not in profile:
-            continue
-        if key == "rotation_active_strategy" and "rotation_active_strategy" not in profile and not has_schedule_input and not has_index_input:
-            continue
-        if key == "rotation_last_at" and "rotation_last_at" not in profile:
-            continue
-        if key == "rotation_enabled" and "rotation_enabled" not in profile:
-            continue
-        if key == "rotation_interval_days" and "rotation_interval_days" not in profile:
-            continue
-        if key == "rotation_lookback_days" and "rotation_lookback_days" not in profile:
-            continue
-        if key == "rotation_mode" and "rotation_mode" not in profile:
-            continue
-        if key == "rotation_optimality_mode" and "rotation_optimality_mode" not in profile:
-            continue
-        if key == "rotation_active_index" and "rotation_active_index" not in profile and not has_schedule_input:
-            continue
 
+    write_keys: set[str] = {k for k in ROTATION_KEYS if k in profile}
+    if has_schedule_input or has_index_input:
+        write_keys.add("rotation_active_strategy")
+    if has_schedule_input:
+        write_keys.add("rotation_active_index")
+
+    field_values = cfg.to_db_dict()
+
+    updates: list[str] = []
+    params: list[object] = []
+    for key, value in field_values.items():
+        if key not in write_keys:
+            continue
         updates.append(f"{key} = ?")
         params.append(value)
 
@@ -167,7 +104,6 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
         params=params,
     )
     return True
-
 
 def apply_account_profiles(
     conn: sqlite3.Connection,
