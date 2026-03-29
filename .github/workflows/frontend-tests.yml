@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - master
+      - features
     paths:
       - paper_trading_ui/frontend/**
       - .github/workflows/frontend-tests.yml
