@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Callable, Mapping, cast
 
 from common.time import utc_now_iso
 from trading.accounting import compute_account_state, load_trades, record_trade
@@ -57,7 +58,7 @@ def _select_runtime_rotation_strategy(
         parse_rotation_schedule_fn=parse_rotation_schedule,
         parse_as_of_iso_fn=_parse_runtime_as_of_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
+        resolve_optimality_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_optimality_mode),
     )
 
 
@@ -73,12 +74,12 @@ def _rotate_runtime_account(
         account,
         now_iso,
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
-        is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
-        resolve_rotation_mode_fn=resolve_rotation_mode,
+        is_rotation_due_fn=lambda row: is_rotation_due(cast(Mapping[str, object], row), as_of_iso=now_iso),
+        resolve_rotation_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_rotation_mode),
         select_optimal_strategy_fn=_select_runtime_rotation_strategy,
-        resolve_active_strategy_fn=resolve_active_strategy,
+        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
+        next_rotation_state_fn=lambda row, as_of: next_rotation_state(cast(Mapping[str, object], row), as_of_iso=as_of),
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
@@ -137,7 +138,10 @@ def _prepare_runtime_buy_trade(
         estimate_option_premium_fn=auto_trader_policy.estimate_option_premium,
         choose_buy_qty_fn=auto_trader_policy.choose_buy_qty,
         apply_leaps_buy_qty_limits_fn=auto_trader_policy.apply_leaps_buy_qty_limits,
-        choose_buy_ticker_fn=auto_trader_policy.choose_buy_ticker,
+        choose_buy_ticker_fn=cast(
+            Callable[[list[str], dict[str, float], object, bool], str],
+            auto_trader_policy.choose_buy_ticker,
+        ),
     )
 
 
@@ -156,7 +160,10 @@ def _prepare_runtime_sell_trade(
         state,
         learning_enabled,
         instrument_mode,
-        choose_sell_ticker_fn=auto_trader_policy.choose_sell_ticker,
+        choose_sell_ticker_fn=cast(
+            Callable[[list[str], dict[str, float], object, bool], str],
+            auto_trader_policy.choose_sell_ticker,
+        ),
         choose_sell_qty_fn=auto_trader_policy.choose_sell_qty,
     )
 
@@ -243,7 +250,7 @@ def run_for_account(
         get_account_fn=get_account,
         utc_now_iso_fn=utc_now_iso,
         rotate_account_if_due_fn=_rotate_runtime_account,
-        resolve_active_strategy_fn=resolve_active_strategy,
+        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
         refresh_account_state_fn=_refresh_runtime_account_state,
         resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
         prepare_trade_selection_fn=_prepare_runtime_trade_selection,

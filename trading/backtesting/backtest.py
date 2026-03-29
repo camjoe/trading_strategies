@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
+from typing import Callable, cast
 
 import pandas as pd
 
@@ -233,7 +234,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         row_expect_str_fn=row_expect_str,
         row_expect_int_fn=row_expect_int,
         row_expect_float_fn=row_expect_float,
-        resolve_active_strategy_fn=resolve_active_strategy,
+        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
         resolve_strategy_fn=resolve_strategy,
         get_feature_provider_fn=get_feature_provider,
         insert_run_fn=_insert_run,
