@@ -4,37 +4,9 @@ import sqlite3
 from datetime import date
 from typing import Callable, cast
 
-import pandas as pd
-
 from common.market_data import get_feature_provider
+
 from trading.accounts import get_account
-from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
-from trading.backtesting.domain.risk_warnings import build_backtest_warnings
-from trading.backtesting.domain.simulation_math import (
-    compute_market_value,
-    compute_unrealized_pnl,
-    update_on_buy,
-    update_on_sell,
-)
-from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
-from trading.backtesting.domain.windowing import add_months
-from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
-from trading.backtesting.repositories.backtest_repository import (
-    insert_backtest_run,
-    insert_backtest_snapshot,
-    insert_backtest_trade,
-)
-from trading.backtesting.services.backtest_data_service import (
-    build_monthly_universe,
-    fetch_benchmark_close,
-    fetch_close_history,
-    load_tickers_from_file,
-    resolve_backtest_dates,
-)
-from trading.backtesting.services.execution_service import run_backtest as run_backtest_impl
-from trading.backtesting.services.leaderboard_service import fetch_backtest_leaderboard_entries
-from trading.backtesting.services.report_service import fetch_backtest_report_data
-from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
 from trading.coercion import (
     row_expect_float,
     row_expect_int,
@@ -50,9 +22,32 @@ from trading.models.backtesting import (
 from trading.models.backtesting_reports import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from trading.rotation import resolve_active_strategy
 
-
-def _add_months(base: date, months: int) -> date:
-    return add_months(base, months)
+from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
+from trading.backtesting.domain.risk_warnings import build_backtest_warnings
+from trading.backtesting.domain.simulation_math import (
+    compute_market_value,
+    compute_unrealized_pnl,
+    update_on_buy,
+    update_on_sell,
+)
+from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
+from trading.backtesting.repositories.backtest_repository import (
+    insert_backtest_run,
+    insert_backtest_snapshot,
+    insert_backtest_trade,
+)
+from trading.backtesting.services import (
+    build_monthly_universe,
+    execute_walk_forward_backtest,
+    fetch_backtest_leaderboard_entries,
+    fetch_backtest_report_data,
+    fetch_benchmark_close,
+    fetch_close_history,
+    load_tickers_from_file,
+    resolve_backtest_dates,
+    run_backtest as run_backtest_impl,
+)
 
 
 def build_walk_forward_windows(
