@@ -32,13 +32,33 @@ Disallowed:
 ## Package Ownership Map
 
 1. `trading/interfaces/cli/`: CLI adapters and command wiring
+   - Keep transport/input wiring here, not domain logic.
+
 2. `trading/interfaces/runtime/jobs/`: scheduler/runtime entrypoints
+   - Scheduler and runtime orchestration entrypoints (daily runs, health checks, registration tasks).
+
 3. `trading/interfaces/runtime/data_ops/`: operator-facing maintenance flows
+   - Operator-facing DB admin/export flows.
+   - Canonical location for backup/export/delete operations.
+
 4. `trading/services/`: application orchestration and composition
+   - Coordinates domain logic and repositories.
+
 5. `trading/domain/`: pure policy/decision logic (side-effect free)
+   - No DB, CLI, subprocess, or network side effects.
+
 6. `trading/repositories/`: SQL persistence adapters
+   - SQL reads/writes and row-level data access helpers.
+
 7. `trading/database/`: DB infrastructure/config/coercion only
+   - Schema init/evolution, backend selection, path/config, and coercion helpers.
+
 8. `trading/backtesting/`: same layered model within backtesting package
+   - Repository/service/domain layering mirrored from main trading module.
+   - See `docs/architecture/backtesting-layering-adr.md` for layering rationale.
+
+9. `trading/config/`: file-backed static config assets
+   - Account profile presets and other static configuration.
 
 ## Naming Conventions
 
@@ -86,6 +106,15 @@ Domain naming:
 4. Avoid reliance on case-insensitive path behavior.
 5. Make type narrowing explicit where mypy/platform inference may differ.
 
+## Completed Structural Slices
+
+Recent refactors have aligned these areas with repository/service/domain layering:
+
+- Pricing module
+- Profiles module
+- Reporting module
+- Auto-trader orchestration
+
 ## Bot Placement Checklist
 
 Before creating or moving code in `trading/`:
@@ -94,4 +123,4 @@ Before creating or moving code in `trading/`:
 2. Place scheduler operations in `trading/interfaces/runtime/jobs/`.
 3. Place operator data ops in `trading/interfaces/runtime/data_ops/`.
 4. Keep SQL in repositories, not in handlers/routes.
-5. Update `docs/architecture/trading-module-boundaries.md` if ownership boundaries change.
+5. If architecture ownership changes, update this file accordingly.

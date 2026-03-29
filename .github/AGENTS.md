@@ -19,7 +19,7 @@ This file provides shared baseline rules; it does not replace or remove those ag
 
 - Docs-impact and validation policy: `.github/DOCS_PRECOMMIT_POLICY.md`
 - Script behavior and command flags: `scripts/README.md`
-- Architecture boundaries: `docs/architecture/trading-module-boundaries.md`
+- Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Bot dependency/naming conventions: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style approach and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
 

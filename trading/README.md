@@ -105,7 +105,7 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Backtesting: `docs/backtesting.md`
 - UI dashboard: `paper_trading_ui/README.md`
-- Trading architecture guide: `docs/architecture/trading-module-boundaries.md`
+- Trading architecture guide: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 
 ## Preset Profiles
 

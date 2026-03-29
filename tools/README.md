@@ -20,7 +20,7 @@ Recent tooling note:
 Additional workflow notes:
 
 - `python -m scripts.run_checks --profile ci` is the primary local audit command mirroring CI core checks.
-- Trading structure guidance is tracked in `docs/architecture/trading-module-boundaries.md`.
+- Trading structure guidance is tracked in `.github/BOT_ARCHITECTURE_CONVENTIONS.md`.
 - Low-coverage runtime follow-up notes and a ready-to-use testing prompt are tracked in `docs/architecture/runtime-job-coverage-follow-up.md`.
 - Runtime data operations use canonical module entrypoints under `trading/interfaces/runtime/data_ops/`.
 - Repository-backed backend abstraction updates should keep focused validation in `tests/trading` and `tests/paper_trading_ui/backend` aligned.
