@@ -14,12 +14,12 @@ Use `-o addopts=` when local environments do not have coverage plugins required 
 
 Daily snapshot scheduler coverage lives in:
 
-- `tests/trading/scripts/test_daily_snapshot.py`
+- `tests/trading/interfaces/runtime/jobs/test_daily_snapshot.py`
 
 Run only this test module:
 
 ```sh
-python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
+python -m pytest --no-cov tests/trading/interfaces/runtime/jobs/test_daily_snapshot.py
 ```
 
 ## Fixture Hierarchy
