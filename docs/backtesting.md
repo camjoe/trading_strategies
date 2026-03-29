@@ -2,10 +2,24 @@
 
 Backtesting is implemented in:
 - `trading/backtesting/backtest.py`
-- `trading/backtesting/backtest_data.py`
-- `trading/backtesting/strategy_signals.py`
+- `trading/backtesting/repositories/`
+- `trading/backtesting/services/`
+- `trading/backtesting/domain/`
 
 The module reuses account metadata from paper trading while storing run, trade, and equity history in dedicated backtest tables.
+
+## Layering and Ownership
+
+Backtesting follows a layered structure:
+
+- Repositories (`trading/backtesting/repositories/`): SQL reads/writes only.
+- Services (`trading/backtesting/services/`): orchestration, model mapping, and workflow logic.
+- Domain (`trading/backtesting/domain/`): pure calculations and policy helpers.
+- Entrypoint (`trading/backtesting/backtest.py`): public API composition and call routing.
+
+Detailed rationale and guardrails are in:
+
+- `docs/architecture/backtesting-layering-adr.md`
 
 ## Commands
 
@@ -60,3 +74,4 @@ Operational notes:
 
 - `trading/README.md`
 - `docs/Strategies.md`
+- `docs/architecture/backtesting-layering-adr.md`

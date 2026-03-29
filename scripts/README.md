@@ -5,8 +5,9 @@ Automation helpers for repository operations and CI/local quality checks.
 ## Ownership Boundaries
 
 - `scripts/`: repository-level automation and developer workflows (CI smoke, docs checks, exports, launch helpers).
-- `trading/scripts/`: trading runtime operations and scheduler tasks (daily trading, health checks, backup registration).
-- `trading/database/admin.py`: interactive/local database administration utilities.
+- `trading/interfaces/runtime/jobs/`: trading runtime operations and scheduler tasks (daily trading, health checks, backup registration).
+- `trading/interfaces/runtime/data_ops/`: interactive/local database administration and export utilities.
+- `trading/database/`: database infrastructure only (schema, backend, config, coercion).
 
 Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
 
@@ -40,10 +41,10 @@ python -m scripts.data_ops.export_db_csv_zip
 
 What should not go here:
 
-- Trading runtime schedulers and health checks belong in `trading/scripts/`.
-- Interactive/local DB admin workflows belong in `trading/database/admin.py`.
+- Trading runtime schedulers and health checks belong in `trading/interfaces/runtime/jobs/`.
+- Interactive/local DB admin workflows belong in `trading/interfaces/runtime/data_ops/`.
 
-If a script changes trading runtime behavior, place it in `trading/scripts/` and document it in `trading/README.md`.
+If a script changes trading runtime behavior, place it in `trading/interfaces/runtime/jobs/` and document it in `trading/README.md`.
 
 ## Docs Freshness
 

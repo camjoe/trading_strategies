@@ -38,7 +38,7 @@ pip install -r requirements/dev.txt
   ```sh
   python -m trading.paper_trading init
   ```
-- `requirements.txt` points to `requirements/dev.txt` for backward compatibility.
+- `requirements.txt` points to `requirements/dev.txt`.
 
 ## CI Smoke Check
 

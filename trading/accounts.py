@@ -1,9 +1,18 @@
 import sqlite3
 from typing import Callable
+
 from common.time import utc_now_iso
 from trading.database.db_backend import DuplicateRecordError
-from trading.database.db_config import get_db_path
 from trading.coercion import coerce_float, coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
+from trading.repositories.accounts_repository import (
+    fetch_account_by_name,
+    fetch_all_account_names,
+    fetch_account_listing_rows,
+    insert_account,
+    update_account_benchmark,
+    update_account_fields,
+)
+from trading.services.accounts_service import build_account_listing_lines
 
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
@@ -19,7 +28,7 @@ _ENUM_FIELDS = {
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
-    row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    row = fetch_account_by_name(conn, name)
     if row is None:
         raise ValueError(f"Account '{name}' not found.")
     return row
@@ -138,32 +147,67 @@ def _append_update(
     params.append(transform(value) if transform is not None else value)
 
 
-def format_goal_text(row: sqlite3.Row) -> str:
-    min_goal = row_float(row, "goal_min_return_pct")
-    max_goal = row_float(row, "goal_max_return_pct")
-    goal_period = row_str(row, "goal_period") or "period"
-    if min_goal is None and max_goal is None:
-        return "not-set"
-    if min_goal is not None and max_goal is not None:
-        return f"{min_goal:.2f}% to {max_goal:.2f}% per {goal_period}"
-    if min_goal is not None:
-        return f">= {min_goal:.2f}% per {goal_period}"
-    return f"<= {max_goal:.2f}% per {goal_period}"
+def _append_numeric_updates(
+    updates: list[str],
+    params: list[object],
+    numeric_fields: list[tuple[str, object | None, Callable[[object], object]]],
+) -> None:
+    for column, value, transform in numeric_fields:
+        _append_update(updates, params, column, value, transform)
 
 
-def _account_summary_line(row: sqlite3.Row) -> str:
-    goal_text = format_goal_text(row)
-    initial_cash = row_float(row, "initial_cash")
-    learning_enabled = row_int(row, "learning_enabled")
-    initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
-    return (
-        f"[{row['id']}] {row['name']} ({row['descriptive_name']}) | strategy={row['strategy']} | "
-        f"initial_cash={initial_cash_text} | benchmark={row['benchmark_ticker']} | "
-        f"goal={goal_text} | learning={'on' if learning_enabled else 'off'} | "
-        f"risk={row['risk_policy']} | instrument={row['instrument_mode']} | "
-        f"created={row['created_at']}"
+def _resolved_float(value: float | None, row: sqlite3.Row, column: str) -> float | None:
+    if value is not None:
+        return value
+    return row_float(row, column)
+
+
+def _resolved_int(value: int | None, row: sqlite3.Row, column: str) -> int | None:
+    if value is not None:
+        return value
+    return row_int(row, column)
+
+
+def _validate_goal_range_from_inputs(
+    account: sqlite3.Row,
+    goal_min_return_pct: float | None,
+    goal_max_return_pct: float | None,
+) -> None:
+    min_value = _resolved_float(goal_min_return_pct, account, "goal_min_return_pct")
+    max_value = _resolved_float(goal_max_return_pct, account, "goal_max_return_pct")
+    if min_value is not None and max_value is not None and min_value > max_value:
+        raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
+
+
+def _validate_option_settings_from_inputs(
+    account: sqlite3.Row,
+    option_type: str | None,
+    target_delta_min: float | None,
+    target_delta_max: float | None,
+    option_min_dte: int | None,
+    option_max_dte: int | None,
+    iv_rank_min: float | None,
+    iv_rank_max: float | None,
+) -> None:
+    min_dte = _resolved_int(option_min_dte, account, "option_min_dte")
+    max_dte = _resolved_int(option_max_dte, account, "option_max_dte")
+    if min_dte is not None and max_dte is not None and min_dte > max_dte:
+        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
+
+    delta_min = _resolved_float(target_delta_min, account, "target_delta_min")
+    delta_max = _resolved_float(target_delta_max, account, "target_delta_max")
+    iv_min = _resolved_float(iv_rank_min, account, "iv_rank_min")
+    iv_max = _resolved_float(iv_rank_max, account, "iv_rank_max")
+    resolved_opt_type = option_type if option_type is not None else row_str(account, "option_type")
+    _validate_option_settings(
+        resolved_opt_type,
+        delta_min,
+        delta_max,
+        min_dte,
+        max_dte,
+        iv_min,
+        iv_max,
     )
-
 
 def create_account(
     conn: sqlite3.Connection,
@@ -215,100 +259,56 @@ def create_account(
     )
 
     try:
-        conn.execute(
-            """
-            INSERT INTO accounts (
-                name,
-                strategy,
-                initial_cash,
-                created_at,
-                benchmark_ticker,
-                descriptive_name,
-                goal_min_return_pct,
-                goal_max_return_pct,
-                goal_period,
-                learning_enabled,
-                risk_policy,
-                stop_loss_pct,
-                take_profit_pct,
-                instrument_mode,
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                option_type,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
-                profit_take_pct,
-                max_loss_pct
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                name,
-                strategy,
-                float(initial_cash),
-                utc_now_iso(),
-                benchmark_ticker.upper().strip(),
-                display,
-                goal_min_return_pct,
-                goal_max_return_pct,
-                _normalize_lower(goal_period),
-                int(learning_enabled),
-                risk,
-                stop_loss_pct,
-                take_profit_pct,
-                mode,
-                option_strike_offset_pct,
-                option_min_dte,
-                option_max_dte,
-                _normalize_option_type(option_type) if option_type else None,
-                target_delta_min,
-                target_delta_max,
-                max_premium_per_trade,
-                max_contracts_per_trade,
-                iv_rank_min,
-                iv_rank_max,
-                roll_dte_threshold,
-                profit_take_pct,
-                max_loss_pct,
-            ),
+        insert_account(
+            conn,
+            name=name,
+            strategy=strategy,
+            initial_cash=float(initial_cash),
+            created_at=utc_now_iso(),
+            benchmark_ticker=benchmark_ticker.upper().strip(),
+            descriptive_name=display,
+            goal_min_return_pct=goal_min_return_pct,
+            goal_max_return_pct=goal_max_return_pct,
+            goal_period=_normalize_lower(goal_period),
+            learning_enabled=int(learning_enabled),
+            risk_policy=risk,
+            stop_loss_pct=stop_loss_pct,
+            take_profit_pct=take_profit_pct,
+            instrument_mode=mode,
+            option_strike_offset_pct=option_strike_offset_pct,
+            option_min_dte=option_min_dte,
+            option_max_dte=option_max_dte,
+            option_type=_normalize_option_type(option_type) if option_type else None,
+            target_delta_min=target_delta_min,
+            target_delta_max=target_delta_max,
+            max_premium_per_trade=max_premium_per_trade,
+            max_contracts_per_trade=max_contracts_per_trade,
+            iv_rank_min=iv_rank_min,
+            iv_rank_max=iv_rank_max,
+            roll_dte_threshold=roll_dte_threshold,
+            profit_take_pct=profit_take_pct,
+            max_loss_pct=max_loss_pct,
         )
-        conn.commit()
     except sqlite3.IntegrityError as exc:
         raise DuplicateRecordError(f"Account '{name}' already exists.") from exc
 
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
     account = get_account(conn, account_name)
-    conn.execute(
-        "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",
-        (benchmark_ticker.upper().strip(), account["id"]),
+    update_account_benchmark(
+        conn,
+        account_id=account["id"],
+        benchmark_ticker=benchmark_ticker.upper().strip(),
     )
-    conn.commit()
 
 
 def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
-    accounts = conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+    accounts = fetch_account_listing_rows(conn)
     if not accounts:
         print("No paper accounts found.")
         return
-    if by_strategy:
-        current_strategy = None
-        for account in accounts:
-            if account["strategy"] != current_strategy:
-                if current_strategy is not None:
-                    print()
-                current_strategy = account["strategy"]
-                print(f"Strategy: {current_strategy}")
-            print(f"  {_account_summary_line(account)}")
-    else:
-        for account in accounts:
-            print(_account_summary_line(account))
+    for line in build_account_listing_lines(accounts, by_strategy=by_strategy):
+        print(line)
 
 
 def configure_account(
@@ -378,47 +378,29 @@ def configure_account(
         ("profit_take_pct", profit_take_pct, to_float_obj),
         ("max_loss_pct", max_loss_pct, to_float_obj),
     ]
-    for column, value, transform in numeric_fields:
-        _append_update(updates, params, column, value, transform)
-
-    min_value = goal_min_return_pct if goal_min_return_pct is not None else row_float(account, "goal_min_return_pct")
-    max_value = goal_max_return_pct if goal_max_return_pct is not None else row_float(account, "goal_max_return_pct")
-    if min_value is not None and max_value is not None and min_value > max_value:
-        raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
-
-    min_dte = option_min_dte if option_min_dte is not None else row_int(account, "option_min_dte")
-    max_dte = option_max_dte if option_max_dte is not None else row_int(account, "option_max_dte")
-    if min_dte is not None and max_dte is not None and min_dte > max_dte:
-        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
-
-    delta_min = target_delta_min if target_delta_min is not None else row_float(account, "target_delta_min")
-    delta_max = target_delta_max if target_delta_max is not None else row_float(account, "target_delta_max")
-    iv_min = iv_rank_min if iv_rank_min is not None else row_float(account, "iv_rank_min")
-    iv_max = iv_rank_max if iv_rank_max is not None else row_float(account, "iv_rank_max")
-    resolved_opt_type = option_type if option_type is not None else row_str(account, "option_type")
-    _validate_option_settings(
-        resolved_opt_type,
-        delta_min,
-        delta_max,
-        min_dte,
-        max_dte,
-        iv_min,
-        iv_max,
+    _append_numeric_updates(updates, params, numeric_fields)
+    _validate_goal_range_from_inputs(account, goal_min_return_pct, goal_max_return_pct)
+    _validate_option_settings_from_inputs(
+        account,
+        option_type,
+        target_delta_min,
+        target_delta_max,
+        option_min_dte,
+        option_max_dte,
+        iv_rank_min,
+        iv_rank_max,
     )
 
     if not updates:
         return
 
-    params.append(account["id"])
-    conn.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", tuple(params))
-    conn.commit()
+    update_account_fields(
+        conn,
+        account_id=account["id"],
+        updates=updates,
+        params=params,
+    )
 
 
 def load_all_account_names() -> list[str]:
-    conn = sqlite3.connect(get_db_path())
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-    finally:
-        conn.close()
-    return [str(row["name"]) for row in rows]
+    return fetch_all_account_names()

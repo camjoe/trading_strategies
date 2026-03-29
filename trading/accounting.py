@@ -1,8 +1,10 @@
 import sqlite3
 from collections import defaultdict
+
 from common.time import utc_now_iso
 from trading.accounts import get_account
 from trading.models import AccountState
+from trading.repositories.trades_repository import fetch_trades_for_account, insert_trade
 
 
 VALID_SIDES = {"buy", "sell"}
@@ -77,6 +79,24 @@ def _compact_positions(
     return open_positions, open_avg_cost
 
 
+def _apply_trade_to_state(
+    trade: sqlite3.Row,
+    positions: dict[str, float],
+    avg_cost: dict[str, float],
+    cash: float,
+    realized: float,
+) -> tuple[float, float]:
+    ticker, side, qty, price, fee = _normalize_trade_fields(trade)
+    _validate_trade_values(qty, price)
+
+    if side == "buy":
+        return _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized
+    if side == "sell":
+        return _apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
+
+    raise ValueError(f"Unsupported side: {side}")
+
+
 def _normalize_order_input(side: str, ticker: str) -> tuple[str, str]:
     normalized_side = side.lower().strip()
     normalized_ticker = ticker.upper().strip()
@@ -108,15 +128,7 @@ def _account_state_from_db(conn: sqlite3.Connection, account_id: int, initial_ca
 
 
 def load_trades(conn: sqlite3.Connection, account_id: int) -> list[sqlite3.Row]:
-    return conn.execute(
-        """
-        SELECT ticker, side, qty, price, fee, trade_time
-        FROM trades
-        WHERE account_id = ?
-        ORDER BY trade_time, id
-        """,
-        (account_id,),
-    ).fetchall()
+    return fetch_trades_for_account(conn, account_id=account_id)
 
 
 def compute_account_state(initial_cash: float, trades: list[sqlite3.Row]) -> AccountState:
@@ -126,27 +138,7 @@ def compute_account_state(initial_cash: float, trades: list[sqlite3.Row]) -> Acc
     realized = 0.0
 
     for trade in trades:
-        ticker, side, qty, price, fee = _normalize_trade_fields(trade)
-        _validate_trade_values(qty, price)
-
-        if side == "buy":
-            cash = _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash)
-            continue
-
-        if side == "sell":
-            cash, realized = _apply_sell(
-                ticker,
-                qty,
-                price,
-                fee,
-                positions,
-                avg_cost,
-                cash,
-                realized,
-            )
-            continue
-
-        raise ValueError(f"Unsupported side: {side}")
+        cash, realized = _apply_trade_to_state(trade, positions, avg_cost, cash, realized)
 
     positions, avg_cost = _compact_positions(positions, avg_cost)
 
@@ -170,20 +162,14 @@ def record_trade(
     existing_state = _account_state_from_db(conn, account["id"], account["initial_cash"])
     _ensure_sufficient_cash_for_buy(side, qty, price, fee, existing_state.cash)
 
-    conn.execute(
-        """
-        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account["id"],
-            ticker,
-            side,
-            float(qty),
-            float(price),
-            float(fee),
-            trade_time or utc_now_iso(),
-            note,
-        ),
+    insert_trade(
+        conn,
+        account_id=int(account["id"]),
+        ticker=ticker,
+        side=side,
+        qty=float(qty),
+        price=float(price),
+        fee=float(fee),
+        trade_time=trade_time or utc_now_iso(),
+        note=note,
     )
-    conn.commit()

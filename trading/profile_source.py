@@ -12,6 +12,41 @@ from pathlib import Path
 from typing import Protocol
 
 
+DEFAULT_ACCOUNT_PROFILES_FILE = "trading/config/account_profiles/default.json"
+
+
+def _profiles_dir_candidates() -> list[Path]:
+    package_root = Path(__file__).resolve().parent
+    return [
+        package_root / "config" / "account_profiles",
+        package_root / "account_profiles",
+    ]
+
+
+def get_builtin_profile_preset_path(preset: str) -> Path:
+    preset_name = preset.strip().lower()
+    for profiles_dir in _profiles_dir_candidates():
+        candidate = profiles_dir / f"{preset_name}.json"
+        if candidate.exists():
+            return candidate
+    # Return preferred target location for clear error paths when missing.
+    return _profiles_dir_candidates()[0] / f"{preset_name}.json"
+
+
+def resolve_profile_file_path(file_path: str | Path) -> Path:
+    candidate = Path(file_path)
+    if candidate.exists():
+        return candidate
+
+    legacy_prefix = "trading/account_profiles/"
+    normalized = candidate.as_posix()
+    if normalized.startswith(legacy_prefix):
+        suffix = normalized[len(legacy_prefix) :]
+        return Path("trading/config/account_profiles") / suffix
+
+    return candidate
+
+
 class AccountProfileSource(Protocol):
     def load_profiles(self) -> list[dict[str, object]]:
         ...
@@ -19,7 +54,7 @@ class AccountProfileSource(Protocol):
 
 class JsonAccountProfileSource:
     def __init__(self, file_path: str | Path) -> None:
-        self.file_path = Path(file_path)
+        self.file_path = resolve_profile_file_path(file_path)
 
     def load_profiles(self) -> list[dict[str, object]]:
         if not self.file_path.exists():
