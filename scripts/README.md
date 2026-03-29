@@ -22,6 +22,13 @@ Repository workflow scripts (`scripts/`):
 - `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
 
+Term registry scripts (`scripts/terms/`):
+
+- `build_registry.py`: rebuilds `docs/reference/term_definitions.json` from Glossary + UI docs while preserving per-term visibility (`both`, `glossary`, `ui`).
+- `sync_glossary.py`: syncs Glossary definitions from canonical values in `docs/reference/term_definitions.json`.
+- `sync_ui_docs.py`: syncs the Financial & Market Knowledge tables in the UI docs page from canonical values in `docs/reference/term_definitions.json`.
+- `check.py`: standalone sync check that validates Glossary/UI docs match the canonical term registry.
+
 Modular check scripts (`scripts/checks/`):
 
 - `readme_check.py`: standalone README consistency runner.
@@ -67,8 +74,16 @@ If a script changes trading runtime behavior, place it in `trading/interfaces/ru
 # Unified top-level entrypoint
 python -m scripts.run_checks --profile quick
 python -m scripts.run_checks --profile quick --with-frontend
+python -m scripts.run_checks --profile quick --with-term-definitions-check
 python -m scripts.run_checks --profile ci
 python -m scripts.run_checks --profile ci --skip-frontend
+python -m scripts.run_checks --profile ci --with-term-definitions-check
+
+# Term registry tools
+python -m scripts.terms.build_registry
+python -m scripts.terms.sync_glossary
+python -m scripts.terms.sync_ui_docs
+python -m scripts.terms.check
 
 # Modular checks (direct use)
 python -m scripts.checks.readme_check

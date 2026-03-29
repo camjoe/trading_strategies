@@ -16,11 +16,6 @@
           <tr><td>Unrealized PnL</td><td>Gain or loss on a position still open (mark-to-market).</td></tr>
           <tr><td>Equity Snapshot</td><td>A point-in-time record of total portfolio value used to build a performance time series.</td></tr>
           <tr><td>Benchmark</td><td>A reference index (e.g., SPY, QQQ) used to compare strategy performance.</td></tr>
-          <!-- <tr><td>Beta</td><td>Sensitivity of an asset's returns to market movements. Beta of 1.0 moves in line with the market.</td></tr> -->
-          <!-- <tr><td>Sharpe Ratio</td><td>Risk-adjusted return: mean excess return divided by its standard deviation. Higher is better.</td></tr> -->
-          <!-- <tr><td>Max Drawdown</td><td>Largest peak-to-trough decline in portfolio value — a key measure of downside risk.</td></tr> -->
-          <!-- <tr><td>Hit Rate</td><td>Percentage of trades that are profitable.</td></tr> -->
-          <!-- <tr><td>Turnover</td><td>How frequently positions are replaced; high turnover increases transaction costs.</td></tr> -->
         </tbody>
       </table>
     </div>
@@ -59,9 +54,6 @@
         <tbody>
           <tr><td>Walk-Forward Validation</td><td>Backtesting methodology where the model is trained on a rolling window and tested on the next unseen period, reducing overfitting.</td></tr>
           <tr><td>Adjusted Close</td><td>Historical closing price adjusted for corporate actions (splits, dividends) to maintain a consistent series.</td></tr>
-          <!-- <tr><td>Look-Ahead Bias</td><td>An error where future data is inadvertently used when generating historical signals.</td></tr> -->
-          <!-- <tr><td>Survivorship Bias</td><td>Distortion in backtests caused by only including assets that still exist today, ignoring delisted companies.</td></tr> -->
-          <!-- <tr><td>Regime</td><td>A persistent market state (e.g., trending, mean-reverting, high-volatility) that affects strategy performance.</td></tr> -->
         </tbody>
       </table>
     </div>
@@ -77,10 +69,7 @@
           <tr><td>RSI</td><td>Relative Strength Index (0–100) measuring speed and magnitude of recent price changes. Above 70 = overbought; below 30 = oversold.</td></tr>
           <tr><td>Volume</td><td>Number of shares or contracts traded in a period — a key confirmation signal for price moves.</td></tr>
           <tr><td>Momentum</td><td>The persistence of price trends — assets that have performed well recently tend to continue doing so over short horizons.</td></tr>
-          <!-- <tr><td>Bollinger Bands</td><td>Volatility bands placed two standard deviations above and below a moving average.</td></tr> -->
-          <!-- <tr><td>ATR</td><td>Average True Range — measures market volatility; useful for position sizing and stop placement.</td></tr> -->
-          <!-- <tr><td>Breakout</td><td>When price moves beyond a defined resistance or support level, often on elevated volume.</td></tr> -->
-          <!-- <tr><td>Mean Reversion</td><td>The tendency of prices to return to a historical average after deviating from it.</td></tr> -->
+          <tr><td>Mean Reversion</td><td>Bet that prices will revert to a historical average after an extreme move.</td></tr>
         </tbody>
       </table>
     </div>
@@ -91,7 +80,6 @@
         <thead><tr><th>Strategy</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td>Trend Following</td><td>Enter positions in the direction of an established price trend; exit when the trend weakens.</td></tr>
-          <tr><td>Mean Reversion</td><td>Bet that prices will revert to a historical average after an extreme move.</td></tr>
           <tr><td>Momentum (Cross-Sectional)</td><td>Rank assets by recent relative performance and go long the top performers.</td></tr>
           <tr><td>Volatility Breakout</td><td>Enter positions when price breaks out of a defined volatility range.</td></tr>
           <tr><td>Pairs / Statistical Arbitrage</td><td>Exploit temporary divergences in the price spread between historically correlated instruments.</td></tr>
@@ -117,13 +105,13 @@
       <table class="ref-table ref-table--software">
         <thead><tr><th>Asset Class</th><th>Notes</th></tr></thead>
         <tbody>
+          <tr><td>Crypto</td><td>Digital assets via feeds like ccxt — not currently active.</td></tr>
           <tr><td>Equities</td><td>Individual stocks — core focus area.</td></tr>
           <tr><td>ETFs</td><td>Sector, factor, and index ETFs — useful for regime and trend strategies.</td></tr>
-          <tr><td>Options / LEAPs</td><td>Long-dated options used to simulate leveraged equity exposure with defined risk.</td></tr>
-          <tr><td>Macro</td><td>Macro-level signals (rates, volatility indices) for regime context.</td></tr>
-          <tr><td>Futures</td><td>Commodity and index futures — not currently active.</td></tr>
           <tr><td>Forex</td><td>Currency pairs — not currently active.</td></tr>
-          <tr><td>Crypto</td><td>Digital assets via feeds like ccxt — not currently active.</td></tr>
+          <tr><td>Futures</td><td>Commodity and index futures — not currently active.</td></tr>
+          <tr><td>Macro</td><td>Macro-level signals (rates, volatility indices) for regime context.</td></tr>
+          <tr><td>Options / LEAPs</td><td>Long-dated options used to simulate leveraged equity exposure with defined risk.</td></tr>
         </tbody>
       </table>
     </div>

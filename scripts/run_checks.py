@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Quick profile: also run frontend lint/typecheck/tests.",
     )
+    parser.add_argument(
+        "--with-term-definitions-check",
+        action="store_true",
+        help="Quick/CI profile: also run term registry sync check.",
+    )
 
     # CI profile options
     parser.add_argument("--skip-python", action="store_true", help="CI profile: skip Python checks.")
@@ -67,6 +72,7 @@ def main() -> int:
             python_exe=python_exe,
             readme_max_age_days=args.readme_max_age_days,
             with_frontend=args.with_frontend,
+            with_term_definitions_check=args.with_term_definitions_check,
         )
 
     return run_ci(
@@ -77,6 +83,7 @@ def main() -> int:
         skip_readme_consistency=args.skip_readme_consistency,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
+        with_term_definitions_check=args.with_term_definitions_check,
     )
 
 

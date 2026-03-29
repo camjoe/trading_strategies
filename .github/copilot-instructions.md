@@ -69,6 +69,19 @@ If multiple bots seem valid, default to `Cross-Stack Cleanup Coordinator` and st
 - The default command is `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` from the repo root.
 - After the command finishes, report findings clearly and call out which README files need updates.
 
+# Term Definitions Checks Shortcut
+
+- If a user message is exactly `run term checks` (ignoring leading/trailing whitespace and case), run the optional term definitions synchronization check.
+- The default command is `python -m scripts.run_checks --profile quick --with-term-definitions-check` from the repo root.
+- After the command finishes, report pass/fail status by step and include drift details if term registry sync fails.
+
+# Sync Term Docs Shortcut
+
+- If a user message is exactly `sync term docs` (ignoring leading/trailing whitespace and case), synchronize both Glossary and UI documentation from the canonical term registry.
+- The default command sequence is `python -m scripts.terms.sync_glossary` followed by `python -m scripts.terms.sync_ui_docs` from the repo root.
+- After the commands finish, report which terms were updated in each document.
+- Use this after adding new terms to sources or after running `run term checks` if drift is detected.
+
 # Run All Checks Shortcut
 
 - If a user message is exactly `run all checks` (ignoring leading/trailing whitespace and case), run the full validation flow for tests, audits, and documentation checks.
@@ -107,6 +120,14 @@ Current shortcut catalog to show:
 	- Action: runs `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` and reports documentation findings.
 	- Example: `update documentation`
 
-7. Trigger: `run all checks`
+7. Trigger: `run term checks`
+	- Action: runs `python -m scripts.run_checks --profile quick --with-term-definitions-check` and reports term registry sync status with quality checks.
+	- Example: `run term checks`
+
+8. Trigger: `sync term docs`
+	- Action: synchronizes both Glossary and UI documentation from the canonical term registry by running sync_glossary and sync_ui_docs.
+	- Example: `sync term docs`
+
+9. Trigger: `run all checks`
 	- Action: runs `python -m scripts.run_checks --profile ci` for docs checks, audits, and test suites.
 	- Example: `run all checks`

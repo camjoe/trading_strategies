@@ -8,6 +8,7 @@ from common.repo_paths import get_repo_root
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
+from scripts.terms.check import run_term_definitions_check
 from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
 
 
@@ -32,6 +33,11 @@ def parse_args() -> argparse.Namespace:
         "--install-python-tools",
         action="store_true",
         help="Install ruff and mypy before running quality gates.",
+    )
+    parser.add_argument(
+        "--with-term-definitions-check",
+        action="store_true",
+        help="Also run term registry sync check (Glossary/UI/term_definitions.json).",
     )
     return parser.parse_args()
 
@@ -71,6 +77,7 @@ def run_ci(
     skip_readme_consistency: bool = False,
     readme_max_age_days: int = 90,
     install_python_tools: bool = False,
+    with_term_definitions_check: bool = False,
 ) -> int:
     try:
         if not skip_python:
@@ -79,6 +86,10 @@ def run_ci(
                     repo_root=repo_root,
                     max_age_days=readme_max_age_days,
                 )
+            if with_term_definitions_check:
+                term_check_exit = run_term_definitions_check(repo_root=repo_root)
+                if term_check_exit != 0:
+                    return term_check_exit
             run_step(
                 "Python: upgrade pip",
                 [python_exe, "-m", "pip", "install", "--upgrade", "pip"],
@@ -123,6 +134,7 @@ def main() -> int:
         skip_readme_consistency=args.skip_readme_consistency,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
+        with_term_definitions_check=args.with_term_definitions_check,
     )
 
 
