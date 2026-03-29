@@ -12,7 +12,7 @@ from paper_trading_ui.backend.config import (
     TEST_BACKTEST_ACCOUNT_NAME,
 )
 
-from tests.paper_trading_ui.backend._service_test_utils import create_test_account
+from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
 
 
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:

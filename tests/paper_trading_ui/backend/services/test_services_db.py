@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 from paper_trading_ui.backend.services import db as services_db
 
-from tests.paper_trading_ui.backend._service_test_utils import create_test_account
+from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
 
 
 def test_db_conn_context_yields_and_closes_connection() -> None:

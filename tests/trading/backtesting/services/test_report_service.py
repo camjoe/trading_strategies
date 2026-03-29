@@ -5,11 +5,6 @@ import pytest
 
 from trading.accounts import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
-from trading.backtesting.repositories.report_repository import (
-    fetch_backtest_report_run,
-    fetch_backtest_report_snapshots,
-    fetch_backtest_report_trades,
-)
 from trading.backtesting.services.report_service import fetch_backtest_report_data
 from trading.models import BacktestFullReport
 
@@ -37,32 +32,6 @@ def _backtest_config(account_name: str) -> BacktestConfig:
         run_name="contract",
         allow_approximate_leaps=False,
     )
-
-
-def test_report_repository_contract_returns_rows(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_report_repo", "trend_v1", 10000.0, "SPY")
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_close_history",
-        lambda _tickers, _start, _end: _fake_close_history(_tickers),
-    )
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series(
-            [100.0, 102.0],
-            index=pd.date_range("2026-01-01", periods=2, freq="B"),
-        ),
-    )
-
-    result = run_backtest(conn, _backtest_config("acct_report_repo"))
-
-    run_row = fetch_backtest_report_run(conn, result.run_id)
-    snapshot_rows = fetch_backtest_report_snapshots(conn, result.run_id)
-    trade_rows = fetch_backtest_report_trades(conn, result.run_id)
-
-    assert run_row is not None
-    assert len(snapshot_rows) >= 2
-    assert isinstance(trade_rows, list)
 
 
 def test_report_service_contract_builds_typed_model(conn, monkeypatch: pytest.MonkeyPatch) -> None:

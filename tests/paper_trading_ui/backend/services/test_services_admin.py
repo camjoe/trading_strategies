@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from common.time import utc_now_iso
 from paper_trading_ui.backend.services import admin as services_admin
 
-from tests.paper_trading_ui.backend._service_test_utils import create_test_account
+from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
 
 
 def test_clean_text_and_rotation_schedule_json() -> None:

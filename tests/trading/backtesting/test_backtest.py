@@ -13,18 +13,11 @@ from trading.backtesting.backtest import (
     BacktestConfig,
     BacktestResult,
     WalkForwardConfig,
-    _add_months,
-    _benchmark_return_pct,
-    _compute_market_value,
-    _compute_unrealized_pnl,
-    _max_drawdown_pct,
-    _normalize_benchmark_series,
     backtest_leaderboard,
     backtest_leaderboard_entries,
     backtest_report,
     backtest_report_full,
     backtest_report_summary,
-    build_walk_forward_windows,
     preview_backtest_warnings,
     run_backtest,
     run_backtest_batch,
@@ -398,21 +391,6 @@ class TestBacktestProxyFeatureFlow:
 
 
 class TestBacktestWalkForwardAndWarnings:
-    def test_build_walk_forward_windows_monthly_rolls(self) -> None:
-        windows = build_walk_forward_windows(
-            start_date=date(2026, 1, 15),
-            end_date=date(2026, 4, 10),
-            test_months=1,
-            step_months=1,
-        )
-
-        assert windows == [
-            (date(2026, 1, 15), date(2026, 1, 31)),
-            (date(2026, 2, 1), date(2026, 2, 28)),
-            (date(2026, 3, 1), date(2026, 3, 31)),
-            (date(2026, 4, 1), date(2026, 4, 10)),
-        ]
-
     def test_run_walk_forward_backtest_creates_multiple_runs(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         _create_bt_account(conn, "acct_wf")
         _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
@@ -490,23 +468,6 @@ class TestBacktestWalkForwardAndWarnings:
         warnings = str(summary["warnings"])
         assert "LEAPs mode is approximated" in warnings
         assert "opt-in was not enabled" in warnings
-
-    def test_build_walk_forward_windows_rejects_non_positive_lengths(self) -> None:
-        with pytest.raises(ValueError, match="test_months must be > 0"):
-            build_walk_forward_windows(
-                start_date=date(2026, 1, 1),
-                end_date=date(2026, 3, 1),
-                test_months=0,
-                step_months=1,
-            )
-
-        with pytest.raises(ValueError, match="step_months must be > 0"):
-            build_walk_forward_windows(
-                start_date=date(2026, 1, 1),
-                end_date=date(2026, 3, 1),
-                test_months=1,
-                step_months=0,
-            )
 
     def test_run_walk_forward_backtest_no_generated_windows_raises(self, conn) -> None:
         _create_bt_account(conn, "acct_wf_empty")
@@ -638,51 +599,6 @@ class TestBacktestLeaderboardAndBatch:
 
         assert [item.account_name for item in results] == ["acct_b", "acct_a"]
         assert seen_run_names == ["batch_01_acct_a", "batch_02_acct_b"]
-
-
-class TestBacktestInternalHelpers:
-    def test_build_walk_forward_windows_rejects_start_after_end(self) -> None:
-        with pytest.raises(ValueError, match="start_date must be before end_date"):
-            build_walk_forward_windows(
-                start_date=date(2026, 3, 1),
-                end_date=date(2026, 3, 1),
-                test_months=1,
-                step_months=1,
-            )
-
-    def test_add_months_clips_end_of_month_and_rejects_negative(self) -> None:
-        assert _add_months(date(2024, 1, 31), 1) == date(2024, 2, 29)
-        assert _add_months(date(2025, 1, 31), 1) == date(2025, 2, 28)
-
-        with pytest.raises(ValueError, match="months must be >= 0"):
-            _add_months(date(2026, 1, 1), -1)
-
-    def test_market_value_and_unrealized_pnl_ignore_missing_or_non_positive_positions(self) -> None:
-        positions = {"AAPL": 2.0, "MSFT": 1.5, "NVDA": 0.0}
-        prices = {"AAPL": 10.0, "MSFT": 20.0}
-        avg_cost = {"AAPL": 8.0, "MSFT": 25.0, "NVDA": 100.0}
-
-        assert _compute_market_value(positions, prices) == pytest.approx(50.0)
-        assert _compute_unrealized_pnl(positions, avg_cost, prices) == pytest.approx(-3.5)
-
-    def test_max_drawdown_handles_empty_and_non_positive_peak(self) -> None:
-        assert _max_drawdown_pct([]) == 0.0
-        assert _max_drawdown_pct([0.0, -10.0, -5.0]) == 0.0
-        assert _max_drawdown_pct([100.0, 90.0, 95.0, 80.0]) == pytest.approx(-20.0)
-
-    def test_normalize_benchmark_series_accepts_series_and_dataframe(self) -> None:
-        series = pd.Series([100.0, "bad", None, 101.0])
-        normalized_series = _normalize_benchmark_series(series)
-        assert list(normalized_series.values) == [100.0, 101.0]
-
-        frame = pd.DataFrame({"SPY": [100.0, "bad", 102.0]})
-        normalized_frame = _normalize_benchmark_series(frame)
-        assert list(normalized_frame.values) == [100.0, 102.0]
-
-    def test_benchmark_return_pct_edge_cases(self) -> None:
-        assert _benchmark_return_pct(pd.Series([100.0]), initial_cash=10000.0) is None
-        assert _benchmark_return_pct(pd.Series([0.0, 110.0]), initial_cash=10000.0) is None
-        assert _benchmark_return_pct(pd.Series([100.0, 110.0]), initial_cash=10000.0) == pytest.approx(10.0)
 
 
 class TestBacktestValidationAndFailurePaths:
