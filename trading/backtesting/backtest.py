@@ -8,7 +8,7 @@ import pandas as pd
 
 from common.market_data import get_feature_provider
 from trading.accounts import get_account
-from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, normalize_benchmark_series
+from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
 from trading.backtesting.domain.simulation_math import (
     compute_market_value,
@@ -51,10 +51,6 @@ from trading.models.backtesting_reports import BacktestFullReport, BacktestLeade
 from trading.rotation import resolve_active_strategy
 
 
-def _max_drawdown_pct(equity_curve: list[float]) -> float:
-    return max_drawdown_pct(equity_curve)
-
-
 def _add_months(base: date, months: int) -> date:
     return add_months(base, months)
 
@@ -66,35 +62,6 @@ def build_walk_forward_windows(
     step_months: int,
 ) -> list[tuple[date, date]]:
     return build_walk_forward_windows_impl(start_date, end_date, test_months, step_months)
-
-
-def _compute_market_value(positions: dict[str, float], prices: dict[str, float]) -> float:
-    return compute_market_value(positions, prices)
-
-
-def _update_on_buy(
-    ticker: str,
-    qty: float,
-    price: float,
-    fee: float,
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-) -> float:
-    return update_on_buy(ticker, qty, price, fee, positions, avg_cost, cash)
-
-
-def _update_on_sell(
-    ticker: str,
-    qty: float,
-    price: float,
-    fee: float,
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    cash: float,
-    realized_pnl: float,
-) -> tuple[float, float]:
-    return update_on_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized_pnl)
 
 
 def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) -> list[str]:
@@ -120,22 +87,6 @@ def _resolve_universe(
         )
 
     return default_tickers, month_to_tickers, all_tickers, warnings
-
-
-def _compute_unrealized_pnl(
-    positions: dict[str, float],
-    avg_cost: dict[str, float],
-    marks: dict[str, float],
-) -> float:
-    return compute_unrealized_pnl(positions, avg_cost, marks)
-
-
-def _normalize_benchmark_series(benchmark_close: pd.Series | pd.DataFrame) -> pd.Series:
-    return normalize_benchmark_series(benchmark_close)
-
-
-def _benchmark_return_pct(benchmark_close: pd.Series | pd.DataFrame, initial_cash: float) -> float | None:
-    return benchmark_return_pct(benchmark_close, initial_cash)
 
 
 def preview_backtest_warnings(conn: sqlite3.Connection, cfg: BacktestConfig) -> list[str]:
@@ -238,33 +189,29 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         resolve_strategy_fn=resolve_strategy,
         get_feature_provider_fn=get_feature_provider,
         insert_run_fn=_insert_run,
-        compute_market_value_fn=_compute_market_value,
-        compute_unrealized_pnl_fn=_compute_unrealized_pnl,
-        update_on_buy_fn=_update_on_buy,
-        update_on_sell_fn=_update_on_sell,
+        compute_market_value_fn=compute_market_value,
+        compute_unrealized_pnl_fn=compute_unrealized_pnl,
+        update_on_buy_fn=update_on_buy,
+        update_on_sell_fn=update_on_sell,
         insert_trade_fn=_insert_trade,
         insert_snapshot_fn=_insert_snapshot,
         resolve_signal_fn=resolve_signal,
-        benchmark_return_pct_fn=_benchmark_return_pct,
-        max_drawdown_pct_fn=_max_drawdown_pct,
+        benchmark_return_pct_fn=benchmark_return_pct,
+        max_drawdown_pct_fn=max_drawdown_pct,
         backtest_result_cls=BacktestResult,
     )
+
+
+def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
+    return fetch_backtest_report_data(conn, run_id=run_id, fetch_benchmark_close_fn=fetch_benchmark_close)
 
 
 def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
     return backtest_report_full(conn, run_id).to_payload()
 
 
-def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
-    return _fetch_backtest_report_data(conn, run_id)
-
-
-def _fetch_backtest_report_data(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
-    return fetch_backtest_report_data(conn, run_id=run_id, fetch_benchmark_close_fn=fetch_benchmark_close)
-
-
 def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestReportSummary:
-    return _fetch_backtest_report_data(conn, run_id).summary
+    return backtest_report_full(conn, run_id).summary
 
 
 def backtest_leaderboard(

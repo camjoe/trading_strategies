@@ -2,8 +2,17 @@ import sqlite3
 from typing import Callable
 
 from common.time import utc_now_iso
+
+from trading.coercion import (
+    coerce_float,
+    coerce_str,
+    row_float,
+    row_int,
+    row_str,
+    to_float_obj,
+    to_int_obj,
+)
 from trading.database.db_backend import DuplicateRecordError
-from trading.coercion import coerce_float, coerce_str, row_float, row_int, row_str, to_float_obj, to_int_obj
 from trading.repositories.accounts_repository import (
     fetch_account_by_name,
     fetch_all_account_names,

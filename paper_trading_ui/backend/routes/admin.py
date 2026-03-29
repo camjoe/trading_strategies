@@ -21,57 +21,63 @@ from ..config import TEST_ACCOUNT_NAME
 router = APIRouter()
 
 
+def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str, object]:
+    return dict(
+        name=payload.name.strip(),
+        strategy=payload.strategy.strip(),
+        initial_cash=float(payload.initialCash),
+        benchmark_ticker=payload.benchmarkTicker.strip().upper(),
+        descriptive_name=clean_text(payload.descriptiveName),
+        goal_min_return_pct=payload.goalMinReturnPct,
+        goal_max_return_pct=payload.goalMaxReturnPct,
+        goal_period=payload.goalPeriod,
+        learning_enabled=bool(payload.learningEnabled),
+        risk_policy=payload.riskPolicy,
+        stop_loss_pct=payload.stopLossPct,
+        take_profit_pct=payload.takeProfitPct,
+        instrument_mode=payload.instrumentMode,
+        option_strike_offset_pct=payload.optionStrikeOffsetPct,
+        option_min_dte=payload.optionMinDte,
+        option_max_dte=payload.optionMaxDte,
+        option_type=clean_text(payload.optionType),
+        target_delta_min=payload.targetDeltaMin,
+        target_delta_max=payload.targetDeltaMax,
+        max_premium_per_trade=payload.maxPremiumPerTrade,
+        max_contracts_per_trade=payload.maxContractsPerTrade,
+        iv_rank_min=payload.ivRankMin,
+        iv_rank_max=payload.ivRankMax,
+        roll_dte_threshold=payload.rollDteThreshold,
+        profit_take_pct=payload.profitTakePct,
+        max_loss_pct=payload.maxLossPct,
+    )
+
+
+def _build_rotation_kwargs(payload: AdminCreateAccountRequest) -> dict[str, object]:
+    return dict(
+        account_name=payload.name.strip(),
+        rotation_enabled=bool(payload.rotationEnabled),
+        rotation_mode=payload.rotationMode,
+        rotation_optimality_mode=payload.rotationOptimalityMode,
+        rotation_interval_days=payload.rotationIntervalDays,
+        rotation_lookback_days=payload.rotationLookbackDays,
+        rotation_schedule=payload.rotationSchedule,
+        rotation_active_index=int(payload.rotationActiveIndex),
+        rotation_last_at=payload.rotationLastAt,
+        rotation_active_strategy=payload.rotationActiveStrategy,
+    )
+
+
 @router.post("/api/admin/accounts/create")
 def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, object]:
     with db_conn() as conn:
         try:
-            create_account(
-                conn,
-                name=payload.name.strip(),
-                strategy=payload.strategy.strip(),
-                initial_cash=float(payload.initialCash),
-                benchmark_ticker=payload.benchmarkTicker.strip().upper(),
-                descriptive_name=clean_text(payload.descriptiveName),
-                goal_min_return_pct=payload.goalMinReturnPct,
-                goal_max_return_pct=payload.goalMaxReturnPct,
-                goal_period=payload.goalPeriod,
-                learning_enabled=bool(payload.learningEnabled),
-                risk_policy=payload.riskPolicy,
-                stop_loss_pct=payload.stopLossPct,
-                take_profit_pct=payload.takeProfitPct,
-                instrument_mode=payload.instrumentMode,
-                option_strike_offset_pct=payload.optionStrikeOffsetPct,
-                option_min_dte=payload.optionMinDte,
-                option_max_dte=payload.optionMaxDte,
-                option_type=clean_text(payload.optionType),
-                target_delta_min=payload.targetDeltaMin,
-                target_delta_max=payload.targetDeltaMax,
-                max_premium_per_trade=payload.maxPremiumPerTrade,
-                max_contracts_per_trade=payload.maxContractsPerTrade,
-                iv_rank_min=payload.ivRankMin,
-                iv_rank_max=payload.ivRankMax,
-                roll_dte_threshold=payload.rollDteThreshold,
-                profit_take_pct=payload.profitTakePct,
-                max_loss_pct=payload.maxLossPct,
-            )
+            create_account(conn, **_build_create_account_kwargs(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except DuplicateRecordError as error:
             raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
 
-        update_account_rotation_settings(
-            conn,
-            account_name=payload.name.strip(),
-            rotation_enabled=bool(payload.rotationEnabled),
-            rotation_mode=payload.rotationMode,
-            rotation_optimality_mode=payload.rotationOptimalityMode,
-            rotation_interval_days=payload.rotationIntervalDays,
-            rotation_lookback_days=payload.rotationLookbackDays,
-            rotation_schedule=payload.rotationSchedule,
-            rotation_active_index=int(payload.rotationActiveIndex),
-            rotation_last_at=payload.rotationLastAt,
-            rotation_active_strategy=payload.rotationActiveStrategy,
-        )
+        update_account_rotation_settings(conn, **_build_rotation_kwargs(payload))
 
         account = get_account_row(conn, payload.name.strip())
         return {"status": "ok", "account": build_account_summary(conn, account)}
