@@ -74,13 +74,13 @@ Preferred direction:
 Highest-value next structural slice:
 
 1. Continue thinning `trading/auto_trader.py` by moving persistence and orchestration helpers behind repository/service adapters.
-2. Keep `trading/accounting.py` and `trading/accounts.py` focused on public APIs while repositories own SQL and services own presentation/orchestration helpers.
+2. Keep `trading/accounting.py`, `trading/accounts.py`, `trading/pricing.py`, `trading/profiles.py`, and `trading/reporting.py` focused on public APIs while repositories own SQL and services own presentation/orchestration helpers.
 3. Keep `trading/database/` focused on DB infrastructure concerns only.
 
 Why this next step:
 
 - The remaining highest-churn trading entrypoint is still `trading/auto_trader.py`.
-- Recent slices already moved UI/backend, account-listing, trade-persistence, and much of auto-trader runtime wiring toward canonical repository/service boundaries.
+- Recent slices already moved UI/backend, account-listing, trade-persistence, pricing/profile/reporting orchestration, and much of auto-trader runtime wiring toward canonical repository/service boundaries.
 - Keeping pressure on the largest orchestration module yields the most structural clarity per change.
 
 ## Bot Orientation Checklist

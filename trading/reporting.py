@@ -12,6 +12,13 @@ from trading.repositories.snapshots_repository import (
     insert_snapshot_row,
 )
 from trading.services.accounts_service import format_goal_text
+from trading.services.reporting_service import alpha_pct as alpha_pct_impl
+from trading.services.reporting_service import benchmark_available as benchmark_available_impl
+from trading.services.reporting_service import build_account_stats as build_account_stats_impl
+from trading.services.reporting_service import compute_market_value_and_unrealized as compute_market_value_and_unrealized_impl
+from trading.services.reporting_service import infer_overall_trend as infer_overall_trend_impl
+from trading.services.reporting_service import positions_summary_text as positions_summary_text_impl
+from trading.services.reporting_service import strategy_return_pct as strategy_return_pct_impl
 
 
 def _compute_market_value_and_unrealized(
@@ -19,27 +26,19 @@ def _compute_market_value_and_unrealized(
     avg_cost: dict[str, float],
     prices: dict[str, float],
 ) -> tuple[float, float]:
-    market_value = 0.0
-    unrealized = 0.0
-    for ticker, qty in positions.items():
-        price = prices.get(ticker)
-        if price is None:
-            continue
-        market_value += qty * price
-        unrealized += (price - avg_cost[ticker]) * qty
-    return market_value, unrealized
+    return compute_market_value_and_unrealized_impl(positions, avg_cost, prices)
 
 
 def _strategy_return_pct(equity: float, initial_cash: float) -> float:
-    return ((equity / initial_cash) - 1.0) * 100.0
+    return strategy_return_pct_impl(equity, initial_cash)
 
 
 def _benchmark_available(benchmark_equity: float | None, benchmark_return_pct: float | None) -> bool:
-    return benchmark_equity is not None and benchmark_return_pct is not None
+    return benchmark_available_impl(benchmark_equity, benchmark_return_pct)
 
 
 def _alpha_pct(strategy_return_pct: float, benchmark_return_pct: float) -> float:
-    return strategy_return_pct - benchmark_return_pct
+    return alpha_pct_impl(strategy_return_pct, benchmark_return_pct)
 
 
 def _print_leaps_params(account: sqlite3.Row) -> None:
@@ -127,15 +126,7 @@ def _print_open_positions(
 
 
 def _positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
-    position_count = len(positions)
-    if not positions:
-        return position_count, "none"
-
-    sorted_positions = sorted(positions.items(), key=lambda x: x[0])
-    positions_text = ", ".join([f"{ticker}:{qty:.2f}" for ticker, qty in sorted_positions[:5]])
-    if len(sorted_positions) > 5:
-        positions_text += ", ..."
-    return position_count, positions_text
+    return positions_summary_text_impl(positions)
 
 
 def _compare_account_header(account: sqlite3.Row) -> str:
@@ -167,16 +158,15 @@ def build_account_stats(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
-    account_id = row_expect_int(account, "id")
-    initial_cash = row_expect_float(account, "initial_cash")
-    trades = load_trades(conn, account_id)
-    state = compute_account_state(initial_cash, trades)
-    tickers = sorted(state.positions.keys())
-    prices = fetch_latest_prices(tickers) if tickers else {}
-
-    market_value, unrealized = _compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
-
-    equity = state.cash + market_value
+    state, prices, market_value, unrealized, equity = build_account_stats_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
+        fetch_latest_prices_fn=fetch_latest_prices,
+        row_expect_int_fn=row_expect_int,
+        row_expect_float_fn=row_expect_float,
+    )
     return state, prices, market_value, unrealized, equity
 
 
@@ -186,31 +176,14 @@ def infer_overall_trend(
     current_equity: float,
     lookback: int,
 ) -> str:
-    rows = fetch_recent_equity_rows(
+    return infer_overall_trend_impl(
         conn,
-        account_id=account_id,
-        limit=int(max(lookback, 2)),
+        account_id,
+        current_equity,
+        lookback,
+        fetch_recent_equity_rows_fn=fetch_recent_equity_rows,
+        row_float_fn=row_float,
     )
-
-    history = [row_float(r, "equity") for r in rows]
-    history = [h for h in history if h is not None]
-    history.reverse()
-    history.append(current_equity)
-
-    if len(history) < 3:
-        return "insufficient-data"
-
-    first = history[0]
-    last = history[-1]
-    if first == 0:
-        return "insufficient-data"
-
-    move_pct = ((last - first) / first) * 100.0
-    if move_pct > 1.0:
-        return "up"
-    if move_pct < -1.0:
-        return "down"
-    return "flat"
 
 
 def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[str, float], dict[str, float]]:
