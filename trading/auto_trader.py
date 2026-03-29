@@ -32,7 +32,17 @@ from trading.services.rotation_service import (
     safe_return_pct as safe_return_pct_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
 )
+from trading.services.auto_trader_service import (
+    build_iv_rank_proxy as build_iv_rank_proxy_impl,
+    resolve_account_names as resolve_account_names_impl,
+    resolve_market_inputs as resolve_market_inputs_impl,
+    run_accounts as run_accounts_impl,
+    validate_trade_count_range as validate_trade_count_range_impl,
+)
 from trading.services.trade_execution_service import (
+    build_leaps_candidates as build_leaps_candidates_impl,
+    prepare_buy_trade as prepare_buy_trade_impl,
+    prepare_sell_trade as prepare_sell_trade_impl,
     prepare_trade_selection as prepare_trade_selection_impl,
     record_prepared_trade as record_prepared_trade_impl,
     refresh_account_state as refresh_account_state_impl,
@@ -74,33 +84,10 @@ def choose_sell_qty(position_qty: float) -> int:
 
 
 def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
-    # IV rank proxy: percentile rank of 1y realized volatility inside the current trade universe.
-    vols: dict[str, float] = {}
-    for ticker in universe:
-        try:
-            close = get_provider().fetch_close_series(ticker, "1y")
-            if close is None or len(close) < 30:
-                continue
-            daily_ret = close.pct_change().dropna()
-            if daily_ret.empty:
-                continue
-            vol_annual = float(daily_ret.std() * (252 ** 0.5))
-            vols[ticker] = vol_annual
-        except Exception:
-            continue
-
-    if not vols:
-        return {}
-
-    sorted_items = sorted(vols.items(), key=lambda x: x[1])
-    n = len(sorted_items)
-    if n == 1:
-        return {sorted_items[0][0]: 50.0}
-
-    out: dict[str, float] = {}
-    for i, (ticker, _vol) in enumerate(sorted_items):
-        out[ticker] = (i / (n - 1)) * 100.0
-    return out
+    return build_iv_rank_proxy_impl(
+        universe,
+        fetch_close_series_fn=get_provider().fetch_close_series,
+    )
 
 
 def estimate_delta(abs_strike_offset_pct: float) -> float:
@@ -260,22 +247,13 @@ def _build_leaps_candidates(
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
 ) -> list[tuple[str, float, float]]:
-    candidates: list[tuple[str, float, float]] = []
-    for ticker in universe:
-        price = prices.get(ticker)
-        if price is None or price <= 0:
-            continue
-
-        ok, delta_est, iv_est = option_candidate_allowed(
-            account,
-            ticker,
-            float(price),
-            iv_rank_proxy,
-        )
-        if ok:
-            candidates.append((ticker, delta_est, iv_est))
-
-    return candidates
+    return build_leaps_candidates_impl(
+        account,
+        universe,
+        prices,
+        iv_rank_proxy,
+        option_candidate_allowed_fn=option_candidate_allowed,
+    )
 
 
 def _apply_leaps_buy_qty_limits(
@@ -374,42 +352,21 @@ def _prepare_buy_trade(
     learning_enabled: bool,
     fee: float,
 ) -> BuyTradeSelection | None:
-    if instrument_mode == "leaps":
-        candidates = _build_leaps_candidates(account, universe, prices, iv_rank_proxy)
-        if not candidates:
-            return None
-
-        ticker, delta_est, iv_est = random.choice(candidates)
-        price = prices.get(ticker)
-        if price is None or price <= 0:
-            return None
-
-        option_price = estimate_option_premium(
-            float(price),
-            delta_est,
-            int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
-            int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
-        )
-        qty = choose_buy_qty(state.cash, option_price, fee)
-        if qty <= 0:
-            return None
-
-        qty = _apply_leaps_buy_qty_limits(qty, option_price, account)
-        if qty <= 0:
-            return None
-
-        return ticker, qty, float(option_price), delta_est, iv_est
-
-    ticker = choose_buy_ticker(universe, prices, state, learning_enabled)
-    price = prices.get(ticker)
-    if price is None or price <= 0:
-        return None
-
-    qty = choose_buy_qty(state.cash, float(price), fee)
-    if qty <= 0:
-        return None
-
-    return ticker, qty, float(price), None, None
+    return prepare_buy_trade_impl(
+        account,
+        instrument_mode,
+        universe,
+        prices,
+        iv_rank_proxy,
+        state,
+        learning_enabled,
+        fee,
+        build_leaps_candidates_fn=_build_leaps_candidates,
+        estimate_option_premium_fn=estimate_option_premium,
+        choose_buy_qty_fn=choose_buy_qty,
+        apply_leaps_buy_qty_limits_fn=_apply_leaps_buy_qty_limits,
+        choose_buy_ticker_fn=choose_buy_ticker,
+    )
 
 
 def _prepare_sell_trade(
@@ -420,23 +377,16 @@ def _prepare_sell_trade(
     learning_enabled: bool,
     instrument_mode: str,
 ) -> SellTradeSelection | None:
-    if forced_sell is not None:
-        ticker = forced_sell
-    else:
-        ticker = choose_sell_ticker(can_sell, prices, state, learning_enabled)
-
-    price = prices.get(ticker)
-    if price is None or price <= 0:
-        return None
-
-    qty = choose_sell_qty(state.positions[ticker])
-    if qty <= 0:
-        return None
-
-    if instrument_mode == "leaps":
-        qty = min(qty, 2)
-
-    return ticker, qty, float(price)
+    return prepare_sell_trade_impl(
+        can_sell,
+        forced_sell,
+        prices,
+        state,
+        learning_enabled,
+        instrument_mode,
+        choose_sell_ticker_fn=choose_sell_ticker,
+        choose_sell_qty_fn=choose_sell_qty,
+    )
 
 
 def run_for_account(
@@ -469,42 +419,68 @@ def run_for_account(
     )
 
 
+def _validate_trade_count_range(min_trades: int, max_trades: int) -> None:
+    validate_trade_count_range_impl(min_trades, max_trades)
+
+
+def _resolve_account_names(accounts_arg: str) -> list[str]:
+    return resolve_account_names_impl(accounts_arg)
+
+
+def _resolve_market_inputs(tickers_file: str) -> tuple[list[str], dict[str, float], dict[str, float]]:
+    return resolve_market_inputs_impl(
+        tickers_file,
+        load_tickers_from_file_fn=load_tickers_from_file,
+        fetch_latest_prices_fn=fetch_latest_prices,
+        build_iv_rank_proxy_fn=build_iv_rank_proxy,
+    )
+
+
+def _run_accounts(
+    conn: sqlite3.Connection,
+    account_names: list[str],
+    universe: list[str],
+    prices: dict[str, float],
+    iv_rank_proxy: dict[str, float],
+    min_trades: int,
+    max_trades: int,
+    fee: float,
+) -> list[tuple[str, int]]:
+    return run_accounts_impl(
+        conn,
+        account_names=account_names,
+        universe=universe,
+        prices=prices,
+        iv_rank_proxy=iv_rank_proxy,
+        min_trades=min_trades,
+        max_trades=max_trades,
+        fee=fee,
+        run_for_account_fn=run_for_account,
+    )
+
+
 def main() -> None:
     args = parse_args()
-    if args.min_trades < 1:
-        raise ValueError("--min-trades must be >= 1")
-    if args.max_trades < args.min_trades:
-        raise ValueError("--max-trades must be >= --min-trades")
+    _validate_trade_count_range(args.min_trades, args.max_trades)
 
     if args.seed is not None:
         random.seed(args.seed)
 
-    accounts = [a.strip() for a in args.accounts.split(",") if a.strip()]
-    if not accounts:
-        raise ValueError("No accounts provided.")
-
-    universe = load_tickers_from_file(args.tickers_file)
-    if not universe:
-        raise ValueError("Ticker universe is empty.")
-
-    prices = fetch_latest_prices(universe)
-    if not prices:
-        raise ValueError("Could not fetch any prices for ticker universe.")
-    iv_rank_proxy = build_iv_rank_proxy(universe)
+    accounts = _resolve_account_names(args.accounts)
+    universe, prices, iv_rank_proxy = _resolve_market_inputs(args.tickers_file)
 
     conn = ensure_db()
     try:
-        for account_name in accounts:
-            executed = run_for_account(
-                conn=conn,
-                account_name=account_name,
-                universe=universe,
-                prices=prices,
-                iv_rank_proxy=iv_rank_proxy,
-                min_trades=args.min_trades,
-                max_trades=args.max_trades,
-                fee=args.fee,
-            )
+        for account_name, executed in _run_accounts(
+            conn,
+            accounts,
+            universe,
+            prices,
+            iv_rank_proxy,
+            args.min_trades,
+            args.max_trades,
+            args.fee,
+        ):
             print(f"{account_name}: executed {executed} trades")
     finally:
         conn.close()
