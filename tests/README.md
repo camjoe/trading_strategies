@@ -2,10 +2,18 @@
 
 Repository test suite for trading, trends, backtesting, UI backend, and supporting scripts.
 
+## Purpose
+
+Provide reliable verification coverage for runtime behavior, data operations, UI backend flows, and supporting repository scripts.
+
+## Commands
+
+Run these from the repository root.
+
 ## Targeted Run
 
 ```sh
-python -m pytest -o addopts= tests/test_docs_freshness_check.py
+python -m pytest -o addopts= tests/scripts/test_readme_check.py
 ```
 
 Use `-o addopts=` when local environments do not have coverage plugins required by default pytest options.
@@ -37,5 +45,5 @@ python -m pytest --no-cov tests/trading/interfaces/runtime/jobs/test_daily_snaps
 ## Audit Notes
 
 - Full repository validation remains `python -m pytest` from repo root.
-- Cross-stack smoke validation is `python -m scripts.ci_smoke`.
+- Cross-stack smoke validation is `python -m scripts.run_checks --profile ci`.
 - For parser/default-path changes, include focused checks for CLI command parser tests under `tests/trading/interfaces/cli/commands/` (for example `test_builder.py` and `test_backtesting_commands.py`) and `tests/trading/test_paper_trading.py`.

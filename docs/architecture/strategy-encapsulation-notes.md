@@ -111,7 +111,7 @@ Reference docs/architecture/strategy-encapsulation-notes.md.
 
 ```text
 Summarize strategy encapsulation changes for commit.
-Follow repository commit-message workflow and include docs freshness findings.
+Follow repository commit-message workflow and include README consistency findings.
 Provide 3 short commit subject options in separate fenced blocks.
 ```
 
@@ -120,5 +120,5 @@ Provide 3 short commit subject options in separate fenced blocks.
 ```sh
 python -m pytest tests/trading/backtesting -q -o addopts=
 python -m pytest tests/trading/test_auto_trader.py tests/trading/test_trade_execution_service.py -q -o addopts=
-python scripts/check_docs_freshness.py
+python -m scripts.checks.readme_check --max-age-days 90
 ```

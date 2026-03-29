@@ -24,15 +24,12 @@ python -m trading.paper_trading
 - `architecture/runtime-job-coverage-follow-up.md`: prioritized testing backlog for low-coverage runtime and support modules.
 - `reference/Glossary.md`: finance, options, backtesting, and indicator terms.
 
-## Docs Freshness Workflow
+## Purpose
 
-Use the docs freshness checker before commit or in CI to detect stale documentation for changed code areas.
+This docs index helps contributors find architecture guides, references, and the current documentation quality workflow.
 
-```sh
-python -m scripts.check_docs_freshness
-python -m scripts.check_docs_freshness --base-ref origin/main --head-ref HEAD
-```
+## Workflows
 
-- Default mode checks working tree + untracked files.
-- CI mode uses a git ref diff and exits non-zero when docs are stale.
-- `python -m scripts.ci_smoke --skip-frontend` includes this check by default.
+1. Use this index to locate and update the source-of-truth document for changed behavior.
+2. Run `python -m scripts.run_checks --profile ci` for primary mechanical checks.
+3. Use `.github/DOCS_PRECOMMIT_POLICY.md` for docs-impact checklist and bot request templates.

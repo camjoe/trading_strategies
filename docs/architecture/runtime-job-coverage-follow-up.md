@@ -91,7 +91,7 @@ Use the prompt below when ready to pick this back up:
 Review and improve low-coverage operational modules in this repo, starting with runtime job coverage.
 
 Context:
-- The repo is currently green: full pytest, mypy, ruff, docs freshness, and ci_smoke all pass.
+- The repo is currently green: full pytest, mypy, ruff, README consistency audit, and ci_smoke all pass.
 - Canonical runtime job modules live under trading/interfaces/runtime/jobs/.
 - The highest-priority low-coverage files are:
   1. trading/interfaces/runtime/jobs/daily_paper_trading.py
@@ -112,7 +112,7 @@ Instructions:
 - After changes, run:
   1. python -m pytest -o addopts="" tests/trading tests/trends
   2. python -m mypy trading paper_trading_ui/backend --python-version 3.12 --ignore-missing-imports --follow-imports=skip
-  3. python -m scripts.check_docs_freshness --repo-root .
+  3. python -m scripts.checks.readme_check --max-age-days 90
 - Report which low-coverage branches were actually exercised by the new tests and call out any remaining notable gaps.
 ```
 

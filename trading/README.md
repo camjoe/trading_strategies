@@ -2,6 +2,10 @@
 
 Core paper trading and backtesting engine for the repository.
 
+## Purpose
+
+Provide the core runtime and tooling for paper trading, reporting, scheduler operations, and backtesting support.
+
 ## Scope
 
 The `trading/` module handles:
@@ -18,7 +22,7 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
 **Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `common/market_data_config.example.json` for the config format.
 
-## Common Operations
+## Commands
 
 All commands accept `--help` for the full flag reference.
 

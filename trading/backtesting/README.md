@@ -2,6 +2,10 @@
 
 This package uses explicit layers to keep responsibilities clear.
 
+## Purpose
+
+Define ownership boundaries and interaction flow for backtesting repositories, services, and domain helpers.
+
 ## Entry Points
 
 - `backtest.py`: public API entrypoint.
@@ -36,6 +40,12 @@ This package uses explicit layers to keep responsibilities clear.
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. Typed models remain in `trading/models/` for shared contracts.
+
+## Workflows
+
+1. Start from `backtest.py` when tracing end-to-end execution.
+2. Place SQL-only logic in `repositories/` and orchestration in `services/`.
+3. Keep pure calculations in `domain/` and avoid persistence or transport concerns there.
 
 ## Naming Convention
 

@@ -2,6 +2,10 @@
 
 A separate scaffold for viewing paper trading accounts, snapshots, trades, and log files.
 
+## Purpose
+
+Provide a local dashboard and API for paper-trading operations, including account visibility, snapshots, and operational logs.
+
 ## Environment Setup
 
 Copy the example env files once before first run:
@@ -38,6 +42,12 @@ cd paper_trading_ui/frontend
 npm install
 npm run dev
 ```
+
+## Workflows
+
+1. Start both services with `python -m scripts.launch_ui` for day-to-day usage.
+2. Use manual startup commands when working on backend or frontend in isolation.
+3. Update this README whenever API routes or UI operational flows change.
 
 ## Core API Routes
 
