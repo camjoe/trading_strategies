@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 
 import trading.backtesting.services.leaderboard_service as leaderboard_service
