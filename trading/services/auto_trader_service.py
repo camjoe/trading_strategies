@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from typing import Callable
-
 
 def build_iv_rank_proxy(
     universe: list[str],
@@ -35,6 +35,82 @@ def build_iv_rank_proxy(
     for i, (ticker, _vol) in enumerate(sorted_items):
         out[ticker] = (i / (n - 1)) * 100.0
     return out
+
+
+def parse_runtime_as_of_iso(
+    as_of_iso: str,
+    *,
+    parse_as_of_iso_fn: Callable[[str], datetime],
+) -> datetime:
+    return parse_as_of_iso_fn(as_of_iso)
+
+
+def compute_safe_return_pct(
+    starting_equity: object,
+    ending_equity: object,
+    *,
+    safe_return_pct_fn: Callable[..., float | None],
+    coerce_float_fn: Callable[[object], float | None],
+) -> float | None:
+    return safe_return_pct_fn(
+        starting_equity,
+        ending_equity,
+        coerce_float_fn=coerce_float_fn,
+    )
+
+
+def select_account_rotation_strategy(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    as_of_iso: str,
+    *,
+    select_optimal_strategy_impl_fn: Callable[..., str | None],
+    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
+    parse_as_of_iso_fn: Callable[[str], datetime],
+    fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
+    resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
+) -> str | None:
+    return select_optimal_strategy_impl_fn(
+        conn,
+        account,
+        as_of_iso,
+        parse_rotation_schedule_fn=parse_rotation_schedule_fn,
+        parse_as_of_iso_fn=parse_as_of_iso_fn,
+        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
+        resolve_optimality_mode_fn=resolve_optimality_mode_fn,
+    )
+
+
+def rotate_runtime_account_if_due(
+    conn: sqlite3.Connection,
+    account_name: str,
+    account: sqlite3.Row,
+    now_iso: str,
+    *,
+    rotate_account_if_due_impl_fn: Callable[..., sqlite3.Row],
+    is_rotation_due_fn: Callable[[sqlite3.Row], bool],
+    resolve_rotation_mode_fn: Callable[[sqlite3.Row], str],
+    select_optimal_strategy_fn: Callable[[sqlite3.Connection, sqlite3.Row, str], str | None],
+    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
+    next_rotation_state_fn: Callable[[sqlite3.Row, str], dict[str, object]],
+    update_account_rotation_state_fn: Callable[..., None],
+    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
+) -> sqlite3.Row:
+    return rotate_account_if_due_impl_fn(
+        conn,
+        account_name,
+        account,
+        now_iso,
+        is_rotation_due_fn=is_rotation_due_fn,
+        resolve_rotation_mode_fn=resolve_rotation_mode_fn,
+        select_optimal_strategy_fn=select_optimal_strategy_fn,
+        resolve_active_strategy_fn=resolve_active_strategy_fn,
+        parse_rotation_schedule_fn=parse_rotation_schedule_fn,
+        next_rotation_state_fn=next_rotation_state_fn,
+        update_account_rotation_state_fn=update_account_rotation_state_fn,
+        get_account_fn=get_account_fn,
+    )
 
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:

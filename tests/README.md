@@ -40,7 +40,10 @@ python -m pytest --no-cov tests/trading/scripts/test_daily_snapshot.py
 - Cross-stack smoke validation is `python -m scripts.ci_smoke`.
 - For parser/default-path changes, include focused checks for `tests/trading/test_cli.py` and `tests/trading/test_paper_trading.py`.
 
-## Runtime Data Ops Tests
+## Auto Trader Test Ownership
 
-- Database admin/export tests now target canonical runtime data-ops modules under `trading/interfaces/runtime/data_ops/`.
-- Account-name loading tests validate repository-backed behavior via configured DB backend instances.
+- `tests/trading/test_auto_trader.py` now stays focused on the `trading.auto_trader` CLI and integration facade.
+- Auto-trader policy rules live under `tests/trading/test_auto_trader_policy.py`.
+- Runtime orchestration and rotation adapter coverage lives under `tests/trading/test_auto_trader_service.py`.
+- Trade-preparation and execution-helper coverage lives under `tests/trading/test_trade_execution_service.py`.
+

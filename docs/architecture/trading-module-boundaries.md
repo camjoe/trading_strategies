@@ -80,7 +80,7 @@ Highest-value next structural slice:
 Why this next step:
 
 - The remaining highest-churn trading entrypoint is still `trading/auto_trader.py`.
-- Recent slices already moved UI/backend, account-listing, and trade-persistence concerns toward canonical repository/service boundaries.
+- Recent slices already moved UI/backend, account-listing, trade-persistence, and much of auto-trader runtime wiring toward canonical repository/service boundaries.
 - Keeping pressure on the largest orchestration module yields the most structural clarity per change.
 
 ## Bot Orientation Checklist

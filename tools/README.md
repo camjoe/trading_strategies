@@ -9,6 +9,10 @@ Top-level tooling integrations and submodules.
 For commit-context usage and documentation precheck details, see:
 - `tools/project_manager/README.md`
 
+Repository note:
+
+- `tools/project_manager/` is a git submodule, so structure or workflow changes inside that area can make the top-level `tools/` area appear stale until this README or submodule docs are updated alongside the submodule state.
+
 Recent tooling note:
 
 - `tools/project_manager/scripts/generate_commit_context.py` now references `scripts/check_docs_freshness.py` as the CI docs-freshness gate entrypoint.

@@ -2,7 +2,6 @@ import argparse
 import random
 import sqlite3
 import sys
-from datetime import datetime
 from typing import TypeAlias
 
 from common.market_data import get_provider
@@ -12,7 +11,6 @@ from common.time import utc_now_iso
 from trading.accounting import compute_account_state, load_trades, record_trade
 from trading.accounts import get_account
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
-from trading.coercion import coerce_float
 from trading.database.db import ensure_db
 from trading.domain import auto_trader_policy
 from trading.models import AccountState
@@ -29,14 +27,16 @@ from trading.rotation import (
 from trading.services.rotation_service import (
     parse_as_of_iso as parse_as_of_iso_impl,
     rotate_account_if_due as rotate_account_if_due_impl,
-    safe_return_pct as safe_return_pct_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
 )
 from trading.services.auto_trader_service import (
     build_iv_rank_proxy as build_iv_rank_proxy_impl,
+    parse_runtime_as_of_iso as parse_runtime_as_of_iso_impl,
     resolve_account_names as resolve_account_names_impl,
     resolve_market_inputs as resolve_market_inputs_impl,
+    rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
     run_accounts as run_accounts_impl,
+    select_account_rotation_strategy as select_account_rotation_strategy_impl,
     validate_trade_count_range as validate_trade_count_range_impl,
 )
 from trading.services.trade_execution_service import (
@@ -75,79 +75,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def choose_buy_qty(cash: float, price: float, fee: float) -> int:
-    return auto_trader_policy.choose_buy_qty(cash, price, fee)
-
-
-def choose_sell_qty(position_qty: float) -> int:
-    return auto_trader_policy.choose_sell_qty(position_qty)
-
-
 def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
     return build_iv_rank_proxy_impl(
         universe,
         fetch_close_series_fn=get_provider().fetch_close_series,
     )
-
-
-def estimate_delta(abs_strike_offset_pct: float) -> float:
-    return auto_trader_policy.estimate_delta(abs_strike_offset_pct)
-
-
-def estimate_option_premium(
-    underlying_price: float, delta_est: float, min_dte: int | None, max_dte: int | None
-) -> float:
-    return auto_trader_policy.estimate_option_premium(
-        underlying_price,
-        delta_est,
-        min_dte,
-        max_dte,
-    )
-
-
-def option_candidate_allowed(
-    account: sqlite3.Row,
-    ticker: str,
-    price: float,
-    iv_rank_proxy: dict[str, float],
-) -> tuple[bool, float, float]:
-    return auto_trader_policy.option_candidate_allowed(
-        account,
-        ticker,
-        price,
-        iv_rank_proxy,
-        estimate_delta_fn=estimate_delta,
-    )
-
-
-def choose_sell_ticker_by_risk(
-    can_sell: list[str],
-    prices: dict[str, float],
-    state: AccountState,
-    risk_policy: str,
-    stop_loss_pct: float | None,
-    take_profit_pct: float | None,
-) -> str | None:
-    return auto_trader_policy.choose_sell_ticker_by_risk(
-        can_sell,
-        prices,
-        state,
-        risk_policy,
-        stop_loss_pct,
-        take_profit_pct,
-    )
-
-
-def choose_buy_ticker(
-    universe: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
-) -> str:
-    return auto_trader_policy.choose_buy_ticker(universe, prices, state, learning_enabled)
-
-
-def choose_sell_ticker(
-    can_sell: list[str], prices: dict[str, float], state: AccountState, learning_enabled: bool
-) -> str:
-    return auto_trader_policy.choose_sell_ticker(can_sell, prices, state, learning_enabled)
 
 
 BuyTradeSelection: TypeAlias = tuple[str, int, float, float | None, float | None]
@@ -171,7 +103,7 @@ def _resolve_forced_sell_ticker(
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
 ) -> str | None:
-    return choose_sell_ticker_by_risk(
+    return auto_trader_policy.choose_sell_ticker_by_risk(
         can_sell,
         prices,
         state,
@@ -237,54 +169,7 @@ def _record_prepared_trade(
         forced_sell,
         record_trade_fn=record_trade,
         utc_now_iso_fn=utc_now_iso,
-        build_trade_note_fn=_build_trade_note,
-    )
-
-
-def _build_leaps_candidates(
-    account: sqlite3.Row,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-) -> list[tuple[str, float, float]]:
-    return build_leaps_candidates_impl(
-        account,
-        universe,
-        prices,
-        iv_rank_proxy,
-        option_candidate_allowed_fn=option_candidate_allowed,
-    )
-
-
-def _apply_leaps_buy_qty_limits(
-    qty: int,
-    option_price: float,
-    account: sqlite3.Row,
-) -> int:
-    return auto_trader_policy.apply_leaps_buy_qty_limits(qty, option_price, account)
-
-
-def _build_trade_note(
-    learning_enabled: bool,
-    forced_sell: str | None,
-    risk_policy: str,
-    instrument_mode: str,
-    account: sqlite3.Row,
-    side: str,
-    delta_est: float | None,
-    iv_est: float | None,
-    strategy_name: str | None,
-) -> str:
-    return auto_trader_policy.build_trade_note(
-        learning_enabled,
-        forced_sell,
-        risk_policy,
-        instrument_mode,
-        account,
-        side,
-        delta_est,
-        iv_est,
-        strategy_name,
+        build_trade_note_fn=auto_trader_policy.build_trade_note,
     )
 
 
@@ -298,47 +183,32 @@ def _rotate_account_if_due(
     account: sqlite3.Row,
     now_iso: str,
 ) -> sqlite3.Row:
-    return rotate_account_if_due_impl(
+    return rotate_runtime_account_if_due_impl(
         conn,
         account_name,
         account,
         now_iso,
+        rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
         resolve_rotation_mode_fn=resolve_rotation_mode,
-        select_optimal_strategy_fn=_select_optimal_strategy,
+        select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: select_account_rotation_strategy_impl(
+            inner_conn,
+            inner_account,
+            inner_as_of,
+            select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
+            parse_rotation_schedule_fn=parse_rotation_schedule,
+            parse_as_of_iso_fn=lambda text: parse_runtime_as_of_iso_impl(
+                text,
+                parse_as_of_iso_fn=parse_as_of_iso_impl,
+            ),
+            fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
+            resolve_optimality_mode_fn=resolve_optimality_mode,
+        ),
         resolve_active_strategy_fn=resolve_active_strategy,
         parse_rotation_schedule_fn=parse_rotation_schedule,
         next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
-    )
-
-
-def _parse_as_of_iso(as_of_iso: str) -> datetime:
-    return parse_as_of_iso_impl(as_of_iso)
-
-
-def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    return safe_return_pct_impl(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float,
-    )
-
-
-def _select_optimal_strategy(
-    conn: sqlite3.Connection,
-    account: sqlite3.Row,
-    as_of_iso: str,
-) -> str | None:
-    return select_optimal_strategy_impl(
-        conn,
-        account,
-        as_of_iso,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=_parse_as_of_iso,
-        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
     )
 
 
@@ -361,11 +231,23 @@ def _prepare_buy_trade(
         state,
         learning_enabled,
         fee,
-        build_leaps_candidates_fn=_build_leaps_candidates,
-        estimate_option_premium_fn=estimate_option_premium,
-        choose_buy_qty_fn=choose_buy_qty,
-        apply_leaps_buy_qty_limits_fn=_apply_leaps_buy_qty_limits,
-        choose_buy_ticker_fn=choose_buy_ticker,
+        build_leaps_candidates_fn=lambda inner_account, inner_universe, inner_prices, inner_proxy: build_leaps_candidates_impl(
+            inner_account,
+            inner_universe,
+            inner_prices,
+            inner_proxy,
+            option_candidate_allowed_fn=lambda candidate_account, ticker, price, proxy: auto_trader_policy.option_candidate_allowed(
+                candidate_account,
+                ticker,
+                price,
+                proxy,
+                estimate_delta_fn=auto_trader_policy.estimate_delta,
+            ),
+        ),
+        estimate_option_premium_fn=auto_trader_policy.estimate_option_premium,
+        choose_buy_qty_fn=auto_trader_policy.choose_buy_qty,
+        apply_leaps_buy_qty_limits_fn=auto_trader_policy.apply_leaps_buy_qty_limits,
+        choose_buy_ticker_fn=auto_trader_policy.choose_buy_ticker,
     )
 
 
@@ -384,8 +266,8 @@ def _prepare_sell_trade(
         state,
         learning_enabled,
         instrument_mode,
-        choose_sell_ticker_fn=choose_sell_ticker,
-        choose_sell_qty_fn=choose_sell_qty,
+        choose_sell_ticker_fn=auto_trader_policy.choose_sell_ticker,
+        choose_sell_qty_fn=auto_trader_policy.choose_sell_qty,
     )
 
 
@@ -419,67 +301,33 @@ def run_for_account(
     )
 
 
-def _validate_trade_count_range(min_trades: int, max_trades: int) -> None:
-    validate_trade_count_range_impl(min_trades, max_trades)
+def main() -> None:
+    args = parse_args()
+    validate_trade_count_range_impl(args.min_trades, args.max_trades)
 
+    if args.seed is not None:
+        random.seed(args.seed)
 
-def _resolve_account_names(accounts_arg: str) -> list[str]:
-    return resolve_account_names_impl(accounts_arg)
-
-
-def _resolve_market_inputs(tickers_file: str) -> tuple[list[str], dict[str, float], dict[str, float]]:
-    return resolve_market_inputs_impl(
-        tickers_file,
+    accounts = resolve_account_names_impl(args.accounts)
+    universe, prices, iv_rank_proxy = resolve_market_inputs_impl(
+        args.tickers_file,
         load_tickers_from_file_fn=load_tickers_from_file,
         fetch_latest_prices_fn=fetch_latest_prices,
         build_iv_rank_proxy_fn=build_iv_rank_proxy,
     )
 
-
-def _run_accounts(
-    conn: sqlite3.Connection,
-    account_names: list[str],
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    min_trades: int,
-    max_trades: int,
-    fee: float,
-) -> list[tuple[str, int]]:
-    return run_accounts_impl(
-        conn,
-        account_names=account_names,
-        universe=universe,
-        prices=prices,
-        iv_rank_proxy=iv_rank_proxy,
-        min_trades=min_trades,
-        max_trades=max_trades,
-        fee=fee,
-        run_for_account_fn=run_for_account,
-    )
-
-
-def main() -> None:
-    args = parse_args()
-    _validate_trade_count_range(args.min_trades, args.max_trades)
-
-    if args.seed is not None:
-        random.seed(args.seed)
-
-    accounts = _resolve_account_names(args.accounts)
-    universe, prices, iv_rank_proxy = _resolve_market_inputs(args.tickers_file)
-
     conn = ensure_db()
     try:
-        for account_name, executed in _run_accounts(
+        for account_name, executed in run_accounts_impl(
             conn,
-            accounts,
-            universe,
-            prices,
-            iv_rank_proxy,
-            args.min_trades,
-            args.max_trades,
-            args.fee,
+            account_names=accounts,
+            universe=universe,
+            prices=prices,
+            iv_rank_proxy=iv_rank_proxy,
+            min_trades=args.min_trades,
+            max_trades=args.max_trades,
+            fee=args.fee,
+            run_for_account_fn=run_for_account,
         ):
             print(f"{account_name}: executed {executed} trades")
     finally:

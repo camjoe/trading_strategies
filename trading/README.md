@@ -116,3 +116,4 @@ Profile update and compare-strategies account-listing paths also delegate throug
 Trade loading and insert paths in `trading/accounting.py` now delegate through `trading/repositories/trades_repository.py`.
 Account listing presentation is composed in `trading/services/accounts_service.py` so `trading/accounts.py` stays focused on account lifecycle validation and orchestration.
 Top-level runtime orchestration in `trading/auto_trader.py` now delegates account-batch input validation, market-input resolution, and multi-account dispatch through `trading/services/auto_trader_service.py`.
+Rotation/strategy adapter wiring for auto-trading now also delegates through `trading/services/auto_trader_service.py`, while trade-construction helpers live in `trading/services/trade_execution_service.py`.
