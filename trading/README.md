@@ -111,14 +111,9 @@ Built-in account profile presets now live under:
 
 CLI defaults use `trading/config/account_profiles/default.json`.
 
-Account-name loading helpers in `trading/accounts.py` delegate through `trading/repositories/accounts_repository.py`.
-Profile update and compare-strategies account-listing paths also delegate through repository adapters.
-Trade loading and insert paths in `trading/accounting.py` now delegate through `trading/repositories/trades_repository.py`.
-Account listing presentation is composed in `trading/services/accounts_service.py` so `trading/accounts.py` stays focused on account lifecycle validation and orchestration.
-Price-fetch and benchmark-return logic in `trading/pricing.py` now delegate through `trading/services/pricing_service.py`.
-Profile loading and apply orchestration in `trading/profiles.py` now delegate through `trading/services/profiles_service.py`.
-Reporting data assembly and summary math in `trading/reporting.py` now delegate through `trading/services/reporting_service.py`, while the top-level module remains the presenter-style public facade.
-`trading/reporting.py` readability was further improved by removing pass-through wrappers and calling reporting-service helpers directly within the facade.
-Top-level runtime orchestration in `trading/auto_trader.py` now delegates account-batch input validation, market-input resolution, and multi-account dispatch through `trading/services/auto_trader_service.py`.
-Rotation/strategy adapter wiring for auto-trading now also delegates through `trading/services/auto_trader_service.py`, while trade-construction helpers live in `trading/services/trade_execution_service.py`.
-The remaining `trading/auto_trader.py` integration path now wires those service/domain owners inline at the public facade instead of preserving separate private wrapper helpers.
+## Boundary Snapshot
+
+- Public-facing top-level modules (`trading/accounts.py`, `trading/accounting.py`, `trading/pricing.py`, `trading/profiles.py`, `trading/reporting.py`, `trading/auto_trader.py`) act as facades.
+- SQL access is owned by repository modules under `trading/repositories/`.
+- Orchestration and composition are owned by service modules under `trading/services/`.
+- Policy logic is owned by domain modules under `trading/domain/`.
