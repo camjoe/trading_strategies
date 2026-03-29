@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import html
-import json
 import re
 from pathlib import Path
+
+from scripts.documentation_ui.common.html import find_card_bounds, strip_html as _strip_html
+from scripts.documentation_ui.common.io import load_json
 
 
 SECTION_BLOCK_RE = re.compile(
@@ -12,10 +14,6 @@ SECTION_BLOCK_RE = re.compile(
     re.DOTALL,
 )
 ROW_TERM_RE = re.compile(r"<tr>\s*<td>(.*?)</td>", re.DOTALL)
-HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-HTML_TAG_RE = re.compile(r"<[^>]+>")
-
-
 TERM_SECTION_OVERRIDES = {
     "Slippage": "Execution & Risk Controls",
     "Stop-Loss": "Execution & Risk Controls",
@@ -28,14 +26,11 @@ UI_TERM_LABELS = {
 
 
 def strip_html(value: str) -> str:
-    text = html.unescape(value)
-    text = HTML_COMMENT_RE.sub("", text)
-    text = HTML_TAG_RE.sub("", text)
-    return " ".join(text.split()).strip()
+    return _strip_html(value, remove_comments=True)
 
 
 def load_registry(path: Path) -> list[dict[str, str]]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = load_json(path)
     return [item for item in data.get("terms", []) if isinstance(item.get("term"), str)]
 
 
@@ -122,21 +117,11 @@ def build_ui_section_terms(registry_terms: list[dict[str, str]]) -> dict[str, li
 
 
 def find_financial_card_bounds(html_text: str) -> tuple[int, int]:
-    heading = "<h2>Financial &amp; Market Knowledge</h2>"
-    heading_index = html_text.find(heading)
-    if heading_index == -1:
-        raise ValueError("Could not locate Financial & Market Knowledge heading in docs.html")
-
-    start_index = html_text.rfind('<section class="card ref-card">', 0, heading_index)
-    if start_index == -1:
-        raise ValueError("Could not locate start of Financial & Market Knowledge card")
-
-    next_card_index = html_text.find('\n  <section class="card ref-card">', heading_index)
-    if next_card_index == -1:
-        end_index = len(html_text)
-    else:
-        end_index = next_card_index
-    return start_index, end_index
+    return find_card_bounds(
+        html_text,
+        "<h2>Financial &amp; Market Knowledge</h2>",
+        end_at_next_card=True,
+    )
 
 
 def rewrite_financial_card(html_text: str, registry_terms: list[dict[str, str]]) -> tuple[str, int]:

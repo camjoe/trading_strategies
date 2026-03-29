@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from scripts.documentation_ui.common.io import load_json
 from scripts.documentation_ui.finance.registry import parse_glossary, parse_ui_terms
-
-
-def _load_registry(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def run_term_definitions_check(repo_root: Path, registry_rel_path: str = "docs/reference/finance.json") -> int:
@@ -18,7 +14,7 @@ def run_term_definitions_check(repo_root: Path, registry_rel_path: str = "docs/r
         print(f"ERROR: registry not found: {registry_path}")
         return 2
 
-    existing = _load_registry(registry_path)
+    existing = load_json(registry_path)
     existing_terms = existing.get("terms", [])
     existing_by_term = {
         term.get("term"): term for term in existing_terms if isinstance(term.get("term"), str)

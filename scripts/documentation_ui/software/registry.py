@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import html
 import json
 import re
 from pathlib import Path
+
+from scripts.documentation_ui.common.html import extract_card_body, strip_html
 
 
 GROUP_ORDER = [
@@ -43,19 +44,12 @@ UI_GROUP_RE = re.compile(
 )
 UI_ROW_RE = re.compile(r"<tr>\s*(?P<cells>.*?)\s*</tr>", re.DOTALL)
 UI_CELL_RE = re.compile(r"<td>(.*?)</td>", re.DOTALL)
-HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def normalize_package_name(raw: str) -> str:
     cleaned = " ".join(raw.split()).strip()
     base = cleaned.split("[", 1)[0]
     return base.lower()
-
-
-def strip_html(value: str) -> str:
-    text = html.unescape(value)
-    text = HTML_TAG_RE.sub("", text)
-    return " ".join(text.split()).strip()
 
 
 def parse_requirement_entry(raw: str) -> tuple[str, str] | None:
@@ -204,19 +198,7 @@ def parse_markdown(markdown_path: Path) -> dict[str, dict[str, str]]:
 
 
 def extract_software_card_body(raw: str) -> str:
-    heading = "<h2>Software</h2>"
-    heading_index = raw.find(heading)
-    if heading_index == -1:
-        return ""
-
-    start_index = raw.rfind('<section class="card ref-card">', 0, heading_index)
-    if start_index == -1:
-        return ""
-
-    next_card_index = raw.find('\n  <section class="card ref-card">', heading_index)
-    if next_card_index == -1:
-        return raw[start_index:]
-    return raw[start_index:next_card_index]
+    return extract_card_body(raw, "<h2>Software</h2>", end_at_next_card=True)
 
 
 def parse_ui_packages(ui_docs_path: Path) -> dict[str, dict[str, str]]:

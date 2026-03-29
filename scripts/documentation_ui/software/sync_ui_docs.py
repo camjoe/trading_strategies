@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import html
-import json
 import re
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from scripts.documentation_ui.common.html import find_card_bounds
+from scripts.documentation_ui.common.io import load_json
 from scripts.documentation_ui.software.registry import GROUP_ORDER
 
 
@@ -17,23 +18,12 @@ SOFTWARE_SECTION_RE = re.compile(
 
 
 def load_registry(path: Path) -> list[dict[str, str]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = load_json(path)
     return [item for item in payload.get("packages", []) if isinstance(item.get("name"), str)]
 
 
 def find_software_card_bounds(html_text: str) -> tuple[int, int]:
-    heading = "<h2>Software</h2>"
-    heading_index = html_text.find(heading)
-    if heading_index == -1:
-        raise ValueError("Could not locate Software heading in docs.html")
-
-    start_index = html_text.rfind('<section class="card ref-card">', 0, heading_index)
-    if start_index == -1:
-        raise ValueError("Could not locate start of Software card")
-
-    next_card_index = html_text.find('\n  <section class="card ref-card">', heading_index)
-    end_index = len(html_text) if next_card_index == -1 else next_card_index
-    return start_index, end_index
+    return find_card_bounds(html_text, "<h2>Software</h2>", end_at_next_card=True)
 
 
 def render_section_body(packages: list[dict[str, str]]) -> str:

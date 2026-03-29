@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import html
 import json
 import re
 from pathlib import Path
+
+from scripts.documentation_ui.common.html import extract_card_body, strip_html
 
 
 GLOSSARY_SECTION_RE = re.compile(r"^##\s+(.+?)\s*$")
@@ -14,7 +15,6 @@ UI_SECTION_RE = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 UI_ROW_RE = re.compile(r"<tr>\s*<td>(.*?)</td>\s*<td>(.*?)</td>\s*</tr>", re.DOTALL | re.IGNORECASE)
-HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 TERM_ALIASES = {
@@ -58,26 +58,8 @@ def parse_glossary(glossary_path: Path) -> dict[str, tuple[str, str]]:
     return terms
 
 
-def strip_html(value: str) -> str:
-    text = html.unescape(value)
-    text = HTML_TAG_RE.sub("", text)
-    return " ".join(text.split()).strip()
-
-
 def extract_financial_card_body(raw: str) -> str:
-    heading = "<h2>Financial &amp; Market Knowledge</h2>"
-    heading_index = raw.find(heading)
-    if heading_index == -1:
-        return ""
-
-    start_index = raw.rfind('<section class="card ref-card">', 0, heading_index)
-    if start_index == -1:
-        return ""
-
-    next_card_index = raw.find('\n  <section class="card ref-card">', heading_index)
-    if next_card_index == -1:
-        return raw[start_index:]
-    return raw[start_index:next_card_index]
+    return extract_card_body(raw, "<h2>Financial &amp; Market Knowledge</h2>", end_at_next_card=True)
 
 
 def parse_ui_terms(ui_docs_path: Path) -> dict[str, tuple[str, str]]:

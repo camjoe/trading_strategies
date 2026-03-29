@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import ast
-import html
 import json
 import re
 from pathlib import Path
+
+from scripts.documentation_ui.common.html import extract_card_body, strip_html
 
 
 GROUP_ORDER = [
@@ -30,17 +31,10 @@ API_SECTION_RE = re.compile(
     re.DOTALL,
 )
 UI_ROW_RE = re.compile(r'<tr>\s*<td>(?P<method_path>.*?)</td>\s*<td>(?P<purpose>.*?)</td>\s*</tr>', re.DOTALL)
-HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def endpoint_key(method: str, path: str) -> str:
     return f"{method.upper()} {path}"
-
-
-def strip_html(value: str) -> str:
-    text = html.unescape(value)
-    text = HTML_TAG_RE.sub("", text)
-    return " ".join(text.split()).strip()
 
 
 def _parse_route_decorator(decorator: ast.AST) -> tuple[str, str] | None:
@@ -194,15 +188,7 @@ def parse_markdown(markdown_path: Path) -> dict[str, dict[str, str]]:
 
 
 def extract_api_card_body(raw: str) -> str:
-    heading = "<h2>API Reference</h2>"
-    heading_index = raw.find(heading)
-    if heading_index == -1:
-        return ""
-
-    start_index = raw.rfind('<section class="card ref-card">', 0, heading_index)
-    if start_index == -1:
-        return ""
-    return raw[start_index:]
+    return extract_card_body(raw, "<h2>API Reference</h2>", end_at_next_card=False)
 
 
 def parse_ui_endpoints(ui_docs_path: Path) -> dict[str, dict[str, str]]:

@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from scripts.documentation_ui.common.io import load_json
 from scripts.documentation_ui.api.registry import parse_markdown, parse_routes, parse_ui_endpoints
-
-
-def _load_registry(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _endpoint_key(item: dict[str, str]) -> str:
@@ -22,7 +18,7 @@ def run_api_reference_check(repo_root: Path, registry_rel_path: str = "docs/refe
         print(f"ERROR: registry not found: {registry_path}")
         return 2
 
-    existing = _load_registry(registry_path)
+    existing = load_json(registry_path)
     endpoints = existing.get("endpoints", [])
     registry_by_key = {
         _endpoint_key(item): item

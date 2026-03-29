@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import html
-import json
 import re
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from scripts.documentation_ui.common.html import find_card_bounds, strip_html
+from scripts.documentation_ui.common.io import load_json
 from scripts.documentation_ui.api.registry import GROUP_ORDER
 
 
@@ -14,31 +15,15 @@ SECTION_BLOCK_RE = re.compile(
     r'(<div class="ref-section">\s*<h3>(?P<title>.*?)</h3>.*?<tbody>)(?P<body>.*?)(</tbody>)(?P<tail>.*?</div>)',
     re.DOTALL,
 )
-HTML_TAG_RE = re.compile(r"<[^>]+>")
-
-
-def strip_html(value: str) -> str:
-    text = html.unescape(value)
-    text = HTML_TAG_RE.sub("", text)
-    return " ".join(text.split()).strip()
 
 
 def load_registry(path: Path) -> list[dict[str, str]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = load_json(path)
     return [item for item in payload.get("endpoints", []) if isinstance(item.get("path"), str)]
 
 
 def find_api_card_bounds(html_text: str) -> tuple[int, int]:
-    heading = "<h2>API Reference</h2>"
-    heading_index = html_text.find(heading)
-    if heading_index == -1:
-        raise ValueError("Could not locate API Reference heading in docs.html")
-
-    start_index = html_text.rfind('<section class="card ref-card">', 0, heading_index)
-    if start_index == -1:
-        raise ValueError("Could not locate start of API Reference card")
-
-    return start_index, len(html_text)
+    return find_card_bounds(html_text, "<h2>API Reference</h2>", end_at_next_card=False)
 
 
 def build_grouped_endpoints(endpoints: list[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
