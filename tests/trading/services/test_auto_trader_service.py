@@ -9,6 +9,7 @@ from trading.accounts import create_account, get_account
 from trading.coercion import coerce_float
 from trading.repositories.rotation_repository import update_account_rotation_state
 from trading.rotation import next_rotation_state, parse_rotation_schedule, resolve_active_strategy, resolve_optimality_mode, resolve_rotation_mode
+from trading.services.auto_trader_service import RotationDeps
 
 
 def _base_account(**overrides):
@@ -231,15 +232,17 @@ def test_rotate_runtime_account_if_due_updates_state(monkeypatch) -> None:
         "acct",
         account_before,
         "2026-03-17T00:00:00Z",
-        rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
-        is_rotation_due_fn=lambda _row: True,
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
-        update_account_rotation_state_fn=update_account_rotation_state,
-        get_account_fn=lambda _conn, _name: account_after,
+        RotationDeps(
+            rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
+            is_rotation_due_fn=lambda _row: True,
+            resolve_rotation_mode_fn=resolve_rotation_mode,
+            select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
+            resolve_active_strategy_fn=resolve_active_strategy,
+            parse_rotation_schedule_fn=parse_rotation_schedule,
+            next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
+            update_account_rotation_state_fn=update_account_rotation_state,
+            get_account_fn=lambda _conn, _name: account_after,
+        ),
     )
 
     assert conn.committed is True
@@ -280,24 +283,26 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
         "acct_opt_prev",
         account,
         "2026-03-20T00:00:00Z",
-        rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
-        is_rotation_due_fn=lambda row: resolve_rotation_mode(row) == "optimal" and True,
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: auto_trader_service.select_account_rotation_strategy(
-            inner_conn,
-            inner_account,
-            inner_as_of,
-            select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
+        RotationDeps(
+            rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
+            is_rotation_due_fn=lambda row: resolve_rotation_mode(row) == "optimal" and True,
+            resolve_rotation_mode_fn=resolve_rotation_mode,
+            select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: auto_trader_service.select_account_rotation_strategy(
+                inner_conn,
+                inner_account,
+                inner_as_of,
+                select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
+                parse_rotation_schedule_fn=parse_rotation_schedule,
+                parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+                fetch_strategy_backtest_returns_fn=__import__("trading.backtesting.services.history_service", fromlist=["fetch_strategy_backtest_returns"]).fetch_strategy_backtest_returns,
+                resolve_optimality_mode_fn=resolve_optimality_mode,
+            ),
+            resolve_active_strategy_fn=resolve_active_strategy,
             parse_rotation_schedule_fn=parse_rotation_schedule,
-            parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
-            fetch_strategy_backtest_returns_fn=__import__("trading.backtesting.services.history_service", fromlist=["fetch_strategy_backtest_returns"]).fetch_strategy_backtest_returns,
-            resolve_optimality_mode_fn=resolve_optimality_mode,
+            next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
+            update_account_rotation_state_fn=update_account_rotation_state,
+            get_account_fn=get_account,
         ),
-        resolve_active_strategy_fn=resolve_active_strategy,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
-        update_account_rotation_state_fn=update_account_rotation_state,
-        get_account_fn=get_account,
     )
     assert rotated["strategy"] == "mean_reversion"
     assert rotated["rotation_active_strategy"] == "mean_reversion"
@@ -310,15 +315,17 @@ def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
         account_name="acct",
         account=account,
         now_iso="2026-03-21T00:00:00Z",
-        rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
-        is_rotation_due_fn=lambda *_args, **_kwargs: False,
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
-        update_account_rotation_state_fn=update_account_rotation_state,
-        get_account_fn=get_account,
+        deps=RotationDeps(
+            rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
+            is_rotation_due_fn=lambda *_args, **_kwargs: False,
+            resolve_rotation_mode_fn=resolve_rotation_mode,
+            select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
+            resolve_active_strategy_fn=resolve_active_strategy,
+            parse_rotation_schedule_fn=parse_rotation_schedule,
+            next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
+            update_account_rotation_state_fn=update_account_rotation_state,
+            get_account_fn=get_account,
+        ),
     )
     assert out is account
 

@@ -21,6 +21,7 @@ from trading.services.auto_trader_service import (
     parse_runtime_as_of_iso as parse_runtime_as_of_iso_impl,
     rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
+    RotationDeps,
 )
 from trading.services.rotation_service import (
     parse_as_of_iso as parse_as_of_iso_impl,
@@ -68,11 +69,7 @@ def _rotate_runtime_account(
     account: sqlite3.Row,
     now_iso: str,
 ) -> sqlite3.Row:
-    return rotate_runtime_account_if_due_impl(
-        conn,
-        account_name,
-        account,
-        now_iso,
+    deps = RotationDeps(
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(cast(Mapping[str, object], row), as_of_iso=now_iso),
         resolve_rotation_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_rotation_mode),
@@ -83,6 +80,7 @@ def _rotate_runtime_account(
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
+    return rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
 
 
 def _refresh_runtime_account_state(conn: sqlite3.Connection, account: sqlite3.Row):
