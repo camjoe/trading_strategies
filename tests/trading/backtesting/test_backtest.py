@@ -88,7 +88,7 @@ def _backtest_config(
 ) -> BacktestConfig:
     return BacktestConfig(
         account_name=account_name,
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/trade_universe.txt",
         universe_history_dir=universe_history_dir,
         start=start,
         end=end,
@@ -114,7 +114,7 @@ def _walk_forward_config(
 ) -> WalkForwardConfig:
     return WalkForwardConfig(
         account_name=account_name,
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/trade_universe.txt",
         universe_history_dir=None,
         start=start,
         end=end,
@@ -586,7 +586,7 @@ class TestBacktestLeaderboardAndBatch:
             conn,
             BacktestBatchConfig(
                 account_names=["acct_a", "acct_b"],
-                tickers_file="trading/trade_universe.txt",
+                tickers_file="trading/config/trade_universe.txt",
                 universe_history_dir=None,
                 start="2026-01-01",
                 end="2026-02-01",
@@ -639,7 +639,7 @@ class TestBacktestValidationAndFailurePaths:
                 "2026-03-27T00:00:00Z",
                 0.0,
                 0.0,
-                "trading/trade_universe.txt",
+                "trading/config/trade_universe.txt",
                 "test",
                 "",
             ),
@@ -683,7 +683,7 @@ class TestBacktestValidationAndFailurePaths:
                 conn,
                 BacktestBatchConfig(
                     account_names=["  ", ""],
-                    tickers_file="trading/trade_universe.txt",
+                    tickers_file="trading/config/trade_universe.txt",
                     universe_history_dir=None,
                     start="2026-01-01",
                     end="2026-02-01",

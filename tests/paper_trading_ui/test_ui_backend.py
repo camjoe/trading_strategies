@@ -38,7 +38,7 @@ def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -
         "/api/backtests/preflight",
         json={
             "account": "acct_api_leaps",
-            "tickersFile": "trading/trade_universe.txt",
+            "tickersFile": "trading/config/trade_universe.txt",
             "start": "2026-01-01",
             "end": "2026-03-01",
             "allowApproximateLeaps": False,
@@ -62,7 +62,7 @@ def test_backtest_preflight_rejects_start_and_lookback_conflict(api_client: Test
         "/api/backtests/preflight",
         json={
             "account": "acct_api_conflict",
-            "tickersFile": "trading/trade_universe.txt",
+            "tickersFile": "trading/config/trade_universe.txt",
             "start": "2026-01-01",
             "lookbackMonths": 1,
         },
@@ -103,7 +103,7 @@ def test_account_detail_exposes_latest_backtest_summary(api_client: TestClient) 
                 utc_now_iso(),
                 5.0,
                 0.0,
-                "trading/trade_universe.txt",
+                "trading/config/trade_universe.txt",
                 "seed test run",
                 "daily bars only",
             ),

@@ -22,7 +22,7 @@ def _seed_run(conn, *, account_id: int, strategy_name: str, run_name: str, creat
                 created_at,
                 0.0,
                 0.0,
-                "trading/trade_universe.txt",
+                "trading/config/trade_universe.txt",
                 "",
                 "",
             ),

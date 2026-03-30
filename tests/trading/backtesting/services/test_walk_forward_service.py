@@ -17,7 +17,7 @@ class _Result:
 def _cfg() -> WalkForwardConfig:
     return WalkForwardConfig(
         account_name="acct",
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-31",

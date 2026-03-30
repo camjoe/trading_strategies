@@ -42,7 +42,7 @@ def _create_backtest_run_for_account(conn, account_name: str, run_name: str = "r
             utc_now_iso(),
             5.0,
             0.0,
-            "trading/trade_universe.txt",
+            "trading/config/trade_universe.txt",
         ),
     )
     conn.commit()
@@ -257,7 +257,7 @@ class TestBacktestsRoutes:
             "/api/backtests/run",
             json={
                 "account": "acct_run_err",
-                "tickersFile": "trading/trade_universe.txt",
+                "tickersFile": "trading/config/trade_universe.txt",
                 "start": "2026-01-01",
                 "end": "2026-01-31",
             },
@@ -297,7 +297,7 @@ class TestBacktestsRoutes:
             "/api/backtests/walk-forward",
             json={
                 "account": "acct_wf_err",
-                "tickersFile": "trading/trade_universe.txt",
+                "tickersFile": "trading/config/trade_universe.txt",
                 "testMonths": 1,
                 "stepMonths": 1,
             },

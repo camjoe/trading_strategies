@@ -65,7 +65,7 @@ def test_build_backtest_run_summary_uses_display_transforms(conn) -> None:
             '2026-02-01T00:00:00Z' AS created_at,
             5.0 AS slippage_bps,
             1.25 AS fee_per_trade,
-            'trading/trade_universe.txt' AS tickers_file,
+            'trading/config/trade_universe.txt' AS tickers_file,
             ? AS account_name,
             'trend' AS strategy
         """,
@@ -99,7 +99,7 @@ def test_get_latest_backtest_summary_none_and_present(conn) -> None:
         INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (account_id, "run-1", "2026-01-01", "2026-01-31", utc_now_iso(), 5.0, 0.25, "trading/trade_universe.txt"),
+        (account_id, "run-1", "2026-01-01", "2026-01-31", utc_now_iso(), 5.0, 0.25, "trading/config/trade_universe.txt"),
     )
     conn.commit()
 
@@ -116,7 +116,7 @@ def test_get_latest_backtest_metrics_uses_summary_report(monkeypatch, conn) -> N
         INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (account_id, "run-metrics", "2026-01-01", "2026-01-31", utc_now_iso(), 5.0, 0.0, "trading/trade_universe.txt"),
+        (account_id, "run-metrics", "2026-01-01", "2026-01-31", utc_now_iso(), 5.0, 0.0, "trading/config/trade_universe.txt"),
     )
     conn.commit()
 

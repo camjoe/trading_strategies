@@ -176,7 +176,7 @@ def test_main_backtest_dispatches_and_prints_summary(monkeypatch, capsys):
     args = SimpleNamespace(
         command="backtest",
         account="acct1",
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-01",
@@ -243,7 +243,7 @@ def test_main_backtest_report_dispatches(monkeypatch, capsys):
             "max_drawdown_pct": -0.5,
             "slippage_bps": 5.0,
             "fee_per_trade": 0.0,
-            "tickers_file": "trading/trade_universe.txt",
+            "tickers_file": "trading/config/trade_universe.txt",
             "warnings": "daily bars only",
         }
 
@@ -264,7 +264,7 @@ def test_main_backtest_walk_forward_dispatches(monkeypatch, capsys):
     args = SimpleNamespace(
         command="backtest-walk-forward",
         account="acct1",
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-31",
@@ -357,7 +357,7 @@ def test_main_backtest_batch_dispatches(monkeypatch, capsys):
     args = SimpleNamespace(
         command="backtest-batch",
         accounts="acct1, acct2",
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-01",
@@ -525,7 +525,7 @@ class TestHandlerOutputsAndEdgeCases:
         args = SimpleNamespace(
             command="backtest",
             account="acct1",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             universe_history_dir=None,
             start="2026-01-01",
             end="2026-03-01",
@@ -629,7 +629,7 @@ class TestHandlerOutputsAndEdgeCases:
                 "max_drawdown_pct": -0.5,
                 "slippage_bps": 5.0,
                 "fee_per_trade": 0.0,
-                "tickers_file": "trading/trade_universe.txt",
+                "tickers_file": "trading/config/trade_universe.txt",
                 "warnings": "",
             }
 
@@ -754,7 +754,7 @@ class TestAdditionalCommandDispatch:
         args = SimpleNamespace(
             command="backtest-walk-forward",
             account="acct1",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             universe_history_dir=None,
             start="2026-01-01",
             end="2026-03-31",

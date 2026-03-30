@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class BacktestBaseRequest(BaseModel):
     account: str
-    tickersFile: str = "trading/trade_universe.txt"
+    tickersFile: str = "trading/config/trade_universe.txt"
     universeHistoryDir: str | None = None
     start: str | None = None
     end: str | None = None

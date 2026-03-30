@@ -52,7 +52,7 @@ class TestInputLoadingAndPrimitiveHelpers:
                 "--accounts",
                 "acct1,acct2",
                 "--tickers-file",
-                "trading/trade_universe.txt",
+                "trading/config/trade_universe.txt",
                 "--min-trades",
                 "2",
                 "--max-trades",
@@ -66,7 +66,7 @@ class TestInputLoadingAndPrimitiveHelpers:
 
         args = auto_trader.parse_args()
         assert args.accounts == "acct1,acct2"
-        assert args.tickers_file == "trading/trade_universe.txt"
+        assert args.tickers_file == "trading/config/trade_universe.txt"
         assert args.min_trades == 2
         assert args.max_trades == 7
         assert args.fee == pytest.approx(1.25)
@@ -79,7 +79,7 @@ class TestCliMainFlow:
             max_trades=1,
             seed=None,
             accounts="acct1",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             fee=0.0,
         )
         monkeypatch.setattr(auto_trader, "parse_args", lambda: args)
@@ -99,7 +99,7 @@ class TestCliMainFlow:
             max_trades=2,
             seed=123,
             accounts="acct1,acct2",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             fee=1.0,
         )
 
@@ -131,7 +131,7 @@ class TestCliMainFlow:
             max_trades=1,
             seed=None,
             accounts="acct1",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             fee=0.0,
         )
         monkeypatch.setattr(auto_trader, "parse_args", lambda: args)
@@ -149,7 +149,7 @@ class TestCliMainFlow:
             max_trades=1,
             seed=None,
             accounts="acct1",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             fee=0.0,
         )
         monkeypatch.setattr(auto_trader, "parse_args", lambda: args)
@@ -176,7 +176,7 @@ class TestCliMainFlow:
             max_trades=1,
             seed=None,
             accounts="acct1",
-            tickers_file="trading/trade_universe.txt",
+            tickers_file="trading/config/trade_universe.txt",
             fee=0.0,
         )
 

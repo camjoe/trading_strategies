@@ -25,7 +25,7 @@ def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
 def _backtest_config(account_name: str) -> BacktestConfig:
     return BacktestConfig(
         account_name=account_name,
-        tickers_file="trading/trade_universe.txt",
+        tickers_file="trading/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-01",
