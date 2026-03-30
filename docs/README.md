@@ -21,7 +21,6 @@ python -m trading.paper_trading
 - `architecture/backtesting-layering-adr.md`: decision rationale and guardrails for backtesting module layering.
 - `architecture/strategy-encapsulation-notes.md`: strategy ownership map and prompt templates for a future strategy-class refactor.
 - `architecture/runtime-job-coverage-follow-up.md`: prioritized testing backlog for low-coverage runtime and support modules.
-- `reference/Finance.md`: finance, options, backtesting, and indicator terms.
 
 ## Architecture Reference
 
