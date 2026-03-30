@@ -7,10 +7,8 @@ import { buildDocsTemplate } from "../../lib/docs-renderer";
 // buildPackagesSection, buildApiSection, buildFinanceSection, esc, etc.).
 
 describe("buildDocsTemplate", () => {
-  let html: string;
-
   // Build once and share across all assertions — the function is pure.
-  html = buildDocsTemplate();
+  const html = buildDocsTemplate();
 
   it("returns a non-empty string wrapped in the docs tab panel", () => {
     expect(typeof html).toBe("string");
