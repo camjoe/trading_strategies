@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from trading.profile_source import DEFAULT_TICKERS_FILE
+
 
 def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p_backtest = sub.add_parser(
@@ -11,8 +13,8 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     p_backtest.add_argument("--account", required=True, help="Account name")
     p_backtest.add_argument(
         "--tickers-file",
-        default="trading/config/trade_universe.txt",
-        help="Path to ticker universe file (default: trading/config/trade_universe.txt)",
+        default=DEFAULT_TICKERS_FILE,
+        help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
     p_backtest.add_argument(
         "--universe-history-dir",
@@ -74,8 +76,8 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     )
     p_backtest_batch.add_argument(
         "--tickers-file",
-        default="trading/config/trade_universe.txt",
-        help="Path to ticker universe file (default: trading/config/trade_universe.txt)",
+        default=DEFAULT_TICKERS_FILE,
+        help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
     p_backtest_batch.add_argument(
         "--universe-history-dir",
@@ -106,8 +108,8 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     p_walk_forward.add_argument("--account", required=True, help="Account name")
     p_walk_forward.add_argument(
         "--tickers-file",
-        default="trading/config/trade_universe.txt",
-        help="Path to ticker universe file (default: trading/config/trade_universe.txt)",
+        default=DEFAULT_TICKERS_FILE,
+        help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
     p_walk_forward.add_argument(
         "--universe-history-dir",

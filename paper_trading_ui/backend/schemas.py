@@ -4,10 +4,12 @@ from typing import TypedDict
 
 from pydantic import BaseModel, Field
 
+from trading.profile_source import DEFAULT_TICKERS_FILE
+
 
 class BacktestBaseRequest(BaseModel):
     account: str
-    tickersFile: str = "trading/config/trade_universe.txt"
+    tickersFile: str = DEFAULT_TICKERS_FILE
     universeHistoryDir: str | None = None
     start: str | None = None
     end: str | None = None

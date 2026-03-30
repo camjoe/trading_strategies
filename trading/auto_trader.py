@@ -6,6 +6,7 @@ from common.market_data import get_provider
 from common.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
 from trading.database.db import ensure_db
+from trading.profile_source import DEFAULT_TICKERS_FILE
 from trading.pricing import fetch_latest_prices
 from trading.services.auto_trader_service import (
     build_iv_rank_proxy as build_iv_rank_proxy_impl,
@@ -32,8 +33,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tickers-file",
-        default="trading/config/trade_universe.txt",
-        help="Path to ticker universe file (default: trading/config/trade_universe.txt)",
+        default=DEFAULT_TICKERS_FILE,
+        help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
     parser.add_argument("--min-trades", type=int, default=1, help="Minimum trades per account")
     parser.add_argument("--max-trades", type=int, default=5, help="Maximum trades per account")

@@ -13,6 +13,7 @@ from typing import Protocol
 
 
 DEFAULT_ACCOUNT_PROFILES_FILE = "trading/config/account_profiles/default.json"
+DEFAULT_TICKERS_FILE = "trading/config/trade_universe.txt"
 
 
 def _profiles_dir_candidates() -> list[Path]:

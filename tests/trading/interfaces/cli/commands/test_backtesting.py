@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from trading.interfaces.cli.commands import build_parser
+from trading.profile_source import DEFAULT_TICKERS_FILE
 
 
 def test_backtest_defaults() -> None:
@@ -8,7 +9,7 @@ def test_backtest_defaults() -> None:
 
     args = parser.parse_args(["backtest", "--account", "acct1"])
 
-    assert args.tickers_file == "trading/config/trade_universe.txt"
+    assert args.tickers_file == DEFAULT_TICKERS_FILE
     assert args.slippage_bps == 5.0
     assert args.fee == 0.0
     assert args.allow_approximate_leaps is False

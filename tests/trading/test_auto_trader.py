@@ -66,7 +66,7 @@ class TestInputLoadingAndPrimitiveHelpers:
 
         args = auto_trader.parse_args()
         assert args.accounts == "acct1,acct2"
-        assert args.tickers_file == "trading/config/trade_universe.txt"
+        assert args.tickers_file == auto_trader.DEFAULT_TICKERS_FILE
         assert args.min_trades == 2
         assert args.max_trades == 7
         assert args.fee == pytest.approx(1.25)
