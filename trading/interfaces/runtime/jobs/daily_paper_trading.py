@@ -29,8 +29,6 @@ def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
         pass
 
 
-_startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}")
-
 try:
     from trading.accounts import load_all_account_names
 except Exception as exc:
@@ -233,6 +231,7 @@ def main() -> int:
     repo_root = Path(args.repo_root).expanduser().resolve()
     logs_dir = logs_dir_for_repo(repo_root)
 
+    _startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}", logs_dir)
     _startup_log("main() entered", logs_dir)
     logs_dir.mkdir(parents=True, exist_ok=True)
 

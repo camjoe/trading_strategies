@@ -63,27 +63,26 @@ def validate_time(value: str) -> tuple[int, int]:
     return hour, minute
 
 
-def windows_register(args: argparse.Namespace) -> int:
+def windows_register(args: argparse.Namespace, repo_root: Path) -> int:
     day_key = validate_day(args.day_of_week)
     validate_time(args.time)
-    task_command = f'"{Path(args.python).resolve()}" -m {WEEKLY_BACKUP_MODULE}'
-    cmd = [
-        "schtasks",
-        "/Create",
-        "/TN",
-        args.task_name,
-        "/SC",
-        "WEEKLY",
-        "/D",
-        WINDOWS_DAYS[day_key],
-        "/ST",
-        args.time,
-        "/TR",
-        task_command,
-        "/F",
-    ]
+    python_exe = str(Path(args.python).resolve())
+    ps_script = (
+        f"Register-ScheduledTask -TaskName '{args.task_name}' -Force "
+        f"-Action (New-ScheduledTaskAction"
+        f" -Execute '{python_exe}'"
+        f" -Argument '-m {WEEKLY_BACKUP_MODULE}'"
+        f" -WorkingDirectory '{repo_root}'"
+        f") "
+        f"-Trigger (New-ScheduledTaskTrigger -Weekly"
+        f" -DaysOfWeek {day_key.title()}"
+        f" -At '{args.time}'"
+        f")"
+    )
+    cmd = ["powershell", "-Command", ps_script]
     if args.dry_run:
-        print("DRY RUN:", " ".join(cmd))
+        print("DRY RUN powershell command:")
+        print(ps_script)
         return 0
     return subprocess.run(cmd, check=False).returncode
 
@@ -149,7 +148,7 @@ def main() -> int:
             if args.unregister:
                 code = windows_unregister(args)
             else:
-                code = windows_register(args)
+                code = windows_register(args, repo_root)
         elif system == "linux":
             if args.unregister:
                 code = linux_unregister(args)
