@@ -29,7 +29,7 @@ def run_reference_docs_check(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check assets/finance.json, assets/software.json, and assets/api.json are in sync.",
+        description="Check assets/software.json and assets/api.json are in sync (finance.json is manually curated).",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     parser.add_argument("--skip-software", action="store_true", help="Skip the Software reference check.")

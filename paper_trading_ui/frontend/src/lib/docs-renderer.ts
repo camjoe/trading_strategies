@@ -402,6 +402,7 @@ function buildApiCard(): string {
 
     <div class="ref-section">
       <h3>API Basics</h3>
+      <p class="ref-note">Full interactive docs with parameters, schemas, and live requests: <a href="/docs" target="_blank" rel="noopener">/docs</a> (Swagger UI) &mdash; <a href="/redoc" target="_blank" rel="noopener">/redoc</a> (ReDoc)</p>
       <table class="ref-table ref-table--endpoint">
         <thead><tr><th>Item</th><th>Details</th></tr></thead>
         <tbody>
