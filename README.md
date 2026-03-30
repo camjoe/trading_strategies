@@ -38,28 +38,33 @@ pip install -r requirements/dev.txt
   ```sh
   python -m trading.paper_trading init
   ```
-- `requirements.txt` points to `requirements/dev.txt` for backward compatibility.
+- `requirements.txt` points to `requirements/dev.txt`.
 
 ## CI Smoke Check
 
 Run the same core checks used by GitHub Actions from the repository root:
 
 ```sh
-python -m scripts.ci_smoke
+python -m scripts.run_checks --profile ci
 ```
 
 Optional flags:
 
 ```sh
 # Skip frontend checks
-python -m scripts.ci_smoke --skip-frontend
+python -m scripts.run_checks --profile ci --skip-frontend
 
 # Skip python checks
-python -m scripts.ci_smoke --skip-python
+python -m scripts.run_checks --profile ci --skip-python
 
 # Explicitly install ruff/mypy before quality gates
-python -m scripts.ci_smoke --install-python-tools
+python -m scripts.run_checks --profile ci --install-python-tools
 ```
+
+Single-source validation guidance lives in:
+
+- `scripts/README.md` for script behavior and flags.
+- `.github/DOCS_PRECOMMIT_POLICY.md` for docs-impact audit workflow and bot request templates.
 
 ## Quick Start
 

@@ -6,6 +6,7 @@ import { createBacktestingFeature } from "./features/backtesting";
 import { createCompareFeature } from "./features/compare";
 import { createLogsFeature } from "./features/logs";
 import { initDocsFeature } from "./features/docs";
+import { buildDocsTemplate } from "./lib/docs-renderer";
 import appLayoutTemplate from "./views/app-layout.html?raw";
 import navTemplate from "./views/nav.html?raw";
 import tradesTemplate from "./views/trades.html?raw";
@@ -13,7 +14,6 @@ import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
-import docsTemplate from "./views/docs.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -41,7 +41,7 @@ function renderShell(): void {
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", adminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
-    .replace("<!-- DOCS_TAB_PARTIAL -->", docsTemplate);
+    .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
 }
 
 const backtestingFeature = createBacktestingFeature();

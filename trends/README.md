@@ -2,6 +2,10 @@
 
 Stock trends analysis with `yfinance`, `matplotlib`, and technical indicators.
 
+## Purpose
+
+Provide a repeatable workflow for chart-based trend analysis and indicator generation across single tickers and categorized watchlists.
+
 ## Quick Start
 
 1. Add your tickers in `trends/assets/run_tickers.txt` (one per line or comma-separated).

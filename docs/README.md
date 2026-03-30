@@ -18,17 +18,22 @@ python -m trading.paper_trading
 
 - `Strategies.md`: strategy hypotheses and evaluation framework.
 - `backtesting.md`: backtesting workflows, safeguards, and notes.
-- `reference/Glossary.md`: finance, options, backtesting, and indicator terms.
+- `architecture/backtesting-layering-adr.md`: decision rationale and guardrails for backtesting module layering.
+- `architecture/strategy-encapsulation-notes.md`: strategy ownership map and prompt templates for a future strategy-class refactor.
+- `architecture/runtime-job-coverage-follow-up.md`: prioritized testing backlog for low-coverage runtime and support modules.
 
-## Docs Freshness Workflow
+## Architecture Reference
 
-Use the docs freshness checker before commit or in CI to detect stale documentation for changed code areas.
+**Canonical rules and conventions:**
+- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`: layering, dependency direction, naming, and package ownership.
+- `.github/TRADING_EXECUTION_ROADMAP.md`: prioritized refactoring guidance and next structural improvements.
 
-```sh
-python -m scripts.check_docs_freshness
-python -m scripts.check_docs_freshness --base-ref origin/main --head-ref HEAD
-```
+## Purpose
 
-- Default mode checks working tree + untracked files.
-- CI mode uses a git ref diff and exits non-zero when docs are stale.
-- `python -m scripts.ci_smoke --skip-frontend` includes this check by default.
+This docs index helps contributors find architecture guides, references, and the current documentation quality workflow.
+
+## Workflows
+
+1. Use this index to locate and update the source-of-truth document for changed behavior.
+2. Run `python -m scripts.run_checks --profile ci` for primary mechanical checks.
+3. Use `.github/DOCS_PRECOMMIT_POLICY.md` for docs-impact checklist and bot request templates.

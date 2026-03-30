@@ -1,6 +1,7 @@
 import pytest
 
 from trading.accounts import configure_account, create_account, get_account
+from trading.models import AccountConfig
 
 
 def test_configure_account_updates_risk_and_option_fields(conn) -> None:
@@ -9,13 +10,15 @@ def test_configure_account_updates_risk_and_option_fields(conn) -> None:
     configure_account(
         conn,
         account_name="acct_cfg",
-        risk_policy="stop_and_target",
-        stop_loss_pct=5.0,
-        take_profit_pct=10.0,
-        instrument_mode="leaps",
-        option_strike_offset_pct=4.0,
-        option_min_dte=150,
-        option_max_dte=365,
+        config=AccountConfig(
+            risk_policy="stop_and_target",
+            stop_loss_pct=5.0,
+            take_profit_pct=10.0,
+            instrument_mode="leaps",
+            option_strike_offset_pct=4.0,
+            option_min_dte=150,
+            option_max_dte=365,
+        ),
     )
 
     account = get_account(conn, "acct_cfg")
@@ -36,9 +39,11 @@ def test_create_account_rejects_invalid_option_dte_range(conn) -> None:
             strategy="Test",
             initial_cash=5000,
             benchmark_ticker="SPY",
-            instrument_mode="leaps",
-            option_min_dte=365,
-            option_max_dte=120,
+            config=AccountConfig(
+                instrument_mode="leaps",
+                option_min_dte=365,
+                option_max_dte=120,
+            ),
         )
 
 
@@ -49,8 +54,7 @@ def test_configure_account_rejects_invalid_iv_rank_range(conn) -> None:
         configure_account(
             conn,
             account_name="acct_bad_iv",
-            iv_rank_min=80,
-            iv_rank_max=20,
+            config=AccountConfig(iv_rank_min=80, iv_rank_max=20),
         )
 
 
@@ -61,5 +65,5 @@ def test_configure_account_rejects_invalid_delta_bounds(conn) -> None:
         configure_account(
             conn,
             account_name="acct_bad_delta",
-            target_delta_min=1.2,
+            config=AccountConfig(target_delta_min=1.2),
         )

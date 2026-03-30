@@ -106,7 +106,7 @@ function parseFormNumber(fd: FormData, key: string, fallback: number): number {
 function buildBacktestBasePayload(fd: FormData): BacktestBasePayload {
   return {
     account: String(fd.get("account") ?? "").trim(),
-    tickersFile: String(fd.get("tickersFile") ?? "trading/trade_universe.txt").trim(),
+    tickersFile: String(fd.get("tickersFile") ?? "trading/config/trade_universe.txt").trim(),
     universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
     start: parseOptStr(String(fd.get("start") ?? "")),
     end: parseOptStr(String(fd.get("end") ?? "")),

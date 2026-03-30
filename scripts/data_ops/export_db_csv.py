@@ -4,7 +4,11 @@ import argparse
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.database.csv_export import DEFAULT_EXPORT_TABLES, export_tables_to_csv, print_export_summary
+from trading.interfaces.runtime.data_ops.csv_export import (
+    DEFAULT_EXPORT_TABLES,
+    export_tables_to_csv,
+    print_export_summary,
+)
 
 REPO_ROOT = get_repo_root(__file__)
 

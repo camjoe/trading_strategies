@@ -2,6 +2,10 @@
 
 Core paper trading and backtesting engine for the repository.
 
+## Purpose
+
+Provide the core runtime and tooling for paper trading, reporting, scheduler operations, and backtesting support.
+
 ## Scope
 
 The `trading/` module handles:
@@ -18,7 +22,7 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
 **Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `common/market_data_config.example.json` for the config format.
 
-## Common Operations
+## Commands
 
 All commands accept `--help` for the full flag reference.
 
@@ -36,15 +40,19 @@ Backup and export:
 ```sh
 python -m scripts.data_ops.backup_db
 python -m scripts.data_ops.export_db_csv
+python -m trading.interfaces.runtime.data_ops.admin backup-db
 ```
+
+Canonical admin/export modules live in `trading/interfaces/runtime/data_ops/`.
 
 ## Script Boundaries
 
-- `trading/scripts/`: production-like trading runtime tasks and schedulers.
+- `trading/interfaces/runtime/jobs/`: production-like trading runtime tasks and schedulers.
+- `trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
-- `trading/database/admin.py`: local DB maintenance/admin tasks (CLI: `python -m trading.database.admin`).
+- `trading/database/`: database infrastructure (schema init, backend, config, coercion).
 
-Use `trading/scripts/` for anything that is part of trading runtime behavior; keep maintenance and repo workflows out of that folder.
+Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
 
 ### Runtime Script Catalog
 
@@ -53,11 +61,11 @@ Use `trading/scripts/` for anything that is part of trading runtime behavior; ke
 - `daily_snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
 - `weekly_db_backup.py`: scheduled weekly backup execution.
 - `register_weekly_backup.py`: schedule registration helper for weekly backups.
-- `account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler.
+- `../interfaces/runtime/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler.
 
 ## Auto-Trading
 
-Trade universe: `trading/trade_universe.txt`. Use `python -m trading.auto_trader --help` for all options.
+Trade universe: `trading/config/trade_universe.txt`. Use `python -m trading.auto_trader --help` for all options.
 
 ```sh
 python -m trading.auto_trader --accounts momentum_5k,meanrev_5k
@@ -65,23 +73,23 @@ python -m trading.auto_trader --accounts momentum_5k,meanrev_5k
 
 ## Scheduler Operations
 
-Scripts in `trading/scripts/` all accept `--help` for the full flag reference. Common manual invocations:
+Runtime jobs in `trading/interfaces/runtime/jobs/` all accept `--help` for the full flag reference. Common manual invocations:
 
 ```sh
 # Daily paper trading
-python -m trading.scripts.daily_paper_trading --run-source manual
+python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
 
 # Daily snapshot
-python -m trading.scripts.daily_snapshot --run-source manual --enable-run
+python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
 
 # Weekly DB backup
-python -m trading.scripts.weekly_db_backup
+python -m trading.interfaces.runtime.jobs.weekly_db_backup
 
 # Health check
-python -m trading.scripts.check_daily_trader_health --max-age-hours 24
+python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
 
 # Register weekly backup on scheduler (Windows Task Scheduler / Linux cron)
-python -m trading.scripts.register_weekly_backup --day-of-week Sunday --time 02:00
+python -m trading.interfaces.runtime.jobs.register_weekly_backup --day-of-week Sunday --time 02:00
 ```
 
 Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`.
@@ -97,3 +105,19 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Backtesting: `docs/backtesting.md`
 - UI dashboard: `paper_trading_ui/README.md`
+- Trading architecture guide: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+
+## Preset Profiles
+
+Built-in account profile presets now live under:
+
+- `trading/config/account_profiles/`
+
+CLI defaults use `trading/config/account_profiles/default.json`.
+
+## Boundary Snapshot
+
+- Public-facing top-level modules (`trading/accounts.py`, `trading/accounting.py`, `trading/pricing.py`, `trading/profiles.py`, `trading/reporting.py`, `trading/auto_trader.py`) act as facades.
+- SQL access is owned by repository modules under `trading/repositories/`.
+- Orchestration and composition are owned by service modules under `trading/services/`.
+- Policy logic is owned by domain modules under `trading/domain/`.

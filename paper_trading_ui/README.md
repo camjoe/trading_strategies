@@ -2,6 +2,10 @@
 
 A separate scaffold for viewing paper trading accounts, snapshots, trades, and log files.
 
+## Purpose
+
+Provide a local dashboard and API for paper-trading operations, including account visibility, snapshots, and operational logs.
+
 ## Environment Setup
 
 Copy the example env files once before first run:
@@ -39,6 +43,12 @@ npm install
 npm run dev
 ```
 
+## Workflows
+
+1. Start both services with `python -m scripts.launch_ui` for day-to-day usage.
+2. Use manual startup commands when working on backend or frontend in isolation.
+3. Update this README whenever API routes or UI operational flows change.
+
 ## Core API Routes
 
 - `GET /health`
@@ -51,3 +61,13 @@ npm run dev
 
 For the complete, always-current route list (including backtesting endpoints), see:
 - `paper_trading_ui/backend/main.py`
+
+## Backend Boundary Notes
+
+- Route modules under `paper_trading_ui/backend/routes/` should stay thin and delegate DB mutations to backend service helpers.
+- Backend service modules now live under `paper_trading_ui/backend/services/`.
+- Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `paper_trading_ui/backend/services/admin.py`.
+- New UI/backend code should use canonical runtime data-ops modules (`trading.interfaces.runtime.data_ops.*`).
+- Account snapshot history, account-name listing, and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL.
+- Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.
+- Account existence and latest-snapshot lookups in backend DB/test-account services are routed through trading repository adapters.

@@ -1,0 +1,136 @@
+{
+  "schema_version": 2,
+  "projects": [
+    {
+      "name": "trading/",
+      "description": "Core trading engine for paper trading accounts, trade recording, position management, accounting, automation, reporting, and backtesting."
+    },
+    {
+      "name": "trends/",
+      "description": "Trend analysis module for fetching market data, computing technical indicators, and producing trend signals."
+    },
+    {
+      "name": "paper_trading_ui/",
+      "description": "Web interface for paper trading and backtesting with a FastAPI backend and TypeScript + Vite frontend."
+    },
+    {
+      "name": "common/",
+      "description": "Shared cross-project utilities including market data providers, ticker loading, repo paths, and time helpers."
+    }
+  ],
+  "languages_frameworks": [
+    {
+      "name": "Python",
+      "usage": "Core language for all trading logic, backtesting, data analysis, and the API backend."
+    },
+    {
+      "name": "TypeScript",
+      "usage": "Frontend UI (paper_trading_ui/frontend/) \u2014 provides type-safe client-side code."
+    },
+    {
+      "name": "SQL (SQLite)",
+      "usage": "Persistent storage for accounts, trades, equity snapshots, and backtest results."
+    },
+    {
+      "name": "FastAPI",
+      "usage": "REST API framework for the paper_trading_ui backend."
+    },
+    {
+      "name": "Vite",
+      "usage": "Frontend build tool and dev server for the TypeScript UI."
+    }
+  ],
+  "packages": [
+    {
+      "name": "yfinance",
+      "version": "==1.2.0",
+      "scope": "runtime",
+      "group": "Data & Market Access",
+      "purpose": "Primary market data source for daily OHLCV, adjusted close, and related Yahoo Finance history."
+    },
+    {
+      "name": "numpy",
+      "version": "==2.4.3",
+      "scope": "runtime",
+      "group": "Analysis & Modeling",
+      "purpose": "Numerical array and vectorized math foundation for analytics and signal calculations."
+    },
+    {
+      "name": "pandas",
+      "version": "==3.0.1",
+      "scope": "runtime",
+      "group": "Analysis & Modeling",
+      "purpose": "Core tabular and time-series data handling across trading, trends, and reporting flows."
+    },
+    {
+      "name": "matplotlib",
+      "version": "==3.10.8",
+      "scope": "runtime",
+      "group": "Visualization",
+      "purpose": "Static chart rendering for trend analysis and exploratory visuals."
+    },
+    {
+      "name": "fastapi",
+      "version": "==0.120.4",
+      "scope": "runtime",
+      "group": "Backend & Validation",
+      "purpose": "REST API framework for the paper_trading_ui backend."
+    },
+    {
+      "name": "pydantic",
+      "version": "==2.12.5",
+      "scope": "runtime",
+      "group": "Backend & Validation",
+      "purpose": "Validation and schema modeling for backend requests, responses, and settings."
+    },
+    {
+      "name": "python-dotenv",
+      "version": "==1.2.1",
+      "scope": "runtime",
+      "group": "Backend & Validation",
+      "purpose": "Loads environment variables for local backend and script configuration."
+    },
+    {
+      "name": "uvicorn[standard]",
+      "version": "==0.35.0",
+      "scope": "runtime",
+      "group": "Backend & Validation",
+      "purpose": "ASGI server used to run the FastAPI application locally and in lightweight deployments."
+    },
+    {
+      "name": "httpx",
+      "version": ">=0.23.0,<1.0.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "HTTP client used in API and integration tests."
+    },
+    {
+      "name": "hypothesis",
+      "version": "==6.131.26",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Property-based testing library for broader edge-case coverage."
+    },
+    {
+      "name": "pytest",
+      "version": "==8.3.5",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Primary test runner for unit and integration suites."
+    },
+    {
+      "name": "pytest-cov",
+      "version": "==6.0.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Coverage plugin layered onto pytest for repository quality gates."
+    },
+    {
+      "name": "pytest-mock",
+      "version": "==3.14.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "pytest integration for mocking and patch-based test setup."
+    }
+  ]
+}
