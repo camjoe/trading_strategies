@@ -13,9 +13,6 @@ GROUP_ORDER = [
     "Developer Tooling",
 ]
 
-PROJECTS_SECTION_TITLE = "Projects in This Repository"
-LANGUAGES_SECTION_TITLE = "Languages and Frameworks"
-
 GROUP_BY_PACKAGE = {
     "fastapi": "Backend & Validation",
     "httpx": "Developer Tooling",
@@ -31,17 +28,6 @@ GROUP_BY_PACKAGE = {
     "uvicorn": "Backend & Validation",
     "yfinance": "Data & Market Access",
 }
-
-
-
-def normalize_project_name(raw: str) -> str:
-    cleaned = " ".join(raw.split()).strip()
-    return cleaned.rstrip("/").lower()
-
-
-def normalize_language_name(raw: str) -> str:
-    cleaned = " ".join(raw.split()).strip()
-    return cleaned.lower()
 
 
 def normalize_package_name(raw: str) -> str:

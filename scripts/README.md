@@ -41,14 +41,10 @@ Software (`scripts/documentation_ui/software/`):
 API Reference (`scripts/documentation_ui/api/`):
 
 - `build_registry.py`: rebuilds `docs/reference/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
-- `sync_markdown.py`: syncs `docs/reference/API.md` from canonical values in `docs/reference/api.json`.
-- `sync_ui_docs.py`: syncs the API endpoint tables in the UI docs page from `docs/reference/api.json`.
-- `check.py`: standalone sync check that validates route code, markdown, and UI docs match the canonical API registry.
+Reference orchestration (`scripts/documentation_ui/`):
 
-Reference orchestration (`scripts/reference_docs/`):
-
-- `check.py`: runs Financial & Market, Software, and API reference checks together.
-- `sync_all.py`: refreshes Finance.md, Software.md, API.md, and the Documentation page from the three canonical registries.
+- `check.py`: runs Software and API reference checks together.
+- `sync.py`: syncs assets/api.json from FastAPI routes and assets/software.json from requirements.
 
 Modular check scripts (`scripts/checks/`):
 
@@ -95,15 +91,14 @@ If a script changes trading runtime behavior, place it in `trading/interfaces/ru
 # Unified top-level entrypoint
 python -m scripts.run_checks --profile quick
 python -m scripts.run_checks --profile quick --with-frontend
-python -m scripts.run_checks --profile quick --with-term-definitions-check
 python -m scripts.run_checks --profile quick --with-reference-doc-checks
 python -m scripts.run_checks --profile ci
 python -m scripts.run_checks --profile ci --skip-frontend
 python -m scripts.run_checks --profile ci --with-reference-doc-checks
 
 # Combined reference-doc tools (default user-facing workflow)
-python -m scripts.reference_docs.check
-python -m scripts.reference_docs.sync_all
+python -m scripts.documentation_ui.check
+python -m scripts.documentation_ui.sync
 
 # Underlying section workflows (for automation/internal use)
 python -m scripts.documentation_ui.software.build_registry

@@ -8,7 +8,7 @@ from common.repo_paths import get_repo_root
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
-from scripts.reference_docs.check import run_reference_docs_check
+from scripts.documentation_ui.check import run_reference_docs_check
 from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
 
 

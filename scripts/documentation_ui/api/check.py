@@ -5,11 +5,7 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 from scripts.documentation_ui.common.io import load_json
-from scripts.documentation_ui.api.registry import parse_routes
-
-
-def _endpoint_key(item: dict[str, str]) -> str:
-    return f"{item['method']} {item['path']}"
+from scripts.documentation_ui.api.registry import endpoint_key, parse_routes
 
 
 def run_api_reference_check(
@@ -24,7 +20,7 @@ def run_api_reference_check(
     existing = load_json(registry_path)
     endpoints = existing.get("endpoints", [])
     registry_by_key = {
-        _endpoint_key(item): item
+        endpoint_key(item["method"], item["path"]): item
         for item in endpoints
         if isinstance(item.get("method"), str) and isinstance(item.get("path"), str)
     }
@@ -82,7 +78,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    repo_root = get_repo_root(__file__) if args.repo_root is None else __import__("pathlib").Path(args.repo_root).resolve()
+    repo_root = get_repo_root(__file__) if args.repo_root is None else Path(args.repo_root).resolve()
     return run_api_reference_check(repo_root=repo_root)
 
 
