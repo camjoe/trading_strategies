@@ -45,7 +45,7 @@ def parse_glossary(glossary_path: Path) -> dict[str, tuple[str, str]]:
 
         left = row_match.group(1).strip()
         right = row_match.group(2).strip()
-        if left.lower() in {"term", "concept"}:
+        if left.lower() in {"term", "concept", "asset class"}:
             continue
         if set(left) == {"-"} or set(right) == {"-"}:
             continue

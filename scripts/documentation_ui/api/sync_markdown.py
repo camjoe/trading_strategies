@@ -3,7 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
+# Add repo root to sys.path for all imports
+sys.path.insert(0, str((Path(__file__).resolve().parents[3])))
 from common.repo_paths import get_repo_root
 from scripts.documentation_ui.api.registry import render_markdown
 
@@ -24,7 +27,9 @@ def main() -> int:
     registry_path = repo_root / args.registry
     markdown_path = repo_root / args.markdown
     payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    content = render_markdown(payload.get("endpoints", []))
+    endpoints = payload.get("endpoints", [])
+    api_basics = payload.get("api_basics", [])
+    content = render_markdown(endpoints, api_basics)
     markdown_path.write_text(content, encoding="utf-8")
     print(f"Updated file: {markdown_path}")
     return 0

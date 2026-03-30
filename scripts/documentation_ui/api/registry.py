@@ -128,13 +128,21 @@ def build_registry(
     return rows
 
 
-def render_markdown(endpoints: list[dict[str, str]]) -> str:
+def render_markdown(endpoints: list[dict[str, str]], api_basics: list[dict[str, str]] = None) -> str:
     lines = [
         "# API",
         "",
         "Canonical endpoint inventory for the API Reference section of the documentation page.",
         "",
     ]
+    if api_basics:
+        lines.append("## API Basics\n")
+        lines.append("| Item | Details |")
+        lines.append("|---|---|")
+        for row in api_basics:
+            lines.append(f"| {row['item']} | {row['details']} |")
+        lines.append("")
+
     grouped: dict[str, list[dict[str, str]]] = {}
     for endpoint in endpoints:
         grouped.setdefault(endpoint["group"], []).append(endpoint)
@@ -143,18 +151,44 @@ def render_markdown(endpoints: list[dict[str, str]]) -> str:
     ordered_groups.extend(sorted(group for group in grouped if group not in GROUP_ORDER))
 
     for group in ordered_groups:
-        lines.extend(
-            [
-                f"## {group}",
-                "",
-                "| Method | Path | Handler | Purpose |",
-                "| --- | --- | --- | --- |",
-            ]
-        )
+        lines.extend([
+            f"## {group}",
+            "",
+            "| Method | Path | Handler | Purpose |",
+            "| --- | --- | --- | --- |",
+        ])
         for endpoint in grouped[group]:
             lines.append(
                 f"| {endpoint['method']} | {endpoint['path']} | {endpoint['handler']} | {endpoint['description']} |"
             )
+            # Render query parameters if present
+            if endpoint.get("query_params"):
+                lines.append("")
+                lines.append(f"**Query Parameters for {endpoint['method']} {endpoint['path']}**")
+                lines.append("")
+                lines.append("| Parameter | Type | Default |")
+                lines.append("|---|---|---|")
+                for param in endpoint["query_params"]:
+                    lines.append(f"| {param['name']} | {param['type']} | {param['default']} |")
+                lines.append("")
+            # Render body model info for POST endpoints
+            if endpoint["method"] == "POST":
+                lines.append("")
+                lines.append(f"**Request Body Model for {endpoint['method']} {endpoint['path']}**")
+                lines.append("")
+                if endpoint.get("body_model") == "not yet extracted":
+                    lines.append("_Request body model extraction not yet implemented for this endpoint._")
+                elif endpoint.get("body_model") and isinstance(endpoint["body_model"], dict):
+                    model = endpoint["body_model"]
+                    lines.append(f"Model: `{model.get('model','')}`")
+                    lines.append("")
+                    lines.append("| Field | Type | Default | Description |")
+                    lines.append("|---|---|---|---|")
+                    for field in model.get("fields", []):
+                        lines.append(f"| {field['name']} | {field['type']} | {field['default']} | {field['description']} |")
+                else:
+                    lines.append("_No request body model required for this endpoint._")
+                lines.append("")
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"

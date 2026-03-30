@@ -101,7 +101,7 @@
     </div>
 
     <div class="ref-section">
-      <h3>Areas of Focus</h3>
+      <h3>Asset Classes</h3>
       <table class="ref-table ref-table--software">
         <thead><tr><th>Asset Class</th><th>Notes</th></tr></thead>
         <tbody>
@@ -128,37 +128,24 @@
       <table class="ref-table ref-table--software">
         <thead><tr><th>Project</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td>trading/</td><td>Core trading engine — paper trading accounts, trade recording, position management, accounting, automated trading, reporting, and backtesting. Key modules: paper_trading.py, auto_trader.py, accounting.py, backtesting/, reporting.py, models.py, db.py, profiles.py.</td></tr>
-          <tr><td>trends/</td><td>Stock trend analysis module. Fetches price data, computes technical indicators, and generates trend signals. Key modules: data.py, indicators.py, stock_trends.py, tickers.py, charts.py.</td></tr>
-          <tr><td>paper_trading_ui/</td><td>Web interface for monitoring paper trading accounts and triggering backtests. Backend is a FastAPI REST API; frontend is a TypeScript + Vite single-page app with no external UI framework.</td></tr>
-          <tr><td>common/</td><td>Shared utilities — tickers.py (common ticker loading helpers) and time.py (date/time utilities).</td></tr>
+          <tr><td>trading/</td><td>Core trading engine for paper trading accounts, trade recording, position management, accounting, automation, reporting, and backtesting.</td></tr>
+          <tr><td>trends/</td><td>Trend analysis module for fetching market data, computing technical indicators, and producing trend signals.</td></tr>
+          <tr><td>paper_trading_ui/</td><td>Web interface for paper trading and backtesting with a FastAPI backend and TypeScript + Vite frontend.</td></tr>
+          <tr><td>common/</td><td>Shared cross-project utilities including market data providers, ticker loading, repo paths, and time helpers.</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="ref-section">
-      <h3>Languages</h3>
+      <h3>Languages and Frameworks</h3>
       <table class="ref-table ref-table--software">
-        <thead><tr><th>Language</th><th>Usage</th></tr></thead>
+        <thead><tr><th>Language / Framework</th><th>Usage</th></tr></thead>
         <tbody>
           <tr><td>Python</td><td>Core language for all trading logic, backtesting, data analysis, and the API backend.</td></tr>
           <tr><td>TypeScript</td><td>Frontend UI (paper_trading_ui/frontend/) — provides type-safe client-side code.</td></tr>
           <tr><td>SQL (SQLite)</td><td>Persistent storage for accounts, trades, equity snapshots, and backtest results.</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="ref-section">
-      <h3>Frameworks &amp; Tools</h3>
-      <table class="ref-table ref-table--software">
-        <thead><tr><th>Tool</th><th>Role</th></tr></thead>
-        <tbody>
-          <tr><td>FastAPI</td><td>REST API backend for the paper trading UI (paper_trading_ui/backend/).</td></tr>
-          <tr><td>Pydantic</td><td>Data validation and settings management used throughout the FastAPI backend.</td></tr>
+          <tr><td>FastAPI</td><td>REST API framework for the paper_trading_ui backend.</td></tr>
           <tr><td>Vite</td><td>Frontend build tool and dev server for the TypeScript UI.</td></tr>
-          <tr><td>sqlite3 (stdlib)</td><td>Built-in Python database module used for SQLite access (no external ORM).</td></tr>
-          <tr><td>pytest</td><td>Test framework for all unit and integration tests.</td></tr>
-          <tr><td>pytest-cov</td><td>Code coverage reporting for the test suite.</td></tr>
         </tbody>
       </table>
     </div>
@@ -319,14 +306,6 @@
         </tbody>
       </table>
 
-      <p class="ref-subsection-label">Log Query Parameters</p>
-      <table class="ref-table ref-table--params">
-        <thead><tr><th>Endpoint</th><th>Parameter</th><th>Details</th></tr></thead>
-        <tbody>
-          <tr><td>GET /api/logs/{file_name}</td><td>limit</td><td>Number of lines to return (default 400, min 10, max 4000).</td></tr>
-          <tr><td>GET /api/logs/{file_name}</td><td>contains</td><td>Case-insensitive substring filter applied before line limit is sliced.</td></tr>
-        </tbody>
-      </table>
     </div>
 
     <div class="ref-section">
@@ -343,13 +322,6 @@
         </tbody>
       </table>
 
-      <p class="ref-subsection-label">Backtest Run Query Parameters</p>
-      <table class="ref-table ref-table--params">
-        <thead><tr><th>Endpoint</th><th>Parameter</th><th>Details</th></tr></thead>
-        <tbody>
-          <tr><td>GET /api/backtests/runs</td><td>limit</td><td>Max runs returned (default 50, min 1, max 500).</td></tr>
-        </tbody>
-      </table>
     </div>
 
     <div class="ref-section">
@@ -360,7 +332,7 @@
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
-          <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>tickersFile</td><td>string, default trading/config/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
           <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
           <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
           <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window if dates are omitted.</td></tr>
@@ -376,7 +348,7 @@
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>account</td><td>string (required)</td><td>Account name to validate.</td></tr>
-          <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>tickersFile</td><td>string, default trading/config/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
           <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
           <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
           <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Optional lookback window.</td></tr>
@@ -389,7 +361,7 @@
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>account</td><td>string (required)</td><td>Account name to run against.</td></tr>
-          <tr><td>tickersFile</td><td>string, default trading/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
+          <tr><td>tickersFile</td><td>string, default trading/config/trade_universe.txt</td><td>Ticker universe file path.</td></tr>
           <tr><td>universeHistoryDir</td><td>string | null</td><td>Optional point-in-time universe history directory.</td></tr>
           <tr><td>start / end</td><td>string | null</td><td>Optional ISO date boundaries.</td></tr>
           <tr><td>lookbackMonths</td><td>int | null, &gt; 0</td><td>Training lookback window.</td></tr>

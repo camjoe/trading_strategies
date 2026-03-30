@@ -17,7 +17,14 @@ Reference terms used across paper trading and backtesting workflows.
 | Benchmark | A reference index (e.g., SPY, QQQ) used to compare strategy performance. |
 | Hit Rate | Percentage of trades that are profitable. |
 | Turnover | How frequently positions are replaced; high turnover can increase transaction costs. |
+
+## Execution and Risk Controls
+
+| Term | Definition |
+|---|---|
 | Slippage | Difference between the expected execution price and the actual fill price. |
+| Stop-Loss | A predefined exit point to limit losses on a trade. |
+| Take-Profit | A predefined exit point to lock in gains on a trade. |
 
 ## Options and Volatility
 
@@ -29,8 +36,6 @@ Reference terms used across paper trading and backtesting workflows.
 | Delta | Rate of change in an option's price relative to a $1 move in the underlying asset. Ranges 0–1 for calls, 0 to -1 for puts. |
 | Strike Price | The price at which an option contract can be exercised. |
 | Premium | The price paid (or received) for an options contract. |
-| Stop-Loss | A predefined exit point to limit losses on a trade. |
-| Take-Profit | A predefined exit point to lock in gains on a trade. |
 
 ## Backtesting and Validation
 
@@ -56,3 +61,15 @@ Reference terms used across paper trading and backtesting workflows.
 | Breakout | Price move beyond support or resistance, often on elevated volume. |
 | Mean Reversion | Bet that prices will revert to a historical average after an extreme move. |
 | Momentum | The persistence of price trends — assets that have performed well recently tend to continue doing so over short horizons. |
+
+## Asset Classes
+
+| Asset Class | Notes |
+|---|---|
+| Crypto | Digital assets via feeds like ccxt — not currently active. |
+| Equities | Individual stocks — core focus area. |
+| ETFs | Sector, factor, and index ETFs — useful for regime and trend strategies. |
+| Forex | Currency pairs — not currently active. |
+| Futures | Commodity and index futures — not currently active. |
+| Macro | Macro-level signals (rates, volatility indices) for regime context. |
+| Options / LEAPs | Long-dated options used to simulate leveraged equity exposure with defined risk. |

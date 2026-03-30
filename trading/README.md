@@ -65,7 +65,7 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 
 ## Auto-Trading
 
-Trade universe: `trading/trade_universe.txt`. Use `python -m trading.auto_trader --help` for all options.
+Trade universe: `trading/config/trade_universe.txt`. Use `python -m trading.auto_trader --help` for all options.
 
 ```sh
 python -m trading.auto_trader --accounts momentum_5k,meanrev_5k

@@ -15,6 +15,9 @@ GROUP_ORDER = [
     "Developer Tooling",
 ]
 
+PROJECTS_SECTION_TITLE = "Projects in This Repository"
+LANGUAGES_SECTION_TITLE = "Languages and Frameworks"
+
 GROUP_BY_PACKAGE = {
     "fastapi": "Backend & Validation",
     "httpx": "Developer Tooling",
@@ -33,6 +36,7 @@ GROUP_BY_PACKAGE = {
 
 SECTION_RE = re.compile(r"^##\s+(.+?)\s*$")
 TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$")
+TABLE_ROW_TWO_COL_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$")
 SOFTWARE_SECTION_RE = re.compile(
     r'<div class="ref-section">\s*<h3>Key Python Packages</h3>(?P<body>.*?)</div>',
     re.DOTALL,
@@ -44,6 +48,16 @@ UI_GROUP_RE = re.compile(
 )
 UI_ROW_RE = re.compile(r"<tr>\s*(?P<cells>.*?)\s*</tr>", re.DOTALL)
 UI_CELL_RE = re.compile(r"<td>(.*?)</td>", re.DOTALL)
+
+
+def normalize_project_name(raw: str) -> str:
+    cleaned = " ".join(raw.split()).strip()
+    return cleaned.rstrip("/").lower()
+
+
+def normalize_language_name(raw: str) -> str:
+    cleaned = " ".join(raw.split()).strip()
+    return cleaned.lower()
 
 
 def normalize_package_name(raw: str) -> str:
@@ -136,13 +150,43 @@ def build_registry(
     return rows
 
 
-def render_markdown(packages: list[dict[str, str]]) -> str:
+def render_markdown(
+    packages: list[dict[str, str]],
+    projects: list[dict[str, str]] | None = None,
+    languages_frameworks: list[dict[str, str]] | None = None,
+) -> str:
     lines = [
         "# Software Reference",
         "",
         "Canonical software package inventory for the Software section of the documentation page.",
         "",
     ]
+
+    if projects:
+        lines.extend(
+            [
+                f"## {PROJECTS_SECTION_TITLE}",
+                "",
+                "| Project | Description |",
+                "| --- | --- |",
+            ]
+        )
+        for project in projects:
+            lines.append(f"| {project['name']} | {project['description']} |")
+        lines.append("")
+
+    if languages_frameworks:
+        lines.extend(
+            [
+                f"## {LANGUAGES_SECTION_TITLE}",
+                "",
+                "| Language / Framework | Usage |",
+                "| --- | --- |",
+            ]
+        )
+        for entry in languages_frameworks:
+            lines.append(f"| {entry['name']} | {entry['usage']} |")
+        lines.append("")
 
     grouped: dict[str, list[dict[str, str]]] = {}
     for package in packages:
@@ -235,4 +279,124 @@ def parse_ui_packages(ui_docs_path: Path) -> dict[str, dict[str, str]]:
                 "purpose": purpose,
                 "group": group,
             }
+    return rows
+
+
+def parse_markdown_projects(markdown_path: Path) -> dict[str, dict[str, str]]:
+    rows: dict[str, dict[str, str]] = {}
+    current_section = ""
+    for line in markdown_path.read_text(encoding="utf-8").splitlines():
+        section_match = SECTION_RE.match(line)
+        if section_match:
+            current_section = section_match.group(1).strip()
+            continue
+
+        if current_section != PROJECTS_SECTION_TITLE:
+            continue
+
+        row_match = TABLE_ROW_TWO_COL_RE.match(line)
+        if not row_match:
+            continue
+
+        name = row_match.group(1).strip()
+        description = row_match.group(2).strip()
+        if name.lower() == "project" or set(name) == {"-"}:
+            continue
+
+        key = normalize_project_name(name)
+        rows[key] = {
+            "name": name,
+            "description": description,
+        }
+    return rows
+
+
+def parse_ui_projects(ui_docs_path: Path) -> dict[str, dict[str, str]]:
+    raw = ui_docs_path.read_text(encoding="utf-8")
+    card_body = extract_software_card_body(raw)
+    if not card_body:
+        return {}
+
+    section_re = re.compile(
+        r'<div class="ref-section">\s*<h3>Projects in This Repository</h3>\s*'
+        r'<table class="ref-table ref-table--software">\s*<thead>.*?</thead>\s*<tbody>(?P<body>.*?)</tbody>\s*</table>\s*</div>',
+        re.DOTALL,
+    )
+    section_match = section_re.search(card_body)
+    if section_match is None:
+        return {}
+
+    rows: dict[str, dict[str, str]] = {}
+    for row_match in UI_ROW_RE.finditer(section_match.group("body")):
+        raw_cells = UI_CELL_RE.findall(row_match.group("cells"))
+        cells = [strip_html(value) for value in raw_cells]
+        if len(cells) < 2:
+            continue
+        name = cells[0]
+        description = cells[1]
+        key = normalize_project_name(name)
+        rows[key] = {
+            "name": name,
+            "description": description,
+        }
+    return rows
+
+
+def parse_markdown_languages(markdown_path: Path) -> dict[str, dict[str, str]]:
+    rows: dict[str, dict[str, str]] = {}
+    current_section = ""
+    for line in markdown_path.read_text(encoding="utf-8").splitlines():
+        section_match = SECTION_RE.match(line)
+        if section_match:
+            current_section = section_match.group(1).strip()
+            continue
+
+        if current_section != LANGUAGES_SECTION_TITLE:
+            continue
+
+        row_match = TABLE_ROW_TWO_COL_RE.match(line)
+        if not row_match:
+            continue
+
+        name = row_match.group(1).strip()
+        usage = row_match.group(2).strip()
+        if name.lower() == "language / framework" or set(name) == {"-"}:
+            continue
+
+        key = normalize_language_name(name)
+        rows[key] = {
+            "name": name,
+            "usage": usage,
+        }
+    return rows
+
+
+def parse_ui_languages(ui_docs_path: Path) -> dict[str, dict[str, str]]:
+    raw = ui_docs_path.read_text(encoding="utf-8")
+    card_body = extract_software_card_body(raw)
+    if not card_body:
+        return {}
+
+    section_re = re.compile(
+        r'<div class="ref-section">\s*<h3>Languages and Frameworks</h3>\s*'
+        r'<table class="ref-table ref-table--software">\s*<thead>.*?</thead>\s*<tbody>(?P<body>.*?)</tbody>\s*</table>\s*</div>',
+        re.DOTALL,
+    )
+    section_match = section_re.search(card_body)
+    if section_match is None:
+        return {}
+
+    rows: dict[str, dict[str, str]] = {}
+    for row_match in UI_ROW_RE.finditer(section_match.group("body")):
+        raw_cells = UI_CELL_RE.findall(row_match.group("cells"))
+        cells = [strip_html(value) for value in raw_cells]
+        if len(cells) < 2:
+            continue
+        name = cells[0]
+        usage = cells[1]
+        key = normalize_language_name(name)
+        rows[key] = {
+            "name": name,
+            "usage": usage,
+        }
     return rows

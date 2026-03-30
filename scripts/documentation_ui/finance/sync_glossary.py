@@ -39,7 +39,7 @@ def rewrite_glossary(glossary_path: Path, overrides: dict[str, str]) -> tuple[in
 
         term_raw = match.group(1).strip()
         definition_raw = match.group(2).strip()
-        if term_raw.lower() in {"term", "concept"}:
+        if term_raw.lower() in {"term", "concept", "asset class"}:
             out_lines.append(line)
             continue
         if set(term_raw) == {"-"} or set(definition_raw) == {"-"}:

@@ -32,8 +32,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tickers-file",
-        default="trading/trade_universe.txt",
-        help="Path to ticker universe file (default: trading/trade_universe.txt)",
+        default="trading/config/trade_universe.txt",
+        help="Path to ticker universe file (default: trading/config/trade_universe.txt)",
     )
     parser.add_argument("--min-trades", type=int, default=1, help="Minimum trades per account")
     parser.add_argument("--max-trades", type=int, default=5, help="Maximum trades per account")

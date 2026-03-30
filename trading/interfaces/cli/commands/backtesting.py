@@ -11,8 +11,8 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     p_backtest.add_argument("--account", required=True, help="Account name")
     p_backtest.add_argument(
         "--tickers-file",
-        default="trading/trade_universe.txt",
-        help="Path to ticker universe file (default: trading/trade_universe.txt)",
+        default="trading/config/trade_universe.txt",
+        help="Path to ticker universe file (default: trading/config/trade_universe.txt)",
     )
     p_backtest.add_argument(
         "--universe-history-dir",

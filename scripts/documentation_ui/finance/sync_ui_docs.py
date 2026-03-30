@@ -14,11 +14,6 @@ SECTION_BLOCK_RE = re.compile(
     re.DOTALL,
 )
 ROW_TERM_RE = re.compile(r"<tr>\s*<td>(.*?)</td>", re.DOTALL)
-TERM_SECTION_OVERRIDES = {
-    "Slippage": "Execution & Risk Controls",
-    "Stop-Loss": "Execution & Risk Controls",
-    "Take-Profit": "Execution & Risk Controls",
-}
 
 UI_TERM_LABELS = {
     "DTE": "DTE (Days to Expiration)",
@@ -35,11 +30,9 @@ def load_registry(path: Path) -> list[dict[str, str]]:
 
 
 def infer_ui_section(term: dict[str, str]) -> str | None:
-    term_name = term["term"]
-    if term_name in TERM_SECTION_OVERRIDES:
-        return TERM_SECTION_OVERRIDES[term_name]
-
     group = term.get("group")
+    if group == "Execution and Risk Controls":
+        return "Execution & Risk Controls"
     if group == "Performance and Risk":
         return "Performance & Benchmarking"
     if group == "Options and Volatility":
@@ -50,8 +43,8 @@ def infer_ui_section(term: dict[str, str]) -> str | None:
         return "Technical Signals"
     if group == "Trading Strategies":
         return "Trading Strategies"
-    if group == "Areas of Focus":
-        return "Areas of Focus"
+    if group in {"Areas of Focus", "Asset Classes"}:
+        return "Asset Classes"
     return None
 
 
@@ -103,7 +96,7 @@ def build_ui_section_terms(registry_terms: list[dict[str, str]]) -> dict[str, li
         "Data & Backtesting Integrity": [],
         "Technical Signals": [],
         "Trading Strategies": [],
-        "Areas of Focus": [],
+        "Asset Classes": [],
     }
     for term in registry_terms:
         use = term.get("use")

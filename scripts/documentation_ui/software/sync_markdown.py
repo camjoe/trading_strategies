@@ -24,7 +24,11 @@ def main() -> int:
     registry_path = repo_root / args.registry
     markdown_path = repo_root / args.markdown
     payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    content = render_markdown(payload.get("packages", []))
+    content = render_markdown(
+        payload.get("packages", []),
+        payload.get("projects", []),
+        payload.get("languages_frameworks", []),
+    )
     markdown_path.write_text(content, encoding="utf-8")
     print(f"Updated file: {markdown_path}")
     return 0

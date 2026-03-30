@@ -1,5 +1,45 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "projects": [
+    {
+      "name": "trading/",
+      "description": "Core trading engine for paper trading accounts, trade recording, position management, accounting, automation, reporting, and backtesting."
+    },
+    {
+      "name": "trends/",
+      "description": "Trend analysis module for fetching market data, computing technical indicators, and producing trend signals."
+    },
+    {
+      "name": "paper_trading_ui/",
+      "description": "Web interface for paper trading and backtesting with a FastAPI backend and TypeScript + Vite frontend."
+    },
+    {
+      "name": "common/",
+      "description": "Shared cross-project utilities including market data providers, ticker loading, repo paths, and time helpers."
+    }
+  ],
+  "languages_frameworks": [
+    {
+      "name": "Python",
+      "usage": "Core language for all trading logic, backtesting, data analysis, and the API backend."
+    },
+    {
+      "name": "TypeScript",
+      "usage": "Frontend UI (paper_trading_ui/frontend/) — provides type-safe client-side code."
+    },
+    {
+      "name": "SQL (SQLite)",
+      "usage": "Persistent storage for accounts, trades, equity snapshots, and backtest results."
+    },
+    {
+      "name": "FastAPI",
+      "usage": "REST API framework for the paper_trading_ui backend."
+    },
+    {
+      "name": "Vite",
+      "usage": "Frontend build tool and dev server for the TypeScript UI."
+    }
+  ],
   "packages": [
     {
       "name": "yfinance",

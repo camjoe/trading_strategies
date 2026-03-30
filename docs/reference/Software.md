@@ -2,6 +2,25 @@
 
 Canonical software package inventory for the Software section of the documentation page.
 
+## Projects in This Repository
+
+| Project | Description |
+| --- | --- |
+| trading/ | Core trading engine for paper trading accounts, trade recording, position management, accounting, automation, reporting, and backtesting. |
+| trends/ | Trend analysis module for fetching market data, computing technical indicators, and producing trend signals. |
+| paper_trading_ui/ | Web interface for paper trading and backtesting with a FastAPI backend and TypeScript + Vite frontend. |
+| common/ | Shared cross-project utilities including market data providers, ticker loading, repo paths, and time helpers. |
+
+## Languages and Frameworks
+
+| Language / Framework | Usage |
+| --- | --- |
+| Python | Core language for all trading logic, backtesting, data analysis, and the API backend. |
+| TypeScript | Frontend UI (paper_trading_ui/frontend/) — provides type-safe client-side code. |
+| SQL (SQLite) | Persistent storage for accounts, trades, equity snapshots, and backtest results. |
+| FastAPI | REST API framework for the paper_trading_ui backend. |
+| Vite | Frontend build tool and dev server for the TypeScript UI. |
+
 ## Data & Market Access
 
 | Package | Version | Scope | Purpose |

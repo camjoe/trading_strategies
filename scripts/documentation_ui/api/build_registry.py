@@ -25,8 +25,15 @@ def main() -> int:
     parsed_routes = parse_routes(repo_root / args.routes_dir)
     existing_state = load_existing_state(registry_path)
     endpoints = build_registry(parsed_routes, existing_state)
+    # Preserve api_basics if present in existing_state
+    try:
+        existing_payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        api_basics = existing_payload.get("api_basics", [])
+    except Exception:
+        api_basics = []
     payload = {
         "schema_version": 1,
+        "api_basics": api_basics,
         "endpoints": endpoints,
     }
     registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

@@ -16,10 +16,31 @@ SOFTWARE_SECTION_RE = re.compile(
     re.DOTALL,
 )
 
+PROJECTS_SECTION_RE = re.compile(
+    r'(<div class="ref-section">\s*<h3>Projects in This Repository</h3>\s*'
+    r'<table class="ref-table ref-table--software">\s*<thead><tr><th>Project</th><th>Description</th></tr></thead>\s*<tbody>)'
+    r'(?P<body>.*?)'
+    r'(</tbody>\s*</table>\s*</div>)',
+    re.DOTALL,
+)
 
-def load_registry(path: Path) -> list[dict[str, str]]:
+LANGUAGES_SECTION_RE = re.compile(
+    r'(<div class="ref-section">\s*<h3>Languages and Frameworks</h3>\s*'
+    r'<table class="ref-table ref-table--software">\s*<thead><tr><th>Language / Framework</th><th>Usage</th></tr></thead>\s*<tbody>)'
+    r'(?P<body>.*?)'
+    r'(</tbody>\s*</table>\s*</div>)',
+    re.DOTALL,
+)
+
+
+def load_registry(path: Path) -> tuple[list[dict[str, str]], list[dict[str, str]], list[dict[str, str]]]:
     payload = load_json(path)
-    return [item for item in payload.get("packages", []) if isinstance(item.get("name"), str)]
+    packages = [item for item in payload.get("packages", []) if isinstance(item.get("name"), str)]
+    projects = [item for item in payload.get("projects", []) if isinstance(item.get("name"), str)]
+    languages_frameworks = [
+        item for item in payload.get("languages_frameworks", []) if isinstance(item.get("name"), str)
+    ]
+    return packages, projects, languages_frameworks
 
 
 def find_software_card_bounds(html_text: str) -> tuple[int, int]:
@@ -55,7 +76,36 @@ def render_section_body(packages: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def rewrite_software_card(html_text: str, packages: list[dict[str, str]]) -> tuple[str, int]:
+def render_projects_rows(projects: list[dict[str, str]]) -> str:
+    if not projects:
+        return ""
+    lines: list[str] = []
+    for project in projects:
+        lines.append(
+            f"          <tr><td>{html.escape(str(project['name']), quote=False)}</td>"
+            f"<td>{html.escape(str(project.get('description') or ''), quote=False)}</td></tr>"
+        )
+    return "\n" + "\n".join(lines) + "\n        "
+
+
+def render_languages_rows(languages_frameworks: list[dict[str, str]]) -> str:
+    if not languages_frameworks:
+        return ""
+    lines: list[str] = []
+    for entry in languages_frameworks:
+        lines.append(
+            f"          <tr><td>{html.escape(str(entry['name']), quote=False)}</td>"
+            f"<td>{html.escape(str(entry.get('usage') or ''), quote=False)}</td></tr>"
+        )
+    return "\n" + "\n".join(lines) + "\n        "
+
+
+def rewrite_software_card(
+    html_text: str,
+    packages: list[dict[str, str]],
+    projects: list[dict[str, str]],
+    languages_frameworks: list[dict[str, str]],
+) -> tuple[str, int]:
     start_index, end_index = find_software_card_bounds(html_text)
     software_card = html_text[start_index:end_index]
 
@@ -66,7 +116,19 @@ def rewrite_software_card(html_text: str, packages: list[dict[str, str]]) -> tup
         replacement_count += 1
         return f"{match.group(1)}{render_section_body(packages)}</div>"
 
-    rewritten_card = SOFTWARE_SECTION_RE.sub(replace_section, software_card, count=1)
+    def replace_projects(match: re.Match[str]) -> str:
+        nonlocal replacement_count
+        replacement_count += 1
+        return f"{match.group(1)}{render_projects_rows(projects)}{match.group(3)}"
+
+    def replace_languages(match: re.Match[str]) -> str:
+        nonlocal replacement_count
+        replacement_count += 1
+        return f"{match.group(1)}{render_languages_rows(languages_frameworks)}{match.group(3)}"
+
+    rewritten_card = PROJECTS_SECTION_RE.sub(replace_projects, software_card, count=1)
+    rewritten_card = LANGUAGES_SECTION_RE.sub(replace_languages, rewritten_card, count=1)
+    rewritten_card = SOFTWARE_SECTION_RE.sub(replace_section, rewritten_card, count=1)
     return html_text[:start_index] + rewritten_card + html_text[end_index:], replacement_count
 
 
@@ -85,9 +147,14 @@ def main() -> int:
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
     registry_path = repo_root / args.registry
     ui_docs_path = repo_root / args.ui_docs
-    packages = load_registry(registry_path)
+    packages, projects, languages_frameworks = load_registry(registry_path)
     original_html = ui_docs_path.read_text(encoding="utf-8")
-    rewritten_html, replacement_count = rewrite_software_card(original_html, packages)
+    rewritten_html, replacement_count = rewrite_software_card(
+        original_html,
+        packages,
+        projects,
+        languages_frameworks,
+    )
     ui_docs_path.write_text(rewritten_html, encoding="utf-8")
     print(f"Updated file: {ui_docs_path}")
     print(f"Sections rewritten: {replacement_count}")

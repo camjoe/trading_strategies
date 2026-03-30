@@ -57,7 +57,7 @@
     },
     {
       "term": "Stop-Loss",
-      "group": "Options and Volatility",
+      "group": "Execution and Risk Controls",
       "use": "both",
       "definition": "A predefined exit point to limit losses on a trade."
     },
@@ -69,7 +69,7 @@
     },
     {
       "term": "Take-Profit",
-      "group": "Options and Volatility",
+      "group": "Execution and Risk Controls",
       "use": "both",
       "definition": "A predefined exit point to lock in gains on a trade."
     },
@@ -105,7 +105,7 @@
     },
     {
       "term": "Slippage",
-      "group": "Performance and Risk",
+      "group": "Execution and Risk Controls",
       "use": "both",
       "definition": "Difference between the expected execution price and the actual fill price."
     },
@@ -225,44 +225,44 @@
     },
     {
       "term": "Crypto",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Digital assets via feeds like ccxt \u2014 not currently active."
     },
     {
       "term": "Equities",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Individual stocks \u2014 core focus area."
     },
     {
       "term": "ETFs",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Sector, factor, and index ETFs \u2014 useful for regime and trend strategies."
     },
     {
       "term": "Forex",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Currency pairs \u2014 not currently active."
     },
     {
       "term": "Futures",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Commodity and index futures \u2014 not currently active."
     },
     {
       "term": "Macro",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Macro-level signals (rates, volatility indices) for regime context."
     },
     {
       "term": "Options / LEAPs",
-      "group": "Areas of Focus",
-      "use": "ui",
+      "group": "Asset Classes",
+      "use": "both",
       "definition": "Long-dated options used to simulate leveraged equity exposure with defined risk."
     },
     {

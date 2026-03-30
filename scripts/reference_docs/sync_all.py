@@ -47,12 +47,24 @@ def _sync_software(repo_root: Path) -> None:
     ui_docs_path = repo_root / "paper_trading_ui/frontend/src/views/docs.html"
 
     payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    markdown_path.write_text(render_software_markdown(payload.get("packages", [])), encoding="utf-8")
+    markdown_path.write_text(
+        render_software_markdown(
+            payload.get("packages", []),
+            payload.get("projects", []),
+            payload.get("languages_frameworks", []),
+        ),
+        encoding="utf-8",
+    )
     print(f"Updated file: {markdown_path}")
 
-    packages = load_software_registry(registry_path)
+    packages, projects, languages_frameworks = load_software_registry(registry_path)
     original_html = ui_docs_path.read_text(encoding="utf-8")
-    rewritten_html, replacement_count = rewrite_software_card(original_html, packages)
+    rewritten_html, replacement_count = rewrite_software_card(
+        original_html,
+        packages,
+        projects,
+        languages_frameworks,
+    )
     ui_docs_path.write_text(rewritten_html, encoding="utf-8")
     print(f"Software UI sections rewritten: {replacement_count}")
 
