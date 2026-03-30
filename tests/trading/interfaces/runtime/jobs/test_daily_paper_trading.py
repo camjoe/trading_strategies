@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import datetime as dt
 import importlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -149,3 +151,196 @@ class TestResolveTradeCaps:
             other_max_trades=9,
         )
         assert result["other_acct"] == (1, 9)
+
+
+# ---------------------------------------------------------------------------
+# already_completed_today
+# ---------------------------------------------------------------------------
+
+class TestAlreadyCompletedToday:
+    def test_returns_false_when_no_logs(self, tmp_path: Path) -> None:
+        module = _load()
+        assert module.already_completed_today(tmp_path, today=dt.date(2026, 3, 30)) is False
+
+    def test_returns_true_when_sentinel_found(self, tmp_path: Path) -> None:
+        module = _load()
+        today = dt.date(2026, 3, 30)
+        log = tmp_path / f"daily_paper_trading_{today.strftime('%Y%m%d')}_120000.log"
+        log.write_text(f"run\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+        assert module.already_completed_today(tmp_path, today=today) is True
+
+    def test_returns_false_when_sentinel_absent(self, tmp_path: Path) -> None:
+        module = _load()
+        today = dt.date(2026, 3, 30)
+        log = tmp_path / f"daily_paper_trading_{today.strftime('%Y%m%d')}_120000.log"
+        log.write_text("partial run\n", encoding="utf-8")
+        assert module.already_completed_today(tmp_path, today=today) is False
+
+    def test_uses_todays_date_tag_by_default(self, tmp_path: Path) -> None:
+        module = _load()
+        today = dt.date.today()
+        log = tmp_path / f"daily_paper_trading_{today.strftime('%Y%m%d')}_000000.log"
+        log.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+        assert module.already_completed_today(tmp_path) is True
+
+
+# ---------------------------------------------------------------------------
+# group_accounts_by_caps
+# ---------------------------------------------------------------------------
+
+class TestGroupAccountsByCaps:
+    def test_single_group(self) -> None:
+        module = _load()
+        caps = {"a": (1, 5), "b": (1, 5)}
+        result = module.group_accounts_by_caps(["a", "b"], caps)
+        assert result == {(1, 5): ["a", "b"]}
+
+    def test_multiple_groups(self) -> None:
+        module = _load()
+        caps = {"a": (1, 5), "b": (1, 11), "c": (1, 5)}
+        result = module.group_accounts_by_caps(["a", "b", "c"], caps)
+        assert result[(1, 5)] == ["a", "c"]
+        assert result[(1, 11)] == ["b"]
+
+    def test_preserves_insertion_order_within_group(self) -> None:
+        module = _load()
+        caps = {"z": (1, 5), "a": (1, 5), "m": (1, 5)}
+        result = module.group_accounts_by_caps(["z", "a", "m"], caps)
+        assert result[(1, 5)] == ["z", "a", "m"]
+
+    def test_empty_accounts_returns_empty(self) -> None:
+        assert _load().group_accounts_by_caps([], {}) == {}
+
+
+# ---------------------------------------------------------------------------
+# main() — integration flow
+# ---------------------------------------------------------------------------
+
+def _run_main(monkeypatch, tmp_path: Path, argv: list[str]) -> int:
+    monkeypatch.setattr(sys, "argv", ["daily_paper_trading"] + argv + ["--repo-root", str(tmp_path)])
+    (tmp_path / "local" / "logs").mkdir(parents=True, exist_ok=True)
+    return _load().main()
+
+
+class TestMainFlow:
+    def test_duplicate_run_guard_skips_when_already_done(
+        self, monkeypatch, tmp_path: Path, capsys
+    ) -> None:
+        module = _load()
+        log_dir = tmp_path / "local" / "logs"
+        log_dir.mkdir(parents=True)
+        today = dt.date.today().strftime("%Y%m%d")
+        (log_dir / f"daily_paper_trading_{today}_000000.log").write_text(
+            f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+        )
+        monkeypatch.setattr(sys, "argv", ["daily_paper_trading", "--repo-root", str(tmp_path)])
+        code = module.main()
+        assert code == 0
+        assert "skipping duplicate run" in capsys.readouterr().out
+
+    def test_force_run_bypasses_duplicate_guard(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        log_dir = tmp_path / "local" / "logs"
+        log_dir.mkdir(parents=True)
+        today = dt.date.today().strftime("%Y%m%d")
+        (log_dir / f"daily_paper_trading_{today}_000000.log").write_text(
+            f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+        )
+
+        stream_calls: list[str] = []
+
+        def fake_stream(log_path, label, args, cwd):
+            stream_calls.append(label)
+
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.stream_command",
+            fake_stream,
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["acct_a"],
+        )
+        monkeypatch.setattr(sys, "argv", [
+            "daily_paper_trading",
+            "--repo-root", str(tmp_path),
+            "--force-run",
+            "--accounts", "acct_a",
+        ])
+        code = module.main()
+        assert code == 0
+        assert stream_calls  # stream_command was called
+
+    def test_unknown_account_returns_1(
+        self, monkeypatch, tmp_path: Path, capsys
+    ) -> None:
+        module = _load()
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["real_acct"],
+        )
+        monkeypatch.setattr(sys, "argv", [
+            "daily_paper_trading",
+            "--repo-root", str(tmp_path),
+            "--accounts", "ghost_acct",
+        ])
+        code = module.main()
+        assert code == 1
+        assert "Unknown account" in capsys.readouterr().err
+
+    def test_no_accounts_returns_1(
+        self, monkeypatch, tmp_path: Path, capsys
+    ) -> None:
+        module = _load()
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: [],
+        )
+        monkeypatch.setattr(sys, "argv", [
+            "daily_paper_trading",
+            "--repo-root", str(tmp_path),
+            "--accounts", "all",
+        ])
+        code = module.main()
+        assert code == 1
+        assert "No accounts" in capsys.readouterr().err
+
+    def test_invalid_primary_trade_cap_returns_1(
+        self, monkeypatch, tmp_path: Path, capsys
+    ) -> None:
+        module = _load()
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["acct_a"],
+        )
+        monkeypatch.setattr(sys, "argv", [
+            "daily_paper_trading",
+            "--repo-root", str(tmp_path),
+            "--accounts", "acct_a",
+            "--primary-min-trades", "5",
+            "--primary-max-trades", "2",
+        ])
+        code = module.main()
+        assert code == 1
+        assert "primary-max-trades" in capsys.readouterr().err
+
+    def test_stream_command_exception_returns_1(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["acct_a"],
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.stream_command",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("step failed")),
+        )
+        monkeypatch.setattr(sys, "argv", [
+            "daily_paper_trading",
+            "--repo-root", str(tmp_path),
+            "--accounts", "acct_a",
+        ])
+        code = module.main()
+        assert code == 1
