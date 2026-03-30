@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AccountDetail } from "../types";
-import { renderDetail } from "../components/detail";
+import type { AccountDetail } from "../../types";
+import { renderDetail } from "../../components/detail";
 
 describe("renderDetail", () => {
   it("renders latest backtest section when available", () => {

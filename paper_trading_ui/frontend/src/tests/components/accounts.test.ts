@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AccountSummary } from "../types";
-import { accountCard } from "../components/accounts";
+import type { AccountSummary } from "../../types";
+import { accountCard } from "../../components/accounts";
 
 describe("accountCard", () => {
   it("renders account stats with positive styling", () => {

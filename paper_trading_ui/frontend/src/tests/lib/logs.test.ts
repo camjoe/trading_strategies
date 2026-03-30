@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderLogLines } from "../lib/logs";
+import { renderLogLines } from "../../lib/logs";
 
 describe("renderLogLines", () => {
   it("renders empty-state message when no non-empty lines exist", () => {
