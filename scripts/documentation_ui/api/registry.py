@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 from pathlib import Path
 
-from scripts.documentation_ui.common.html import extract_card_body, strip_html
 
 
 GROUP_ORDER = [
@@ -24,13 +22,6 @@ GROUP_BY_MODULE = {
     "backtests": "Backtesting Endpoints",
 }
 
-SECTION_RE = re.compile(r"^##\s+(.+?)\s*$")
-TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$")
-API_SECTION_RE = re.compile(
-    r'<div class="ref-section">\s*<h3>(?P<title>.*?)</h3>.*?<tbody>(?P<body>.*?)</tbody>',
-    re.DOTALL,
-)
-UI_ROW_RE = re.compile(r'<tr>\s*<td>(?P<method_path>.*?)</td>\s*<td>(?P<purpose>.*?)</td>\s*</tr>', re.DOTALL)
 
 
 def endpoint_key(method: str, path: str) -> str:
@@ -125,128 +116,4 @@ def build_registry(
     rows.sort(key=lambda item: (int(item["_sort_group"]), item["path"], item["method"]))
     for row in rows:
         del row["_sort_group"]
-    return rows
-
-
-def render_markdown(endpoints: list[dict[str, str]], api_basics: list[dict[str, str]] = None) -> str:
-    lines = [
-        "# API",
-        "",
-        "Canonical endpoint inventory for the API Reference section of the documentation page.",
-        "",
-    ]
-    if api_basics:
-        lines.append("## API Basics\n")
-        lines.append("| Item | Details |")
-        lines.append("|---|---|")
-        for row in api_basics:
-            lines.append(f"| {row['item']} | {row['details']} |")
-        lines.append("")
-
-    grouped: dict[str, list[dict[str, str]]] = {}
-    for endpoint in endpoints:
-        grouped.setdefault(endpoint["group"], []).append(endpoint)
-
-    ordered_groups = [group for group in GROUP_ORDER if group in grouped]
-    ordered_groups.extend(sorted(group for group in grouped if group not in GROUP_ORDER))
-
-    for group in ordered_groups:
-        lines.extend([
-            f"## {group}",
-            "",
-            "| Method | Path | Handler | Purpose |",
-            "| --- | --- | --- | --- |",
-        ])
-        for endpoint in grouped[group]:
-            lines.append(
-                f"| {endpoint['method']} | {endpoint['path']} | {endpoint['handler']} | {endpoint['description']} |"
-            )
-            # Render query parameters if present
-            if endpoint.get("query_params"):
-                lines.append("")
-                lines.append(f"**Query Parameters for {endpoint['method']} {endpoint['path']}**")
-                lines.append("")
-                lines.append("| Parameter | Type | Default |")
-                lines.append("|---|---|---|")
-                for param in endpoint["query_params"]:
-                    lines.append(f"| {param['name']} | {param['type']} | {param['default']} |")
-                lines.append("")
-            # Render body model info for POST endpoints
-            if endpoint["method"] == "POST":
-                lines.append("")
-                lines.append(f"**Request Body Model for {endpoint['method']} {endpoint['path']}**")
-                lines.append("")
-                if endpoint.get("body_model") == "not yet extracted":
-                    lines.append("_Request body model extraction not yet implemented for this endpoint._")
-                elif endpoint.get("body_model") and isinstance(endpoint["body_model"], dict):
-                    model = endpoint["body_model"]
-                    lines.append(f"Model: `{model.get('model','')}`")
-                    lines.append("")
-                    lines.append("| Field | Type | Default | Description |")
-                    lines.append("|---|---|---|---|")
-                    for field in model.get("fields", []):
-                        lines.append(f"| {field['name']} | {field['type']} | {field['default']} | {field['description']} |")
-                else:
-                    lines.append("_No request body model required for this endpoint._")
-                lines.append("")
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def parse_markdown(markdown_path: Path) -> dict[str, dict[str, str]]:
-    rows: dict[str, dict[str, str]] = {}
-    current_group = ""
-    for line in markdown_path.read_text(encoding="utf-8").splitlines():
-        section_match = SECTION_RE.match(line)
-        if section_match:
-            current_group = section_match.group(1).strip()
-            continue
-
-        row_match = TABLE_ROW_RE.match(line)
-        if not row_match:
-            continue
-        method = row_match.group(1).strip()
-        if method.lower() == "method" or set(method) == {"-"}:
-            continue
-
-        path = row_match.group(2).strip()
-        rows[endpoint_key(method, path)] = {
-            "method": method,
-            "path": path,
-            "handler": row_match.group(3).strip(),
-            "description": row_match.group(4).strip(),
-            "group": current_group,
-        }
-    return rows
-
-
-def extract_api_card_body(raw: str) -> str:
-    return extract_card_body(raw, "<h2>API Reference</h2>", end_at_next_card=False)
-
-
-def parse_ui_endpoints(ui_docs_path: Path) -> dict[str, dict[str, str]]:
-    raw = ui_docs_path.read_text(encoding="utf-8")
-    card_body = extract_api_card_body(raw)
-    if not card_body:
-        return {}
-
-    rows: dict[str, dict[str, str]] = {}
-    for section_match in API_SECTION_RE.finditer(card_body):
-        title = strip_html(section_match.group("title"))
-        if title not in GROUP_ORDER:
-            continue
-
-        for row_match in UI_ROW_RE.finditer(section_match.group("body")):
-            method_path = strip_html(row_match.group("method_path"))
-            if " " not in method_path:
-                continue
-            method, path = method_path.split(" ", 1)
-            key = endpoint_key(method, path)
-            rows[key] = {
-                "method": method,
-                "path": path,
-                "description": strip_html(row_match.group("purpose")),
-                "group": title,
-            }
     return rows

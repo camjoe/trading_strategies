@@ -10,10 +10,10 @@ from scripts.documentation_ui.software.registry import build_registry, load_exis
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build docs/reference/software.json from requirements files.",
+        description="Build paper_trading_ui/frontend/src/assets/software.json from requirements files.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
-    parser.add_argument("--registry", default="docs/reference/software.json")
+    parser.add_argument("--registry", default="paper_trading_ui/frontend/src/assets/software.json")
     parser.add_argument("--base", default="requirements/base.txt")
     parser.add_argument("--dev", default="requirements/dev.txt")
     return parser.parse_args()

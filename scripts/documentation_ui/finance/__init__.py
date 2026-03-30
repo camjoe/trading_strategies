@@ -1,1 +1,0 @@
-"""Canonical finance registry tooling for Finance and UI docs sync."""

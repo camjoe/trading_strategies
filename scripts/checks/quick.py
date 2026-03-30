@@ -10,7 +10,6 @@ from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
 from scripts.reference_docs.check import run_reference_docs_check
-from scripts.documentation_ui.finance.check import run_term_definitions_check
 from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
 
 
@@ -28,11 +27,6 @@ def parse_args() -> argparse.Namespace:
         "--with-frontend",
         action="store_true",
         help="Also run frontend lint/typecheck/tests.",
-    )
-    parser.add_argument(
-        "--with-term-definitions-check",
-        action="store_true",
-        help="Also run term registry sync check (Finance/UI/finance.json).",
     )
     parser.add_argument(
         "--with-reference-doc-checks",
@@ -54,7 +48,6 @@ def run_quick(
     python_exe: str,
     readme_max_age_days: int = 90,
     with_frontend: bool = False,
-    with_term_definitions_check: bool = False,
     with_reference_doc_checks: bool = False,
 ) -> int:
     try:
@@ -66,11 +59,6 @@ def run_quick(
             reference_doc_exit = run_reference_docs_check(repo_root=repo_root)
             if reference_doc_exit != 0:
                 return reference_doc_exit
-        else:
-            if with_term_definitions_check:
-                term_check_exit = run_term_definitions_check(repo_root=repo_root)
-                if term_check_exit != 0:
-                    return term_check_exit
         run_mypy(repo_root=repo_root, python_exe=python_exe)
         run_pytest(repo_root=repo_root, python_exe=python_exe)
 
@@ -95,7 +83,6 @@ def main() -> int:
         python_exe=python_exe,
         readme_max_age_days=args.readme_max_age_days,
         with_frontend=args.with_frontend,
-        with_term_definitions_check=args.with_term_definitions_check,
         with_reference_doc_checks=args.with_reference_doc_checks,
     )
 

@@ -5,93 +5,68 @@ import json
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from scripts.documentation_ui.api.registry import render_markdown as render_api_markdown
-from scripts.documentation_ui.api.sync_ui_docs import load_registry as load_api_registry
-from scripts.documentation_ui.api.sync_ui_docs import rewrite_api_card
-from scripts.documentation_ui.software.registry import render_markdown as render_software_markdown
-from scripts.documentation_ui.software.sync_ui_docs import load_registry as load_software_registry
-from scripts.documentation_ui.software.sync_ui_docs import rewrite_software_card
-from scripts.documentation_ui.finance.sync_glossary import load_registry_overrides, rewrite_glossary
-from scripts.documentation_ui.finance.sync_ui_docs import load_registry as load_terms_registry
-from scripts.documentation_ui.finance.sync_ui_docs import rewrite_financial_card
+from scripts.documentation_ui.api.registry import build_registry as build_api_registry
+from scripts.documentation_ui.api.registry import load_existing_state as load_api_state
+from scripts.documentation_ui.api.registry import parse_routes
+from scripts.documentation_ui.software.registry import build_registry as build_software_registry
+from scripts.documentation_ui.software.registry import load_existing_state as load_software_state
+from scripts.documentation_ui.software.registry import parse_requirements
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Sync all documentation-page reference surfaces from their canonical registries.",
+        description="Sync frontend/src/assets reference JSON files from live code and requirements.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     return parser.parse_args()
 
 
-def _sync_terms(repo_root: Path) -> None:
-    registry_path = repo_root / "docs/reference/finance.json"
-    finance_path = repo_root / "docs/reference/Finance.md"
-    ui_docs_path = repo_root / "paper_trading_ui/frontend/src/views/docs.html"
-
-    overrides = load_registry_overrides(registry_path)
-    matched, updated = rewrite_glossary(finance_path, overrides)
-    print(f"Finance rows matched: {matched}")
-    print(f"Finance definitions updated: {updated}")
-
-    terms = load_terms_registry(registry_path)
-    original_html = ui_docs_path.read_text(encoding="utf-8")
-    rewritten_html, changed_sections = rewrite_financial_card(original_html, terms)
-    ui_docs_path.write_text(rewritten_html, encoding="utf-8")
-    print(f"Financial & Market UI sections rewritten: {changed_sections}")
+def _sync_api(repo_root: Path) -> None:
+    registry_path = repo_root / "paper_trading_ui/frontend/src/assets/api.json"
+    parsed_routes = parse_routes(repo_root / "paper_trading_ui/backend/routes")
+    existing_state = load_api_state(registry_path)
+    endpoints = build_api_registry(parsed_routes, existing_state)
+    try:
+        api_basics = json.loads(registry_path.read_text(encoding="utf-8")).get("api_basics", [])
+    except Exception:
+        api_basics = []
+    payload = {"schema_version": 1, "api_basics": api_basics, "endpoints": endpoints}
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"API: wrote {len(endpoints)} endpoints → {registry_path.relative_to(repo_root)}")
 
 
 def _sync_software(repo_root: Path) -> None:
-    registry_path = repo_root / "docs/reference/software.json"
-    markdown_path = repo_root / "docs/reference/Software.md"
-    ui_docs_path = repo_root / "paper_trading_ui/frontend/src/views/docs.html"
-
-    payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    markdown_path.write_text(
-        render_software_markdown(
-            payload.get("packages", []),
-            payload.get("projects", []),
-            payload.get("languages_frameworks", []),
-        ),
-        encoding="utf-8",
+    registry_path = repo_root / "paper_trading_ui/frontend/src/assets/software.json"
+    existing_payload: dict = {}
+    if registry_path.exists():
+        try:
+            existing_payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass
+    parsed_requirements = parse_requirements(
+        repo_root / "requirements/base.txt",
+        repo_root / "requirements/dev.txt",
     )
-    print(f"Updated file: {markdown_path}")
-
-    packages, projects, languages_frameworks = load_software_registry(registry_path)
-    original_html = ui_docs_path.read_text(encoding="utf-8")
-    rewritten_html, replacement_count = rewrite_software_card(
-        original_html,
-        packages,
-        projects,
-        languages_frameworks,
-    )
-    ui_docs_path.write_text(rewritten_html, encoding="utf-8")
-    print(f"Software UI sections rewritten: {replacement_count}")
-
-
-def _sync_api(repo_root: Path) -> None:
-    registry_path = repo_root / "docs/reference/api.json"
-    markdown_path = repo_root / "docs/reference/API.md"
-    ui_docs_path = repo_root / "paper_trading_ui/frontend/src/views/docs.html"
-
-    payload = json.loads(registry_path.read_text(encoding="utf-8"))
-    markdown_path.write_text(render_api_markdown(payload.get("endpoints", [])), encoding="utf-8")
-    print(f"Updated file: {markdown_path}")
-
-    endpoints = load_api_registry(registry_path)
-    original_html = ui_docs_path.read_text(encoding="utf-8")
-    rewritten_html, changed_sections = rewrite_api_card(original_html, endpoints)
-    ui_docs_path.write_text(rewritten_html, encoding="utf-8")
-    print(f"API UI sections rewritten: {changed_sections}")
+    existing_state = load_software_state(registry_path)
+    packages = build_software_registry(parsed_requirements, existing_state)
+    projects = existing_payload.get("projects", [])
+    languages_frameworks = existing_payload.get("languages_frameworks", [])
+    payload = {
+        "schema_version": 2,
+        "projects": projects,
+        "languages_frameworks": languages_frameworks,
+        "packages": packages,
+    }
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"Software: wrote {len(packages)} packages → {registry_path.relative_to(repo_root)}")
 
 
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
-    _sync_terms(repo_root)
-    _sync_software(repo_root)
     _sync_api(repo_root)
-    print("\nReference documentation sync completed successfully.")
+    _sync_software(repo_root)
+    print("\nSync completed. finance.json is manually curated — edit it directly.")
     return 0
 
 

@@ -10,10 +10,10 @@ from scripts.documentation_ui.api.registry import build_registry, load_existing_
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build docs/reference/api.json from FastAPI route modules.",
+        description="Build paper_trading_ui/frontend/src/assets/api.json from FastAPI route modules.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
-    parser.add_argument("--registry", default="docs/reference/api.json")
+    parser.add_argument("--registry", default="paper_trading_ui/frontend/src/assets/api.json")
     parser.add_argument("--routes-dir", default="paper_trading_ui/backend/routes")
     return parser.parse_args()
 

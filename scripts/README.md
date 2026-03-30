@@ -99,7 +99,6 @@ python -m scripts.run_checks --profile quick --with-term-definitions-check
 python -m scripts.run_checks --profile quick --with-reference-doc-checks
 python -m scripts.run_checks --profile ci
 python -m scripts.run_checks --profile ci --skip-frontend
-python -m scripts.run_checks --profile ci --with-term-definitions-check
 python -m scripts.run_checks --profile ci --with-reference-doc-checks
 
 # Combined reference-doc tools (default user-facing workflow)
@@ -107,17 +106,9 @@ python -m scripts.reference_docs.check
 python -m scripts.reference_docs.sync_all
 
 # Underlying section workflows (for automation/internal use)
-python -m scripts.documentation_ui.finance.build_registry
-python -m scripts.documentation_ui.finance.sync_glossary
-python -m scripts.documentation_ui.finance.sync_ui_docs
-python -m scripts.documentation_ui.finance.check
 python -m scripts.documentation_ui.software.build_registry
-python -m scripts.documentation_ui.software.sync_markdown
-python -m scripts.documentation_ui.software.sync_ui_docs
 python -m scripts.documentation_ui.software.check
 python -m scripts.documentation_ui.api.build_registry
-python -m scripts.documentation_ui.api.sync_markdown
-python -m scripts.documentation_ui.api.sync_ui_docs
 python -m scripts.documentation_ui.api.check
 
 # Modular checks (direct use)
