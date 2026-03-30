@@ -25,7 +25,7 @@
     },
     {
       "name": "TypeScript",
-      "usage": "Frontend UI (paper_trading_ui/frontend/) — provides type-safe client-side code."
+      "usage": "Frontend UI (paper_trading_ui/frontend/) \u2014 provides type-safe client-side code."
     },
     {
       "name": "SQL (SQLite)",
