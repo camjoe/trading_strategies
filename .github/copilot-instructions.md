@@ -1,3 +1,9 @@
+# Architecture Guard
+
+- Before editing any file under `trading/` (including subdirectories such as `trading/services/`, `trading/domain/`, `trading/repositories/`, etc.), read `.github/BOT_ARCHITECTURE_CONVENTIONS.md` in full.
+- Respect the layering rules and package ownership map defined there. Do not invert the dependency direction (`interfaces → services → repositories/domain → database`).
+- If a proposed change would violate a convention in that file, flag it to the user before proceeding.
+
 # Commit Message Workflow
 
 - When the user says they are ready to commit, asks for a commit message, or asks to summarize changes for commit, first run `python .\tools\project_manager\scripts\generate_commit_context.py`.
