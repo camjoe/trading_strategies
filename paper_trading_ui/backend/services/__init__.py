@@ -10,10 +10,12 @@ from .accounts import (
     display_strategy,
     fetch_account_names,
     fetch_account_snapshot_rows,
+    fetch_account_trades,
     fetch_recent_backtest_run_summaries,
     get_latest_backtest_metrics,
     get_latest_backtest_summary,
     get_managed_account_rows,
+    take_snapshot,
 )
 from .admin import (
     clean_text,
@@ -51,6 +53,7 @@ __all__ = [
     "display_strategy",
     "fetch_account_names",
     "fetch_account_snapshot_rows",
+    "fetch_account_trades",
     "fetch_recent_backtest_run_summaries",
     "get_account_row",
     "get_latest_backtest_metrics",
@@ -59,5 +62,6 @@ __all__ = [
     "list_csv_exports",
     "preview_csv_export",
     "resolve_backtest_payload_account",
+    "take_snapshot",
     "update_account_rotation_settings",
 ]

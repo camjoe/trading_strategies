@@ -45,6 +45,6 @@ def test_get_latest_snapshot_row_prefers_latest_id_for_same_timestamp(conn) -> N
     )
     conn.commit()
 
-    latest = services_db.get_latest_snapshot_row(conn, account_id)
+    latest = services_db.fetch_latest_snapshot_row(conn, account_id)
     assert latest is not None
     assert float(latest["equity"]) == 1250.0

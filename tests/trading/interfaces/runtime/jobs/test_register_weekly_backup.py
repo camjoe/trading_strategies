@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 
 import pytest
 
@@ -80,7 +81,7 @@ class TestWindowsDryRun:
 
     def test_windows_register_dry_run_prints_and_returns_0(self, capsys) -> None:
         module = _load()
-        code = module.windows_register(self._make_args())
+        code = module.windows_register(self._make_args(), Path("C:/fake/repo"))
         assert code == 0
         assert "DRY RUN" in capsys.readouterr().out
 

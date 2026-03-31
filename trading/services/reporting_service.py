@@ -101,3 +101,18 @@ def infer_overall_trend(
     if move_pct < -1.0:
         return "down"
     return "flat"
+
+
+def load_account_trades(conn, account_id: int) -> list:
+    from trading.accounting import load_trades
+    return load_trades(conn, account_id)
+
+
+def take_account_snapshot(conn, account_name: str, *, snapshot_time: str | None = None) -> None:
+    from trading.reporting import snapshot_account  # deferred to avoid circular import
+    snapshot_account(conn, account_name, snapshot_time=snapshot_time)
+
+
+def get_account_stats(conn, row) -> tuple:
+    from trading.reporting import build_account_stats  # deferred to avoid circular import
+    return build_account_stats(conn, row)

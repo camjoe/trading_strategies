@@ -4,9 +4,9 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from trading.interfaces.runtime.data_ops.admin import delete_accounts
 from trading.models import RotationConfig
-from trading.repositories.accounts_repository import update_account_fields
+from trading.services.accounts_service import update_account_fields_by_id
+from trading.services.admin_service import delete_accounts
 
 from .db import get_account_row
 
@@ -27,7 +27,7 @@ def update_account_rotation_settings(
     db_values = rotation.to_db_dict()
     updates = [f"{key} = ?" for key in db_values]
     params = list(db_values.values())
-    update_account_fields(
+    update_account_fields_by_id(
         conn,
         account_id=int(account["id"]),
         updates=updates,

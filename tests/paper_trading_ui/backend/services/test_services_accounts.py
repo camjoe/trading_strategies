@@ -23,7 +23,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         services_accounts,
-        "get_latest_snapshot_row",
+        "fetch_latest_snapshot_row",
         lambda _conn, _account_id: {"equity": 1100.0, "snapshot_time": "2026-01-02T00:00:00Z"},
     )
 
@@ -122,7 +122,7 @@ def test_get_latest_backtest_metrics_uses_summary_report(monkeypatch, conn) -> N
 
     monkeypatch.setattr(
         services_accounts,
-        "backtest_report_summary",
+        "fetch_backtest_report_summary",
         lambda _conn, _run_id: SimpleNamespace(
             run_id=99,
             end_date="2026-01-31",

@@ -2,8 +2,6 @@
 
 from fastapi import APIRouter
 
-from trading.accounting import load_trades
-
 from ..config import TEST_ACCOUNT_NAME
 from ..services import (
     get_account_row,
@@ -11,6 +9,7 @@ from ..services import (
     build_comparison_account_payload,
     fetch_account_snapshot_rows,
     db_conn,
+    fetch_account_trades,
     get_latest_backtest_metrics,
     get_latest_backtest_summary,
     get_managed_account_rows,
@@ -63,7 +62,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
 
         snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
 
-        trades = load_trades(conn, int(account["id"]))
+        trades = fetch_account_trades(conn, int(account["id"]))
         latest_backtest = get_latest_backtest_summary(conn, account_name)
 
         return {
