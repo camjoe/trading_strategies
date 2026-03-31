@@ -26,6 +26,7 @@ Domain knowledge baked in. Live only in `.github/agents/`. Not synced to the sub
 | `task-runner.global.agent.md` | 🌐 Global | Task→branch→implement→commit→PR workflow |
 | `python-stat-modeling.agent.md` | 🏠 Project | Trading/finance statistical modeling |
 | `trading-manager.agent.md` | 🏠 Project | Trading-domain orchestration |
+| `finance-strategy.agent.md` | 🏠 Project | Financial terminology, strategy classification, signal interpretation, equity mechanics |
 
 To sync global agents after pulling a submodule update:
 ```
@@ -43,6 +44,8 @@ Specialized bots are still present and usable in `.github/agents/`:
 - `python-test-expansion.global.agent.md`: add and strengthen tests, edge cases, and regression coverage.
 - `task-runner.global.agent.md`: pick up a task from the project_manager DB, implement it on a feature branch, commit, push, and open a PR.
 - `trading-manager.agent.md`: orchestrate bots for trading-domain tasks.
+- `code-review.global.agent.md`: audit changed files before commit or merge for architecture violations, regressions, missing tests, and dependency-direction issues.
+- `finance-strategy.agent.md`: explain financial terminology, classify trading strategies, interpret market signals, and advise on equity mechanics and market microstructure.
 
 This file provides shared baseline rules; it does not replace or remove those agents.
 
@@ -103,6 +106,7 @@ This table summarises the policy at a glance:
 
 | Bot | Shell commands | Git access |
 |-----|---------------|------------|
+| Code Review (`*.global`) | `pytest`, `mypy`, `ruff check`; `npm run lint`, `npm run typecheck`, `npx vitest run`; `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`, `show`) |
 | Frontend Code Cleanup (`*.global`) | `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npx vitest run` | ❌ None |
 | Python Code Cleanup (`*.global`) | `pytest`, `mypy`, `ruff check`, `scripts.run_checks --profile quick`; npm commands for mixed-scope | ❌ None |
 | Python Test Expansion (`*.global`) | `pytest`, `mypy`, `scripts.run_checks --profile quick` | ❌ None |
@@ -110,6 +114,7 @@ This table summarises the policy at a glance:
 | Task Runner (`*.global`) | `db_write.py`, `scripts.run_checks --profile quick`, `gh pr create` | ✅ Read+Write (`checkout -b`, `commit`, `push`; never `merge`/`rebase`/`reset`) |
 | Python Statistical Modeling | `pytest`, `mypy`, `python -m trading.*`, `scripts.run_checks --profile quick` | ❌ None |
 | Trading Manager | `db_write.py`, `generate_commit_context.py`, `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`) |
+| Finance and Strategy Domain Bot | `scripts.run_checks --profile quick` (read-only health check only) | ❌ None |
 
 **Git access tiers:**
 - ❌ **None** — do not run any git commands
