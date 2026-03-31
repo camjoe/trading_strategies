@@ -20,12 +20,13 @@ python -m trading.paper_trading
 - `backtesting.md`: backtesting workflows, safeguards, and notes.
 - `architecture/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
 - `architecture/notes-strategy-encapsulation.md`: strategy ownership map and prompt templates for a future strategy-class refactor.
+- `architecture/notes-sentiment-signals.md`: current-state map and integration path for sentiment/topic-driven trading strategies.
+- `architecture/notes-cross-platform-paths.md`: lessons learned from Windows/Linux path separator CI failures.
 
 ## Architecture Reference
 
 **Canonical rules and conventions:**
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`: layering, dependency direction, naming, and package ownership.
-- `.github/TRADING_EXECUTION_ROADMAP.md`: prioritized refactoring guidance and next structural improvements.
 
 ## Purpose
 
