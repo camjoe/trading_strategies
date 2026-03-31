@@ -15,6 +15,7 @@ Your job is to read the state of the project, understand what work is queued or 
 |-----|---------|----------|
 | `Python Code Cleanup` | refactor, cleanup, readability | Python refactors, cross-stack cleanup |
 | `Frontend Code Cleanup` | frontend, react, tsx, ui cleanup | Frontend-only cleanup in `paper_trading_ui/frontend` |
+| `Docs Sync` | sync docs, docs sync, stale readme, doc drift, update docs | Keeping README files, architecture notes, reference docs, and API docs in sync after code changes |
 | `Python Test Expansion` | tests, coverage, pytest, edge case | Adding/strengthening Python tests |
 | `Python Statistical Modeling` | alpha, factor, backtest, signal | Trading model research and validation |
 | `Project Structure Steward` | architecture, module boundaries, ownership | Enforcing layering and dependency direction |

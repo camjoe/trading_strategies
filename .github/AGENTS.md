@@ -20,6 +20,7 @@ Domain knowledge baked in. Live only in `.github/agents/`. Not synced to the sub
 | File | Type | Purpose |
 |------|------|---------|
 | `code-review.global.agent.md` | 🌐 Global | Pre-commit audit: architecture, regressions, missing tests, dependency violations |
+| `docs-sync.global.agent.md` | 🌐 Global | Keep README files, architecture notes, reference docs, and API docs in sync after code changes |
 | `frontend-code-cleanup.global.agent.md` | 🌐 Global | Simplify TypeScript frontend code |
 | `project-structure-steward.global.agent.md` | 🌐 Global | Enforce module boundaries and architecture |
 | `python-code-cleanup.global.agent.md` | 🌐 Global | Refactor Python code for readability |
@@ -40,6 +41,7 @@ python tools/project_manager/scripts/sync_agents.py
 Specialized bots are still present and usable in `.github/agents/`:
 
 - `frontend-code-cleanup.global.agent.md`: simplify frontend code while preserving behavior and type safety.
+- `docs-sync.global.agent.md`: keep README files, architecture notes, reference docs, and API docs in sync after code changes; detects drift, flags stale docs, writes targeted updates.
 - `project-structure-steward.global.agent.md`: enforce module boundaries, dependency direction, and architecture consistency.
 - `python-code-cleanup.global.agent.md`: refactor Python code for readability/maintainability without behavior changes; also handles mixed Python + frontend cleanup where cross-stack interface contracts need to stay stable.
 - `python-stat-modeling.agent.md`: build and evaluate trading-focused statistical modeling workflows.
@@ -111,6 +113,7 @@ This table summarises the policy at a glance:
 | Bot | Shell commands | Git access |
 |-----|---------------|------------|
 | Code Review (`*.global`) | `pytest`, `mypy`, `ruff check`; `npm run lint`, `npm run typecheck`, `npx vitest run`; `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`, `show`) |
+| Docs Sync (`*.global`) | `scripts.checks.readme_check`, `scripts.run_checks --profile quick`; `scripts.reference_docs.check` (if available) | ❌ None |
 | Frontend Code Cleanup (`*.global`) | `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npx vitest run` | ❌ None |
 | Python Code Cleanup (`*.global`) | `pytest`, `mypy`, `ruff check`, `scripts.run_checks --profile quick`; npm commands for mixed-scope | ❌ None |
 | Python Test Expansion (`*.global`) | `pytest`, `mypy`, `scripts.run_checks --profile quick` | ❌ None |

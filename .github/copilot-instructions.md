@@ -67,6 +67,7 @@
 Selection heuristics:
 
 - `Code Review`: reviewing changed files for regressions, architecture violations, missing tests, dependency issues — before committing or merging.
+- `Docs Sync`: updating README files, architecture notes, reference docs, API documentation, and inline docstrings after code changes — when docs may have drifted from behavior.
 - `Frontend Code Cleanup`: frontend-only cleanup/refactor/readability in `paper_trading_ui/frontend`.
 - `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
 - `Python Test Expansion`: adding/improving tests and coverage depth.
@@ -78,6 +79,7 @@ Selection heuristics:
 Suggested keyword cues for fast matching:
 
 - `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
+- `Docs Sync`: `docs sync`, `documentation sync`, `stale readme`, `readme update`, `api docs`, `doc drift`, `update docs`, `docs out of sync`, `documentation drift`, `sync docs`, `keep docs`, `docs after change`.
 - `Frontend Code Cleanup`: `frontend`, `react`, `component`, `tsx`, `ui cleanup`, `vite`.
 - `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
 - `Python Test Expansion`: `tests`, `coverage`, `pytest`, `edge case`, `regression test`.
@@ -90,12 +92,13 @@ Suggested keyword cues for fast matching:
 
 1. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without writing code, choose `Finance and Strategy Domain Bot`.
 2. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
-3. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
-4. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-5. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
-6. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-7. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
-8. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
+3. If the task is about keeping documentation in sync with code changes — README updates, API doc drift, stale architecture notes — choose `Docs Sync`.
+4. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
+5. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
+6. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
+7. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
+8. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
+9. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
 If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 
@@ -108,6 +111,16 @@ If multiple bots seem valid, default to `Python Code Cleanup` and state why.
   - `code review: <file-or-folder>` — review a specific file or folder
 - The bot reads changed files, runs linters/type-checkers, and reports findings by severity (🔴 HIGH, 🟡 MEDIUM, 🔵 LOW).
 - It does not modify any files; it only audits and reports.
+
+# Docs Sync Shortcut
+
+- If a user message starts with `sync docs` or `docs sync` (ignoring leading/trailing whitespace and case), invoke the `Docs Sync Bot` agent.
+- Accepted forms:
+  - `sync docs` — audit all recently changed areas for documentation drift and apply targeted updates
+  - `sync docs: <file-or-folder>` — restrict the sync to a specific file or module
+  - `docs sync` — equivalent alias for `sync docs`
+- The bot detects stale README files, outdated architecture notes, drifted API docs, and missing inline docstrings; it writes targeted updates without changing behavior.
+- It runs `python -m scripts.checks.readme_check` after edits to validate freshness.
 
 # Run Checks Shortcut
 
@@ -199,3 +212,7 @@ Current shortcut catalog to show:
 13. Trigger: `code review` / `code review: <branch-or-file>`
 	- Action: invokes the Code Review Bot — audits staged/unstaged changes or a branch diff for architecture violations, missing tests, regressions, and dependency issues. Reports findings by severity without modifying files.
 	- Example: `code review` or `code review: main`
+
+14. Trigger: `sync docs` / `docs sync`
+	- Action: invokes the Docs Sync Bot — detects documentation drift after code changes, updates stale README files, architecture notes, reference docs, and API documentation to match current behavior.
+	- Example: `sync docs` or `docs sync`
