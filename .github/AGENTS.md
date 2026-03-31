@@ -19,6 +19,7 @@ Domain knowledge baked in. Live only in `.github/agents/`. Not synced to the sub
 
 | File | Type | Purpose |
 |------|------|---------|
+| `code-review.global.agent.md` | 🌐 Global | Pre-commit audit: architecture, regressions, missing tests, dependency violations |
 | `frontend-code-cleanup.global.agent.md` | 🌐 Global | Simplify TypeScript frontend code |
 | `project-structure-steward.global.agent.md` | 🌐 Global | Enforce module boundaries and architecture |
 | `python-code-cleanup.global.agent.md` | 🌐 Global | Refactor Python code for readability |
