@@ -74,6 +74,7 @@ Selection heuristics:
 - `Python Statistical Modeling`: trading/finance statistical modeling and time-series analysis.
 - `Project Structure Steward`: architecture boundaries, module ownership, dependency direction.
 - `Finance and Strategy Domain Bot`: explaining financial terminology, classifying trading strategies, interpreting signals, advising on equity mechanics and market microstructure — no implementation work.
+- `DB Migration Steward`: validating schema changes and migration safety for the trading SQLite database; auditing `ColumnMigration` additions in `trading/database/db.py`, enforcing additive-only migration rules, checking column guards, and reviewing backup hygiene before destructive DB operations.
 
 Suggested keyword cues for fast matching:
 

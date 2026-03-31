@@ -50,6 +50,7 @@ Specialized bots are still present and usable in `.github/agents/`:
 - `trading-manager.agent.md`: orchestrate bots for trading-domain tasks.
 - `code-review.global.agent.md`: audit changed files before commit or merge for architecture violations, regressions, missing tests, and dependency-direction issues.
 - `finance-strategy.agent.md`: explain financial terminology, classify trading strategies, interpret market signals, and advise on equity mechanics and market microstructure.
+- `db-migration-steward.agent.md`: validate schema changes and migration safety for the trading SQLite database; audit ColumnMigration additions, enforce additive-only rules, and ensure backup hygiene before destructive DB operations.
 
 This file provides shared baseline rules; it does not replace or remove those agents.
 
@@ -61,6 +62,7 @@ This file provides shared baseline rules; it does not replace or remove those ag
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Bot dependency/naming conventions: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style approach and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
+- Database migration system (hand-rolled SQLite, ColumnMigration pattern, backup flows): `docs/architecture/notes-db-migration-system.md`
 
 ## Core Operating Rules
 
