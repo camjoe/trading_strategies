@@ -42,17 +42,6 @@ This file provides shared baseline rules; it does not replace or remove those ag
    - Python/frontend/docs styling expectations
    - style-only rewrite policy
 
-## Default Validation Workflow
-
-1. Day-to-day fast checks:
-   - `python -m scripts.run_checks --profile quick`
-2. Full cross-stack checks:
-   - `python -m scripts.run_checks --profile ci`
-3. Docs-quality focused audit:
-   - `python -m scripts.checks.readme_check --max-age-days 90`
-
-If a check cannot run, report what was skipped and why.
-
 ## Safe Command Allowlist (For Fewer Approval Clicks)
 
 Use this list for workspace-level "always allow" command approvals:
@@ -64,7 +53,7 @@ Use this list for workspace-level "always allow" command approvals:
 - `python -m scripts.checks.readme_check`
 - `python -m scripts.checks.readme_check --max-age-days 90`
 - `python -m pytest`
-- `python -m mypy paper_trading_ui/backend trading --python-version 3.12 --ignore-missing-imports --follow-imports=skip`
+- `python -m mypy paper_trading_ui/backend trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip`
 - `npm run lint` (from `paper_trading_ui/frontend`)
 - `npm run typecheck` (from `paper_trading_ui/frontend`)
 - `npm run test:coverage` (from `paper_trading_ui/frontend`)
