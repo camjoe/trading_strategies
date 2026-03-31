@@ -5,6 +5,13 @@
 - If editing `project_db.json` directly (not via `db_write.py`), manually copy the file to `tools/project_manager/db_backups/project_db_session_YYYY-MM-DD.json` first.
 - No backup is needed for read-only operations.
 
+# Backup Restore Rule
+
+- To list available backups: `npm run restore:backup -- --list` (run from `tools/project_manager/`).
+- To restore a specific backup: `npm run restore:backup -- <backup-file-name>` (run from `tools/project_manager/`).
+- Only restore when `data/project_db.json` is missing, corrupted, or has been incorrectly modified.
+- After a restore, verify the file is valid JSON before continuing.
+
 # Architecture Guard
 
 - Before editing any file under `trading/` (including subdirectories such as `trading/services/`, `trading/domain/`, `trading/repositories/`, etc.), read `.github/BOT_ARCHITECTURE_CONVENTIONS.md` in full.
@@ -75,6 +82,7 @@ Selection heuristics:
 - `Project Structure Steward`: architecture boundaries, module ownership, dependency direction.
 - `Finance and Strategy Domain Bot`: explaining financial terminology, classifying trading strategies, interpreting signals, advising on equity mechanics and market microstructure — no implementation work.
 - `DB Migration Steward`: validating schema changes and migration safety for the trading SQLite database; auditing `ColumnMigration` additions in `trading/database/db.py`, enforcing additive-only migration rules, checking column guards, and reviewing backup hygiene before destructive DB operations.
+- `Docs Sync Bot`: keeping README files, architecture notes, reference docs, and API documentation in sync after code changes; detecting documentation drift, flagging stale sections, and writing targeted updates.
 
 Suggested keyword cues for fast matching:
 
@@ -87,17 +95,18 @@ Suggested keyword cues for fast matching:
 - `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
 - `Finance and Strategy Domain Bot`: `terminology`, `strategy classification`, `equity mechanics`, `signal interpretation`, `market microstructure`, `order types`, `short selling`, `dividends`, `corporate actions`, `momentum`, `mean-reversion`, `arbitrage`, `carry`, `event-driven`.
 - `DB Migration Steward`: `migration`, `schema change`, `column migration`, `alter table`, `db schema`, `database migration`, `ColumnMigration`, `backup hygiene`, `destructive db`, `init_schema`, `sqlite migration`, `add column`.
+- `Docs Sync Bot`: `stale docs`, `docs drift`, `readme out of date`, `sync docs`, `keep docs fresh`, `documentation out of sync`, `update readme`, `docs stale`, `missing documentation`.
 
 - `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
 
 1. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without writing code, choose `Finance and Strategy Domain Bot`.
 2. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
-3. If the task is about keeping documentation in sync with code changes — README updates, API doc drift, stale architecture notes — choose `Docs Sync`.
-4. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
-5. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-6. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
-7. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-8. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
+3. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
+4. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
+5. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
+6. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
+7. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
+8. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose `Docs Sync Bot`.
 9. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
 If multiple bots seem valid, default to `Python Code Cleanup` and state why.
