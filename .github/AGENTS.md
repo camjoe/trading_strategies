@@ -19,6 +19,7 @@ Domain knowledge baked in. Live only in `.github/agents/`. Not synced to the sub
 
 | File | Type | Purpose |
 |------|------|---------|
+| `code-review.global.agent.md` | 🌐 Global | Pre-commit audit: architecture, regressions, missing tests, dependency violations |
 | `frontend-code-cleanup.global.agent.md` | 🌐 Global | Simplify TypeScript frontend code |
 | `project-structure-steward.global.agent.md` | 🌐 Global | Enforce module boundaries and architecture |
 | `python-code-cleanup.global.agent.md` | 🌐 Global | Refactor Python code for readability |
@@ -103,6 +104,7 @@ This table summarises the policy at a glance:
 
 | Bot | Shell commands | Git access |
 |-----|---------------|------------|
+| Code Review (`*.global`) | `pytest`, `mypy`, `ruff check`; `npm run lint`, `npm run typecheck`, `npx vitest run`; `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`, `show`) |
 | Frontend Code Cleanup (`*.global`) | `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npx vitest run` | ❌ None |
 | Python Code Cleanup (`*.global`) | `pytest`, `mypy`, `ruff check`, `scripts.run_checks --profile quick`; npm commands for mixed-scope | ❌ None |
 | Python Test Expansion (`*.global`) | `pytest`, `mypy`, `scripts.run_checks --profile quick` | ❌ None |
