@@ -20,6 +20,7 @@ Your job is to read the state of the project, understand what work is queued or 
 | `Project Structure Steward` | architecture, module boundaries, ownership | Enforcing layering and dependency direction |
 | `Code Review` | review, audit, regression, pre-commit | Code review before commit or merge |
 | `Finance and Strategy Domain Bot` | terminology, strategy, equity mechanics, signals | Explaining financial concepts, classifying strategies, interpreting signals |
+| `DB Migration Steward` | migration, schema change, alter table, ColumnMigration, backup hygiene | Validating schema migrations and DB backup safety in `trading/database/` |
 
 ## Core Responsibilities
 
