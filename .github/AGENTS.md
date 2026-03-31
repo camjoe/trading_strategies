@@ -6,10 +6,9 @@ Purpose: define how bots operate in this repository without unnecessary process 
 
 Specialized bots are still present and usable in `.github/agents/`:
 
-- `cross-stack-cleanup.agent.md`: coordinate safe cleanup work across Python and frontend scopes.
 - `frontend-code-cleanup.agent.md`: simplify frontend code while preserving behavior and type safety.
 - `project-structure-steward.agent.md`: enforce module boundaries, dependency direction, and architecture consistency.
-- `python-code-cleanup.agent.md`: refactor Python code for readability/maintainability without behavior changes.
+- `python-code-cleanup.agent.md`: refactor Python code for readability/maintainability without behavior changes; also handles mixed Python + frontend cleanup where cross-stack interface contracts need to stay stable.
 - `python-stat-modeling.agent.md`: build and evaluate trading-focused statistical modeling workflows.
 - `python-test-expansion.agent.md`: add and strengthen tests, edge cases, and regression coverage.
 

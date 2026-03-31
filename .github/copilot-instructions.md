@@ -37,30 +37,28 @@
 Selection heuristics:
 
 - `Frontend Code Cleanup`: frontend-only cleanup/refactor/readability in `paper_trading_ui/frontend`.
-- `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change.
+- `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
 - `Python Test Expansion`: adding/improving tests and coverage depth.
 - `Python Statistical Modeling`: trading/finance statistical modeling and time-series analysis.
 - `Project Structure Steward`: architecture boundaries, module ownership, dependency direction.
-- `Cross-Stack Cleanup Coordinator`: mixed Python + frontend scope or cross-layer cleanup.
 
 Suggested keyword cues for fast matching:
 
 - `Frontend Code Cleanup`: `frontend`, `react`, `component`, `tsx`, `ui cleanup`, `vite`.
-- `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`.
+- `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
 - `Python Test Expansion`: `tests`, `coverage`, `pytest`, `edge case`, `regression test`.
 - `Python Statistical Modeling`: `alpha`, `factor`, `timeseries`, `walk-forward`, `backtest`, `signal`.
 - `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
-- `Cross-Stack Cleanup Coordinator`: `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
 
 Tie-breaker order when multiple bots match:
 
-1. If the task explicitly includes both frontend and Python/backend scope, choose `Cross-Stack Cleanup Coordinator`.
+1. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
 2. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
 3. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
 4. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
 5. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
-If multiple bots seem valid, default to `Cross-Stack Cleanup Coordinator` and state why.
+If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 
 # Run Checks Shortcut
 
