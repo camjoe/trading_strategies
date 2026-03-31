@@ -1,3 +1,10 @@
+# Session Backup Rule
+
+- Before the first write to `tools/project_manager/data/project_db.json` in any session — whether via `db_write.py` or a direct file edit — a backup must be created.
+- When using `db_write.py`, the backup is automatic: it writes `db_backups/project_db_session_YYYY-MM-DD.json` once per calendar day before the first write.
+- If editing `project_db.json` directly (not via `db_write.py`), manually copy the file to `tools/project_manager/db_backups/project_db_session_YYYY-MM-DD.json` first.
+- No backup is needed for read-only operations.
+
 # Architecture Guard
 
 - Before editing any file under `trading/` (including subdirectories such as `trading/services/`, `trading/domain/`, `trading/repositories/`, etc.), read `.github/BOT_ARCHITECTURE_CONVENTIONS.md` in full.
@@ -21,6 +28,29 @@
 - For `commit message git`, summarize intent from staged + unstaged diffs against `HEAD`, and mention key changed files/areas that drove each option.
 - If a user message is exactly `commit message task` (ignoring leading/trailing whitespace and case), run the standard commit-context workflow from the section above.
 - For `commit message task`, default to `--git-scope project-manager` unless the user explicitly requests another scope.
+
+# Run Task Shortcut
+
+- If a user message starts with `run task` (ignoring leading/trailing whitespace and case), invoke the `Task Runner` agent.
+- Accepted forms:
+  - `run task` — list open items from project_manager DB and let the user pick one
+  - `run task: <task-id>` — start immediately with the given task ID
+- The Task Runner will create a branch `feature/pm-<task-id>-<slug>`, delegate to the best bot, run checks, commit (with user approval of the message), push, and open a PR.
+- Always confirm bot selection and commit message with the user before proceeding.
+
+# Sync Agents Shortcut
+
+- If a user message is exactly `sync agents` (ignoring leading/trailing whitespace and case), run the global agent sync from the project_manager submodule.
+- The default command is `python tools/project_manager/scripts/sync_agents.py` from the repo root.
+- After the command finishes, report which agents were added, updated, or skipped.
+- Run this after pulling submodule updates to get the latest global agents.
+
+# Manager Shortcut
+
+- If a user message starts with `manage` (ignoring leading/trailing whitespace and case), invoke the `Trading Manager` agent.
+- Accepted forms: `manage`, `manage tasks`, `manage bots`, `manage: <focus>` (where focus is `assess tasks`, `delegate`, `bot status`, or `recommend improvements`).
+- When no focus is specified, default to reading `tools/project_manager/data/project_db.json`, summarizing open tasks, and presenting a delegation plan.
+- Always confirm with the user before invoking any delegated bot.
 
 # Bot Routing Shortcut
 
@@ -99,38 +129,50 @@ If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 
 Current shortcut catalog to show:
 
-1. Trigger: `select bot:`
+1. Trigger: `run task` / `run task: <task-id>`
+	- Action: invokes the Task Runner agent — picks up a task from the project_manager DB, creates a feature branch, delegates to the best bot, commits (with approval), pushes, and opens a PR.
+	- Example: `run task` or `run task: pm-nice-to-have-bots-code-review-bot`
+
+2. Trigger: `sync agents`
+	- Action: runs `python tools/project_manager/scripts/sync_agents.py` to copy updated global agents from the submodule into `.github/agents/`.
+	- Example: `sync agents`
+
+3. Trigger: `manage` / `manage tasks` / `manage: <focus>`
+	- Action: invokes the Trading Manager agent — reads project_manager tasks, classifies them, presents a delegation plan, and recommends bot fleet improvements.
+	- Example: `manage tasks` or `manage: recommend improvements`
+
+4. Trigger: `select bot:`
 	- Action: routes the task to the most appropriate specialized bot, shows recommendation/reason, and asks whether to proceed.
 	- Example: `select bot: expand tests for trading reporting edge cases`
 
-2. Trigger: `help`
+5. Trigger: `help`
 	- Action: prints this shortcut catalog.
 	- Example: `help`
 
-3. Trigger: `commit message git`
+6. Trigger: `commit message git`
 	- Action: returns commit subject options based on current uncommitted git changes (staged + unstaged), without project-manager context.
 	- Example: `commit message git`
 
-4. Trigger: `commit message task`
+7. Trigger: `commit message task`
 	- Action: runs the project-manager commit-context workflow and returns task-aligned commit subject options.
 	- Example: `commit message task`
 
-5. Trigger: `run checks`
+8. Trigger: `run checks`
 	- Action: runs `python -m scripts.run_checks --profile quick` and reports test/audit outcomes.
 	- Example: `run checks`
 
-6. Trigger: `update documentation`
+9. Trigger: `update documentation`
 	- Action: runs `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` and reports documentation findings.
 	- Example: `update documentation`
 
-7. Trigger: `run reference doc checks`
+10. Trigger: `run reference doc checks`
 	- Action: runs `python -m scripts.reference_docs.check` and reports Financial & Market, Software, and API reference sync status together.
 	- Example: `run reference doc checks`
 
-8. Trigger: `sync reference docs`
+11. Trigger: `sync reference docs`
 	- Action: synchronizes Finance, Software, and API markdown and UI surfaces from the canonical registries.
 	- Example: `sync reference docs`
 
-9. Trigger: `run all checks`
+12. Trigger: `run all checks`
 	- Action: runs `python -m scripts.run_checks --profile ci` for docs checks, audits, and test suites.
 	- Example: `run all checks`

@@ -22,6 +22,21 @@ Primary objective: make the codebase easier to navigate, reason about, and maint
 - DO NOT add new dependencies unless architecture benefit is clear and justified.
 - ONLY propose high-signal structure improvements with clear rationale and migration path.
 
+## Permitted Shell Commands
+Run only the commands listed below.
+
+Validation:
+- `python -m pytest` — full or focused test run
+- `python -m mypy <scope>` — type checking
+- `python -m scripts.run_checks --profile quick` — quick validation
+- `python -m scripts.run_checks --profile ci` — full CI validation
+
+Read-only git (inspection only — do not commit, push, or modify git history):
+- `git --no-pager diff` — review uncommitted changes
+- `git --no-pager log --oneline -20` — recent commit history
+- `git --no-pager status` — working tree status
+- `git --no-pager show <ref> -- <file>` — inspect a specific file at a commit
+
 ## Architecture Checklist
 1. Responsibility boundaries
 - Are modules/classes/functions doing one clear job?
