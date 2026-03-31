@@ -28,6 +28,7 @@ Domain knowledge baked in. Live only in `.github/agents/`. Not synced to the sub
 | `python-stat-modeling.agent.md` | 🏠 Project | Trading/finance statistical modeling |
 | `trading-manager.agent.md` | 🏠 Project | Trading-domain orchestration |
 | `finance-strategy.agent.md` | 🏠 Project | Financial terminology, strategy classification, signal interpretation, equity mechanics |
+| `db-migration-steward.agent.md` | 🏠 Project | Schema migration safety, ColumnMigration audits, backup hygiene |
 
 To sync global agents after pulling a submodule update:
 ```
@@ -47,6 +48,7 @@ Specialized bots are still present and usable in `.github/agents/`:
 - `trading-manager.agent.md`: orchestrate bots for trading-domain tasks.
 - `code-review.global.agent.md`: audit changed files before commit or merge for architecture violations, regressions, missing tests, and dependency-direction issues.
 - `finance-strategy.agent.md`: explain financial terminology, classify trading strategies, interpret market signals, and advise on equity mechanics and market microstructure.
+- `db-migration-steward.agent.md`: validate schema changes and migration safety for the trading SQLite database; audit ColumnMigration additions, enforce additive-only rules, and ensure backup hygiene before destructive DB operations.
 
 This file provides shared baseline rules; it does not replace or remove those agents.
 
@@ -58,6 +60,7 @@ This file provides shared baseline rules; it does not replace or remove those ag
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Bot dependency/naming conventions: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style approach and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
+- Database migration system (hand-rolled SQLite, ColumnMigration pattern, backup flows): `docs/architecture/notes-db-migration-system.md`
 
 ## Core Operating Rules
 
@@ -116,6 +119,7 @@ This table summarises the policy at a glance:
 | Python Statistical Modeling | `pytest`, `mypy`, `python -m trading.*`, `scripts.run_checks --profile quick` | ❌ None |
 | Trading Manager | `db_write.py`, `generate_commit_context.py`, `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`) |
 | Finance and Strategy Domain Bot | `scripts.run_checks --profile quick` (read-only health check only) | ❌ None |
+| DB Migration Steward | `pytest` (db/migration/schema tests), `mypy trading/database/`, `scripts.run_checks --profile quick` | ❌ None |
 
 **Git access tiers:**
 - ❌ **None** — do not run any git commands
