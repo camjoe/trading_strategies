@@ -82,7 +82,7 @@ Suggested keyword cues for fast matching:
 - `Python Statistical Modeling`: `alpha`, `factor`, `timeseries`, `walk-forward`, `backtest`, `signal`.
 - `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
 
-Tie-breaker order when multiple bots match:
+- `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
 
 1. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
 2. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
