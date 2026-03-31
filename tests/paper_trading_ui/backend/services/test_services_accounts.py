@@ -79,20 +79,20 @@ def test_build_backtest_run_summary_uses_display_transforms(conn) -> None:
     assert payload["feePerTrade"] == 1.25
 
 
-def test_get_managed_account_rows_excludes_shadow_account(conn) -> None:
+def test_fetch_managed_account_rows_excludes_shadow_account(conn) -> None:
     create_test_account(conn, "acct_one")
     create_test_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
     create_test_account(conn, "acct_two")
 
-    rows = services_accounts.get_managed_account_rows(conn)
+    rows = services_accounts.fetch_managed_account_rows(conn)
     names = [str(row["name"]) for row in rows]
     assert names == ["acct_one", "acct_two"]
 
 
-def test_get_latest_backtest_summary_none_and_present(conn) -> None:
+def test_fetch_latest_backtest_summary_none_and_present(conn) -> None:
     account_id = create_test_account(conn, "acct_bt")
 
-    assert services_accounts.get_latest_backtest_summary(conn, "acct_bt") is None
+    assert services_accounts.fetch_latest_backtest_summary(conn, "acct_bt") is None
 
     conn.execute(
         """
@@ -103,13 +103,13 @@ def test_get_latest_backtest_summary_none_and_present(conn) -> None:
     )
     conn.commit()
 
-    summary = services_accounts.get_latest_backtest_summary(conn, "acct_bt")
+    summary = services_accounts.fetch_latest_backtest_summary(conn, "acct_bt")
     assert summary is not None
     assert summary["runName"] == "run-1"
     assert summary["accountName"] == "acct_bt"
 
 
-def test_get_latest_backtest_metrics_uses_summary_report(monkeypatch, conn) -> None:
+def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn) -> None:
     account_id = create_test_account(conn, "acct_metrics")
     conn.execute(
         """
@@ -131,7 +131,7 @@ def test_get_latest_backtest_metrics_uses_summary_report(monkeypatch, conn) -> N
         ),
     )
 
-    payload = services_accounts.get_latest_backtest_metrics(conn, "acct_metrics")
+    payload = services_accounts.fetch_latest_backtest_metrics(conn, "acct_metrics")
     assert payload == {
         "runId": 99,
         "endDate": "2026-01-31",

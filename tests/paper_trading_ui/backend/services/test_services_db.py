@@ -16,14 +16,14 @@ def test_db_conn_context_yields_and_closes_connection() -> None:
         conn.execute("SELECT 1")
 
 
-def test_get_account_row_found_and_missing(conn) -> None:
+def test_fetch_account_row_found_and_missing(conn) -> None:
     create_test_account(conn, "acct_lookup")
 
-    row = services_db.get_account_row(conn, "acct_lookup")
+    row = services_db.fetch_account_row(conn, "acct_lookup")
     assert row["name"] == "acct_lookup"
 
     with pytest.raises(HTTPException) as exc_info:
-        services_db.get_account_row(conn, "missing")
+        services_db.fetch_account_row(conn, "missing")
     assert exc_info.value.status_code == 404
 
 

@@ -48,7 +48,7 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
     }
 
 
-def get_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
+def fetch_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
     row = fetch_latest_backtest_run_for_account(conn, account_name=account_name)
     if row is None:
         return None
@@ -82,7 +82,7 @@ def display_strategy(account_name: str, strategy: str) -> str:
     return TEST_ACCOUNT_STRATEGY if account_name == TEST_BACKTEST_ACCOUNT_NAME else strategy
 
 
-def get_managed_account_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def fetch_managed_account_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return fetch_account_rows_excluding(conn, excluded_name=TEST_BACKTEST_ACCOUNT_NAME)
 
 
@@ -138,7 +138,7 @@ def build_trade_payload(trade: sqlite3.Row) -> dict[str, object]:
     }
 
 
-def get_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
+def fetch_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
     latest_run_id = fetch_latest_backtest_run_id_for_account(conn, account_name=account_name)
     if latest_run_id is None:
         return None

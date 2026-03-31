@@ -19,7 +19,7 @@ def db_conn() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def get_account_row(conn: sqlite3.Connection, account_name: str) -> sqlite3.Row:
+def fetch_account_row(conn: sqlite3.Connection, account_name: str) -> sqlite3.Row:
     row = fetch_account_by_name(conn, account_name)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.")

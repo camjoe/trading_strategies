@@ -8,7 +8,7 @@ from trading.models import RotationConfig
 from trading.services.accounts_service import update_account_fields_by_id
 from trading.services.admin_service import delete_accounts
 
-from .db import db_conn, get_account_row
+from .db import db_conn, fetch_account_row
 
 
 def clean_text(value: str | None) -> str | None:
@@ -23,7 +23,7 @@ def update_account_rotation_settings(
     account_name: str,
     rotation: RotationConfig,
 ) -> None:
-    account = get_account_row(conn, account_name)
+    account = fetch_account_row(conn, account_name)
     db_values = rotation.to_db_dict()
     updates = [f"{key} = ?" for key in db_values]
     params = list(db_values.values())

@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from ..config import TEST_ACCOUNT_NAME
-from ..services import fetch_account_names, get_account_row, db_conn, take_snapshot
+from ..services import fetch_account_names, fetch_account_row, db_conn, take_snapshot
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ def api_snapshot(account_name: str) -> dict[str, str]:
         return {"status": "ok", "message": "TEST Account snapshot is virtual."}
 
     with db_conn() as conn:
-        get_account_row(conn, account_name)
+        fetch_account_row(conn, account_name)
         take_snapshot(conn, account_name, snapshot_time=None)
         return {"status": "ok", "message": f"Snapshot saved for {account_name}"}
 
