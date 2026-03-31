@@ -17,9 +17,9 @@ Backtesting follows a layered structure:
 - Domain (`trading/backtesting/domain/`): pure calculations and policy helpers.
 - Entrypoint (`trading/backtesting/backtest.py`): public API composition and call routing.
 
-Detailed rationale and guardrails are in:
+Detailed rationale is in:
 
-- `docs/architecture/backtesting-layering-adr.md`
+- `docs/architecture/adr-backtesting-layering.md`
 
 ## Commands
 
@@ -74,4 +74,4 @@ Operational notes:
 
 - `trading/README.md`
 - `docs/Strategies.md`
-- `docs/architecture/backtesting-layering-adr.md`
+- `docs/architecture/adr-backtesting-layering.md`

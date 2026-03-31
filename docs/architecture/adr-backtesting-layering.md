@@ -57,16 +57,6 @@ Trade-offs:
 - More files to navigate.
 - Requires discipline to avoid slipping SQL/business logic back into entrypoint modules.
 
-## Guardrails
-
-When adding new backtesting features:
-
-1. Put SQL in repository modules.
-2. Put mapping and orchestration in service modules.
-3. Put pure calculations/rules in domain helper modules.
-4. Keep backtest.py focused on public API wrappers and high-level composition.
-5. Add contract tests for each new repository/service/helper path.
-
 ## Why Not an ORM (for now)
 
 Current needs are analytics-heavy and query-shape specific. Explicit SQL keeps intent and performance transparent. Revisit ORM only if object-graph complexity, relationship tracking, or portability pressure increases.

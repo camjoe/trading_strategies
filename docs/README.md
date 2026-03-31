@@ -18,9 +18,8 @@ python -m trading.paper_trading
 
 - `Strategies.md`: strategy hypotheses and evaluation framework.
 - `backtesting.md`: backtesting workflows, safeguards, and notes.
-- `architecture/backtesting-layering-adr.md`: decision rationale and guardrails for backtesting module layering.
-- `architecture/strategy-encapsulation-notes.md`: strategy ownership map and prompt templates for a future strategy-class refactor.
-- `architecture/runtime-job-coverage-follow-up.md`: prioritized testing backlog for low-coverage runtime and support modules.
+- `architecture/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
+- `architecture/notes-strategy-encapsulation.md`: strategy ownership map and prompt templates for a future strategy-class refactor.
 
 ## Architecture Reference
 

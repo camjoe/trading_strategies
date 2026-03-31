@@ -80,13 +80,13 @@ Return:
 1) current structure map,
 2) top 5 structural issues,
 3) low-risk refactor slices ranked by impact.
-Reference docs/architecture/strategy-encapsulation-notes.md.
+Reference docs/architecture/notes-strategy-encapsulation.md.
 ```
 
 ### Prompt: Safe First Refactor Slice
 
 ```text
-Implement the first safe slice from docs/architecture/strategy-encapsulation-notes.md:
+Implement the first safe slice from docs/architecture/notes-strategy-encapsulation.md:
 - add a StrategyRegistry class in backtesting domain,
 - preserve behavior and public APIs,
 - keep compatibility wrappers for existing resolve_strategy/resolve_signal calls,
@@ -104,7 +104,7 @@ Continue strategy encapsulation by removing string-substring strategy heuristics
 from trading/domain/auto_trader_policy.py and replacing them with explicit strategy metadata.
 Do not change business behavior.
 Add or update tests for policy decisions.
-Reference docs/architecture/strategy-encapsulation-notes.md.
+Reference docs/architecture/notes-strategy-encapsulation.md.
 ```
 
 ### Prompt: Commit Message Help
