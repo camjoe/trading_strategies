@@ -66,6 +66,7 @@
 
 Selection heuristics:
 
+- `Code Review`: reviewing changed files for regressions, architecture violations, missing tests, dependency issues — before committing or merging.
 - `Frontend Code Cleanup`: frontend-only cleanup/refactor/readability in `paper_trading_ui/frontend`.
 - `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
 - `Python Test Expansion`: adding/improving tests and coverage depth.
@@ -74,21 +75,33 @@ Selection heuristics:
 
 Suggested keyword cues for fast matching:
 
+- `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
 - `Frontend Code Cleanup`: `frontend`, `react`, `component`, `tsx`, `ui cleanup`, `vite`.
 - `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
 - `Python Test Expansion`: `tests`, `coverage`, `pytest`, `edge case`, `regression test`.
 - `Python Statistical Modeling`: `alpha`, `factor`, `timeseries`, `walk-forward`, `backtest`, `signal`.
 - `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
 
-Tie-breaker order when multiple bots match:
+- `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
 
-1. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
-2. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-3. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
-4. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-5. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
+1. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
+2. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
+3. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
+4. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
+5. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
+6. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
 If multiple bots seem valid, default to `Python Code Cleanup` and state why.
+
+# Code Review Shortcut
+
+- If a user message starts with `code review` (ignoring leading/trailing whitespace and case), invoke the `Code Review Bot` agent.
+- Accepted forms:
+  - `code review` — review all staged + unstaged changes against HEAD
+  - `code review: <branch>` — review the diff between the current branch and the given base branch
+  - `code review: <file-or-folder>` — review a specific file or folder
+- The bot reads changed files, runs linters/type-checkers, and reports findings by severity (🔴 HIGH, 🟡 MEDIUM, 🔵 LOW).
+- It does not modify any files; it only audits and reports.
 
 # Run Checks Shortcut
 
@@ -176,3 +189,7 @@ Current shortcut catalog to show:
 12. Trigger: `run all checks`
 	- Action: runs `python -m scripts.run_checks --profile ci` for docs checks, audits, and test suites.
 	- Example: `run all checks`
+
+13. Trigger: `code review` / `code review: <branch-or-file>`
+	- Action: invokes the Code Review Bot — audits staged/unstaged changes or a branch diff for architecture violations, missing tests, regressions, and dependency issues. Reports findings by severity without modifying files.
+	- Example: `code review` or `code review: main`
