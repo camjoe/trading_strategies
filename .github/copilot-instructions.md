@@ -72,6 +72,7 @@ Selection heuristics:
 - `Python Test Expansion`: adding/improving tests and coverage depth.
 - `Python Statistical Modeling`: trading/finance statistical modeling and time-series analysis.
 - `Project Structure Steward`: architecture boundaries, module ownership, dependency direction.
+- `Finance and Strategy Domain Bot`: explaining financial terminology, classifying trading strategies, interpreting signals, advising on equity mechanics and market microstructure — no implementation work.
 
 Suggested keyword cues for fast matching:
 
@@ -81,15 +82,17 @@ Suggested keyword cues for fast matching:
 - `Python Test Expansion`: `tests`, `coverage`, `pytest`, `edge case`, `regression test`.
 - `Python Statistical Modeling`: `alpha`, `factor`, `timeseries`, `walk-forward`, `backtest`, `signal`.
 - `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
+- `Finance and Strategy Domain Bot`: `terminology`, `strategy classification`, `equity mechanics`, `signal interpretation`, `market microstructure`, `order types`, `short selling`, `dividends`, `corporate actions`, `momentum`, `mean-reversion`, `arbitrage`, `carry`, `event-driven`.
 
 - `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
 
-1. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
-2. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
-3. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-4. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
-5. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-6. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
+1. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without writing code, choose `Finance and Strategy Domain Bot`.
+2. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
+3. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
+4. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
+5. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
+6. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
+7. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
 If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 
