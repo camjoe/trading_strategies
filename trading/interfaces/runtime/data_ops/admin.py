@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, cast
 
+from trading.database.db import ensure_db
 from trading.database.db_backend import SQLiteBackend, get_backend
 from trading.services.admin_service import delete_accounts
 
@@ -102,11 +103,16 @@ def _cmd_delete_accounts(args: argparse.Namespace) -> int:
         backup_path = backup_database(args.backup_destination)
         print(f"Backup created before delete: {backup_path}")
 
-    counts = delete_accounts(
-        account_names=names,
-        delete_all=bool(args.all),
-        dry_run=bool(args.dry_run),
-    )
+    conn = ensure_db()
+    try:
+        counts = delete_accounts(
+            conn,
+            account_names=names,
+            delete_all=bool(args.all),
+            dry_run=bool(args.dry_run),
+        )
+    finally:
+        conn.close()
 
     action = "Dry-run delete" if args.dry_run else "Delete"
     _print_delete_summary(action, counts)

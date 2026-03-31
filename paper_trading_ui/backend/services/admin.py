@@ -8,7 +8,7 @@ from trading.models import RotationConfig
 from trading.services.accounts_service import update_account_fields_by_id
 from trading.services.admin_service import delete_accounts
 
-from .db import get_account_row
+from .db import db_conn, get_account_row
 
 
 def clean_text(value: str | None) -> str | None:
@@ -37,11 +37,13 @@ def update_account_rotation_settings(
 
 def delete_account_and_dependents(account_name: str) -> dict[str, int]:
     try:
-        deleted = delete_accounts(
-            account_names=[account_name],
-            delete_all=False,
-            dry_run=False,
-        )
+        with db_conn() as conn:
+            deleted = delete_accounts(
+                conn,
+                account_names=[account_name],
+                delete_all=False,
+                dry_run=False,
+            )
     except ValueError as error:
         if "Accounts not found:" in str(error):
             raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from error

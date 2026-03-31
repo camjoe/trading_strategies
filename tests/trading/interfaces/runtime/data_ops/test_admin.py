@@ -107,11 +107,16 @@ class TestDeleteAccounts:
     def test_delete_accounts_dry_run_reports_counts_without_deleting(self, configured_backend: SQLiteBackend) -> None:
         _seed_admin_dataset()
 
-        counts = admin.delete_accounts(
-            account_names=["acct_a"],
-            delete_all=False,
-            dry_run=True,
-        )
+        conn = db.ensure_db()
+        try:
+            counts = admin.delete_accounts(
+                conn,
+                account_names=["acct_a"],
+                delete_all=False,
+                dry_run=True,
+            )
+        finally:
+            conn.close()
 
         assert counts == {
             "accounts": 1,
@@ -133,11 +138,16 @@ class TestDeleteAccounts:
     def test_delete_accounts_removes_target_and_related_records_only(self, configured_backend: SQLiteBackend) -> None:
         _seed_admin_dataset()
 
-        counts = admin.delete_accounts(
-            account_names=["acct_a"],
-            delete_all=False,
-            dry_run=False,
-        )
+        conn = db.ensure_db()
+        try:
+            counts = admin.delete_accounts(
+                conn,
+                account_names=["acct_a"],
+                delete_all=False,
+                dry_run=False,
+            )
+        finally:
+            conn.close()
 
         assert counts["accounts"] == 1
         assert counts["trades"] == 1
@@ -160,23 +170,33 @@ class TestDeleteAccounts:
     def test_delete_accounts_raises_for_missing_named_account(self, configured_backend: SQLiteBackend) -> None:
         _seed_admin_dataset()
 
-        with pytest.raises(ValueError, match="Accounts not found: missing"):
-            admin.delete_accounts(
-                account_names=["missing"],
-                delete_all=False,
-                dry_run=True,
-            )
+        conn = db.ensure_db()
+        try:
+            with pytest.raises(ValueError, match="Accounts not found: missing"):
+                admin.delete_accounts(
+                    conn,
+                    account_names=["missing"],
+                    delete_all=False,
+                    dry_run=True,
+                )
+        finally:
+            conn.close()
 
     def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(
         self, configured_backend: SQLiteBackend
     ) -> None:
         db.ensure_db().close()
 
-        counts = admin.delete_accounts(
-            account_names=[],
-            delete_all=True,
-            dry_run=False,
-        )
+        conn = db.ensure_db()
+        try:
+            counts = admin.delete_accounts(
+                conn,
+                account_names=[],
+                delete_all=True,
+                dry_run=False,
+            )
+        finally:
+            conn.close()
 
         assert counts == {
             "accounts": 0,
