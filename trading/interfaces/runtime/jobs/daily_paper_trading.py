@@ -15,7 +15,7 @@ from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentin
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-DEFAULT_TRADE_CAPS_CONFIG = "trading/interfaces/runtime/config/account_trade_caps.json"
+DEFAULT_TRADE_CAPS_CONFIG = "trading/config/account_trade_caps.json"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:

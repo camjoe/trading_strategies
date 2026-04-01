@@ -9,7 +9,7 @@ from trading.accounts import get_account
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.domain import auto_trader_policy
 from trading.repositories.rotation_repository import update_account_rotation_state
-from trading.rotation import (
+from trading.domain.rotation import (
     is_rotation_due,
     next_rotation_state,
     parse_rotation_schedule,

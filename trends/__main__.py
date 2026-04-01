@@ -1,15 +1,8 @@
-try:
-    from trends.charts import plot_trends
-    from trends.cli import parse_args
-    from trends.data import fetch_data
-    from trends.indicators import add_trend_features, print_indicator_explanations
-    from trends.tickers import load_ticker_categories, resolve_tickers
-except ModuleNotFoundError:
-    from charts import plot_trends
-    from cli import parse_args
-    from data import fetch_data
-    from indicators import add_trend_features, print_indicator_explanations
-    from tickers import load_ticker_categories, resolve_tickers
+from trends.charts import plot_trends
+from trends.cli import parse_args
+from trends.data import fetch_data
+from trends.indicators import add_trend_features, print_indicator_explanations
+from trends.tickers import load_ticker_categories, resolve_tickers
 
 
 def main() -> None:

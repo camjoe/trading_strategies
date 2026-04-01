@@ -5,8 +5,6 @@ from fastapi import HTTPException
 
 from paper_trading_ui.backend.services import db as services_db
 
-from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
-
 
 def test_db_conn_context_yields_and_closes_connection() -> None:
     with services_db.db_conn() as conn:
@@ -16,8 +14,8 @@ def test_db_conn_context_yields_and_closes_connection() -> None:
         conn.execute("SELECT 1")
 
 
-def test_fetch_account_row_found_and_missing(conn) -> None:
-    create_test_account(conn, "acct_lookup")
+def test_fetch_account_row_found_and_missing(conn, create_test_account) -> None:
+    create_test_account("acct_lookup")
 
     row = services_db.fetch_account_row(conn, "acct_lookup")
     assert row["name"] == "acct_lookup"
@@ -27,8 +25,8 @@ def test_fetch_account_row_found_and_missing(conn) -> None:
     assert exc_info.value.status_code == 404
 
 
-def test_get_latest_snapshot_row_prefers_latest_id_for_same_timestamp(conn) -> None:
-    account_id = create_test_account(conn, "acct_snapshots")
+def test_get_latest_snapshot_row_prefers_latest_id_for_same_timestamp(conn, create_test_account) -> None:
+    account_id = create_test_account("acct_snapshots")
     conn.execute(
         """
         INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)

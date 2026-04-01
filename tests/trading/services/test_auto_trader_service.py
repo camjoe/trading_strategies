@@ -8,7 +8,7 @@ import trading.services.rotation_service as rotation_service
 from trading.accounts import create_account, get_account
 from trading.coercion import coerce_float
 from trading.repositories.rotation_repository import update_account_rotation_state
-from trading.rotation import next_rotation_state, parse_rotation_schedule, resolve_active_strategy, resolve_optimality_mode, resolve_rotation_mode
+from trading.domain.rotation import next_rotation_state, parse_rotation_schedule, resolve_active_strategy, resolve_optimality_mode, resolve_rotation_mode
 from trading.services.auto_trader_service import RotationDeps
 
 

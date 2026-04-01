@@ -1,10 +1,14 @@
 import sqlite3
+from datetime import date
+
+from common.market_data import get_provider
 from common.time import utc_now_iso
 from trading.accounts import get_account
 from trading.accounting import compute_account_state, load_trades
 from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
 from trading.models import AccountState
-from trading.pricing import benchmark_stats, fetch_latest_prices
+from trading.services.pricing_service import benchmark_stats as _benchmark_stats_svc
+from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
 from trading.repositories import (
     fetch_account_listing_rows,
     fetch_recent_equity_rows,
@@ -20,6 +24,22 @@ from trading.services.reporting_service import (
     positions_summary_text,
     strategy_return_pct,
 )
+
+
+def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
+    """Module-level adapter: inject provider and delegate to pricing_service."""
+    return _fetch_prices_svc(tickers, fetch_close_series_fn=get_provider().fetch_close_series)
+
+
+def benchmark_stats(
+    benchmark_ticker: str, initial_cash: float, created_at: str
+) -> tuple[float | None, float | None]:
+    """Module-level adapter: inject provider and delegate to pricing_service."""
+    return _benchmark_stats_svc(
+        benchmark_ticker, initial_cash, created_at,
+        fetch_close_history_fn=get_provider().fetch_close_history,
+        today_fn=date.today,
+    )
 
 
 def _print_leaps_params(account: sqlite3.Row) -> None:

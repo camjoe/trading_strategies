@@ -12,7 +12,7 @@ from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
-from trading.profiles import apply_account_profiles, load_account_profiles
+from trading.services.profiles_service import apply_account_profiles, load_account_profiles
 from trading.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 
 

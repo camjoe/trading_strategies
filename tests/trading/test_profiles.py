@@ -3,7 +3,7 @@ import json
 import pytest
 
 from trading.accounts import get_account
-from trading.profiles import apply_account_profiles, load_account_profiles
+from trading.services.profiles_service import apply_account_profiles, load_account_profiles
 
 
 class TestLoadAccountProfiles:

@@ -12,8 +12,6 @@ from paper_trading_ui.backend.config import (
     TEST_BACKTEST_ACCOUNT_NAME,
 )
 
-from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
-
 
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -79,18 +77,18 @@ def test_build_backtest_run_summary_uses_display_transforms(conn) -> None:
     assert payload["feePerTrade"] == 1.25
 
 
-def test_fetch_managed_account_rows_excludes_shadow_account(conn) -> None:
-    create_test_account(conn, "acct_one")
-    create_test_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
-    create_test_account(conn, "acct_two")
+def test_fetch_managed_account_rows_excludes_shadow_account(conn, create_test_account) -> None:
+    create_test_account("acct_one")
+    create_test_account(TEST_BACKTEST_ACCOUNT_NAME)
+    create_test_account("acct_two")
 
     rows = services_accounts.fetch_managed_account_rows(conn)
     names = [str(row["name"]) for row in rows]
     assert names == ["acct_one", "acct_two"]
 
 
-def test_fetch_latest_backtest_summary_none_and_present(conn) -> None:
-    account_id = create_test_account(conn, "acct_bt")
+def test_fetch_latest_backtest_summary_none_and_present(conn, create_test_account) -> None:
+    account_id = create_test_account("acct_bt")
 
     assert services_accounts.fetch_latest_backtest_summary(conn, "acct_bt") is None
 
@@ -109,8 +107,8 @@ def test_fetch_latest_backtest_summary_none_and_present(conn) -> None:
     assert summary["accountName"] == "acct_bt"
 
 
-def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn) -> None:
-    account_id = create_test_account(conn, "acct_metrics")
+def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, create_test_account) -> None:
+    account_id = create_test_account("acct_metrics")
     conn.execute(
         """
         INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)

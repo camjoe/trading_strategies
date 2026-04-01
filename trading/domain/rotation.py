@@ -6,7 +6,6 @@ from typing import Mapping
 
 from trading.coercion import coerce_int
 
-
 ROTATION_MODES = {"time", "optimal"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return"}
 

@@ -7,7 +7,7 @@ from common.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
 from trading.database.db import ensure_db
 from trading.profile_source import DEFAULT_TICKERS_FILE
-from trading.pricing import fetch_latest_prices
+from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
 from trading.services.auto_trader_service import (
     build_iv_rank_proxy as build_iv_rank_proxy_impl,
     resolve_account_names as resolve_account_names_impl,
@@ -20,6 +20,11 @@ from trading.services.auto_trader_runtime_service import run_for_account as run_
 PROJECT_ROOT = get_repo_root(__file__)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
+    """Module-level adapter: inject provider and delegate to pricing_service."""
+    return _fetch_prices_svc(tickers, fetch_close_series_fn=get_provider().fetch_close_series)
 
 
 def parse_args() -> argparse.Namespace:

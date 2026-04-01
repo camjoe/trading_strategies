@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from scripts.documentation_ui.common.io import load_json
+from scripts.documentation_ui.io_utils.io import load_json
 from scripts.documentation_ui.software.registry import (
     normalize_package_name,
     parse_requirements,

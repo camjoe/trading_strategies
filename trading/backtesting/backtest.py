@@ -20,7 +20,7 @@ from trading.models.backtesting import (
     WalkForwardSummary,
 )
 from trading.models.backtesting_reports import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
-from trading.rotation import resolve_active_strategy
+from trading.domain.rotation import resolve_active_strategy
 
 from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings

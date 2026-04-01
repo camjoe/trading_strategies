@@ -1,7 +1,9 @@
-"""Trading-layer coercion helpers.
+"""Stable boundary adapter for database coercion utilities.
 
-This module provides a stable boundary for trading/domain code so callsites do
-not depend directly on database implementation modules.
+Architecture: deliberate bounded-context adapter — domain and service code
+imports coercion helpers from here rather than directly from
+trading.database.db_coercion, keeping the database implementation detail
+behind a stable interface. Do not remove without updating all callers.
 """
 
 from __future__ import annotations
