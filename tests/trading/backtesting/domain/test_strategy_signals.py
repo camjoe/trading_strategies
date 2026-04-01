@@ -14,6 +14,11 @@ def _series_range(start: int, stop: int) -> pd.Series:
     return pd.Series([float(i) for i in range(start, stop)])
 
 
+def _series_steady(length: int = 80, base: float = 100.0, step: float = 0.1) -> pd.Series:
+    """Steady upward series long enough for all strategy min-history thresholds."""
+    return pd.Series([base + float(i) * step for i in range(length)])
+
+
 def _feature_history(**columns: list[float]) -> pd.DataFrame:
     first_column = next(iter(columns.values()))
     return pd.DataFrame(
@@ -261,3 +266,181 @@ def test_hypothesis_resolve_signal_outputs_known_actions(
 
     signal = strategy_signals.resolve_signal(strategy_id, history, features)
     assert signal in {"buy", "sell", "hold"}
+
+
+# ---------------------------------------------------------------------------
+# Inf / NaN guard regression tests
+# ---------------------------------------------------------------------------
+
+
+def _full_features(length: int) -> pd.DataFrame:
+    """Feature history with all proxy columns present and well-formed."""
+    return _feature_history(
+        topic_proxy_available=[1.0] * length,
+        topic_proxy_rel_strength=[0.05] * length,
+        topic_proxy_trend_gap=[0.05] * length,
+        macro_risk_on_score=[0.2] * length,
+        macro_vix_pressure=[0.05] * length,
+        macro_equity_bond_spread=[0.1] * length,
+    )
+
+
+class TestSignalInfAtLastPositionReturnsHold:
+    """Strategies with explicit close guards must return 'hold' when the most
+    recent price is non-finite, not a spurious buy/sell based on garbage data."""
+
+    @pytest.mark.parametrize(
+        "strategy_id",
+        ["trend", "mean_reversion", "breakout", "bollinger_mean_reversion"],
+    )
+    def test_pos_inf_close_returns_hold(self, strategy_id: str) -> None:
+        history = _series_steady()
+        history.iloc[-1] = float("inf")
+
+        signal = strategy_signals.resolve_signal(strategy_id, history)
+
+        assert signal == "hold"
+
+    @pytest.mark.parametrize(
+        "strategy_id",
+        ["trend", "mean_reversion", "breakout", "bollinger_mean_reversion"],
+    )
+    def test_neg_inf_close_returns_hold(self, strategy_id: str) -> None:
+        history = _series_steady()
+        history.iloc[-1] = float("-inf")
+
+        signal = strategy_signals.resolve_signal(strategy_id, history)
+
+        assert signal == "hold"
+
+    def test_inf_close_returns_hold_for_pullback_trend(self) -> None:
+        history = _series_steady(length=80)
+        history.iloc[-1] = float("inf")
+
+        assert strategy_signals.resolve_signal("pullback_trend", history) == "hold"
+
+    def test_inf_close_returns_hold_for_ma_crossover(self) -> None:
+        history = _series_steady(length=80)
+        history.iloc[-1] = float("inf")
+
+        assert strategy_signals.resolve_signal("ma_crossover", history) == "hold"
+
+    def test_inf_close_returns_hold_for_volatility_filtered_trend(self) -> None:
+        history = _series_steady(length=80)
+        history.iloc[-1] = float("inf")
+
+        assert strategy_signals.resolve_signal("volatility_filtered_trend", history) == "hold"
+
+    def test_inf_close_returns_hold_for_topic_proxy_rotation(self) -> None:
+        history = _series_steady(length=80)
+        history.iloc[-1] = float("inf")
+        features = _full_features(80)
+
+        assert strategy_signals.resolve_signal("topic_proxy_rotation", history, features) == "hold"
+
+    def test_inf_close_returns_hold_for_macro_proxy_regime(self) -> None:
+        history = _series_steady(length=80)
+        history.iloc[-1] = float("inf")
+        features = _full_features(80)
+
+        assert strategy_signals.resolve_signal("macro_proxy_regime", history, features) == "hold"
+
+
+class TestSignalInfInSmaWindowReturnsHold:
+    """When inf contaminates a recent SMA window (but NOT the last price), signal
+    functions that guard SMAs must return 'hold' rather than a spurious buy/sell."""
+
+    def test_inf_in_trend_sma_window_returns_hold(self) -> None:
+        # Close is finite (200.0), but inf at -5 lands inside both SMA windows.
+        history = _series_steady(length=80, base=100.0)
+        history.iloc[-5] = float("inf")
+
+        assert strategy_signals.resolve_signal("trend", history) == "hold"
+
+    def test_inf_in_mean_reversion_sma_window_returns_hold(self) -> None:
+        # Without the sma_mid guard: sma_mid = inf → close < inf → spurious "buy".
+        history = pd.Series([100.0] * 79 + [80.0])
+        history.iloc[-15] = float("inf")
+
+        assert strategy_signals.resolve_signal("mean_reversion", history) == "hold"
+
+    def test_inf_in_breakout_prior_window_returns_hold(self) -> None:
+        history = _series_steady(length=80, base=100.0)
+        history.iloc[-10] = float("inf")
+
+        assert strategy_signals.resolve_signal("breakout", history) == "hold"
+
+    def test_inf_in_ma_crossover_window_returns_hold(self) -> None:
+        history = _series_steady(length=80, base=100.0)
+        history.iloc[-10] = float("inf")
+
+        assert strategy_signals.resolve_signal("ma_crossover", history) == "hold"
+
+
+class TestFeatureValueInfGuard:
+    """_feature_value must treat inf feature values as unavailable → 'hold'."""
+
+    def test_inf_proxy_available_treated_as_missing(self) -> None:
+        history = _series_steady(length=80, base=100.0, step=0.7)
+        features = _feature_history(
+            topic_proxy_available=[float("inf")] * 80,
+            topic_proxy_rel_strength=[0.05] * 80,
+            topic_proxy_trend_gap=[0.05] * 80,
+        )
+
+        # proxy_available = inf → treated as None → "hold"
+        assert strategy_signals.resolve_signal("topic_proxy_rotation", history, features) == "hold"
+
+    def test_inf_macro_feature_treated_as_missing(self) -> None:
+        history = _series_steady(length=80, base=100.0, step=0.5)
+        features = _feature_history(
+            macro_risk_on_score=[float("inf")] * 80,
+            macro_vix_pressure=[0.05] * 80,
+            macro_equity_bond_spread=[0.1] * 80,
+        )
+
+        # risk_on_score = inf → treated as None → "hold"
+        assert strategy_signals.resolve_signal("macro_proxy_regime", history, features) == "hold"
+
+
+# ---------------------------------------------------------------------------
+# Hypothesis: inf/NaN inputs never raise exceptions and produce valid signals
+# ---------------------------------------------------------------------------
+
+
+@settings(max_examples=30, deadline=None)
+@given(
+    strategy_id=st.sampled_from(
+        [
+            "trend",
+            "mean_reversion",
+            "rsi",
+            "macd",
+            "breakout",
+            "pullback_trend",
+            "bollinger_mean_reversion",
+            "ma_crossover",
+            "volatility_filtered_trend",
+        ]
+    ),
+    history_values=st.lists(
+        st.floats(min_value=1.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+        min_size=30,
+        max_size=90,
+    ),
+    inf_positions=st.lists(st.integers(min_value=0, max_value=89), min_size=0, max_size=3),
+)
+def test_hypothesis_inf_in_history_never_raises(
+    strategy_id: str,
+    history_values: list[float],
+    inf_positions: list[int],
+) -> None:
+    history = pd.Series(history_values)
+    for pos in inf_positions:
+        if pos < len(history):
+            history.iloc[pos] = float("inf")
+
+    # Must not raise; output must be a valid signal token.
+    signal = strategy_signals.resolve_signal(strategy_id, history)
+    assert signal in {"buy", "sell", "hold"}
+
