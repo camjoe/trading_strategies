@@ -1,4 +1,8 @@
+import math
+
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from trading.domain.returns import safe_return_pct
 
@@ -43,3 +47,42 @@ class TestSafeReturnPct:
 
         safe_return_pct(50.0, 75.0, coerce_float_fn=tracking_coerce)
         assert calls == [50.0, 75.0]
+
+
+class TestSafeReturnPctNaNAndInfGuards:
+    """Guard tests: NaN and inf inputs must not silently produce non-None garbage."""
+
+    def test_nan_start_returns_none(self) -> None:
+        # float("nan") <= 0 is False, so nan silently passes the existing guard
+        # without the math.isfinite check — this pinpoints the regression risk.
+        assert safe_return_pct(float("nan"), 110.0, coerce_float_fn=_coerce) is None
+
+    def test_nan_end_returns_none(self) -> None:
+        assert safe_return_pct(100.0, float("nan"), coerce_float_fn=_coerce) is None
+
+    def test_pos_inf_start_returns_none(self) -> None:
+        # +inf > 0, so the <= 0 guard does not catch it without isfinite.
+        assert safe_return_pct(float("inf"), 110.0, coerce_float_fn=_coerce) is None
+
+    def test_neg_inf_start_returns_none(self) -> None:
+        # -inf is already caught by <= 0, but isfinite provides defence-in-depth.
+        assert safe_return_pct(float("-inf"), 110.0, coerce_float_fn=_coerce) is None
+
+    def test_pos_inf_end_returns_none(self) -> None:
+        assert safe_return_pct(100.0, float("inf"), coerce_float_fn=_coerce) is None
+
+    def test_neg_inf_end_returns_none(self) -> None:
+        assert safe_return_pct(100.0, float("-inf"), coerce_float_fn=_coerce) is None
+
+    @settings(max_examples=60, deadline=None)
+    @given(
+        start=st.floats(min_value=1.0, max_value=1_000_000.0, allow_nan=False, allow_infinity=False),
+        end=st.floats(min_value=0.01, max_value=1_000_000.0, allow_nan=False, allow_infinity=False),
+    )
+    def test_hypothesis_valid_inputs_return_finite_result(
+        self, start: float, end: float
+    ) -> None:
+        result = safe_return_pct(start, end, coerce_float_fn=_coerce)
+        assert result is not None
+        assert isinstance(result, float)
+        assert math.isfinite(result)

@@ -25,6 +25,20 @@ Scope includes related non-Python files that support readability and maintainabi
 - DO NOT mix unrelated refactors into a single change set.
 - ONLY make focused, high-signal refactors that improve readability, structure, and maintainability.
 
+## Permitted Shell Commands
+Run only the commands listed below. Do not run git commands.
+
+Python scope:
+- `python -m pytest` — full or focused test run
+- `python -m mypy <scope>` — type checking
+- `python -m ruff check <scope>` — linting
+- `python -m scripts.run_checks --profile quick` — quick validation
+
+Frontend scope (mixed tasks only):
+- `npm run lint` — from `paper_trading_ui/frontend`
+- `npm run typecheck` — from `paper_trading_ui/frontend`
+- `npx vitest run <test-file>` — focused frontend tests
+
 ## Approach
 1. Understand current behavior and constraints.
 - Identify inputs/outputs, side effects, invariants, and public interfaces.

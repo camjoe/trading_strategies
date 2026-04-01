@@ -24,6 +24,14 @@ Primary objective: improve test quality and coverage while preserving production
 - DO NOT add brittle tests that overfit implementation details.
 - ONLY add tests that improve behavioral guarantees and maintainability.
 
+## Permitted Shell Commands
+Run only the commands listed below. Do not run git commands.
+
+- `python -m pytest` — full or focused test run
+- `python -m pytest <path>` — targeted test execution
+- `python -m mypy <scope>` — type checking on touched modules
+- `python -m scripts.run_checks --profile quick` — quick validation
+
 ## Test Design Priorities
 1. Happy-path correctness
 - Confirm expected outputs and side effects for normal inputs.

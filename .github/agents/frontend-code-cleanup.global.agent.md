@@ -19,6 +19,14 @@ Primary scope is `paper_trading_ui/frontend`.
 - DO NOT weaken TypeScript typing to silence errors.
 - ONLY make focused refactors that improve readability, maintainability, and testability.
 
+## Permitted Shell Commands
+Run only the commands listed below. Do not run git commands or Python commands.
+
+- `npm run lint` — from `paper_trading_ui/frontend`
+- `npm run typecheck` — from `paper_trading_ui/frontend`
+- `npm run test:coverage` — from `paper_trading_ui/frontend`
+- `npx vitest run <test-file>` — for running focused tests
+
 ## Approach
 1. Understand behavior and constraints.
 - Identify component inputs/outputs, side effects, and backend API dependencies.
