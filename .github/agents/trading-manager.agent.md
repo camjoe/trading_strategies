@@ -71,7 +71,7 @@ Run only the commands listed below.
 
 Project manager:
 - `python tools/project_manager/scripts/db_write.py <subcommand>` — read/write project database
-- `python tools/project_manager/scripts/generate_commit_context.py` — commit context generation
+- `py tools/project_manager/scripts/commit_context` — commit context generation
 
 Validation:
 - `python -m scripts.run_checks --profile quick` — quick project health check

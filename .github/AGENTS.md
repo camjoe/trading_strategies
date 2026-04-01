@@ -101,7 +101,7 @@ Use this list for workspace-level "always allow" command approvals:
 - `npm run test:coverage` (from `paper_trading_ui/frontend`)
 - `python tools/project_manager/scripts/db_write.py list-items`
 - `python tools/project_manager/scripts/db_write.py list-bots`
-- `python tools/project_manager/scripts/generate_commit_context.py`
+- `py tools/project_manager/scripts/commit_context`
 
 Note: approval prompts are controlled by your VS Code/Copilot environment; this file documents the intended allowlist.
 
@@ -120,7 +120,7 @@ This table summarises the policy at a glance:
 | Project Structure Steward (`*.global`) | `pytest`, `mypy`, `scripts.run_checks --profile quick\|ci` | ✅ Read-only (`diff`, `log`, `status`, `show`) |
 | Task Runner (`*.global`) | `db_write.py`, `scripts.run_checks --profile quick`, `gh pr create` | ✅ Read+Write (`checkout -b`, `commit`, `push`; never `merge`/`rebase`/`reset`) |
 | Python Statistical Modeling | `pytest`, `mypy`, `python -m trading.*`, `scripts.run_checks --profile quick` | ❌ None |
-| Trading Manager | `db_write.py`, `generate_commit_context.py`, `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`) |
+| Trading Manager | `db_write.py`, `scripts/commit_context`, `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`) |
 | Finance and Strategy Domain Bot | `scripts.run_checks --profile quick` (read-only health check only) | ❌ None |
 | DB Migration Steward | `pytest` (db/migration/schema tests), `mypy trading/database/`, `scripts.run_checks --profile quick` | ❌ None |
 

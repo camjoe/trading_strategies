@@ -26,7 +26,7 @@ Run only the commands listed below. Do not run git commands.
 - `python -m mypy <scope>` — type checking
 - `python -m trading.<module>` — run trading module entrypoints for backtesting/validation
 - `python -m scripts.run_checks --profile quick` — quick validation
-- `python tools/project_manager/scripts/generate_commit_context.py` — commit context generation (read-only)
+- `py tools/project_manager/scripts/commit_context` — commit context generation (read-only)
 
 ## Approach
 1. Clarify objective and setup.

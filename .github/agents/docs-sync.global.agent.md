@@ -105,7 +105,7 @@ Documentation checks:
 
 Read-only inspection (if available in the host project):
 - `python -m scripts.reference_docs.check` — validate reference doc sync status
-- `python tools/project_manager/scripts/generate_commit_context.py` — inspect project-manager and doc precheck state
+- `py tools/project_manager/scripts/commit_context` — inspect project-manager and doc precheck state
 
 No other shell commands are permitted.
 

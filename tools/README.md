@@ -15,7 +15,7 @@ For commit-context usage and documentation precheck details, see:
 
 Recent tooling note:
 
-- `tools/project_manager/scripts/generate_commit_context.py` provides commit-context summaries and documentation precheck guidance.
+- `tools/project_manager/scripts/commit_context` provides commit-context summaries and documentation precheck guidance.
 
 Additional workflow notes:
 
