@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Callable
 
 
@@ -12,6 +13,8 @@ def safe_return_pct(
     start = coerce_float_fn(starting_equity)
     end = coerce_float_fn(ending_equity)
     if start is None or end is None:
+        return None
+    if not math.isfinite(start) or not math.isfinite(end):
         return None
     if start <= 0:
         return None
