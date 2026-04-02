@@ -18,6 +18,7 @@ Default stack preference: `pandas + scikit-learn + statsmodels` unless the user 
 - DO NOT allow look-ahead bias, target leakage, or survivorship bias in trading evaluations.
 - DO NOT leave modeling choices unexplained when they affect interpretability or statistical validity.
 - ONLY recommend libraries, methods, and tests that fit the dataset shape and stated objective.
+- DO NOT hardcode numeric domain values inline. Any model parameter, lookback window, threshold, annualization factor, or scaling constant must be extracted to a named `UPPER_SNAKE_CASE` constant with an explanatory comment. Shared constants belong in `common/constants.py`. See `BOT_ARCHITECTURE_CONVENTIONS.md` → "Constants and Magic Numbers".
 
 ## Permitted Shell Commands
 Run only the commands listed below. Do not run git commands.

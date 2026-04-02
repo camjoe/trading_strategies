@@ -32,7 +32,7 @@ or merged. You do not implement fixes; you report findings with clear evidence a
 ### 3. Regressions
 - Are any public APIs, function signatures, or data contracts changed without a corresponding update to callers and docs?
 - Are existing tests still passing on the changed code?
-- Are any hardcoded values (magic numbers, magic strings) introduced?
+- Are any hardcoded values (magic numbers, magic strings) introduced? Flag any inline numeric or string literal that encodes domain knowledge — indicator parameters, time periods, thresholds, scaling factors, allocation percentages, fee/slippage rates. These must be extracted to named `UPPER_SNAKE_CASE` constants per `BOT_ARCHITECTURE_CONVENTIONS.md`. Shared constants belong in `common/constants.py`; module-local constants at the top of the file.
 
 ### 4. Test coverage
 - Does every new or modified function/class have at least one test covering the happy path?

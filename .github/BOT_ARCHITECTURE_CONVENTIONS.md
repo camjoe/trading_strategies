@@ -62,6 +62,23 @@ Disallowed:
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
+## Constants and Magic Numbers
+
+All bots must follow this rule when writing or reviewing Python code:
+
+1. Do not introduce numeric or string literals that represent a named financial, mathematical, or domain concept inline in logic.
+2. Any value that has a name in the domain (e.g., RSI window, annualization factor, basis points divisor, threshold, floor, cap) must be extracted to a named constant in `UPPER_SNAKE_CASE`.
+3. Prefer placing shared cross-module constants in `common/constants.py`. Place module-local constants at the top of the file where they are used.
+4. Include a short explanatory comment above each constant stating what it represents and why it has that value.
+5. This applies to: indicator parameters, time periods, scaling factors, thresholds, allocation percentages, fee/slippage rates, and any other value that encodes domain knowledge.
+
+Examples of violations to flag or fix:
+- `returns.std() * (252 ** 0.5)` → should use `TRADING_DAYS_PER_YEAR`
+- `elapsed >= interval * 86400` → should use `SECONDS_PER_DAY`
+- `slippage / 10_000` → should use `BASIS_POINTS_DIVISOR`
+- `if rsi > 70` → should use `RSI_OVERBOUGHT`
+- `allocation * 0.10` → should use a named `POSITION_SIZE_PCT` constant
+
 ## Naming Conventions
 
 General Python:

@@ -50,7 +50,13 @@ Frontend scope (mixed tasks only):
 - Remove dead code, duplicated logic, and unnecessary branching.
 - Consolidate repeated patterns into reusable utilities when local context supports it.
 
-3. Make code more Pythonic and readable.
+3. Extract magic numbers and domain literals.
+- Identify any inline numeric or string literal that encodes domain knowledge: indicator parameters, time periods, thresholds, scaling factors, allocation percentages, fee/slippage rates, etc.
+- Extract each to a named `UPPER_SNAKE_CASE` constant with a short explanatory comment.
+- Place shared cross-module constants in `common/constants.py`; place module-local constants at the top of the file.
+- See `BOT_ARCHITECTURE_CONVENTIONS.md` → "Constants and Magic Numbers" for the full rule and examples.
+
+4. Make code more Pythonic and readable.
 - Prefer straightforward standard-library patterns and idiomatic constructs.
 - Improve naming for intent clarity.
 - Reduce indentation depth and cognitive load.

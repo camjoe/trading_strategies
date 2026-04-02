@@ -6,6 +6,8 @@ from typing import Mapping
 
 from trading.utils.coercion import coerce_int
 
+from common.constants import SECONDS_PER_DAY
+
 ROTATION_MODES = {"time", "optimal"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return"}
 
@@ -135,7 +137,7 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
         return True
 
     elapsed_seconds = (now - last_rotation).total_seconds()
-    return elapsed_seconds >= (interval_days * 86400)
+    return elapsed_seconds >= (interval_days * SECONDS_PER_DAY)
 
 
 def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dict[str, object]:

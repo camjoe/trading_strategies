@@ -5,6 +5,60 @@ from typing import Any, Protocol
 
 from trading.models import AccountState
 
+# ---------------------------------------------------------------------------
+# Order sizing
+# ---------------------------------------------------------------------------
+
+# Maximum quantity for a single randomized buy or sell order
+MAX_ORDER_QTY = 5
+
+# ---------------------------------------------------------------------------
+# Delta estimation (monotonic strike-offset → delta mapping)
+# ---------------------------------------------------------------------------
+
+# Floor and cap keep the estimate in a realistic delta range
+DELTA_FLOOR = 0.05
+DELTA_CAP = 0.95
+
+# Baseline delta for an at-the-money option (slightly above 0.50 by convention)
+DELTA_ATM_ESTIMATE = 0.55
+
+# ---------------------------------------------------------------------------
+# Option premium estimation
+# ---------------------------------------------------------------------------
+
+# Fallback DTE midpoint (~8 months) when no DTE range is provided by the account
+DEFAULT_DTE_MIDPOINT = 240.0
+
+# Bounds on the time-decay factor used in the simplified premium formula
+TIME_FACTOR_MIN = 0.08
+TIME_FACTOR_MAX = 0.35
+
+# Scales DTE to a [0, 1) range before clamping; chosen so a 1-year DTE (~365 days)
+# maps to a time factor of ~0.365 before clamping.
+TIME_FACTOR_DTE_SCALE = 1_000.0
+
+# Additive base in the delta-factor component of the premium formula
+DELTA_BASE_FACTOR = 0.4
+
+# Minimum option premium in dollars; prevents near-zero or negative estimates
+OPTION_PREMIUM_FLOOR = 0.5
+
+# ---------------------------------------------------------------------------
+# Side-selection sell bias by strategy type
+# ---------------------------------------------------------------------------
+
+# Default probability of choosing to sell when no strategy context is available
+SELL_BIAS_DEFAULT = 0.35
+
+# Lower sell pressure for trend-following / momentum / breakout strategies
+# (let winners run)
+SELL_BIAS_TREND_MOMENTUM = 0.20
+
+# Higher sell pressure for mean-reversion / RSI strategies
+# (take profits closer to the mean)
+SELL_BIAS_MEAN_REVERSION = 0.45
+
 
 class AccountConfig(Protocol):
     def __getitem__(self, key: str) -> Any: ...
@@ -14,19 +68,19 @@ def choose_buy_qty(cash: float, price: float, fee: float) -> int:
     max_qty = int((cash - fee) // price)
     if max_qty < 1:
         return 0
-    return random.randint(1, min(5, max_qty))
+    return random.randint(1, min(MAX_ORDER_QTY, max_qty))
 
 
 def choose_sell_qty(position_qty: float) -> int:
     max_qty = int(position_qty)
     if max_qty < 1:
         return 0
-    return random.randint(1, min(5, max_qty))
+    return random.randint(1, min(MAX_ORDER_QTY, max_qty))
 
 
 def estimate_delta(abs_strike_offset_pct: float) -> float:
     # Simple monotonic mapping: farther OTM implies lower delta.
-    return max(0.05, min(0.95, 0.55 - (abs(abs_strike_offset_pct) / 100.0)))
+    return max(DELTA_FLOOR, min(DELTA_CAP, DELTA_ATM_ESTIMATE - (abs(abs_strike_offset_pct) / 100.0)))
 
 
 def estimate_option_premium(
@@ -35,7 +89,7 @@ def estimate_option_premium(
     min_dte: int | None,
     max_dte: int | None,
 ) -> float:
-    dte_mid = 240.0
+    dte_mid = DEFAULT_DTE_MIDPOINT
     if min_dte is not None and max_dte is not None:
         dte_mid = (float(min_dte) + float(max_dte)) / 2.0
     elif min_dte is not None:
@@ -43,10 +97,10 @@ def estimate_option_premium(
     elif max_dte is not None:
         dte_mid = float(max_dte)
 
-    time_factor = max(0.08, min(0.35, dte_mid / 1000.0))
-    delta_factor = 0.4 + delta_est
+    time_factor = max(TIME_FACTOR_MIN, min(TIME_FACTOR_MAX, dte_mid / TIME_FACTOR_DTE_SCALE))
+    delta_factor = DELTA_BASE_FACTOR + delta_est
     premium = underlying_price * time_factor * delta_factor
-    return max(0.5, premium)
+    return max(OPTION_PREMIUM_FLOOR, premium)
 
 
 def option_candidate_allowed(
@@ -220,12 +274,12 @@ def choose_side(
     if forced_sell is not None:
         return "sell"
 
-    bias = 0.35
+    bias = SELL_BIAS_DEFAULT
     strategy = (strategy_name or "").strip().lower()
     if "trend" in strategy or "momentum" in strategy or "breakout" in strategy:
-        bias = 0.20
+        bias = SELL_BIAS_TREND_MOMENTUM
     elif "mean" in strategy or "reversion" in strategy or "rsi" in strategy:
-        bias = 0.45
+        bias = SELL_BIAS_MEAN_REVERSION
 
     if can_sell and random.random() < bias:
         return "sell"

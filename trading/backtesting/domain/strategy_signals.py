@@ -8,8 +8,19 @@ import pandas as pd
 
 from trading.backtesting.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
 
+from common.constants import (
+    MACD_MIN_HISTORY,
+    RSI_DEFAULT_WINDOW,
+    RSI_OVERBOUGHT,
+    RSI_OVERSOLD,
+    TRADING_DAYS_PER_YEAR,
+)
+
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
+
+# Minimum fraction of available proxy data required to trust a topic-proxy feature signal
+PROXY_AVAILABILITY_THRESHOLD = 0.5
 
 
 @dataclass(frozen=True)
@@ -87,9 +98,9 @@ def _rsi_signal(
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    window = int(params.get("window", 14))
-    oversold = float(params.get("oversold", 30))
-    overbought = float(params.get("overbought", 70))
+    window = int(params.get("window", RSI_DEFAULT_WINDOW))
+    oversold = float(params.get("oversold", RSI_OVERSOLD))
+    overbought = float(params.get("overbought", RSI_OVERBOUGHT))
     min_history = max(30, window + 1)
     if len(history) < min_history:
         return "hold"
@@ -110,7 +121,7 @@ def _macd_signal(
     _params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    if len(history) < 35:
+    if len(history) < MACD_MIN_HISTORY:
         return "hold"
 
     macd, macd_signal, _hist = calculate_macd(history)
@@ -266,7 +277,7 @@ def _volatility_filtered_trend_signal(
     recent_returns = returns.tail(vol_window)
     if recent_returns.empty:
         return "hold"
-    annualized_vol_pct = float(recent_returns.std(ddof=0) * (252**0.5) * 100.0)
+    annualized_vol_pct = float(recent_returns.std(ddof=0) * (TRADING_DAYS_PER_YEAR**0.5) * 100.0)
     if pd.isna(annualized_vol_pct) or annualized_vol_pct > max_annualized_vol_pct:
         return "hold"
 
@@ -295,7 +306,7 @@ def _topic_proxy_rotation_signal(
     proxy_available = _feature_value(feature_history, "topic_proxy_available")
     rel_strength = _feature_value(feature_history, "topic_proxy_rel_strength")
     trend_gap = _feature_value(feature_history, "topic_proxy_trend_gap")
-    if proxy_available is None or proxy_available < 0.5 or rel_strength is None or trend_gap is None:
+    if proxy_available is None or proxy_available < PROXY_AVAILABILITY_THRESHOLD or rel_strength is None or trend_gap is None:
         return "hold"
 
     close = float(history.iloc[-1])
@@ -370,7 +381,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "rsi": StrategySpec(
         strategy_id="rsi",
         signal_fn=_rsi_signal,
-        default_params={"window": 14, "oversold": 30, "overbought": 70},
+        default_params={"window": RSI_DEFAULT_WINDOW, "oversold": RSI_OVERSOLD, "overbought": RSI_OVERBOUGHT},
         aliases=("rsi_strategy",),
         description="RSI threshold strategy.",
     ),
