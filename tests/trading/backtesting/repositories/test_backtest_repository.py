@@ -8,7 +8,7 @@ from trading.backtesting.repositories.backtest_repository import (
     insert_backtest_snapshot,
     insert_backtest_trade,
 )
-from trading.models.backtesting import BacktestConfig
+from trading.backtesting.models import BacktestConfig
 
 
 def _cfg() -> BacktestConfig:

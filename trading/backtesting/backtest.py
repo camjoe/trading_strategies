@@ -12,14 +12,14 @@ from trading.coercion import (
     row_expect_int,
     row_expect_str,
 )
-from trading.models.backtesting import (
+from trading.backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
     WalkForwardConfig,
     WalkForwardSummary,
 )
-from trading.models.backtesting_reports import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
+from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 from trading.domain.rotation import resolve_active_strategy
 
 from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct

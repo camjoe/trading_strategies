@@ -15,7 +15,7 @@ from trading.backtesting.repositories.report_repository import (
     fetch_recent_backtest_runs as _repo_fetch_recent_backtest_runs,
 )
 from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-from trading.models.backtesting_reports import (
+from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,

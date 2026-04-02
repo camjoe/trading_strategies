@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from statistics import median
 
-from trading.models.backtesting import BacktestConfig, WalkForwardSummary
+from trading.backtesting.models import BacktestConfig, WalkForwardSummary
 
 
 def execute_walk_forward_backtest(

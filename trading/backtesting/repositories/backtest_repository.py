@@ -4,7 +4,7 @@ import sqlite3
 from datetime import date
 
 from common.time import utc_now_iso
-from trading.models.backtesting import BacktestConfig
+from trading.backtesting.models import BacktestConfig
 
 
 def insert_backtest_run(

@@ -24,7 +24,7 @@ from trading.backtesting.backtest import (
     run_backtest_batch,
     run_walk_forward_backtest,
 )
-from trading.models import (
+from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestLeaderboardEntry,
     BacktestReportSnapshot,

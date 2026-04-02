@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from trading import paper_trading
-from trading.models import BacktestLeaderboardEntry
+from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 
 class _FakeParser:
