@@ -1,4 +1,7 @@
-# Cross-Platform Path Handling
+# ADR: Cross-Platform Path Handling
+
+Status: Accepted
+Date: 2026-03-01
 
 Purpose: record a CI failure caused by Windows/Linux path separator differences so the lesson is available to future sessions and bots.
 
