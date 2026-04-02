@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - features
+      - refactor
     paths:
       - paper_trading_ui/frontend/**
       - .github/workflows/frontend-tests.yml

@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.database.db_backend import DuplicateRecordError
 from trading.models import AccountConfig, RotationConfig
 
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services import (
-    get_account_row,
+    fetch_account_row,
     build_account_summary,
     clean_text,
     db_conn,
@@ -82,7 +82,7 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
 
         update_account_rotation_settings(conn, payload.name.strip(), _build_rotation_config(payload))
 
-        account = get_account_row(conn, payload.name.strip())
+        account = fetch_account_row(conn, payload.name.strip())
         return {"status": "ok", "account": build_account_summary(conn, account)}
 
 

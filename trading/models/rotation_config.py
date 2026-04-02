@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from trading.coercion import coerce_bool, coerce_int, coerce_str
-from trading.rotation import OPTIMALITY_MODES, ROTATION_MODES, parse_rotation_schedule
+from trading.utils.coercion import coerce_bool, coerce_int, coerce_str
+from trading.domain.rotation import OPTIMALITY_MODES, ROTATION_MODES, parse_rotation_schedule
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class RotationConfig:
         )
 
     def to_db_dict(self) -> dict[str, object]:
-        from trading.rotation import dump_rotation_schedule
+        from trading.domain.rotation import dump_rotation_schedule
         return {
             "rotation_enabled": self.enabled,
             "rotation_mode": self.mode,

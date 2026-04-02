@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from trading import paper_trading
-from trading.models import BacktestLeaderboardEntry
+from trading.interfaces.cli import main as paper_trading
+from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 
 class _FakeParser:

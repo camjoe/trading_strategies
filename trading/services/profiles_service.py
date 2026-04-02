@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.accounts import configure_account, create_account, get_account, set_benchmark
-from trading.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from trading.services.accounts_service import configure_account, create_account, get_account, set_benchmark
+from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.models.account_config import AccountConfig
 from trading.models.rotation_config import RotationConfig
-from trading.profile_source import AccountProfileSource, JsonAccountProfileSource
+from trading.services.profile_source import AccountProfileSource, JsonAccountProfileSource
 from trading.repositories.accounts_repository import update_account_fields
 
 

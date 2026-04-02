@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
-from trading.profile_source import get_builtin_profile_preset_path
+from trading.services.profile_source import get_builtin_profile_preset_path
 
 
 def _print_profiles_result(prefix: str, created: int, updated: int, skipped: int) -> None:

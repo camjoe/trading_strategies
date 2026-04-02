@@ -4,6 +4,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from common.constants import RSI_OVERBOUGHT, RSI_OVERSOLD, RSI_SCALE
+
 
 def build_chart_path(ticker: str, period: str, interval: str) -> Path:
     charts_dir = Path("local/charts")
@@ -44,10 +46,10 @@ def plot_trends(
     ax_volume.grid(alpha=0.2)
 
     ax_indicators.plot(df.index, df["RSI14"], label="RSI14", linewidth=1.0)
-    ax_indicators.axhline(70, color="red", linestyle="--", linewidth=0.8, alpha=0.8)
-    ax_indicators.axhline(30, color="green", linestyle="--", linewidth=0.8, alpha=0.8)
+    ax_indicators.axhline(RSI_OVERBOUGHT, color="red", linestyle="--", linewidth=0.8, alpha=0.8)
+    ax_indicators.axhline(RSI_OVERSOLD, color="green", linestyle="--", linewidth=0.8, alpha=0.8)
     ax_indicators.set_ylabel("RSI")
-    ax_indicators.set_ylim(0, 100)
+    ax_indicators.set_ylim(0, RSI_SCALE)
     ax_indicators.grid(alpha=0.2)
 
     ax_macd = ax_indicators.twinx()

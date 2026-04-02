@@ -4,9 +4,9 @@ import re
 import sqlite3
 from pathlib import Path
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
-from trading.repositories.accounts_repository import fetch_account_by_name
+from trading.services.accounts_service import fetch_account_by_name
 
 from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,

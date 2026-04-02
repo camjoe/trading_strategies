@@ -4,7 +4,7 @@ from typing import TypedDict
 
 from pydantic import BaseModel, Field
 
-from trading.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.profile_source import DEFAULT_TICKERS_FILE
 
 
 class BacktestBaseRequest(BaseModel):

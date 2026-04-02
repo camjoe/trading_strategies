@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.accounts import create_account, get_account
+from trading.services.accounts_service import create_account, get_account
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 
 

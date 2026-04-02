@@ -10,10 +10,12 @@ from .accounts import (
     display_strategy,
     fetch_account_names,
     fetch_account_snapshot_rows,
+    fetch_account_trades,
     fetch_recent_backtest_run_summaries,
-    get_latest_backtest_metrics,
-    get_latest_backtest_summary,
-    get_managed_account_rows,
+    fetch_latest_backtest_metrics,
+    fetch_latest_backtest_summary,
+    fetch_managed_account_rows,
+    take_snapshot,
 )
 from .admin import (
     clean_text,
@@ -25,7 +27,7 @@ from .backtests import (
     build_backtest_config_from_run_request,
     build_walk_forward_config_from_request,
 )
-from .db import db_conn, get_account_row
+from .db import db_conn, fetch_account_row
 from .exports import list_csv_exports, preview_csv_export
 from .test_account import (
     build_test_account_detail_payload,
@@ -51,13 +53,15 @@ __all__ = [
     "display_strategy",
     "fetch_account_names",
     "fetch_account_snapshot_rows",
+    "fetch_account_trades",
     "fetch_recent_backtest_run_summaries",
-    "get_account_row",
-    "get_latest_backtest_metrics",
-    "get_latest_backtest_summary",
-    "get_managed_account_rows",
+    "fetch_account_row",
+    "fetch_latest_backtest_metrics",
+    "fetch_latest_backtest_summary",
+    "fetch_managed_account_rows",
     "list_csv_exports",
     "preview_csv_export",
     "resolve_backtest_payload_account",
+    "take_snapshot",
     "update_account_rotation_settings",
 ]

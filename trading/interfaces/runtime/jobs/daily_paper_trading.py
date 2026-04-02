@@ -15,24 +15,22 @@ from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentin
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-DEFAULT_TRADE_CAPS_CONFIG = "trading/interfaces/runtime/config/account_trade_caps.json"
+DEFAULT_TRADE_CAPS_CONFIG = "trading/config/account_trade_caps.json"
 
 
-def _startup_log(message: str) -> None:
-    log_path = LOGS_DIR / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
+def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
+    log_path = logs_dir / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
     timestamp = dt.datetime.now(dt.timezone.utc).astimezone().isoformat()
     try:
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
         with log_path.open("a", encoding="utf-8") as handle:
             handle.write(f"[{timestamp}] {message}\n")
     except OSError:
         pass
 
 
-_startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}")
-
 try:
-    from trading.accounts import load_all_account_names
+    from trading.services.accounts_service import load_all_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())
@@ -78,6 +76,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
     parser.add_argument("--run-source", default="scheduled-daily")
+    parser.add_argument(
+        "--repo-root",
+        default=str(REPO_ROOT),
+        help="Repository root path (default: inferred from script location)",
+    )
     return parser.parse_args()
 
 
@@ -96,13 +99,9 @@ def parse_account_trade_caps(value: str) -> dict[str, tuple[int, int]]:
             )
         account_name, raw_range = item.split(":", 1)
         min_text, max_text = raw_range.split("-", 1)
-        min_trades = int(min_text)
-        max_trades = int(max_text)
-        if min_trades < 1:
-            raise ValueError(f"{account_name}: min trades must be >= 1")
-        if max_trades < min_trades:
-            raise ValueError(f"{account_name}: max trades must be >= min trades")
-        caps[account_name.strip()] = (min_trades, max_trades)
+        caps[account_name.strip()] = _validate_trade_cap_range(
+            account_name.strip(), int(min_text), int(max_text)
+        )
     return caps
 
 
@@ -179,8 +178,8 @@ def resolve_trade_caps(
     return resolved
 
 
-def already_completed_today(log_dir: Path) -> bool:
-    today_tag = dt.date.today().strftime("%Y%m%d")
+def already_completed_today(log_dir: Path, *, today: dt.date | None = None) -> bool:
+    today_tag = (today or dt.date.today()).strftime("%Y%m%d")
     return latest_log_contains_sentinel(
         log_dir,
         f"daily_paper_trading_{today_tag}_*.log",
@@ -188,20 +187,62 @@ def already_completed_today(log_dir: Path) -> bool:
     )
 
 
+def group_accounts_by_caps(
+    accounts: list[str],
+    caps: dict[str, tuple[int, int]],
+) -> dict[tuple[int, int], list[str]]:
+    grouped: dict[tuple[int, int], list[str]] = {}
+    for account in accounts:
+        grouped.setdefault(caps[account], []).append(account)
+    return grouped
+
+
+def run_auto_trader_group(
+    log_path: Path,
+    repo_root: Path,
+    label: str,
+    group_accounts: list[str],
+    min_trades: int,
+    max_trades: int,
+    fee: float,
+    seed: int | None,
+) -> None:
+    if not group_accounts:
+        return
+    auto_trader_args = [
+        "-m",
+        "trading.interfaces.runtime.jobs.daily_auto_trader",
+        "--accounts",
+        ",".join(group_accounts),
+        "--min-trades",
+        str(min_trades),
+        "--max-trades",
+        str(max_trades),
+        "--fee",
+        str(fee),
+    ]
+    if seed is not None:
+        auto_trader_args.extend(["--seed", str(seed)])
+    stream_command(log_path, label, auto_trader_args, repo_root)
+
+
 def main() -> int:
-    _startup_log("main() entered")
     args = parse_args()
+    repo_root = Path(args.repo_root).expanduser().resolve()
+    logs_dir = logs_dir_for_repo(repo_root)
 
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    _startup_log(f"BOOT: script={__file__} cwd={Path.cwd()} python={sys.executable}", logs_dir)
+    _startup_log("main() entered", logs_dir)
+    logs_dir.mkdir(parents=True, exist_ok=True)
 
-    if not args.force_run and already_completed_today(LOGS_DIR):
-        _startup_log(f"SKIP duplicate run (source={args.run_source})")
+    if not args.force_run and already_completed_today(logs_dir):
+        _startup_log(f"SKIP duplicate run (source={args.run_source})", logs_dir)
         print(f"Daily paper trading already completed today; skipping duplicate run. source={args.run_source}")
         return 0
 
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = LOGS_DIR / f"daily_paper_trading_{timestamp}.log"
-    _startup_log(f"RUN log_path={log_path}")
+    log_path = logs_dir / f"daily_paper_trading_{timestamp}.log"
+    _startup_log(f"RUN log_path={log_path}", logs_dir)
 
     all_accounts = load_all_account_names()
 
@@ -236,7 +277,7 @@ def main() -> int:
     primary_accounts = {item.strip() for item in args.primary_accounts.split(",") if item.strip()}
     caps_config_path = Path(args.trade_caps_config)
     if not caps_config_path.is_absolute():
-        caps_config_path = REPO_ROOT / caps_config_path
+        caps_config_path = repo_root / caps_config_path
 
     try:
         configured_default_caps, configured_account_caps = load_trade_caps_config(caps_config_path)
@@ -281,52 +322,34 @@ def main() -> int:
     )
 
     try:
-        def _run_auto_trader_group(label: str, group_accounts: list[str], min_trades: int, max_trades: int) -> None:
-            if not group_accounts:
-                return
-            auto_trader_args = [
-                "-m",
-                "trading.auto_trader",
-                "--accounts",
-                ",".join(group_accounts),
-                "--min-trades",
-                str(min_trades),
-                "--max-trades",
-                str(max_trades),
-                "--fee",
-                str(args.fee),
-            ]
-            if args.seed is not None:
-                auto_trader_args.extend(["--seed", str(args.seed)])
-            stream_command(log_path, label, auto_trader_args, REPO_ROOT)
-
-        grouped_accounts: dict[tuple[int, int], list[str]] = {}
-        for account_name in accounts:
-            limits = account_trade_caps[account_name]
-            grouped_accounts.setdefault(limits, []).append(account_name)
+        grouped_accounts = group_accounts_by_caps(accounts, account_trade_caps)
 
         for limits, group_accounts in sorted(grouped_accounts.items(), key=lambda item: (item[0][0], item[0][1], item[1])):
             min_trades, max_trades = limits
-            _run_auto_trader_group(
+            run_auto_trader_group(
+                log_path,
+                repo_root,
                 f"Auto Trader ({min_trades}-{max_trades} trades)",
                 group_accounts,
                 min_trades,
                 max_trades,
+                args.fee,
+                args.seed,
             )
 
         for account in accounts:
             stream_command(
                 log_path,
                 f"Snapshot {account}",
-                ["-m", "trading.paper_trading", "snapshot", "--account", account],
-                REPO_ROOT,
+                ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
+                repo_root,
             )
 
         stream_command(
             log_path,
             "Compare Strategies",
-            ["-m", "trading.paper_trading", "compare-strategies", "--lookback", "10"],
-            REPO_ROOT,
+            ["-m", "trading.interfaces.cli.main", "compare-strategies", "--lookback", "10"],
+            repo_root,
         )
 
         tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")

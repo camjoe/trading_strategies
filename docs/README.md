@@ -16,17 +16,17 @@ python -m trading.paper_trading
 
 ## Docs Folder Files
 
-- `Strategies.md`: strategy hypotheses and evaluation framework.
-- `backtesting.md`: backtesting workflows, safeguards, and notes.
-- `architecture/backtesting-layering-adr.md`: decision rationale and guardrails for backtesting module layering.
-- `architecture/strategy-encapsulation-notes.md`: strategy ownership map and prompt templates for a future strategy-class refactor.
-- `architecture/runtime-job-coverage-follow-up.md`: prioritized testing backlog for low-coverage runtime and support modules.
+- `reference/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
+- `reference/adr-cross-platform-paths.md`: decision record for always using pathlib; lessons from a Windows/Linux CI failure.
+- `reference/notes-backtesting.md`: backtesting commands, safeguards, layering overview, and operational notes.
+- `reference/notes-db-migration-system.md`: active reference guide for the hand-rolled SQLite migration system.
+- `reference/notes-sentiment-signals.md`: current-state map and integration path for sentiment/topic-driven strategies (backlog tracked in PM).
+- `reference/notes-strategies.md`: strategy catalog, implementation status, proxy feature descriptions, and evaluation framework guidance.
 
 ## Architecture Reference
 
 **Canonical rules and conventions:**
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`: layering, dependency direction, naming, and package ownership.
-- `.github/TRADING_EXECUTION_ROADMAP.md`: prioritized refactoring guidance and next structural improvements.
 
 ## Purpose
 

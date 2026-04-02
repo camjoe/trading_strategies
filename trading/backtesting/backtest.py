@@ -6,21 +6,21 @@ from typing import Callable, cast
 
 from common.market_data import get_feature_provider
 
-from trading.accounts import get_account
-from trading.coercion import (
+from trading.services.accounts_service import get_account
+from trading.utils.coercion import (
     row_expect_float,
     row_expect_int,
     row_expect_str,
 )
-from trading.models.backtesting import (
+from trading.backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
     BacktestResult,
     WalkForwardConfig,
     WalkForwardSummary,
 )
-from trading.models.backtesting_reports import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
-from trading.rotation import resolve_active_strategy
+from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
+from trading.domain.rotation import resolve_active_strategy
 
 from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings

@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from trading.database import db
 from common.time import utc_now_iso
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 
 

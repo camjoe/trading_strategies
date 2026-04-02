@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable
 
@@ -83,35 +84,39 @@ def select_account_rotation_strategy(
     )
 
 
+@dataclass
+class RotationDeps:
+    rotate_account_if_due_impl_fn: Callable[..., sqlite3.Row]
+    is_rotation_due_fn: Callable[[sqlite3.Row], bool]
+    resolve_rotation_mode_fn: Callable[[sqlite3.Row], str]
+    select_optimal_strategy_fn: Callable[[sqlite3.Connection, sqlite3.Row, str], str | None]
+    resolve_active_strategy_fn: Callable[[sqlite3.Row], str]
+    parse_rotation_schedule_fn: Callable[[object | None], list[str]]
+    next_rotation_state_fn: Callable[[sqlite3.Row, str], dict[str, object]]
+    update_account_rotation_state_fn: Callable[..., None]
+    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row]
+
+
 def rotate_runtime_account_if_due(
     conn: sqlite3.Connection,
     account_name: str,
     account: sqlite3.Row,
     now_iso: str,
-    *,
-    rotate_account_if_due_impl_fn: Callable[..., sqlite3.Row],
-    is_rotation_due_fn: Callable[[sqlite3.Row], bool],
-    resolve_rotation_mode_fn: Callable[[sqlite3.Row], str],
-    select_optimal_strategy_fn: Callable[[sqlite3.Connection, sqlite3.Row, str], str | None],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
-    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    next_rotation_state_fn: Callable[[sqlite3.Row, str], dict[str, object]],
-    update_account_rotation_state_fn: Callable[..., None],
-    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
+    deps: RotationDeps,
 ) -> sqlite3.Row:
-    return rotate_account_if_due_impl_fn(
+    return deps.rotate_account_if_due_impl_fn(
         conn,
         account_name,
         account,
         now_iso,
-        is_rotation_due_fn=is_rotation_due_fn,
-        resolve_rotation_mode_fn=resolve_rotation_mode_fn,
-        select_optimal_strategy_fn=select_optimal_strategy_fn,
-        resolve_active_strategy_fn=resolve_active_strategy_fn,
-        parse_rotation_schedule_fn=parse_rotation_schedule_fn,
-        next_rotation_state_fn=next_rotation_state_fn,
-        update_account_rotation_state_fn=update_account_rotation_state_fn,
-        get_account_fn=get_account_fn,
+        is_rotation_due_fn=deps.is_rotation_due_fn,
+        resolve_rotation_mode_fn=deps.resolve_rotation_mode_fn,
+        select_optimal_strategy_fn=deps.select_optimal_strategy_fn,
+        resolve_active_strategy_fn=deps.resolve_active_strategy_fn,
+        parse_rotation_schedule_fn=deps.parse_rotation_schedule_fn,
+        next_rotation_state_fn=deps.next_rotation_state_fn,
+        update_account_rotation_state_fn=deps.update_account_rotation_state_fn,
+        get_account_fn=deps.get_account_fn,
     )
 
 

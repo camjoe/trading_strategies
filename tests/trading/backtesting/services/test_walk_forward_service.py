@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
-from trading.models.backtesting import WalkForwardConfig
+from trading.backtesting.models import WalkForwardConfig
 
 
 class _Result:

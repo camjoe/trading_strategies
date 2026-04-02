@@ -4,11 +4,11 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from trading.interfaces.runtime.data_ops.admin import delete_accounts
 from trading.models import RotationConfig
-from trading.repositories.accounts_repository import update_account_fields
+from trading.services.accounts_service import update_account_fields_by_id
+from trading.services.admin_service import delete_accounts
 
-from .db import get_account_row
+from .db import db_conn, fetch_account_row
 
 
 def clean_text(value: str | None) -> str | None:
@@ -23,11 +23,11 @@ def update_account_rotation_settings(
     account_name: str,
     rotation: RotationConfig,
 ) -> None:
-    account = get_account_row(conn, account_name)
+    account = fetch_account_row(conn, account_name)
     db_values = rotation.to_db_dict()
     updates = [f"{key} = ?" for key in db_values]
     params = list(db_values.values())
-    update_account_fields(
+    update_account_fields_by_id(
         conn,
         account_id=int(account["id"]),
         updates=updates,
@@ -37,11 +37,13 @@ def update_account_rotation_settings(
 
 def delete_account_and_dependents(account_name: str) -> dict[str, int]:
     try:
-        deleted = delete_accounts(
-            account_names=[account_name],
-            delete_all=False,
-            dry_run=False,
-        )
+        with db_conn() as conn:
+            deleted = delete_accounts(
+                conn,
+                account_names=[account_name],
+                delete_all=False,
+                dry_run=False,
+            )
     except ValueError as error:
         if "Accounts not found:" in str(error):
             raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from error

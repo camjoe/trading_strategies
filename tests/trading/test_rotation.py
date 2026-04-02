@@ -1,9 +1,9 @@
 import pytest
 from datetime import UTC, datetime
 
-import trading.rotation as rotation
+import trading.domain.rotation as rotation
 
-from trading.rotation import (
+from trading.domain.rotation import (
     OPTIMALITY_MODES,
     ROTATION_MODES,
     dump_rotation_schedule,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.backtesting.repositories.history_repository import fetch_strategy_backtest_rows
-from trading.coercion import coerce_float
+from trading.utils.coercion import coerce_float
 from trading.domain.returns import safe_return_pct as safe_return_pct_impl
 
 
