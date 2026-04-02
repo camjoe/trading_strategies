@@ -20,7 +20,7 @@ Status labels in this document:
 - Mean reversion - Implemented
 - Momentum cross-sectional ranking - Partial (proxies/rotation support exists, no dedicated ranked portfolio engine)
 - Volatility breakout - Implemented (`breakout`, plus volatility-gated trend variants)
-- Pairs/statistical arbitrage - Planned
+- Pairs/statistical arbitrage - Planned (no PM task yet; add when ready to research)
 - Factor-based signals - Partial (proxy feature strategies exist; no broad multi-factor framework yet)
 - Regime-aware models - Implemented (`macro_proxy_regime`), broader taxonomy still evolving
 

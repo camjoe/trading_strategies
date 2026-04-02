@@ -19,7 +19,7 @@ Backtesting follows a layered structure:
 
 Detailed rationale is in:
 
-- `docs/architecture/adr-backtesting-layering.md`
+- `docs/reference/adr-backtesting-layering.md`
 
 ## Commands
 
@@ -41,7 +41,7 @@ python -m trading.paper_trading backtest-leaderboard --limit 10
 
 ## Strategy Notes
 
-- Phase 2 strategy ids are documented in `docs/Strategies.md`.
+- Phase 2 strategy ids are documented in `docs/reference/notes-strategies.md`.
 - Backtests resolve active strategy through shared rotation-aware logic.
 - If account rotation metadata is configured, backtests use the resolved active strategy.
 
@@ -72,6 +72,5 @@ Operational notes:
 
 ## Related Docs
 
-- `trading/README.md`
-- `docs/Strategies.md`
-- `docs/architecture/adr-backtesting-layering.md`
+- `docs/reference/notes-strategies.md`
+- `docs/reference/adr-backtesting-layering.md`

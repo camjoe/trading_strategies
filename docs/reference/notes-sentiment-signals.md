@@ -1,5 +1,8 @@
 # Sentiment/Topic Signal Integration Notes
 
+Status: Active reference — implementation backlog tracked in project manager (Strategies / Technical Analysis boards)
+Date: 2026-03-27
+
 Purpose: save the current-state map and integration path for sentiment, topic, and politics-driven trading strategies so future sessions and bots have the context to continue without re-auditing the codebase.
 
 ## 1. Current Signal Architecture
@@ -94,4 +97,4 @@ See project manager items:
 - "Search social media for trending topics/companies" — Phase 3, Stocktwits/Reddit ticker mentions.
 - "Feature Store and Experiment Tracking" — long-term MLflow/W&B infrastructure.
 
-Decision constraints are captured in `local/FUTURE_UPDATES/plan.md`.
+Implementation backlog items are tracked in the project manager under the **Strategies** and **Technical Analysis** boards.
