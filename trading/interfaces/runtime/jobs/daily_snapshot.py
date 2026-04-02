@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from common.repo_paths import get_repo_root
-from trading.accounts import load_all_account_names
+from trading.services.accounts_service import load_all_account_names
 from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
 
 REPO_ROOT = get_repo_root(__file__)
@@ -109,7 +109,7 @@ def run_snapshot_with_retry(
         exit_code, output = run_command_fn(
             log_path,
             label,
-            ["-m", "trading.paper_trading", "snapshot", "--account", account],
+            ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
             repo_root,
         )
         if exit_code == 0:

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from trading.profile_source import JsonAccountProfileSource
+from trading.services.profile_source import JsonAccountProfileSource
 
 
 class TestJsonAccountProfileSource:

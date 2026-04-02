@@ -6,6 +6,11 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Callable, cast
 
+from common.constants import BASIS_POINTS_DIVISOR
+
+# Fraction of total portfolio equity allocated per buy signal
+POSITION_SIZE_PCT = 0.10
+
 
 def run_backtest(
     conn: sqlite3.Connection,
@@ -69,8 +74,8 @@ def run_backtest(
     realized_pnl = 0.0
     positions: dict[str, float] = defaultdict(float)
     avg_cost: dict[str, float] = defaultdict(float)
-    slippage_multiplier_buy = 1.0 + (cfg.slippage_bps / 10_000.0)
-    slippage_multiplier_sell = 1.0 - (cfg.slippage_bps / 10_000.0)
+    slippage_multiplier_buy = 1.0 + (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
+    slippage_multiplier_sell = 1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
 
     equity_curve: list[float] = []
     trade_count = 0
@@ -117,7 +122,7 @@ def run_backtest(
                 if px <= 0:
                     continue
 
-                allocation = (cash + compute_market_value_fn(positions, trade_prices.to_dict())) * 0.10
+                allocation = (cash + compute_market_value_fn(positions, trade_prices.to_dict())) * POSITION_SIZE_PCT
                 exec_px = px * slippage_multiplier_buy
                 if exec_px <= 0:
                     continue

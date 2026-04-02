@@ -6,6 +6,7 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 
+from scripts.checks.layer_check import run_layer_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
@@ -55,6 +56,9 @@ def run_quick(
             repo_root=repo_root,
             max_age_days=readme_max_age_days,
         )
+        layer_exit = run_layer_check(repo_root=repo_root)
+        if layer_exit != 0:
+            return layer_exit
         if with_reference_doc_checks:
             reference_doc_exit = run_reference_docs_check(repo_root=repo_root)
             if reference_doc_exit != 0:

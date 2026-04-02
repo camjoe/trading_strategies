@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
-from trading.profile_source import DEFAULT_ACCOUNT_PROFILES_FILE
+from trading.services.profile_source import DEFAULT_ACCOUNT_PROFILES_FILE
 
 
 def add_account_commands(

@@ -9,7 +9,7 @@ from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from paper_trading_ui.backend.routes import admin as admin_routes
 from paper_trading_ui.backend.routes import backtests as backtests_routes
 from paper_trading_ui.backend.routes import logs as logs_routes
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.database import db
 from trading.database.db_backend import DuplicateRecordError
 from trading.models import AccountConfig

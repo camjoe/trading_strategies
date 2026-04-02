@@ -14,6 +14,13 @@ from trading.backtesting.backtest import (
     run_backtest_batch,
     run_walk_forward_backtest,
 )
+from trading.backtesting.report_models import (
+    BacktestFullReport,
+    BacktestLeaderboardEntry,
+    BacktestReportSnapshot,
+    BacktestReportSummary,
+    BacktestReportTrade,
+)
 from trading.backtesting.services import fetch_strategy_backtest_returns
 
 __all__ = [
@@ -32,4 +39,9 @@ __all__ = [
     "run_backtest_batch",
     "run_walk_forward_backtest",
     "fetch_strategy_backtest_returns",
+    "BacktestFullReport",
+    "BacktestLeaderboardEntry",
+    "BacktestReportSnapshot",
+    "BacktestReportSummary",
+    "BacktestReportTrade",
 ]

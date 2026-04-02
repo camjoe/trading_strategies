@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - features
+      - refactor
     paths:
       - requirements.txt
       - requirements/**

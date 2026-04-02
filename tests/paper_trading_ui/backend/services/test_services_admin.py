@@ -6,8 +6,6 @@ from fastapi import HTTPException
 from common.time import utc_now_iso
 from paper_trading_ui.backend.services import admin as services_admin
 
-from tests.paper_trading_ui.backend.services._service_test_utils import create_test_account
-
 
 def test_clean_text() -> None:
     assert services_admin.clean_text(None) is None
@@ -21,8 +19,8 @@ def test_delete_account_and_dependents_not_found_raises(conn) -> None:
     assert exc_info.value.status_code == 404
 
 
-def test_delete_account_and_dependents_removes_related_rows(conn) -> None:
-    account_id = create_test_account(conn, "acct_delete")
+def test_delete_account_and_dependents_removes_related_rows(conn, create_test_account) -> None:
+    account_id = create_test_account("acct_delete")
     conn.execute(
         "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-02T00:00:00Z"),

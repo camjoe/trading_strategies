@@ -4,12 +4,14 @@ import sqlite3
 from typing import Callable, Mapping, cast
 
 from common.time import utc_now_iso
-from trading.accounting import compute_account_state, load_trades, record_trade
-from trading.accounts import get_account
+from trading.services.accounts_service import get_account
+from trading.domain.accounting import compute_account_state
+from trading.services.accounting_service import load_trades, record_trade
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
+from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
 from trading.repositories.rotation_repository import update_account_rotation_state
-from trading.rotation import (
+from trading.domain.rotation import (
     is_rotation_due,
     next_rotation_state,
     parse_rotation_schedule,
@@ -21,6 +23,7 @@ from trading.services.auto_trader_service import (
     parse_runtime_as_of_iso as parse_runtime_as_of_iso_impl,
     rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
+    RotationDeps,
 )
 from trading.services.rotation_service import (
     parse_as_of_iso as parse_as_of_iso_impl,
@@ -68,11 +71,7 @@ def _rotate_runtime_account(
     account: sqlite3.Row,
     now_iso: str,
 ) -> sqlite3.Row:
-    return rotate_runtime_account_if_due_impl(
-        conn,
-        account_name,
-        account,
-        now_iso,
+    deps = RotationDeps(
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(cast(Mapping[str, object], row), as_of_iso=now_iso),
         resolve_rotation_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_rotation_mode),
@@ -83,6 +82,7 @@ def _rotate_runtime_account(
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
+    return rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
 
 
 def _refresh_runtime_account_state(conn: sqlite3.Connection, account: sqlite3.Row):
@@ -168,6 +168,20 @@ def _prepare_runtime_sell_trade(
     )
 
 
+def _resolve_strategy_style(strategy_name: str | None) -> str | None:
+    """Resolve a strategy name to its StrategySpec.strategy_style.
+
+    Returns None if the name is absent or unrecognised so that choose_side
+    falls back to SELL_BIAS_DEFAULT rather than raising.
+    """
+    if not strategy_name:
+        return None
+    try:
+        return resolve_strategy(strategy_name).strategy_style
+    except Exception:
+        return None
+
+
 def _prepare_runtime_trade_selection(
     account: sqlite3.Row,
     active_strategy: str | None,
@@ -193,7 +207,9 @@ def _prepare_runtime_trade_selection(
         learning_enabled,
         instrument_mode,
         fee,
-        choose_side_fn=auto_trader_policy.choose_side,
+        choose_side_fn=lambda forced_sell, can_sell, strategy_name: auto_trader_policy.choose_side(
+            forced_sell, can_sell, _resolve_strategy_style(strategy_name)
+        ),
         prepare_buy_trade_fn=_prepare_runtime_buy_trade,
         prepare_sell_trade_fn=_prepare_runtime_sell_trade,
     )

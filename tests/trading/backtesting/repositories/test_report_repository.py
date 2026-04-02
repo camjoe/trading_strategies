@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,

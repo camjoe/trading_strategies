@@ -10,9 +10,12 @@ from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
+    fetch_latest_backtest_run_for_account as _repo_fetch_latest_backtest_run_for_account,
+    fetch_latest_backtest_run_id_for_account as _repo_fetch_latest_backtest_run_id_for_account,
+    fetch_recent_backtest_runs as _repo_fetch_recent_backtest_runs,
 )
-from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
-from trading.models.backtesting_reports import (
+from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,
@@ -110,3 +113,21 @@ def fetch_backtest_report_data(
         benchmark_return_pct=benchmark_ret,
         alpha_pct=alpha_pct,
     )
+
+
+def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> object:
+    return _repo_fetch_latest_backtest_run_for_account(conn, account_name=account_name)
+
+
+def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int | None:
+    return _repo_fetch_latest_backtest_run_id_for_account(conn, account_name=account_name)
+
+
+def fetch_recent_backtest_runs(conn, *, limit: int) -> list[object]:
+    return _repo_fetch_recent_backtest_runs(conn, limit=limit)
+
+
+def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
+    from trading.backtesting.backtest import backtest_report_summary  # deferred to avoid circular import
+    return backtest_report_summary(conn, run_id)
+

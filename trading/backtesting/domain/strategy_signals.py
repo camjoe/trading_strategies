@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
@@ -7,8 +8,19 @@ import pandas as pd
 
 from trading.backtesting.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
 
+from common.constants import (
+    MACD_MIN_HISTORY,
+    RSI_DEFAULT_WINDOW,
+    RSI_OVERBOUGHT,
+    RSI_OVERSOLD,
+    TRADING_DAYS_PER_YEAR,
+)
+
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
+
+# Minimum fraction of available proxy data required to trust a topic-proxy feature signal
+PROXY_AVAILABILITY_THRESHOLD = 0.5
 
 
 @dataclass(frozen=True)
@@ -19,6 +31,10 @@ class StrategySpec:
     aliases: tuple[str, ...] = ()
     description: str = ""
     required_features: tuple[str, ...] = ()
+    # Broad behavioral family: "trend", "mean_reversion", or "neutral".
+    # Used by policy layers to set sell bias and other style-dependent behavior
+    # without resorting to fragile string matching on strategy names.
+    strategy_style: str = "neutral"
 
 
 def _feature_value(feature_history: pd.DataFrame | None, column: str) -> float | None:
@@ -27,7 +43,10 @@ def _feature_value(feature_history: pd.DataFrame | None, column: str) -> float |
     series = pd.to_numeric(feature_history[column], errors="coerce").dropna()
     if series.empty:
         return None
-    return float(series.iloc[-1])
+    val = float(series.iloc[-1])
+    # Treat non-finite feature values (inf/-inf) as unavailable so signal
+    # logic never makes decisions based on unbounded inputs.
+    return val if math.isfinite(val) else None
 
 
 def _trend_signal(
@@ -42,8 +61,12 @@ def _trend_signal(
         return "hold"
 
     close = float(history.iloc[-1])
+    if not math.isfinite(close):
+        return "hold"
     sma_fast = float(history.tail(fast_window).mean())
     sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
     if close > sma_fast > sma_slow:
         return "buy"
     if close < sma_fast:
@@ -62,7 +85,11 @@ def _mean_reversion_signal(
         return "hold"
 
     close = float(history.iloc[-1])
+    if not math.isfinite(close):
+        return "hold"
     sma_mid = float(history.tail(window).mean())
+    if not math.isfinite(sma_mid):
+        return "hold"
     if close < (sma_mid * (1.0 - band_pct)):
         return "buy"
     if close > (sma_mid * (1.0 + band_pct)):
@@ -75,16 +102,16 @@ def _rsi_signal(
     params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    window = int(params.get("window", 14))
-    oversold = float(params.get("oversold", 30))
-    overbought = float(params.get("overbought", 70))
+    window = int(params.get("window", RSI_DEFAULT_WINDOW))
+    oversold = float(params.get("oversold", RSI_OVERSOLD))
+    overbought = float(params.get("overbought", RSI_OVERBOUGHT))
     min_history = max(30, window + 1)
     if len(history) < min_history:
         return "hold"
 
     _rs, rsi = calculate_rs_rsi(history, window=window)
     last_rsi = float(rsi.iloc[-1]) if pd.notna(rsi.iloc[-1]) else float("nan")
-    if pd.isna(last_rsi):
+    if pd.isna(last_rsi) or not math.isfinite(last_rsi):
         return "hold"
     if last_rsi < oversold:
         return "buy"
@@ -98,7 +125,7 @@ def _macd_signal(
     _params: StrategyParams,
     _feature_history: pd.DataFrame | None = None,
 ) -> str:
-    if len(history) < 35:
+    if len(history) < MACD_MIN_HISTORY:
         return "hold"
 
     macd, macd_signal, _hist = calculate_macd(history)
@@ -124,9 +151,13 @@ def _breakout_signal(
         return "hold"
 
     current_close = float(history.iloc[-1])
+    if not math.isfinite(current_close):
+        return "hold"
     prior_window = history.iloc[-(window + 1) : -1]
     highest_breakout = float(prior_window.max())
     lowest_breakdown = float(prior_window.min())
+    if not math.isfinite(highest_breakout) or not math.isfinite(lowest_breakdown):
+        return "hold"
 
     if current_close > highest_breakout:
         return "buy"
@@ -151,6 +182,9 @@ def _pullback_in_trend_signal(
     sma_fast = float(history.tail(fast_window).mean())
     sma_trend = float(history.tail(trend_window).mean())
 
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_trend):
+        return "hold"
+
     if close < sma_trend:
         return "sell"
 
@@ -174,9 +208,11 @@ def _bollinger_mean_reversion_signal(
 
     segment = history.tail(window)
     close = float(segment.iloc[-1])
+    if not math.isfinite(close):
+        return "hold"
     middle = float(segment.mean())
     std = float(segment.std(ddof=0))
-    if std <= 0:
+    if not math.isfinite(std) or std <= 0:
         return "hold"
 
     lower_band = middle - (num_std * std)
@@ -208,6 +244,8 @@ def _ma_crossover_signal(
 
     if pd.isna(prev_fast) or pd.isna(prev_slow) or pd.isna(curr_fast) or pd.isna(curr_slow):
         return "hold"
+    if not all(math.isfinite(v) for v in (prev_fast, prev_slow, curr_fast, curr_slow)):
+        return "hold"
 
     if prev_fast <= prev_slow and curr_fast > curr_slow:
         return "buy"
@@ -217,6 +255,8 @@ def _ma_crossover_signal(
     # Keep this strategy actionable after a recent crossover by honoring
     # the current fast/slow stack and price confirmation.
     close = float(history.iloc[-1])
+    if not math.isfinite(close):
+        return "hold"
     if curr_fast > curr_slow and close >= curr_fast:
         return "buy"
     if curr_fast < curr_slow and close <= curr_fast:
@@ -241,13 +281,15 @@ def _volatility_filtered_trend_signal(
     recent_returns = returns.tail(vol_window)
     if recent_returns.empty:
         return "hold"
-    annualized_vol_pct = float(recent_returns.std(ddof=0) * (252**0.5) * 100.0)
+    annualized_vol_pct = float(recent_returns.std(ddof=0) * (TRADING_DAYS_PER_YEAR**0.5) * 100.0)
     if pd.isna(annualized_vol_pct) or annualized_vol_pct > max_annualized_vol_pct:
         return "hold"
 
     close = float(history.iloc[-1])
     sma_fast = float(history.tail(fast_window).mean())
     sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
     if close > sma_fast > sma_slow:
         return "buy"
     if close < sma_fast:
@@ -268,11 +310,13 @@ def _topic_proxy_rotation_signal(
     proxy_available = _feature_value(feature_history, "topic_proxy_available")
     rel_strength = _feature_value(feature_history, "topic_proxy_rel_strength")
     trend_gap = _feature_value(feature_history, "topic_proxy_trend_gap")
-    if proxy_available is None or proxy_available < 0.5 or rel_strength is None or trend_gap is None:
+    if proxy_available is None or proxy_available < PROXY_AVAILABILITY_THRESHOLD or rel_strength is None or trend_gap is None:
         return "hold"
 
     close = float(history.iloc[-1])
     sma_mid = float(history.tail(window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_mid):
+        return "hold"
     min_rel_strength = float(params.get("min_rel_strength", 0.0))
     exit_rel_strength = float(params.get("exit_rel_strength", 0.0))
     min_proxy_trend_gap = float(params.get("min_proxy_trend_gap", 0.0))
@@ -304,6 +348,8 @@ def _macro_proxy_regime_signal(
     close = float(history.iloc[-1])
     sma_fast = float(history.tail(fast_window).mean())
     sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
     min_risk_on_score = float(params.get("min_risk_on_score", 0.0))
     min_equity_bond_spread = float(params.get("min_equity_bond_spread", 0.0))
     max_vix_pressure = float(params.get("max_vix_pressure", 0.12))
@@ -328,6 +374,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"fast_window": 10, "slow_window": 20},
         aliases=("trend_v1", "momentum"),
         description="Trend stack using close > SMA fast > SMA slow.",
+        strategy_style="trend",
     ),
     "mean_reversion": StrategySpec(
         strategy_id="mean_reversion",
@@ -335,13 +382,15 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": 20, "band_pct": 0.02},
         aliases=("mean", "reversion"),
         description="Mean reversion to SMA with symmetric percentage bands.",
+        strategy_style="mean_reversion",
     ),
     "rsi": StrategySpec(
         strategy_id="rsi",
         signal_fn=_rsi_signal,
-        default_params={"window": 14, "oversold": 30, "overbought": 70},
+        default_params={"window": RSI_DEFAULT_WINDOW, "oversold": RSI_OVERSOLD, "overbought": RSI_OVERBOUGHT},
         aliases=("rsi_strategy",),
         description="RSI threshold strategy.",
+        strategy_style="mean_reversion",
     ),
     "macd": StrategySpec(
         strategy_id="macd",
@@ -349,6 +398,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={},
         aliases=("macd_strategy",),
         description="MACD crossover strategy.",
+        strategy_style="trend",
     ),
     "breakout": StrategySpec(
         strategy_id="breakout",
@@ -356,6 +406,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": 20},
         aliases=("donchian",),
         description="Donchian-style breakout and breakdown signal.",
+        strategy_style="trend",
     ),
     "pullback_trend": StrategySpec(
         strategy_id="pullback_trend",
@@ -363,6 +414,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"fast_window": 20, "trend_window": 50, "pullback_pct": 0.03},
         aliases=("pullback",),
         description="Buy pullbacks in a broader uptrend.",
+        strategy_style="trend",
     ),
     "bollinger_mean_reversion": StrategySpec(
         strategy_id="bollinger_mean_reversion",
@@ -370,6 +422,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": 20, "num_std": 2.0},
         aliases=("bollinger", "bbands"),
         description="Mean reversion using Bollinger bands.",
+        strategy_style="mean_reversion",
     ),
     "ma_crossover": StrategySpec(
         strategy_id="ma_crossover",
@@ -377,6 +430,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"fast_window": 20, "slow_window": 50},
         aliases=("moving_average", "ma"),
         description="Fast/slow moving-average crossover.",
+        strategy_style="trend",
     ),
     "volatility_filtered_trend": StrategySpec(
         strategy_id="volatility_filtered_trend",
@@ -389,6 +443,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         },
         aliases=("volatility_trend", "vol_filter_trend"),
         description="Trend signal only when recent annualized volatility is below threshold.",
+        strategy_style="trend",
     ),
     "topic_proxy_rotation": StrategySpec(
         strategy_id="topic_proxy_rotation",
@@ -402,6 +457,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         aliases=("topic_rotation", "sector_proxy_rotation", "theme_proxy"),
         description="Rotate into names backed by strong sector/theme ETF proxy relative strength.",
         required_features=("topic_proxy_rel_strength", "topic_proxy_trend_gap"),
+        strategy_style="neutral",
     ),
     "macro_proxy_regime": StrategySpec(
         strategy_id="macro_proxy_regime",
@@ -417,6 +473,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         aliases=("macro_proxy", "policy_proxy", "macro_risk"),
         description="Use market-risk proxies like VIX and bond-vs-equity leadership as a macro regime filter.",
         required_features=("macro_risk_on_score", "macro_vix_pressure", "macro_equity_bond_spread"),
+        strategy_style="neutral",
     ),
 }
 

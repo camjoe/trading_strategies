@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from trading import auto_trader
+from trading.interfaces.runtime.jobs import daily_auto_trader as auto_trader
 import trading.services.auto_trader_runtime_service as runtime_service
 import trading.services.trade_execution_service as trade_execution_service
 
@@ -311,7 +311,7 @@ class TestRotationAwareTradeLoop:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: initial_account)
-        monkeypatch.setattr(runtime_service, "rotate_runtime_account_if_due_impl", lambda _conn, _name, _acct, _now, **_kwargs: rotated_account)
+        monkeypatch.setattr(runtime_service, "rotate_runtime_account_if_due_impl", lambda _conn, _name, _acct, _now, _deps: rotated_account)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)

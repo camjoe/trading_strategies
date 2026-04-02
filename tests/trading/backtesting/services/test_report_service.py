@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
 from trading.backtesting.services.report_service import fetch_backtest_report_data
-from trading.models import BacktestFullReport
+from trading.backtesting.report_models import BacktestFullReport
 
 
 def _fake_close_history(tickers: list[str]) -> pd.DataFrame:

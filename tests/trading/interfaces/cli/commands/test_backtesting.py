@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.interfaces.cli.commands import build_parser
-from trading.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.profile_source import DEFAULT_TICKERS_FILE
 
 
 def test_backtest_defaults() -> None:

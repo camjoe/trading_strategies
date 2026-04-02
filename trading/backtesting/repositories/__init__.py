@@ -1,1 +1,1 @@
-
+"""Backtesting persistence adapters."""
