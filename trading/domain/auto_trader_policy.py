@@ -59,6 +59,13 @@ SELL_BIAS_TREND_MOMENTUM = 0.20
 # (take profits closer to the mean)
 SELL_BIAS_MEAN_REVERSION = 0.45
 
+# Maps StrategySpec.strategy_style values to their sell bias probability.
+# Extend this when adding new style families.
+_STYLE_TO_SELL_BIAS: dict[str, float] = {
+    "trend": SELL_BIAS_TREND_MOMENTUM,
+    "mean_reversion": SELL_BIAS_MEAN_REVERSION,
+}
+
 
 class AccountConfig(Protocol):
     def __getitem__(self, key: str) -> Any: ...
@@ -269,17 +276,12 @@ def build_trade_note(
 def choose_side(
     forced_sell: str | None,
     can_sell: list[str],
-    strategy_name: str | None = None,
+    strategy_style: str | None = None,
 ) -> str:
     if forced_sell is not None:
         return "sell"
 
-    bias = SELL_BIAS_DEFAULT
-    strategy = (strategy_name or "").strip().lower()
-    if "trend" in strategy or "momentum" in strategy or "breakout" in strategy:
-        bias = SELL_BIAS_TREND_MOMENTUM
-    elif "mean" in strategy or "reversion" in strategy or "rsi" in strategy:
-        bias = SELL_BIAS_MEAN_REVERSION
+    bias = _STYLE_TO_SELL_BIAS.get(strategy_style or "", SELL_BIAS_DEFAULT)
 
     if can_sell and random.random() < bias:
         return "sell"

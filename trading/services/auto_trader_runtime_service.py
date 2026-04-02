@@ -8,6 +8,7 @@ from trading.services.accounts_service import get_account
 from trading.domain.accounting import compute_account_state
 from trading.services.accounting_service import load_trades, record_trade
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
+from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
 from trading.repositories.rotation_repository import update_account_rotation_state
 from trading.domain.rotation import (
@@ -167,6 +168,20 @@ def _prepare_runtime_sell_trade(
     )
 
 
+def _resolve_strategy_style(strategy_name: str | None) -> str | None:
+    """Resolve a strategy name to its StrategySpec.strategy_style.
+
+    Returns None if the name is absent or unrecognised so that choose_side
+    falls back to SELL_BIAS_DEFAULT rather than raising.
+    """
+    if not strategy_name:
+        return None
+    try:
+        return resolve_strategy(strategy_name).strategy_style
+    except Exception:
+        return None
+
+
 def _prepare_runtime_trade_selection(
     account: sqlite3.Row,
     active_strategy: str | None,
@@ -192,7 +207,9 @@ def _prepare_runtime_trade_selection(
         learning_enabled,
         instrument_mode,
         fee,
-        choose_side_fn=auto_trader_policy.choose_side,
+        choose_side_fn=lambda forced_sell, can_sell, strategy_name: auto_trader_policy.choose_side(
+            forced_sell, can_sell, _resolve_strategy_style(strategy_name)
+        ),
         prepare_buy_trade_fn=_prepare_runtime_buy_trade,
         prepare_sell_trade_fn=_prepare_runtime_sell_trade,
     )

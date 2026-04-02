@@ -31,6 +31,10 @@ class StrategySpec:
     aliases: tuple[str, ...] = ()
     description: str = ""
     required_features: tuple[str, ...] = ()
+    # Broad behavioral family: "trend", "mean_reversion", or "neutral".
+    # Used by policy layers to set sell bias and other style-dependent behavior
+    # without resorting to fragile string matching on strategy names.
+    strategy_style: str = "neutral"
 
 
 def _feature_value(feature_history: pd.DataFrame | None, column: str) -> float | None:
@@ -370,6 +374,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"fast_window": 10, "slow_window": 20},
         aliases=("trend_v1", "momentum"),
         description="Trend stack using close > SMA fast > SMA slow.",
+        strategy_style="trend",
     ),
     "mean_reversion": StrategySpec(
         strategy_id="mean_reversion",
@@ -377,6 +382,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": 20, "band_pct": 0.02},
         aliases=("mean", "reversion"),
         description="Mean reversion to SMA with symmetric percentage bands.",
+        strategy_style="mean_reversion",
     ),
     "rsi": StrategySpec(
         strategy_id="rsi",
@@ -384,6 +390,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": RSI_DEFAULT_WINDOW, "oversold": RSI_OVERSOLD, "overbought": RSI_OVERBOUGHT},
         aliases=("rsi_strategy",),
         description="RSI threshold strategy.",
+        strategy_style="mean_reversion",
     ),
     "macd": StrategySpec(
         strategy_id="macd",
@@ -391,6 +398,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={},
         aliases=("macd_strategy",),
         description="MACD crossover strategy.",
+        strategy_style="trend",
     ),
     "breakout": StrategySpec(
         strategy_id="breakout",
@@ -398,6 +406,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": 20},
         aliases=("donchian",),
         description="Donchian-style breakout and breakdown signal.",
+        strategy_style="trend",
     ),
     "pullback_trend": StrategySpec(
         strategy_id="pullback_trend",
@@ -405,6 +414,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"fast_window": 20, "trend_window": 50, "pullback_pct": 0.03},
         aliases=("pullback",),
         description="Buy pullbacks in a broader uptrend.",
+        strategy_style="trend",
     ),
     "bollinger_mean_reversion": StrategySpec(
         strategy_id="bollinger_mean_reversion",
@@ -412,6 +422,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"window": 20, "num_std": 2.0},
         aliases=("bollinger", "bbands"),
         description="Mean reversion using Bollinger bands.",
+        strategy_style="mean_reversion",
     ),
     "ma_crossover": StrategySpec(
         strategy_id="ma_crossover",
@@ -419,6 +430,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={"fast_window": 20, "slow_window": 50},
         aliases=("moving_average", "ma"),
         description="Fast/slow moving-average crossover.",
+        strategy_style="trend",
     ),
     "volatility_filtered_trend": StrategySpec(
         strategy_id="volatility_filtered_trend",
@@ -431,6 +443,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         },
         aliases=("volatility_trend", "vol_filter_trend"),
         description="Trend signal only when recent annualized volatility is below threshold.",
+        strategy_style="trend",
     ),
     "topic_proxy_rotation": StrategySpec(
         strategy_id="topic_proxy_rotation",
@@ -444,6 +457,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         aliases=("topic_rotation", "sector_proxy_rotation", "theme_proxy"),
         description="Rotate into names backed by strong sector/theme ETF proxy relative strength.",
         required_features=("topic_proxy_rel_strength", "topic_proxy_trend_gap"),
+        strategy_style="neutral",
     ),
     "macro_proxy_regime": StrategySpec(
         strategy_id="macro_proxy_regime",
@@ -459,6 +473,7 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         aliases=("macro_proxy", "policy_proxy", "macro_risk"),
         description="Use market-risk proxies like VIX and bond-vs-equity leadership as a macro regime filter.",
         required_features=("macro_risk_on_score", "macro_vix_pressure", "macro_equity_bond_spread"),
+        strategy_style="neutral",
     ),
 }
 
