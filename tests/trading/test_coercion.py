@@ -1,6 +1,6 @@
 import pytest
 
-from trading.coercion import coerce_bool
+from trading.utils.coercion import coerce_bool
 
 
 class TestCoerceBool:

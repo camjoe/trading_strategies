@@ -4,7 +4,7 @@ import sqlite3
 from typing import Callable
 
 from common.time import utc_now_iso
-from trading.coercion import (
+from trading.utils.coercion import (
     coerce_float,
     coerce_str,
     row_float,

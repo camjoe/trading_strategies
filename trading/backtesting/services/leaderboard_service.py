@@ -7,7 +7,7 @@ import pandas as pd
 
 from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
 from trading.backtesting.repositories.leaderboard_repository import fetch_equity_rows, fetch_leaderboard_rows
-from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]

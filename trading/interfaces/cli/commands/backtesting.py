@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from trading.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.profile_source import DEFAULT_TICKERS_FILE
 
 
 def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:

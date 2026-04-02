@@ -6,7 +6,7 @@ from typing import Callable
 
 from common.market_data import get_provider
 from common.time import utc_now_iso
-from trading.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
+from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
 from trading.repositories import (
