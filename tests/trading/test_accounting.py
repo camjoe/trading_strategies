@@ -3,7 +3,7 @@ import pytest
 import trading.services.accounting_service as accounting_service
 from trading.domain.accounting import compute_account_state
 from trading.services.accounting_service import load_trades, record_trade
-from trading.accounts import create_account, get_account
+from trading.services.accounts_service import create_account, get_account
 
 
 class TestComputeAccountState:

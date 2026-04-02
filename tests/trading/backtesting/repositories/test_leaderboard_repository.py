@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.backtesting.repositories.leaderboard_repository import fetch_equity_rows, fetch_leaderboard_rows
 
 

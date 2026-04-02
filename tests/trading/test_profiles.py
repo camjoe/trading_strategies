@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from trading.accounts import get_account
+from trading.services.accounts_service import get_account
 from trading.services.profiles_service import apply_account_profiles, load_account_profiles
 
 

@@ -30,7 +30,7 @@ def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
 
 
 try:
-    from trading.accounts import load_all_account_names
+    from trading.services.accounts_service import load_all_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())
@@ -211,7 +211,7 @@ def run_auto_trader_group(
         return
     auto_trader_args = [
         "-m",
-        "trading.auto_trader",
+        "trading.interfaces.runtime.jobs.daily_auto_trader",
         "--accounts",
         ",".join(group_accounts),
         "--min-trades",
@@ -341,14 +341,14 @@ def main() -> int:
             stream_command(
                 log_path,
                 f"Snapshot {account}",
-                ["-m", "trading.paper_trading", "snapshot", "--account", account],
+                ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
                 repo_root,
             )
 
         stream_command(
             log_path,
             "Compare Strategies",
-            ["-m", "trading.paper_trading", "compare-strategies", "--lookback", "10"],
+            ["-m", "trading.interfaces.cli.main", "compare-strategies", "--lookback", "10"],
             repo_root,
         )
 

@@ -6,7 +6,7 @@ from typing import Callable, cast
 
 from common.market_data import get_feature_provider
 
-from trading.accounts import get_account
+from trading.services.accounts_service import get_account
 from trading.coercion import (
     row_expect_float,
     row_expect_int,

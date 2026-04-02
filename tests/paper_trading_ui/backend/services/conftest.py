@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pytest
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 
 
 @pytest.fixture

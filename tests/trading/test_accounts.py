@@ -1,7 +1,7 @@
 import pytest
 import sqlite3
 
-from trading.accounts import configure_account, create_account, get_account, list_accounts, load_all_account_names, set_benchmark
+from trading.services.accounts_service import configure_account, create_account, get_account, list_accounts, load_all_account_names, set_benchmark
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.models import AccountConfig
 

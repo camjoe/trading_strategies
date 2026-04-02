@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.repositories.trades_repository import (
     fetch_trades_for_account,
     insert_trade,

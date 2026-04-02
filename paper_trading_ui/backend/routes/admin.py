@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.database.db_backend import DuplicateRecordError
 from trading.models import AccountConfig, RotationConfig
 

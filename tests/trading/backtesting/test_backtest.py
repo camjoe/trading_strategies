@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from common.market_data import FeatureBundle, ProxyFeatureDataProvider
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 from trading.backtesting.backtest import (
     BacktestBatchConfig,

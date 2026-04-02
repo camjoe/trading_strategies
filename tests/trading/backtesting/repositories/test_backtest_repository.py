@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.backtesting.repositories.backtest_repository import (
     insert_backtest_run,
     insert_backtest_snapshot,

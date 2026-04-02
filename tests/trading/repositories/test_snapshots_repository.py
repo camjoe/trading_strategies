@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.accounts import create_account
+from trading.services.accounts_service import create_account
 from trading.repositories.snapshots_repository import (
     fetch_latest_snapshot_row,
     fetch_recent_equity_rows,
