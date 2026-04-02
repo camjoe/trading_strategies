@@ -1,9 +1,9 @@
 import pytest
 
-from trading.accounts import create_account, get_account
-from trading import reporting
+from trading.services.accounts_service import create_account, get_account
+import trading.services.reporting_service as reporting_service
 from trading.models import AccountConfig
-from trading.reporting import (
+from trading.services.reporting_service import (
     account_report,
     build_account_stats,
     compare_strategies,
@@ -49,7 +49,7 @@ class TestBuildAccountStats:
         _insert_trade(conn, account["id"], "AAPL", 2.0, 100.0)
         conn.commit()
 
-        monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
 
         state, prices, market_value, unrealized, equity = build_account_stats(conn, account)
 
@@ -67,7 +67,7 @@ class TestBuildAccountStats:
         _insert_trade(conn, account["id"], "MSFT", 1.0, 50.0, trade_time="2026-01-01T00:00:01Z")
         conn.commit()
 
-        monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
 
         state, prices, market_value, unrealized, equity = build_account_stats(conn, account)
 
@@ -154,8 +154,8 @@ class TestAccountReportOutput:
         _insert_trade(conn, account["id"], "AAPL", 2.0, 100.0)
         conn.commit()
 
-        monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
-        monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (1050.0, 5.0))
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (1050.0, 5.0))
 
         stats, positions = account_report(conn, "acct_report_out")
         out = capsys.readouterr().out
@@ -166,7 +166,7 @@ class TestAccountReportOutput:
         assert "Strategy Alpha vs Benchmark %: -1.00" in out
         assert "Open Positions:" in out
 
-        monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (None, None))
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
         account_report(conn, "acct_report_out")
         out2 = capsys.readouterr().out
         assert "Benchmark comparison: unavailable (price history not found)" in out2
@@ -195,8 +195,8 @@ class TestAccountReportOutput:
                 max_loss_pct=20.0,
             ),
         )
-        monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda _tickers: {})
-        monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (None, None))
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {})
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
 
         account_report(conn, "acct_leaps")
         out = capsys.readouterr().out
@@ -217,8 +217,8 @@ class TestCompareStrategies:
         _insert_trade(conn, account["id"], "AAPL", 1.0, 100.0)
         conn.commit()
 
-        monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda _tickers: {"AAPL": 101.0})
-        monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (None, None))
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {"AAPL": 101.0})
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
 
         compare_strategies(conn, lookback=5)
         out = capsys.readouterr().out
@@ -235,9 +235,9 @@ class TestCompareStrategies:
             _insert_trade(conn, account["id"], ticker, 1.0, 100.0 + i, trade_time=f"2026-01-01T00:00:0{i}Z")
         conn.commit()
 
-        monkeypatch.setattr("trading.reporting.fetch_latest_prices", lambda symbols: {symbol: 110.0 for symbol in symbols})
-        monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (10100.0, 1.0))
-        monkeypatch.setattr("trading.reporting.infer_overall_trend", lambda *_args, **_kwargs: "up")
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda symbols: {symbol: 110.0 for symbol in symbols})
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (10100.0, 1.0))
+        monkeypatch.setattr("trading.services.reporting_service.infer_overall_trend", lambda *_args, **_kwargs: "up")
 
         compare_strategies(conn, lookback=5)
         out = capsys.readouterr().out
@@ -250,7 +250,7 @@ class TestCompareStrategies:
         capsys,
     ) -> None:
         create_account(conn, "acct_none", "Trend", 1000.0, "SPY", config=AccountConfig(descriptive_name="No Trades"))
-        monkeypatch.setattr("trading.reporting.benchmark_stats", lambda *_args: (None, None))
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
 
         compare_strategies(conn, lookback=5)
         out = capsys.readouterr().out
@@ -266,7 +266,7 @@ class TestSnapshots:
     ) -> None:
         create_account(conn, "acct_snap", "Trend", 1000.0, "SPY")
         monkeypatch.setattr(
-            reporting,
+            reporting_service,
             "account_report",
             lambda _conn, _name: (
                 {
@@ -280,7 +280,7 @@ class TestSnapshots:
                 {"AAPL": 1.0},
             ),
         )
-        monkeypatch.setattr(reporting, "utc_now_iso", lambda: "2099-01-01T00:00:00Z")
+        monkeypatch.setattr(reporting_service, "utc_now_iso", lambda: "2099-01-01T00:00:00Z")
 
         snapshot_account(conn, "acct_snap", snapshot_time=None)
         out = capsys.readouterr().out

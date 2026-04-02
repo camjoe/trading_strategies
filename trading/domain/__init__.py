@@ -1,3 +1,4 @@
+from trading.domain.accounting import compute_account_state
 from trading.domain.auto_trader_policy import (
     apply_leaps_buy_qty_limits,
     build_trade_note,
@@ -25,6 +26,7 @@ from trading.domain.rotation import (
 )
 
 __all__ = [
+    "compute_account_state",
     "apply_leaps_buy_qty_limits",
     "build_trade_note",
     "choose_buy_qty",

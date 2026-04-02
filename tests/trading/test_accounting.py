@@ -1,7 +1,8 @@
 import pytest
 
-from trading import accounting
-from trading.accounting import compute_account_state, load_trades, record_trade
+import trading.services.accounting_service as accounting_service
+from trading.domain.accounting import compute_account_state
+from trading.services.accounting_service import load_trades, record_trade
 from trading.accounts import create_account, get_account
 
 
@@ -177,7 +178,7 @@ class TestRecordTradeAndLoadTrades:
 
     def test_uses_default_trade_time_when_missing(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         create_account(conn, "acct_default_time", "Trend", 1000.0, "SPY")
-        monkeypatch.setattr(accounting, "utc_now_iso", lambda: "2099-01-01T00:00:00Z")
+        monkeypatch.setattr(accounting_service, "utc_now_iso", lambda: "2099-01-01T00:00:00Z")
 
         record_trade(
             conn,

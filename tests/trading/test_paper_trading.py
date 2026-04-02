@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from trading import paper_trading
+from trading.interfaces.cli import main as paper_trading
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 

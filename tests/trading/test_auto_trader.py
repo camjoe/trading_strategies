@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from trading import auto_trader
+from trading.interfaces.runtime.jobs import daily_auto_trader as auto_trader
 import trading.services.auto_trader_runtime_service as runtime_service
 import trading.services.trade_execution_service as trade_execution_service
 

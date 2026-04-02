@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.accounts import configure_account, create_account, get_account, set_benchmark
+from trading.services.accounts_service import configure_account, create_account, get_account, set_benchmark
 from trading.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.models.account_config import AccountConfig
 from trading.models.rotation_config import RotationConfig

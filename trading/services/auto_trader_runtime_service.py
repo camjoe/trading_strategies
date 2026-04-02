@@ -4,8 +4,9 @@ import sqlite3
 from typing import Callable, Mapping, cast
 
 from common.time import utc_now_iso
-from trading.accounting import compute_account_state, load_trades, record_trade
-from trading.accounts import get_account
+from trading.services.accounts_service import get_account
+from trading.domain.accounting import compute_account_state
+from trading.services.accounting_service import load_trades, record_trade
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.domain import auto_trader_policy
 from trading.repositories.rotation_repository import update_account_rotation_state
