@@ -4,9 +4,17 @@ import sqlite3
 from typing import Callable, Mapping, cast
 
 from common.time import utc_now_iso
+from trading.brokers.base import BrokerConnection, BrokerOrder, OrderStatus
+from trading.brokers.factory import get_broker_for_account
 from trading.services.accounts_service import get_account
 from trading.domain.accounting import compute_account_state
 from trading.services.accounting_service import load_trades, record_trade
+from trading.repositories.broker_orders_repository import (
+    fetch_open_broker_orders,
+    insert_broker_order,
+    insert_order_fill,
+    update_broker_order_status,
+)
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
@@ -227,6 +235,47 @@ def _record_runtime_trade(
     selection,
     forced_sell: str | None,
 ) -> None:
+    broker = get_broker_for_account(account)
+
+    def _broker_aware_record_trade(
+        conn: sqlite3.Connection,
+        *,
+        account_name: str,
+        side: str,
+        ticker: str,
+        qty: float,
+        price: float,
+        fee: float,
+        trade_time: str,
+        note: str | None,
+    ) -> None:
+        order = BrokerOrder(
+            account_id=int(account["id"]),
+            ticker=ticker,
+            side=side,
+            qty=qty,
+            price=price,
+        )
+        filled = broker.place_order(order)
+
+        if filled.broker_order_id:
+            insert_broker_order(conn, filled)
+            for fill in filled.fills:
+                insert_order_fill(conn, filled.broker_order_id, fill)
+
+        if filled.status == OrderStatus.FILLED:
+            record_trade(
+                conn,
+                account_name=account_name,
+                side=side,
+                ticker=ticker,
+                qty=qty,
+                price=filled.avg_fill_price or price,
+                fee=fee,
+                trade_time=trade_time,
+                note=note,
+            )
+
     record_prepared_trade_impl(
         conn,
         account_name,
@@ -238,7 +287,7 @@ def _record_runtime_trade(
         fee,
         selection,
         forced_sell,
-        record_trade_fn=record_trade,
+        record_trade_fn=_broker_aware_record_trade,
         utc_now_iso_fn=utc_now_iso,
         build_trade_note_fn=auto_trader_policy.build_trade_note,
     )
@@ -272,3 +321,75 @@ def run_for_account(
         prepare_trade_selection_fn=_prepare_runtime_trade_selection,
         record_prepared_trade_fn=_record_runtime_trade,
     )
+
+
+def reconcile_open_ib_orders(
+    conn: sqlite3.Connection,
+    account_name: str,
+    account: sqlite3.Row,
+    fee: float,
+) -> int:
+    """Poll IB for fill updates on all open (non-terminal) broker orders.
+
+    For each order that has transitioned to FILLED since it was last persisted,
+    this function:
+      - Updates the ``broker_orders`` row to FILLED with avg fill price
+      - Inserts any new ``order_fills`` rows
+      - Calls ``record_trade`` so the fill is reflected in the account ledger
+
+    Returns the number of orders that were newly FILLED in this call.
+
+    This should be called periodically (e.g. once per trading loop iteration)
+    for accounts with ``broker_type = 'interactive_brokers'``.  It is a no-op
+    for paper accounts since paper orders are synchronously filled.
+    """
+    from trading.brokers.ib_adapter import InteractiveBrokersAdapter
+
+    broker = get_broker_for_account(account)
+    if not isinstance(broker, InteractiveBrokersAdapter):
+        return 0
+
+    open_rows = fetch_open_broker_orders(conn, account_id=int(account["id"]))
+    if not open_rows:
+        return 0
+
+    open_ids = {row["broker_order_id"]: row for row in open_rows}
+    live_orders = broker.get_open_trades()
+    now = utc_now_iso()
+    newly_filled = 0
+
+    for live in live_orders:
+        if live.broker_order_id not in open_ids:
+            continue
+        persisted = open_ids[live.broker_order_id]
+
+        # Persist any new fills not yet in the DB.
+        for fill in live.fills:
+            insert_order_fill(conn, live.broker_order_id, fill)
+
+        # Update the order row with latest status.
+        update_broker_order_status(
+            conn,
+            broker_order_id=live.broker_order_id,
+            status=live.status,
+            filled_qty=live.filled_qty,
+            avg_fill_price=live.avg_fill_price,
+            commission=live.commission,
+            updated_at=now,
+        )
+
+        if live.status == OrderStatus.FILLED:
+            record_trade(
+                conn,
+                account_name=account_name,
+                side=persisted["side"],
+                ticker=persisted["ticker"],
+                qty=live.filled_qty,
+                price=live.avg_fill_price or persisted["requested_price"],
+                fee=fee,
+                trade_time=now,
+                note=f"ib-fill order={live.broker_order_id}",
+            )
+            newly_filled += 1
+
+    return newly_filled
