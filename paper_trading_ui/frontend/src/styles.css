@@ -1,18 +1,92 @@
 :root {
+  /* Layout */
   --topbar-height: 128px;
   --tab-nav-height: 56px;
   --sticky-stack-offset: calc(var(--topbar-height) + 16px);
+
+  /* Surfaces */
   --bg-1: #f2efe9;
   --bg-2: #dce6f2;
+  --bg-glow-warm: #f8d9bc;
+  --bg-glow-warm-0: #f8d9bc00;
+  --bg-glow-cool: #9dd7d7;
+  --bg-glow-cool-0: #9dd7d700;
+  --topbar-bg: #f4f8ffcc;
   --panel: #ffffffd9;
+  --panel-2: #ffffffd6;
+  --panel-border: #d1dceb;
+  --surface-white: #ffffff;
+  --surface-menu: #f7fbffef;
+  --surface-subtle: #f7fbffd6;
+  --surface-action: #f5f9fddd;
+  --surface-action-hover: #ecf4fb;
+
+  /* Typography */
   --ink: #1a1e24;
   --ink-soft: #475366;
+  --ink-muted: #666;
+
+  /* Accent colors */
   --accent: #0f7a85;
   --accent-2: #f28f3b;
+  --accent-gradient-end: #53a3a9;
+  --btn-neutral-start: #607d8b;
+  --btn-neutral-end: #8da4b3;
+
+  /* Chart / trading colors */
   --up: #18794e;
   --down: #b33f62;
+  --chip-bg: #dceff0;
+  --chip-border: #91c5c9;
+  --trade-alt-bg: #dfeeff;
+  --trade-alt-start: #e7f2ff;
+  --trade-alt-end: #d9ebff;
+  --trade-buy-start: #e6f8ef;
+  --trade-buy-end: #d1f1e0;
+  --trade-buy-ink: #0b6b43;
+  --trade-buy-border: #9fd4bc;
+  --trade-sell-start: #ffe8ee;
+  --trade-sell-end: #ffd9e2;
+  --trade-sell-ink: #a52d4b;
+  --trade-sell-border: #e9a9ba;
+
+  /* Borders and dividers */
   --line: #c6d3e1;
+  --line-subtle: #e8eef5;
+  --line-table: #d7e2ef;
+  --border-menu: #c9d7e5;
+  --border-nav: #d4e2ef;
+  --border-subtle: #d4dfec;
+  --border-input: #b8c7d9;
+  --border-action: #c8d9ea;
+  --border-action-hover: #a6c5dc;
+  --card-border: #ffffff80;
+  --nav-hover-bg: #e7f2f4;
+  --nav-hover-border: #b7d6d9;
+
+  /* Table surfaces */
+  --table-head-bg: #e8f1f8;
+  --table-head-bg-compare: #edf4fb;
+
+  /* Shadows */
   --shadow: 0 10px 40px #22354d24;
+  --shadow-menu: 0 16px 34px #22354d22;
+  --shadow-trade: 0 1px 4px #2d577f22;
+
+  /* Interactive states — danger / status / warning */
+  --danger: #aa2a4a;
+  --danger-hover: #8f1d3b;
+  --success-border: #bce3c7;
+  --success-bg: #ecfbf0;
+  --success-ink: #156c3f;
+  --error-border: #efbfd0;
+  --error-bg: #fff1f6;
+  --error-ink: #912549;
+  --warning-border: #e0c15f;
+  --warning-bg: #fff4c7;
+  --warning-ink: #7a5900;
+
+  /* Log panel */
   --log-bg: #0b1220;
   --log-ink: #d7e4ff;
   --log-num: #7b8aa5;
@@ -20,6 +94,9 @@
   --log-warn: #ffd58f;
   --log-ok: #95e4bc;
   --log-meta: #9cc8ff;
+  --log-border: #1e2d48;
+  --log-group-line: #ffffff1c;
+  --log-empty-ink: #aebdd8;
 }
 
 * {
@@ -31,8 +108,8 @@ body {
   min-height: 100vh;
   color: var(--ink);
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 18% 10%, #f8d9bc 0, #f8d9bc00 30%),
-    radial-gradient(circle at 85% 85%, #9dd7d7 0, #9dd7d700 35%),
+  background: radial-gradient(circle at 18% 10%, var(--bg-glow-warm) 0, var(--bg-glow-warm-0) 30%),
+    radial-gradient(circle at 85% 85%, var(--bg-glow-cool) 0, var(--bg-glow-cool-0) 35%),
     linear-gradient(155deg, var(--bg-1), var(--bg-2));
 }
 
@@ -44,7 +121,7 @@ body {
   flex-direction: column;
   align-items: stretch;
   gap: 0;
-  background: #f4f8ffcc;
+  background: var(--topbar-bg);
   backdrop-filter: blur(6px);
 }
 
@@ -87,10 +164,10 @@ body {
 
 .docs-nav-surface {
   padding: 0.55rem;
-  border: 1px solid #c9d7e5;
+  border: 1px solid var(--border-menu);
   border-radius: 14px;
-  background: #f7fbffef;
-  box-shadow: 0 16px 34px #22354d22;
+  background: var(--surface-menu);
+  box-shadow: var(--shadow-menu);
   backdrop-filter: blur(10px);
 }
 
@@ -118,7 +195,7 @@ body {
 }
 
 .docs-nav-two-pane.has-secondary .docs-nav-primary-list {
-  border-right: 1px solid #d4e2ef;
+  border-right: 1px solid var(--border-nav);
 }
 
 .docs-nav-secondary {
@@ -151,8 +228,8 @@ body {
 .docs-nav-group-item:hover,
 .docs-nav-group-item.active,
 .docs-nav-group-item:focus-visible {
-  background: #e7f2f4;
-  border-color: #b7d6d9;
+  background: var(--nav-hover-bg);
+  border-color: var(--nav-hover-border);
   color: var(--accent);
   transform: none;
   filter: none;
@@ -193,8 +270,8 @@ body {
 .docs-nav-item:hover,
 .docs-nav-item.active,
 .docs-nav-item:focus-visible {
-  background: #e7f2f4;
-  border-color: #b7d6d9;
+  background: var(--nav-hover-bg);
+  border-color: var(--nav-hover-border);
   color: var(--accent);
   transform: none;
   filter: none;
@@ -245,8 +322,8 @@ body {
 .doc-entry {
   display: flex;
   flex-direction: column;
-  background: #ffffffd6;
-  border: 1px solid #d1dceb;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 1rem;
 }
@@ -281,9 +358,9 @@ body {
 }
 
 .ref-card-toggle-all {
-  background: #f5f9fddd;
+  background: var(--surface-action);
   color: var(--ink-soft);
-  border: 1px solid #c8d9ea;
+  border: 1px solid var(--border-action);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: 0.78rem;
@@ -293,9 +370,9 @@ body {
 
 .ref-card-toggle-all:hover,
 .ref-card-toggle-all:focus-visible {
-  background: #ecf4fb;
+  background: var(--surface-action-hover);
   color: var(--accent);
-  border-color: #a6c5dc;
+  border-color: var(--border-action-hover);
   transform: none;
   filter: none;
 }
@@ -376,7 +453,7 @@ body {
 }
 
 .ref-table th {
-  background: #e8f1f8;
+  background: var(--table-head-bg);
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -401,7 +478,7 @@ body {
 
 .ref-table td {
   padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid #e8eef5;
+  border-bottom: 1px solid var(--line-subtle);
   vertical-align: middle;
 }
 
@@ -534,9 +611,9 @@ body {
 }
 
 .admin-collapsible {
-  border: 1px solid #d4dfec;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  background: #f7fbffd6;
+  background: var(--surface-subtle);
 }
 
 .admin-collapsible summary {
@@ -613,30 +690,30 @@ body {
 }
 
 .danger-btn {
-  background: #aa2a4a;
-  color: #fff;
+  background: var(--danger);
+  color: var(--surface-white);
 }
 
 .danger-btn:hover,
 .danger-btn:focus-visible {
-  background: #8f1d3b;
+  background: var(--danger-hover);
 }
 
 .success {
   padding: 0.65rem 0.75rem;
   border-radius: 10px;
-  border: 1px solid #bce3c7;
-  background: #ecfbf0;
-  color: #156c3f;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-ink);
   font-size: 0.9rem;
 }
 
 .error {
   padding: 0.65rem 0.75rem;
   border-radius: 10px;
-  border: 1px solid #efbfd0;
-  background: #fff1f6;
-  color: #912549;
+  border: 1px solid var(--error-border);
+  background: var(--error-bg);
+  color: var(--error-ink);
   font-size: 0.9rem;
 }
 
@@ -651,7 +728,7 @@ body {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface-white);
 }
 
 .compare-table {
@@ -664,13 +741,13 @@ body {
 .compare-table th,
 .compare-table td {
   padding: 0.55rem 0.65rem;
-  border-bottom: 1px solid #e8eef5;
+  border-bottom: 1px solid var(--line-subtle);
   text-align: left;
   white-space: nowrap;
 }
 
 .compare-table th {
-  background: #edf4fb;
+  background: var(--table-head-bg-compare);
   color: var(--ink-soft);
   font-weight: 700;
   font-size: 0.78rem;
@@ -717,12 +794,12 @@ body {
 
 .ref-note {
   font-size: 0.85rem;
-  color: var(--ink-muted, #666);
+  color: var(--ink-muted);
   margin: 0 0 0.75rem;
 }
 
 .ref-note a {
-  color: var(--accent, #0366d6);
+  color: var(--accent);
 }
 
 .actions {
@@ -736,12 +813,12 @@ select,
 input {
   font: inherit;
   border-radius: 10px;
-  border: 1px solid #b8c7d9;
+  border: 1px solid var(--border-input);
   padding: 0.55rem 0.75rem;
 }
 
 button {
-  background: linear-gradient(120deg, var(--accent), #53a3a9);
+  background: linear-gradient(120deg, var(--accent), var(--accent-gradient-end));
   color: white;
   border: none;
   cursor: pointer;
@@ -762,7 +839,7 @@ button:hover {
 
 .card {
   background: var(--panel);
-  border: 1px solid #ffffff80;
+  border: 1px solid var(--card-border);
   box-shadow: var(--shadow);
   border-radius: 14px;
   padding: 1rem;
@@ -828,8 +905,8 @@ h4 {
   width: 100%;
   text-align: left;
   color: var(--ink);
-  background: #ffffffd6;
-  border: 1px solid #d1dceb;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
 }
 
 .account-card .row {
@@ -844,8 +921,8 @@ h4 {
 }
 
 .chip {
-  background: #dceff0;
-  border: 1px solid #91c5c9;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
   padding: 0.1rem 0.6rem;
   font-size: 0.8rem;
@@ -912,13 +989,13 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #d7e2ef;
+  border-bottom: 1px solid var(--line-table);
   text-align: left;
   padding: 0.42rem;
 }
 
 .trade-row--alt-day td {
-  background: #dfeeff;
+  background: var(--trade-alt-bg);
 }
 
 .recent-trades-table {
@@ -927,32 +1004,32 @@ td {
 }
 
 .recent-trades-table thead th {
-  border-bottom: 1px solid #d7e2ef;
+  border-bottom: 1px solid var(--line-table);
 }
 
 .recent-trades-table tbody td {
-  background: #ffffff;
-  border-top: 1px solid #d7e2ef;
-  border-bottom: 1px solid #d7e2ef;
+  background: var(--surface-white);
+  border-top: 1px solid var(--line-table);
+  border-bottom: 1px solid var(--line-table);
   border-left: none;
   border-right: none;
 }
 
 .recent-trades-table tbody tr td:first-child {
-  border-left: 1px solid #d7e2ef;
+  border-left: 1px solid var(--line-table);
   border-top-left-radius: 12px;
   border-bottom-left-radius: 12px;
 }
 
 .recent-trades-table tbody tr td:last-child {
-  border-right: 1px solid #d7e2ef;
+  border-right: 1px solid var(--line-table);
   border-top-right-radius: 12px;
   border-bottom-right-radius: 12px;
 }
 
 .recent-trades-table tbody .trade-row--alt-day td:not(.up):not(.down) {
-  background: linear-gradient(180deg, #e7f2ff, #d9ebff);
-  box-shadow: 0 1px 4px #2d577f22;
+  background: linear-gradient(180deg, var(--trade-alt-start), var(--trade-alt-end));
+  box-shadow: var(--shadow-trade);
 }
 
 .recent-trades-table tbody td.up,
@@ -964,17 +1041,17 @@ td {
 }
 
 .recent-trades-table tbody td.up {
-  background: linear-gradient(180deg, #e6f8ef, #d1f1e0);
-  color: #0b6b43;
-  border-top: 1px solid #9fd4bc;
-  border-bottom: 1px solid #9fd4bc;
+  background: linear-gradient(180deg, var(--trade-buy-start), var(--trade-buy-end));
+  color: var(--trade-buy-ink);
+  border-top: 1px solid var(--trade-buy-border);
+  border-bottom: 1px solid var(--trade-buy-border);
 }
 
 .recent-trades-table tbody td.down {
-  background: linear-gradient(180deg, #ffe8ee, #ffd9e2);
-  color: #a52d4b;
-  border-top: 1px solid #e9a9ba;
-  border-bottom: 1px solid #e9a9ba;
+  background: linear-gradient(180deg, var(--trade-sell-start), var(--trade-sell-end));
+  color: var(--trade-sell-ink);
+  border-top: 1px solid var(--trade-sell-border);
+  border-bottom: 1px solid var(--trade-sell-border);
 }
 
 .log-controls {
@@ -1015,9 +1092,9 @@ td {
 }
 
 .bt-advanced {
-  border: 1px solid #d4dfec;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  background: #f7fbffd6;
+  background: var(--surface-subtle);
 }
 
 .bt-advanced summary {
@@ -1060,7 +1137,7 @@ td {
 .bt-quick-buttons button {
   padding: 0.35rem 0.6rem;
   font-size: 0.85rem;
-  background: linear-gradient(120deg, #607d8b, #8da4b3);
+  background: linear-gradient(120deg, var(--btn-neutral-start), var(--btn-neutral-end));
 }
 
 .bt-row {
@@ -1099,8 +1176,8 @@ td {
   width: 100%;
   text-align: left;
   color: var(--ink);
-  background: #ffffffd6;
-  border: 1px solid #d1dceb;
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
 }
 
 @media (max-width: 900px) {
@@ -1112,9 +1189,9 @@ td {
 }
 
 .bt-result {
-  border: 1px solid #d1dceb;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  background: #ffffffd6;
+  background: var(--panel-2);
   padding: 0.65rem;
   display: grid;
   gap: 0.4rem;
@@ -1126,9 +1203,9 @@ td {
 }
 
 .bt-warning {
-  border: 1px solid #e0c15f;
-  background: #fff4c7;
-  color: #7a5900;
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-ink);
   border-radius: 10px;
   padding: 0.5rem 0.6rem;
   font-size: 0.9rem;
@@ -1146,7 +1223,7 @@ td {
   overflow: auto;
   background: var(--log-bg);
   color: var(--log-ink);
-  border: 1px solid #1e2d48;
+  border: 1px solid var(--log-border);
   border-radius: 12px;
   padding: 0.45rem 0.6rem;
   font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
@@ -1175,7 +1252,7 @@ td {
 .log-group {
   margin: 0;
   padding: 0 0 0 0.45rem;
-  border-left: 2px solid #ffffff1c;
+  border-left: 2px solid var(--log-group-line);
 }
 
 .log-group + .log-group {
@@ -1212,7 +1289,7 @@ td {
 }
 
 .log-empty {
-  color: #aebdd8;
+  color: var(--log-empty-ink);
   padding: 0.2rem;
 }
 
