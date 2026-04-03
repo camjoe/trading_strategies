@@ -62,6 +62,12 @@ Disallowed:
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
+10. `trading/brokers/`: broker connection adapters and factory
+   - Keep all broker SDK imports (ib_async, ibapi) inside this package.
+   - Service and domain layers must depend only on `BrokerConnection` from `base.py`.
+   - The factory (`factory.py`) is the sole location for `broker_type` routing logic.
+   - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
+
 ## Constants and Magic Numbers
 
 All bots must follow this rule when writing or reviewing Python code:
@@ -143,3 +149,29 @@ Before creating or moving code in `trading/`:
 3. Place operator data ops in `trading/interfaces/runtime/data_ops/`.
 4. Keep SQL in repositories, not in handlers/routes.
 5. If architecture ownership changes, update this file accordingly.
+
+## Live Trading Safety Guard
+
+The `live_trading_enabled` column on the `accounts` table is a hard safety gate
+that prevents live broker orders from being submitted accidentally.
+
+**Rules that all bots must follow without exception:**
+
+1. **Never set `live_trading_enabled = 1`** in any generated code, migration,
+   script, fixture, test factory, or seed data.  This flag must only be set
+   by a human operator via a direct DB update.
+
+2. **Never modify `broker_type`, `broker_host`, `broker_port`, or
+   `broker_client_id`** to point at a live broker endpoint in any generated
+   code or automated process.
+
+3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
+   `trading.brokers.factory`).  If this error surfaces, it must propagate so
+   the operator can investigate.
+
+4. **Test accounts must always have `live_trading_enabled = 0`** (the column
+   default).  Never override this in test fixtures or helper factories.
+
+Rationale: `live_trading_enabled = 1` causes real money to move through a
+live broker.  No automated process — including bots, CI pipelines, or scripts
+— should ever cross this line.
