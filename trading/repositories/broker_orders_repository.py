@@ -42,13 +42,19 @@ def insert_broker_order(conn: sqlite3.Connection, order: BrokerOrder) -> None:
 
 
 def insert_order_fill(conn: sqlite3.Connection, broker_order_id: str, fill: OrderFill) -> None:
-    """Persist a single execution report for an existing broker order."""
+    """Persist a single execution report for an existing broker order.
+
+    Uses INSERT OR IGNORE so repeated reconciliation calls are idempotent for
+    fills that carry a non-null exec_id (IB fills).  Paper fills (exec_id=None)
+    are always inserted since they are never reconciled a second time.
+    """
     conn.execute(
         """
-        INSERT INTO order_fills (broker_order_id, filled_qty, fill_price, fill_time, commission)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO order_fills
+            (broker_order_id, filled_qty, fill_price, fill_time, commission, exec_id)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (broker_order_id, fill.filled_qty, fill.fill_price, fill.fill_time, fill.commission),
+        (broker_order_id, fill.filled_qty, fill.fill_price, fill.fill_time, fill.commission, fill.exec_id),
     )
     conn.commit()
 

@@ -5,10 +5,12 @@ Covers:
   - InteractiveBrokersAdapter — IBClientProtocol interactions (mocked)
   - get_broker_for_account factory routing and live_trading_enabled guard
   - _map_ib_status status mapping
+  - reconcile_open_ib_orders fill-reconciliation loop
   - Live trading safety: live_trading_enabled = 1 must never be set in tests
 """
 from __future__ import annotations
 
+import sqlite3
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +21,7 @@ from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_a
 from trading.brokers.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.ib_client import IBClientProtocol, IbApiClient
 from trading.brokers.paper_adapter import PaperBrokerAdapter
+from trading.database.db import init_schema
 
 
 # ---------------------------------------------------------------------------
@@ -146,13 +149,15 @@ class TestGetBrokerForAccount:
     def test_ib_with_live_trading_enabled_connects(self):
         account = _make_account(
             broker_type="interactive_brokers",
-            live_trading_enabled=1,
             broker_host="127.0.0.1",
             broker_port=7497,
             broker_client_id=1,
         )
         mock_client = _mock_ib_client()
-        with patch("trading.brokers.factory.IbAsyncClient", return_value=mock_client):
+        with (
+            patch("trading.brokers.factory._require_live_trading_enabled"),
+            patch("trading.brokers.factory.IbAsyncClient", return_value=mock_client),
+        ):
             broker = get_broker_for_account(account)
         assert isinstance(broker, InteractiveBrokersAdapter)
         mock_client.connect.assert_called_once_with("127.0.0.1", 7497, client_id=1)
@@ -163,6 +168,7 @@ class TestGetBrokerForAccount:
             get_broker_for_account(account)
 
     def test_live_trading_enabled_string_one_is_accepted(self):
+        """String "1" (from SQLite row) is accepted — guard should not raise."""
         account = _make_account(
             broker_type="interactive_brokers",
             live_trading_enabled="1",
@@ -180,7 +186,6 @@ class TestGetBrokerForAccount:
 
         account = _make_account(
             broker_type="interactive_brokers",
-            live_trading_enabled=1,
             broker_host="127.0.0.1",
             broker_port=7497,
             broker_client_id=1,
@@ -189,9 +194,25 @@ class TestGetBrokerForAccount:
         original = factory_module.IB_CLIENT_BACKEND
         try:
             factory_module.IB_CLIENT_BACKEND = "ibapi"
-            with patch("trading.brokers.factory.IbApiClient", return_value=mock_client):
+            with (
+                patch("trading.brokers.factory._require_live_trading_enabled"),
+                patch("trading.brokers.factory.IbApiClient", return_value=mock_client),
+            ):
                 broker = get_broker_for_account(account)
             assert isinstance(broker, InteractiveBrokersAdapter)
+        finally:
+            factory_module.IB_CLIENT_BACKEND = original
+
+    def test_unknown_ib_backend_raises_value_error(self):
+        import trading.brokers.factory as factory_module
+
+        account = _make_account(broker_type="interactive_brokers")
+        original = factory_module.IB_CLIENT_BACKEND
+        try:
+            factory_module.IB_CLIENT_BACKEND = "not_a_real_backend"
+            with patch("trading.brokers.factory._require_live_trading_enabled"):
+                with pytest.raises(ValueError, match="Unknown IB_CLIENT_BACKEND"):
+                    get_broker_for_account(account)
         finally:
             factory_module.IB_CLIENT_BACKEND = original
 
@@ -362,6 +383,18 @@ class TestIbApiClient:
         with pytest.raises(NotImplementedError):
             client.trades()
 
+    def test_make_stock_raises_not_implemented(self):
+        with pytest.raises(NotImplementedError):
+            IbApiClient().make_stock("AAPL")
+
+    def test_make_order_raises_not_implemented(self):
+        with pytest.raises(NotImplementedError):
+            IbApiClient().make_order(action="BUY", totalQuantity=10, orderType="MKT")
+
+    def test_isinstance_check_passes_with_all_stubs(self):
+        """IbApiClient must satisfy IBClientProtocol at runtime."""
+        assert isinstance(IbApiClient(), IBClientProtocol)
+
 
 # ---------------------------------------------------------------------------
 # _map_ib_status
@@ -371,6 +404,7 @@ class TestIbApiClient:
 class TestMapIbStatus:
     @pytest.mark.parametrize("ib_status,expected", [
         ("Filled", OrderStatus.FILLED),
+        ("PartiallyFilled", OrderStatus.PARTIALLY_FILLED),
         ("Submitted", OrderStatus.SUBMITTED),
         ("PreSubmitted", OrderStatus.SUBMITTED),
         ("Cancelled", OrderStatus.CANCELLED),
@@ -406,3 +440,150 @@ class TestLiveTradingSafety:
     def test_live_trading_not_enabled_error_is_runtime_error(self):
         """LiveTradingNotEnabledError must not be accidentally caught by broad except clauses."""
         assert issubclass(LiveTradingNotEnabledError, RuntimeError)
+
+
+# ---------------------------------------------------------------------------
+# reconcile_open_ib_orders
+# ---------------------------------------------------------------------------
+
+
+def _make_db():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_schema(conn)
+    return conn
+
+
+def _insert_account_row(conn, account_id: int = 1, name: str = "test-account") -> None:
+    conn.execute(
+        "INSERT OR IGNORE INTO accounts (id, name, strategy, initial_cash, created_at) "
+        "VALUES (?, ?, 'growth', 10000, '2024-01-01T00:00:00')",
+        (account_id, name),
+    )
+    conn.commit()
+
+
+def _insert_open_broker_order(conn, broker_order_id: str, account_id: int = 1) -> None:
+    conn.execute(
+        "INSERT INTO broker_orders "
+        "(account_id, ticker, side, qty, requested_price, broker_order_id, status, submitted_at, updated_at) "
+        "VALUES (?, 'AAPL', 'buy', 10, 150.0, ?, 'SUBMITTED', '2024-01-01T00:00:00', '2024-01-01T00:00:00')",
+        (account_id, broker_order_id),
+    )
+    conn.commit()
+
+
+class TestReconcileOpenIbOrders:
+    """reconcile_open_ib_orders polls IB for fills on open SUBMITTED orders."""
+
+    def test_non_ib_broker_returns_zero(self):
+        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+
+        conn = _make_db()
+        account = _make_account(broker_type="paper")
+        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account") as mock_factory:
+            mock_factory.return_value = PaperBrokerAdapter()
+            result = reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+        assert result == 0
+
+    def test_newly_filled_order_increments_count(self):
+        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+
+        conn = _make_db()
+        _insert_account_row(conn)
+        _insert_open_broker_order(conn, broker_order_id="42")
+
+        account = _make_account(broker_type="interactive_brokers", id=1)
+        fill = OrderFill(filled_qty=10.0, fill_price=151.0, fill_time="2024-01-02T10:00:00", commission=0.5, exec_id="exec-001")
+        filled_order = BrokerOrder(
+            account_id=1, ticker="AAPL", side="buy", qty=10.0, price=150.0,
+            broker_order_id="42", status=OrderStatus.FILLED,
+            filled_qty=10.0, avg_fill_price=151.0, commission=0.5,
+            fills=[fill],
+        )
+
+        class _FakeIbAdapter(InteractiveBrokersAdapter):
+            def __init__(self):
+                pass
+
+            def get_open_trades(self):
+                return [filled_order]
+
+            def disconnect(self):
+                pass
+
+        recorded = []
+        with (
+            patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeIbAdapter()),
+            patch("trading.services.auto_trader_runtime_service.record_trade", lambda conn, **kw: recorded.append(kw)),
+        ):
+            count = reconcile_open_ib_orders(conn, "test-account", account, fee=1.0)
+
+        assert count == 1
+        assert len(recorded) == 1
+        assert recorded[0]["ticker"] == "AAPL"
+        assert recorded[0]["price"] == 151.0
+
+    def test_duplicate_fill_is_idempotent(self):
+        """Calling reconcile twice with the same exec_id inserts only one fill row."""
+        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+
+        conn = _make_db()
+        _insert_account_row(conn)
+        _insert_open_broker_order(conn, broker_order_id="99")
+
+        account = _make_account(broker_type="interactive_brokers", id=1)
+        fill = OrderFill(filled_qty=10.0, fill_price=152.0, fill_time="2024-01-02T10:00:00", commission=0.0, exec_id="exec-dup")
+        partial_order = BrokerOrder(
+            account_id=1, ticker="AAPL", side="buy", qty=10.0, price=150.0,
+            broker_order_id="99", status=OrderStatus.SUBMITTED,
+            filled_qty=5.0, avg_fill_price=152.0, commission=0.0,
+            fills=[fill],
+        )
+
+        class _FakeIbAdapter(InteractiveBrokersAdapter):
+            def __init__(self):
+                pass
+
+            def get_open_trades(self):
+                return [partial_order]
+
+            def disconnect(self):
+                pass
+
+        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeIbAdapter()):
+            reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+            reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+
+        fills_count = conn.execute("SELECT COUNT(*) FROM order_fills WHERE exec_id = 'exec-dup'").fetchone()[0]
+        assert fills_count == 1, "Duplicate exec_id fill must be inserted only once"
+
+    def test_disconnect_called_even_when_no_open_orders(self):
+        """Broker.disconnect() must still be called when no open orders are found."""
+        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+
+        conn = _make_db()
+        _insert_account_row(conn)
+        # No open broker orders inserted
+
+        account = _make_account(broker_type="interactive_brokers", id=1)
+
+        # Subclass so isinstance(broker, InteractiveBrokersAdapter) passes.
+        class _FakeAdapter(InteractiveBrokersAdapter):
+            def __init__(self):
+                pass  # skip super().__init__
+
+            def get_open_trades(self):
+                return []
+
+            def disconnect(self):
+                _FakeAdapter._disconnect_calls += 1
+
+            _disconnect_calls = 0
+
+        fake_adapter = _FakeAdapter()
+        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=fake_adapter):
+            result = reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+
+        assert result == 0
+        assert _FakeAdapter._disconnect_calls == 1

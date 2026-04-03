@@ -138,6 +138,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
                         else str(f.execution.time)
                     ),
                     commission=f.commissionReport.commission if f.commissionReport else 0.0,
+                    exec_id=getattr(f.execution, "execId", None),
                 )
                 for f in trade.fills
             ]
@@ -150,7 +151,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
                 broker_order_id=str(ib_order.orderId),
                 status=_map_ib_status(ib_status.status),
                 filled_qty=ib_status.filled,
-                avg_fill_price=ib_status.avgFillPrice or None,
+                avg_fill_price=ib_status.avgFillPrice if ib_status.avgFillPrice is not None else None,
                 commission=sum(f.commission for f in fills),
                 fills=fills,
             )
@@ -212,6 +213,7 @@ _IB_STATUS_MAP: dict[str, OrderStatus] = {
     "ApiPending": OrderStatus.SUBMITTED,
     "ApiCancelled": OrderStatus.CANCELLED,
     "Cancelled": OrderStatus.CANCELLED,
+    "PartiallyFilled": OrderStatus.PARTIALLY_FILLED,
     "Filled": OrderStatus.FILLED,
     "Inactive": OrderStatus.REJECTED,
 }

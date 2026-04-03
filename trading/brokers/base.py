@@ -43,6 +43,8 @@ class OrderFill:
     fill_price: float
     fill_time: str  # ISO-8601 UTC string
     commission: float
+    # IB execution ID — unique per execution report; None for paper fills.
+    exec_id: str | None = None
 
 
 @dataclass

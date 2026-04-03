@@ -213,6 +213,12 @@ class IbApiClient:
     def account_summary(self) -> list[Any]:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 
+    def make_stock(self, symbol: str, exchange: str = "SMART", currency: str = "USD") -> Any:
+        raise NotImplementedError("IbApiClient is not yet implemented.")
+
+    def make_order(self, **kwargs: Any) -> Any:
+        raise NotImplementedError("IbApiClient is not yet implemented.")
+
     def qualify_contracts(self, *contracts: Any) -> list[Any]:
         raise NotImplementedError("IbApiClient is not yet implemented.")
 

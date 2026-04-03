@@ -6,8 +6,8 @@ IB backend selection
 --------------------
 Set ``IB_CLIENT_BACKEND`` to switch between client implementations:
 
-  ``"ib_async"``  — IbAsyncClient (default, uses ib_async library)
-  ``"ibapi"``     — IbApiClient   (stub; implement IbApiClient before using)
+  ``_IB_BACKEND_ASYNC``   — IbAsyncClient (default, uses ib_async library)
+  ``_IB_BACKEND_NATIVE``  — IbApiClient   (stub; implement IbApiClient before using)
 
 No other code needs to change when switching backends.
 """
@@ -23,8 +23,12 @@ from trading.brokers.ib_client import IbAsyncClient, IbApiClient
 _BROKER_TYPE_PAPER = "paper"
 _BROKER_TYPE_INTERACTIVE_BROKERS = "interactive_brokers"
 
-# Switch this to "ibapi" to use the native IBKR API client instead.
-IB_CLIENT_BACKEND: str = "ib_async"
+# Named backend constants for IB_CLIENT_BACKEND.
+_IB_BACKEND_ASYNC = "ib_async"
+_IB_BACKEND_NATIVE = "ibapi"
+
+# Switch this to _IB_BACKEND_NATIVE to use the native IBKR API client instead.
+IB_CLIENT_BACKEND: str = _IB_BACKEND_ASYNC
 
 
 def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
@@ -50,16 +54,26 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
 
     if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS:
         _require_live_trading_enabled(account)
-        from trading.brokers.ib_adapter import InteractiveBrokersAdapter
+        from trading.brokers.ib_adapter import (
+            InteractiveBrokersAdapter,
+            _IB_DEFAULT_HOST,
+            _IB_DEFAULT_PORT,
+            _IB_DEFAULT_CLIENT_ID,
+        )
 
-        if IB_CLIENT_BACKEND == "ibapi":
+        if IB_CLIENT_BACKEND == _IB_BACKEND_NATIVE:
             client = IbApiClient()
-        else:
+        elif IB_CLIENT_BACKEND == _IB_BACKEND_ASYNC:
             client = IbAsyncClient()
+        else:
+            raise ValueError(
+                f"Unknown IB_CLIENT_BACKEND value {IB_CLIENT_BACKEND!r}. "
+                f"Expected {_IB_BACKEND_ASYNC!r} or {_IB_BACKEND_NATIVE!r}."
+            )
 
-        host = str(account["broker_host"] or "127.0.0.1")
-        port = int(account["broker_port"] or 7497)
-        client_id = int(account["broker_client_id"] or 1)
+        host = str(account["broker_host"] or _IB_DEFAULT_HOST)
+        port = int(account["broker_port"] or _IB_DEFAULT_PORT)
+        client_id = int(account["broker_client_id"] or _IB_DEFAULT_CLIENT_ID)
         adapter = InteractiveBrokersAdapter(client=client, host=host, port=port, client_id=client_id)
         adapter.connect()
         return adapter

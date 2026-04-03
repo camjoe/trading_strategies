@@ -62,6 +62,12 @@ Disallowed:
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
+10. `trading/brokers/`: broker connection adapters and factory
+   - Keep all broker SDK imports (ib_async, ibapi) inside this package.
+   - Service and domain layers must depend only on `BrokerConnection` from `base.py`.
+   - The factory (`factory.py`) is the sole location for `broker_type` routing logic.
+   - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
+
 ## Constants and Magic Numbers
 
 All bots must follow this rule when writing or reviewing Python code:
