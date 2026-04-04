@@ -23,6 +23,11 @@ from trading.features.news_feature_provider import (
     NEWS_HEADLINE_COUNT,
     NEWS_SENTIMENT_SCORE,
 )
+from trading.features.social_feature_provider import (
+    SOCIAL_MENTION_COUNT,
+    SOCIAL_REDDIT_SENTIMENT,
+    SOCIAL_TREND_SCORE,
+)
 
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
@@ -471,6 +476,57 @@ def _news_sentiment_signal(
     return "hold"
 
 
+def _social_trend_rotation_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Social trend rotation signal using Google Trends interest and Reddit mentions.
+
+    Buys when the ticker shows elevated social interest (Google Trends score)
+    alongside positive Reddit sentiment and an upward price trend.  Sells
+    when social interest is fading and price weakens.  Falls back to
+    ``"hold"`` when features from
+    :class:`~trading.features.social_feature_provider.SocialFeatureProvider`
+    are unavailable.
+
+    Required features (from ``feature_history``):
+        social_trend_score      — Google Trends interest, normalised [0, 1].
+        social_mention_count    — Reddit post count (float).
+        social_reddit_sentiment — Mean VADER score of Reddit titles [-1, 1].
+    """
+    fast_window = int(params.get("fast_window", 10))
+    slow_window = int(params.get("slow_window", 30))
+    if len(history) < max(10, slow_window):
+        return "hold"
+
+    trend_score = _feature_value(feature_history, SOCIAL_TREND_SCORE)
+    mention_count = _feature_value(feature_history, SOCIAL_MENTION_COUNT)
+    reddit_sentiment = _feature_value(feature_history, SOCIAL_REDDIT_SENTIMENT)
+    if trend_score is None or mention_count is None or reddit_sentiment is None:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
+
+    trend_threshold = float(params.get("trend_threshold", 0.40))
+    trend_exit = float(params.get("trend_exit", 0.20))
+    min_reddit_sentiment = float(params.get("min_reddit_sentiment", -0.05))
+
+    if (
+        close > sma_fast > sma_slow
+        and trend_score >= trend_threshold
+        and reddit_sentiment >= min_reddit_sentiment
+    ):
+        return "buy"
+    if close < sma_slow or trend_score < trend_exit:
+        return "sell"
+    return "hold"
+
+
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "trend": StrategySpec(
         strategy_id="trend",
@@ -616,6 +672,26 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         required_features=(NEWS_SENTIMENT_SCORE, NEWS_HEADLINE_COUNT),
         strategy_style="alternative",
     ),
+    "social_trend_rotation": StrategySpec(
+        strategy_id="social_trend_rotation",
+        signal_fn=_social_trend_rotation_signal,
+        default_params={
+            "fast_window": 10,
+            "slow_window": 30,
+            "trend_threshold": 0.40,
+            "trend_exit": 0.20,
+            "min_reddit_sentiment": -0.05,
+        },
+        aliases=("social", "social_trend", "reddit_trend"),
+        description=(
+            "Buy when Google Trends interest is elevated, Reddit sentiment is neutral-to-positive, "
+            "and price is in a short-term uptrend. "
+            "Requires SocialFeatureProvider features: social_trend_score, social_mention_count, "
+            "social_reddit_sentiment."
+        ),
+        required_features=(SOCIAL_TREND_SCORE, SOCIAL_MENTION_COUNT, SOCIAL_REDDIT_SENTIMENT),
+        strategy_style="alternative",
+    ),
 }
 
 
@@ -640,6 +716,8 @@ def _resolve_by_keyword(name: str) -> StrategySpec:
         return STRATEGY_REGISTRY["macro_proxy_regime"]
     if "news" in name or "sentiment" in name:
         return STRATEGY_REGISTRY["news_sentiment"]
+    if "social" in name or "reddit" in name:
+        return STRATEGY_REGISTRY["social_trend_rotation"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
         return STRATEGY_REGISTRY["ma_crossover"]
     if "rsi" in name:
