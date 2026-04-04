@@ -19,6 +19,10 @@ from trading.features.policy_feature_provider import (
     POLICY_DEFENSIVE_TILT,
     POLICY_RISK_ON_SCORE,
 )
+from trading.features.news_feature_provider import (
+    NEWS_HEADLINE_COUNT,
+    NEWS_SENTIMENT_SCORE,
+)
 
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
@@ -420,6 +424,53 @@ def _policy_regime_signal(
     return "hold"
 
 
+def _news_sentiment_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """News sentiment signal using VADER-scored headlines.
+
+    Buys when price is in a short-term uptrend and recent news sentiment
+    is bullish.  Sells when sentiment turns negative and price is below
+    the short SMA.  Falls back to ``"hold"`` when features from
+    :class:`~trading.features.news_feature_provider.NewsFeatureProvider`
+    are unavailable or headline volume is too low.
+
+    Required features (from ``feature_history``):
+        news_sentiment_score  — Mean VADER compound score in [-1, 1].
+        news_headline_count   — Number of headlines scored.
+    """
+    fast_window = int(params.get("fast_window", 10))
+    slow_window = int(params.get("slow_window", 30))
+    if len(history) < max(10, slow_window):
+        return "hold"
+
+    sentiment = _feature_value(feature_history, NEWS_SENTIMENT_SCORE)
+    headline_count = _feature_value(feature_history, NEWS_HEADLINE_COUNT)
+    if sentiment is None or headline_count is None:
+        return "hold"
+
+    min_headlines = float(params.get("min_headlines", 3.0))
+    if headline_count < min_headlines:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
+
+    buy_sentiment = float(params.get("buy_sentiment", 0.10))
+    sell_sentiment = float(params.get("sell_sentiment", -0.10))
+
+    if close > sma_fast > sma_slow and sentiment >= buy_sentiment:
+        return "buy"
+    if close < sma_fast and sentiment <= sell_sentiment:
+        return "sell"
+    return "hold"
+
+
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "trend": StrategySpec(
         strategy_id="trend",
@@ -547,6 +598,24 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         required_features=(POLICY_RISK_ON_SCORE, POLICY_DEFENSIVE_TILT),
         strategy_style="alternative",
     ),
+    "news_sentiment": StrategySpec(
+        strategy_id="news_sentiment",
+        signal_fn=_news_sentiment_signal,
+        default_params={
+            "fast_window": 10,
+            "slow_window": 30,
+            "buy_sentiment": 0.10,
+            "sell_sentiment": -0.10,
+            "min_headlines": 3.0,
+        },
+        aliases=("news", "news_sentiment_strategy", "sentiment"),
+        description=(
+            "Buy when short-term price trend is up and VADER-scored news sentiment is bullish. "
+            "Requires NewsFeatureProvider features: news_sentiment_score, news_headline_count."
+        ),
+        required_features=(NEWS_SENTIMENT_SCORE, NEWS_HEADLINE_COUNT),
+        strategy_style="alternative",
+    ),
 }
 
 
@@ -569,6 +638,8 @@ def _resolve_by_keyword(name: str) -> StrategySpec:
         return STRATEGY_REGISTRY["policy_regime"]
     if "macro" in name or "policy" in name:
         return STRATEGY_REGISTRY["macro_proxy_regime"]
+    if "news" in name or "sentiment" in name:
+        return STRATEGY_REGISTRY["news_sentiment"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
         return STRATEGY_REGISTRY["ma_crossover"]
     if "rsi" in name:
