@@ -15,6 +15,10 @@ from common.constants import (
     RSI_OVERSOLD,
     TRADING_DAYS_PER_YEAR,
 )
+from trading.features.policy_feature_provider import (
+    POLICY_DEFENSIVE_TILT,
+    POLICY_RISK_ON_SCORE,
+)
 
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
@@ -369,6 +373,53 @@ def _macro_proxy_regime_signal(
     return "hold"
 
 
+def _policy_regime_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Policy regime signal using ETF-derived macro/political environment indicators.
+
+    Buys when price momentum aligns with a risk-on macro environment (SPY
+    outperforming defensive ETFs).  Falls back to ``"hold"`` when features
+    from :class:`~trading.features.policy_feature_provider.PolicyFeatureProvider`
+    are unavailable.
+
+    Required features (from ``feature_history``):
+        policy_risk_on_score   — 0–1 composite risk-on score (higher = risk-on).
+        policy_defensive_tilt  — Positive when defensives outperform equities.
+    """
+    fast_window = int(params.get("fast_window", 20))
+    slow_window = int(params.get("slow_window", 50))
+    if len(history) < max(30, slow_window):
+        return "hold"
+
+    risk_on_score = _feature_value(feature_history, POLICY_RISK_ON_SCORE)
+    defensive_tilt = _feature_value(feature_history, POLICY_DEFENSIVE_TILT)
+    if risk_on_score is None or defensive_tilt is None:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
+
+    risk_on_threshold = float(params.get("risk_on_threshold", 0.55))
+    risk_off_threshold = float(params.get("risk_off_threshold", 0.45))
+    max_defensive_tilt = float(params.get("max_defensive_tilt", 0.02))
+
+    if (
+        close > sma_fast > sma_slow
+        and risk_on_score >= risk_on_threshold
+        and defensive_tilt <= max_defensive_tilt
+    ):
+        return "buy"
+    if close < sma_slow or risk_on_score < risk_off_threshold:
+        return "sell"
+    return "hold"
+
+
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "trend": StrategySpec(
         strategy_id="trend",
@@ -477,6 +528,25 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         required_features=("macro_risk_on_score", "macro_vix_pressure", "macro_equity_bond_spread"),
         strategy_style="neutral",
     ),
+    "policy_regime": StrategySpec(
+        strategy_id="policy_regime",
+        signal_fn=_policy_regime_signal,
+        default_params={
+            "fast_window": 20,
+            "slow_window": 50,
+            "risk_on_threshold": 0.55,
+            "risk_off_threshold": 0.45,
+            "max_defensive_tilt": 0.02,
+        },
+        aliases=("policy_external", "policy_etf", "political_regime"),
+        description=(
+            "Buy when price momentum and ETF-derived macro regime both signal risk-on. "
+            "Uses TLT/GLD/XLU/UUP vs SPY trailing returns as a policy environment proxy. "
+            "Requires PolicyFeatureProvider features: policy_risk_on_score, policy_defensive_tilt."
+        ),
+        required_features=(POLICY_RISK_ON_SCORE, POLICY_DEFENSIVE_TILT),
+        strategy_style="alternative",
+    ),
 }
 
 
@@ -495,6 +565,8 @@ def _resolve_by_keyword(name: str) -> StrategySpec:
         return STRATEGY_REGISTRY["volatility_filtered_trend"]
     if "topic" in name or ("sector" in name and "rotation" in name) or "theme" in name:
         return STRATEGY_REGISTRY["topic_proxy_rotation"]
+    if "policy_regime" in name or "political" in name or "policy_etf" in name:
+        return STRATEGY_REGISTRY["policy_regime"]
     if "macro" in name or "policy" in name:
         return STRATEGY_REGISTRY["macro_proxy_regime"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
