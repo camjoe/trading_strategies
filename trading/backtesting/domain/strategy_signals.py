@@ -31,9 +31,11 @@ class StrategySpec:
     aliases: tuple[str, ...] = ()
     description: str = ""
     required_features: tuple[str, ...] = ()
-    # Broad behavioral family: "trend", "mean_reversion", or "neutral".
+    # Broad behavioral family: "trend", "mean_reversion", "neutral", or "alternative".
     # Used by policy layers to set sell bias and other style-dependent behavior
     # without resorting to fragile string matching on strategy names.
+    # "alternative" = external-data-driven strategies (news, social, policy);
+    # see trading/features/ for the provider infrastructure.
     strategy_style: str = "neutral"
 
 

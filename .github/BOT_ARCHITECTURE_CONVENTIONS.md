@@ -62,6 +62,35 @@ Disallowed:
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
+10. `trading/features/`: external-data feature providers for alternative strategies
+    - Houses `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
+    - This package is the **only** place that may import external API libraries
+      (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
+      network calls to third-party services.
+    - Signal functions in `trading/backtesting/domain/strategy_signals.py` must
+      consume feature bundles from this package — they must never call external
+      APIs directly.
+
+## External Data Strategies
+
+Rules for all alternative-strategy development (strategy_style = "alternative"):
+
+1. **External calls are isolated in `trading/features/`** — no direct imports of
+   `praw`, `pytrends`, `vaderSentiment`, `newsapi`, or any other third-party
+   external-data library outside of `trading/features/` submodules.
+
+2. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
+   must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
+   Signal functions must check `bundle.available` first and return `"hold"` if `False`.
+
+3. **No API keys in source code** — all credentials are read exclusively from
+   environment variables (e.g. `NEWS_API_KEY`, `REDDIT_CLIENT_ID`). Never
+   commit secrets to source.
+
+4. **Use the base class** — all external providers must subclass
+   `trading.features.base.ExternalFeatureProvider`. Do not create ad-hoc
+   fetch functions that bypass the caching/TTL/degradation contract.
+
 ## Constants and Magic Numbers
 
 All bots must follow this rule when writing or reviewing Python code:
