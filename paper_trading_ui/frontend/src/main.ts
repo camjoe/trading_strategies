@@ -85,6 +85,8 @@ async function bootstrap(): Promise<void> {
   await logsFeature.loadLogFiles();
   await compareFeature.loadComparison();
   await backtestingFeature.loadBacktestRuns();
+  // Background fetch so the provider health badge is visible before the Alt Strategies tab is first opened
+  void altStrategiesFeature.fetchProviderHealth();
 }
 
 function initTabs(): void {

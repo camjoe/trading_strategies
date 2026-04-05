@@ -2,14 +2,40 @@ import { find } from "../lib/dom";
 import { esc } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
 import { renderProviderCards, renderSignalRows } from "../components/alt-strategies";
-import type { ProviderStatusResponse, SignalsResponse } from "../types";
+import type { ProviderStatus, ProviderStatusResponse, SignalsResponse } from "../types";
 
 const STATUS_PATH = "/api/features/status" as const;
 const SIGNALS_PATH = "/api/features/signals" as const;
 
+type HealthState = "up" | "partial" | "down";
+
 export interface AltStrategiesFeature {
   loadStatus: () => Promise<void>;
+  fetchProviderHealth: () => Promise<void>;
   wireActions: () => void;
+}
+
+function computeHealthState(providers: ProviderStatus[]): HealthState {
+  if (!providers.length) return "down";
+  const available = providers.filter((p) => p.available).length;
+  if (available === providers.length) return "up";
+  if (available === 0) return "down";
+  return "partial";
+}
+
+function updateHealthBadge(health: HealthState): void {
+  const tabBtn = find<HTMLButtonElement>('[data-tab="alt-strategies"]');
+  if (!tabBtn) return;
+
+  let dot = tabBtn.querySelector<HTMLSpanElement>(".tab-health-dot");
+  if (!dot) {
+    dot = document.createElement("span");
+    dot.className = "tab-health-dot";
+    tabBtn.appendChild(dot);
+  }
+
+  dot.classList.remove("tab-health-dot--up", "tab-health-dot--partial", "tab-health-dot--down");
+  dot.classList.add(`tab-health-dot--${health}`);
 }
 
 export function createAltStrategiesFeature(): AltStrategiesFeature {
@@ -21,8 +47,18 @@ export function createAltStrategiesFeature(): AltStrategiesFeature {
     try {
       const data = await getJson<ProviderStatusResponse>(STATUS_PATH);
       grid.innerHTML = renderProviderCards(data.providers);
+      updateHealthBadge(computeHealthState(data.providers));
     } catch (err) {
       grid.innerHTML = `<div class="error">${esc(err instanceof Error ? err.message : "Failed to load provider status.")}</div>`;
+    }
+  }
+
+  async function fetchProviderHealth(): Promise<void> {
+    try {
+      const data = await getJson<ProviderStatusResponse>(STATUS_PATH);
+      updateHealthBadge(computeHealthState(data.providers));
+    } catch {
+      // Badge stays hidden on failure — silently ignore
     }
   }
 
@@ -77,5 +113,5 @@ export function createAltStrategiesFeature(): AltStrategiesFeature {
     });
   }
 
-  return { loadStatus, wireActions };
+  return { loadStatus, fetchProviderHealth, wireActions };
 }

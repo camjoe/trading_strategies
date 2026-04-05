@@ -278,6 +278,7 @@ body {
 }
 
 .tab-btn {
+  position: relative;
   background: none;
   border: none;
   border-radius: 0;
@@ -299,6 +300,31 @@ body {
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+.tab-health-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: none;
+}
+
+.tab-health-dot--up {
+  display: block;
+  background: var(--up);
+}
+
+.tab-health-dot--partial {
+  display: block;
+  background: var(--warning-border);
+}
+
+.tab-health-dot--down {
+  display: block;
+  background: var(--down);
 }
 
 .tab-panel {
@@ -722,6 +748,24 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
+}
+
+.compare-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.compare-filters label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.compare-filters select {
+  font-size: 0.88rem;
+  padding: 0.3rem 0.6rem;
 }
 
 .compare-table-wrap {
