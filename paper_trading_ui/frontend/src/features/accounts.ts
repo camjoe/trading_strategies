@@ -120,7 +120,15 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading accounts...</div>`;
-    const data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+
+    let data: { accounts: AccountSummary[] };
+    try {
+      data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+    } catch (err) {
+      target.innerHTML = `<div class="error">Failed to load accounts: ${esc(err instanceof Error ? err.message : "network error")}. Is the backend running?</div>`;
+      return;
+    }
+
     cachedAccounts = data.accounts;
     options.onAccountsLoaded?.(cachedAccounts);
 
@@ -145,7 +153,12 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading ${esc(accountName)}...</div>`;
-    currentDetail = await getJson<AccountDetail>(`/api/accounts/${encodeURIComponent(accountName)}`);
+    try {
+      currentDetail = await getJson<AccountDetail>(`/api/accounts/${encodeURIComponent(accountName)}`);
+    } catch (err) {
+      target.innerHTML = `<div class="error">Failed to load account detail: ${esc(err instanceof Error ? err.message : "network error")}</div>`;
+      return;
+    }
     currentTradePage = 1;
     renderCurrentDetail();
   }
