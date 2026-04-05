@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -86,3 +86,11 @@ class AdminDeleteAccountRequest(BaseModel):
 class AccountParamsRequest(BaseModel):
     strategy: str | None = None
     riskPolicy: str | None = None
+
+
+class ManualTradeRequest(BaseModel):
+    ticker: str
+    side: Literal["buy", "sell"]
+    qty: float = Field(gt=0)
+    price: float = Field(gt=0)
+    fee: float = Field(default=0.0, ge=0)

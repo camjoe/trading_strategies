@@ -118,3 +118,11 @@ export interface AccountParamsUpdate {
   strategy?: string;
   riskPolicy?: string;
 }
+
+export interface ManualTradeRequest {
+  ticker: string;
+  side: "buy" | "sell";
+  qty: number;
+  price: number;
+  fee: number;
+}
