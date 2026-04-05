@@ -39,7 +39,10 @@ jobs:
           pip install pip-audit
 
       - name: Run pip-audit for base dependencies
-        run: pip-audit -r requirements/base.txt -f json -o pip-audit-base.json
+        # CVE-2026-33752 affects curl-cffi <0.15.0, but yfinance==1.2.0 caps
+        # curl-cffi at <0.14, making the fix version incompatible. Ignored until
+        # yfinance ships a release that widens the curl-cffi bound.
+        run: pip-audit -r requirements/base.txt -f json -o pip-audit-base.json --ignore-vuln CVE-2026-33752
 
       - name: Upload pip-audit results
         if: always()
