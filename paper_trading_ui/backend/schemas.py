@@ -81,3 +81,8 @@ class AdminCreateAccountRequest(BaseModel):
 class AdminDeleteAccountRequest(BaseModel):
     accountName: str
     confirm: bool = False
+
+
+class AccountParamsRequest(BaseModel):
+    strategy: str | None = None
+    riskPolicy: str | None = None

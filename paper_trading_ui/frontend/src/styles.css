@@ -952,6 +952,34 @@ h4 {
   gap: 0.8rem;
 }
 
+.detail-head-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.edit-params-panel {
+  margin-top: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.edit-params-panel[hidden] {
+  display: none;
+}
+
+.edit-params-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .detail-grid {
   display: grid;
   gap: 1rem;

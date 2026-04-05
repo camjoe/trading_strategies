@@ -113,3 +113,8 @@ export type AccountComparisonRow = {
   totalChangePct: number;
   latestBacktest: LatestBacktestMetrics | null;
 };
+
+export interface AccountParamsUpdate {
+  strategy?: string;
+  riskPolicy?: string;
+}

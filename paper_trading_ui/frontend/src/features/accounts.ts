@@ -1,9 +1,9 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
+import { getJson, patchJson, postJson } from "../lib/http";
 import { accountCard } from "../components/accounts";
 import { renderDetail } from "../components/detail";
-import type { AccountDetail, AccountSummary } from "../types";
+import type { AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
 
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountSummary[]) => void;
@@ -71,6 +71,47 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       const totalPages = Math.max(1, Math.ceil(currentDetail.trades.length / tradePageSize));
       currentTradePage = Math.min(totalPages, currentTradePage + 1);
       renderCurrentDetail();
+    });
+
+    bindClick<HTMLButtonElement>("#editParamsBtn", () => {
+      const panel = find<HTMLDivElement>("#editParamsPanel");
+      if (panel) panel.hidden = !panel.hidden;
+    });
+
+    bindClick<HTMLButtonElement>("#editParamsCancelBtn", () => {
+      const panel = find<HTMLDivElement>("#editParamsPanel");
+      if (panel) panel.hidden = true;
+    });
+
+    bindClick<HTMLButtonElement>("#editParamsSaveBtn", async () => {
+      if (!currentDetail) return;
+      const accountName = currentDetail.account.name;
+      const strategyInput = find<HTMLInputElement>("#editStrategyInput");
+      const riskSelect = find<HTMLSelectElement>("#editRiskPolicySelect");
+      const msgEl = find<HTMLDivElement>("#editParamsMsg");
+
+      const payload: AccountParamsUpdate = {};
+      if (strategyInput) payload.strategy = strategyInput.value;
+      if (riskSelect) payload.riskPolicy = riskSelect.value;
+
+      try {
+        await patchJson<{ status: string }>(
+          `/api/accounts/${encodeURIComponent(accountName)}/params`,
+          payload,
+        );
+        if (msgEl) {
+          msgEl.className = "";
+          msgEl.textContent = "Saved.";
+        }
+        setTimeout(() => {
+          void loadAccountDetail(accountName);
+        }, 800);
+      } catch (err) {
+        if (msgEl) {
+          msgEl.className = "error";
+          msgEl.textContent = err instanceof Error ? err.message : "Save failed.";
+        }
+      }
     });
   }
 

@@ -6,6 +6,14 @@ export interface DetailRenderOptions {
   tradePageSize?: number;
 }
 
+const RISK_POLICY_OPTIONS = ["none", "fixed_stop", "take_profit", "stop_and_target"] as const;
+
+function riskPolicyOptions(currentPolicy: string): string {
+  return RISK_POLICY_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentPolicy === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
 export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
   const tradePageSize = Math.max(1, options.tradePageSize ?? 20);
   const totalTrades = detail.trades.length;
@@ -75,7 +83,30 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <h3>${esc(detail.account.displayName)}</h3>
         <p>${esc(detail.account.name)} | ${esc(detail.account.strategy)} | ${esc(detail.account.benchmark)}</p>
       </div>
-      <button id="snapshotOneBtn" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
+      <div class="detail-head-actions">
+        <button id="editParamsBtn" type="button">Edit Parameters</button>
+        <button id="snapshotOneBtn" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
+      </div>
+    </div>
+
+    <div id="editParamsPanel" class="edit-params-panel" hidden>
+      <div class="bt-row">
+        <div class="bt-field">
+          <span>Strategy</span>
+          <input id="editStrategyInput" type="text" value="${esc(detail.account.strategy)}" />
+        </div>
+        <div class="bt-field">
+          <span>Risk Policy</span>
+          <select id="editRiskPolicySelect">
+            ${riskPolicyOptions(detail.account.riskPolicy)}
+          </select>
+        </div>
+      </div>
+      <div class="edit-params-actions">
+        <button id="editParamsSaveBtn" type="button">Save</button>
+        <button id="editParamsCancelBtn" type="button">Cancel</button>
+        <div id="editParamsMsg"></div>
+      </div>
     </div>
 
     <article>

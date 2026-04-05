@@ -1,8 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from fastapi import APIRouter
 
 from ..config import TEST_ACCOUNT_NAME
+from ..schemas import AccountParamsRequest
 from ..services import (
     fetch_account_row,
     build_account_summary,
@@ -19,6 +20,7 @@ from ..services import (
     build_test_account_summary,
     build_trade_payload,
 )
+from trading.services.accounts_service import update_account_fields_by_id
 
 router = APIRouter()
 
@@ -71,4 +73,21 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade) for trade in trades[-100:]],
         }
+
+
+@router.patch("/api/accounts/{account_name}/params")
+def api_update_account_params(account_name: str, body: AccountParamsRequest) -> dict[str, str]:
+    with db_conn() as conn:
+        account = fetch_account_row(conn, account_name)
+        updates: list[str] = []
+        params: list[object] = []
+        if body.strategy is not None:
+            updates.append("strategy = ?")
+            params.append(body.strategy)
+        if body.riskPolicy is not None:
+            updates.append("risk_policy = ?")
+            params.append(body.riskPolicy)
+        if updates:
+            update_account_fields_by_id(conn, int(account["id"]), updates=updates, params=params)
+    return {"status": "ok"}
 

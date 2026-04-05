@@ -58,6 +58,8 @@ describe("renderDetail", () => {
     expect(html).toContain("Latest Backtest Run 12");
     expect(html).toContain("Open Report");
     expect(html).toContain("Snapshot This Account");
+    expect(html).toContain("Edit Parameters");
+    expect(html).toContain("editParamsPanel");
     expect(html).toContain("AAPL");
   });
 
@@ -86,5 +88,11 @@ describe("renderDetail", () => {
     expect(html).toContain("No backtest run found for this account yet");
     expect(html).toContain("No snapshots yet");
     expect(html).toContain("No trades yet");
+    expect(html).toContain("Edit Parameters");
+    // risk-policy select should render all four options, current one selected
+    expect(html).toContain(`value="none" selected`);
+    expect(html).toContain(`value="fixed_stop"`);
+    expect(html).toContain(`value="take_profit"`);
+    expect(html).toContain(`value="stop_and_target"`);
   });
 });
