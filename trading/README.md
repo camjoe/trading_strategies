@@ -12,6 +12,7 @@ The `trading/` module handles:
 
 - Account lifecycle (create, configure, benchmark, profiles)
 - Trade simulation and position tracking
+- Live broker integration (Interactive Brokers via TWS/IB Gateway; paper broker by default)
 - Snapshot history and reporting
 - Auto-trading simulation runs
 - Backtesting and walk-forward analysis support
@@ -106,6 +107,7 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Backtesting: `docs/backtesting.md`
 - UI dashboard: `paper_trading_ui/README.md`
+- Broker integration: `docs/reference/notes-broker-integration.md`
 - Trading architecture guide: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 
 ## Preset Profiles

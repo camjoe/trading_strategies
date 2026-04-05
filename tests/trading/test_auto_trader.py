@@ -209,6 +209,8 @@ class TestTradeLoopOrchestration:
         monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
 
         calls = []
+        monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
         monkeypatch.setattr(runtime_service, "record_trade", lambda conn, **kwargs: calls.append(kwargs))
 
         executed = auto_trader.run_for_account(
@@ -241,6 +243,8 @@ class TestTradeLoopOrchestration:
         monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
 
         calls = []
+        monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
         monkeypatch.setattr(runtime_service, "record_trade", lambda conn, **kwargs: calls.append(kwargs))
 
         executed = auto_trader.run_for_account(
@@ -324,6 +328,8 @@ class TestRotationAwareTradeLoop:
         monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-17T00:00:00Z")
 
         calls = []
+        monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
         monkeypatch.setattr(runtime_service, "record_trade", lambda _conn, **kwargs: calls.append(kwargs))
 
         executed = auto_trader.run_for_account(

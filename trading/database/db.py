@@ -134,6 +134,44 @@ CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id)
 CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id ON backtest_equity_snapshots(run_id);
 """
 
+BROKER_ORDERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS broker_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    broker_order_id TEXT NOT NULL UNIQUE,
+    ticker TEXT NOT NULL,
+    side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+    qty REAL NOT NULL,
+    order_type TEXT NOT NULL DEFAULT 'market',
+    time_in_force TEXT NOT NULL DEFAULT 'day',
+    requested_price REAL NOT NULL,
+    status TEXT NOT NULL,
+    filled_qty REAL NOT NULL DEFAULT 0,
+    avg_fill_price REAL,
+    commission REAL NOT NULL DEFAULT 0,
+    submitted_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+ORDER_FILLS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS order_fills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    broker_order_id TEXT NOT NULL,
+    filled_qty REAL NOT NULL,
+    fill_price REAL NOT NULL,
+    fill_time TEXT NOT NULL,
+    commission REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (broker_order_id) REFERENCES broker_orders(broker_order_id)
+);
+"""
+
+BROKER_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account_id);
+CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id ON order_fills(broker_order_id);
+"""
+
 SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
@@ -143,6 +181,9 @@ SCHEMA_SQL = "\n".join(
         BACKTEST_TRADES_TABLE_SQL,
         BACKTEST_EQUITY_SNAPSHOTS_TABLE_SQL,
         BACKTEST_INDEXES_SQL,
+        BROKER_ORDERS_TABLE_SQL,
+        ORDER_FILLS_TABLE_SQL,
+        BROKER_INDEXES_SQL,
     )
 )
 
@@ -258,6 +299,46 @@ BACKTEST_RUN_MIGRATIONS = (
     ),
 )
 
+# Broker-related columns added to accounts to support live broker connectivity.
+ACCOUNT_BROKER_MIGRATIONS = (
+    ColumnMigration(
+        "broker_type",
+        "ALTER TABLE accounts ADD COLUMN broker_type TEXT NOT NULL DEFAULT 'paper'",
+    ),
+    ColumnMigration(
+        "broker_host",
+        "ALTER TABLE accounts ADD COLUMN broker_host TEXT",
+    ),
+    ColumnMigration(
+        "broker_port",
+        "ALTER TABLE accounts ADD COLUMN broker_port INTEGER",
+    ),
+    ColumnMigration(
+        "broker_client_id",
+        "ALTER TABLE accounts ADD COLUMN broker_client_id INTEGER",
+    ),
+    # Guard flag — must be explicitly set to 1 before live orders are submitted.
+    ColumnMigration(
+        "live_trading_enabled",
+        "ALTER TABLE accounts ADD COLUMN live_trading_enabled INTEGER NOT NULL DEFAULT 0",
+    ),
+)
+
+# Migrations for the order_fills table.
+# Uses post_sql to add a partial unique index that deduplicates IB execution reports
+# on repeated reconciliation calls.  Paper fills (exec_id IS NULL) are excluded
+# from the constraint since they are never reconciled.
+ORDER_FILL_MIGRATIONS = (
+    ColumnMigration(
+        "exec_id",
+        "ALTER TABLE order_fills ADD COLUMN exec_id TEXT",
+        post_sql=(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_order_fills_exec_id "
+            "ON order_fills(broker_order_id, exec_id) WHERE exec_id IS NOT NULL",
+        ),
+    ),
+)
+
 def ensure_db() -> DBConnection:
     conn = get_backend().open_connection()
     init_schema(conn)
@@ -280,4 +361,8 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "accounts", migration)
     for migration in BACKTEST_RUN_MIGRATIONS:
         _ensure_column(conn, "backtest_runs", migration)
+    for migration in ACCOUNT_BROKER_MIGRATIONS:
+        _ensure_column(conn, "accounts", migration)
+    for migration in ORDER_FILL_MIGRATIONS:
+        _ensure_column(conn, "order_fills", migration)
     conn.commit()

@@ -16,7 +16,7 @@ This repository contains tools for:
 | Folder | Purpose |
 |--------|---------|
 | `trends/` | Stock trends analysis and indicator calculations. |
-| `trading/` | Core trading logic: accounts, pricing, orders, reporting, backtesting. |
+| `trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
 | `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |
