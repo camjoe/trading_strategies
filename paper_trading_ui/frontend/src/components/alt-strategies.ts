@@ -67,7 +67,14 @@ function renderProviderCard(provider: ProviderStatus): string {
       ${description}
       ${renderDataSources(provider.data_sources)}
       <p class="alt-provider-card-meta">Last fetched: ${esc(fetchedAt)}</p>
-      ${renderKeyScores(provider.key_scores, provider.feature_descriptions)}
+      ${
+        Object.keys(provider.key_scores).length > 0
+          ? `<details class="signal-logic-details">
+              <summary class="muted">Sample scores (health probe — SPY)</summary>
+              ${renderKeyScores(provider.key_scores, provider.feature_descriptions)}
+            </details>`
+          : ""
+      }
       ${signalLogic}
     </div>
   `;
@@ -77,7 +84,8 @@ export function renderProviderCards(providers: ProviderStatus[]): string {
   if (providers.length === 0) {
     return `<div class="empty">No providers available.</div>`;
   }
-  return providers.map(renderProviderCard).join("");
+  const note = `<p class="muted provider-health-note">Provider health is checked automatically using SPY as a reference ticker. Enter a ticker below to get strategy signals for a specific stock.</p>`;
+  return note + providers.map(renderProviderCard).join("");
 }
 
 // ---------------------------------------------------------------------------

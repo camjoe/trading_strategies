@@ -93,7 +93,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       </div>
       <div class="detail-head-actions">
         <button id="editParamsBtn" type="button">Edit Parameters</button>
-        <button id="snapshotOneBtn" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
+        <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
       </div>
     </div>
 

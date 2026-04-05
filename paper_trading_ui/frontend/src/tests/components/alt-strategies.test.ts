@@ -44,8 +44,8 @@ describe("renderProviderCards", () => {
     const html = renderProviderCards([provider]);
     expect(html).toContain("✗ Unavailable");
     expect(html).not.toContain("✓ Available");
-    // Empty scores should render the dash placeholder
-    expect(html).toContain("—");
+    // Empty scores → no score details section rendered
+    expect(html).not.toContain("Sample scores");
   });
 
   it("escapes dangerous characters in provider name and source_label", () => {
