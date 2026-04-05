@@ -1,19 +1,43 @@
 import { esc } from "../lib/format";
-import type { ProviderStatus, SignalOutput, SignalsResponse } from "../types";
+import type { FeatureDescription, ProviderStatus, SignalOutput, SignalsResponse } from "../types";
 
 // ---------------------------------------------------------------------------
 // Provider status cards
 // ---------------------------------------------------------------------------
 
-function renderKeyScores(scores: Record<string, number>): string {
+function renderFeatureRow(name: string, value: number, meta?: FeatureDescription): string {
+  const label = meta?.label ?? name;
+  const desc = meta?.description ?? "";
+  const formatted = Number.isInteger(value) ? String(value) : value.toFixed(4);
+  return `
+    <tr>
+      <td class="feature-name" title="${esc(desc)}">${esc(label)}</td>
+      <td class="feature-value">${esc(formatted)}</td>
+      <td class="feature-desc">${esc(desc)}</td>
+    </tr>`;
+}
+
+function renderKeyScores(
+  scores: Record<string, number>,
+  featureDescriptions?: Record<string, FeatureDescription>,
+): string {
   const entries = Object.entries(scores);
   if (entries.length === 0) {
     return `<span class="empty">—</span>`;
   }
   const rows = entries
-    .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.toFixed(4)}</td></tr>`)
+    .map(([k, v]) => renderFeatureRow(k, v, featureDescriptions?.[k]))
     .join("");
-  return `<table><thead><tr><th>Feature</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="feature-table">
+    <thead><tr><th>Feature</th><th>Value</th><th>What it means</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function renderDataSources(sources?: string[]): string {
+  if (!sources || sources.length === 0) return "";
+  const tags = sources.map((s) => `<span class="data-source-tag">${esc(s)}</span>`).join(" ");
+  return `<div class="data-sources"><strong>Sources:</strong> ${tags}</div>`;
 }
 
 function renderProviderCard(provider: ProviderStatus): string {
@@ -22,15 +46,29 @@ function renderProviderCard(provider: ProviderStatus): string {
     : `<span class="down">✗ Unavailable</span>`;
   const fetchedAt = new Date(provider.fetched_at).toLocaleString();
 
+  const description = provider.description
+    ? `<p class="alt-provider-description">${esc(provider.description)}</p>`
+    : "";
+
+  const signalLogic = provider.signal_logic
+    ? `<details class="signal-logic-details">
+        <summary>Signal Logic</summary>
+        <p>${esc(provider.signal_logic)}</p>
+      </details>`
+    : "";
+
   return `
     <div class="alt-provider-card">
       <div class="alt-provider-card-head">
         <strong>${esc(provider.name)}</strong>
         <span class="chip">${esc(provider.source_label)}</span>
+        ${badge}
       </div>
-      <div>${badge}</div>
+      ${description}
+      ${renderDataSources(provider.data_sources)}
       <p class="alt-provider-card-meta">Last fetched: ${esc(fetchedAt)}</p>
-      ${renderKeyScores(provider.key_scores)}
+      ${renderKeyScores(provider.key_scores, provider.feature_descriptions)}
+      ${signalLogic}
     </div>
   `;
 }
@@ -52,21 +90,23 @@ function signalClass(signal: SignalOutput["signal"]): string {
   return "";
 }
 
-function renderFeaturesCell(features: Record<string, number>): string {
-  const entries = Object.entries(features);
-  if (entries.length === 0) return "—";
-  return entries.map(([k, v]) => `${esc(k)}: ${v.toFixed(4)}`).join(", ");
-}
-
 function renderSignalRow(output: SignalOutput): string {
   const cls = signalClass(output.signal);
   const availableText = output.available ? "✓" : "✗";
+
+  const reasonNote =
+    output.reason === "no_price_history"
+      ? `<br><small class="muted">⚠ Feature-only — no price history supplied</small>`
+      : "";
+
+  const logicAttr = output.signal_logic ? ` title="${esc(output.signal_logic)}"` : "";
+
   return `
     <tr>
       <td>${esc(output.strategy)}</td>
-      <td class="${cls}">${esc(output.signal.toUpperCase())}</td>
+      <td class="${cls}"${logicAttr}>${esc(output.signal.toUpperCase())}${reasonNote}</td>
       <td>${availableText}</td>
-      <td>${renderFeaturesCell(output.features)}</td>
+      <td>${esc(output.interpretation ?? "—")}</td>
     </tr>
   `;
 }
@@ -74,13 +114,14 @@ function renderSignalRow(output: SignalOutput): string {
 export function renderSignalRows(response: SignalsResponse): string {
   const rows = response.signals.map(renderSignalRow).join("");
   return `
+    <p class="muted signals-ticker-note">Results for <strong>${esc(response.ticker)}</strong> — signals are feature-only (no live price history); use as directional context only.</p>
     <table>
       <thead>
         <tr>
           <th>Strategy</th>
           <th>Signal</th>
-          <th>Available</th>
-          <th>Key Features</th>
+          <th>Data Available</th>
+          <th>Interpretation</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

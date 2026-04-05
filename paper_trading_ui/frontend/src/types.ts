@@ -11,6 +11,26 @@ export type AccountSummary = {
   totalChangePct: number;
   changeSinceLastSnapshot: number | null;
   latestSnapshotTime: string | null;
+  // config fields
+  stopLossPct: number | null;
+  takeProfitPct: number | null;
+  goalMinReturnPct: number | null;
+  goalMaxReturnPct: number | null;
+  goalPeriod: string | null;
+  learningEnabled: boolean;
+  optionStrikeOffsetPct: number | null;
+  optionMinDte: number | null;
+  optionMaxDte: number | null;
+  optionType: string | null;
+  targetDeltaMin: number | null;
+  targetDeltaMax: number | null;
+  maxPremiumPerTrade: number | null;
+  maxContractsPerTrade: number | null;
+  ivRankMin: number | null;
+  ivRankMax: number | null;
+  rollDteThreshold: number | null;
+  profitTakePct: number | null;
+  maxLossPct: number | null;
 };
 
 export type AccountDetail = {
@@ -116,7 +136,28 @@ export type AccountComparisonRow = {
 
 export interface AccountParamsUpdate {
   strategy?: string;
+  descriptiveName?: string;
   riskPolicy?: string;
+  stopLossPct?: number | null;
+  takeProfitPct?: number | null;
+  instrumentMode?: string;
+  goalMinReturnPct?: number | null;
+  goalMaxReturnPct?: number | null;
+  goalPeriod?: string;
+  learningEnabled?: boolean;
+  optionStrikeOffsetPct?: number | null;
+  optionMinDte?: number | null;
+  optionMaxDte?: number | null;
+  optionType?: string | null;
+  targetDeltaMin?: number | null;
+  targetDeltaMax?: number | null;
+  maxPremiumPerTrade?: number | null;
+  maxContractsPerTrade?: number | null;
+  ivRankMin?: number | null;
+  ivRankMax?: number | null;
+  rollDteThreshold?: number | null;
+  profitTakePct?: number | null;
+  maxLossPct?: number | null;
 }
 
 export interface ManualTradeRequest {
@@ -127,12 +168,23 @@ export interface ManualTradeRequest {
   fee: number;
 }
 
+export interface FeatureDescription {
+  label: string;
+  description: string;
+  range: string;
+}
+
 export interface ProviderStatus {
   name: string;
   source_label: string;
   available: boolean;
   fetched_at: string;
   key_scores: Record<string, number>;
+  // new fields from backend
+  description?: string;
+  data_sources?: string[];
+  feature_descriptions?: Record<string, FeatureDescription>;
+  signal_logic?: string;
 }
 
 export interface ProviderStatusResponse {
@@ -144,6 +196,9 @@ export interface SignalOutput {
   signal: "buy" | "hold" | "sell";
   available: boolean;
   features: Record<string, number>;
+  reason?: string;
+  interpretation?: string;
+  signal_logic?: string;
 }
 
 export interface SignalsResponse {

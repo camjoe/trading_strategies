@@ -56,13 +56,47 @@ export function createTestAccountFeature(): TestAccountFeature {
 
   async function saveParams(): Promise<void> {
     if (!currentDetail) return;
-    const strategyInput = find<HTMLInputElement>("#editStrategyInput");
-    const riskSelect = find<HTMLSelectElement>("#editRiskPolicySelect");
     const msgEl = find<HTMLDivElement>("#editParamsMsg");
 
-    const payload: AccountParamsUpdate = {};
-    if (strategyInput) payload.strategy = strategyInput.value;
-    if (riskSelect) payload.riskPolicy = riskSelect.value;
+    const readStr = (id: string) => find<HTMLInputElement>(id)?.value.trim() || undefined;
+    const readNum = (id: string): number | null | undefined => {
+      const v = find<HTMLInputElement>(id)?.value.trim();
+      if (v === undefined || v === "") return undefined;
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const readInt = (id: string): number | null | undefined => {
+      const v = find<HTMLInputElement>(id)?.value.trim();
+      if (v === undefined || v === "") return undefined;
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : undefined;
+    };
+
+    const payload: AccountParamsUpdate = {
+      strategy: readStr("#editStrategyInput"),
+      descriptiveName: readStr("#editDisplayNameInput"),
+      riskPolicy: find<HTMLSelectElement>("#editRiskPolicySelect")?.value || undefined,
+      instrumentMode: find<HTMLSelectElement>("#editInstrumentModeSelect")?.value || undefined,
+      stopLossPct: readNum("#editStopLossPctInput"),
+      takeProfitPct: readNum("#editTakeProfitPctInput"),
+      learningEnabled: find<HTMLSelectElement>("#editLearningEnabledSelect")?.value === "true",
+      goalMinReturnPct: readNum("#editGoalMinReturnInput"),
+      goalMaxReturnPct: readNum("#editGoalMaxReturnInput"),
+      goalPeriod: readStr("#editGoalPeriodInput"),
+      optionType: find<HTMLSelectElement>("#editOptionTypeSelect")?.value || undefined,
+      optionStrikeOffsetPct: readNum("#editOptionStrikeOffsetInput"),
+      optionMinDte: readInt("#editOptionMinDteInput"),
+      optionMaxDte: readInt("#editOptionMaxDteInput"),
+      targetDeltaMin: readNum("#editTargetDeltaMinInput"),
+      targetDeltaMax: readNum("#editTargetDeltaMaxInput"),
+      ivRankMin: readNum("#editIvRankMinInput"),
+      ivRankMax: readNum("#editIvRankMaxInput"),
+      maxPremiumPerTrade: readNum("#editMaxPremiumInput"),
+      maxContractsPerTrade: readInt("#editMaxContractsInput"),
+      rollDteThreshold: readInt("#editRollDteThresholdInput"),
+      profitTakePct: readNum("#editProfitTakePctInput"),
+      maxLossPct: readNum("#editMaxLossPctInput"),
+    };
 
     try {
       await patchJson<{ status: string }>(

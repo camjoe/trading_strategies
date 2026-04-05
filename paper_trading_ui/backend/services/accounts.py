@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models.account_config import AccountConfig
+from trading.utils.coercion import row_float, row_int
 from trading.backtesting.services.report_service import (
     fetch_backtest_report_summary,
     fetch_latest_backtest_run_for_account,
@@ -46,6 +48,25 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
         "totalChangePct": delta_pct,
         "changeSinceLastSnapshot": change_since_snapshot,
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
+        "stopLossPct": row_float(row, "stop_loss_pct"),
+        "takeProfitPct": row_float(row, "take_profit_pct"),
+        "goalMinReturnPct": row_float(row, "goal_min_return_pct"),
+        "goalMaxReturnPct": row_float(row, "goal_max_return_pct"),
+        "goalPeriod": row["goal_period"] if "goal_period" in row.keys() else None,
+        "learningEnabled": bool(row["learning_enabled"]) if row["learning_enabled"] is not None else False,
+        "optionStrikeOffsetPct": row_float(row, "option_strike_offset_pct"),
+        "optionMinDte": row_int(row, "option_min_dte"),
+        "optionMaxDte": row_int(row, "option_max_dte"),
+        "optionType": row["option_type"] if "option_type" in row.keys() else None,
+        "targetDeltaMin": row_float(row, "target_delta_min"),
+        "targetDeltaMax": row_float(row, "target_delta_max"),
+        "maxPremiumPerTrade": row_float(row, "max_premium_per_trade"),
+        "maxContractsPerTrade": row_int(row, "max_contracts_per_trade"),
+        "ivRankMin": row_float(row, "iv_rank_min"),
+        "ivRankMax": row_float(row, "iv_rank_max"),
+        "rollDteThreshold": row_int(row, "roll_dte_threshold"),
+        "profitTakePct": row_float(row, "profit_take_pct"),
+        "maxLossPct": row_float(row, "max_loss_pct"),
     }
 
 
@@ -170,16 +191,59 @@ def update_account_params(
     *,
     strategy: str | None = None,
     risk_policy: str | None = None,
+    descriptive_name: str | None = None,
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
+    instrument_mode: str | None = None,
+    goal_min_return_pct: float | None = None,
+    goal_max_return_pct: float | None = None,
+    goal_period: str | None = None,
+    learning_enabled: bool | None = None,
+    option_strike_offset_pct: float | None = None,
+    option_min_dte: int | None = None,
+    option_max_dte: int | None = None,
+    option_type: str | None = None,
+    target_delta_min: float | None = None,
+    target_delta_max: float | None = None,
+    max_premium_per_trade: float | None = None,
+    max_contracts_per_trade: int | None = None,
+    iv_rank_min: float | None = None,
+    iv_rank_max: float | None = None,
+    roll_dte_threshold: int | None = None,
+    profit_take_pct: float | None = None,
+    max_loss_pct: float | None = None,
 ) -> None:
-    """Partial-update strategy and/or risk_policy for the given account."""
-    updates: list[str] = []
-    params: list[object] = []
+    """Update mutable account parameters. Only supplied (non-None) fields are changed."""
+    # strategy is not handled by configure_account — update directly
     if strategy is not None:
-        updates.append("strategy = ?")
-        params.append(strategy)
-    if risk_policy is not None:
-        updates.append("risk_policy = ?")
-        params.append(risk_policy)
-    if updates:
-        update_account_fields_by_id(conn, account_id, updates=updates, params=params)
+        update_account_fields_by_id(conn, account_id, updates=["strategy = ?"], params=[strategy])
+
+    cfg = AccountConfig(
+        descriptive_name=descriptive_name,
+        risk_policy=risk_policy,
+        stop_loss_pct=stop_loss_pct,
+        take_profit_pct=take_profit_pct,
+        instrument_mode=instrument_mode,
+        goal_min_return_pct=goal_min_return_pct,
+        goal_max_return_pct=goal_max_return_pct,
+        goal_period=goal_period,
+        learning_enabled=learning_enabled,
+        option_strike_offset_pct=option_strike_offset_pct,
+        option_min_dte=option_min_dte,
+        option_max_dte=option_max_dte,
+        option_type=option_type,
+        target_delta_min=target_delta_min,
+        target_delta_max=target_delta_max,
+        max_premium_per_trade=max_premium_per_trade,
+        max_contracts_per_trade=max_contracts_per_trade,
+        iv_rank_min=iv_rank_min,
+        iv_rank_max=iv_rank_max,
+        roll_dte_threshold=roll_dte_threshold,
+        profit_take_pct=profit_take_pct,
+        max_loss_pct=max_loss_pct,
+    )
+    row = conn.execute("SELECT name FROM accounts WHERE id = ?", (account_id,)).fetchone()
+    if row is not None:
+        from trading.services.accounts_service import configure_account
+        configure_account(conn, row["name"], cfg)
 

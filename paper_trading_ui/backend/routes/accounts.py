@@ -79,9 +79,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
 def api_update_account_params(account_name: str, body: AccountParamsRequest) -> dict[str, str]:
     """Partially update mutable account parameters.
 
-    Accepted fields (all optional — omitted fields are left unchanged):
-    - ``strategy`` — strategy identifier string.
-    - ``riskPolicy`` — risk policy label (e.g. ``"none"``, ``"fixed_stop"``).
+    All fields are optional — omitted fields are left unchanged.
 
     Returns ``{"status": "ok"}`` on success.  Raises ``HTTPException`` if the
     account does not exist.
@@ -93,7 +91,27 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
             int(account["id"]),
             strategy=body.strategy,
             risk_policy=body.riskPolicy,
+            descriptive_name=body.descriptiveName,
+            stop_loss_pct=body.stopLossPct,
+            take_profit_pct=body.takeProfitPct,
+            instrument_mode=body.instrumentMode,
+            goal_min_return_pct=body.goalMinReturnPct,
+            goal_max_return_pct=body.goalMaxReturnPct,
+            goal_period=body.goalPeriod,
+            learning_enabled=body.learningEnabled,
+            option_strike_offset_pct=body.optionStrikeOffsetPct,
+            option_min_dte=body.optionMinDte,
+            option_max_dte=body.optionMaxDte,
+            option_type=body.optionType,
+            target_delta_min=body.targetDeltaMin,
+            target_delta_max=body.targetDeltaMax,
+            max_premium_per_trade=body.maxPremiumPerTrade,
+            max_contracts_per_trade=body.maxContractsPerTrade,
+            iv_rank_min=body.ivRankMin,
+            iv_rank_max=body.ivRankMax,
+            roll_dte_threshold=body.rollDteThreshold,
+            profit_take_pct=body.profitTakePct,
+            max_loss_pct=body.maxLossPct,
         )
-    return {"status": "ok"}
     return {"status": "ok"}
 

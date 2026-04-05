@@ -91,23 +91,22 @@ describe("renderSignalRows", () => {
     const html = renderSignalRows(response);
     expect(html).toContain("Strategy");
     expect(html).toContain("Signal");
-    expect(html).toContain("Available");
-    expect(html).toContain("Key Features");
+    expect(html).toContain("Data Available");
+    expect(html).toContain("Interpretation");
   });
 
   it("renders buy signal with .up class", () => {
     const response: SignalsResponse = {
       ticker: "AAPL",
       signals: [
-        { strategy: "policy_regime", signal: "buy", available: true, features: { policy_risk_on_score: 0.72 } },
+        { strategy: "policy_regime", signal: "buy", available: true, features: { policy_risk_on_score: 0.72 }, interpretation: "Risk-on (bullish) — score 0.72" },
       ],
     };
 
     const html = renderSignalRows(response);
     expect(html).toContain('class="up"');
     expect(html).toContain("BUY");
-    expect(html).toContain("policy_risk_on_score");
-    expect(html).toContain("0.7200");
+    expect(html).toContain("Risk-on (bullish)");
   });
 
   it("renders sell signal with .down class", () => {
@@ -136,7 +135,7 @@ describe("renderSignalRows", () => {
     expect(html).toContain("HOLD");
     // Unavailable provider should show ✗
     expect(html).toContain("✗");
-    // Empty features should show the dash placeholder
+    // No interpretation — show dash
     expect(html).toContain("—");
   });
 
@@ -144,14 +143,14 @@ describe("renderSignalRows", () => {
     const response: SignalsResponse = {
       ticker: "AAPL",
       signals: [
-        { strategy: "<xss>", signal: "hold", available: true, features: { "<key>": 0.5 } },
+        { strategy: "<xss>", signal: "hold", available: true, features: { "<key>": 0.5 }, interpretation: "<script>" },
       ],
     };
 
     const html = renderSignalRows(response);
     expect(html).not.toContain("<xss>");
     expect(html).toContain("&lt;xss&gt;");
-    expect(html).not.toContain("<key>");
-    expect(html).toContain("&lt;key&gt;");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
   });
 });

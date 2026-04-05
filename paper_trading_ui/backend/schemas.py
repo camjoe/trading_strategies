@@ -85,7 +85,28 @@ class AdminDeleteAccountRequest(BaseModel):
 
 class AccountParamsRequest(BaseModel):
     strategy: str | None = None
+    descriptiveName: str | None = None
     riskPolicy: str | None = None
+    stopLossPct: float | None = None
+    takeProfitPct: float | None = None
+    instrumentMode: str | None = None
+    goalMinReturnPct: float | None = None
+    goalMaxReturnPct: float | None = None
+    goalPeriod: str | None = None
+    learningEnabled: bool | None = None
+    optionStrikeOffsetPct: float | None = None
+    optionMinDte: int | None = None
+    optionMaxDte: int | None = None
+    optionType: str | None = None
+    targetDeltaMin: float | None = None
+    targetDeltaMax: float | None = None
+    maxPremiumPerTrade: float | None = None
+    maxContractsPerTrade: int | None = None
+    ivRankMin: float | None = None
+    ivRankMax: float | None = None
+    rollDteThreshold: int | None = None
+    profitTakePct: float | None = None
+    maxLossPct: float | None = None
 
 
 class ManualTradeRequest(BaseModel):
