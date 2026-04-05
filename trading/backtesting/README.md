@@ -28,6 +28,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `walk_forward_service.py`: walk-forward run orchestration and summary rollups.
 
 - `domain/`: pure reusable backtesting logic.
+  - `strategy_signals.py`: `STRATEGY_REGISTRY`, `StrategySpec`, `resolve_strategy()`, and `resolve_signal()` dispatcher. Covers all 14 strategy IDs including the three `strategy_style="alternative"` strategies (`policy_regime`, `news_sentiment`, `social_trend_rotation`) that consume `ExternalFeatureBundle` values from `trading/features/` providers.
   - `indicators_adapter.py`: indicator import adapter boundary for trends package.
   - `metrics.py`: drawdown and benchmark-return calculations.
   - `windowing.py`: walk-forward date window generation.
@@ -39,7 +40,8 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 1. Caller invokes `backtest.py` public function.
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
-4. Typed models remain in `trading/models/` for shared contracts.
+4. `domain/strategy_signals.py` dispatches to signal functions; `strategy_style="alternative"` strategies receive an `ExternalFeatureBundle` from a `trading/features/` provider rather than computing purely from price history.
+5. Typed models remain in `trading/models/` for shared contracts.
 
 ## Workflows
 
