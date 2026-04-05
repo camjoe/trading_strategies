@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.trades_repository import insert_trade
+from trading.services.accounting_service import record_trade
 
 
 def add_manual_trade(
     conn: sqlite3.Connection,
     *,
-    account_id: int,
+    account_name: str,
     ticker: str,
     side: str,
     qty: float,
@@ -16,12 +16,12 @@ def add_manual_trade(
     fee: float,
     trade_time: str,
 ) -> None:
-    """Insert a manual trade record for the given account."""
-    insert_trade(
+    """Insert a manual trade record for the given account via the accounting service."""
+    record_trade(
         conn,
-        account_id=account_id,
-        ticker=ticker,
+        account_name=account_name,
         side=side,
+        ticker=ticker,
         qty=qty,
         price=price,
         fee=fee,

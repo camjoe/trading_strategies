@@ -6,11 +6,11 @@ a managed or virtual (test_account) paper-trading account.
 from __future__ import annotations
 
 from common.time import utc_now_iso
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from ..config import TEST_ACCOUNT_NAME
 from ..schemas import ManualTradeRequest
-from ..services import add_manual_trade, db_conn, fetch_account_row, resolve_backtest_payload_account
+from ..services import add_manual_trade, db_conn, resolve_backtest_payload_account
 
 router = APIRouter()
 
@@ -23,8 +23,8 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
     its backing DB account (resolved via ``resolve_backtest_payload_account``).
     All other account names are used as-is.
 
-    Returns ``{"status": "ok"}`` on success; raises ``HTTPException`` (via
-    ``fetch_account_row``) if the account does not exist.
+    Returns ``{"status": "ok"}`` on success; raises ``HTTPException`` 404 if
+    the account does not exist.
     """
     with db_conn() as conn:
         # test_account is virtual; route its trades to the backing DB account.
@@ -33,15 +33,17 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
         else:
             resolved_name = account_name
 
-        account = fetch_account_row(conn, resolved_name)
-        add_manual_trade(
-            conn,
-            account_id=int(account["id"]),
-            ticker=body.ticker.strip().upper(),
-            side=body.side,
-            qty=body.qty,
-            price=body.price,
-            fee=body.fee,
-            trade_time=utc_now_iso(),
-        )
+        try:
+            add_manual_trade(
+                conn,
+                account_name=resolved_name,
+                ticker=body.ticker.strip().upper(),
+                side=body.side,
+                qty=body.qty,
+                price=body.price,
+                fee=body.fee,
+                trade_time=utc_now_iso(),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"status": "ok"}
