@@ -283,3 +283,10 @@ class TestPolicyRegimeRegistryEntry:
     def test_keyword_resolve_political(self):
         spec = resolve_strategy("political_macro")
         assert spec.strategy_id == "policy_regime"
+
+    def test_plain_policy_routes_to_macro_not_policy_regime(self):
+        # "policy" alone must route to macro_proxy_regime, not policy_regime.
+        # _resolve_by_keyword checks "policy_regime" before "policy" — this
+        # test guards against accidental reordering.
+        spec = resolve_strategy("policy")
+        assert spec.strategy_id == "macro_proxy_regime"

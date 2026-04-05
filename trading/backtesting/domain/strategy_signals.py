@@ -17,15 +17,24 @@ from common.constants import (
 )
 from trading.features.policy_feature_provider import (
     POLICY_DEFENSIVE_TILT,
+    POLICY_MAX_DEFENSIVE_TILT,
+    POLICY_RISK_OFF_SELL_THRESHOLD,
+    POLICY_RISK_ON_BUY_THRESHOLD,
     POLICY_RISK_ON_SCORE,
 )
 from trading.features.news_feature_provider import (
+    NEWS_BUY_SENTIMENT_THRESHOLD,
     NEWS_HEADLINE_COUNT,
+    NEWS_MIN_HEADLINES_REQUIRED,
+    NEWS_SELL_SENTIMENT_THRESHOLD,
     NEWS_SENTIMENT_SCORE,
 )
 from trading.features.social_feature_provider import (
     SOCIAL_MENTION_COUNT,
+    SOCIAL_MIN_REDDIT_SENTIMENT,
     SOCIAL_REDDIT_SENTIMENT,
+    SOCIAL_TREND_BUY_THRESHOLD,
+    SOCIAL_TREND_EXIT_THRESHOLD,
     SOCIAL_TREND_SCORE,
 )
 
@@ -414,9 +423,9 @@ def _policy_regime_signal(
     if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
         return "hold"
 
-    risk_on_threshold = float(params.get("risk_on_threshold", 0.55))
-    risk_off_threshold = float(params.get("risk_off_threshold", 0.45))
-    max_defensive_tilt = float(params.get("max_defensive_tilt", 0.02))
+    risk_on_threshold = float(params.get("risk_on_threshold", POLICY_RISK_ON_BUY_THRESHOLD))
+    risk_off_threshold = float(params.get("risk_off_threshold", POLICY_RISK_OFF_SELL_THRESHOLD))
+    max_defensive_tilt = float(params.get("max_defensive_tilt", POLICY_MAX_DEFENSIVE_TILT))
 
     if (
         close > sma_fast > sma_slow
@@ -456,7 +465,7 @@ def _news_sentiment_signal(
     if sentiment is None or headline_count is None:
         return "hold"
 
-    min_headlines = float(params.get("min_headlines", 3.0))
+    min_headlines = float(params.get("min_headlines", NEWS_MIN_HEADLINES_REQUIRED))
     if headline_count < min_headlines:
         return "hold"
 
@@ -466,8 +475,8 @@ def _news_sentiment_signal(
     if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
         return "hold"
 
-    buy_sentiment = float(params.get("buy_sentiment", 0.10))
-    sell_sentiment = float(params.get("sell_sentiment", -0.10))
+    buy_sentiment = float(params.get("buy_sentiment", NEWS_BUY_SENTIMENT_THRESHOLD))
+    sell_sentiment = float(params.get("sell_sentiment", NEWS_SELL_SENTIMENT_THRESHOLD))
 
     if close > sma_fast > sma_slow and sentiment >= buy_sentiment:
         return "buy"
@@ -512,9 +521,9 @@ def _social_trend_rotation_signal(
     if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
         return "hold"
 
-    trend_threshold = float(params.get("trend_threshold", 0.40))
-    trend_exit = float(params.get("trend_exit", 0.20))
-    min_reddit_sentiment = float(params.get("min_reddit_sentiment", -0.05))
+    trend_threshold = float(params.get("trend_threshold", SOCIAL_TREND_BUY_THRESHOLD))
+    trend_exit = float(params.get("trend_exit", SOCIAL_TREND_EXIT_THRESHOLD))
+    min_reddit_sentiment = float(params.get("min_reddit_sentiment", SOCIAL_MIN_REDDIT_SENTIMENT))
 
     if (
         close > sma_fast > sma_slow
@@ -641,9 +650,9 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={
             "fast_window": 20,
             "slow_window": 50,
-            "risk_on_threshold": 0.55,
-            "risk_off_threshold": 0.45,
-            "max_defensive_tilt": 0.02,
+            "risk_on_threshold": POLICY_RISK_ON_BUY_THRESHOLD,
+            "risk_off_threshold": POLICY_RISK_OFF_SELL_THRESHOLD,
+            "max_defensive_tilt": POLICY_MAX_DEFENSIVE_TILT,
         },
         aliases=("policy_external", "policy_etf", "political_regime"),
         description=(
@@ -660,9 +669,9 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={
             "fast_window": 10,
             "slow_window": 30,
-            "buy_sentiment": 0.10,
-            "sell_sentiment": -0.10,
-            "min_headlines": 3.0,
+            "buy_sentiment": NEWS_BUY_SENTIMENT_THRESHOLD,
+            "sell_sentiment": NEWS_SELL_SENTIMENT_THRESHOLD,
+            "min_headlines": NEWS_MIN_HEADLINES_REQUIRED,
         },
         aliases=("news", "news_sentiment_strategy", "sentiment"),
         description=(
@@ -678,9 +687,9 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         default_params={
             "fast_window": 10,
             "slow_window": 30,
-            "trend_threshold": 0.40,
-            "trend_exit": 0.20,
-            "min_reddit_sentiment": -0.05,
+            "trend_threshold": SOCIAL_TREND_BUY_THRESHOLD,
+            "trend_exit": SOCIAL_TREND_EXIT_THRESHOLD,
+            "min_reddit_sentiment": SOCIAL_MIN_REDDIT_SENTIMENT,
         },
         aliases=("social", "social_trend", "reddit_trend"),
         description=(

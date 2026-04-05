@@ -60,6 +60,14 @@ _REDDIT_CLIENT_SECRET_ENV = "REDDIT_CLIENT_SECRET"
 _REDDIT_USER_AGENT_ENV = "REDDIT_USER_AGENT"
 _REDDIT_DEFAULT_USER_AGENT = "trading-bot/1.0 (research only)"
 
+# ---------------------------------------------------------------------------
+# Signal thresholds — imported by strategy_signals._social_trend_rotation_signal
+# ---------------------------------------------------------------------------
+
+SOCIAL_TREND_BUY_THRESHOLD = 0.40
+SOCIAL_TREND_EXIT_THRESHOLD = 0.20
+SOCIAL_MIN_REDDIT_SENTIMENT = -0.05
+
 
 class SocialFeatureProvider(ExternalFeatureProvider):
     """Derive social trend signals from Google Trends and Reddit.

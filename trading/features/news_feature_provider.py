@@ -28,8 +28,6 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.error import URLError
 
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
 from trading.features.base import ExternalFeatureBundle, ExternalFeatureProvider
 
 _LOG = logging.getLogger(__name__)
@@ -51,8 +49,8 @@ _RSS_TEMPLATES: tuple[str, ...] = (
     "https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en",
 )
 
-# Number of headlines fetched per RSS feed.
-_MAX_HEADLINES_PER_FEED = 10
+# Total headline cap across all RSS feeds combined.
+_MAX_TOTAL_RSS_HEADLINES = 20
 
 # Minimum headlines required to emit an available bundle.
 _MIN_HEADLINE_THRESHOLD = 3
@@ -65,6 +63,14 @@ _NEWS_API_KEY_ENV = "NEWS_API_KEY"
 
 # Maximum NewsAPI articles to fetch per ticker.
 _NEWS_API_MAX_ARTICLES = 20
+
+# ---------------------------------------------------------------------------
+# Signal thresholds — imported by strategy_signals._news_sentiment_signal
+# ---------------------------------------------------------------------------
+
+NEWS_BUY_SENTIMENT_THRESHOLD = 0.10
+NEWS_SELL_SENTIMENT_THRESHOLD = -0.10
+NEWS_MIN_HEADLINES_REQUIRED = 3.0
 
 
 class NewsFeatureProvider(ExternalFeatureProvider):
@@ -81,6 +87,7 @@ class NewsFeatureProvider(ExternalFeatureProvider):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
         self._analyzer = SentimentIntensityAnalyzer()
 
     @property
@@ -134,7 +141,7 @@ class NewsFeatureProvider(ExternalFeatureProvider):
                     title = item.findtext("title")
                     if title:
                         headlines.append(title.strip())
-                        if len(headlines) >= _MAX_HEADLINES_PER_FEED * len(_RSS_TEMPLATES):
+                        if len(headlines) >= _MAX_TOTAL_RSS_HEADLINES:
                             break
             except (URLError, ET.ParseError, OSError) as exc:
                 _LOG.debug("NewsFeatureProvider: RSS fetch failed (%s): %s", url, exc)

@@ -12,7 +12,6 @@ from trading.features.social_feature_provider import (
     SOCIAL_REDDIT_SENTIMENT,
     SOCIAL_TREND_SCORE,
     SocialFeatureProvider,
-    _GTRENDS_MIN_OBSERVATIONS,
 )
 from trading.backtesting.domain.strategy_signals import (
     STRATEGY_REGISTRY,
@@ -56,14 +55,10 @@ class TestSocialFeatureProviderGoogleTrends:
         mock_pt = MagicMock()
         mock_pt.interest_over_time.return_value = _make_gtrends_df("AAPL", last_value=80)
 
-        with patch("trading.features.social_feature_provider.TrendReq", return_value=mock_pt, create=True):
-            with patch(
-                "trading.features.social_feature_provider.SocialFeatureProvider._fetch_google_trend",
-                return_value=0.80,
-            ):
-                result = provider._fetch_google_trend("AAPL")
-        # patched directly → just checks it returns without error
-        assert result == 0.80
+        with patch("pytrends.request.TrendReq", return_value=mock_pt):
+            result = provider._fetch_google_trend("AAPL")
+
+        assert result == pytest.approx(0.80)
 
     def test_fetch_google_trend_failure_returns_none(self):
         provider = SocialFeatureProvider()

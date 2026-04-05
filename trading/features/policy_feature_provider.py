@@ -23,6 +23,7 @@ import logging
 import math
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
 import yfinance as yf
 
 from trading.features.base import ExternalFeatureBundle, ExternalFeatureProvider
@@ -57,6 +58,14 @@ POLICY_MIN_OBSERVATIONS = 15
 
 # Sigmoid scale factor: maps ±10 % equity/defensive spread to ≈ 0.73 / 0.27.
 _SIGMOID_SCALE = 10.0
+
+# ---------------------------------------------------------------------------
+# Signal thresholds — imported by strategy_signals._policy_regime_signal
+# ---------------------------------------------------------------------------
+
+POLICY_RISK_ON_BUY_THRESHOLD = 0.55
+POLICY_RISK_OFF_SELL_THRESHOLD = 0.45
+POLICY_MAX_DEFENSIVE_TILT = 0.02
 
 
 class PolicyFeatureProvider(ExternalFeatureProvider):
@@ -143,7 +152,7 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
             return None
 
         # yfinance returns a MultiIndex when multiple tickers are requested.
-        close = raw.get("Close", raw.xs("Close", level=0, axis=1) if isinstance(raw.columns, object) else None)
+        close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw.get("Close")
         if close is None or close.empty or len(close) < POLICY_MIN_OBSERVATIONS:
             return None
 
