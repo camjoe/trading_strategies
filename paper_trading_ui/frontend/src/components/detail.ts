@@ -4,6 +4,10 @@ import type { AccountDetail } from "../types";
 export interface DetailRenderOptions {
   tradePage?: number;
   tradePageSize?: number;
+  /** Show Edit Parameters and Snapshot buttons + edit panel. Default: true. */
+  showActions?: boolean;
+  /** Show the Latest Backtest report section. Default: true. */
+  showBacktest?: boolean;
 }
 
 const RISK_POLICY_OPTIONS = ["none", "fixed_stop", "take_profit", "stop_and_target"] as const;
@@ -27,6 +31,8 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   const totalTrades = detail.trades.length;
   const totalTradePages = Math.max(1, Math.ceil(totalTrades / tradePageSize));
   const tradePage = Math.min(Math.max(1, options.tradePage ?? 1), totalTradePages);
+  const showActions = options.showActions !== false;
+  const showBacktest = options.showBacktest !== false;
   const viewedStart = totalTrades === 0 ? 0 : (tradePage - 1) * tradePageSize + 1;
   const viewedEnd = totalTrades === 0 ? 0 : Math.min(tradePage * tradePageSize, totalTrades);
 
@@ -91,13 +97,13 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <h3>${esc(detail.account.displayName)}</h3>
         <p>${esc(detail.account.name)} | ${esc(detail.account.strategy)} | ${esc(detail.account.benchmark)}</p>
       </div>
-      <div class="detail-head-actions">
+      ${showActions ? `<div class="detail-head-actions">
         <button id="editParamsBtn" type="button">Edit Parameters</button>
         <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
-      </div>
+      </div>` : ""}
     </div>
 
-    <div id="editParamsPanel" class="edit-params-panel" hidden>
+    ${showActions ? `<div id="editParamsPanel" class="edit-params-panel" hidden>
       <!-- Core parameters - always visible -->
       <div class="edit-params-section">
         <h5>Core</h5>
@@ -236,12 +242,12 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <button id="editParamsCancelBtn" type="button">Cancel</button>
         <div id="editParamsMsg"></div>
       </div>
-    </div>
+    </div>` : ""}
 
-    <article>
+    ${showBacktest ? `<article>
       <h4>Latest Backtest</h4>
       ${latestBacktest}
-    </article>
+    </article>` : ""}
 
     <div class="detail-grid">
       <article>

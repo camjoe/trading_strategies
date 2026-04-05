@@ -91,7 +91,6 @@ describe("renderSignalRows", () => {
     const html = renderSignalRows(response);
     expect(html).toContain("Strategy");
     expect(html).toContain("Signal");
-    expect(html).toContain("Data Available");
     expect(html).toContain("Interpretation");
   });
 
@@ -133,10 +132,8 @@ describe("renderSignalRows", () => {
     const html = renderSignalRows(response);
     expect(html).toContain('class=""');
     expect(html).toContain("HOLD");
-    // Unavailable provider should show ✗
-    expect(html).toContain("✗");
-    // No interpretation — show dash
-    expect(html).toContain("—");
+    // Unavailable provider with no features → show "unavailable" message
+    expect(html).toContain("unavailable");
   });
 
   it("escapes strategy names and feature keys", () => {

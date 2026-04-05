@@ -199,6 +199,7 @@ export interface SignalOutput {
   reason?: string;
   interpretation?: string;
   signal_logic?: string;
+  feature_descriptions?: Record<string, FeatureDescription>;
 }
 
 export interface SignalsResponse {

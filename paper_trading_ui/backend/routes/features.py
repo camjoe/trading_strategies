@@ -281,6 +281,7 @@ def api_feature_signals(body: FeatureSignalsRequest) -> dict[str, Any]:
             "reason": "no_price_history",
             "signal_logic": signal_logic,
             "interpretation": _interpret_signal(strategy_id, bundle.features),
+            "feature_descriptions": meta.get("feature_descriptions"),
         })
 
     return {"ticker": ticker, "signals": signals}

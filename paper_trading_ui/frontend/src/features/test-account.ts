@@ -1,8 +1,8 @@
 import { find } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, patchJson, postJson } from "../lib/http";
+import { getJson, postJson } from "../lib/http";
 import { renderDetail } from "../components/detail";
-import type { AccountDetail, AccountParamsUpdate, ManualTradeRequest } from "../types";
+import type { AccountDetail, ManualTradeRequest } from "../types";
 
 // Must match paper_trading_ui/backend/config.py::TEST_ACCOUNT_NAME
 const TEST_ACCOUNT_NAME = "test_account" as const;
@@ -25,7 +25,7 @@ export function createTestAccountFeature(): TestAccountFeature {
     const target = find<HTMLDivElement>("#test-account-detail");
     if (!target || !currentDetail) return;
 
-    target.innerHTML = renderDetail(currentDetail, { tradePage, tradePageSize });
+    target.innerHTML = renderDetail(currentDetail, { tradePage, tradePageSize, showActions: false, showBacktest: false });
 
     find<HTMLButtonElement>("#recentTradesPrevBtn")?.addEventListener("click", () => {
       tradePage = Math.max(1, tradePage - 1);
@@ -38,84 +38,6 @@ export function createTestAccountFeature(): TestAccountFeature {
       tradePage = Math.min(totalPages, tradePage + 1);
       renderCurrentDetail();
     });
-
-    find<HTMLButtonElement>("#editParamsBtn")?.addEventListener("click", () => {
-      const panel = find<HTMLDivElement>("#editParamsPanel");
-      if (panel) panel.hidden = !panel.hidden;
-    });
-
-    find<HTMLButtonElement>("#editParamsCancelBtn")?.addEventListener("click", () => {
-      const panel = find<HTMLDivElement>("#editParamsPanel");
-      if (panel) panel.hidden = true;
-    });
-
-    find<HTMLButtonElement>("#editParamsSaveBtn")?.addEventListener("click", () => {
-      void saveParams();
-    });
-  }
-
-  async function saveParams(): Promise<void> {
-    if (!currentDetail) return;
-    const msgEl = find<HTMLDivElement>("#editParamsMsg");
-
-    const readStr = (id: string) => find<HTMLInputElement>(id)?.value.trim() || undefined;
-    const readNum = (id: string): number | null | undefined => {
-      const v = find<HTMLInputElement>(id)?.value.trim();
-      if (v === undefined || v === "") return undefined;
-      const n = parseFloat(v);
-      return Number.isFinite(n) ? n : undefined;
-    };
-    const readInt = (id: string): number | null | undefined => {
-      const v = find<HTMLInputElement>(id)?.value.trim();
-      if (v === undefined || v === "") return undefined;
-      const n = parseInt(v, 10);
-      return Number.isFinite(n) ? n : undefined;
-    };
-
-    const payload: AccountParamsUpdate = {
-      strategy: readStr("#editStrategyInput"),
-      descriptiveName: readStr("#editDisplayNameInput"),
-      riskPolicy: find<HTMLSelectElement>("#editRiskPolicySelect")?.value || undefined,
-      instrumentMode: find<HTMLSelectElement>("#editInstrumentModeSelect")?.value || undefined,
-      stopLossPct: readNum("#editStopLossPctInput"),
-      takeProfitPct: readNum("#editTakeProfitPctInput"),
-      learningEnabled: find<HTMLSelectElement>("#editLearningEnabledSelect")?.value === "true",
-      goalMinReturnPct: readNum("#editGoalMinReturnInput"),
-      goalMaxReturnPct: readNum("#editGoalMaxReturnInput"),
-      goalPeriod: readStr("#editGoalPeriodInput"),
-      optionType: find<HTMLSelectElement>("#editOptionTypeSelect")?.value || undefined,
-      optionStrikeOffsetPct: readNum("#editOptionStrikeOffsetInput"),
-      optionMinDte: readInt("#editOptionMinDteInput"),
-      optionMaxDte: readInt("#editOptionMaxDteInput"),
-      targetDeltaMin: readNum("#editTargetDeltaMinInput"),
-      targetDeltaMax: readNum("#editTargetDeltaMaxInput"),
-      ivRankMin: readNum("#editIvRankMinInput"),
-      ivRankMax: readNum("#editIvRankMaxInput"),
-      maxPremiumPerTrade: readNum("#editMaxPremiumInput"),
-      maxContractsPerTrade: readInt("#editMaxContractsInput"),
-      rollDteThreshold: readInt("#editRollDteThresholdInput"),
-      profitTakePct: readNum("#editProfitTakePctInput"),
-      maxLossPct: readNum("#editMaxLossPctInput"),
-    };
-
-    try {
-      await patchJson<{ status: string }>(
-        `/api/accounts/${encodeURIComponent(TEST_ACCOUNT_NAME)}/params`,
-        payload,
-      );
-      if (msgEl) {
-        msgEl.className = "";
-        msgEl.textContent = "Saved.";
-      }
-      setTimeout(() => {
-        void load();
-      }, 800);
-    } catch (err) {
-      if (msgEl) {
-        msgEl.className = "error";
-        msgEl.textContent = err instanceof Error ? err.message : "Save failed.";
-      }
-    }
   }
 
   async function load(): Promise<void> {

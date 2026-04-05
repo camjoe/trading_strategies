@@ -98,23 +98,55 @@ function signalClass(signal: SignalOutput["signal"]): string {
   return "";
 }
 
+function renderFeatureBreakdown(
+  features: Record<string, number>,
+  descriptions?: Record<string, FeatureDescription>,
+): string {
+  const rows = Object.entries(features)
+    .map(([k, v]) => {
+      const desc = descriptions?.[k];
+      const label = desc?.label ?? k;
+      const hint = desc?.description ?? "";
+      const formatted = Number.isInteger(v) ? String(v) : v.toFixed(4);
+      return `<tr>
+        <td class="feature-name">${esc(label)}</td>
+        <td class="feature-value">${esc(formatted)}</td>
+        <td class="feature-desc muted">${esc(hint)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  return `
+    <details class="signal-feature-details">
+      <summary>Feature breakdown</summary>
+      <table class="feature-table">
+        <thead><tr><th>Feature</th><th>Value</th><th>Threshold / Meaning</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </details>
+  `;
+}
+
 function renderSignalRow(output: SignalOutput): string {
   const cls = signalClass(output.signal);
-  const availableText = output.available ? "✓" : "✗";
+  const hasFeatures = Object.keys(output.features ?? {}).length > 0;
 
-  const reasonNote =
-    output.reason === "no_price_history"
-      ? `<br><small class="muted">⚠ Feature-only — no price history supplied</small>`
-      : "";
+  const interpretation =
+    output.interpretation ||
+    (hasFeatures ? "—" : "Provider unavailable or no data returned for this ticker.");
 
-  const logicAttr = output.signal_logic ? ` title="${esc(output.signal_logic)}"` : "";
+  const featureDetails = hasFeatures
+    ? renderFeatureBreakdown(output.features, output.feature_descriptions)
+    : "";
 
   return `
     <tr>
       <td>${esc(output.strategy)}</td>
-      <td class="${cls}"${logicAttr}>${esc(output.signal.toUpperCase())}${reasonNote}</td>
-      <td>${availableText}</td>
-      <td>${esc(output.interpretation ?? "—")}</td>
+      <td class="${cls}">${esc(output.signal.toUpperCase())}</td>
+      <td>
+        <span>${esc(interpretation)}</span>
+        ${featureDetails}
+      </td>
     </tr>
   `;
 }
@@ -122,14 +154,13 @@ function renderSignalRow(output: SignalOutput): string {
 export function renderSignalRows(response: SignalsResponse): string {
   const rows = response.signals.map(renderSignalRow).join("");
   return `
-    <p class="muted signals-ticker-note">Results for <strong>${esc(response.ticker)}</strong> — signals are feature-only (no live price history); use as directional context only.</p>
+    <p class="muted signals-ticker-note">Signals for <strong>${esc(response.ticker)}</strong>. Feature-only analysis — momentum confirmation requires live price history, so these signals reflect data context only.</p>
     <table>
       <thead>
         <tr>
           <th>Strategy</th>
           <th>Signal</th>
-          <th>Data Available</th>
-          <th>Interpretation</th>
+          <th>Interpretation &amp; Data</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
