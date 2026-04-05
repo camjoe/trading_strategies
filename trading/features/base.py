@@ -26,6 +26,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
+
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +72,18 @@ class ExternalFeatureBundle:
     def get(self, key: str, default: float | None = None) -> float | None:
         """Return the named feature value, or *default* if not present."""
         return self.features.get(key, default)
+
+    def to_feature_row(self) -> pd.DataFrame | None:
+        """Return a single-row DataFrame of features, or None if unavailable.
+
+        Converts this bundle into the ``feature_history`` format expected by
+        signal functions in ``trading.backtesting.domain.strategy_signals``.
+        Returns ``None`` when :attr:`available` is ``False`` so that signal
+        functions can treat it as a missing/stale data guard.
+        """
+        if not self.available:
+            return None
+        return pd.DataFrame([self.features])
 
     @classmethod
     def unavailable(cls, source: str = "") -> "ExternalFeatureBundle":
