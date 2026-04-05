@@ -12,6 +12,7 @@ from trading.services.accounts_service import (
     fetch_account_rows_excluding,
     fetch_all_account_names,
     fetch_snapshot_history_rows,
+    update_account_fields_by_id,
 )
 from trading.services.reporting_service import get_account_stats as build_account_stats
 
@@ -161,4 +162,24 @@ def fetch_account_trades(conn: sqlite3.Connection, account_id: int) -> list[sqli
 def take_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time: str | None = None) -> None:
     from trading.services.reporting_service import take_account_snapshot
     take_account_snapshot(conn, account_name, snapshot_time=snapshot_time)
+
+
+def update_account_params(
+    conn: sqlite3.Connection,
+    account_id: int,
+    *,
+    strategy: str | None = None,
+    risk_policy: str | None = None,
+) -> None:
+    """Partial-update strategy and/or risk_policy for the given account."""
+    updates: list[str] = []
+    params: list[object] = []
+    if strategy is not None:
+        updates.append("strategy = ?")
+        params.append(strategy)
+    if risk_policy is not None:
+        updates.append("risk_policy = ?")
+        params.append(risk_policy)
+    if updates:
+        update_account_fields_by_id(conn, account_id, updates=updates, params=params)
 

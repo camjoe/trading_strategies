@@ -16,6 +16,7 @@ from .accounts import (
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
     take_snapshot,
+    update_account_params,
 )
 from .admin import (
     clean_text,
@@ -35,7 +36,10 @@ from .test_account import (
     resolve_backtest_payload_account,
 )
 
+from .trades import add_manual_trade
+
 __all__ = [
+    "add_manual_trade",
     "build_account_summary",
     "build_backtest_config_from_preflight_request",
     "build_backtest_config_from_run_request",
@@ -63,5 +67,6 @@ __all__ = [
     "preview_csv_export",
     "resolve_backtest_payload_account",
     "take_snapshot",
+    "update_account_params",
     "update_account_rotation_settings",
 ]

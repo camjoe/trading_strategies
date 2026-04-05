@@ -40,22 +40,17 @@ def _build_unavailable_entry(name: str, source_label: str) -> dict[str, Any]:
     }
 
 
-def _load_providers_and_signals() -> tuple[
-    list[tuple[Any, Any]],   # [(provider, signal_fn), ...]
+def _load_providers() -> tuple[
+    list[tuple[Any, Any]],   # [(provider, strategy_id), ...]
     list[str],               # display names
     list[str],               # source_label fallbacks
     list[str],               # strategy ids
 ]:
-    """Lazily import and instantiate the three alt-strategy providers and signal fns.
+    """Lazily import and instantiate the three alt-strategy providers.
 
     Each provider is imported and instantiated independently so that a single
     missing dependency does not prevent the others from loading.
     """
-    from trading.backtesting.domain.strategy_signals import (
-        _news_sentiment_signal,
-        _policy_regime_signal,
-        _social_trend_rotation_signal,
-    )
     from trading.features.news_feature_provider import NewsFeatureProvider
     from trading.features.policy_feature_provider import PolicyFeatureProvider
     from trading.features.social_feature_provider import SocialFeatureProvider
@@ -64,11 +59,6 @@ def _load_providers_and_signals() -> tuple[
         "PolicyFeatureProvider": PolicyFeatureProvider,
         "NewsFeatureProvider": NewsFeatureProvider,
         "SocialFeatureProvider": SocialFeatureProvider,
-    }
-    signal_fns = {
-        "policy_regime": _policy_regime_signal,
-        "news_sentiment": _news_sentiment_signal,
-        "social_trend_rotation": _social_trend_rotation_signal,
     }
 
     pairs: list[tuple[Any, Any]] = []
@@ -79,8 +69,7 @@ def _load_providers_and_signals() -> tuple[
     for display_name, source_label, class_name, strategy_id in _PROVIDER_SPECS:
         try:
             provider = provider_classes[class_name]()
-            sig_fn = signal_fns[strategy_id]
-            pairs.append((provider, sig_fn))
+            pairs.append((provider, strategy_id))
         except Exception as exc:
             _LOG.warning("features: failed to init %s: %s", class_name, exc)
             pairs.append((None, None))
@@ -94,10 +83,10 @@ def _load_providers_and_signals() -> tuple[
 @router.get("/api/features/status")
 def api_feature_status() -> dict[str, list[dict[str, Any]]]:
     """Probe all three alt-strategy feature providers and return their status."""
-    pairs, names, labels, _ = _load_providers_and_signals()
+    pairs, names, labels, _ = _load_providers()
     results: list[dict[str, Any]] = []
 
-    for (provider, _sig_fn), name, label in zip(pairs, names, labels):
+    for (provider, _strategy_id), name, label in zip(pairs, names, labels):
         if provider is None:
             results.append(_build_unavailable_entry(name, label))
             continue
@@ -119,18 +108,26 @@ def api_feature_status() -> dict[str, list[dict[str, Any]]]:
 
 @router.post("/api/features/signals")
 def api_feature_signals(body: FeatureSignalsRequest) -> dict[str, Any]:
-    """Run all three alt-strategy signal functions for the requested ticker."""
+    """Run all three alt-strategy signal functions for the requested ticker.
+
+    Note: signals are computed using feature data only (no price history).
+    When feature data is available the signal is a real model output; when
+    unavailable the signal falls back to ``"hold"`` with ``available: false``.
+    """
+    from trading.backtesting.domain.strategy_signals import resolve_signal
+
     ticker = body.ticker.strip().upper()
-    pairs, _names, _labels, strategy_ids = _load_providers_and_signals()
+    pairs, _names, _labels, strategy_ids = _load_providers()
     signals: list[dict[str, Any]] = []
 
-    # Alt-strategy signal functions require a price Series; passing an empty
-    # Series results in a "hold" from the length guard, which is the correct
-    # degraded behaviour when no price history is supplied via this endpoint.
+    # Signal functions require a price Series for momentum guards.
+    # Passing an empty Series means the length check always fires, so the
+    # signal relies entirely on the feature bundle.  We mark available=false
+    # to make clear that no price-based confirmation was performed.
     empty_history = pd.Series([], dtype=float)
 
-    for (provider, sig_fn), strategy_id in zip(pairs, strategy_ids):
-        if provider is None or sig_fn is None:
+    for (provider, _strategy_id), strategy_id in zip(pairs, strategy_ids):
+        if provider is None:
             signals.append({
                 "strategy": strategy_id,
                 "signal": "hold",
@@ -161,16 +158,19 @@ def api_feature_signals(body: FeatureSignalsRequest) -> dict[str, Any]:
             continue
 
         try:
-            signal = sig_fn(empty_history, {}, bundle.to_feature_row())
+            signal = resolve_signal(strategy_id, empty_history, bundle.to_feature_row())
         except Exception as exc:
             _LOG.warning("features: signal fn failed for %s/%s: %s", strategy_id, ticker, exc)
             signal = "hold"
 
+        # available=False: no price history was supplied, so the momentum
+        # guards fired and any non-hold result is feature-only (degraded).
         signals.append({
             "strategy": strategy_id,
             "signal": signal,
-            "available": True,
+            "available": False,
             "features": bundle.features,
+            "reason": "no_price_history",
         })
 
     return {"ticker": ticker, "signals": signals}

@@ -1,9 +1,10 @@
 import { find } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
+import { getJson, patchJson, postJson } from "../lib/http";
 import { renderDetail } from "../components/detail";
-import type { AccountDetail, ManualTradeRequest } from "../types";
+import type { AccountDetail, AccountParamsUpdate, ManualTradeRequest } from "../types";
 
+// Must match paper_trading_ui/backend/config.py::TEST_ACCOUNT_NAME
 const TEST_ACCOUNT_NAME = "test_account" as const;
 
 export interface TestAccountFeature {
@@ -47,6 +48,40 @@ export function createTestAccountFeature(): TestAccountFeature {
       const panel = find<HTMLDivElement>("#editParamsPanel");
       if (panel) panel.hidden = true;
     });
+
+    find<HTMLButtonElement>("#editParamsSaveBtn")?.addEventListener("click", () => {
+      void saveParams();
+    });
+  }
+
+  async function saveParams(): Promise<void> {
+    if (!currentDetail) return;
+    const strategyInput = find<HTMLInputElement>("#editStrategyInput");
+    const riskSelect = find<HTMLSelectElement>("#editRiskPolicySelect");
+    const msgEl = find<HTMLDivElement>("#editParamsMsg");
+
+    const payload: AccountParamsUpdate = {};
+    if (strategyInput) payload.strategy = strategyInput.value;
+    if (riskSelect) payload.riskPolicy = riskSelect.value;
+
+    try {
+      await patchJson<{ status: string }>(
+        `/api/accounts/${encodeURIComponent(TEST_ACCOUNT_NAME)}/params`,
+        payload,
+      );
+      if (msgEl) {
+        msgEl.className = "";
+        msgEl.textContent = "Saved.";
+      }
+      setTimeout(() => {
+        void load();
+      }, 800);
+    } catch (err) {
+      if (msgEl) {
+        msgEl.className = "error";
+        msgEl.textContent = err instanceof Error ? err.message : "Save failed.";
+      }
+    }
   }
 
   async function load(): Promise<void> {

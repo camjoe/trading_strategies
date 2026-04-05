@@ -39,10 +39,14 @@ function updateHealthBadge(health: HealthState): void {
 }
 
 export function createAltStrategiesFeature(): AltStrategiesFeature {
+  let isLoadingStatus = false;
+
   async function loadStatus(): Promise<void> {
+    if (isLoadingStatus) return;
     const grid = find<HTMLDivElement>("#alt-providers-grid");
     if (!grid) return;
 
+    isLoadingStatus = true;
     grid.innerHTML = `<div class="empty">Loading…</div>`;
     try {
       const data = await getJson<ProviderStatusResponse>(STATUS_PATH);
@@ -50,6 +54,8 @@ export function createAltStrategiesFeature(): AltStrategiesFeature {
       updateHealthBadge(computeHealthState(data.providers));
     } catch (err) {
       grid.innerHTML = `<div class="error">${esc(err instanceof Error ? err.message : "Failed to load provider status.")}</div>`;
+    } finally {
+      isLoadingStatus = false;
     }
   }
 

@@ -1,5 +1,5 @@
 import { find } from "../lib/dom";
-import { currency, pct } from "../lib/format";
+import { currency, esc, pct } from "../lib/format";
 import { getJson } from "../lib/http";
 import type { AccountComparisonRow } from "../types";
 
@@ -68,7 +68,7 @@ function populateStrategyFilter(rows: AccountComparisonRow[]): void {
   const strategies = [...new Set(rows.map((r) => r.strategy))].sort();
   select.innerHTML =
     `<option value="">All strategies</option>` +
-    strategies.map((s) => `<option value="${s}">${s}</option>`).join("");
+    strategies.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
 }
 
 export function createCompareFeature(): CompareFeature {

@@ -19,8 +19,8 @@ from ..services import (
     build_test_account_detail_payload,
     build_test_account_summary,
     build_trade_payload,
+    update_account_params,
 )
-from trading.services.accounts_service import update_account_fields_by_id
 
 router = APIRouter()
 
@@ -77,17 +77,23 @@ def api_account_detail(account_name: str) -> dict[str, object]:
 
 @router.patch("/api/accounts/{account_name}/params")
 def api_update_account_params(account_name: str, body: AccountParamsRequest) -> dict[str, str]:
+    """Partially update mutable account parameters.
+
+    Accepted fields (all optional — omitted fields are left unchanged):
+    - ``strategy`` — strategy identifier string.
+    - ``riskPolicy`` — risk policy label (e.g. ``"none"``, ``"fixed_stop"``).
+
+    Returns ``{"status": "ok"}`` on success.  Raises ``HTTPException`` if the
+    account does not exist.
+    """
     with db_conn() as conn:
         account = fetch_account_row(conn, account_name)
-        updates: list[str] = []
-        params: list[object] = []
-        if body.strategy is not None:
-            updates.append("strategy = ?")
-            params.append(body.strategy)
-        if body.riskPolicy is not None:
-            updates.append("risk_policy = ?")
-            params.append(body.riskPolicy)
-        if updates:
-            update_account_fields_by_id(conn, int(account["id"]), updates=updates, params=params)
+        update_account_params(
+            conn,
+            int(account["id"]),
+            strategy=body.strategy,
+            risk_policy=body.riskPolicy,
+        )
+    return {"status": "ok"}
     return {"status": "ok"}
 
