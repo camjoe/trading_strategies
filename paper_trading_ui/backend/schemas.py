@@ -94,3 +94,7 @@ class ManualTradeRequest(BaseModel):
     qty: float = Field(gt=0)
     price: float = Field(gt=0)
     fee: float = Field(default=0.0, ge=0)
+
+
+class FeatureSignalsRequest(BaseModel):
+    ticker: str

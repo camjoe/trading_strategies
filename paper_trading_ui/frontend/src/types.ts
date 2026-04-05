@@ -126,3 +126,27 @@ export interface ManualTradeRequest {
   price: number;
   fee: number;
 }
+
+export interface ProviderStatus {
+  name: string;
+  source_label: string;
+  available: boolean;
+  fetched_at: string;
+  key_scores: Record<string, number>;
+}
+
+export interface ProviderStatusResponse {
+  providers: ProviderStatus[];
+}
+
+export interface SignalOutput {
+  strategy: string;
+  signal: "buy" | "hold" | "sell";
+  available: boolean;
+  features: Record<string, number>;
+}
+
+export interface SignalsResponse {
+  ticker: string;
+  signals: SignalOutput[];
+}

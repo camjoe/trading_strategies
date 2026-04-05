@@ -9,6 +9,7 @@ from .routes import (
     accounts_router,
     admin_router,
     backtests_router,
+    features_router,
     health_router,
     logs_router,
     trades_router,
@@ -31,3 +32,4 @@ app.include_router(logs_router)
 app.include_router(actions_router)
 app.include_router(backtests_router)
 app.include_router(trades_router)
+app.include_router(features_router)

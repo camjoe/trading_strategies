@@ -1332,6 +1332,52 @@ td {
   }
 }
 
+/* Alt Strategies tab */
+
+.alt-strategies-card {
+  grid-column: span 12;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-header > h2 {
+  margin-bottom: 0;
+}
+
+.alt-providers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--gap, 1rem);
+}
+
+.alt-provider-card {
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.alt-provider-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alt-provider-card-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
 @media (max-width: 1080px) {
   .accounts-card,
   .detail-card,

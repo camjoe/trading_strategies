@@ -2,6 +2,7 @@ import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
+import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createCompareFeature } from "./features/compare";
 import { createLogsFeature } from "./features/logs";
@@ -16,6 +17,7 @@ import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import testAccountTemplate from "./views/test-account.html?raw";
+import altStrategiesTemplate from "./views/alt-strategies.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -44,6 +46,7 @@ function renderShell(): void {
     .replace("<!-- TEST_ACCOUNT_TAB_PARTIAL -->", testAccountTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", adminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
+    .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
 }
 
@@ -64,6 +67,7 @@ const adminFeature = createAdminFeature({
 });
 const logsFeature = createLogsFeature();
 const testAccountFeature = createTestAccountFeature();
+const altStrategiesFeature = createAltStrategiesFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
@@ -75,6 +79,7 @@ async function bootstrap(): Promise<void> {
   compareFeature.wireActions();
   backtestingFeature.wireActions();
   testAccountFeature.wireActions();
+  altStrategiesFeature.wireActions();
   await accountsFeature.loadAccounts();
   await adminFeature.loadDeleteAccounts();
   await logsFeature.loadLogFiles();
