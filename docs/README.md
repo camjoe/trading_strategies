@@ -21,7 +21,7 @@ python -m trading.paper_trading
 - `reference/notes-backtesting.md`: backtesting commands, safeguards, layering overview, and operational notes.
 - `reference/notes-broker-integration.md`: broker abstraction layer — architecture, account configuration, IB connection setup, live trading safety guard, fill reconciliation, and extension guide.
 - `reference/notes-db-migration-system.md`: active reference guide for the hand-rolled SQLite migration system.
-- `reference/notes-sentiment-signals.md`: current-state map and integration path for sentiment/topic-driven strategies (backlog tracked in PM).
+- `reference/notes-sentiment-signals.md`: current-state map for sentiment/topic-driven strategies. Phase 4 implementation (news_sentiment, social_trend_rotation, policy_regime) is complete; remaining backlog tracked in PM.
 - `reference/notes-strategies.md`: strategy catalog, implementation status, proxy feature descriptions, and evaluation framework guidance.
 
 ## Architecture Reference

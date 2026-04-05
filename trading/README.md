@@ -16,6 +16,7 @@ The `trading/` module handles:
 - Snapshot history and reporting
 - Auto-trading simulation runs
 - Backtesting and walk-forward analysis support
+- **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `trading/features/`
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
@@ -123,3 +124,4 @@ CLI defaults use `trading/config/account_profiles/default.json`.
 - SQL access is owned by repository modules under `trading/repositories/`.
 - Orchestration and composition are owned by service modules under `trading/services/`.
 - Policy logic is owned by domain modules under `trading/domain/`.
+- **External-data feature providers** live in `trading/features/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `trading/backtesting/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.
