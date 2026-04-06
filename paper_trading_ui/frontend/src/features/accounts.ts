@@ -109,7 +109,10 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         instrumentMode: find<HTMLSelectElement>("#editInstrumentModeSelect")?.value || undefined,
         stopLossPct: readNum("#editStopLossPctInput"),
         takeProfitPct: readNum("#editTakeProfitPctInput"),
-        learningEnabled: find<HTMLSelectElement>("#editLearningEnabledSelect")?.value === "true",
+        learningEnabled: (() => {
+          const el = find<HTMLSelectElement>("#editLearningEnabledSelect");
+          return el ? el.value === "true" : undefined;
+        })(),
         goalMinReturnPct: readNum("#editGoalMinReturnInput"),
         goalMaxReturnPct: readNum("#editGoalMaxReturnInput"),
         goalPeriod: readStr("#editGoalPeriodInput"),

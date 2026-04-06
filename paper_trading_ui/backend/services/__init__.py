@@ -37,9 +37,12 @@ from .test_account import (
 )
 
 from .trades import add_manual_trade
+from .features import get_provider_status, get_signals
 
 __all__ = [
     "add_manual_trade",
+    "get_provider_status",
+    "get_signals",
     "build_account_summary",
     "build_backtest_config_from_preflight_request",
     "build_backtest_config_from_run_request",

@@ -69,6 +69,25 @@ class TestAccountParamsEndpoint:
         )
         assert resp.status_code == 404
 
+    def test_patch_params_invalid_risk_policy_returns_422(self, api_client: TestClient) -> None:
+        _seed_account("acct_params_invalid_risk")
+
+        resp = api_client.patch(
+            "/api/accounts/acct_params_invalid_risk/params",
+            json={"riskPolicy": "not_a_real_policy"},
+        )
+        assert resp.status_code == 422
+
+    def test_patch_params_invalid_goal_range_returns_422(self, api_client: TestClient) -> None:
+        _seed_account("acct_params_invalid_goal")
+
+        # goal_min > goal_max should be rejected by configure_account
+        resp = api_client.patch(
+            "/api/accounts/acct_params_invalid_goal/params",
+            json={"goalMinReturnPct": 0.50, "goalMaxReturnPct": 0.10},
+        )
+        assert resp.status_code == 422
+
 
 class TestManualTradeEndpoint:
     def test_post_trade_happy_path(self, api_client: TestClient) -> None:
@@ -110,6 +129,16 @@ class TestManualTradeEndpoint:
             json={"ticker": "AAPL", "side": "buy", "qty": 1.0, "price": 100.0},
         )
         assert resp.status_code == 404
+
+    def test_post_trade_insufficient_cash_returns_400(self, api_client: TestClient) -> None:
+        _seed_account("acct_trade_broke")
+
+        # Account seeded with $5000 cash; this buy far exceeds that
+        resp = api_client.post(
+            "/api/accounts/acct_trade_broke/trades",
+            json={"ticker": "AAPL", "side": "buy", "qty": 1000.0, "price": 500.0},
+        )
+        assert resp.status_code == 400
 
 
 class TestFeaturesStatusEndpoint:
@@ -155,4 +184,8 @@ class TestFeaturesSignalsEndpoint:
 
     def test_signals_missing_ticker_returns_422(self, api_client: TestClient) -> None:
         resp = api_client.post("/api/features/signals", json={})
+        assert resp.status_code == 422
+
+    def test_signals_empty_ticker_returns_422(self, api_client: TestClient) -> None:
+        resp = api_client.post("/api/features/signals", json={"ticker": ""})
         assert resp.status_code == 422

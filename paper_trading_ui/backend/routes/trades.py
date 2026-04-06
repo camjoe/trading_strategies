@@ -45,5 +45,9 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
                 trade_time=utc_now_iso(),
             )
         except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+            # record_trade raises ValueError for both "not found" and business-rule
+            # violations (insufficient cash, oversell).  Return 404 only for the
+            # former; all other rejections are 400 Bad Request.
+            status = 404 if "not found" in str(exc).lower() else 400
+            raise HTTPException(status_code=status, detail=str(exc)) from exc
     return {"status": "ok"}

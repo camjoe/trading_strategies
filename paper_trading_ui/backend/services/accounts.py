@@ -1,3 +1,26 @@
+"""Backend service helpers for account data in the paper-trading UI.
+
+Responsibilities
+----------------
+- **Account summaries** — ``build_account_summary`` assembles the full 21-field
+  account payload (equity, PnL, risk params, goal params, options params, etc.)
+  from a DB row, current pricing state, and the latest snapshot.
+- **Account parameter updates** — ``update_account_params`` accepts up to 23
+  mutable config fields and delegates to ``configure_account`` (for all fields
+  except ``strategy``, which is updated directly via ``update_account_fields_by_id``).
+- **Backtest helpers** — functions to fetch and format the latest backtest run
+  summary and performance metrics for an account.
+- **Listing and filtering** — managed-account row listing, account-name lookup,
+  snapshot history, and recent backtest run summaries.
+- **Snapshot / trade helpers** — ``take_snapshot``, ``fetch_account_trades``,
+  and payload-shaping functions for snapshots and trade records.
+- **Display-name normalisation** — ``display_account_name`` / ``display_strategy``
+  map the internal ``test_backtest_account`` name back to the ``test_account``
+  display label in backtest summaries.
+
+All DB access is performed through canonical ``trading.*`` service and repository
+adapters — no inline SQL lives here.
+"""
 from __future__ import annotations
 
 import sqlite3
@@ -188,6 +211,7 @@ def take_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time:
 def update_account_params(
     conn: sqlite3.Connection,
     account_id: int,
+    account_name: str,
     *,
     strategy: str | None = None,
     risk_policy: str | None = None,
@@ -214,7 +238,7 @@ def update_account_params(
     max_loss_pct: float | None = None,
 ) -> None:
     """Update mutable account parameters. Only supplied (non-None) fields are changed."""
-    # strategy is not handled by configure_account — update directly
+    # strategy is not handled by configure_account — update directly by id
     if strategy is not None:
         update_account_fields_by_id(conn, account_id, updates=["strategy = ?"], params=[strategy])
 
@@ -242,8 +266,6 @@ def update_account_params(
         profit_take_pct=profit_take_pct,
         max_loss_pct=max_loss_pct,
     )
-    row = conn.execute("SELECT name FROM accounts WHERE id = ?", (account_id,)).fetchone()
-    if row is not None:
-        from trading.services.accounts_service import configure_account
-        configure_account(conn, row["name"], cfg)
+    from trading.services.accounts_service import configure_account
+    configure_account(conn, account_name, cfg)
 
