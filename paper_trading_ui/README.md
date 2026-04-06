@@ -8,8 +8,8 @@ Provide a local dashboard and API for paper-trading operations, including:
 
 - **Account visibility** — live summary cards and per-account detail (snapshots, trades, backtest metrics).
 - **Test Account tab** — dedicated view for the virtual `test_account`, with a manual trade entry form to inject buy/sell records directly into its backing DB account.
-- **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker.
-- **Account parameter editing** — inline `strategy` and `risk_policy` updates per account via the account detail panel.
+- **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
+- **Account parameter editing** — inline update of up to 23 config fields per managed account via the account detail panel (core fields always visible; Return Goals and Options Settings in collapsible sections). Not available on the Test Account view.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown.
 - **Snapshots and operational logs** — snapshot actions and log-file browsing.
 
@@ -63,7 +63,7 @@ npm run dev
 - `GET /api/accounts` — list all managed accounts plus the virtual test account.
 - `GET /api/accounts/compare` — comparison payload for all accounts (used by the Compare tab).
 - `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest.
-- `PATCH /api/accounts/{account_name}/params` — update `strategy` and/or `riskPolicy` inline. Body: `AccountParamsRequest`.
+- `PATCH /api/accounts/{account_name}/params` — update up to 23 mutable account config fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
 
 ### Trades
 
@@ -71,8 +71,8 @@ npm run dev
 
 ### Alt-Strategy Feature Providers
 
-- `GET /api/features/status` — probe all three alt-strategy providers (Policy, News, Social) and return availability + key scores.
-- `POST /api/features/signals` — run all three signal functions for a ticker. Body: `FeatureSignalsRequest` (`ticker`). Returns per-strategy `signal`, `available`, and `features`.
+- `GET /api/features/status` — probe all three alt-strategy providers (Policy, News, Social) and return availability + key scores. Each provider entry also includes `description`, `data_sources`, `feature_descriptions` (per-feature label and threshold info), and `signal_logic`.
+- `POST /api/features/signals` — run all three signal functions for a ticker. Body: `FeatureSignalsRequest` (`ticker`). Returns per-strategy `signal`, `available`, `features`, `interpretation` (human-readable summary of current feature values), `feature_descriptions`, and `signal_logic`.
 
 ### Logs
 
@@ -97,7 +97,7 @@ New schemas introduced in `paper_trading_ui/backend/schemas.py`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
-| `AccountParamsRequest` | `strategy` (optional str), `riskPolicy` (optional str) | `PATCH /api/accounts/{name}/params` |
+| `AccountParamsRequest` | 23 optional fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `profitTakePct`, `maxLossPct`. | `PATCH /api/accounts/{name}/params` |
 | `ManualTradeRequest` | `ticker`, `side` (`"buy"`\|`"sell"`), `qty` (>0), `price` (>0), `fee` (≥0, default 0) | `POST /api/accounts/{name}/trades` |
 | `FeatureSignalsRequest` | `ticker` | `POST /api/features/signals` |
 

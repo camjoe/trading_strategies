@@ -1,3 +1,9 @@
+"""Backend service helper for manual trade injection in the paper-trading UI.
+
+Provides ``add_manual_trade``, a thin wrapper around
+``trading.services.accounting_service.record_trade`` that keeps route modules
+decoupled from the canonical accounting service import path.
+"""
 from __future__ import annotations
 
 import sqlite3
