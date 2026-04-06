@@ -1,9 +1,9 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
+import { getJson, patchJson, postJson } from "../lib/http";
 import { accountCard } from "../components/accounts";
 import { renderDetail } from "../components/detail";
-import type { AccountDetail, AccountSummary } from "../types";
+import type { AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
 
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountSummary[]) => void;
@@ -72,6 +72,84 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       currentTradePage = Math.min(totalPages, currentTradePage + 1);
       renderCurrentDetail();
     });
+
+    bindClick<HTMLButtonElement>("#editParamsBtn", () => {
+      const panel = find<HTMLDivElement>("#editParamsPanel");
+      if (panel) panel.hidden = !panel.hidden;
+    });
+
+    bindClick<HTMLButtonElement>("#editParamsCancelBtn", () => {
+      const panel = find<HTMLDivElement>("#editParamsPanel");
+      if (panel) panel.hidden = true;
+    });
+
+    bindClick<HTMLButtonElement>("#editParamsSaveBtn", async () => {
+      if (!currentDetail) return;
+      const accountName = currentDetail.account.name;
+      const msgEl = find<HTMLDivElement>("#editParamsMsg");
+
+      const readStr = (id: string) => find<HTMLInputElement>(id)?.value.trim() || undefined;
+      const readNum = (id: string): number | null | undefined => {
+        const v = find<HTMLInputElement>(id)?.value.trim();
+        if (v === undefined || v === "") return undefined;
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : undefined;
+      };
+      const readInt = (id: string): number | null | undefined => {
+        const v = find<HTMLInputElement>(id)?.value.trim();
+        if (v === undefined || v === "") return undefined;
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) ? n : undefined;
+      };
+
+      const payload: AccountParamsUpdate = {
+        strategy: readStr("#editStrategyInput"),
+        descriptiveName: readStr("#editDisplayNameInput"),
+        riskPolicy: find<HTMLSelectElement>("#editRiskPolicySelect")?.value || undefined,
+        instrumentMode: find<HTMLSelectElement>("#editInstrumentModeSelect")?.value || undefined,
+        stopLossPct: readNum("#editStopLossPctInput"),
+        takeProfitPct: readNum("#editTakeProfitPctInput"),
+        learningEnabled: (() => {
+          const el = find<HTMLSelectElement>("#editLearningEnabledSelect");
+          return el ? el.value === "true" : undefined;
+        })(),
+        goalMinReturnPct: readNum("#editGoalMinReturnInput"),
+        goalMaxReturnPct: readNum("#editGoalMaxReturnInput"),
+        goalPeriod: readStr("#editGoalPeriodInput"),
+        optionType: find<HTMLSelectElement>("#editOptionTypeSelect")?.value || undefined,
+        optionStrikeOffsetPct: readNum("#editOptionStrikeOffsetInput"),
+        optionMinDte: readInt("#editOptionMinDteInput"),
+        optionMaxDte: readInt("#editOptionMaxDteInput"),
+        targetDeltaMin: readNum("#editTargetDeltaMinInput"),
+        targetDeltaMax: readNum("#editTargetDeltaMaxInput"),
+        ivRankMin: readNum("#editIvRankMinInput"),
+        ivRankMax: readNum("#editIvRankMaxInput"),
+        maxPremiumPerTrade: readNum("#editMaxPremiumInput"),
+        maxContractsPerTrade: readInt("#editMaxContractsInput"),
+        rollDteThreshold: readInt("#editRollDteThresholdInput"),
+        profitTakePct: readNum("#editProfitTakePctInput"),
+        maxLossPct: readNum("#editMaxLossPctInput"),
+      };
+
+      try {
+        await patchJson<{ status: string }>(
+          `/api/accounts/${encodeURIComponent(accountName)}/params`,
+          payload,
+        );
+        if (msgEl) {
+          msgEl.className = "";
+          msgEl.textContent = "Saved.";
+        }
+        setTimeout(() => {
+          void loadAccountDetail(accountName);
+        }, 800);
+      } catch (err) {
+        if (msgEl) {
+          msgEl.className = "error";
+          msgEl.textContent = err instanceof Error ? err.message : "Save failed.";
+        }
+      }
+    });
   }
 
   async function loadAccounts(): Promise<void> {
@@ -79,7 +157,15 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading accounts...</div>`;
-    const data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+
+    let data: { accounts: AccountSummary[] };
+    try {
+      data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+    } catch (err) {
+      target.innerHTML = `<div class="error">Failed to load accounts: ${esc(err instanceof Error ? err.message : "network error")}. Is the backend running?</div>`;
+      return;
+    }
+
     cachedAccounts = data.accounts;
     options.onAccountsLoaded?.(cachedAccounts);
 
@@ -104,7 +190,12 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading ${esc(accountName)}...</div>`;
-    currentDetail = await getJson<AccountDetail>(`/api/accounts/${encodeURIComponent(accountName)}`);
+    try {
+      currentDetail = await getJson<AccountDetail>(`/api/accounts/${encodeURIComponent(accountName)}`);
+    } catch (err) {
+      target.innerHTML = `<div class="error">Failed to load account detail: ${esc(err instanceof Error ? err.message : "network error")}</div>`;
+      return;
+    }
     currentTradePage = 1;
     renderCurrentDetail();
   }

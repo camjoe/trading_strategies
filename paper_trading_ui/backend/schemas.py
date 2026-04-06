@@ -1,6 +1,23 @@
+"""Pydantic request schemas for the paper-trading UI backend.
+
+Schemas defined here:
+
+- ``BacktestBaseRequest`` / ``BacktestRunRequest`` / ``WalkForwardRunRequest`` /
+  ``BacktestPreflightRequest`` — backtest and walk-forward job configuration.
+- ``AdminCreateAccountRequest`` — full account creation payload (all configurable
+  fields including options, rotation, and goal parameters).
+- ``AdminDeleteAccountRequest`` — account deletion with a confirmation flag.
+- ``AccountParamsRequest`` — partial update of up to 23 mutable account config
+  fields for ``PATCH /api/accounts/{name}/params``.  All fields are optional;
+  omitted fields are left unchanged.
+- ``ManualTradeRequest`` — manual trade injection for
+  ``POST /api/accounts/{name}/trades``.
+- ``FeatureSignalsRequest`` — ticker lookup for
+  ``POST /api/features/signals``.
+"""
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -81,3 +98,41 @@ class AdminCreateAccountRequest(BaseModel):
 class AdminDeleteAccountRequest(BaseModel):
     accountName: str
     confirm: bool = False
+
+
+class AccountParamsRequest(BaseModel):
+    strategy: str | None = None
+    descriptiveName: str | None = None
+    riskPolicy: str | None = None
+    stopLossPct: float | None = None
+    takeProfitPct: float | None = None
+    instrumentMode: str | None = None
+    goalMinReturnPct: float | None = None
+    goalMaxReturnPct: float | None = None
+    goalPeriod: str | None = None
+    learningEnabled: bool | None = None
+    optionStrikeOffsetPct: float | None = None
+    optionMinDte: int | None = None
+    optionMaxDte: int | None = None
+    optionType: str | None = None
+    targetDeltaMin: float | None = None
+    targetDeltaMax: float | None = None
+    maxPremiumPerTrade: float | None = None
+    maxContractsPerTrade: int | None = None
+    ivRankMin: float | None = None
+    ivRankMax: float | None = None
+    rollDteThreshold: int | None = None
+    profitTakePct: float | None = None
+    maxLossPct: float | None = None
+
+
+class ManualTradeRequest(BaseModel):
+    ticker: str
+    side: Literal["buy", "sell"]
+    qty: float = Field(gt=0)
+    price: float = Field(gt=0)
+    fee: float = Field(default=0.0, ge=0)
+
+
+class FeatureSignalsRequest(BaseModel):
+    ticker: str = Field(min_length=1)

@@ -88,6 +88,16 @@ LAYER_RULES: list[LayerRule] = [
         source_glob="trading/repositories/**/*.py",
         forbidden_prefixes=("trading.interfaces.",),
     ),
+    LayerRule(
+        label="paper_trading_ui/routes → no direct trading.features imports",
+        source_glob="paper_trading_ui/backend/routes/**/*.py",
+        forbidden_prefixes=("trading.features.",),
+    ),
+    LayerRule(
+        label="paper_trading_ui/routes → no direct trading.backtesting.domain imports",
+        source_glob="paper_trading_ui/backend/routes/**/*.py",
+        forbidden_prefixes=("trading.backtesting.domain.",),
+    ),
 ]
 
 

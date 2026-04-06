@@ -278,6 +278,7 @@ body {
 }
 
 .tab-btn {
+  position: relative;
   background: none;
   border: none;
   border-radius: 0;
@@ -299,6 +300,31 @@ body {
 .tab-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+.tab-health-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: none;
+}
+
+.tab-health-dot--up {
+  display: block;
+  background: var(--up);
+}
+
+.tab-health-dot--partial {
+  display: block;
+  background: var(--warning-border);
+}
+
+.tab-health-dot--down {
+  display: block;
+  background: var(--down);
 }
 
 .tab-panel {
@@ -724,6 +750,24 @@ body {
   gap: 0.8rem;
 }
 
+.compare-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.compare-filters label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.compare-filters select {
+  font-size: 0.88rem;
+  padding: 0.3rem 0.6rem;
+}
+
 .compare-table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
@@ -950,6 +994,34 @@ h4 {
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
+}
+
+.detail-head-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.edit-params-panel {
+  margin-top: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.edit-params-panel[hidden] {
+  display: none;
+}
+
+.edit-params-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .detail-grid {
@@ -1302,6 +1374,52 @@ td {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Alt Strategies tab */
+
+.alt-strategies-card {
+  grid-column: span 12;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.card-header > h2 {
+  margin-bottom: 0;
+}
+
+.alt-providers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--gap, 1rem);
+}
+
+.alt-provider-card {
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.alt-provider-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alt-provider-card-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
 }
 
 @media (max-width: 1080px) {
