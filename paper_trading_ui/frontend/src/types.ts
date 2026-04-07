@@ -63,6 +63,29 @@ export type AccountDetail = {
     unrealizedPnl: number;
   }>;
 };
+
+export type AnalysisPosition = {
+  ticker: string;
+  qty: number;
+  avgCost: number;
+  costBasis: number;
+  marketPrice: number;
+  marketValue: number;
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  portfolioPct: number;
+};
+
+export type AccountAnalysis = {
+  accountReturnPct: number;
+  benchmarkReturnPct: number | null;
+  alphaPct: number | null;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  equity: number;
+  topWinners: AnalysisPosition[];
+  topLosers: AnalysisPosition[];
+  improvementNotes: string[];
 };
 
 export type BacktestRunSummary = {

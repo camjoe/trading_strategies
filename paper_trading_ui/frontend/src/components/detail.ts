@@ -348,5 +348,89 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         </table>
       </article>
     </div>
+
+    <article id="analysisPanel">
+      <h4>Performance Analysis</h4>
+      <div class="empty">Loading analysis…</div>
+    </article>
+  `;
+}
+
+export function renderAnalysisPanel(analysis: AccountAnalysis): string {
+  const signClass = (v: number) => (v >= 0 ? "up" : "down");
+  const pct = (v: number | null) =>
+    v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+
+  const benchmarkLine =
+    analysis.benchmarkReturnPct != null
+      ? `<span class="${signClass(analysis.benchmarkReturnPct)}">${pct(analysis.benchmarkReturnPct)}</span>`
+      : `<span class="muted">—</span>`;
+
+  const alphaLine =
+    analysis.alphaPct != null
+      ? `<span class="${signClass(analysis.alphaPct)}">${pct(analysis.alphaPct)} alpha</span>`
+      : `<span class="muted">—</span>`;
+
+  const positionRows = (positions: AccountAnalysis["topWinners"]) =>
+    positions
+      .map(
+        (p) => `
+        <tr>
+          <td><strong>${esc(p.ticker)}</strong></td>
+          <td>${currency.format(p.avgCost)}</td>
+          <td>${p.marketPrice > 0 ? currency.format(p.marketPrice) : "—"}</td>
+          <td class="${signClass(p.unrealizedPnl)}">${p.marketPrice > 0 ? currency.format(p.unrealizedPnl) : "—"}</td>
+          <td class="${signClass(p.unrealizedPnlPct)}">${p.marketPrice > 0 ? pct(p.unrealizedPnlPct) : "—"}</td>
+        </tr>`,
+      )
+      .join("");
+
+  const notesList = analysis.improvementNotes
+    .map((n) => `<li>${esc(n)}</li>`)
+    .join("");
+
+  return `
+    <h4>Performance Analysis</h4>
+    <div class="analysis-summary">
+      <div class="analysis-stat">
+        <span class="label">Account Return</span>
+        <span class="${signClass(analysis.accountReturnPct)}">${pct(analysis.accountReturnPct)}</span>
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Benchmark (${analysis.benchmarkReturnPct != null ? "SPY" : "—"})</span>
+        ${benchmarkLine}
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Alpha</span>
+        ${alphaLine}
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Realized P&amp;L</span>
+        <span class="${signClass(analysis.realizedPnl)}">${currency.format(analysis.realizedPnl)}</span>
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Unrealized P&amp;L</span>
+        <span class="${signClass(analysis.unrealizedPnl)}">${currency.format(analysis.unrealizedPnl)}</span>
+      </div>
+    </div>
+
+    <div class="analysis-tables">
+      <div>
+        <h5>Top Winners</h5>
+        <table>
+          <thead><tr><th>Ticker</th><th>Avg Cost</th><th>Price</th><th>Unr. P&amp;L</th><th>%</th></tr></thead>
+          <tbody>${positionRows(analysis.topWinners) || `<tr><td colspan="5">None</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div>
+        <h5>Top Losers</h5>
+        <table>
+          <thead><tr><th>Ticker</th><th>Avg Cost</th><th>Price</th><th>Unr. P&amp;L</th><th>%</th></tr></thead>
+          <tbody>${positionRows(analysis.topLosers) || `<tr><td colspan="5">None</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${notesList ? `<div class="analysis-notes"><h5>Improvement Notes</h5><ul>${notesList}</ul></div>` : ""}
   `;
 }

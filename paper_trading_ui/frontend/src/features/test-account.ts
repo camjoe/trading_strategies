@@ -1,8 +1,8 @@
 import { find } from "../lib/dom";
 import { esc } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
-import { renderDetail } from "../components/detail";
-import type { AccountDetail, ManualTradeRequest } from "../types";
+import { renderDetail, renderAnalysisPanel } from "../components/detail";
+import type { AccountAnalysis, AccountDetail, ManualTradeRequest } from "../types";
 
 // Must match paper_trading_ui/backend/config.py::TEST_ACCOUNT_NAME
 const TEST_ACCOUNT_NAME = "test_account" as const;
@@ -40,6 +40,21 @@ export function createTestAccountFeature(): TestAccountFeature {
     });
   }
 
+  async function loadAnalysis(): Promise<void> {
+    const panel = find<HTMLElement>("#analysisPanel");
+    if (!panel) return;
+    try {
+      const analysis = await getJson<AccountAnalysis>(
+        `/api/accounts/${encodeURIComponent(TEST_ACCOUNT_NAME)}/analysis`,
+      );
+      const freshPanel = find<HTMLElement>("#analysisPanel") ?? panel;
+      freshPanel.innerHTML = renderAnalysisPanel(analysis);
+    } catch {
+      const freshPanel = find<HTMLElement>("#analysisPanel") ?? panel;
+      freshPanel.innerHTML = `<h4>Performance Analysis</h4><div class="muted">Analysis unavailable.</div>`;
+    }
+  }
+
   async function load(): Promise<void> {
     const target = find<HTMLDivElement>("#test-account-detail");
     if (!target) return;
@@ -51,6 +66,7 @@ export function createTestAccountFeature(): TestAccountFeature {
       );
       tradePage = 1;
       renderCurrentDetail();
+      void loadAnalysis();
     } catch (err) {
       target.innerHTML = `<div class="error">${esc(err instanceof Error ? err.message : "Load failed.")}</div>`;
     }

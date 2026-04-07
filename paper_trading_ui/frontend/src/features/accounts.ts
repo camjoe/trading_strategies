@@ -2,8 +2,8 @@ import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
 import { getJson, patchJson, postJson } from "../lib/http";
 import { accountCard } from "../components/accounts";
-import { renderDetail } from "../components/detail";
-import type { AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
+import { renderDetail, renderAnalysisPanel } from "../components/detail";
+import type { AccountAnalysis, AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
 
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountSummary[]) => void;
@@ -36,6 +36,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
   let cachedAccounts: AccountSummary[] = [];
   let currentDetail: AccountDetail | null = null;
   let currentTradePage = 1;
+  let currentAnalysis: AccountAnalysis | null = null;
   const tradePageSize = 20;
 
   function renderCurrentDetail(): void {
@@ -191,6 +192,12 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         }
       }
     });
+
+    // Re-apply cached analysis so pagination doesn't wipe it back to "Loading…"
+    if (currentAnalysis) {
+      const panel = find<HTMLElement>("#analysisPanel");
+      if (panel) panel.innerHTML = renderAnalysisPanel(currentAnalysis);
+    }
   }
 
   async function loadAccounts(): Promise<void> {
@@ -238,7 +245,25 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       return;
     }
     currentTradePage = 1;
+    currentAnalysis = null;
     renderCurrentDetail();
+    void loadAccountAnalysis(accountName);
+  }
+
+  async function loadAccountAnalysis(accountName: string): Promise<void> {
+    const panel = find<HTMLElement>("#analysisPanel");
+    if (!panel) return;
+    try {
+      const analysis = await getJson<AccountAnalysis>(
+        `/api/accounts/${encodeURIComponent(accountName)}/analysis`,
+      );
+      currentAnalysis = analysis;
+      const freshPanel = find<HTMLElement>("#analysisPanel") ?? panel;
+      freshPanel.innerHTML = renderAnalysisPanel(analysis);
+    } catch {
+      const freshPanel = find<HTMLElement>("#analysisPanel") ?? panel;
+      freshPanel.innerHTML = `<h4>Performance Analysis</h4><div class="muted">Analysis unavailable.</div>`;
+    }
   }
 
   async function snapshotAll(): Promise<void> {
