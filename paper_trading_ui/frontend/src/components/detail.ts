@@ -1,5 +1,5 @@
 import { currency, esc } from "../lib/format";
-import type { AccountDetail } from "../types";
+import type { AccountAnalysis, AccountDetail } from "../types";
 
 export interface DetailRenderOptions {
   tradePage?: number;
@@ -79,7 +79,6 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <td>${tradeDate.toLocaleString()}</td>
         <td>${esc(t.ticker)}</td>
         <td class="${t.side === "buy" ? "up" : "down"}">${esc(t.side)}</td>
-        <td>${t.qty.toFixed(4)}</td>
         <td>${tradeTypeBadge(t.note)}</td>
         <td>${t.qty.toFixed(2)}</td>
         <td>${currency.format(t.price)}</td>
@@ -105,17 +104,20 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       <div>
         <h3>${esc(detail.account.displayName)}</h3>
         <p>${esc(detail.account.name)} | ${esc(detail.account.strategy)} | ${esc(detail.account.benchmark)}</p>
+        <p class="row slim">
           Equity: <strong>${currency.format(detail.account.equity)}</strong>
           &nbsp;·&nbsp; Settlement Cash: <strong>${currency.format(detail.account.settlementCash)}</strong>
           &nbsp;·&nbsp; Return: <span class="${detail.account.totalChangePct >= 0 ? "up" : "down"}">${detail.account.totalChangePct >= 0 ? "+" : ""}${detail.account.totalChangePct.toFixed(2)}%</span>
         </p>
       </div>
       ${showActions ? `<div class="detail-head-actions">
+        <button id="addTradeBtn" type="button">+ Add Trade</button>
         <button id="editParamsBtn" type="button">Edit Parameters</button>
         <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
       </div>` : ""}
     </div>
 
+    ${showActions ? `<div id="addTradePanel" class="edit-params-panel" hidden>
       <div class="edit-params-section">
         <h5>Add Trade</h5>
         <div class="bt-row">
@@ -298,7 +300,6 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
     </article>` : ""}
 
     <div class="detail-grid">
-      <article>
       <div>
         <article>
           <h4>Equity Snapshots</h4>
@@ -342,7 +343,6 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
         </div>
         <table class="recent-trades-table">
-          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
           <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
           <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
         </table>
