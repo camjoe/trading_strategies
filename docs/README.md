@@ -16,6 +16,8 @@ python -m trading.paper_trading
 
 ## Docs Folder Files
 
+- `reference/notes-screenshot-ui.md`: UI screenshot utility — setup, usage, all flags, and recipes for developers and AI assistants.
+
 - `reference/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
 - `reference/adr-cross-platform-paths.md`: decision record for always using pathlib; lessons from a Windows/Linux CI failure.
 - `reference/notes-backtesting.md`: backtesting commands, safeguards, layering overview, and operational notes.
