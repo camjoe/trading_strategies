@@ -6,3 +6,6 @@ pytest==8.3.5
 pytest-cov==6.0.0
 pytest-mock==3.14.0
 hypothesis==6.131.26
+
+# Dev tooling
+playwright>=1.50.0
