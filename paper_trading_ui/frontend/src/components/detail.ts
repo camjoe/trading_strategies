@@ -26,6 +26,13 @@ function instrumentModeOptions(currentMode: string): string {
   ).join("");
 }
 
+function tradeTypeBadge(note: string | null): string {
+  if (!note) return `<span class="chip chip--equity">equity</span>`;
+  if (note.includes("instrument=option")) return `<span class="chip chip--option">option</span>`;
+  if (note.includes("auto-daily")) return `<span class="chip chip--auto">auto</span>`;
+  return `<span class="chip chip--manual">manual</span>`;
+}
+
 export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
   const tradePageSize = Math.max(1, options.tradePageSize ?? 20);
   const totalTrades = detail.trades.length;
@@ -73,6 +80,8 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <td>${esc(t.ticker)}</td>
         <td class="${t.side === "buy" ? "up" : "down"}">${esc(t.side)}</td>
         <td>${t.qty.toFixed(4)}</td>
+        <td>${tradeTypeBadge(t.note)}</td>
+        <td>${t.qty.toFixed(2)}</td>
         <td>${currency.format(t.price)}</td>
         <td>${currency.format(t.fee)}</td>
       </tr>
@@ -96,12 +105,51 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       <div>
         <h3>${esc(detail.account.displayName)}</h3>
         <p>${esc(detail.account.name)} | ${esc(detail.account.strategy)} | ${esc(detail.account.benchmark)}</p>
+          Equity: <strong>${currency.format(detail.account.equity)}</strong>
+          &nbsp;·&nbsp; Settlement Cash: <strong>${currency.format(detail.account.settlementCash)}</strong>
+          &nbsp;·&nbsp; Return: <span class="${detail.account.totalChangePct >= 0 ? "up" : "down"}">${detail.account.totalChangePct >= 0 ? "+" : ""}${detail.account.totalChangePct.toFixed(2)}%</span>
+        </p>
       </div>
       ${showActions ? `<div class="detail-head-actions">
         <button id="editParamsBtn" type="button">Edit Parameters</button>
         <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
       </div>` : ""}
     </div>
+
+      <div class="edit-params-section">
+        <h5>Add Trade</h5>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Ticker</span>
+            <input id="addTradeTicker" type="text" placeholder="e.g. AAPL" style="text-transform:uppercase" />
+          </div>
+          <div class="bt-field">
+            <span>Side</span>
+            <select id="addTradeSide">
+              <option value="buy">buy</option>
+              <option value="sell">sell</option>
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Qty</span>
+            <input id="addTradeQty" type="number" step="0.0001" min="0.0001" placeholder="e.g. 10" />
+          </div>
+          <div class="bt-field">
+            <span>Price</span>
+            <input id="addTradePrice" type="number" step="0.01" min="0.01" placeholder="e.g. 150.00" />
+          </div>
+          <div class="bt-field">
+            <span>Fee</span>
+            <input id="addTradeFee" type="number" step="0.01" min="0" value="0" />
+          </div>
+        </div>
+      </div>
+      <div class="edit-params-actions">
+        <button id="addTradeSaveBtn" type="button">Submit Trade</button>
+        <button id="addTradeCancelBtn" type="button">Cancel</button>
+        <div id="addTradeMsg"></div>
+      </div>
+    </div>` : ""}
 
     ${showActions ? `<div id="editParamsPanel" class="edit-params-panel" hidden>
       <!-- Core parameters - always visible -->
@@ -251,12 +299,40 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
 
     <div class="detail-grid">
       <article>
-        <h4>Equity Snapshots</h4>
-        <table>
-          <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
-          <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
-        </table>
-      </article>
+      <div>
+        <article>
+          <h4>Equity Snapshots</h4>
+          <table>
+            <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
+            <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
+          </table>
+        </article>
+
+        <article>
+          <h4>Current Positions</h4>
+          <table>
+            <thead><tr><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Market Price</th><th>Market Value</th><th>Unrealized P&amp;L</th></tr></thead>
+            <tbody>${
+              detail.positions.length === 0
+                ? `<tr><td colspan="6">No open positions.</td></tr>`
+                : detail.positions
+                    .map(
+                      (p) => `
+              <tr>
+                <td><strong>${esc(p.ticker)}</strong></td>
+                <td>${p.qty.toFixed(2)}</td>
+                <td>${currency.format(p.avgCost)}</td>
+                <td>${p.marketPrice > 0 ? currency.format(p.marketPrice) : "—"}</td>
+                <td>${p.marketPrice > 0 ? currency.format(p.marketValue) : "—"}</td>
+                <td class="${p.unrealizedPnl >= 0 ? "up" : "down"}">${p.marketPrice > 0 ? currency.format(p.unrealizedPnl) : "—"}</td>
+              </tr>
+            `,
+                    )
+                    .join("")
+            }</tbody>
+          </table>
+        </article>
+      </div>
 
       <article>
         <h4>Recent Trades</h4>
@@ -267,7 +343,8 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         </div>
         <table class="recent-trades-table">
           <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
-          <tbody>${tradeRows || `<tr><td colspan="6">No trades yet.</td></tr>`}</tbody>
+          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
+          <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
         </table>
       </article>
     </div>

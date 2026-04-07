@@ -7,6 +7,7 @@ export type AccountSummary = {
   benchmark: string;
   initialCash: number;
   equity: number;
+  settlementCash: number;
   totalChange: number;
   totalChangePct: number;
   changeSinceLastSnapshot: number | null;
@@ -51,7 +52,17 @@ export type AccountDetail = {
     price: number;
     fee: number;
     tradeTime: string;
+    note: string | null;
   }>;
+  positions: Array<{
+    ticker: string;
+    qty: number;
+    avgCost: number;
+    marketPrice: number;
+    marketValue: number;
+    unrealizedPnl: number;
+  }>;
+};
 };
 
 export type BacktestRunSummary = {

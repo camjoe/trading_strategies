@@ -73,6 +73,47 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       renderCurrentDetail();
     });
 
+    bindClick<HTMLButtonElement>("#addTradeBtn", () => {
+      const panel = find<HTMLDivElement>("#addTradePanel");
+      if (panel) panel.hidden = !panel.hidden;
+    });
+
+    bindClick<HTMLButtonElement>("#addTradeCancelBtn", () => {
+      const panel = find<HTMLDivElement>("#addTradePanel");
+      if (panel) panel.hidden = true;
+    });
+
+    bindClick<HTMLButtonElement>("#addTradeSaveBtn", async () => {
+      if (!currentDetail) return;
+      const accountName = currentDetail.account.name;
+      const msgEl = find<HTMLDivElement>("#addTradeMsg");
+
+      const ticker = find<HTMLInputElement>("#addTradeTicker")?.value.trim().toUpperCase();
+      const side = find<HTMLSelectElement>("#addTradeSide")?.value;
+      const qty = parseFloat(find<HTMLInputElement>("#addTradeQty")?.value ?? "");
+      const price = parseFloat(find<HTMLInputElement>("#addTradePrice")?.value ?? "");
+      const fee = parseFloat(find<HTMLInputElement>("#addTradeFee")?.value ?? "0");
+
+      if (!ticker || !side || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) {
+        if (msgEl) { msgEl.className = "error"; msgEl.textContent = "Ticker, qty, and price are required."; }
+        return;
+      }
+
+      try {
+        await postJson<{ status: string }>(
+          `/api/accounts/${encodeURIComponent(accountName)}/trades`,
+          { ticker, side, qty, price, fee: Number.isFinite(fee) ? fee : 0 },
+        );
+        if (msgEl) { msgEl.className = ""; msgEl.textContent = "Trade added."; }
+        setTimeout(() => { void loadAccountDetail(accountName); }, 800);
+      } catch (err) {
+        if (msgEl) {
+          msgEl.className = "error";
+          msgEl.textContent = err instanceof Error ? err.message : "Failed to add trade.";
+        }
+      }
+    });
+
     bindClick<HTMLButtonElement>("#editParamsBtn", () => {
       const panel = find<HTMLDivElement>("#editParamsPanel");
       if (panel) panel.hidden = !panel.hidden;

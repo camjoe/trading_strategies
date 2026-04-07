@@ -972,6 +972,11 @@ h4 {
   font-size: 0.8rem;
 }
 
+.chip--option  { background: #fff0d4; border-color: #e8b84b; }
+.chip--auto    { background: #e4f0ff; border-color: #7ab3e8; }
+.chip--manual  { background: #e8fbe8; border-color: #72c472; }
+.chip--equity  { background: var(--chip-bg); border-color: var(--chip-border); }
+
 .row.slim {
   color: var(--ink-soft);
   font-size: 0.85rem;
@@ -1028,6 +1033,11 @@ h4 {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 table {

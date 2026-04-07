@@ -17,11 +17,14 @@ def _normalize_trade_fields(trade: sqlite3.Row) -> tuple[str, str, float, float,
     )
 
 
-def _validate_trade_values(qty: float, price: float) -> None:
+def _validate_trade_values(qty: float, price: float, *, side: str = "buy") -> None:
     if qty <= 0:
         raise ValueError("Trade quantity must be > 0.")
-    if price <= 0:
+    # Sells at $0 are valid (e.g. expired options); buys must have a positive price.
+    if side == "buy" and price <= 0:
         raise ValueError("Trade price must be > 0.")
+    if price < 0:
+        raise ValueError("Trade price must be >= 0.")
 
 
 def _apply_buy(
@@ -80,7 +83,7 @@ def _apply_trade_to_state(
     realized: float,
 ) -> tuple[float, float]:
     ticker, side, qty, price, fee = _normalize_trade_fields(trade)
-    _validate_trade_values(qty, price)
+    _validate_trade_values(qty, price, side=side)
     if side == "buy":
         return _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized
     if side == "sell":
