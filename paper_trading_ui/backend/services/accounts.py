@@ -58,7 +58,8 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
         equity = state.cash + sum(
             state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
         )
-    return _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices))
+    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
+    return _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
 
 
 def build_account_summary_and_positions(
@@ -77,7 +78,8 @@ def build_account_summary_and_positions(
         equity = state.cash + sum(
             state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
         )
-    summary = _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices))
+    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
+    summary = _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
     positions = _build_positions_from_stats(state, prices)
     return summary, positions
 
@@ -93,20 +95,26 @@ def _inject_settlement_price(state: object, prices: object) -> None:
 
 def _settlement_cash(state: object, prices: object) -> float:
     from trading.models.account_state import AccountState
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
+    if not isinstance(state, AccountState):
         return 0.0
-    qty = state.positions.get(_SETTLEMENT_TICKER, 0.0)
-    return qty * prices.get(_SETTLEMENT_TICKER, _SETTLEMENT_PRICE)
+    # After the deposit model: CASH buys are inflows that go into state.cash directly.
+    # state.positions no longer contains the settlement ticker.
+    return state.cash
 
 
 def _build_summary_from_stats(
-    conn: sqlite3.Connection, row: sqlite3.Row, equity: float, settlement_cash: float = 0.0
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    equity: float,
+    settlement_cash: float = 0.0,
+    total_deposited: float = 0.0,
 ) -> dict[str, object]:
     latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))
 
     initial_cash = float(row["initial_cash"])
-    delta = equity - initial_cash
-    delta_pct = ((equity / initial_cash) - 1.0) * 100.0 if initial_cash else 0.0
+    effective_initial = initial_cash if initial_cash else total_deposited
+    delta = equity - effective_initial
+    delta_pct = ((equity / effective_initial) - 1.0) * 100.0 if effective_initial else 0.0
 
     change_since_snapshot = None
     if latest_snapshot is not None:

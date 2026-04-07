@@ -186,8 +186,9 @@ def fetch_account_analysis(
     )
     equity = state.cash + market_value
 
-    account_return = strategy_return_pct(equity, initial_cash)
-    bench_equity, bench_return = benchmark_stats(benchmark_ticker, initial_cash, created_at)
+    effective_initial = initial_cash if initial_cash else state.total_deposited
+    account_return = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
+    bench_equity, bench_return = benchmark_stats(benchmark_ticker, effective_initial, created_at)
     alpha = (account_return - bench_return) if bench_return is not None else None
 
     position_analysis = _compute_position_analysis(state, prices, equity)

@@ -6,6 +6,9 @@ from trading.models import AccountState
 
 VALID_SIDES = {"buy", "sell"}
 
+# Ticker used for cash deposits/withdrawals. Buys are inflows (no position created).
+SETTLEMENT_TICKER = "CASH"
+
 
 def _normalize_trade_fields(trade: sqlite3.Row) -> tuple[str, str, float, float, float]:
     return (
@@ -81,13 +84,23 @@ def _apply_trade_to_state(
     avg_cost: dict[str, float],
     cash: float,
     realized: float,
-) -> tuple[float, float]:
+    total_deposited: float,
+    settlement_ticker: str | None,
+) -> tuple[float, float, float]:
     ticker, side, qty, price, fee = _normalize_trade_fields(trade)
     _validate_trade_values(qty, price, side=side)
+    if settlement_ticker and ticker == settlement_ticker:
+        # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
+        if side == "buy":
+            deposit = qty * price
+            return cash + deposit, realized, total_deposited + deposit
+        if side == "sell":
+            return cash - (qty * price + fee), realized, total_deposited
     if side == "buy":
-        return _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized
+        return _apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized, total_deposited
     if side == "sell":
-        return _apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
+        new_cash, new_realized = _apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
+        return new_cash, new_realized, total_deposited
     raise ValueError(f"Unsupported side: {side}")
 
 
@@ -113,12 +126,25 @@ def _ensure_sufficient_cash_for_buy(
         raise ValueError(f"Insufficient cash: need {required_cash:.2f}, available {available_cash:.2f}.")
 
 
-def compute_account_state(initial_cash: float, trades: list[sqlite3.Row]) -> AccountState:
+def compute_account_state(
+    initial_cash: float,
+    trades: list[sqlite3.Row],
+    settlement_ticker: str | None = SETTLEMENT_TICKER,
+) -> AccountState:
     positions: dict[str, float] = defaultdict(float)
     avg_cost: dict[str, float] = defaultdict(float)
     cash = float(initial_cash)
     realized = 0.0
+    total_deposited = 0.0
     for trade in trades:
-        cash, realized = _apply_trade_to_state(trade, positions, avg_cost, cash, realized)
+        cash, realized, total_deposited = _apply_trade_to_state(
+            trade, positions, avg_cost, cash, realized, total_deposited, settlement_ticker
+        )
     positions, avg_cost = _compact_positions(positions, avg_cost)
-    return AccountState(cash=cash, positions=positions, avg_cost=avg_cost, realized_pnl=realized)
+    return AccountState(
+        cash=cash,
+        positions=positions,
+        avg_cost=avg_cost,
+        realized_pnl=realized,
+        total_deposited=total_deposited,
+    )
