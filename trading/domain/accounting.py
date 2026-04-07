@@ -131,6 +131,24 @@ def compute_account_state(
     trades: list[sqlite3.Row],
     settlement_ticker: str | None = SETTLEMENT_TICKER,
 ) -> AccountState:
+    """Replay a trade list and return the resulting ``AccountState``.
+
+    Parameters
+    ----------
+    initial_cash:
+        Starting cash balance.  Set to ``0.0`` for accounts that seed capital
+        exclusively through deposit trades (see ``settlement_ticker``).
+    trades:
+        Ordered list of trade rows from the ``trades`` table.  Each row must
+        expose ``ticker``, ``side``, ``qty``, ``price``, and ``fee`` keys.
+    settlement_ticker:
+        Ticker reserved for cash deposits and withdrawals.  Defaults to
+        :data:`SETTLEMENT_TICKER` (``"CASH"``).  A *buy* on this ticker adds
+        ``qty * price`` to ``state.cash`` and ``state.total_deposited`` instead
+        of creating a position; a *sell* subtracts the notional value from
+        ``state.cash``.  Pass ``None`` to disable this behaviour and treat every
+        ticker as a regular equity.
+    """
     positions: dict[str, float] = defaultdict(float)
     avg_cost: dict[str, float] = defaultdict(float)
     cash = float(initial_cash)

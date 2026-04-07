@@ -40,13 +40,11 @@ from trading.services.accounts_service import (
     update_account_fields_by_id,
 )
 from trading.services.reporting_service import get_account_stats as build_account_stats
+from trading.domain.accounting import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
 from .db import fetch_latest_snapshot_row
 
-# CASH is the settlement fund ticker (always $1/share). It should not
-# appear as a regular equity position — its value is shown as settlement cash.
-_SETTLEMENT_TICKER = "CASH"
 _SETTLEMENT_PRICE = 1.0
 
 
@@ -85,7 +83,12 @@ def build_account_summary_and_positions(
 
 
 def _inject_settlement_price(state: object, prices: object) -> None:
-    """Ensure CASH is priced at $1 even if yfinance doesn't return it."""
+    """Ensure CASH is priced at $1 even if yfinance doesn't return it.
+
+    Under the deposit model CASH never enters positions, so this is a no-op
+    for accounts using that model. Kept for safety in case any legacy row still
+    carries a CASH position.
+    """
     from trading.models.account_state import AccountState
     if not isinstance(state, AccountState) or not isinstance(prices, dict):
         return
@@ -94,6 +97,14 @@ def _inject_settlement_price(state: object, prices: object) -> None:
 
 
 def _settlement_cash(state: object, prices: object) -> float:
+    """Return the free cash balance for use as the ``settlementCash`` API field.
+
+    Under the deposit model, CASH buy trades are treated as inflows into
+    ``state.cash`` directly (no position created), so ``state.cash`` represents
+    all uninvested cash for every account type. This replaces the old behaviour
+    of reading the CASH position qty — which returned 0.0 for non-deposit
+    accounts and double-counted for the test account.
+    """
     from trading.models.account_state import AccountState
     if not isinstance(state, AccountState):
         return 0.0

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.domain.accounting import compute_account_state
+from trading.domain.accounting import compute_account_state, SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.models import AccountState
 from trading.services.accounting_service import load_trades
 from trading.services.reporting_service import (
@@ -20,10 +20,6 @@ from trading.services.reporting_service import (
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-# CASH is the settlement fund ticker (cash-equivalent), not an investable position.
-_SETTLEMENT_TICKER = "CASH"
-
 # Number of top/bottom positions to surface in the analysis summary.
 TOP_POSITIONS_COUNT = 5
 
@@ -176,6 +172,10 @@ def fetch_account_analysis(
 
     Loads trades, computes state and live prices, benchmarks against
     ``benchmark_ticker``, and generates improvement notes.
+
+    When ``initial_cash`` is ``0`` (deposit-model accounts), the return
+    percentage denominator falls back to ``state.total_deposited`` — the
+    cumulative cash injected via settlement-ticker (``CASH``) buy trades.
     """
     trades = load_trades(conn, account_id)
     state = compute_account_state(initial_cash, trades)
@@ -188,7 +188,7 @@ def fetch_account_analysis(
 
     effective_initial = initial_cash if initial_cash else state.total_deposited
     account_return = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
-    bench_equity, bench_return = benchmark_stats(benchmark_ticker, effective_initial, created_at)
+    _, bench_return = benchmark_stats(benchmark_ticker, effective_initial, created_at)
     alpha = (account_return - bench_return) if bench_return is not None else None
 
     position_analysis = _compute_position_analysis(state, prices, equity)

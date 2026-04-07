@@ -100,6 +100,15 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Sells are restricted to current holdings (no shorting).
 - Buys require sufficient available cash.
+- **Deposit model:** Trades whose `ticker` equals the settlement ticker (`"CASH"`) are
+  treated as cash inflows/outflows rather than equity position changes. A `CASH` buy adds
+  the notional value directly to `state.cash` and `state.total_deposited`; a `CASH` sell
+  subtracts it. Accounts that seed capital this way set `initial_cash = 0` in the DB and
+  inject funds via `CASH` buy trades. The settlement ticker is configurable via the
+  `settlement_ticker` argument of `compute_account_state` (defaults to
+  `SETTLEMENT_TICKER = "CASH"`). Pass `None` to treat every ticker as a regular equity.
+- `AccountState.total_deposited` accumulates all capital deposited via settlement-ticker
+  buys. Services use this as the P&L-percentage denominator for `initial_cash = 0` accounts.
 - Latest prices for unrealized PnL via `yfinance`.
 - Trend classification: `up`, `flat`, `down`, or `insufficient-data`.
 
