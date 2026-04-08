@@ -41,7 +41,7 @@ def _compute_position_analysis(
     state: AccountState,
     prices: dict[str, float],
     total_equity: float,
-) -> list[dict[str, object]]:
+) -> list[dict[str, float | str]]:
     result = []
     for ticker, qty in sorted(state.positions.items()):
         if qty <= 0:
@@ -81,7 +81,7 @@ def _generate_improvement_notes(
     account_return_pct: float,
     benchmark_return_pct: float | None,
     alpha: float | None,
-    position_analysis: list[dict[str, object]],
+    position_analysis: list[dict[str, float | str]],
     realized_pnl: float,
 ) -> list[str]:
     notes: list[str] = []
