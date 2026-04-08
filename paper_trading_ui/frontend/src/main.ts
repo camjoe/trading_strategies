@@ -2,6 +2,7 @@ import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
+import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createCompareFeature } from "./features/compare";
 import { createLogsFeature } from "./features/logs";
@@ -14,6 +15,7 @@ import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
+import altStrategiesTemplate from "./views/alt-strategies.html?raw";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -41,6 +43,7 @@ function renderShell(): void {
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", adminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
+    .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
 }
 
@@ -60,6 +63,7 @@ const adminFeature = createAdminFeature({
   },
 });
 const logsFeature = createLogsFeature();
+const altStrategiesFeature = createAltStrategiesFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
@@ -70,11 +74,14 @@ async function bootstrap(): Promise<void> {
   logsFeature.wireActions();
   compareFeature.wireActions();
   backtestingFeature.wireActions();
+  altStrategiesFeature.wireActions();
   await accountsFeature.loadAccounts();
   await adminFeature.loadDeleteAccounts();
   await logsFeature.loadLogFiles();
   await compareFeature.loadComparison();
   await backtestingFeature.loadBacktestRuns();
+  // Background fetch so the provider health badge is visible before the Alt Strategies tab is first opened
+  void altStrategiesFeature.fetchProviderHealth();
 }
 
 function initTabs(): void {

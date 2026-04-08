@@ -6,7 +6,7 @@ import sqlite3
 def fetch_trades_for_account(conn: sqlite3.Connection, *, account_id: int) -> list[sqlite3.Row]:
     return conn.execute(
         """
-        SELECT ticker, side, qty, price, fee, trade_time
+        SELECT ticker, side, qty, price, fee, trade_time, note
         FROM trades
         WHERE account_id = ?
         ORDER BY trade_time, id

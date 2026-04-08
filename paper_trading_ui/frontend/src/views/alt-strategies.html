@@ -1,0 +1,25 @@
+<div id="tab-alt-strategies" class="tab-panel layout" hidden>
+  <section class="card alt-strategies-card">
+    <div class="card-header">
+      <h2>Provider Status</h2>
+      <button id="alt-refresh-btn" type="button">Refresh</button>
+    </div>
+    <div id="alt-providers-grid" class="alt-providers-grid">
+      <div class="empty">Loading…</div>
+    </div>
+  </section>
+
+  <section class="card alt-strategies-card">
+    <h2>Signal Outputs</h2>
+    <form id="alt-signals-form" class="bt-form">
+      <div class="bt-row">
+        <div class="bt-field">
+          <label for="alt-ticker-input">Ticker</label>
+          <input id="alt-ticker-input" name="ticker" type="text" placeholder="e.g. AAPL" required />
+        </div>
+      </div>
+      <button type="submit">Get Signals</button>
+    </form>
+    <div id="alt-signals-result"></div>
+  </section>
+</div>

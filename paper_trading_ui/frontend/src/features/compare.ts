@@ -1,5 +1,5 @@
 import { find } from "../lib/dom";
-import { currency, pct } from "../lib/format";
+import { currency, esc, pct } from "../lib/format";
 import { getJson } from "../lib/http";
 import type { AccountComparisonRow } from "../types";
 
@@ -61,24 +61,57 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
   `;
 }
 
+function populateStrategyFilter(rows: AccountComparisonRow[]): void {
+  const select = find<HTMLSelectElement>("#compare-strategy-filter");
+  if (!select) return;
+
+  const strategies = [...new Set(rows.map((r) => r.strategy))].sort();
+  select.innerHTML =
+    `<option value="">All strategies</option>` +
+    strategies.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+}
+
 export function createCompareFeature(): CompareFeature {
+  let allRows: AccountComparisonRow[] = [];
+
+  function applyFilter(): void {
+    const target = find<HTMLDivElement>("#compareTable");
+    const select = find<HTMLSelectElement>("#compare-strategy-filter");
+    if (!target) return;
+
+    const selected = select?.value ?? "";
+    const visible = selected ? allRows.filter((r) => r.strategy === selected) : allRows;
+    target.innerHTML = renderComparisonTable(visible);
+  }
+
   async function loadComparison(): Promise<void> {
     const target = find<HTMLDivElement>("#compareTable");
     if (!target) return;
 
     target.innerHTML = `<div class="empty">Loading comparison data...</div>`;
+
+    // Reset filter state on each reload
+    const select = find<HTMLSelectElement>("#compare-strategy-filter");
+    if (select) select.value = "";
+
     try {
       const data = await getJson<{ accounts: AccountComparisonRow[] }>("/api/accounts/compare");
-      target.innerHTML = renderComparisonTable(data.accounts);
+      allRows = data.accounts;
+      populateStrategyFilter(allRows);
+      target.innerHTML = renderComparisonTable(allRows);
     } catch (error) {
+      allRows = [];
       target.innerHTML = `<div class="error">${error instanceof Error ? error.message : "Failed to load comparison."}</div>`;
     }
   }
 
   function wireActions(): void {
-    const refreshBtn = find<HTMLButtonElement>("#refreshCompareBtn");
-    refreshBtn?.addEventListener("click", () => {
+    find<HTMLButtonElement>("#refreshCompareBtn")?.addEventListener("click", () => {
       void loadComparison();
+    });
+
+    find<HTMLSelectElement>("#compare-strategy-filter")?.addEventListener("change", () => {
+      applyFilter();
     });
   }
 

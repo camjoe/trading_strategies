@@ -19,7 +19,9 @@ def fetch_latest_prices(
     return prices
 
 
-def _extract_close_series(close_history: pd.DataFrame, ticker: str) -> pd.Series | None:
+def _extract_close_series(close_history: pd.DataFrame | None, ticker: str) -> pd.Series | None:
+    if close_history is None:
+        return None
     close_col = close_history[ticker]
     if isinstance(close_col, pd.DataFrame):
         if close_col.shape[1] == 0:

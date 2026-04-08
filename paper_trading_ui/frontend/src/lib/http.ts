@@ -28,6 +28,18 @@ export async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+export async function patchJson<T>(path: string, payload: unknown): Promise<T> {
+  const res = await fetch(apiUrl(path), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  await assertOk(res, true);
+
+  const text = await res.text();
+  return (text ? (JSON.parse(text) as T) : ({} as T));
+}
+
 export async function postJson<T>(path: string, payload?: unknown): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "POST",

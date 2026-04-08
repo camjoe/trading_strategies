@@ -185,3 +185,22 @@ def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection
     if resolved == TEST_BACKTEST_ACCOUNT_NAME:
         ensure_test_backtest_account(conn)
     return resolved
+
+
+def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:
+    """Build the test_account summary using live equity from test_account_bt in the DB.
+
+    Resolves (and auto-creates) the backing account, then delegates to the standard
+    ``build_account_summary`` path so equity and PnL are always computed from real
+    trades rather than the static investments file.
+    """
+    from .accounts import build_account_summary
+    from .db import fetch_account_row
+
+    resolved_name = resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
+    row = fetch_account_row(conn, resolved_name)
+    summary = build_account_summary(conn, row)
+    # Surface under the virtual "test_account" name the UI expects.
+    summary["name"] = TEST_ACCOUNT_NAME
+    summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
+    return summary

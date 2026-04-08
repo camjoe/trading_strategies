@@ -12,9 +12,11 @@ The `trading/` module handles:
 
 - Account lifecycle (create, configure, benchmark, profiles)
 - Trade simulation and position tracking
+- Live broker integration (Interactive Brokers via TWS/IB Gateway; paper broker by default)
 - Snapshot history and reporting
 - Auto-trading simulation runs
 - Backtesting and walk-forward analysis support
+- **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `trading/features/`
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
@@ -98,6 +100,15 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Sells are restricted to current holdings (no shorting).
 - Buys require sufficient available cash.
+- **Deposit model:** Trades whose `ticker` equals the settlement ticker (`"CASH"`) are
+  treated as cash inflows/outflows rather than equity position changes. A `CASH` buy adds
+  the notional value directly to `state.cash` and `state.total_deposited`; a `CASH` sell
+  subtracts it. Accounts that seed capital this way set `initial_cash = 0` in the DB and
+  inject funds via `CASH` buy trades. The settlement ticker is configurable via the
+  `settlement_ticker` argument of `compute_account_state` (defaults to
+  `SETTLEMENT_TICKER = "CASH"`). Pass `None` to treat every ticker as a regular equity.
+- `AccountState.total_deposited` accumulates all capital deposited via settlement-ticker
+  buys. Services use this as the P&L-percentage denominator for `initial_cash = 0` accounts.
 - Latest prices for unrealized PnL via `yfinance`.
 - Trend classification: `up`, `flat`, `down`, or `insufficient-data`.
 
@@ -105,6 +116,7 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 - Backtesting: `docs/backtesting.md`
 - UI dashboard: `paper_trading_ui/README.md`
+- Broker integration: `docs/reference/notes-broker-integration.md`
 - Trading architecture guide: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 
 ## Preset Profiles
@@ -121,3 +133,4 @@ CLI defaults use `trading/config/account_profiles/default.json`.
 - SQL access is owned by repository modules under `trading/repositories/`.
 - Orchestration and composition are owned by service modules under `trading/services/`.
 - Policy logic is owned by domain modules under `trading/domain/`.
+- **External-data feature providers** live in `trading/features/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `trading/backtesting/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.

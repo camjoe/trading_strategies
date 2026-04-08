@@ -59,11 +59,17 @@ SELL_BIAS_TREND_MOMENTUM = 0.20
 # (take profits closer to the mean)
 SELL_BIAS_MEAN_REVERSION = 0.45
 
+# Alternative strategies (external-data driven: news, social, policy) exit
+# more aggressively on signal reversal than neutral strategies, but less so
+# than pure mean-reversion.
+SELL_BIAS_ALTERNATIVE = 0.30
+
 # Maps StrategySpec.strategy_style values to their sell bias probability.
 # Extend this when adding new style families.
 _STYLE_TO_SELL_BIAS: dict[str, float] = {
     "trend": SELL_BIAS_TREND_MOMENTUM,
     "mean_reversion": SELL_BIAS_MEAN_REVERSION,
+    "alternative": SELL_BIAS_ALTERNATIVE,
 }
 
 
