@@ -417,14 +417,14 @@ export function renderAnalysisPanel(analysis: AccountAnalysis): string {
 
     <div class="analysis-tables">
       <div>
-        <h5>Top Winners</h5>
+        <h5>Top Winners <span class="muted analysis-table-note">(open positions, unrealized)</span></h5>
         <table>
           <thead><tr><th>Ticker</th><th>Avg Cost</th><th>Price</th><th>Unr. P&amp;L</th><th>%</th></tr></thead>
           <tbody>${positionRows(analysis.topWinners) || `<tr><td colspan="5">None</td></tr>`}</tbody>
         </table>
       </div>
       <div>
-        <h5>Top Losers</h5>
+        <h5>Top Losers <span class="muted analysis-table-note">(open positions, unrealized)</span></h5>
         <table>
           <thead><tr><th>Ticker</th><th>Avg Cost</th><th>Price</th><th>Unr. P&amp;L</th><th>%</th></tr></thead>
           <tbody>${positionRows(analysis.topLosers) || `<tr><td colspan="5">None</td></tr>`}</tbody>
