@@ -44,8 +44,8 @@ def _sync_software(repo_root: Path) -> None:
         except json.JSONDecodeError:
             pass
     parsed_requirements = parse_requirements(
-        repo_root / "requirements/base.txt",
-        repo_root / "requirements/dev.txt",
+        repo_root / "requirements-base.txt",
+        repo_root / "requirements-dev.txt",
     )
     existing_state = load_software_state(registry_path)
     packages = build_software_registry(parsed_requirements, existing_state)

@@ -27,10 +27,10 @@ Choose the dependency set that matches your purpose:
 
 ```sh
 # Core runtime for trends, trading, and UI backend
-pip install -r requirements/base.txt
+pip install -r requirements-base.txt
 
 # Runtime plus test dependencies
-pip install -r requirements/dev.txt
+pip install -r requirements-dev.txt
 ```
 
 **Execution Note:**
@@ -38,7 +38,6 @@ pip install -r requirements/dev.txt
   ```sh
   python -m trading.paper_trading init
   ```
-- `requirements.txt` points to `requirements/dev.txt`.
 
 ## CI Smoke Check
 
