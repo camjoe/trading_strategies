@@ -14,7 +14,7 @@ from trading.backtesting.repositories.report_repository import (
     fetch_latest_backtest_run_id_for_account as _repo_fetch_latest_backtest_run_id_for_account,
     fetch_recent_backtest_runs as _repo_fetch_recent_backtest_runs,
 )
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.backtesting.trading_bridge import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestReportSnapshot,

@@ -6,8 +6,9 @@ from typing import Callable, cast
 
 from common.market_data import get_feature_provider
 
-from trading.services.accounts_service import get_account
-from trading.utils.coercion import (
+from trading.backtesting.trading_bridge import (
+    get_account,
+    resolve_active_strategy,
     row_expect_float,
     row_expect_int,
     row_expect_str,
@@ -20,7 +21,6 @@ from trading.backtesting.models import (
     WalkForwardSummary,
 )
 from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
-from trading.domain.rotation import resolve_active_strategy
 
 from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
