@@ -77,6 +77,73 @@ class TestComputeAccountState:
         assert state.positions == {"AAPL": 3.0}
         assert state.avg_cost["AAPL"] == pytest.approx((200.0 + 131.0) / 3.0)
         assert state.cash == pytest.approx(669.0)
+        assert state.total_deposited == pytest.approx(0.0)
+
+
+class TestSettlementTickerDepositModel:
+    def test_cash_buy_is_deposit_adds_to_cash(self) -> None:
+        trades = [{"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0}]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(1000.0)
+        assert state.total_deposited == pytest.approx(1000.0)
+
+    def test_cash_buy_does_not_create_position(self) -> None:
+        trades = [{"ticker": "CASH", "side": "buy", "qty": 500.0, "price": 1.0, "fee": 0.0}]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert "CASH" not in state.positions
+
+    def test_multiple_cash_deposits_accumulate(self) -> None:
+        trades = [
+            {"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0},
+            {"ticker": "CASH", "side": "buy", "qty": 500.0, "price": 1.0, "fee": 0.0},
+        ]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(1500.0)
+        assert state.total_deposited == pytest.approx(1500.0)
+
+    def test_deposit_then_equity_buy(self) -> None:
+        trades = [
+            {"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0},
+            {"ticker": "AAPL", "side": "buy", "qty": 5.0, "price": 100.0, "fee": 0.0},
+        ]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(500.0)
+        assert state.total_deposited == pytest.approx(1000.0)
+        assert state.positions == {"AAPL": 5.0}
+        assert "CASH" not in state.positions
+
+    def test_cash_sell_is_withdrawal(self) -> None:
+        """CASH sell reduces cash. total_deposited is gross-only (not reduced)."""
+        trades = [
+            {"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0},
+            {"ticker": "CASH", "side": "sell", "qty": 200.0, "price": 1.0, "fee": 0.0},
+        ]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(800.0)
+        assert state.total_deposited == pytest.approx(1000.0)
+
+    def test_settlement_ticker_none_treats_cash_as_equity(self) -> None:
+        """With settlement_ticker=None, CASH buy deducts cash and creates a position."""
+        trades = [{"ticker": "CASH", "side": "buy", "qty": 100.0, "price": 1.0, "fee": 0.0}]
+        state = compute_account_state(initial_cash=200.0, trades=trades, settlement_ticker=None)
+
+        assert state.positions == {"CASH": 100.0}
+        assert state.cash == pytest.approx(100.0)
+        assert state.total_deposited == pytest.approx(0.0)
+
+    def test_equity_only_account_has_zero_total_deposited(self) -> None:
+        trades = [
+            {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+            {"ticker": "AAPL", "side": "sell", "qty": 1, "price": 110, "fee": 0},
+        ]
+        state = compute_account_state(initial_cash=500.0, trades=trades)
+
+        assert state.total_deposited == pytest.approx(0.0)
 
 
 class TestRecordTradeAndLoadTrades:

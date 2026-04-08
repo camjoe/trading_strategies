@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ..config import TEST_ACCOUNT_NAME
+from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
 from ..services import (
     fetch_account_row,
     build_account_summary,
+    build_account_summary_and_positions,
     build_comparison_account_payload,
     fetch_account_snapshot_rows,
     db_conn,
@@ -16,8 +17,7 @@ from ..services import (
     fetch_managed_account_rows,
     resolve_backtest_payload_account,
     build_snapshot_payload,
-    build_test_account_detail_payload,
-    build_test_account_summary,
+    build_test_account_live_summary,
     build_trade_payload,
     update_account_params,
 )
@@ -30,7 +30,7 @@ def api_accounts() -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
         rows = fetch_managed_account_rows(conn)
         accounts = [build_account_summary(conn, row) for row in rows]
-        accounts.append(build_test_account_summary())
+        accounts.append(build_test_account_live_summary(conn))
         accounts.sort(key=lambda item: str(item["name"]))
         return {"accounts": accounts}
 
@@ -44,31 +44,29 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
             latest_backtest = fetch_latest_backtest_metrics(conn, str(row["name"]))
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
 
-        comparison.append(build_comparison_account_payload(build_test_account_summary(), None))
+        comparison.append(build_comparison_account_payload(build_test_account_live_summary(conn), None))
         comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 
 
 @router.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
-    if account_name == TEST_ACCOUNT_NAME:
-        payload = build_test_account_detail_payload()
-        with db_conn() as conn:
-            resolved_account_name = resolve_backtest_payload_account(account_name, conn)
-            payload["latestBacktest"] = fetch_latest_backtest_summary(conn, resolved_account_name)
-        return payload
-
     with db_conn() as conn:
-        account = fetch_account_row(conn, account_name)
-        summary = build_account_summary(conn, account)
+        resolved_name = resolve_backtest_payload_account(account_name, conn)
+        account = fetch_account_row(conn, resolved_name)
+        summary, positions = build_account_summary_and_positions(conn, account)
+
+        if account_name == TEST_ACCOUNT_NAME:
+            summary["name"] = TEST_ACCOUNT_NAME
+            summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
 
         snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
-
         trades = fetch_account_trades(conn, int(account["id"]))
-        latest_backtest = fetch_latest_backtest_summary(conn, account_name)
+        latest_backtest = fetch_latest_backtest_summary(conn, resolved_name)
 
         return {
             "account": summary,
+            "positions": positions,
             "latestBacktest": latest_backtest,
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade) for trade in trades[-100:]],

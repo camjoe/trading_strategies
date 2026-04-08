@@ -40,18 +40,92 @@ from trading.services.accounts_service import (
     update_account_fields_by_id,
 )
 from trading.services.reporting_service import get_account_stats as build_account_stats
+from trading.domain.accounting import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
 from .db import fetch_latest_snapshot_row
 
+_SETTLEMENT_PRICE = 1.0
+
 
 def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
-    _state, _prices, _mv, _unrealized, equity = build_account_stats(conn, row)
+    from trading.models.account_state import AccountState
+    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
+    _inject_settlement_price(state, prices)
+    if isinstance(state, AccountState) and isinstance(prices, dict):
+        equity = state.cash + sum(
+            state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
+        )
+    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
+    return _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
+
+
+def build_account_summary_and_positions(
+    conn: sqlite3.Connection, row: sqlite3.Row
+) -> tuple[dict[str, object], list[dict[str, object]]]:
+    """Call build_account_stats once and return both summary and open positions.
+
+    Use this in endpoints where both are needed to avoid double price fetches.
+    CASH (settlement fund) is excluded from the positions list
+    and surfaced as ``settlementCash`` in the summary dict.
+    """
+    from trading.models.account_state import AccountState
+    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
+    _inject_settlement_price(state, prices)
+    if isinstance(state, AccountState) and isinstance(prices, dict):
+        equity = state.cash + sum(
+            state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
+        )
+    total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
+    summary = _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
+    positions = _build_positions_from_stats(state, prices)
+    return summary, positions
+
+
+def _inject_settlement_price(state: object, prices: object) -> None:
+    """Ensure CASH is priced at $1 even if yfinance doesn't return it.
+
+    Under the deposit model CASH never enters positions, so this is a no-op
+    for accounts using that model. Kept for safety in case any legacy row still
+    carries a CASH position.
+    """
+    from trading.models.account_state import AccountState
+    if not isinstance(state, AccountState) or not isinstance(prices, dict):
+        return
+    if _SETTLEMENT_TICKER in state.positions and _SETTLEMENT_TICKER not in prices:
+        prices[_SETTLEMENT_TICKER] = _SETTLEMENT_PRICE
+
+
+def _settlement_cash(state: object, prices: object) -> float:
+    """Return the free cash balance for use as the ``settlementCash`` API field.
+
+    Under the deposit model, CASH buy trades are treated as inflows into
+    ``state.cash`` directly (no position created), so ``state.cash`` represents
+    all uninvested cash for every account type. This replaces the old behaviour
+    of reading the CASH position qty — which returned 0.0 for non-deposit
+    accounts and double-counted for the test account.
+    """
+    from trading.models.account_state import AccountState
+    if not isinstance(state, AccountState):
+        return 0.0
+    # After the deposit model: CASH buys are inflows that go into state.cash directly.
+    # state.positions no longer contains the settlement ticker.
+    return state.cash
+
+
+def _build_summary_from_stats(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    equity: float,
+    settlement_cash: float = 0.0,
+    total_deposited: float = 0.0,
+) -> dict[str, object]:
     latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))
 
     initial_cash = float(row["initial_cash"])
-    delta = equity - initial_cash
-    delta_pct = ((equity / initial_cash) - 1.0) * 100.0 if initial_cash else 0.0
+    effective_initial = initial_cash if initial_cash else total_deposited
+    delta = equity - effective_initial
+    delta_pct = ((equity / effective_initial) - 1.0) * 100.0 if effective_initial else 0.0
 
     change_since_snapshot = None
     if latest_snapshot is not None:
@@ -67,6 +141,7 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
         "benchmark": row["benchmark_ticker"],
         "initialCash": initial_cash,
         "equity": equity,
+        "settlementCash": settlement_cash,
         "totalChange": delta,
         "totalChangePct": delta_pct,
         "changeSinceLastSnapshot": change_since_snapshot,
@@ -91,6 +166,31 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
         "profitTakePct": row_float(row, "profit_take_pct"),
         "maxLossPct": row_float(row, "max_loss_pct"),
     }
+
+
+def _build_positions_from_stats(
+    state: object, prices: dict[str, float]
+) -> list[dict[str, object]]:
+    from trading.models.account_state import AccountState
+
+    assert isinstance(state, AccountState)
+    result = []
+    for ticker, qty in sorted(state.positions.items()):
+        if qty <= 0 or ticker == _SETTLEMENT_TICKER:
+            continue
+        avg_cost = state.avg_cost.get(ticker, 0.0)
+        market_price = prices.get(ticker, 0.0)
+        market_value = qty * market_price
+        unrealized_pnl = (market_price - avg_cost) * qty
+        result.append({
+            "ticker": ticker,
+            "qty": qty,
+            "avgCost": avg_cost,
+            "marketPrice": market_price,
+            "marketValue": market_value,
+            "unrealizedPnl": unrealized_pnl,
+        })
+    return result
 
 
 def fetch_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
@@ -180,6 +280,7 @@ def build_trade_payload(trade: sqlite3.Row) -> dict[str, object]:
         "price": float(trade["price"]),
         "fee": float(trade["fee"]),
         "tradeTime": trade["trade_time"],
+        "note": trade["note"],
     }
 
 

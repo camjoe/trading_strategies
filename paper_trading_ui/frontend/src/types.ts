@@ -7,6 +7,7 @@ export type AccountSummary = {
   benchmark: string;
   initialCash: number;
   equity: number;
+  settlementCash: number;
   totalChange: number;
   totalChangePct: number;
   changeSinceLastSnapshot: number | null;
@@ -51,7 +52,40 @@ export type AccountDetail = {
     price: number;
     fee: number;
     tradeTime: string;
+    note: string | null;
   }>;
+  positions: Array<{
+    ticker: string;
+    qty: number;
+    avgCost: number;
+    marketPrice: number;
+    marketValue: number;
+    unrealizedPnl: number;
+  }>;
+};
+
+export type AnalysisPosition = {
+  ticker: string;
+  qty: number;
+  avgCost: number;
+  costBasis: number;
+  marketPrice: number;
+  marketValue: number;
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  portfolioPct: number;
+};
+
+export type AccountAnalysis = {
+  accountReturnPct: number;
+  benchmarkReturnPct: number | null;
+  alphaPct: number | null;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  equity: number;
+  topWinners: AnalysisPosition[];
+  topLosers: AnalysisPosition[];
+  improvementNotes: string[];
 };
 
 export type BacktestRunSummary = {

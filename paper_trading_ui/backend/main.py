@@ -8,6 +8,7 @@ from .routes import (
     actions_router,
     accounts_router,
     admin_router,
+    analysis_router,
     backtests_router,
     features_router,
     health_router,
@@ -27,6 +28,7 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(accounts_router)
+app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(logs_router)
 app.include_router(actions_router)

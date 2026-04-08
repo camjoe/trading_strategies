@@ -2,8 +2,8 @@ import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
 import { getJson, patchJson, postJson } from "../lib/http";
 import { accountCard } from "../components/accounts";
-import { renderDetail } from "../components/detail";
-import type { AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
+import { renderDetail, renderAnalysisPanel } from "../components/detail";
+import type { AccountAnalysis, AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
 
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountSummary[]) => void;
@@ -36,6 +36,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
   let cachedAccounts: AccountSummary[] = [];
   let currentDetail: AccountDetail | null = null;
   let currentTradePage = 1;
+  let currentAnalysis: AccountAnalysis | null = null;
   const tradePageSize = 20;
 
   function renderCurrentDetail(): void {
@@ -71,6 +72,47 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       const totalPages = Math.max(1, Math.ceil(currentDetail.trades.length / tradePageSize));
       currentTradePage = Math.min(totalPages, currentTradePage + 1);
       renderCurrentDetail();
+    });
+
+    bindClick<HTMLButtonElement>("#addTradeBtn", () => {
+      const panel = find<HTMLDivElement>("#addTradePanel");
+      if (panel) panel.hidden = !panel.hidden;
+    });
+
+    bindClick<HTMLButtonElement>("#addTradeCancelBtn", () => {
+      const panel = find<HTMLDivElement>("#addTradePanel");
+      if (panel) panel.hidden = true;
+    });
+
+    bindClick<HTMLButtonElement>("#addTradeSaveBtn", async () => {
+      if (!currentDetail) return;
+      const accountName = currentDetail.account.name;
+      const msgEl = find<HTMLDivElement>("#addTradeMsg");
+
+      const ticker = find<HTMLInputElement>("#addTradeTicker")?.value.trim().toUpperCase();
+      const side = find<HTMLSelectElement>("#addTradeSide")?.value;
+      const qty = parseFloat(find<HTMLInputElement>("#addTradeQty")?.value ?? "");
+      const price = parseFloat(find<HTMLInputElement>("#addTradePrice")?.value ?? "");
+      const fee = parseFloat(find<HTMLInputElement>("#addTradeFee")?.value ?? "0");
+
+      if (!ticker || !side || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) {
+        if (msgEl) { msgEl.className = "error"; msgEl.textContent = "Ticker, qty, and price are required."; }
+        return;
+      }
+
+      try {
+        await postJson<{ status: string }>(
+          `/api/accounts/${encodeURIComponent(accountName)}/trades`,
+          { ticker, side, qty, price, fee: Number.isFinite(fee) ? fee : 0 },
+        );
+        if (msgEl) { msgEl.className = ""; msgEl.textContent = "Trade added."; }
+        setTimeout(() => { void loadAccountDetail(accountName); }, 800);
+      } catch (err) {
+        if (msgEl) {
+          msgEl.className = "error";
+          msgEl.textContent = err instanceof Error ? err.message : "Failed to add trade.";
+        }
+      }
     });
 
     bindClick<HTMLButtonElement>("#editParamsBtn", () => {
@@ -150,6 +192,12 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         }
       }
     });
+
+    // Re-apply cached analysis so pagination doesn't wipe it back to "Loading…"
+    if (currentAnalysis) {
+      const panel = find<HTMLElement>("#analysisPanel");
+      if (panel) panel.innerHTML = renderAnalysisPanel(currentAnalysis);
+    }
   }
 
   async function loadAccounts(): Promise<void> {
@@ -197,7 +245,25 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       return;
     }
     currentTradePage = 1;
+    currentAnalysis = null;
     renderCurrentDetail();
+    void loadAccountAnalysis(accountName);
+  }
+
+  async function loadAccountAnalysis(accountName: string): Promise<void> {
+    const panel = find<HTMLElement>("#analysisPanel");
+    if (!panel) return;
+    try {
+      const analysis = await getJson<AccountAnalysis>(
+        `/api/accounts/${encodeURIComponent(accountName)}/analysis`,
+      );
+      currentAnalysis = analysis;
+      const freshPanel = find<HTMLElement>("#analysisPanel") ?? panel;
+      freshPanel.innerHTML = renderAnalysisPanel(analysis);
+    } catch {
+      const freshPanel = find<HTMLElement>("#analysisPanel") ?? panel;
+      freshPanel.innerHTML = `<h4>Performance Analysis</h4><div class="muted">Analysis unavailable.</div>`;
+    }
   }
 
   async function snapshotAll(): Promise<void> {

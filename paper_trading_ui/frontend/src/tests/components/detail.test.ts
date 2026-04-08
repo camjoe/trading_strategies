@@ -15,6 +15,7 @@ describe("renderDetail", () => {
         benchmark: "SPY",
         initialCash: 1000,
         equity: 1100,
+        settlementCash: 0,
         totalChange: 100,
         totalChangePct: 10,
         changeSinceLastSnapshot: 5,
@@ -69,8 +70,10 @@ describe("renderDetail", () => {
           price: 100,
           fee: 0,
           tradeTime: "2026-03-14T00:00:00Z",
+          note: "manual-import;source=test_investments",
         },
       ],
+      positions: [],
     };
 
     const html = renderDetail(detail);
@@ -93,6 +96,7 @@ describe("renderDetail", () => {
         benchmark: "QQQ",
         initialCash: 1000,
         equity: 900,
+        settlementCash: 0,
         totalChange: -100,
         totalChangePct: -10,
         changeSinceLastSnapshot: null,
@@ -120,6 +124,7 @@ describe("renderDetail", () => {
       latestBacktest: null,
       snapshots: [],
       trades: [],
+      positions: [],
     };
 
     const html = renderDetail(detail);
