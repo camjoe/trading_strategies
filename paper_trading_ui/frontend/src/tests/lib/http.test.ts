@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getJson, postJson } from "../../lib/http";
+import { getJson, patchJson, postJson } from "../../lib/http";
 
 describe("http helpers", () => {
   afterEach(() => {
@@ -77,5 +77,39 @@ describe("http helpers", () => {
     await expect(postJson("/api/fail", { bad: true })).rejects.toThrow(
       "Request failed: 400 (bad input)",
     );
+  });
+
+  it("patchJson sends PATCH request with JSON body and returns parsed response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '{"status":"ok"}',
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await patchJson<{ status: string }>("/api/accounts/foo/params", { strategy: "trend" });
+    expect(result).toEqual({ status: "ok" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/accounts/foo/params"),
+      expect.objectContaining({
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategy: "trend" }),
+      }),
+    );
+  });
+
+  it("patchJson returns empty object when response body is empty", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 204,
+        text: async () => "",
+      }),
+    );
+
+    await expect(patchJson("/api/accounts/foo/params", {})).resolves.toEqual({});
   });
 });

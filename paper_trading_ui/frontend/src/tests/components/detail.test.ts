@@ -15,10 +15,30 @@ describe("renderDetail", () => {
         benchmark: "SPY",
         initialCash: 1000,
         equity: 1100,
+        settlementCash: 0,
         totalChange: 100,
         totalChangePct: 10,
         changeSinceLastSnapshot: 5,
         latestSnapshotTime: "2026-03-15T00:00:00Z",
+        stopLossPct: null,
+        takeProfitPct: null,
+        goalMinReturnPct: null,
+        goalMaxReturnPct: null,
+        goalPeriod: null,
+        learningEnabled: false,
+        optionStrikeOffsetPct: null,
+        optionMinDte: null,
+        optionMaxDte: null,
+        optionType: null,
+        targetDeltaMin: null,
+        targetDeltaMax: null,
+        maxPremiumPerTrade: null,
+        maxContractsPerTrade: null,
+        ivRankMin: null,
+        ivRankMax: null,
+        rollDteThreshold: null,
+        profitTakePct: null,
+        maxLossPct: null,
       },
       latestBacktest: {
         runId: 12,
@@ -50,14 +70,18 @@ describe("renderDetail", () => {
           price: 100,
           fee: 0,
           tradeTime: "2026-03-14T00:00:00Z",
+          note: "manual-import;source=test_investments",
         },
       ],
+      positions: [],
     };
 
     const html = renderDetail(detail);
     expect(html).toContain("Latest Backtest Run 12");
     expect(html).toContain("Open Report");
     expect(html).toContain("Snapshot This Account");
+    expect(html).toContain("Edit Parameters");
+    expect(html).toContain("editParamsPanel");
     expect(html).toContain("AAPL");
   });
 
@@ -72,19 +96,46 @@ describe("renderDetail", () => {
         benchmark: "QQQ",
         initialCash: 1000,
         equity: 900,
+        settlementCash: 0,
         totalChange: -100,
         totalChangePct: -10,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        stopLossPct: null,
+        takeProfitPct: null,
+        goalMinReturnPct: null,
+        goalMaxReturnPct: null,
+        goalPeriod: null,
+        learningEnabled: false,
+        optionStrikeOffsetPct: null,
+        optionMinDte: null,
+        optionMaxDte: null,
+        optionType: null,
+        targetDeltaMin: null,
+        targetDeltaMax: null,
+        maxPremiumPerTrade: null,
+        maxContractsPerTrade: null,
+        ivRankMin: null,
+        ivRankMax: null,
+        rollDteThreshold: null,
+        profitTakePct: null,
+        maxLossPct: null,
       },
       latestBacktest: null,
       snapshots: [],
       trades: [],
+      positions: [],
     };
 
     const html = renderDetail(detail);
     expect(html).toContain("No backtest run found for this account yet");
     expect(html).toContain("No snapshots yet");
     expect(html).toContain("No trades yet");
+    expect(html).toContain("Edit Parameters");
+    // risk-policy select should render all four options, current one selected
+    expect(html).toContain(`value="none" selected`);
+    expect(html).toContain(`value="fixed_stop"`);
+    expect(html).toContain(`value="take_profit"`);
+    expect(html).toContain(`value="stop_and_target"`);
   });
 });

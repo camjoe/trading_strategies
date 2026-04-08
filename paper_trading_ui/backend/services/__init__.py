@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .accounts import (
     build_account_summary,
+    build_account_summary_and_positions,
     build_backtest_run_summary,
     build_comparison_account_payload,
     build_snapshot_payload,
@@ -16,6 +17,7 @@ from .accounts import (
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
     take_snapshot,
+    update_account_params,
 )
 from .admin import (
     clean_text,
@@ -31,18 +33,27 @@ from .db import db_conn, fetch_account_row
 from .exports import list_csv_exports, preview_csv_export
 from .test_account import (
     build_test_account_detail_payload,
+    build_test_account_live_summary,
     build_test_account_summary,
     resolve_backtest_payload_account,
 )
 
+from .trades import add_manual_trade
+from .features import get_provider_status, get_signals
+
 __all__ = [
+    "add_manual_trade",
+    "get_provider_status",
+    "get_signals",
     "build_account_summary",
+    "build_account_summary_and_positions",
     "build_backtest_config_from_preflight_request",
     "build_backtest_config_from_run_request",
     "build_backtest_run_summary",
     "build_comparison_account_payload",
     "build_snapshot_payload",
     "build_test_account_detail_payload",
+    "build_test_account_live_summary",
     "build_test_account_summary",
     "build_trade_payload",
     "build_walk_forward_config_from_request",
@@ -63,5 +74,6 @@ __all__ = [
     "preview_csv_export",
     "resolve_backtest_payload_account",
     "take_snapshot",
+    "update_account_params",
     "update_account_rotation_settings",
 ]

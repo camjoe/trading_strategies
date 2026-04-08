@@ -1,9 +1,36 @@
 import { currency, esc } from "../lib/format";
-import type { AccountDetail } from "../types";
+import type { AccountAnalysis, AccountDetail } from "../types";
 
 export interface DetailRenderOptions {
   tradePage?: number;
   tradePageSize?: number;
+  /** Show Edit Parameters and Snapshot buttons + edit panel. Default: true. */
+  showActions?: boolean;
+  /** Show the Latest Backtest report section. Default: true. */
+  showBacktest?: boolean;
+}
+
+const RISK_POLICY_OPTIONS = ["none", "fixed_stop", "take_profit", "stop_and_target"] as const;
+
+function riskPolicyOptions(currentPolicy: string): string {
+  return RISK_POLICY_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentPolicy === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
+
+function instrumentModeOptions(currentMode: string): string {
+  return INSTRUMENT_MODE_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function tradeTypeBadge(note: string | null): string {
+  if (!note) return `<span class="chip chip--equity">equity</span>`;
+  if (note.includes("instrument=option")) return `<span class="chip chip--option">option</span>`;
+  if (note.includes("auto-daily")) return `<span class="chip chip--auto">auto</span>`;
+  return `<span class="chip chip--manual">manual</span>`;
 }
 
 export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
@@ -11,6 +38,8 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   const totalTrades = detail.trades.length;
   const totalTradePages = Math.max(1, Math.ceil(totalTrades / tradePageSize));
   const tradePage = Math.min(Math.max(1, options.tradePage ?? 1), totalTradePages);
+  const showActions = options.showActions !== false;
+  const showBacktest = options.showBacktest !== false;
   const viewedStart = totalTrades === 0 ? 0 : (tradePage - 1) * tradePageSize + 1;
   const viewedEnd = totalTrades === 0 ? 0 : Math.min(tradePage * tradePageSize, totalTrades);
 
@@ -50,9 +79,10 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <td>${tradeDate.toLocaleString()}</td>
         <td>${esc(t.ticker)}</td>
         <td class="${t.side === "buy" ? "up" : "down"}">${esc(t.side)}</td>
-        <td>${t.qty.toFixed(4)}</td>
+        <td>${tradeTypeBadge(t.note)}</td>
+        <td>${t.qty.toFixed(2)}</td>
         <td>${currency.format(t.price)}</td>
-        <td>${currency.format(t.fee)}</td>
+        <td>${currency.format(t.qty * t.price)}</td>
       </tr>
     `;
     })
@@ -74,23 +104,242 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       <div>
         <h3>${esc(detail.account.displayName)}</h3>
         <p>${esc(detail.account.name)} | ${esc(detail.account.strategy)} | ${esc(detail.account.benchmark)}</p>
+        <p class="row slim">
+          Equity: <strong>${currency.format(detail.account.equity)}</strong>
+          &nbsp;·&nbsp; Settlement Cash: <strong>${currency.format(detail.account.settlementCash)}</strong>
+          &nbsp;·&nbsp; Return: <span class="${detail.account.totalChangePct >= 0 ? "up" : "down"}">${detail.account.totalChangePct >= 0 ? "+" : ""}${detail.account.totalChangePct.toFixed(2)}%</span>
+        </p>
       </div>
-      <button id="snapshotOneBtn" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
+      ${showActions ? `<div class="detail-head-actions">
+        <button id="addTradeBtn" type="button">+ Add Trade</button>
+        <button id="editParamsBtn" type="button">Edit Parameters</button>
+        <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
+      </div>` : ""}
     </div>
 
+    ${showActions ? `<div id="addTradePanel" class="edit-params-panel" hidden>
+      <div class="edit-params-section">
+        <h5>Add Trade</h5>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Ticker</span>
+            <input id="addTradeTicker" type="text" placeholder="e.g. AAPL" style="text-transform:uppercase" />
+          </div>
+          <div class="bt-field">
+            <span>Side</span>
+            <select id="addTradeSide">
+              <option value="buy">buy</option>
+              <option value="sell">sell</option>
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Qty</span>
+            <input id="addTradeQty" type="number" step="0.0001" min="0.0001" placeholder="e.g. 10" />
+          </div>
+          <div class="bt-field">
+            <span>Price</span>
+            <input id="addTradePrice" type="number" step="0.01" min="0.01" placeholder="e.g. 150.00" />
+          </div>
+          <div class="bt-field">
+            <span>Fee</span>
+            <input id="addTradeFee" type="number" step="0.01" min="0" value="0" />
+          </div>
+        </div>
+      </div>
+      <div class="edit-params-actions">
+        <button id="addTradeSaveBtn" type="button">Submit Trade</button>
+        <button id="addTradeCancelBtn" type="button">Cancel</button>
+        <div id="addTradeMsg"></div>
+      </div>
+    </div>` : ""}
+
+    ${showActions ? `<div id="editParamsPanel" class="edit-params-panel" hidden>
+      <!-- Core parameters - always visible -->
+      <div class="edit-params-section">
+        <h5>Core</h5>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Display Name</span>
+            <input id="editDisplayNameInput" type="text" value="${esc(detail.account.displayName)}" />
+          </div>
+          <div class="bt-field">
+            <span>Strategy</span>
+            <input id="editStrategyInput" type="text" value="${esc(detail.account.strategy)}" />
+          </div>
+          <div class="bt-field">
+            <span>Instrument Mode</span>
+            <select id="editInstrumentModeSelect">
+              ${instrumentModeOptions(detail.account.instrumentMode)}
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Risk Policy</span>
+            <select id="editRiskPolicySelect">
+              ${riskPolicyOptions(detail.account.riskPolicy)}
+            </select>
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Stop Loss %</span>
+            <input id="editStopLossPctInput" type="number" step="0.01" value="${detail.account.stopLossPct ?? ""}" placeholder="e.g. 5.0" />
+          </div>
+          <div class="bt-field">
+            <span>Take Profit %</span>
+            <input id="editTakeProfitPctInput" type="number" step="0.01" value="${detail.account.takeProfitPct ?? ""}" placeholder="e.g. 15.0" />
+          </div>
+          <div class="bt-field">
+            <span>Learning</span>
+            <select id="editLearningEnabledSelect">
+              <option value="false"${!detail.account.learningEnabled ? " selected" : ""}>Off</option>
+              <option value="true"${detail.account.learningEnabled ? " selected" : ""}>On</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Goal parameters -->
+      <details class="edit-params-section">
+        <summary>Return Goals</summary>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Min Return %</span>
+            <input id="editGoalMinReturnInput" type="number" step="0.1" value="${detail.account.goalMinReturnPct ?? ""}" placeholder="e.g. 2.0" />
+          </div>
+          <div class="bt-field">
+            <span>Max Return %</span>
+            <input id="editGoalMaxReturnInput" type="number" step="0.1" value="${detail.account.goalMaxReturnPct ?? ""}" placeholder="e.g. 10.0" />
+          </div>
+          <div class="bt-field">
+            <span>Period</span>
+            <input id="editGoalPeriodInput" type="text" value="${esc(detail.account.goalPeriod ?? "")}" placeholder="monthly" />
+          </div>
+        </div>
+      </details>
+
+      <!-- Options parameters -->
+      <details class="edit-params-section">
+        <summary>Options Settings</summary>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Option Type</span>
+            <select id="editOptionTypeSelect">
+              <option value="">— none —</option>
+              <option value="call"${detail.account.optionType === "call" ? " selected" : ""}>call</option>
+              <option value="put"${detail.account.optionType === "put" ? " selected" : ""}>put</option>
+              <option value="both"${detail.account.optionType === "both" ? " selected" : ""}>both</option>
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Strike Offset %</span>
+            <input id="editOptionStrikeOffsetInput" type="number" step="0.01" value="${detail.account.optionStrikeOffsetPct ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Min DTE</span>
+            <input id="editOptionMinDteInput" type="number" step="1" value="${detail.account.optionMinDte ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Max DTE</span>
+            <input id="editOptionMaxDteInput" type="number" step="1" value="${detail.account.optionMaxDte ?? ""}" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Target Delta Min</span>
+            <input id="editTargetDeltaMinInput" type="number" step="0.01" min="0" max="1" value="${detail.account.targetDeltaMin ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Target Delta Max</span>
+            <input id="editTargetDeltaMaxInput" type="number" step="0.01" min="0" max="1" value="${detail.account.targetDeltaMax ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>IV Rank Min</span>
+            <input id="editIvRankMinInput" type="number" step="1" min="0" max="100" value="${detail.account.ivRankMin ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>IV Rank Max</span>
+            <input id="editIvRankMaxInput" type="number" step="1" min="0" max="100" value="${detail.account.ivRankMax ?? ""}" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Max Premium / Trade</span>
+            <input id="editMaxPremiumInput" type="number" step="1" value="${detail.account.maxPremiumPerTrade ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Max Contracts / Trade</span>
+            <input id="editMaxContractsInput" type="number" step="1" value="${detail.account.maxContractsPerTrade ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Roll DTE Threshold</span>
+            <input id="editRollDteThresholdInput" type="number" step="1" value="${detail.account.rollDteThreshold ?? ""}" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Profit Take %</span>
+            <input id="editProfitTakePctInput" type="number" step="0.1" value="${detail.account.profitTakePct ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Max Loss %</span>
+            <input id="editMaxLossPctInput" type="number" step="0.1" value="${detail.account.maxLossPct ?? ""}" />
+          </div>
+        </div>
+      </details>
+
+      <div class="edit-params-actions">
+        <button id="editParamsSaveBtn" type="button">Save</button>
+        <button id="editParamsCancelBtn" type="button">Cancel</button>
+        <div id="editParamsMsg"></div>
+      </div>
+    </div>` : ""}
+
     <article>
-      <h4>Latest Backtest</h4>
-      ${latestBacktest}
+      <div id="analysisPanel">
+        <h4>Performance Analysis</h4>
+        <div class="empty">Loading analysis…</div>
+      </div>
+      ${showBacktest ? `<div class="latest-backtest-section">
+        <h4>Latest Backtest</h4>
+        ${latestBacktest}
+      </div>` : ""}
     </article>
 
     <div class="detail-grid">
-      <article>
-        <h4>Equity Snapshots</h4>
-        <table>
-          <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
-          <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
-        </table>
-      </article>
+      <div>
+        <article>
+          <h4>Equity Snapshots</h4>
+          <table>
+            <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
+            <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
+          </table>
+        </article>
+
+        <article>
+          <h4>Current Positions</h4>
+          <table>
+            <thead><tr><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Market Price</th><th>Market Value</th><th>Unrealized P&amp;L</th></tr></thead>
+            <tbody>${
+              detail.positions.length === 0
+                ? `<tr><td colspan="6">No open positions.</td></tr>`
+                : detail.positions
+                    .map(
+                      (p) => `
+              <tr>
+                <td><strong>${esc(p.ticker)}</strong></td>
+                <td>${p.qty.toFixed(2)}</td>
+                <td>${currency.format(p.avgCost)}</td>
+                <td>${p.marketPrice > 0 ? currency.format(p.marketPrice) : "—"}</td>
+                <td>${p.marketPrice > 0 ? currency.format(p.marketValue) : "—"}</td>
+                <td class="${p.unrealizedPnl >= 0 ? "up" : "down"}">${p.marketPrice > 0 ? currency.format(p.unrealizedPnl) : "—"}</td>
+              </tr>
+            `,
+                    )
+                    .join("")
+            }</tbody>
+          </table>
+        </article>
+      </div>
 
       <article>
         <h4>Recent Trades</h4>
@@ -100,10 +349,89 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
         </div>
         <table class="recent-trades-table">
-          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
-          <tbody>${tradeRows || `<tr><td colspan="6">No trades yet.</td></tr>`}</tbody>
+          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+          <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
         </table>
       </article>
     </div>
+  `;
+}
+
+export function renderAnalysisPanel(analysis: AccountAnalysis): string {
+  const signClass = (v: number) => (v >= 0 ? "up" : "down");
+  const pct = (v: number | null) =>
+    v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+
+  const benchmarkLine =
+    analysis.benchmarkReturnPct != null
+      ? `<span class="${signClass(analysis.benchmarkReturnPct)}">${pct(analysis.benchmarkReturnPct)}</span>`
+      : `<span class="muted">—</span>`;
+
+  const alphaLine =
+    analysis.alphaPct != null
+      ? `<span class="${signClass(analysis.alphaPct)}">${pct(analysis.alphaPct)} alpha</span>`
+      : `<span class="muted">—</span>`;
+
+  const positionRows = (positions: AccountAnalysis["topWinners"]) =>
+    positions
+      .map(
+        (p) => `
+        <tr>
+          <td><strong>${esc(p.ticker)}</strong></td>
+          <td>${currency.format(p.avgCost)}</td>
+          <td>${p.marketPrice > 0 ? currency.format(p.marketPrice) : "—"}</td>
+          <td class="${signClass(p.unrealizedPnl)}">${p.marketPrice > 0 ? currency.format(p.unrealizedPnl) : "—"}</td>
+          <td class="${signClass(p.unrealizedPnlPct)}">${p.marketPrice > 0 ? pct(p.unrealizedPnlPct) : "—"}</td>
+        </tr>`,
+      )
+      .join("");
+
+  const notesList = analysis.improvementNotes
+    .map((n) => `<li>${esc(n)}</li>`)
+    .join("");
+
+  return `
+    <h4>Performance Analysis</h4>
+    <div class="analysis-summary">
+      <div class="analysis-stat">
+        <span class="label">Account Return</span>
+        <span class="${signClass(analysis.accountReturnPct)}">${pct(analysis.accountReturnPct)}</span>
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Benchmark (${analysis.benchmarkReturnPct != null ? "SPY" : "—"})</span>
+        ${benchmarkLine}
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Alpha</span>
+        ${alphaLine}
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Realized P&amp;L</span>
+        <span class="${signClass(analysis.realizedPnl)}">${currency.format(analysis.realizedPnl)}</span>
+      </div>
+      <div class="analysis-stat">
+        <span class="label">Unrealized P&amp;L</span>
+        <span class="${signClass(analysis.unrealizedPnl)}">${currency.format(analysis.unrealizedPnl)}</span>
+      </div>
+    </div>
+
+    <div class="analysis-tables">
+      <div>
+        <h5>Top Winners <span class="muted analysis-table-note">(open positions, unrealized)</span></h5>
+        <table>
+          <thead><tr><th>Ticker</th><th>Avg Cost</th><th>Price</th><th>Unr. P&amp;L</th><th>%</th></tr></thead>
+          <tbody>${positionRows(analysis.topWinners) || `<tr><td colspan="5">None</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div>
+        <h5>Top Losers <span class="muted analysis-table-note">(open positions, unrealized)</span></h5>
+        <table>
+          <thead><tr><th>Ticker</th><th>Avg Cost</th><th>Price</th><th>Unr. P&amp;L</th><th>%</th></tr></thead>
+          <tbody>${positionRows(analysis.topLosers) || `<tr><td colspan="5">None</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${notesList ? `<div class="analysis-notes"><h5>Improvement Notes</h5><ul>${notesList}</ul></div>` : ""}
   `;
 }

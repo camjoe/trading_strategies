@@ -62,6 +62,41 @@ Disallowed:
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
+10. `trading/features/`: external-data feature providers for alternative strategies
+    - Houses `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
+    - This package is the **only** place that may import external API libraries
+      (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
+      network calls to third-party services.
+    - Signal functions in `trading/backtesting/domain/strategy_signals.py` must
+      consume feature bundles from this package — they must never call external
+      APIs directly.
+      
+11. `trading/brokers/`: broker connection adapters and factory
+   - Keep all broker SDK imports (ib_async, ibapi) inside this package.
+   - Service and domain layers must depend only on `BrokerConnection` from `base.py`.
+   - The factory (`factory.py`) is the sole location for `broker_type` routing logic.
+   - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
+
+## External Data Strategies
+
+Rules for all alternative-strategy development (strategy_style = "alternative"):
+
+1. **External calls are isolated in `trading/features/`** — no direct imports of
+   `praw`, `pytrends`, `vaderSentiment`, `newsapi`, or any other third-party
+   external-data library outside of `trading/features/` submodules.
+
+2. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
+   must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
+   Signal functions must check `bundle.available` first and return `"hold"` if `False`.
+
+3. **No API keys in source code** — all credentials are read exclusively from
+   environment variables (e.g. `NEWS_API_KEY`, `REDDIT_CLIENT_ID`). Never
+   commit secrets to source.
+
+4. **Use the base class** — all external providers must subclass
+   `trading.features.base.ExternalFeatureProvider`. Do not create ad-hoc
+   fetch functions that bypass the caching/TTL/degradation contract.
+
 ## Constants and Magic Numbers
 
 All bots must follow this rule when writing or reviewing Python code:
@@ -143,3 +178,29 @@ Before creating or moving code in `trading/`:
 3. Place operator data ops in `trading/interfaces/runtime/data_ops/`.
 4. Keep SQL in repositories, not in handlers/routes.
 5. If architecture ownership changes, update this file accordingly.
+
+## Live Trading Safety Guard
+
+The `live_trading_enabled` column on the `accounts` table is a hard safety gate
+that prevents live broker orders from being submitted accidentally.
+
+**Rules that all bots must follow without exception:**
+
+1. **Never set `live_trading_enabled = 1`** in any generated code, migration,
+   script, fixture, test factory, or seed data.  This flag must only be set
+   by a human operator via a direct DB update.
+
+2. **Never modify `broker_type`, `broker_host`, `broker_port`, or
+   `broker_client_id`** to point at a live broker endpoint in any generated
+   code or automated process.
+
+3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
+   `trading.brokers.factory`).  If this error surfaces, it must propagate so
+   the operator can investigate.
+
+4. **Test accounts must always have `live_trading_enabled = 0`** (the column
+   default).  Never override this in test fixtures or helper factories.
+
+Rationale: `live_trading_enabled = 1` causes real money to move through a
+live broker.  No automated process — including bots, CI pipelines, or scripts
+— should ever cross this line.

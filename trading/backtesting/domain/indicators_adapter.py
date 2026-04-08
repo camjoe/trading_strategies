@@ -1,79 +1,63 @@
-"""Adapter layer for indicator imports from trends module.
+"""Indicator calculations for backtesting strategies.
 
-This module centralizes the dependency on trends.indicators and provides
-clear error messaging if the module is unavailable.
+Owns the implementations of MACD and RS/RSI directly — no dependency on the
+trends package. Both functions are pure pandas math using shared constants from
+common.constants.
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+import math
 
 import pandas as pd
 
-
-def get_indicators_module() -> Any:
-    """Import and return the indicators module for backtesting strategies.
-
-    Raises:
-        RuntimeError: If trends.indicators module is not available.
-
-    Returns:
-        Module object with calculate_macd and calculate_rs_rsi functions.
-    """
-    try:
-        from trends import indicators
-        return indicators
-    except (ModuleNotFoundError, ImportError) as e:
-        raise RuntimeError(
-            "Backtesting strategies require trends.indicators module. "
-            "Ensure trends/ package is installed and importable, or provide custom indicator implementations."
-        ) from e
-
-
-def get_indicator_function(name: str) -> Callable:
-    """Get a specific indicator function by name.
-
-    Raises:
-        RuntimeError: If trends.indicators is not available.
-        AttributeError: If the function doesn't exist in indicators module.
-
-    Args:
-        name: Name of the indicator function (e.g., 'calculate_macd', 'calculate_rs_rsi')
-
-    Returns:
-        The indicator function from trends.indicators.
-    """
-    indicators = get_indicators_module()
-    if not hasattr(indicators, name):
-        raise AttributeError(
-            f"Indicator function '{name}' not found in trends.indicators. "
-            f"Available: calculate_macd, calculate_rs_rsi"
-        )
-    return getattr(indicators, name)
+from common.constants import (
+    MACD_FAST_SPAN,
+    MACD_SIGNAL_SPAN,
+    MACD_SLOW_SPAN,
+    RSI_DEFAULT_WINDOW,
+    RSI_SCALE,
+)
 
 
 def calculate_macd(history: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Calculate MACD indicators using trends module.
+    """Calculate MACD, signal line, and histogram.
 
     Args:
-        history: Historical price series
+        history: Historical close price series.
 
     Returns:
-        Tuple of (macd, signal, histogram) series
+        Tuple of (macd, signal, histogram) series.
     """
-    fn = get_indicator_function("calculate_macd")
-    return fn(history)
+    close = history.replace([math.inf, -math.inf], float("nan"))
+    ema_fast = close.ewm(span=MACD_FAST_SPAN, adjust=False).mean()
+    ema_slow = close.ewm(span=MACD_SLOW_SPAN, adjust=False).mean()
+    macd = ema_fast - ema_slow
+    signal = macd.ewm(span=MACD_SIGNAL_SPAN, adjust=False).mean()
+    histogram = macd - signal
+    return macd, signal, histogram
 
 
-def calculate_rs_rsi(history: pd.Series, window: int = 14) -> tuple[pd.Series, pd.Series]:
-    """Calculate RS and RSI indicators using trends module.
+def calculate_rs_rsi(history: pd.Series, window: int = RSI_DEFAULT_WINDOW) -> tuple[pd.Series, pd.Series]:
+    """Calculate Relative Strength and RSI.
 
     Args:
-        history: Historical price series
-        window: RSI window period
+        history: Historical close price series.
+        window: Lookback window for rolling averages (default: RSI_DEFAULT_WINDOW).
 
     Returns:
-        Tuple of (rs, rsi) series
+        Tuple of (rs, rsi) series.
     """
-    fn = get_indicator_function("calculate_rs_rsi")
-    return fn(history, window=window)
+    close = history.replace([math.inf, -math.inf], float("nan"))
+    delta = close.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(window=window).mean()
+    avg_loss = loss.rolling(window=window).mean()
+    rs = avg_gain / avg_loss
+    # Flat windows (avg_gain == avg_loss == 0) → treat as neutral momentum
+    flat = (avg_gain == 0) & (avg_loss == 0)
+    rs = rs.where(~flat, other=1.0)
+    rsi = RSI_SCALE - (RSI_SCALE / (1 + rs))
+    rsi = rsi.clip(lower=0.0, upper=float(RSI_SCALE))
+    return rs, rsi

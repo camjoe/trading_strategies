@@ -15,6 +15,28 @@ from common.constants import (
     RSI_OVERSOLD,
     TRADING_DAYS_PER_YEAR,
 )
+from trading.features.policy_feature_provider import (
+    POLICY_DEFENSIVE_TILT,
+    POLICY_MAX_DEFENSIVE_TILT,
+    POLICY_RISK_OFF_SELL_THRESHOLD,
+    POLICY_RISK_ON_BUY_THRESHOLD,
+    POLICY_RISK_ON_SCORE,
+)
+from trading.features.news_feature_provider import (
+    NEWS_BUY_SENTIMENT_THRESHOLD,
+    NEWS_HEADLINE_COUNT,
+    NEWS_MIN_HEADLINES_REQUIRED,
+    NEWS_SELL_SENTIMENT_THRESHOLD,
+    NEWS_SENTIMENT_SCORE,
+)
+from trading.features.social_feature_provider import (
+    SOCIAL_MENTION_COUNT,
+    SOCIAL_MIN_REDDIT_SENTIMENT,
+    SOCIAL_REDDIT_SENTIMENT,
+    SOCIAL_TREND_BUY_THRESHOLD,
+    SOCIAL_TREND_EXIT_THRESHOLD,
+    SOCIAL_TREND_SCORE,
+)
 
 StrategyParams = Mapping[str, Any]
 SignalFunction = Callable[[pd.Series, StrategyParams, pd.DataFrame | None], str]
@@ -31,9 +53,11 @@ class StrategySpec:
     aliases: tuple[str, ...] = ()
     description: str = ""
     required_features: tuple[str, ...] = ()
-    # Broad behavioral family: "trend", "mean_reversion", or "neutral".
+    # Broad behavioral family: "trend", "mean_reversion", "neutral", or "alternative".
     # Used by policy layers to set sell bias and other style-dependent behavior
     # without resorting to fragile string matching on strategy names.
+    # "alternative" = external-data-driven strategies (news, social, policy);
+    # see trading/features/ for the provider infrastructure.
     strategy_style: str = "neutral"
 
 
@@ -367,6 +391,151 @@ def _macro_proxy_regime_signal(
     return "hold"
 
 
+def _policy_regime_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Policy regime signal using ETF-derived macro/political environment indicators.
+
+    Buys when price momentum aligns with a risk-on macro environment (SPY
+    outperforming defensive ETFs).  Falls back to ``"hold"`` when features
+    from :class:`~trading.features.policy_feature_provider.PolicyFeatureProvider`
+    are unavailable.
+
+    Required features (from ``feature_history``):
+        policy_risk_on_score   — 0–1 composite risk-on score (higher = risk-on).
+        policy_defensive_tilt  — Positive when defensives outperform equities.
+    """
+    fast_window = int(params.get("fast_window", 20))
+    slow_window = int(params.get("slow_window", 50))
+    if len(history) < max(30, slow_window):
+        return "hold"
+
+    risk_on_score = _feature_value(feature_history, POLICY_RISK_ON_SCORE)
+    defensive_tilt = _feature_value(feature_history, POLICY_DEFENSIVE_TILT)
+    if risk_on_score is None or defensive_tilt is None:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
+
+    risk_on_threshold = float(params.get("risk_on_threshold", POLICY_RISK_ON_BUY_THRESHOLD))
+    risk_off_threshold = float(params.get("risk_off_threshold", POLICY_RISK_OFF_SELL_THRESHOLD))
+    max_defensive_tilt = float(params.get("max_defensive_tilt", POLICY_MAX_DEFENSIVE_TILT))
+
+    if (
+        close > sma_fast > sma_slow
+        and risk_on_score >= risk_on_threshold
+        and defensive_tilt <= max_defensive_tilt
+    ):
+        return "buy"
+    if close < sma_slow or risk_on_score < risk_off_threshold:
+        return "sell"
+    return "hold"
+
+
+def _news_sentiment_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """News sentiment signal using VADER-scored headlines.
+
+    Buys when price is in a short-term uptrend and recent news sentiment
+    is bullish.  Sells when sentiment turns negative and price is below
+    the short SMA.  Falls back to ``"hold"`` when features from
+    :class:`~trading.features.news_feature_provider.NewsFeatureProvider`
+    are unavailable or headline volume is too low.
+
+    Required features (from ``feature_history``):
+        news_sentiment_score  — Mean VADER compound score in [-1, 1].
+        news_headline_count   — Number of headlines scored.
+    """
+    fast_window = int(params.get("fast_window", 10))
+    slow_window = int(params.get("slow_window", 30))
+    if len(history) < max(10, slow_window):
+        return "hold"
+
+    sentiment = _feature_value(feature_history, NEWS_SENTIMENT_SCORE)
+    headline_count = _feature_value(feature_history, NEWS_HEADLINE_COUNT)
+    if sentiment is None or headline_count is None:
+        return "hold"
+
+    min_headlines = float(params.get("min_headlines", NEWS_MIN_HEADLINES_REQUIRED))
+    if headline_count < min_headlines:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
+
+    buy_sentiment = float(params.get("buy_sentiment", NEWS_BUY_SENTIMENT_THRESHOLD))
+    sell_sentiment = float(params.get("sell_sentiment", NEWS_SELL_SENTIMENT_THRESHOLD))
+
+    if close > sma_fast > sma_slow and sentiment >= buy_sentiment:
+        return "buy"
+    if close < sma_fast and sentiment <= sell_sentiment:
+        return "sell"
+    return "hold"
+
+
+def _social_trend_rotation_signal(
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Social trend rotation signal using Google Trends interest and Reddit mentions.
+
+    Buys when the ticker shows elevated social interest (Google Trends score)
+    alongside positive Reddit sentiment and an upward price trend.  Sells
+    when social interest is fading and price weakens.  Falls back to
+    ``"hold"`` when features from
+    :class:`~trading.features.social_feature_provider.SocialFeatureProvider`
+    are unavailable.
+
+    Required features (from ``feature_history``):
+        social_trend_score      — Google Trends interest, normalised [0, 1].
+        social_mention_count    — Reddit post count (float).
+        social_reddit_sentiment — Mean VADER score of Reddit titles [-1, 1].
+    """
+    fast_window = int(params.get("fast_window", 10))
+    slow_window = int(params.get("slow_window", 30))
+    if len(history) < max(10, slow_window):
+        return "hold"
+
+    trend_score = _feature_value(feature_history, SOCIAL_TREND_SCORE)
+    mention_count = _feature_value(feature_history, SOCIAL_MENTION_COUNT)
+    reddit_sentiment = _feature_value(feature_history, SOCIAL_REDDIT_SENTIMENT)
+    if trend_score is None or mention_count is None or reddit_sentiment is None:
+        return "hold"
+
+    close = float(history.iloc[-1])
+    sma_fast = float(history.tail(fast_window).mean())
+    sma_slow = float(history.tail(slow_window).mean())
+    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+        return "hold"
+
+    trend_threshold = float(params.get("trend_threshold", SOCIAL_TREND_BUY_THRESHOLD))
+    trend_exit = float(params.get("trend_exit", SOCIAL_TREND_EXIT_THRESHOLD))
+    min_reddit_sentiment = float(params.get("min_reddit_sentiment", SOCIAL_MIN_REDDIT_SENTIMENT))
+
+    if (
+        close > sma_fast > sma_slow
+        and trend_score >= trend_threshold
+        and reddit_sentiment >= min_reddit_sentiment
+    ):
+        return "buy"
+    if close < sma_slow or trend_score < trend_exit:
+        return "sell"
+    return "hold"
+
+
 STRATEGY_REGISTRY: dict[str, StrategySpec] = {
     "trend": StrategySpec(
         strategy_id="trend",
@@ -475,6 +644,63 @@ STRATEGY_REGISTRY: dict[str, StrategySpec] = {
         required_features=("macro_risk_on_score", "macro_vix_pressure", "macro_equity_bond_spread"),
         strategy_style="neutral",
     ),
+    "policy_regime": StrategySpec(
+        strategy_id="policy_regime",
+        signal_fn=_policy_regime_signal,
+        default_params={
+            "fast_window": 20,
+            "slow_window": 50,
+            "risk_on_threshold": POLICY_RISK_ON_BUY_THRESHOLD,
+            "risk_off_threshold": POLICY_RISK_OFF_SELL_THRESHOLD,
+            "max_defensive_tilt": POLICY_MAX_DEFENSIVE_TILT,
+        },
+        aliases=("policy_external", "policy_etf", "political_regime"),
+        description=(
+            "Buy when price momentum and ETF-derived macro regime both signal risk-on. "
+            "Uses TLT/GLD/XLU/UUP vs SPY trailing returns as a policy environment proxy. "
+            "Requires PolicyFeatureProvider features: policy_risk_on_score, policy_defensive_tilt."
+        ),
+        required_features=(POLICY_RISK_ON_SCORE, POLICY_DEFENSIVE_TILT),
+        strategy_style="alternative",
+    ),
+    "news_sentiment": StrategySpec(
+        strategy_id="news_sentiment",
+        signal_fn=_news_sentiment_signal,
+        default_params={
+            "fast_window": 10,
+            "slow_window": 30,
+            "buy_sentiment": NEWS_BUY_SENTIMENT_THRESHOLD,
+            "sell_sentiment": NEWS_SELL_SENTIMENT_THRESHOLD,
+            "min_headlines": NEWS_MIN_HEADLINES_REQUIRED,
+        },
+        aliases=("news", "news_sentiment_strategy", "sentiment"),
+        description=(
+            "Buy when short-term price trend is up and VADER-scored news sentiment is bullish. "
+            "Requires NewsFeatureProvider features: news_sentiment_score, news_headline_count."
+        ),
+        required_features=(NEWS_SENTIMENT_SCORE, NEWS_HEADLINE_COUNT),
+        strategy_style="alternative",
+    ),
+    "social_trend_rotation": StrategySpec(
+        strategy_id="social_trend_rotation",
+        signal_fn=_social_trend_rotation_signal,
+        default_params={
+            "fast_window": 10,
+            "slow_window": 30,
+            "trend_threshold": SOCIAL_TREND_BUY_THRESHOLD,
+            "trend_exit": SOCIAL_TREND_EXIT_THRESHOLD,
+            "min_reddit_sentiment": SOCIAL_MIN_REDDIT_SENTIMENT,
+        },
+        aliases=("social", "social_trend", "reddit_trend"),
+        description=(
+            "Buy when Google Trends interest is elevated, Reddit sentiment is neutral-to-positive, "
+            "and price is in a short-term uptrend. "
+            "Requires SocialFeatureProvider features: social_trend_score, social_mention_count, "
+            "social_reddit_sentiment."
+        ),
+        required_features=(SOCIAL_TREND_SCORE, SOCIAL_MENTION_COUNT, SOCIAL_REDDIT_SENTIMENT),
+        strategy_style="alternative",
+    ),
 }
 
 
@@ -493,8 +719,14 @@ def _resolve_by_keyword(name: str) -> StrategySpec:
         return STRATEGY_REGISTRY["volatility_filtered_trend"]
     if "topic" in name or ("sector" in name and "rotation" in name) or "theme" in name:
         return STRATEGY_REGISTRY["topic_proxy_rotation"]
+    if "policy_regime" in name or "political" in name or "policy_etf" in name:
+        return STRATEGY_REGISTRY["policy_regime"]
     if "macro" in name or "policy" in name:
         return STRATEGY_REGISTRY["macro_proxy_regime"]
+    if "news" in name or "sentiment" in name:
+        return STRATEGY_REGISTRY["news_sentiment"]
+    if "social" in name or "reddit" in name:
+        return STRATEGY_REGISTRY["social_trend_rotation"]
     if "cross" in name and ("ma" in name or "moving_average" in name):
         return STRATEGY_REGISTRY["ma_crossover"]
     if "rsi" in name:
