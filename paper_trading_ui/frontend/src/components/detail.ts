@@ -82,7 +82,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <td>${tradeTypeBadge(t.note)}</td>
         <td>${t.qty.toFixed(2)}</td>
         <td>${currency.format(t.price)}</td>
-        <td>${currency.format(t.fee)}</td>
+        <td>${currency.format(t.qty * t.price)}</td>
       </tr>
     `;
     })
@@ -294,10 +294,16 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       </div>
     </div>` : ""}
 
-    ${showBacktest ? `<article>
-      <h4>Latest Backtest</h4>
-      ${latestBacktest}
-    </article>` : ""}
+    <article>
+      <div id="analysisPanel">
+        <h4>Performance Analysis</h4>
+        <div class="empty">Loading analysis…</div>
+      </div>
+      ${showBacktest ? `<div class="latest-backtest-section">
+        <h4>Latest Backtest</h4>
+        ${latestBacktest}
+      </div>` : ""}
+    </article>
 
     <div class="detail-grid">
       <div>
@@ -343,16 +349,11 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
         </div>
         <table class="recent-trades-table">
-          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Fee</th></tr></thead>
+          <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
           <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
         </table>
       </article>
     </div>
-
-    <article id="analysisPanel">
-      <h4>Performance Analysis</h4>
-      <div class="empty">Loading analysis…</div>
-    </article>
   `;
 }
 

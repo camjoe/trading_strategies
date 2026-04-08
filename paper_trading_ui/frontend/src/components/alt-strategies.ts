@@ -85,7 +85,7 @@ export function renderProviderCards(providers: ProviderStatus[]): string {
     return `<div class="empty">No providers available.</div>`;
   }
   const note = `<p class="muted provider-health-note">Provider health is checked automatically using SPY as a reference ticker. Enter a ticker below to get strategy signals for a specific stock.</p>`;
-  return note + providers.map(renderProviderCard).join("");
+  return note + `<div class="alt-providers-cards">${providers.map(renderProviderCard).join("")}</div>`;
 }
 
 // ---------------------------------------------------------------------------
