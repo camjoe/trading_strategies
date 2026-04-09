@@ -289,13 +289,12 @@ def main() -> int:
         print(f"Invalid trade caps config: {exc}", file=sys.stderr)
         return 1
 
-    if excluded_accounts and args.accounts.strip().lower() == "all":
+    if excluded_accounts:
         excluded_set = set(excluded_accounts)
         removed = [a for a in accounts if a in excluded_set]
         accounts = [a for a in accounts if a not in excluded_set]
         if removed:
             _startup_log(f"EXCLUDED accounts: {', '.join(removed)}", logs_dir)
-
 
     try:
         account_trade_cap_overrides = parse_account_trade_caps(args.account_trade_caps)

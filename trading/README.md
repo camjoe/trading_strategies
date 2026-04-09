@@ -29,12 +29,12 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 All commands accept `--help` for the full flag reference.
 
 ```sh
-python -m trading.paper_trading init
-python -m trading.paper_trading create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
-python -m trading.paper_trading report --account momentum_5k
-python -m trading.paper_trading snapshot --account momentum_5k
-python -m trading.paper_trading compare-strategies --lookback 10
-python -m trading.auto_trader --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.cli.main init
+python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
+python -m trading.interfaces.cli.main report --account momentum_5k
+python -m trading.interfaces.cli.main snapshot --account momentum_5k
+python -m trading.interfaces.cli.main compare-strategies --lookback 10
+python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k
 ```
 
 Backup and export:
@@ -63,14 +63,26 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 - `daily_snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
 - `weekly_db_backup.py`: scheduled weekly backup execution.
 - `register_weekly_backup.py`: schedule registration helper for weekly backups.
-- `../interfaces/runtime/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler.
+- `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts, a `default` fallback, and an `excluded` list of account names that are automatically skipped when running with `--accounts all`.
 
 ## Auto-Trading
 
-Trade universe: `trading/config/trade_universe.txt`. Use `python -m trading.auto_trader --help` for all options.
+Trade universe files live under `trading/config/`. The default is `trade_universe.txt`. Two additional presets are provided:
+
+| File | Description |
+|------|-------------|
+| `trading/config/trade_universe.txt` | Default universe (general-purpose) |
+| `trading/config/trade_universe_test_account.txt` | Smaller universe for test accounts (~21 tickers) |
+| `trading/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
+
+Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.daily_auto_trader --help` for all options.
 
 ```sh
-python -m trading.auto_trader --accounts momentum_5k,meanrev_5k
+# Default universe
+python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k
+
+# S&P 500 broad universe
+python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
 ```
 
 ## Scheduler Operations
@@ -129,7 +141,7 @@ CLI defaults use `trading/config/account_profiles/default.json`.
 
 ## Boundary Snapshot
 
-- Public-facing top-level modules (`trading/accounts.py`, `trading/accounting.py`, `trading/pricing.py`, `trading/profiles.py`, `trading/reporting.py`, `trading/auto_trader.py`) act as facades.
+- The CLI entry point is `trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `trading/interfaces/runtime/jobs/daily_auto_trader.py` (`python -m trading.interfaces.runtime.jobs.daily_auto_trader`). There are no top-level facade modules in `trading/`.
 - SQL access is owned by repository modules under `trading/repositories/`.
 - Orchestration and composition are owned by service modules under `trading/services/`.
 - Policy logic is owned by domain modules under `trading/domain/`.

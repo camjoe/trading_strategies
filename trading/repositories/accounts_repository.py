@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.database.db_backend import DuplicateRecordError, get_backend
-
-__all__ = ["DuplicateRecordError"]
+from trading.database.db_backend import get_backend
 
 def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()

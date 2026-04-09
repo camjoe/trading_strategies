@@ -9,7 +9,8 @@ from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from paper_trading_ui.backend.routes import admin as admin_routes
 from paper_trading_ui.backend.routes import backtests as backtests_routes
 from paper_trading_ui.backend.routes import logs as logs_routes
-from trading.services.accounts_service import create_account, AccountAlreadyExistsError
+from trading.services.accounts_service import create_account
+from trading.domain import AccountAlreadyExistsError
 from trading.database import db
 from trading.models import AccountConfig
 

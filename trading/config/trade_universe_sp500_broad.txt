@@ -1,4 +1,4 @@
-# S&P 500 broad universe — ~50 stocks, top names across 11 GICS sectors
+# S&P 500 broad universe — ~40 stocks, top names across 11 GICS sectors
 # Information Technology
 AAPL
 MSFT

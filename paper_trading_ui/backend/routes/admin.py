@@ -2,7 +2,8 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.services.accounts_service import create_account, AccountAlreadyExistsError
+from trading.services.accounts_service import create_account
+from trading.domain import AccountAlreadyExistsError
 from trading.models import AccountConfig, RotationConfig
 
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest

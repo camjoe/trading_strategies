@@ -162,7 +162,7 @@ def _print_daily(s: dict) -> bool:
         print(f"  Last success : {s['last_success']}  ({ago})")
         print(f"  Log          : {log_name}")
     else:
-        print(f"  Last success : never found in logs")
+        print("  Last success : never found in logs")
 
     healthy = s["today_complete"]
     if not healthy:
@@ -173,7 +173,6 @@ def _print_daily(s: dict) -> bool:
 
 def _print_weekly(s: dict) -> bool:
     """Print weekly status. Returns True if healthy."""
-    today = dt.date.today()
     print(f"\n{'─' * 50}")
     print(f"  {s['job']}  ({s['week_tag']})")
     print(f"{'─' * 50}")
@@ -193,7 +192,7 @@ def _print_weekly(s: dict) -> bool:
         print(f"  Last success : {s['last_success']}  ({ago})")
         print(f"  Log          : {log_name}")
     else:
-        print(f"  Last success : never found in logs")
+        print("  Last success : never found in logs")
 
     healthy = s["this_week_complete"]
     if not healthy:
@@ -208,7 +207,11 @@ def _print_weekly(s: dict) -> bool:
 
 def _trigger(run_cmd: list[str], label: str) -> None:
     print(f"\n  ▶  Triggering {label}…")
-    result = subprocess.run(run_cmd, cwd=str(REPO_ROOT))
+    try:
+        result = subprocess.run(run_cmd, cwd=str(REPO_ROOT), timeout=300)
+    except subprocess.TimeoutExpired:
+        print(f"  {_ERR}  {label} timed out after 300 seconds.")
+        return
     if result.returncode == 0:
         print(f"  {_OK}  {label} completed successfully.")
     else:
