@@ -11,15 +11,6 @@ provider blocks below can be deleted entirely.
 from trading.services.accounts_service import get_account
 from trading.domain.rotation import resolve_active_strategy
 from trading.domain.returns import safe_return_pct
-from trading.utils.coercion import (
-    coerce_float,
-    row_expect_float,
-    row_expect_int,
-    row_expect_str,
-    row_float,
-    row_str,
-)
-
 # Feature provider constants consumed by backtesting/domain/strategy_signals.py.
 from trading.features.policy_feature_provider import (
     POLICY_DEFENSIVE_TILT,
@@ -50,13 +41,6 @@ __all__ = [
     # domain
     "resolve_active_strategy",
     "safe_return_pct",
-    # coercion
-    "coerce_float",
-    "row_expect_float",
-    "row_expect_int",
-    "row_expect_str",
-    "row_float",
-    "row_str",
     # policy feature constants
     "POLICY_DEFENSIVE_TILT",
     "POLICY_MAX_DEFENSIVE_TILT",

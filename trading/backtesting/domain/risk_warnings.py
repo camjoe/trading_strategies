@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.backtesting.trading_bridge import row_str
+from common.coercion import row_str
 
 
 def build_backtest_warnings(account, *, allow_approximate_leaps: bool) -> list[str]:

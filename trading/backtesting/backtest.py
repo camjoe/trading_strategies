@@ -6,12 +6,14 @@ from typing import Callable, cast
 
 from common.market_data import get_feature_provider
 
-from trading.backtesting.trading_bridge import (
-    get_account,
-    resolve_active_strategy,
+from common.coercion import (
     row_expect_float,
     row_expect_int,
     row_expect_str,
+)
+from trading.backtesting.trading_bridge import (
+    get_account,
+    resolve_active_strategy,
 )
 from trading.backtesting.models import (
     BacktestBatchConfig,
