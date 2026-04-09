@@ -57,9 +57,10 @@ class TestParseAccountTradeCaps:
 
 class TestLoadTradeCapsConfig:
     def test_missing_file_returns_none_and_empty(self, tmp_path: Path) -> None:
-        default_caps, account_caps = _load().load_trade_caps_config(tmp_path / "missing.json")
+        default_caps, account_caps, excluded = _load().load_trade_caps_config(tmp_path / "missing.json")
         assert default_caps is None
         assert account_caps == {}
+        assert excluded == []
 
     def test_valid_config_with_default_and_accounts(self, tmp_path: Path) -> None:
         config = {
@@ -71,15 +72,27 @@ class TestLoadTradeCapsConfig:
         path = tmp_path / "caps.json"
         path.write_text(json.dumps(config), encoding="utf-8")
 
-        default_caps, account_caps = _load().load_trade_caps_config(path)
+        default_caps, account_caps, excluded = _load().load_trade_caps_config(path)
         assert default_caps == (1, 5)
         assert account_caps == {"special_acct": (2, 8)}
+        assert excluded == []
 
     def test_config_without_default_returns_none(self, tmp_path: Path) -> None:
         path = tmp_path / "caps.json"
         path.write_text(json.dumps({"accounts": {}}), encoding="utf-8")
-        default_caps, _ = _load().load_trade_caps_config(path)
+        default_caps, _, _excluded = _load().load_trade_caps_config(path)
         assert default_caps is None
+
+    def test_excluded_accounts_are_returned(self, tmp_path: Path) -> None:
+        config = {
+            "excluded": ["test_account_bt", "sandbox"],
+            "default": {"min": 1, "max": 5},
+            "accounts": {},
+        }
+        path = tmp_path / "caps.json"
+        path.write_text(json.dumps(config), encoding="utf-8")
+        _, _, excluded = _load().load_trade_caps_config(path)
+        assert excluded == ["test_account_bt", "sandbox"]
 
     def test_non_dict_root_raises(self, tmp_path: Path) -> None:
         path = tmp_path / "caps.json"

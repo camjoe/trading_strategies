@@ -62,6 +62,8 @@ def compute_market_value_and_unrealized(
 
 
 def strategy_return_pct(equity: float, initial_cash: float) -> float:
+    if not initial_cash:
+        raise ValueError(f"Cannot compute return %: initial_cash is 0 (equity={equity:.2f})")
     return ((equity / initial_cash) - 1.0) * 100.0
 
 
@@ -345,6 +347,8 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     for account in accounts:
         state, _prices, _market_value, _unrealized, equity = build_account_stats(conn, account)
         initial_cash = row_expect_float(account, "initial_cash")
+        if not initial_cash:
+            continue
         benchmark_ticker = row_expect_str(account, "benchmark_ticker")
         created_at = row_expect_str(account, "created_at")
         account_id = row_expect_int(account, "id")
