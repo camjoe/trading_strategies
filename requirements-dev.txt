@@ -5,6 +5,7 @@ httpx>=0.23.0,<1.0.0
 pytest==8.3.5
 pytest-cov==6.0.0
 pytest-mock==3.14.0
+pytest-xdist>=3.0.0
 hypothesis==6.131.26
 
 # Dev tooling
