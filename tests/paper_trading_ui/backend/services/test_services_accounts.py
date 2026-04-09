@@ -11,6 +11,7 @@ from paper_trading_ui.backend.config import (
     TEST_ACCOUNT_STRATEGY,
     TEST_BACKTEST_ACCOUNT_NAME,
 )
+from trading.models.account_state import AccountState
 
 
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
@@ -156,3 +157,161 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "maxDrawdownPct": -4.2,
         "alphaPct": None,
     }
+
+
+# ---------------------------------------------------------------------------
+# _build_positions_from_stats
+# ---------------------------------------------------------------------------
+
+def _make_state(
+    positions: dict[str, float],
+    avg_cost: dict[str, float],
+    *,
+    cash: float = 0.0,
+    realized_pnl: float = 0.0,
+    total_deposited: float = 0.0,
+) -> AccountState:
+    return AccountState(
+        cash=cash,
+        positions=positions,
+        avg_cost=avg_cost,
+        realized_pnl=realized_pnl,
+        total_deposited=total_deposited,
+    )
+
+
+class TestBuildPositionsFromStats:
+    def test_missing_price_skips_position(self) -> None:
+        """Regression: price unavailable must skip, not produce a negative PnL."""
+        state = _make_state({"AAPL": 5.0}, {"AAPL": 100.0})
+        positions = services_accounts._build_positions_from_stats(state, {})
+        assert positions == []
+
+    def test_partial_prices_skips_only_missing(self) -> None:
+        state = _make_state({"AAPL": 2.0, "MSFT": 3.0}, {"AAPL": 100.0, "MSFT": 200.0})
+        positions = services_accounts._build_positions_from_stats(state, {"AAPL": 110.0})
+        tickers = [p["ticker"] for p in positions]
+        assert tickers == ["AAPL"]
+        assert "MSFT" not in tickers
+
+    def test_unrealized_pnl_formula(self) -> None:
+        """unrealizedPnl = (marketPrice - avgCost) * qty."""
+        state = _make_state({"AAPL": 4.0}, {"AAPL": 100.0})
+        positions = services_accounts._build_positions_from_stats(state, {"AAPL": 110.0})
+        assert len(positions) == 1
+        pos = positions[0]
+        assert pos["unrealizedPnl"] == pytest.approx((110.0 - 100.0) * 4.0)
+        assert pos["marketValue"] == pytest.approx(110.0 * 4.0)
+        assert pos["avgCost"] == pytest.approx(100.0)
+
+    def test_settlement_ticker_excluded(self) -> None:
+        from common.constants import SETTLEMENT_TICKER
+        state = _make_state(
+            {"AAPL": 2.0, SETTLEMENT_TICKER: 500.0},
+            {"AAPL": 100.0},
+        )
+        positions = services_accounts._build_positions_from_stats(
+            state, {"AAPL": 105.0, SETTLEMENT_TICKER: 1.0}
+        )
+        tickers = [p["ticker"] for p in positions]
+        assert SETTLEMENT_TICKER not in tickers
+        assert "AAPL" in tickers
+
+    def test_zero_qty_excluded(self) -> None:
+        state = _make_state({"AAPL": 0.0, "MSFT": 2.0}, {"MSFT": 50.0})
+        positions = services_accounts._build_positions_from_stats(
+            state, {"AAPL": 100.0, "MSFT": 60.0}
+        )
+        assert len(positions) == 1
+        assert positions[0]["ticker"] == "MSFT"
+
+    def test_negative_unrealized_pnl_when_price_falls(self) -> None:
+        state = _make_state({"AAPL": 3.0}, {"AAPL": 100.0})
+        positions = services_accounts._build_positions_from_stats(state, {"AAPL": 90.0})
+        assert positions[0]["unrealizedPnl"] == pytest.approx((90.0 - 100.0) * 3.0)
+
+
+# ---------------------------------------------------------------------------
+# build_account_summary — key fields present
+# ---------------------------------------------------------------------------
+
+class TestBuildAccountSummaryShape:
+    def test_required_keys_present(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            services_accounts,
+            "build_account_stats",
+            lambda _conn, _row: (None, None, None, None, 1200.0),
+        )
+        monkeypatch.setattr(
+            services_accounts,
+            "fetch_latest_snapshot_row",
+            lambda _conn, _account_id: None,
+        )
+        row = {
+            "id": 1,
+            "name": "acct_shape",
+            "descriptive_name": "Shape Account",
+            "strategy": "trend",
+            "instrument_mode": "equity",
+            "risk_policy": "none",
+            "benchmark_ticker": "SPY",
+            "initial_cash": 1000.0,
+            "stop_loss_pct": None,
+            "take_profit_pct": None,
+            "goal_min_return_pct": None,
+            "goal_max_return_pct": None,
+            "goal_period": None,
+            "learning_enabled": None,
+            "option_strike_offset_pct": None,
+            "option_min_dte": None,
+            "option_max_dte": None,
+            "option_type": None,
+            "target_delta_min": None,
+            "target_delta_max": None,
+            "max_premium_per_trade": None,
+            "max_contracts_per_trade": None,
+            "iv_rank_min": None,
+            "iv_rank_max": None,
+            "roll_dte_threshold": None,
+            "profit_take_pct": None,
+            "max_loss_pct": None,
+        }
+        summary = services_accounts.build_account_summary(conn=None, row=row)
+        for key in ("name", "equity", "initialCash", "totalChange",
+                    "totalChangePct", "changeSinceLastSnapshot", "strategy"):
+            assert key in summary, f"Missing key: {key}"
+
+    def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
+        """zero initial_cash + no snapshot → delta_pct = 0.0 (no crash)."""
+        monkeypatch.setattr(
+            services_accounts,
+            "build_account_stats",
+            lambda _conn, _row: (None, None, None, None, 1100.0),
+        )
+        monkeypatch.setattr(
+            services_accounts,
+            "fetch_latest_snapshot_row",
+            lambda _conn, _account_id: None,
+        )
+        row = {
+            "id": 2,
+            "name": "deposit_acct",
+            "descriptive_name": "Deposit",
+            "strategy": "trend",
+            "instrument_mode": "equity",
+            "risk_policy": "none",
+            "benchmark_ticker": "SPY",
+            "initial_cash": 0.0,
+            "stop_loss_pct": None, "take_profit_pct": None,
+            "goal_min_return_pct": None, "goal_max_return_pct": None,
+            "goal_period": None, "learning_enabled": None,
+            "option_strike_offset_pct": None, "option_min_dte": None,
+            "option_max_dte": None, "option_type": None,
+            "target_delta_min": None, "target_delta_max": None,
+            "max_premium_per_trade": None, "max_contracts_per_trade": None,
+            "iv_rank_min": None, "iv_rank_max": None,
+            "roll_dte_threshold": None, "profit_take_pct": None,
+            "max_loss_pct": None,
+        }
+        summary = services_accounts.build_account_summary(conn=None, row=row)
+        assert summary["totalChangePct"] == pytest.approx(0.0)

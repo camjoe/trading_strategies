@@ -210,6 +210,10 @@ def fetch_account_analysis(
         account_return, bench_return, alpha, position_analysis, state.realized_pnl
     )
 
+    winners = ranked[:TOP_POSITIONS_COUNT]
+    winner_tickers = {str(p["ticker"]) for p in winners}
+    losers = list(reversed([p for p in ranked if str(p["ticker"]) not in winner_tickers][-TOP_POSITIONS_COUNT:]))
+
     return {
         "accountReturnPct": account_return,
         "benchmarkReturnPct": bench_return,
@@ -217,7 +221,7 @@ def fetch_account_analysis(
         "realizedPnl": state.realized_pnl,
         "unrealizedPnl": unrealized,
         "equity": equity,
-        "topWinners": ranked[:TOP_POSITIONS_COUNT],
-        "topLosers": list(reversed(ranked[-TOP_POSITIONS_COUNT:])),
+        "topWinners": winners,
+        "topLosers": losers,
         "improvementNotes": improvement_notes,
     }

@@ -179,7 +179,9 @@ def _build_positions_from_stats(
         if qty <= 0 or ticker == _SETTLEMENT_TICKER:
             continue
         avg_cost = state.avg_cost.get(ticker, 0.0)
-        market_price = prices.get(ticker, 0.0)
+        market_price = prices.get(ticker)
+        if market_price is None:
+            continue
         market_value = qty * market_price
         unrealized_pnl = (market_price - avg_cost) * qty
         result.append({
