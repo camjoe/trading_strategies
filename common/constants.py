@@ -1,6 +1,14 @@
 """Financial and technical indicator constants shared across modules."""
 
 # ---------------------------------------------------------------------------
+# Settlement
+# ---------------------------------------------------------------------------
+
+# Ticker symbol used to represent cash in the ledger; buy trades on this ticker
+# are treated as cash inflows (no equity position is created).
+SETTLEMENT_TICKER = "CASH"
+
+# ---------------------------------------------------------------------------
 # Time and annualization
 # ---------------------------------------------------------------------------
 

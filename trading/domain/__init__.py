@@ -1,4 +1,5 @@
 from trading.domain.accounting import compute_account_state
+from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.auto_trader_policy import (
     apply_leaps_buy_qty_limits,
     build_trade_note,
@@ -26,6 +27,7 @@ from trading.domain.rotation import (
 )
 
 __all__ = [
+    "AccountAlreadyExistsError",
     "compute_account_state",
     "apply_leaps_buy_qty_limits",
     "build_trade_note",

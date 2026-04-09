@@ -4,6 +4,7 @@ import sqlite3
 from typing import Callable
 
 from common.time import utc_now_iso
+from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.utils.coercion import (
     coerce_float,
     coerce_str,
@@ -15,7 +16,6 @@ from trading.utils.coercion import (
 )
 from trading.models.account_config import AccountConfig
 from trading.repositories.accounts_repository import (
-    DuplicateRecordError,
     fetch_account_by_name as _repo_fetch_account_by_name,
     fetch_account_listing_rows,
     fetch_account_rows_excluding_name,
@@ -376,7 +376,7 @@ def create_account(
             max_loss_pct=cfg.max_loss_pct,
         )
     except sqlite3.IntegrityError as exc:
-        raise DuplicateRecordError(f"Account '{name}' already exists.") from exc
+        raise AccountAlreadyExistsError(f"Account '{name}' already exists.") from exc
 
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:

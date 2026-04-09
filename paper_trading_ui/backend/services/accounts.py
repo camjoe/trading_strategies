@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
+from common.coercion import row_float, row_int
 from trading.models.account_config import AccountConfig
-from trading.utils.coercion import row_float, row_int
 from trading.backtesting.services.report_service import (
     fetch_backtest_report_summary,
     fetch_latest_backtest_run_for_account,
@@ -40,7 +41,6 @@ from trading.services.accounts_service import (
     update_account_fields_by_id,
 )
 from trading.services.reporting_service import get_account_stats as build_account_stats
-from trading.domain.accounting import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
 from .db import fetch_latest_snapshot_row

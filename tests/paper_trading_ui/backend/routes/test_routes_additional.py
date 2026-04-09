@@ -9,9 +9,8 @@ from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from paper_trading_ui.backend.routes import admin as admin_routes
 from paper_trading_ui.backend.routes import backtests as backtests_routes
 from paper_trading_ui.backend.routes import logs as logs_routes
-from trading.services.accounts_service import create_account
+from trading.services.accounts_service import create_account, AccountAlreadyExistsError
 from trading.database import db
-from trading.database.db_backend import DuplicateRecordError
 from trading.models import AccountConfig
 
 
@@ -162,7 +161,7 @@ class TestAdminRoutes:
 
     def test_admin_create_account_handles_duplicate_record(self, monkeypatch, api_client: TestClient) -> None:
         def _raise_duplicate(*_args, **_kwargs):
-            raise DuplicateRecordError("already exists")
+            raise AccountAlreadyExistsError("already exists")
 
         monkeypatch.setattr(admin_routes, "create_account", _raise_duplicate)
 
