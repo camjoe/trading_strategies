@@ -1037,6 +1037,7 @@ h4 {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.5rem;
 }
 
 .detail-grid > div {
@@ -1273,6 +1274,10 @@ td {
     right: 0;
     width: min(82vw, 320px);
   }
+}
+
+.latest-backtest-section {
+  margin-top: 1.5rem;
 }
 
 .bt-result {
