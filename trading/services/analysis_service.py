@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.domain.accounting import compute_account_state, SETTLEMENT_TICKER as _SETTLEMENT_TICKER
+from common.coercion import row_expect_float, row_expect_str
+from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
+from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
 from trading.services.accounting_service import load_trades
 from trading.services.reporting_service import (
@@ -163,20 +165,22 @@ def _generate_improvement_notes(
 
 def fetch_account_analysis(
     conn: sqlite3.Connection,
-    account_id: int,
-    initial_cash: float,
-    benchmark_ticker: str,
-    created_at: str,
+    account_row: sqlite3.Row,
 ) -> dict[str, object]:
     """Return a full performance analysis dict for an account.
 
     Loads trades, computes state and live prices, benchmarks against
-    ``benchmark_ticker``, and generates improvement notes.
+    the account's ``benchmark_ticker``, and generates improvement notes.
 
     When ``initial_cash`` is ``0`` (deposit-model accounts), the return
     percentage denominator falls back to ``state.total_deposited`` — the
     cumulative cash injected via settlement-ticker (``CASH``) buy trades.
     """
+    account_id = int(account_row["id"])
+    initial_cash = row_expect_float(account_row, "initial_cash")
+    benchmark_ticker = row_expect_str(account_row, "benchmark_ticker")
+    created_at = row_expect_str(account_row, "created_at")
+
     trades = load_trades(conn, account_id)
     state = compute_account_state(initial_cash, trades)
     tickers = sorted(state.positions.keys())
@@ -206,6 +210,10 @@ def fetch_account_analysis(
         account_return, bench_return, alpha, position_analysis, state.realized_pnl
     )
 
+    winners = ranked[:TOP_POSITIONS_COUNT]
+    winner_tickers = {str(p["ticker"]) for p in winners}
+    losers = list(reversed([p for p in ranked if str(p["ticker"]) not in winner_tickers][-TOP_POSITIONS_COUNT:]))
+
     return {
         "accountReturnPct": account_return,
         "benchmarkReturnPct": bench_return,
@@ -213,7 +221,7 @@ def fetch_account_analysis(
         "realizedPnl": state.realized_pnl,
         "unrealizedPnl": unrealized,
         "equity": equity,
-        "topWinners": ranked[:TOP_POSITIONS_COUNT],
-        "topLosers": list(reversed(ranked[-TOP_POSITIONS_COUNT:])),
+        "topWinners": winners,
+        "topLosers": losers,
         "improvementNotes": improvement_notes,
     }

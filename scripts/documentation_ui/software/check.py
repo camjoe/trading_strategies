@@ -29,8 +29,8 @@ def run_software_reference_check(
     }
 
     requirements_packages = parse_requirements(
-        repo_root / "requirements/base.txt",
-        repo_root / "requirements/dev.txt",
+        repo_root / "requirements-base.txt",
+        repo_root / "requirements-dev.txt",
     )
 
     registry_names = set(registry_by_name)

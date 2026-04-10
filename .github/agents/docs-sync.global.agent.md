@@ -84,7 +84,7 @@ Use these signals to identify stale documentation:
 - **Return type or schema changed** → API docs and any "Response" sections need updating.
 - **New configuration option** → README "Configuration" section needs updating.
 - **Layer boundary changed** → architecture docs and `.github/BOT_ARCHITECTURE_CONVENTIONS.md` may need updating.
-- **New dependency added** → `requirements.txt` notes or setup sections may need updating.
+- **New dependency added** → `requirements-base.txt` or `requirements-dev.txt` notes or setup sections may need updating.
 
 ## Constraints
 

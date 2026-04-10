@@ -113,13 +113,17 @@ def _validate_trade_cap_range(name: str, min_trades: int, max_trades: int) -> tu
     return min_trades, max_trades
 
 
-def load_trade_caps_config(config_path: Path) -> tuple[tuple[int, int] | None, dict[str, tuple[int, int]]]:
+def load_trade_caps_config(config_path: Path) -> tuple[tuple[int, int] | None, dict[str, tuple[int, int]], list[str]]:
     if not config_path.exists():
-        return None, {}
+        return None, {}, []
 
     raw = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("Trade caps config must be a JSON object")
+
+    excluded: list[str] = raw.get("excluded", [])
+    if not isinstance(excluded, list):
+        raise ValueError("Trade caps config 'excluded' must be a list of account names")
 
     default_caps: tuple[int, int] | None = None
     raw_default = raw.get("default")
@@ -146,7 +150,7 @@ def load_trade_caps_config(config_path: Path) -> tuple[tuple[int, int] | None, d
             int(caps["max"]),
         )
 
-    return default_caps, account_caps
+    return default_caps, account_caps, excluded
 
 
 def resolve_trade_caps(
@@ -280,10 +284,17 @@ def main() -> int:
         caps_config_path = repo_root / caps_config_path
 
     try:
-        configured_default_caps, configured_account_caps = load_trade_caps_config(caps_config_path)
+        configured_default_caps, configured_account_caps, excluded_accounts = load_trade_caps_config(caps_config_path)
     except ValueError as exc:
         print(f"Invalid trade caps config: {exc}", file=sys.stderr)
         return 1
+
+    if excluded_accounts:
+        excluded_set = set(excluded_accounts)
+        removed = [a for a in accounts if a in excluded_set]
+        accounts = [a for a in accounts if a not in excluded_set]
+        if removed:
+            _startup_log(f"EXCLUDED accounts: {', '.join(removed)}", logs_dir)
 
     try:
         account_trade_cap_overrides = parse_account_trade_caps(args.account_trade_caps)

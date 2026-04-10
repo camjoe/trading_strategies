@@ -1,0 +1,52 @@
+# S&P 500 broad universe — ~40 stocks, top names across 11 GICS sectors
+# Information Technology
+AAPL
+MSFT
+NVDA
+AVGO
+ORCL
+CRM
+ADBE
+# Communication Services
+GOOGL
+META
+NFLX
+# Consumer Discretionary
+AMZN
+TSLA
+HD
+MCD
+# Consumer Staples
+WMT
+PG
+KO
+COST
+# Energy
+XOM
+CVX
+# Financials
+JPM
+BAC
+GS
+V
+MA
+# Health Care
+UNH
+JNJ
+LLY
+ABBV
+MRK
+# Industrials
+CAT
+HON
+RTX
+UNP
+# Materials
+LIN
+APD
+# Real Estate
+PLD
+AMT
+# Utilities
+NEE
+SO

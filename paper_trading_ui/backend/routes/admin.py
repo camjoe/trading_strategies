@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from trading.services.accounts_service import create_account
-from trading.database.db_backend import DuplicateRecordError
+from trading.domain import AccountAlreadyExistsError
 from trading.models import AccountConfig, RotationConfig
 
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
@@ -77,7 +77,7 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
             create_account(conn, **_build_create_account_kwargs(payload))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
-        except DuplicateRecordError as error:
+        except AccountAlreadyExistsError as error:
             raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
 
         update_account_rotation_settings(conn, payload.name.strip(), _build_rotation_config(payload))

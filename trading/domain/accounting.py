@@ -2,12 +2,10 @@
 import sqlite3
 from collections import defaultdict
 
+from common.constants import SETTLEMENT_TICKER
 from trading.models import AccountState
 
 VALID_SIDES = {"buy", "sell"}
-
-# Ticker used for cash deposits/withdrawals. Buys are inflows (no position created).
-SETTLEMENT_TICKER = "CASH"
 
 
 def _normalize_trade_fields(trade: sqlite3.Row) -> tuple[str, str, float, float, float]:
