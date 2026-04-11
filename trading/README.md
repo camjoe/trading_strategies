@@ -85,6 +85,15 @@ python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_
 python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
 ```
 
+### Rotation overlays
+
+Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `social`, or `news_social`) to let alternative-data signals nudge the base policy regime.
+
+- Overlay coverage is computed from the union of the account's current holdings and its per-account `rotation_overlay_watchlist`.
+- New accounts and migrated existing accounts seed `rotation_overlay_watchlist` from `trading/config/trade_universe.txt`, providing a stable default universe before positions are opened.
+- That seed is stored in the database schema/defaults at migration time. If you later change `trading/config/trade_universe.txt` and want that new list to propagate, you must also run an explicit DB update or migration/backfill for `rotation_overlay_watchlist`.
+- Override the seeded watchlist per account through account profiles or the UI/API account-parameter endpoints when a narrower overlay universe is needed.
+
 ## Scheduler Operations
 
 Runtime jobs in `trading/interfaces/runtime/jobs/` all accept `--help` for the full flag reference. Common manual invocations:

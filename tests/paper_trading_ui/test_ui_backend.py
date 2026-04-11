@@ -186,6 +186,36 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     assert payload["account"]["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
 
 
+def test_admin_create_account_uses_seeded_watchlist_when_omitted(api_client: TestClient) -> None:
+    response = api_client.post(
+        "/api/admin/accounts/create",
+        json={
+            "name": "acct_admin_seeded_watchlist",
+            "strategy": "trend",
+            "initialCash": 5000,
+            "benchmarkTicker": "SPY",
+            "rotationEnabled": True,
+            "rotationMode": "regime",
+            "rotationIntervalMinutes": 240,
+            "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
+            "rotationRegimeStrategyRiskOn": "trend",
+            "rotationRegimeStrategyNeutral": "ma_crossover",
+            "rotationRegimeStrategyRiskOff": "mean_reversion",
+            "rotationOverlayMode": "news_social",
+            "rotationOverlayMinTickers": 2,
+            "rotationOverlayConfidenceThreshold": 0.5,
+            "rotationActiveIndex": 0,
+            "rotationActiveStrategy": "trend",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["account"]["name"] == "acct_admin_seeded_watchlist"
+    assert payload["account"]["rotationOverlayWatchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST
+
+
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:
     conn = db.ensure_db()
     try:
