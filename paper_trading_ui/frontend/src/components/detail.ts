@@ -21,9 +21,23 @@ function riskPolicyOptions(currentPolicy: string): string {
 }
 
 const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
+const ROTATION_MODE_OPTIONS = ["time", "optimal"] as const;
+const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return"] as const;
 
 function instrumentModeOptions(currentMode: string): string {
   return INSTRUMENT_MODE_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function rotationModeOptions(currentMode: string): string {
+  return ROTATION_MODE_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function rotationOptimalityOptions(currentMode: string): string {
+  return ROTATION_OPTIMALITY_OPTIONS.map(
     (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
   ).join("");
 }
@@ -286,6 +300,61 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <div class="bt-field">
             <span>Max Loss %</span>
             <input id="editMaxLossPctInput" type="number" step="0.1" value="${detail.account.maxLossPct ?? ""}" />
+          </div>
+        </div>
+      </details>
+
+      <details class="edit-params-section">
+        <summary>Rotation Settings</summary>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Rotation Enabled</span>
+            <select id="editRotationEnabledSelect">
+              <option value="false"${!detail.account.rotationEnabled ? " selected" : ""}>Off</option>
+              <option value="true"${detail.account.rotationEnabled ? " selected" : ""}>On</option>
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Rotation Mode</span>
+            <select id="editRotationModeSelect">
+              ${rotationModeOptions(detail.account.rotationMode ?? "time")}
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Optimality Mode</span>
+            <select id="editRotationOptimalityModeSelect">
+              ${rotationOptimalityOptions(detail.account.rotationOptimalityMode ?? "previous_period_best")}
+            </select>
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Interval Days</span>
+            <input id="editRotationIntervalDaysInput" type="number" step="1" min="1" value="${detail.account.rotationIntervalDays ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Lookback Days</span>
+            <input id="editRotationLookbackDaysInput" type="number" step="1" min="1" value="${detail.account.rotationLookbackDays ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Active Index</span>
+            <input id="editRotationActiveIndexInput" type="number" step="1" min="0" value="${detail.account.rotationActiveIndex ?? 0}" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Active Strategy</span>
+            <input id="editRotationActiveStrategyInput" type="text" value="${esc(detail.account.rotationActiveStrategy ?? "")}" placeholder="trend" />
+          </div>
+          <div class="bt-field">
+            <span>Last Rotated At</span>
+            <input id="editRotationLastAtInput" type="text" value="${esc(detail.account.rotationLastAt ?? "")}" placeholder="2026-03-18T12:00:00Z" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field" style="flex:1">
+            <span>Rotation Schedule (comma-separated)</span>
+            <input id="editRotationScheduleInput" type="text" value="${esc((detail.account.rotationSchedule ?? []).join(","))}" placeholder="trend,mean_reversion,breakout" />
           </div>
         </div>
       </details>

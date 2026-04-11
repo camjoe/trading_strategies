@@ -32,6 +32,15 @@ export type AccountSummary = {
   rollDteThreshold: number | null;
   profitTakePct: number | null;
   maxLossPct: number | null;
+  rotationEnabled?: boolean;
+  rotationMode?: string;
+  rotationOptimalityMode?: string;
+  rotationIntervalDays?: number | null;
+  rotationLookbackDays?: number | null;
+  rotationSchedule?: string[] | null;
+  rotationActiveIndex?: number;
+  rotationLastAt?: string | null;
+  rotationActiveStrategy?: string | null;
 };
 
 export type AccountDetail = {
@@ -192,6 +201,15 @@ export interface AccountParamsUpdate {
   rollDteThreshold?: number | null;
   profitTakePct?: number | null;
   maxLossPct?: number | null;
+  rotationEnabled?: boolean;
+  rotationMode?: string;
+  rotationOptimalityMode?: string;
+  rotationIntervalDays?: number | null;
+  rotationLookbackDays?: number | null;
+  rotationSchedule?: string[] | null;
+  rotationActiveIndex?: number | null;
+  rotationLastAt?: string | null;
+  rotationActiveStrategy?: string | null;
 }
 
 export interface ManualTradeRequest {

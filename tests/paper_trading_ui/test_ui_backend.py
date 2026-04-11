@@ -163,6 +163,10 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["account"]["name"] == "acct_admin_create"
+    assert payload["account"]["rotationEnabled"] is True
+    assert payload["account"]["rotationMode"] == "time"
+    assert payload["account"]["rotationIntervalDays"] == 14
+    assert payload["account"]["rotationSchedule"] == ["trend", "mean_reversion"]
 
 
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:

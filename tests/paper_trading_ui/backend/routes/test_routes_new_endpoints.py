@@ -90,6 +90,37 @@ class TestAccountParamsEndpoint:
         )
         assert resp.status_code == 422
 
+    def test_patch_params_updates_rotation_fields(self, api_client: TestClient) -> None:
+        _seed_account("acct_params_rotation")
+
+        resp = api_client.patch(
+            "/api/accounts/acct_params_rotation/params",
+            json={
+                "rotationEnabled": True,
+                "rotationMode": "optimal",
+                "rotationOptimalityMode": "average_return",
+                "rotationIntervalDays": 7,
+                "rotationLookbackDays": 30,
+                "rotationSchedule": ["trend", "mean_reversion"],
+                "rotationActiveIndex": 1,
+                "rotationActiveStrategy": "mean_reversion",
+                "rotationLastAt": "2026-03-20T00:00:00Z",
+            },
+        )
+        assert resp.status_code == 200
+
+        detail = api_client.get("/api/accounts/acct_params_rotation").json()
+        account = detail["account"]
+        assert account["rotationEnabled"] is True
+        assert account["rotationMode"] == "optimal"
+        assert account["rotationOptimalityMode"] == "average_return"
+        assert account["rotationIntervalDays"] == 7
+        assert account["rotationLookbackDays"] == 30
+        assert account["rotationSchedule"] == ["trend", "mean_reversion"]
+        assert account["rotationActiveIndex"] == 1
+        assert account["rotationActiveStrategy"] == "mean_reversion"
+        assert account["rotationLastAt"] == "2026-03-20T00:00:00Z"
+
 
 _TICKER_EXISTS = "paper_trading_ui.backend.routes.trades._ticker_exists"
 

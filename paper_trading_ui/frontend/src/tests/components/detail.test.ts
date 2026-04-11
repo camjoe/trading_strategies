@@ -81,6 +81,9 @@ describe("renderDetail", () => {
     expect(html).toContain("Open Report");
     expect(html).toContain("Snapshot This Account");
     expect(html).toContain("Edit Parameters");
+    expect(html).toContain("Rotation Settings");
+    expect(html).toContain("editRotationModeSelect");
+    expect(html).toContain("editRotationScheduleInput");
     expect(html).toContain("editParamsPanel");
     expect(html).toContain("AAPL");
     // Add Trade should be hidden by default (not test_account)

@@ -281,6 +281,67 @@ class TestBuildAccountSummaryShape:
                     "totalChangePct", "changeSinceLastSnapshot", "strategy"):
             assert key in summary, f"Missing key: {key}"
 
+    def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            services_accounts,
+            "build_account_stats",
+            lambda _conn, _row: (None, None, None, None, 1200.0),
+        )
+        monkeypatch.setattr(
+            services_accounts,
+            "fetch_latest_snapshot_row",
+            lambda _conn, _account_id: None,
+        )
+        row = {
+            "id": 1,
+            "name": "acct_rotation",
+            "descriptive_name": "Rotation Account",
+            "strategy": "trend",
+            "instrument_mode": "equity",
+            "risk_policy": "none",
+            "benchmark_ticker": "SPY",
+            "initial_cash": 1000.0,
+            "stop_loss_pct": None,
+            "take_profit_pct": None,
+            "goal_min_return_pct": None,
+            "goal_max_return_pct": None,
+            "goal_period": None,
+            "learning_enabled": None,
+            "option_strike_offset_pct": None,
+            "option_min_dte": None,
+            "option_max_dte": None,
+            "option_type": None,
+            "target_delta_min": None,
+            "target_delta_max": None,
+            "max_premium_per_trade": None,
+            "max_contracts_per_trade": None,
+            "iv_rank_min": None,
+            "iv_rank_max": None,
+            "roll_dte_threshold": None,
+            "profit_take_pct": None,
+            "max_loss_pct": None,
+            "rotation_enabled": 1,
+            "rotation_mode": "optimal",
+            "rotation_optimality_mode": "average_return",
+            "rotation_interval_days": 7,
+            "rotation_lookback_days": 30,
+            "rotation_schedule": '["trend","mean_reversion"]',
+            "rotation_active_index": 1,
+            "rotation_last_at": "2026-03-20T00:00:00Z",
+            "rotation_active_strategy": "mean_reversion",
+        }
+
+        summary = services_accounts.build_account_summary(conn=None, row=row)
+        assert summary["rotationEnabled"] is True
+        assert summary["rotationMode"] == "optimal"
+        assert summary["rotationOptimalityMode"] == "average_return"
+        assert summary["rotationIntervalDays"] == 7
+        assert summary["rotationLookbackDays"] == 30
+        assert summary["rotationSchedule"] == ["trend", "mean_reversion"]
+        assert summary["rotationActiveIndex"] == 1
+        assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
+        assert summary["rotationActiveStrategy"] == "mean_reversion"
+
     def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
         """zero initial_cash + no snapshot → delta_pct = 0.0 (no crash)."""
         monkeypatch.setattr(
