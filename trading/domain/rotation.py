@@ -9,7 +9,7 @@ from trading.utils.coercion import coerce_int
 from common.constants import SECONDS_PER_DAY
 
 ROTATION_MODES = {"time", "optimal"}
-OPTIMALITY_MODES = {"previous_period_best", "average_return"}
+OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
 
 
 def _value(account: Mapping[str, object], key: str) -> object | None:

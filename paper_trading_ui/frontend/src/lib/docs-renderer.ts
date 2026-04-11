@@ -274,7 +274,7 @@ const ADMIN_REQUEST_BODY_CONTENT = `
           <tr><td>rollDteThreshold</td><td>int | null</td><td>DTE at which to roll an existing options position.</td></tr>
           <tr><td>rotationEnabled</td><td>bool, default false</td><td>Enable strategy rotation for this account.</td></tr>
           <tr><td>rotationMode</td><td>string, default time</td><td>One of: time, optimal.</td></tr>
-          <tr><td>rotationOptimalityMode</td><td>string, default previous_period_best</td><td>One of: previous_period_best, average_return.</td></tr>
+          <tr><td>rotationOptimalityMode</td><td>string, default previous_period_best</td><td>One of: previous_period_best, average_return, hybrid_weighted.</td></tr>
           <tr><td>rotationIntervalDays</td><td>int | null</td><td>Days between time-based rotations.</td></tr>
           <tr><td>rotationLookbackDays</td><td>int | null</td><td>Lookback window (days) for optimal-mode evaluation.</td></tr>
           <tr><td>rotationSchedule</td><td>string[] | null</td><td>Ordered list of strategy keys to rotate through.</td></tr>

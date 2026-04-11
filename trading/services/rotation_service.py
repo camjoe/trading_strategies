@@ -6,6 +6,15 @@ from typing import Callable, cast
 
 from trading.domain.returns import safe_return_pct as safe_return_pct_impl
 
+# Minimum completed live episodes required before the live component receives
+# its full configured weight in hybrid rotation scoring.
+MIN_LIVE_EPISODES_FOR_FULL_CONFIDENCE = 3
+
+# Baseline hybrid score weighting: mostly backtest-driven until live evidence
+# accumulates, with a smaller live overlay once strategy episodes are observed.
+HYBRID_BACKTEST_WEIGHT = 0.70
+HYBRID_LIVE_WEIGHT = 0.30
+
 
 def parse_as_of_iso(as_of_iso: str) -> datetime:
     text = as_of_iso.strip()
@@ -30,6 +39,99 @@ def safe_return_pct(
     )
 
 
+def _average(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def compute_live_account_metrics(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    *,
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
+    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+    fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
+    compute_market_value_and_unrealized_fn: Callable[[dict[str, float], dict[str, float], dict[str, float]], tuple[float, float]],
+) -> dict[str, float]:
+    state = cast(
+        object,
+        compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
+    )
+    positions = cast(dict[str, float], getattr(state, "positions"))
+    avg_cost = cast(dict[str, float], getattr(state, "avg_cost"))
+    prices = fetch_latest_prices_fn(sorted(positions.keys())) if positions else {}
+    market_value, _unrealized = compute_market_value_and_unrealized_fn(positions, avg_cost, prices)
+    equity = float(getattr(state, "cash", 0.0)) + float(market_value)
+    return {
+        "equity": equity,
+        "realized_pnl": float(getattr(state, "realized_pnl", 0.0)),
+    }
+
+
+def sync_rotation_episode(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    as_of_iso: str,
+    *,
+    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    fetch_open_rotation_episode_fn: Callable[..., sqlite3.Row | None],
+    insert_rotation_episode_fn: Callable[..., None],
+    close_rotation_episode_fn: Callable[..., None],
+    fetch_snapshot_count_between_fn: Callable[..., int],
+    compute_live_account_metrics_fn: Callable[[sqlite3.Connection, sqlite3.Row], dict[str, float]],
+) -> None:
+    if not bool(int(cast(int | float | str | bytes | bytearray, account["rotation_enabled"] or 0))):
+        return
+
+    active_strategy = resolve_active_strategy_fn(account)
+    if not active_strategy:
+        return
+
+    metrics = compute_live_account_metrics_fn(conn, account)
+    open_episode = fetch_open_rotation_episode_fn(conn, account_id=int(account["id"]))
+    episode_started_at = str(account["rotation_last_at"] or as_of_iso)
+
+    if open_episode is None:
+        insert_rotation_episode_fn(
+            conn,
+            account_id=int(account["id"]),
+            strategy_name=active_strategy,
+            started_at=episode_started_at,
+            starting_equity=float(metrics["equity"]),
+            starting_realized_pnl=float(metrics["realized_pnl"]),
+        )
+        return
+
+    if str(open_episode["strategy_name"]) == active_strategy:
+        return
+
+    snapshot_count = fetch_snapshot_count_between_fn(
+        conn,
+        account_id=int(account["id"]),
+        start_iso=str(open_episode["started_at"]),
+        end_iso=as_of_iso,
+    )
+    starting_realized_pnl = float(open_episode["starting_realized_pnl"])
+    close_rotation_episode_fn(
+        conn,
+        episode_id=int(open_episode["id"]),
+        ended_at=as_of_iso,
+        ending_equity=float(metrics["equity"]),
+        ending_realized_pnl=float(metrics["realized_pnl"]),
+        realized_pnl_delta=float(metrics["realized_pnl"]) - starting_realized_pnl,
+        snapshot_count=snapshot_count,
+    )
+    insert_rotation_episode_fn(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name=active_strategy,
+        started_at=as_of_iso,
+        starting_equity=float(metrics["equity"]),
+        starting_realized_pnl=float(metrics["realized_pnl"]),
+    )
+
+
 def select_optimal_strategy(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
@@ -39,6 +141,7 @@ def select_optimal_strategy(
     parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
     resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
+    fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
     if not schedule:
@@ -68,11 +171,47 @@ def select_optimal_strategy(
             latest_by_strategy[strategy_name] = ret
 
     if not by_strategy:
-        return None
+        by_strategy = {}
 
     optimality_mode = resolve_optimality_mode_fn(account)
     scores: dict[str, float] = {}
-    if optimality_mode == "average_return":
+    if optimality_mode == "hybrid_weighted":
+        live_scores: dict[str, list[float]] = {}
+        if fetch_closed_rotation_episodes_fn is not None:
+            closed_rows = fetch_closed_rotation_episodes_fn(
+                conn,
+                account_id=int(account["id"]),
+                strategy_names=schedule,
+                start_iso=f"{start_day}T00:00:00Z",
+                end_iso=as_of_iso,
+            )
+            for row in closed_rows:
+                starting_equity = row["starting_equity"]
+                ending_equity = row["ending_equity"]
+                if starting_equity is None or ending_equity is None:
+                    continue
+                live_return = safe_return_pct(starting_equity, ending_equity, coerce_float_fn=float)
+                if live_return is None:
+                    continue
+                live_scores.setdefault(str(row["strategy_name"]), []).append(float(live_return))
+
+        for strategy_name in schedule:
+            backtest_score = _average(by_strategy.get(strategy_name, []))
+            live_values = live_scores.get(strategy_name, [])
+            live_score = _average(live_values)
+            if backtest_score is None and live_score is None:
+                continue
+            if backtest_score is None:
+                scores[strategy_name] = float(live_score)
+                continue
+            if live_score is None:
+                scores[strategy_name] = float(backtest_score)
+                continue
+            live_confidence = min(len(live_values) / MIN_LIVE_EPISODES_FOR_FULL_CONFIDENCE, 1.0)
+            live_weight = HYBRID_LIVE_WEIGHT * live_confidence
+            backtest_weight = HYBRID_BACKTEST_WEIGHT + (HYBRID_LIVE_WEIGHT - live_weight)
+            scores[strategy_name] = (float(backtest_score) * backtest_weight) + (float(live_score) * live_weight)
+    elif optimality_mode == "average_return":
         for strategy_name, values in by_strategy.items():
             scores[strategy_name] = sum(values) / len(values)
     else:

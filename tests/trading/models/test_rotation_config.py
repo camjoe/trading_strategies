@@ -60,6 +60,14 @@ class TestRotationConfigFromProfile:
         assert rc.mode == "optimal"
         assert rc.optimality_mode == "average_return"
 
+    def test_hybrid_weighted_optimality_mode(self):
+        rc = RotationConfig.from_profile({
+            "rotation_mode": "optimal",
+            "rotation_optimality_mode": "hybrid_weighted",
+        })
+        assert rc.mode == "optimal"
+        assert rc.optimality_mode == "hybrid_weighted"
+
     def test_lookback_days_and_last_at_stored(self):
         rc = RotationConfig.from_profile({
             "rotation_lookback_days": 30,

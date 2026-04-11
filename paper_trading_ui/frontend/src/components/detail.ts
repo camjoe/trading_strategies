@@ -22,7 +22,7 @@ function riskPolicyOptions(currentPolicy: string): string {
 
 const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
 const ROTATION_MODE_OPTIONS = ["time", "optimal"] as const;
-const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return"] as const;
+const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return", "hybrid_weighted"] as const;
 
 function instrumentModeOptions(currentMode: string): string {
   return INSTRUMENT_MODE_OPTIONS.map(

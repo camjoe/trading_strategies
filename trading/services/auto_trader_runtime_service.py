@@ -19,6 +19,13 @@ from trading.backtesting.services.history_service import fetch_strategy_backtest
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
 from trading.repositories.rotation_repository import update_account_rotation_state
+from trading.repositories.rotation_repository import (
+    close_rotation_episode,
+    fetch_closed_rotation_episodes,
+    fetch_open_rotation_episode,
+    insert_rotation_episode,
+)
+from trading.repositories.snapshots_repository import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
     next_rotation_state,
@@ -34,10 +41,13 @@ from trading.services.auto_trader_service import (
     RotationDeps,
 )
 from trading.services.rotation_service import (
+    compute_live_account_metrics as compute_live_account_metrics_impl,
     parse_as_of_iso as parse_as_of_iso_impl,
     rotate_account_if_due as rotate_account_if_due_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
+    sync_rotation_episode as sync_rotation_episode_impl,
 )
+from trading.services.reporting_service import compute_market_value_and_unrealized, fetch_latest_prices
 from trading.services.trade_execution_service import (
     build_leaps_candidates as build_leaps_candidates_impl,
     prepare_buy_trade as prepare_buy_trade_impl,
@@ -70,6 +80,41 @@ def _select_runtime_rotation_strategy(
         parse_as_of_iso_fn=_parse_runtime_as_of_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
         resolve_optimality_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_optimality_mode),
+        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
+    )
+
+
+def _compute_runtime_live_account_metrics(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+) -> dict[str, float]:
+    return compute_live_account_metrics_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
+        fetch_latest_prices_fn=fetch_latest_prices,
+        compute_market_value_and_unrealized_fn=compute_market_value_and_unrealized,
+    )
+
+
+def _sync_runtime_rotation_episode(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    now_iso: str,
+) -> None:
+    if not hasattr(conn, "execute"):
+        return
+    sync_rotation_episode_impl(
+        conn,
+        account,
+        now_iso,
+        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
+        fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
+        insert_rotation_episode_fn=insert_rotation_episode,
+        close_rotation_episode_fn=close_rotation_episode,
+        fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
+        compute_live_account_metrics_fn=_compute_runtime_live_account_metrics,
     )
 
 
@@ -79,6 +124,7 @@ def _rotate_runtime_account(
     account: sqlite3.Row,
     now_iso: str,
 ) -> sqlite3.Row:
+    _sync_runtime_rotation_episode(conn, account, now_iso)
     deps = RotationDeps(
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(cast(Mapping[str, object], row), as_of_iso=now_iso),
@@ -90,7 +136,9 @@ def _rotate_runtime_account(
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
-    return rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
+    rotated = rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
+    _sync_runtime_rotation_episode(conn, rotated, now_iso)
+    return rotated
 
 
 def _refresh_runtime_account_state(conn: sqlite3.Connection, account: sqlite3.Row):

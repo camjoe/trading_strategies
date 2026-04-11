@@ -134,6 +134,30 @@ CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id)
 CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id ON backtest_equity_snapshots(run_id);
 """
 
+ROTATION_EPISODES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS rotation_episodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    strategy_name TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    starting_equity REAL NOT NULL,
+    ending_equity REAL,
+    starting_realized_pnl REAL NOT NULL DEFAULT 0,
+    ending_realized_pnl REAL,
+    realized_pnl_delta REAL,
+    snapshot_count INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+ROTATION_EPISODE_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_rotation_episodes_account_started
+ON rotation_episodes(account_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rotation_episodes_account_strategy_ended
+ON rotation_episodes(account_id, strategy_name, ended_at DESC);
+"""
+
 BROKER_ORDERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS broker_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,6 +205,8 @@ SCHEMA_SQL = "\n".join(
         BACKTEST_TRADES_TABLE_SQL,
         BACKTEST_EQUITY_SNAPSHOTS_TABLE_SQL,
         BACKTEST_INDEXES_SQL,
+        ROTATION_EPISODES_TABLE_SQL,
+        ROTATION_EPISODE_INDEXES_SQL,
         BROKER_ORDERS_TABLE_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,

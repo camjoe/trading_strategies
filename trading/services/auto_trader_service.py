@@ -72,6 +72,7 @@ def select_account_rotation_strategy(
     parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
     resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
+    fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     return select_optimal_strategy_impl_fn(
         conn,
@@ -81,6 +82,7 @@ def select_account_rotation_strategy(
         parse_as_of_iso_fn=parse_as_of_iso_fn,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
         resolve_optimality_mode_fn=resolve_optimality_mode_fn,
+        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes_fn,
     )
 
 

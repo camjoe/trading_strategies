@@ -104,8 +104,9 @@ class TestResolveModes:
         assert resolve_rotation_mode({"rotation_mode": "unknown"}) == "time"
 
     def test_resolve_optimality_mode_defaults_and_validation(self) -> None:
-        assert OPTIMALITY_MODES == {"previous_period_best", "average_return"}
+        assert OPTIMALITY_MODES == {"previous_period_best", "average_return", "hybrid_weighted"}
         assert resolve_optimality_mode({"rotation_optimality_mode": "average_return"}) == "average_return"
+        assert resolve_optimality_mode({"rotation_optimality_mode": "hybrid_weighted"}) == "hybrid_weighted"
         assert resolve_optimality_mode({"rotation_optimality_mode": "PREVIOUS_PERIOD_BEST"}) == "previous_period_best"
         assert resolve_optimality_mode({"rotation_optimality_mode": "unknown"}) == "previous_period_best"
 
