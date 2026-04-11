@@ -5,6 +5,8 @@ import { accountCard } from "../components/accounts";
 import { renderDetail, renderAnalysisPanel } from "../components/detail";
 import type { AccountAnalysis, AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
 
+const TEST_ACCOUNT_NAME = "test_account";
+
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountSummary[]) => void;
   onOpenRunReport?: (runId: number) => Promise<void> | void;
@@ -46,6 +48,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     target.innerHTML = renderDetail(currentDetail, {
       tradePage: currentTradePage,
       tradePageSize,
+      showAddTrade: currentDetail.account.name === TEST_ACCOUNT_NAME,
     });
 
     bindClick<HTMLButtonElement>("#snapshotOneBtn", async (button) => {

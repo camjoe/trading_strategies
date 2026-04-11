@@ -4,8 +4,10 @@ import type { AccountAnalysis, AccountDetail } from "../types";
 export interface DetailRenderOptions {
   tradePage?: number;
   tradePageSize?: number;
-  /** Show Edit Parameters and Snapshot buttons + edit panel. Default: true. */
+  /** Show Edit Parameters, Snapshot buttons + edit panel. Default: true. */
   showActions?: boolean;
+  /** Show the Add Trade button and panel. Should only be true for test_account. Default: false. */
+  showAddTrade?: boolean;
   /** Show the Latest Backtest report section. Default: true. */
   showBacktest?: boolean;
 }
@@ -39,6 +41,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   const totalTradePages = Math.max(1, Math.ceil(totalTrades / tradePageSize));
   const tradePage = Math.min(Math.max(1, options.tradePage ?? 1), totalTradePages);
   const showActions = options.showActions !== false;
+  const showAddTrade = options.showAddTrade === true;
   const showBacktest = options.showBacktest !== false;
   const viewedStart = totalTrades === 0 ? 0 : (tradePage - 1) * tradePageSize + 1;
   const viewedEnd = totalTrades === 0 ? 0 : Math.min(tradePage * tradePageSize, totalTrades);
@@ -110,14 +113,14 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           &nbsp;·&nbsp; Return: <span class="${detail.account.totalChangePct >= 0 ? "up" : "down"}">${detail.account.totalChangePct >= 0 ? "+" : ""}${detail.account.totalChangePct.toFixed(2)}%</span>
         </p>
       </div>
-      ${showActions ? `<div class="detail-head-actions">
-        <button id="addTradeBtn" type="button">+ Add Trade</button>
-        <button id="editParamsBtn" type="button">Edit Parameters</button>
-        <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>
+      ${showActions || showAddTrade ? `<div class="detail-head-actions">
+        ${showAddTrade ? `<button id="addTradeBtn" type="button">+ Add Trade</button>` : ""}
+        ${showActions ? `<button id="editParamsBtn" type="button">Edit Parameters</button>
+        <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>` : ""}
       </div>` : ""}
     </div>
 
-    ${showActions ? `<div id="addTradePanel" class="edit-params-panel" hidden>
+    ${showAddTrade ? `<div id="addTradePanel" class="edit-params-panel" hidden>
       <div class="edit-params-section">
         <h5>Add Trade</h5>
         <div class="bt-row">
