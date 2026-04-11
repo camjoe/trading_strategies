@@ -62,6 +62,7 @@ def _build_rotation_config(payload: AdminCreateAccountRequest) -> RotationConfig
         "rotation_mode": payload.rotationMode,
         "rotation_optimality_mode": payload.rotationOptimalityMode,
         "rotation_interval_days": payload.rotationIntervalDays,
+        "rotation_interval_minutes": payload.rotationIntervalMinutes,
         "rotation_lookback_days": payload.rotationLookbackDays,
         "rotation_schedule": payload.rotationSchedule,
         "rotation_active_index": int(payload.rotationActiveIndex),
@@ -110,4 +111,3 @@ def api_csv_export_preview(
     limit: int = Query(default=200, ge=1, le=2000),
 ) -> dict[str, object]:
     return preview_csv_export(exportName, fileName, limit)
-

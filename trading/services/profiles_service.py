@@ -24,6 +24,7 @@ ROTATION_KEYS = {
     "rotation_mode",
     "rotation_optimality_mode",
     "rotation_interval_days",
+    "rotation_interval_minutes",
     "rotation_lookback_days",
     "rotation_schedule",
     "rotation_active_index",

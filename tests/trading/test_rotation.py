@@ -135,6 +135,23 @@ class TestIsRotationDue:
     def test_interval_threshold_behavior(self, as_of_iso: str, expected: bool) -> None:
         assert is_rotation_due(_due_account(), as_of_iso=as_of_iso) is expected
 
+    def test_minute_interval_supports_sub_day_rotation(self) -> None:
+        account = _due_account(
+            rotation_interval_days=None,
+            rotation_interval_minutes=240,
+            rotation_last_at="2026-03-01T00:00:00Z",
+        )
+        assert is_rotation_due(account, as_of_iso="2026-03-01T03:59:00Z") is False
+        assert is_rotation_due(account, as_of_iso="2026-03-01T04:00:00Z") is True
+
+    def test_minute_interval_takes_precedence_over_day_interval(self) -> None:
+        account = _due_account(
+            rotation_interval_days=7,
+            rotation_interval_minutes=240,
+            rotation_last_at="2026-03-01T00:00:00Z",
+        )
+        assert is_rotation_due(account, as_of_iso="2026-03-01T04:00:00Z") is True
+
     def test_raises_on_invalid_as_of_iso(self) -> None:
         with pytest.raises(ValueError, match="as_of_iso must be a valid ISO datetime"):
             is_rotation_due(_due_account(), as_of_iso="not-an-iso")

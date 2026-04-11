@@ -153,6 +153,7 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
             "rotationEnabled": True,
             "rotationMode": "time",
             "rotationIntervalDays": 14,
+            "rotationIntervalMinutes": 240,
             "rotationSchedule": ["trend", "mean_reversion"],
             "rotationActiveIndex": 0,
             "rotationActiveStrategy": "trend",
@@ -166,6 +167,7 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     assert payload["account"]["rotationEnabled"] is True
     assert payload["account"]["rotationMode"] == "time"
     assert payload["account"]["rotationIntervalDays"] == 14
+    assert payload["account"]["rotationIntervalMinutes"] == 240
     assert payload["account"]["rotationSchedule"] == ["trend", "mean_reversion"]
 
 

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     rotation_mode TEXT NOT NULL DEFAULT 'time',
     rotation_optimality_mode TEXT NOT NULL DEFAULT 'previous_period_best',
     rotation_interval_days INTEGER,
+    rotation_interval_minutes INTEGER,
     rotation_lookback_days INTEGER,
     rotation_schedule TEXT,
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
@@ -295,6 +296,10 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration(
         "rotation_interval_days",
         "ALTER TABLE accounts ADD COLUMN rotation_interval_days INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_interval_minutes",
+        "ALTER TABLE accounts ADD COLUMN rotation_interval_minutes INTEGER",
     ),
     ColumnMigration(
         "rotation_lookback_days",

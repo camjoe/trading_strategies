@@ -191,6 +191,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         rotationMode: find<HTMLSelectElement>("#editRotationModeSelect")?.value || undefined,
         rotationOptimalityMode: find<HTMLSelectElement>("#editRotationOptimalityModeSelect")?.value || undefined,
         rotationIntervalDays: readInt("#editRotationIntervalDaysInput"),
+        rotationIntervalMinutes: readInt("#editRotationIntervalMinutesInput"),
         rotationLookbackDays: readInt("#editRotationLookbackDaysInput"),
         rotationSchedule: readCsv("#editRotationScheduleInput"),
         rotationActiveIndex: readInt("#editRotationActiveIndexInput"),

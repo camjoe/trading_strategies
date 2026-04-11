@@ -371,6 +371,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       rotationMode: strOrUndefined(data.get("rotationMode")) ?? "time",
       rotationOptimalityMode: strOrUndefined(data.get("rotationOptimalityMode")) ?? "previous_period_best",
       rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
+      rotationIntervalMinutes: intOrUndefined(data.get("rotationIntervalMinutes")),
       rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
       rotationSchedule,
       rotationActiveIndex: intOrUndefined(data.get("rotationActiveIndex")) ?? 0,

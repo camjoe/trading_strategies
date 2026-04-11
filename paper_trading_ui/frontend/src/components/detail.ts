@@ -333,6 +333,10 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
             <input id="editRotationIntervalDaysInput" type="number" step="1" min="1" value="${detail.account.rotationIntervalDays ?? ""}" />
           </div>
           <div class="bt-field">
+            <span>Interval Minutes</span>
+            <input id="editRotationIntervalMinutesInput" type="number" step="1" min="1" value="${detail.account.rotationIntervalMinutes ?? ""}" />
+          </div>
+          <div class="bt-field">
             <span>Lookback Days</span>
             <input id="editRotationLookbackDaysInput" type="number" step="1" min="1" value="${detail.account.rotationLookbackDays ?? ""}" />
           </div>

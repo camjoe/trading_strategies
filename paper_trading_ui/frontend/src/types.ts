@@ -36,6 +36,7 @@ export type AccountSummary = {
   rotationMode?: string;
   rotationOptimalityMode?: string;
   rotationIntervalDays?: number | null;
+  rotationIntervalMinutes?: number | null;
   rotationLookbackDays?: number | null;
   rotationSchedule?: string[] | null;
   rotationActiveIndex?: number;
@@ -205,6 +206,7 @@ export interface AccountParamsUpdate {
   rotationMode?: string;
   rotationOptimalityMode?: string;
   rotationIntervalDays?: number | null;
+  rotationIntervalMinutes?: number | null;
   rotationLookbackDays?: number | null;
   rotationSchedule?: string[] | null;
   rotationActiveIndex?: number | null;

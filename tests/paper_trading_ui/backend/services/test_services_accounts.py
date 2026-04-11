@@ -324,6 +324,7 @@ class TestBuildAccountSummaryShape:
             "rotation_mode": "optimal",
             "rotation_optimality_mode": "average_return",
             "rotation_interval_days": 7,
+            "rotation_interval_minutes": 240,
             "rotation_lookback_days": 30,
             "rotation_schedule": '["trend","mean_reversion"]',
             "rotation_active_index": 1,
@@ -336,6 +337,7 @@ class TestBuildAccountSummaryShape:
         assert summary["rotationMode"] == "optimal"
         assert summary["rotationOptimalityMode"] == "average_return"
         assert summary["rotationIntervalDays"] == 7
+        assert summary["rotationIntervalMinutes"] == 240
         assert summary["rotationLookbackDays"] == 30
         assert summary["rotationSchedule"] == ["trend", "mean_reversion"]
         assert summary["rotationActiveIndex"] == 1

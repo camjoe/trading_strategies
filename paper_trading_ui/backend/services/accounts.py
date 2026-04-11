@@ -180,6 +180,7 @@ def _build_summary_from_stats(
         "rotationMode": str(_row_value(row, "rotation_mode") or "time"),
         "rotationOptimalityMode": str(_row_value(row, "rotation_optimality_mode") or "previous_period_best"),
         "rotationIntervalDays": coerce_int(_row_value(row, "rotation_interval_days")),
+        "rotationIntervalMinutes": coerce_int(_row_value(row, "rotation_interval_minutes")),
         "rotationLookbackDays": coerce_int(_row_value(row, "rotation_lookback_days")),
         "rotationSchedule": rotation_schedule or None,
         "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
@@ -363,6 +364,7 @@ def update_account_params(
     rotation_mode: str | None = None,
     rotation_optimality_mode: str | None = None,
     rotation_interval_days: int | None = None,
+    rotation_interval_minutes: int | None = None,
     rotation_lookback_days: int | None = None,
     rotation_schedule: list[str] | None = None,
     rotation_active_index: int | None = None,
@@ -410,6 +412,8 @@ def update_account_params(
         rotation_profile["rotation_optimality_mode"] = rotation_optimality_mode
     if rotation_interval_days is not None:
         rotation_profile["rotation_interval_days"] = rotation_interval_days
+    if rotation_interval_minutes is not None:
+        rotation_profile["rotation_interval_minutes"] = rotation_interval_minutes
     if rotation_lookback_days is not None:
         rotation_profile["rotation_lookback_days"] = rotation_lookback_days
     if rotation_schedule is not None:

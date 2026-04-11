@@ -116,6 +116,7 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
                 rotation_mode=body.rotationMode,
                 rotation_optimality_mode=body.rotationOptimalityMode,
                 rotation_interval_days=body.rotationIntervalDays,
+                rotation_interval_minutes=body.rotationIntervalMinutes,
                 rotation_lookback_days=body.rotationLookbackDays,
                 rotation_schedule=body.rotationSchedule,
                 rotation_active_index=body.rotationActiveIndex,

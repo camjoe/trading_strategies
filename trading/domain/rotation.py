@@ -6,7 +6,7 @@ from typing import Mapping
 
 from trading.utils.coercion import coerce_int
 
-from common.constants import SECONDS_PER_DAY
+from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 
 ROTATION_MODES = {"time", "optimal"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
@@ -121,11 +121,13 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
     if len(schedule) < 2:
         return False
 
-    interval_raw = _value(account, "rotation_interval_days")
-    if interval_raw is None:
-        return False
-    interval_days = _as_int(interval_raw, default=0)
-    if interval_days <= 0:
+    interval_minutes = _as_int(_value(account, "rotation_interval_minutes"), default=0)
+    interval_days = _as_int(_value(account, "rotation_interval_days"), default=0)
+    if interval_minutes > 0:
+        interval_seconds = interval_minutes * SECONDS_PER_MINUTE
+    elif interval_days > 0:
+        interval_seconds = interval_days * SECONDS_PER_DAY
+    else:
         return False
 
     now = _parse_iso(as_of_iso)
@@ -137,7 +139,7 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
         return True
 
     elapsed_seconds = (now - last_rotation).total_seconds()
-    return elapsed_seconds >= (interval_days * SECONDS_PER_DAY)
+    return elapsed_seconds >= interval_seconds
 
 
 def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dict[str, object]:

@@ -12,6 +12,7 @@ class RotationConfig:
     mode: str | None = None
     optimality_mode: str | None = None
     interval_days: int | None = None
+    interval_minutes: int | None = None
     lookback_days: int | None = None
     schedule: list[str] | None = None
     active_index: int | None = None
@@ -24,6 +25,7 @@ class RotationConfig:
         rotation_mode_raw = coerce_str(profile.get("rotation_mode"))
         optimality_mode_raw = coerce_str(profile.get("rotation_optimality_mode"))
         interval_days = coerce_int(profile.get("rotation_interval_days"))
+        interval_minutes = coerce_int(profile.get("rotation_interval_minutes"))
         lookback_days = coerce_int(profile.get("rotation_lookback_days"))
         active_index = coerce_int(profile.get("rotation_active_index"))
         last_at = coerce_str(profile.get("rotation_last_at"))
@@ -39,8 +41,17 @@ class RotationConfig:
             allowed = ", ".join(sorted(OPTIMALITY_MODES))
             raise ValueError(f"rotation_optimality_mode must be one of: {allowed}")
 
-        if enabled and (interval_days is None or interval_days <= 0):
-            raise ValueError("rotation_interval_days must be > 0 when rotation_enabled is true")
+        if interval_days is not None and interval_days <= 0:
+            raise ValueError("rotation_interval_days must be > 0")
+        if interval_minutes is not None and interval_minutes <= 0:
+            raise ValueError("rotation_interval_minutes must be > 0")
+        if enabled and not (
+            (interval_minutes is not None and interval_minutes > 0)
+            or (interval_days is not None and interval_days > 0)
+        ):
+            raise ValueError(
+                "rotation interval must be configured with rotation_interval_minutes or rotation_interval_days when rotation_enabled is true"
+            )
         if lookback_days is not None and lookback_days <= 0:
             raise ValueError("rotation_lookback_days must be > 0")
         if active_index is not None and active_index < 0:
@@ -65,6 +76,7 @@ class RotationConfig:
             mode=mode,
             optimality_mode=optimality_mode,
             interval_days=interval_days,
+            interval_minutes=interval_minutes,
             lookback_days=lookback_days,
             schedule=schedule if schedule else None,
             active_index=active_index,
@@ -79,6 +91,7 @@ class RotationConfig:
             "rotation_mode": self.mode,
             "rotation_optimality_mode": self.optimality_mode,
             "rotation_interval_days": self.interval_days,
+            "rotation_interval_minutes": self.interval_minutes,
             "rotation_lookback_days": self.lookback_days,
             "rotation_schedule": dump_rotation_schedule(self.schedule) if self.schedule else None,
             "rotation_active_index": self.active_index,

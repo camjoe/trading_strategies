@@ -22,6 +22,16 @@ class TestRotationConfigFromProfile:
         assert rc.active_index == 0
         assert rc.active_strategy == "momentum"
 
+    def test_enabled_with_minute_interval_and_schedule(self):
+        rc = RotationConfig.from_profile({
+            "rotation_enabled": True,
+            "rotation_interval_minutes": 240,
+            "rotation_schedule": ["momentum", "meanrev"],
+        })
+        assert rc.enabled is True
+        assert rc.interval_minutes == 240
+        assert rc.schedule == ["momentum", "meanrev"]
+
     def test_explicit_active_index_sets_strategy(self):
         rc = RotationConfig.from_profile({
             "rotation_enabled": True,
@@ -70,9 +80,11 @@ class TestRotationConfigFromProfile:
 
     def test_lookback_days_and_last_at_stored(self):
         rc = RotationConfig.from_profile({
+            "rotation_interval_minutes": 60,
             "rotation_lookback_days": 30,
             "rotation_last_at": "2026-01-01T00:00:00Z",
         })
+        assert rc.interval_minutes == 60
         assert rc.lookback_days == 30
         assert rc.last_at == "2026-01-01T00:00:00Z"
 
@@ -85,8 +97,12 @@ class TestRotationConfigFromProfile:
             RotationConfig.from_profile({"rotation_optimality_mode": "random_pick"})
 
     def test_enabled_without_interval_raises(self):
-        with pytest.raises(ValueError, match="rotation_interval_days"):
+        with pytest.raises(ValueError, match="rotation interval must be configured"):
             RotationConfig.from_profile({"rotation_enabled": True})
+
+    def test_interval_minutes_zero_raises(self):
+        with pytest.raises(ValueError, match="rotation_interval_minutes"):
+            RotationConfig.from_profile({"rotation_interval_minutes": 0})
 
     def test_lookback_days_zero_raises(self):
         with pytest.raises(ValueError, match="rotation_lookback_days"):

@@ -89,6 +89,7 @@ class AdminCreateAccountRequest(BaseModel):
     rotationMode: str = "time"
     rotationOptimalityMode: str = "previous_period_best"
     rotationIntervalDays: int | None = None
+    rotationIntervalMinutes: int | None = None
     rotationLookbackDays: int | None = None
     rotationSchedule: list[str] | None = None
     rotationActiveIndex: int = 0
@@ -129,6 +130,7 @@ class AccountParamsRequest(BaseModel):
     rotationMode: str | None = None
     rotationOptimalityMode: str | None = None
     rotationIntervalDays: int | None = None
+    rotationIntervalMinutes: int | None = None
     rotationLookbackDays: int | None = None
     rotationSchedule: list[str] | None = None
     rotationActiveIndex: int | None = None

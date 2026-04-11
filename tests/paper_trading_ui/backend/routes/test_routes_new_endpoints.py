@@ -100,6 +100,7 @@ class TestAccountParamsEndpoint:
                 "rotationMode": "optimal",
                 "rotationOptimalityMode": "average_return",
                 "rotationIntervalDays": 7,
+                "rotationIntervalMinutes": 240,
                 "rotationLookbackDays": 30,
                 "rotationSchedule": ["trend", "mean_reversion"],
                 "rotationActiveIndex": 1,
@@ -115,6 +116,7 @@ class TestAccountParamsEndpoint:
         assert account["rotationMode"] == "optimal"
         assert account["rotationOptimalityMode"] == "average_return"
         assert account["rotationIntervalDays"] == 7
+        assert account["rotationIntervalMinutes"] == 240
         assert account["rotationLookbackDays"] == 30
         assert account["rotationSchedule"] == ["trend", "mean_reversion"]
         assert account["rotationActiveIndex"] == 1
