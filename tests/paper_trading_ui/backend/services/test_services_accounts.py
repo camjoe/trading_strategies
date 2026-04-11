@@ -333,6 +333,7 @@ class TestBuildAccountSummaryShape:
             "rotation_overlay_mode": "news_social",
             "rotation_overlay_min_tickers": 3,
             "rotation_overlay_confidence_threshold": 0.65,
+            "rotation_overlay_watchlist": '["AAPL","MSFT","NVDA"]',
             "rotation_active_index": 1,
             "rotation_active_strategy": "ma_crossover",
             "rotation_last_at": "2026-03-20T00:00:00Z",
@@ -352,6 +353,7 @@ class TestBuildAccountSummaryShape:
         assert summary["rotationOverlayMode"] == "news_social"
         assert summary["rotationOverlayMinTickers"] == 3
         assert summary["rotationOverlayConfidenceThreshold"] == pytest.approx(0.65)
+        assert summary["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
         assert summary["rotationActiveIndex"] == 1
         assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
         assert summary["rotationActiveStrategy"] == "ma_crossover"

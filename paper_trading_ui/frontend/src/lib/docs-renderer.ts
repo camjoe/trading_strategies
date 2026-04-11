@@ -283,8 +283,9 @@ const ADMIN_REQUEST_BODY_CONTENT = `
           <tr><td>rotationRegimeStrategyNeutral</td><td>string | null</td><td>Strategy selected during neutral policy conditions when rotationMode is regime.</td></tr>
           <tr><td>rotationRegimeStrategyRiskOff</td><td>string | null</td><td>Strategy selected during policy risk-off conditions when rotationMode is regime.</td></tr>
           <tr><td>rotationOverlayMode</td><td>string, default none</td><td>Optional ticker-level overlay for regime rotation: one of none, news, social, news_social.</td></tr>
-          <tr><td>rotationOverlayMinTickers</td><td>int | null</td><td>Minimum number of covered held tickers required before the overlay can influence regime selection.</td></tr>
+          <tr><td>rotationOverlayMinTickers</td><td>int | null</td><td>Minimum number of covered holdings/watchlist tickers required before the overlay can influence regime selection.</td></tr>
           <tr><td>rotationOverlayConfidenceThreshold</td><td>float | null</td><td>Required net agreement ratio (0-1] before the overlay nudges the policy regime by one step.</td></tr>
+          <tr><td>rotationOverlayWatchlist</td><td>string[]</td><td>Account-level overlay watchlist merged with live holdings; defaults to trading/config/trade_universe.txt for new and migrated accounts.</td></tr>
           <tr><td>rotationActiveIndex</td><td>int, default 0</td><td>Current position in the rotation schedule.</td></tr>
           <tr><td>rotationActiveStrategy</td><td>string | null</td><td>Explicitly set active strategy (overrides index lookup).</td></tr>
           <tr><td>rotationLastAt</td><td>string | null</td><td>ISO datetime of last rotation event.</td></tr>

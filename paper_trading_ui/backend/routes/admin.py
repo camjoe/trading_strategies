@@ -57,7 +57,7 @@ def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str
 
 
 def _build_rotation_config(payload: AdminCreateAccountRequest) -> RotationConfig:
-    return RotationConfig.from_profile({
+    profile: dict[str, object] = {
         "rotation_enabled": bool(payload.rotationEnabled),
         "rotation_mode": payload.rotationMode,
         "rotation_optimality_mode": payload.rotationOptimalityMode,
@@ -74,7 +74,10 @@ def _build_rotation_config(payload: AdminCreateAccountRequest) -> RotationConfig
         "rotation_active_index": int(payload.rotationActiveIndex),
         "rotation_last_at": payload.rotationLastAt,
         "rotation_active_strategy": payload.rotationActiveStrategy,
-    })
+    }
+    if payload.rotationOverlayWatchlist is not None:
+        profile["rotation_overlay_watchlist"] = payload.rotationOverlayWatchlist
+    return RotationConfig.from_profile(profile)
 
 
 @router.post("/api/admin/accounts/create")

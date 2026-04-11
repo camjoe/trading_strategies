@@ -8,13 +8,16 @@ from trading.domain.rotation import (
     ROTATION_REGIME_STATES,
     ROTATION_MODES,
     ROTATION_OVERLAY_MODES,
+    dump_rotation_overlay_watchlist,
     dump_rotation_schedule,
     is_rotation_due,
     next_rotation_state,
+    parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
     resolve_active_strategy,
     resolve_optimality_mode,
     resolve_rotation_overlay_mode,
+    resolve_rotation_overlay_watchlist,
     resolve_rotation_regime_strategy,
     resolve_rotation_mode,
 )
@@ -71,6 +74,17 @@ class TestParseRotationSchedule:
 
     def test_blank_string_returns_empty_schedule(self) -> None:
         assert parse_rotation_schedule("   ") == []
+
+
+class TestParseRotationOverlayWatchlist:
+    def test_accepts_json_and_uppercases_unique_tickers(self) -> None:
+        assert parse_rotation_overlay_watchlist('["aapl","MSFT","aapl"]') == ["AAPL", "MSFT"]
+
+    def test_rejects_invalid_overlay_watchlist(self) -> None:
+        with pytest.raises(ValueError, match="rotation_overlay_watchlist"):
+            parse_rotation_overlay_watchlist('{"bad": true}')
+        with pytest.raises(ValueError, match="rotation_overlay_watchlist"):
+            parse_rotation_overlay_watchlist(["AAPL", ""])
 
 
 class TestResolveActiveStrategy:
@@ -136,12 +150,14 @@ class TestResolveModes:
             "rotation_regime_strategy_neutral": "ma_crossover",
             "rotation_regime_strategy_risk_off": "mean_reversion",
             "rotation_overlay_mode": "news_social",
+            "rotation_overlay_watchlist": dump_rotation_overlay_watchlist(["aapl", "msft"]),
         }
         assert resolve_rotation_regime_strategy(account, "risk_on") == "trend"
         assert resolve_rotation_regime_strategy(account, "neutral") == "ma_crossover"
         assert resolve_rotation_regime_strategy(account, "risk_off") == "mean_reversion"
         assert resolve_rotation_regime_strategy(account, "unknown") is None
         assert resolve_rotation_overlay_mode(account) == "news_social"
+        assert resolve_rotation_overlay_watchlist(account) == ["AAPL", "MSFT"]
         assert resolve_rotation_overlay_mode({"rotation_overlay_mode": "weird"}) == "none"
 
 

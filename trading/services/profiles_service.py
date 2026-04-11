@@ -33,6 +33,7 @@ ROTATION_KEYS = {
     "rotation_overlay_mode",
     "rotation_overlay_min_tickers",
     "rotation_overlay_confidence_threshold",
+    "rotation_overlay_watchlist",
     "rotation_active_index",
     "rotation_last_at",
     "rotation_active_strategy",

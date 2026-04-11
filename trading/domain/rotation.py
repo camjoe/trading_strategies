@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Mapping
+from typing import Callable, Mapping
 
 from trading.utils.coercion import coerce_int
 
@@ -75,7 +75,13 @@ def _as_utc_iso(value: datetime) -> str:
     return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def parse_rotation_schedule(raw_value: object | None) -> list[str]:
+def _parse_unique_string_list(
+    raw_value: object | None,
+    *,
+    field_name: str,
+    item_label: str,
+    normalizer: Callable[[str], str] | None = None,
+) -> list[str]:
     if raw_value is None:
         return []
 
@@ -88,26 +94,53 @@ def parse_rotation_schedule(raw_value: object | None) -> list[str]:
         try:
             decoded = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ValueError("rotation_schedule must be valid JSON.") from exc
+            raise ValueError(f"{field_name} must be valid JSON.") from exc
         if not isinstance(decoded, list):
-            raise ValueError("rotation_schedule must decode to a list of strategy ids.")
+            raise ValueError(f"{field_name} must decode to a list of {item_label}.")
         raw_items = decoded
     else:
-        raise ValueError("rotation_schedule must be a list or JSON string.")
+        raise ValueError(f"{field_name} must be a list or JSON string.")
 
-    schedule: list[str] = []
+    items: list[str] = []
     for item in raw_items:
         if not isinstance(item, str) or not item.strip():
-            raise ValueError("rotation_schedule items must be non-empty strings.")
-        strategy_id = item.strip()
-        if strategy_id not in schedule:
-            schedule.append(strategy_id)
+            raise ValueError(f"{field_name} items must be non-empty strings.")
+        value = item.strip()
+        if normalizer is not None:
+            value = normalizer(value)
+        if value and value not in items:
+            items.append(value)
 
-    return schedule
+    return items
+
+
+def parse_rotation_schedule(raw_value: object | None) -> list[str]:
+    return _parse_unique_string_list(
+        raw_value,
+        field_name="rotation_schedule",
+        item_label="strategy ids",
+    )
 
 
 def dump_rotation_schedule(schedule: list[str]) -> str:
     return json.dumps(schedule, separators=(",", ":"))
+
+
+def parse_rotation_overlay_watchlist(raw_value: object | None) -> list[str]:
+    return _parse_unique_string_list(
+        raw_value,
+        field_name="rotation_overlay_watchlist",
+        item_label="tickers",
+        normalizer=lambda value: value.upper(),
+    )
+
+
+def dump_rotation_overlay_watchlist(watchlist: list[str]) -> str:
+    return json.dumps(watchlist, separators=(",", ":"))
+
+
+def resolve_rotation_overlay_watchlist(account: Mapping[str, object]) -> list[str]:
+    return parse_rotation_overlay_watchlist(_value(account, "rotation_overlay_watchlist"))
 
 
 def resolve_active_strategy(account: Mapping[str, object]) -> str:

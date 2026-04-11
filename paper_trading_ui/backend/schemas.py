@@ -98,6 +98,7 @@ class AdminCreateAccountRequest(BaseModel):
     rotationOverlayMode: str = "none"
     rotationOverlayMinTickers: int | None = None
     rotationOverlayConfidenceThreshold: float | None = None
+    rotationOverlayWatchlist: list[str] | None = None
     rotationActiveIndex: int = 0
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None
@@ -145,6 +146,7 @@ class AccountParamsRequest(BaseModel):
     rotationOverlayMode: str | None = None
     rotationOverlayMinTickers: int | None = None
     rotationOverlayConfidenceThreshold: float | None = None
+    rotationOverlayWatchlist: list[str] | None = None
     rotationActiveIndex: int | None = None
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None

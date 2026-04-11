@@ -200,6 +200,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         rotationOverlayMode: find<HTMLSelectElement>("#editRotationOverlayModeSelect")?.value || undefined,
         rotationOverlayMinTickers: readInt("#editRotationOverlayMinTickersInput"),
         rotationOverlayConfidenceThreshold: readNum("#editRotationOverlayConfidenceThresholdInput"),
+        rotationOverlayWatchlist: readCsv("#editRotationOverlayWatchlistInput"),
         rotationActiveIndex: readInt("#editRotationActiveIndexInput"),
         rotationLastAt: readStr("#editRotationLastAtInput"),
         rotationActiveStrategy: readStr("#editRotationActiveStrategyInput"),

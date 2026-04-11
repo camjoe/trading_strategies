@@ -28,7 +28,10 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from common.coercion import coerce_float, coerce_int, row_float, row_int
-from trading.domain.rotation import parse_rotation_schedule
+from trading.domain.rotation import (
+    parse_rotation_overlay_watchlist,
+    parse_rotation_schedule,
+)
 from trading.models.account_config import AccountConfig
 from trading.backtesting.services.report_service import (
     fetch_backtest_report_summary,
@@ -131,6 +134,9 @@ def _build_summary_from_stats(
 ) -> dict[str, object]:
     latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))
     rotation_schedule = parse_rotation_schedule(_row_value(row, "rotation_schedule"))
+    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(
+        _row_value(row, "rotation_overlay_watchlist")
+    )
     rotation_active_index = coerce_int(_row_value(row, "rotation_active_index"))
 
     initial_cash = float(row["initial_cash"])
@@ -189,6 +195,7 @@ def _build_summary_from_stats(
         "rotationOverlayMode": str(_row_value(row, "rotation_overlay_mode") or "none"),
         "rotationOverlayMinTickers": coerce_int(_row_value(row, "rotation_overlay_min_tickers")),
         "rotationOverlayConfidenceThreshold": coerce_float(_row_value(row, "rotation_overlay_confidence_threshold")),
+        "rotationOverlayWatchlist": rotation_overlay_watchlist,
         "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
         "rotationLastAt": _row_value(row, "rotation_last_at"),
         "rotationActiveStrategy": _row_value(row, "rotation_active_strategy"),
@@ -379,6 +386,7 @@ def update_account_params(
     rotation_overlay_mode: str | None = None,
     rotation_overlay_min_tickers: int | None = None,
     rotation_overlay_confidence_threshold: float | None = None,
+    rotation_overlay_watchlist: list[str] | None = None,
     rotation_active_index: int | None = None,
     rotation_last_at: str | None = None,
     rotation_active_strategy: str | None = None,
@@ -442,6 +450,8 @@ def update_account_params(
         rotation_profile["rotation_overlay_min_tickers"] = rotation_overlay_min_tickers
     if rotation_overlay_confidence_threshold is not None:
         rotation_profile["rotation_overlay_confidence_threshold"] = rotation_overlay_confidence_threshold
+    if rotation_overlay_watchlist is not None:
+        rotation_profile["rotation_overlay_watchlist"] = rotation_overlay_watchlist
     if rotation_active_index is not None:
         rotation_profile["rotation_active_index"] = rotation_active_index
     if rotation_last_at is not None:

@@ -219,6 +219,21 @@ def test_select_rotation_overlay_direction_requires_confident_majority() -> None
     assert direction is None
 
 
+def test_fetch_rotation_overlay_tickers_unions_holdings_and_watchlist() -> None:
+    tickers = rotation_service.fetch_rotation_overlay_tickers(
+        conn=object(),
+        account=_account(
+            rotation_overlay_watchlist='["msft","googl"]',
+        ),
+        load_trades_fn=lambda *_args, **_kwargs: [],
+        compute_account_state_fn=lambda _cash, _trades: SimpleNamespace(
+            positions={"AAPL": 5.0, "MSFT": 0.0, "NVDA": 2.0},
+        ),
+    )
+
+    assert tickers == ["AAPL", "GOOGL", "MSFT", "NVDA"]
+
+
 def test_select_regime_strategy_applies_bullish_news_overlay() -> None:
     account = _account(
         rotation_schedule='["trend","ma_crossover","mean_reversion"]',

@@ -110,6 +110,14 @@ class TestRotationConfigFromProfile:
         assert rc.overlay_min_tickers == 3
         assert rc.overlay_confidence_threshold == pytest.approx(0.6)
 
+    def test_regime_rotation_accepts_overlay_watchlist(self):
+        rc = RotationConfig.from_profile({
+            "rotation_mode": "regime",
+            "rotation_overlay_watchlist": ["aapl", "msft", "AAPL"],
+        })
+        assert rc.overlay_watchlist == ["AAPL", "MSFT"]
+        assert rc.to_db_dict()["rotation_overlay_watchlist"] == '["AAPL","MSFT"]'
+
     def test_lookback_days_and_last_at_stored(self):
         rc = RotationConfig.from_profile({
             "rotation_interval_minutes": 60,

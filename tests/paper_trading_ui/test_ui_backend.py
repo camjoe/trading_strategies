@@ -162,6 +162,7 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
             "rotationOverlayMode": "news",
             "rotationOverlayMinTickers": 2,
             "rotationOverlayConfidenceThreshold": 0.5,
+            "rotationOverlayWatchlist": ["AAPL", "MSFT", "NVDA"],
             "rotationActiveIndex": 0,
             "rotationActiveStrategy": "trend",
         },
@@ -182,6 +183,7 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     assert payload["account"]["rotationOverlayMode"] == "news"
     assert payload["account"]["rotationOverlayMinTickers"] == 2
     assert payload["account"]["rotationOverlayConfidenceThreshold"] == 0.5
+    assert payload["account"]["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
 
 
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:

@@ -7,7 +7,9 @@ from trading.domain.rotation import (
     OPTIMALITY_MODES,
     ROTATION_MODES,
     ROTATION_OVERLAY_MODES,
+    dump_rotation_overlay_watchlist,
     parse_rotation_schedule,
+    parse_rotation_overlay_watchlist,
 )
 
 
@@ -26,6 +28,7 @@ class RotationConfig:
     overlay_mode: str | None = None
     overlay_min_tickers: int | None = None
     overlay_confidence_threshold: float | None = None
+    overlay_watchlist: list[str] | None = None
     active_index: int | None = None
     last_at: str | None = None
     active_strategy: str | None = None
@@ -44,6 +47,11 @@ class RotationConfig:
         overlay_mode_raw = coerce_str(profile.get("rotation_overlay_mode"))
         overlay_min_tickers = coerce_int(profile.get("rotation_overlay_min_tickers"))
         overlay_confidence_threshold_raw = profile.get("rotation_overlay_confidence_threshold")
+        overlay_watchlist = (
+            parse_rotation_overlay_watchlist(profile.get("rotation_overlay_watchlist"))
+            if "rotation_overlay_watchlist" in profile
+            else None
+        )
         active_index = coerce_int(profile.get("rotation_active_index"))
         last_at = coerce_str(profile.get("rotation_last_at"))
         active_strategy = coerce_str(profile.get("rotation_active_strategy"))
@@ -139,6 +147,7 @@ class RotationConfig:
             overlay_mode=overlay_mode,
             overlay_min_tickers=overlay_min_tickers,
             overlay_confidence_threshold=overlay_confidence_threshold,
+            overlay_watchlist=overlay_watchlist,
             active_index=active_index,
             last_at=last_at.strip() if last_at is not None else None,
             active_strategy=active_strategy.strip() if active_strategy is not None else None,
@@ -146,7 +155,7 @@ class RotationConfig:
 
     def to_db_dict(self) -> dict[str, object]:
         from trading.domain.rotation import dump_rotation_schedule
-        return {
+        values: dict[str, object] = {
             "rotation_enabled": self.enabled,
             "rotation_mode": self.mode,
             "rotation_optimality_mode": self.optimality_mode,
@@ -164,3 +173,6 @@ class RotationConfig:
             "rotation_last_at": self.last_at,
             "rotation_active_strategy": self.active_strategy,
         }
+        if self.overlay_watchlist is not None:
+            values["rotation_overlay_watchlist"] = dump_rotation_overlay_watchlist(self.overlay_watchlist)
+        return values

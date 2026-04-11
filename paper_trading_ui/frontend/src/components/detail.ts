@@ -398,6 +398,12 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
             <input id="editRotationOverlayConfidenceThresholdInput" type="number" step="0.01" min="0.01" max="1" value="${detail.account.rotationOverlayConfidenceThreshold ?? ""}" placeholder="0.50" />
           </div>
         </div>
+        <div class="bt-row">
+          <div class="bt-field" style="flex:1">
+            <span>Overlay Watchlist (comma-separated)</span>
+            <input id="editRotationOverlayWatchlistInput" type="text" value="${esc((detail.account.rotationOverlayWatchlist ?? []).join(","))}" placeholder="AAPL,MSFT,NVDA" />
+          </div>
+        </div>
       </details>
 
       <div class="edit-params-actions">

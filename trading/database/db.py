@@ -1,6 +1,9 @@
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from common.tickers import load_tickers_from_file
 from trading.database.db_backend import get_backend
 from trading.database.db_config import get_db_path
 
@@ -9,7 +12,21 @@ DBConnection = Any
 
 DB_PATH = get_db_path()
 
-ACCOUNTS_TABLE_SQL = """
+# Default source used to seed account-level overlay watchlists so regime overlays
+# can evaluate a stable baseline universe even before the account accumulates holdings.
+DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE = "trading/config/trade_universe.txt"
+
+# Canonical seeded overlay watchlist shared by new-account defaults and account
+# backfills when the watchlist column is introduced by migration.
+DEFAULT_ROTATION_OVERLAY_WATCHLIST = load_tickers_from_file(
+    str(Path(__file__).resolve().parents[2] / DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE)
+)
+DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
+    DEFAULT_ROTATION_OVERLAY_WATCHLIST,
+    separators=(",", ":"),
+)
+
+ACCOUNTS_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -52,6 +69,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     rotation_overlay_mode TEXT NOT NULL DEFAULT 'none',
     rotation_overlay_min_tickers INTEGER,
     rotation_overlay_confidence_threshold REAL,
+    rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}',
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
     rotation_last_at TEXT,
     rotation_active_strategy TEXT
@@ -338,6 +356,14 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration(
         "rotation_overlay_confidence_threshold",
         "ALTER TABLE accounts ADD COLUMN rotation_overlay_confidence_threshold REAL",
+    ),
+    ColumnMigration(
+        "rotation_overlay_watchlist",
+        f"ALTER TABLE accounts ADD COLUMN rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}'",
+        (
+            f"UPDATE accounts SET rotation_overlay_watchlist = '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}' "
+            "WHERE rotation_overlay_watchlist IS NULL OR TRIM(rotation_overlay_watchlist) = ''",
+        ),
     ),
     ColumnMigration(
         "rotation_active_index",

@@ -5,7 +5,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Callable, cast
 
 from trading.domain.returns import safe_return_pct as safe_return_pct_impl
-from trading.domain.rotation import resolve_rotation_overlay_mode
+from trading.domain.rotation import (
+    resolve_rotation_overlay_mode,
+    resolve_rotation_overlay_watchlist,
+)
 from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import (
     NEWS_BUY_SENTIMENT_THRESHOLD,
@@ -140,7 +143,8 @@ def fetch_rotation_overlay_tickers(
         compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
     )
     positions = cast(dict[str, float], getattr(state, "positions", {}))
-    return sorted(ticker for ticker, qty in positions.items() if float(qty) > 0)
+    held_tickers = {ticker for ticker, qty in positions.items() if float(qty) > 0}
+    return sorted(held_tickers | set(resolve_rotation_overlay_watchlist(account)))
 
 
 def _classify_news_overlay_vote(

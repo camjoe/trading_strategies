@@ -125,6 +125,7 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
                 rotation_overlay_mode=body.rotationOverlayMode,
                 rotation_overlay_min_tickers=body.rotationOverlayMinTickers,
                 rotation_overlay_confidence_threshold=body.rotationOverlayConfidenceThreshold,
+                rotation_overlay_watchlist=body.rotationOverlayWatchlist,
                 rotation_active_index=body.rotationActiveIndex,
                 rotation_last_at=body.rotationLastAt,
                 rotation_active_strategy=body.rotationActiveStrategy,

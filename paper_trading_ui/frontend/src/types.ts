@@ -45,6 +45,7 @@ export type AccountSummary = {
   rotationOverlayMode?: string;
   rotationOverlayMinTickers?: number | null;
   rotationOverlayConfidenceThreshold?: number | null;
+  rotationOverlayWatchlist?: string[] | null;
   rotationActiveIndex?: number;
   rotationLastAt?: string | null;
   rotationActiveStrategy?: string | null;
@@ -221,6 +222,7 @@ export interface AccountParamsUpdate {
   rotationOverlayMode?: string;
   rotationOverlayMinTickers?: number | null;
   rotationOverlayConfidenceThreshold?: number | null;
+  rotationOverlayWatchlist?: string[] | null;
   rotationActiveIndex?: number | null;
   rotationLastAt?: string | null;
   rotationActiveStrategy?: string | null;

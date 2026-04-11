@@ -110,6 +110,7 @@ class TestAccountParamsEndpoint:
                 "rotationOverlayMode": "news_social",
                 "rotationOverlayMinTickers": 2,
                 "rotationOverlayConfidenceThreshold": 0.55,
+                "rotationOverlayWatchlist": ["AAPL", "MSFT", "NVDA"],
                 "rotationActiveIndex": 1,
                 "rotationActiveStrategy": "ma_crossover",
                 "rotationLastAt": "2026-03-20T00:00:00Z",
@@ -132,6 +133,7 @@ class TestAccountParamsEndpoint:
         assert account["rotationOverlayMode"] == "news_social"
         assert account["rotationOverlayMinTickers"] == 2
         assert account["rotationOverlayConfidenceThreshold"] == pytest.approx(0.55)
+        assert account["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
         assert account["rotationActiveIndex"] == 1
         assert account["rotationActiveStrategy"] == "ma_crossover"
         assert account["rotationLastAt"] == "2026-03-20T00:00:00Z"
