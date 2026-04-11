@@ -15,6 +15,9 @@ class RotationConfig:
     interval_minutes: int | None = None
     lookback_days: int | None = None
     schedule: list[str] | None = None
+    regime_strategy_risk_on: str | None = None
+    regime_strategy_neutral: str | None = None
+    regime_strategy_risk_off: str | None = None
     active_index: int | None = None
     last_at: str | None = None
     active_strategy: str | None = None
@@ -27,6 +30,9 @@ class RotationConfig:
         interval_days = coerce_int(profile.get("rotation_interval_days"))
         interval_minutes = coerce_int(profile.get("rotation_interval_minutes"))
         lookback_days = coerce_int(profile.get("rotation_lookback_days"))
+        regime_strategy_risk_on = coerce_str(profile.get("rotation_regime_strategy_risk_on"))
+        regime_strategy_neutral = coerce_str(profile.get("rotation_regime_strategy_neutral"))
+        regime_strategy_risk_off = coerce_str(profile.get("rotation_regime_strategy_risk_off"))
         active_index = coerce_int(profile.get("rotation_active_index"))
         last_at = coerce_str(profile.get("rotation_last_at"))
         active_strategy = coerce_str(profile.get("rotation_active_strategy"))
@@ -34,7 +40,7 @@ class RotationConfig:
 
         mode = (rotation_mode_raw or "time").strip().lower()
         if mode not in ROTATION_MODES:
-            raise ValueError("rotation_mode must be one of: time, optimal")
+            raise ValueError("rotation_mode must be one of: regime, time, optimal")
 
         optimality_mode = (optimality_mode_raw or "previous_period_best").strip().lower()
         if optimality_mode not in OPTIMALITY_MODES:
@@ -68,6 +74,27 @@ class RotationConfig:
         if active_strategy and schedule and active_strategy not in schedule:
             raise ValueError("rotation_active_strategy must be a member of rotation_schedule")
 
+        regime_strategy_map = {
+            "risk_on": regime_strategy_risk_on.strip() if regime_strategy_risk_on is not None else None,
+            "neutral": regime_strategy_neutral.strip() if regime_strategy_neutral is not None else None,
+            "risk_off": regime_strategy_risk_off.strip() if regime_strategy_risk_off is not None else None,
+        }
+        for regime_state, strategy_name in regime_strategy_map.items():
+            if strategy_name and schedule and strategy_name not in schedule:
+                raise ValueError(f"rotation_regime_strategy_{regime_state} must be a member of rotation_schedule")
+
+        if enabled and mode == "regime":
+            missing_states = [
+                regime_state
+                for regime_state, strategy_name in regime_strategy_map.items()
+                if not strategy_name
+            ]
+            if missing_states:
+                missing = ", ".join(missing_states)
+                raise ValueError(
+                    f"rotation_regime_strategy_* must be set for regime rotation; missing: {missing}"
+                )
+
         if schedule and active_strategy and active_index is None:
             active_index = schedule.index(active_strategy)
 
@@ -79,6 +106,9 @@ class RotationConfig:
             interval_minutes=interval_minutes,
             lookback_days=lookback_days,
             schedule=schedule if schedule else None,
+            regime_strategy_risk_on=regime_strategy_map["risk_on"],
+            regime_strategy_neutral=regime_strategy_map["neutral"],
+            regime_strategy_risk_off=regime_strategy_map["risk_off"],
             active_index=active_index,
             last_at=last_at.strip() if last_at is not None else None,
             active_strategy=active_strategy.strip() if active_strategy is not None else None,
@@ -94,6 +124,9 @@ class RotationConfig:
             "rotation_interval_minutes": self.interval_minutes,
             "rotation_lookback_days": self.lookback_days,
             "rotation_schedule": dump_rotation_schedule(self.schedule) if self.schedule else None,
+            "rotation_regime_strategy_risk_on": self.regime_strategy_risk_on,
+            "rotation_regime_strategy_neutral": self.regime_strategy_neutral,
+            "rotation_regime_strategy_risk_off": self.regime_strategy_risk_off,
             "rotation_active_index": self.active_index,
             "rotation_last_at": self.last_at,
             "rotation_active_strategy": self.active_strategy,

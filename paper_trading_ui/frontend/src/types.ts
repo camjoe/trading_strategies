@@ -39,6 +39,9 @@ export type AccountSummary = {
   rotationIntervalMinutes?: number | null;
   rotationLookbackDays?: number | null;
   rotationSchedule?: string[] | null;
+  rotationRegimeStrategyRiskOn?: string | null;
+  rotationRegimeStrategyNeutral?: string | null;
+  rotationRegimeStrategyRiskOff?: string | null;
   rotationActiveIndex?: number;
   rotationLastAt?: string | null;
   rotationActiveStrategy?: string | null;
@@ -209,6 +212,9 @@ export interface AccountParamsUpdate {
   rotationIntervalMinutes?: number | null;
   rotationLookbackDays?: number | null;
   rotationSchedule?: string[] | null;
+  rotationRegimeStrategyRiskOn?: string | null;
+  rotationRegimeStrategyNeutral?: string | null;
+  rotationRegimeStrategyRiskOff?: string | null;
   rotationActiveIndex?: number | null;
   rotationLastAt?: string | null;
   rotationActiveStrategy?: string | null;

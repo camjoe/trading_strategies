@@ -5,6 +5,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Callable, cast
 
 from trading.domain.returns import safe_return_pct as safe_return_pct_impl
+from trading.features.base import ExternalFeatureBundle
+from trading.features.policy_feature_provider import (
+    POLICY_MAX_DEFENSIVE_TILT,
+    POLICY_RISK_OFF_SELL_THRESHOLD,
+    POLICY_RISK_ON_BUY_THRESHOLD,
+    POLICY_DEFENSIVE_TILT,
+    POLICY_RISK_ON_SCORE,
+)
+from trading.utils.coercion import coerce_float
 
 # Minimum completed live episodes required before the live component receives
 # its full configured weight in hybrid rotation scoring.
@@ -14,6 +23,9 @@ MIN_LIVE_EPISODES_FOR_FULL_CONFIDENCE = 3
 # accumulates, with a smaller live overlay once strategy episodes are observed.
 HYBRID_BACKTEST_WEIGHT = 0.70
 HYBRID_LIVE_WEIGHT = 0.30
+
+# Ticker used to query the policy provider for account-level regime context.
+POLICY_REGIME_PROBE_TICKER = "SPY"
 
 
 def parse_as_of_iso(as_of_iso: str) -> datetime:
@@ -43,6 +55,56 @@ def _average(values: list[float]) -> float | None:
     if not values:
         return None
     return sum(values) / len(values)
+
+
+def classify_policy_regime(
+    *,
+    risk_on_score: object,
+    defensive_tilt: object,
+    coerce_float_fn: Callable[[object], float | None],
+) -> str | None:
+    score = coerce_float_fn(risk_on_score)
+    tilt = coerce_float_fn(defensive_tilt)
+    if score is None or tilt is None:
+        return None
+    if score >= POLICY_RISK_ON_BUY_THRESHOLD and tilt <= POLICY_MAX_DEFENSIVE_TILT:
+        return "risk_on"
+    if score < POLICY_RISK_OFF_SELL_THRESHOLD or tilt > POLICY_MAX_DEFENSIVE_TILT:
+        return "risk_off"
+    return "neutral"
+
+
+def select_regime_strategy(
+    account: sqlite3.Row,
+    *,
+    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
+    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    resolve_rotation_regime_strategy_fn: Callable[[sqlite3.Row, str], str | None],
+    fetch_policy_features_fn: Callable[[str], ExternalFeatureBundle],
+    coerce_float_fn: Callable[[object], float | None] = coerce_float,
+) -> str | None:
+    schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
+    if not schedule:
+        return None
+
+    active_strategy = resolve_active_strategy_fn(account)
+    bundle = fetch_policy_features_fn(POLICY_REGIME_PROBE_TICKER)
+    if not bundle.available:
+        return active_strategy
+
+    regime_state = classify_policy_regime(
+        risk_on_score=bundle.get(POLICY_RISK_ON_SCORE),
+        defensive_tilt=bundle.get(POLICY_DEFENSIVE_TILT),
+        coerce_float_fn=coerce_float_fn,
+    )
+    if regime_state is None:
+        return active_strategy
+
+    selected = resolve_rotation_regime_strategy_fn(account, regime_state)
+    if not selected:
+        return active_strategy
+
+    return selected if selected in schedule else active_strategy
 
 
 def compute_live_account_metrics(
@@ -243,9 +305,9 @@ def rotate_account_if_due(
         return account
 
     rotation_mode = resolve_rotation_mode_fn(account)
-    if rotation_mode == "optimal":
-        optimal = select_optimal_strategy_fn(conn, account, now_iso)
-        active = optimal or resolve_active_strategy_fn(account)
+    if rotation_mode in {"optimal", "regime"}:
+        selected = select_optimal_strategy_fn(conn, account, now_iso)
+        active = selected or resolve_active_strategy_fn(account)
         schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
         if schedule and active in schedule:
             active_idx = schedule.index(active)

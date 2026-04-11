@@ -78,6 +78,21 @@ class TestRotationConfigFromProfile:
         assert rc.mode == "optimal"
         assert rc.optimality_mode == "hybrid_weighted"
 
+    def test_regime_rotation_mode_requires_strategy_map(self):
+        rc = RotationConfig.from_profile({
+            "rotation_enabled": True,
+            "rotation_mode": "regime",
+            "rotation_interval_minutes": 240,
+            "rotation_schedule": ["trend", "ma_crossover", "mean_reversion"],
+            "rotation_regime_strategy_risk_on": "trend",
+            "rotation_regime_strategy_neutral": "ma_crossover",
+            "rotation_regime_strategy_risk_off": "mean_reversion",
+        })
+        assert rc.mode == "regime"
+        assert rc.regime_strategy_risk_on == "trend"
+        assert rc.regime_strategy_neutral == "ma_crossover"
+        assert rc.regime_strategy_risk_off == "mean_reversion"
+
     def test_lookback_days_and_last_at_stored(self):
         rc = RotationConfig.from_profile({
             "rotation_interval_minutes": 60,
@@ -123,6 +138,29 @@ class TestRotationConfigFromProfile:
                 "rotation_interval_days": 7,
                 "rotation_schedule": ["a", "b"],
                 "rotation_active_strategy": "z",
+            })
+
+    def test_regime_strategy_not_in_schedule_raises(self):
+        with pytest.raises(ValueError, match="rotation_regime_strategy_risk_off"):
+            RotationConfig.from_profile({
+                "rotation_enabled": True,
+                "rotation_mode": "regime",
+                "rotation_interval_days": 7,
+                "rotation_schedule": ["trend", "ma_crossover"],
+                "rotation_regime_strategy_risk_on": "trend",
+                "rotation_regime_strategy_neutral": "ma_crossover",
+                "rotation_regime_strategy_risk_off": "mean_reversion",
+            })
+
+    def test_regime_rotation_missing_mapping_raises(self):
+        with pytest.raises(ValueError, match="rotation_regime_strategy_\\* must be set"):
+            RotationConfig.from_profile({
+                "rotation_enabled": True,
+                "rotation_mode": "regime",
+                "rotation_interval_days": 7,
+                "rotation_schedule": ["trend", "ma_crossover", "mean_reversion"],
+                "rotation_regime_strategy_risk_on": "trend",
+                "rotation_regime_strategy_neutral": "ma_crossover",
             })
 
     def test_empty_profile_uses_defaults(self):

@@ -183,6 +183,9 @@ def _build_summary_from_stats(
         "rotationIntervalMinutes": coerce_int(_row_value(row, "rotation_interval_minutes")),
         "rotationLookbackDays": coerce_int(_row_value(row, "rotation_lookback_days")),
         "rotationSchedule": rotation_schedule or None,
+        "rotationRegimeStrategyRiskOn": _row_value(row, "rotation_regime_strategy_risk_on"),
+        "rotationRegimeStrategyNeutral": _row_value(row, "rotation_regime_strategy_neutral"),
+        "rotationRegimeStrategyRiskOff": _row_value(row, "rotation_regime_strategy_risk_off"),
         "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
         "rotationLastAt": _row_value(row, "rotation_last_at"),
         "rotationActiveStrategy": _row_value(row, "rotation_active_strategy"),
@@ -367,6 +370,9 @@ def update_account_params(
     rotation_interval_minutes: int | None = None,
     rotation_lookback_days: int | None = None,
     rotation_schedule: list[str] | None = None,
+    rotation_regime_strategy_risk_on: str | None = None,
+    rotation_regime_strategy_neutral: str | None = None,
+    rotation_regime_strategy_risk_off: str | None = None,
     rotation_active_index: int | None = None,
     rotation_last_at: str | None = None,
     rotation_active_strategy: str | None = None,
@@ -418,6 +424,12 @@ def update_account_params(
         rotation_profile["rotation_lookback_days"] = rotation_lookback_days
     if rotation_schedule is not None:
         rotation_profile["rotation_schedule"] = rotation_schedule
+    if rotation_regime_strategy_risk_on is not None:
+        rotation_profile["rotation_regime_strategy_risk_on"] = rotation_regime_strategy_risk_on
+    if rotation_regime_strategy_neutral is not None:
+        rotation_profile["rotation_regime_strategy_neutral"] = rotation_regime_strategy_neutral
+    if rotation_regime_strategy_risk_off is not None:
+        rotation_profile["rotation_regime_strategy_risk_off"] = rotation_regime_strategy_risk_off
     if rotation_active_index is not None:
         rotation_profile["rotation_active_index"] = rotation_active_index
     if rotation_last_at is not None:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from trading.domain.rotation import parse_rotation_schedule
 
 import trading.services.rotation_service as rotation_service
@@ -133,3 +135,52 @@ def test_sync_rotation_episode_closes_previous_and_opens_new() -> None:
             "starting_realized_pnl": 20.0,
         }
     ]
+
+
+def test_select_regime_strategy_uses_policy_mapping() -> None:
+    account = _account(
+        rotation_schedule='["trend","ma_crossover","mean_reversion"]',
+        rotation_active_strategy="trend",
+        rotation_regime_strategy_risk_on="trend",
+        rotation_regime_strategy_neutral="ma_crossover",
+        rotation_regime_strategy_risk_off="mean_reversion",
+    )
+
+    selected = rotation_service.select_regime_strategy(
+        account,
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
+        resolve_rotation_regime_strategy_fn=lambda row, state: row[f"rotation_regime_strategy_{state}"],
+        fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
+            available=True,
+            get=lambda key, default=None: {
+                "policy_risk_on_score": 0.70,
+                "policy_defensive_tilt": -0.01,
+            }.get(key, default),
+        ),
+    )
+
+    assert selected == "trend"
+
+
+def test_select_regime_strategy_keeps_active_when_features_unavailable() -> None:
+    account = _account(
+        rotation_schedule='["trend","ma_crossover","mean_reversion"]',
+        rotation_active_strategy="ma_crossover",
+        rotation_regime_strategy_risk_on="trend",
+        rotation_regime_strategy_neutral="ma_crossover",
+        rotation_regime_strategy_risk_off="mean_reversion",
+    )
+
+    selected = rotation_service.select_regime_strategy(
+        account,
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
+        resolve_rotation_regime_strategy_fn=lambda row, state: row[f"rotation_regime_strategy_{state}"],
+        fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
+            available=False,
+            get=lambda _key, default=None: default,
+        ),
+    )
+
+    assert selected == "ma_crossover"

@@ -8,8 +8,9 @@ from trading.utils.coercion import coerce_int
 
 from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 
-ROTATION_MODES = {"time", "optimal"}
+ROTATION_MODES = {"time", "optimal", "regime"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
+ROTATION_REGIME_STATES = {"risk_on", "neutral", "risk_off"}
 
 
 def _value(account: Mapping[str, object], key: str) -> object | None:
@@ -37,6 +38,13 @@ def resolve_optimality_mode(account: Mapping[str, object]) -> str:
     mode_raw = _value(account, "rotation_optimality_mode")
     mode = str(mode_raw or "previous_period_best").strip().lower()
     return mode if mode in OPTIMALITY_MODES else "previous_period_best"
+
+
+def resolve_rotation_regime_strategy(account: Mapping[str, object], regime_state: str) -> str | None:
+    if regime_state not in ROTATION_REGIME_STATES:
+        return None
+    strategy = str(_value(account, f"rotation_regime_strategy_{regime_state}") or "").strip()
+    return strategy or None
 
 
 def _parse_iso(value: str | None) -> datetime | None:

@@ -171,6 +171,7 @@
               <select name="rotationMode">
                 <option value="time" selected>time</option>
                 <option value="optimal">optimal</option>
+                <option value="regime">regime</option>
               </select>
             </label>
             <label class="bt-field">
@@ -208,6 +209,18 @@
             <label class="bt-field admin-wide">
               <span>Rotation schedule (comma-separated)</span>
               <input name="rotationScheduleCsv" placeholder="trend,mean_reversion,breakout" />
+            </label>
+            <label class="bt-field">
+              <span>Regime Risk-On Strategy</span>
+              <input name="rotationRegimeStrategyRiskOn" />
+            </label>
+            <label class="bt-field">
+              <span>Regime Neutral Strategy</span>
+              <input name="rotationRegimeStrategyNeutral" />
+            </label>
+            <label class="bt-field">
+              <span>Regime Risk-Off Strategy</span>
+              <input name="rotationRegimeStrategyRiskOff" />
             </label>
           </div>
         </details>

@@ -326,10 +326,13 @@ class TestBuildAccountSummaryShape:
             "rotation_interval_days": 7,
             "rotation_interval_minutes": 240,
             "rotation_lookback_days": 30,
-            "rotation_schedule": '["trend","mean_reversion"]',
+            "rotation_schedule": '["trend","ma_crossover","mean_reversion"]',
+            "rotation_regime_strategy_risk_on": "trend",
+            "rotation_regime_strategy_neutral": "ma_crossover",
+            "rotation_regime_strategy_risk_off": "mean_reversion",
             "rotation_active_index": 1,
+            "rotation_active_strategy": "ma_crossover",
             "rotation_last_at": "2026-03-20T00:00:00Z",
-            "rotation_active_strategy": "mean_reversion",
         }
 
         summary = services_accounts.build_account_summary(conn=None, row=row)
@@ -339,10 +342,13 @@ class TestBuildAccountSummaryShape:
         assert summary["rotationIntervalDays"] == 7
         assert summary["rotationIntervalMinutes"] == 240
         assert summary["rotationLookbackDays"] == 30
-        assert summary["rotationSchedule"] == ["trend", "mean_reversion"]
+        assert summary["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
+        assert summary["rotationRegimeStrategyRiskOn"] == "trend"
+        assert summary["rotationRegimeStrategyNeutral"] == "ma_crossover"
+        assert summary["rotationRegimeStrategyRiskOff"] == "mean_reversion"
         assert summary["rotationActiveIndex"] == 1
         assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
-        assert summary["rotationActiveStrategy"] == "mean_reversion"
+        assert summary["rotationActiveStrategy"] == "ma_crossover"
 
     def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
         """zero initial_cash + no snapshot → delta_pct = 0.0 (no crash)."""

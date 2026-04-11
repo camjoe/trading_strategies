@@ -41,6 +41,9 @@ def _base_account(**overrides):
         "rotation_mode": "time",
         "rotation_optimality_mode": "previous_period_best",
         "rotation_lookback_days": 180,
+        "rotation_regime_strategy_risk_on": None,
+        "rotation_regime_strategy_neutral": None,
+        "rotation_regime_strategy_risk_off": None,
     }
     base.update(overrides)
     return base
@@ -292,9 +295,13 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
                 inner_account,
                 inner_as_of,
                 select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
+                select_regime_strategy_impl_fn=None,
                 parse_rotation_schedule_fn=parse_rotation_schedule,
                 parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
                 fetch_strategy_backtest_returns_fn=__import__("trading.backtesting.services.history_service", fromlist=["fetch_strategy_backtest_returns"]).fetch_strategy_backtest_returns,
+                fetch_policy_features_fn=None,
+                resolve_rotation_mode_fn=resolve_rotation_mode,
+                resolve_active_strategy_fn=resolve_active_strategy,
                 resolve_optimality_mode_fn=resolve_optimality_mode,
             ),
             resolve_active_strategy_fn=resolve_active_strategy,
@@ -338,9 +345,13 @@ def test_select_account_rotation_strategy_returns_none_when_no_runs(conn) -> Non
         account,
         "2026-03-21T00:00:00Z",
         select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
+        select_regime_strategy_impl_fn=None,
         parse_rotation_schedule_fn=parse_rotation_schedule,
         parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
         fetch_strategy_backtest_returns_fn=history_service.fetch_strategy_backtest_returns,
+        fetch_policy_features_fn=None,
+        resolve_rotation_mode_fn=resolve_rotation_mode,
+        resolve_active_strategy_fn=resolve_active_strategy,
         resolve_optimality_mode_fn=resolve_optimality_mode,
     ) is None
 
@@ -353,8 +364,46 @@ def test_select_account_rotation_strategy_returns_none_when_schedule_empty(conn)
         account,
         "2026-03-21T00:00:00Z",
         select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
+        select_regime_strategy_impl_fn=None,
         parse_rotation_schedule_fn=parse_rotation_schedule,
         parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
         fetch_strategy_backtest_returns_fn=history_service.fetch_strategy_backtest_returns,
+        fetch_policy_features_fn=None,
+        resolve_rotation_mode_fn=resolve_rotation_mode,
+        resolve_active_strategy_fn=resolve_active_strategy,
         resolve_optimality_mode_fn=resolve_optimality_mode,
     ) is None
+
+
+def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
+    account = _base_account(
+        rotation_mode="regime",
+        rotation_schedule='["trend","ma_crossover","mean_reversion"]',
+        rotation_active_strategy="ma_crossover",
+        rotation_regime_strategy_risk_on="trend",
+        rotation_regime_strategy_neutral="ma_crossover",
+        rotation_regime_strategy_risk_off="mean_reversion",
+    )
+
+    selected = auto_trader_service.select_account_rotation_strategy(
+        conn=object(),
+        account=account,
+        as_of_iso="2026-03-21T00:00:00Z",
+        select_optimal_strategy_impl_fn=lambda *_args, **_kwargs: None,
+        select_regime_strategy_impl_fn=rotation_service.select_regime_strategy,
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
+        fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
+            available=True,
+            get=lambda key, default=None: {
+                "policy_risk_on_score": 0.40,
+                "policy_defensive_tilt": 0.03,
+            }.get(key, default),
+        ),
+        resolve_rotation_mode_fn=resolve_rotation_mode,
+        resolve_active_strategy_fn=resolve_active_strategy,
+        resolve_optimality_mode_fn=resolve_optimality_mode,
+    )
+
+    assert selected == "mean_reversion"

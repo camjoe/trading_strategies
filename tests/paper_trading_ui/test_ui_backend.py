@@ -151,10 +151,13 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
             "takeProfitPct": 8,
             "instrumentMode": "equity",
             "rotationEnabled": True,
-            "rotationMode": "time",
+            "rotationMode": "regime",
             "rotationIntervalDays": 14,
             "rotationIntervalMinutes": 240,
-            "rotationSchedule": ["trend", "mean_reversion"],
+            "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
+            "rotationRegimeStrategyRiskOn": "trend",
+            "rotationRegimeStrategyNeutral": "ma_crossover",
+            "rotationRegimeStrategyRiskOff": "mean_reversion",
             "rotationActiveIndex": 0,
             "rotationActiveStrategy": "trend",
         },
@@ -165,10 +168,13 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     assert payload["status"] == "ok"
     assert payload["account"]["name"] == "acct_admin_create"
     assert payload["account"]["rotationEnabled"] is True
-    assert payload["account"]["rotationMode"] == "time"
+    assert payload["account"]["rotationMode"] == "regime"
     assert payload["account"]["rotationIntervalDays"] == 14
     assert payload["account"]["rotationIntervalMinutes"] == 240
-    assert payload["account"]["rotationSchedule"] == ["trend", "mean_reversion"]
+    assert payload["account"]["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
+    assert payload["account"]["rotationRegimeStrategyRiskOn"] == "trend"
+    assert payload["account"]["rotationRegimeStrategyNeutral"] == "ma_crossover"
+    assert payload["account"]["rotationRegimeStrategyRiskOff"] == "mean_reversion"
 
 
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:

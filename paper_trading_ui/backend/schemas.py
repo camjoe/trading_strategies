@@ -92,6 +92,9 @@ class AdminCreateAccountRequest(BaseModel):
     rotationIntervalMinutes: int | None = None
     rotationLookbackDays: int | None = None
     rotationSchedule: list[str] | None = None
+    rotationRegimeStrategyRiskOn: str | None = None
+    rotationRegimeStrategyNeutral: str | None = None
+    rotationRegimeStrategyRiskOff: str | None = None
     rotationActiveIndex: int = 0
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None
@@ -133,6 +136,9 @@ class AccountParamsRequest(BaseModel):
     rotationIntervalMinutes: int | None = None
     rotationLookbackDays: int | None = None
     rotationSchedule: list[str] | None = None
+    rotationRegimeStrategyRiskOn: str | None = None
+    rotationRegimeStrategyNeutral: str | None = None
+    rotationRegimeStrategyRiskOff: str | None = None
     rotationActiveIndex: int | None = None
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None

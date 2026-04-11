@@ -7,6 +7,8 @@ from typing import Callable
 
 import pandas as pd
 
+from trading.domain.rotation import resolve_rotation_regime_strategy
+
 def build_iv_rank_proxy(
     universe: list[str],
     *,
@@ -68,12 +70,27 @@ def select_account_rotation_strategy(
     as_of_iso: str,
     *,
     select_optimal_strategy_impl_fn: Callable[..., str | None],
+    select_regime_strategy_impl_fn: Callable[..., str | None] | None,
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
     parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
+    fetch_policy_features_fn: Callable[[str], object] | None,
+    resolve_rotation_mode_fn: Callable[[sqlite3.Row], str],
+    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
     resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
+    if resolve_rotation_mode_fn(account) == "regime":
+        if select_regime_strategy_impl_fn is None or fetch_policy_features_fn is None:
+            return None
+        return select_regime_strategy_impl_fn(
+            account,
+            parse_rotation_schedule_fn=parse_rotation_schedule_fn,
+            resolve_active_strategy_fn=resolve_active_strategy_fn,
+            resolve_rotation_regime_strategy_fn=resolve_rotation_regime_strategy,
+            fetch_policy_features_fn=fetch_policy_features_fn,
+        )
+
     return select_optimal_strategy_impl_fn(
         conn,
         account,

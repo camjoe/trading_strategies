@@ -5,6 +5,7 @@ import trading.domain.rotation as rotation
 
 from trading.domain.rotation import (
     OPTIMALITY_MODES,
+    ROTATION_REGIME_STATES,
     ROTATION_MODES,
     dump_rotation_schedule,
     is_rotation_due,
@@ -12,6 +13,7 @@ from trading.domain.rotation import (
     parse_rotation_schedule,
     resolve_active_strategy,
     resolve_optimality_mode,
+    resolve_rotation_regime_strategy,
     resolve_rotation_mode,
 )
 
@@ -98,8 +100,9 @@ class TestResolveActiveStrategy:
 
 class TestResolveModes:
     def test_resolve_rotation_mode_defaults_and_validation(self) -> None:
-        assert ROTATION_MODES == {"time", "optimal"}
+        assert ROTATION_MODES == {"time", "optimal", "regime"}
         assert resolve_rotation_mode({"rotation_mode": "optimal"}) == "optimal"
+        assert resolve_rotation_mode({"rotation_mode": "regime"}) == "regime"
         assert resolve_rotation_mode({"rotation_mode": "TIME"}) == "time"
         assert resolve_rotation_mode({"rotation_mode": "unknown"}) == "time"
 
@@ -122,6 +125,18 @@ class TestResolveModes:
 
     def test_resolve_optimality_mode_type_error_defaults(self) -> None:
         assert resolve_optimality_mode(_TypeErrorAccountMapping()) == "previous_period_best"
+
+    def test_resolve_rotation_regime_strategy(self) -> None:
+        assert ROTATION_REGIME_STATES == {"risk_on", "neutral", "risk_off"}
+        account = {
+            "rotation_regime_strategy_risk_on": "trend",
+            "rotation_regime_strategy_neutral": "ma_crossover",
+            "rotation_regime_strategy_risk_off": "mean_reversion",
+        }
+        assert resolve_rotation_regime_strategy(account, "risk_on") == "trend"
+        assert resolve_rotation_regime_strategy(account, "neutral") == "ma_crossover"
+        assert resolve_rotation_regime_strategy(account, "risk_off") == "mean_reversion"
+        assert resolve_rotation_regime_strategy(account, "unknown") is None
 
 
 class TestIsRotationDue:

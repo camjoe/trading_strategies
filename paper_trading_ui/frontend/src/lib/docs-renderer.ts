@@ -273,12 +273,15 @@ const ADMIN_REQUEST_BODY_CONTENT = `
           <tr><td>maxContractsPerTrade</td><td>int | null</td><td>Max contract count per trade.</td></tr>
           <tr><td>rollDteThreshold</td><td>int | null</td><td>DTE at which to roll an existing options position.</td></tr>
           <tr><td>rotationEnabled</td><td>bool, default false</td><td>Enable strategy rotation for this account.</td></tr>
-          <tr><td>rotationMode</td><td>string, default time</td><td>One of: time, optimal.</td></tr>
+          <tr><td>rotationMode</td><td>string, default time</td><td>One of: time, optimal, regime.</td></tr>
           <tr><td>rotationOptimalityMode</td><td>string, default previous_period_best</td><td>One of: previous_period_best, average_return, hybrid_weighted.</td></tr>
           <tr><td>rotationIntervalDays</td><td>int | null</td><td>Days between time-based rotations for coarse cadence (weekly/monthly-ish).</td></tr>
           <tr><td>rotationIntervalMinutes</td><td>int | null</td><td>Minute-based rotation cadence for hourly/sub-day rotation. Takes precedence over rotationIntervalDays when both are set.</td></tr>
           <tr><td>rotationLookbackDays</td><td>int | null</td><td>Lookback window (days) for optimal-mode evaluation.</td></tr>
-          <tr><td>rotationSchedule</td><td>string[] | null</td><td>Ordered list of strategy keys to rotate through.</td></tr>
+          <tr><td>rotationSchedule</td><td>string[] | null</td><td>Ordered list of strategy keys available to time, optimal, or regime rotation.</td></tr>
+          <tr><td>rotationRegimeStrategyRiskOn</td><td>string | null</td><td>Strategy selected during policy risk-on conditions when rotationMode is regime.</td></tr>
+          <tr><td>rotationRegimeStrategyNeutral</td><td>string | null</td><td>Strategy selected during neutral policy conditions when rotationMode is regime.</td></tr>
+          <tr><td>rotationRegimeStrategyRiskOff</td><td>string | null</td><td>Strategy selected during policy risk-off conditions when rotationMode is regime.</td></tr>
           <tr><td>rotationActiveIndex</td><td>int, default 0</td><td>Current position in the rotation schedule.</td></tr>
           <tr><td>rotationActiveStrategy</td><td>string | null</td><td>Explicitly set active strategy (overrides index lookup).</td></tr>
           <tr><td>rotationLastAt</td><td>string | null</td><td>ISO datetime of last rotation event.</td></tr>

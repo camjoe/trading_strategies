@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS accounts (
     rotation_interval_minutes INTEGER,
     rotation_lookback_days INTEGER,
     rotation_schedule TEXT,
+    rotation_regime_strategy_risk_on TEXT,
+    rotation_regime_strategy_neutral TEXT,
+    rotation_regime_strategy_risk_off TEXT,
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
     rotation_last_at TEXT,
     rotation_active_strategy TEXT
@@ -308,6 +311,18 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration(
         "rotation_schedule",
         "ALTER TABLE accounts ADD COLUMN rotation_schedule TEXT",
+    ),
+    ColumnMigration(
+        "rotation_regime_strategy_risk_on",
+        "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_risk_on TEXT",
+    ),
+    ColumnMigration(
+        "rotation_regime_strategy_neutral",
+        "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_neutral TEXT",
+    ),
+    ColumnMigration(
+        "rotation_regime_strategy_risk_off",
+        "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_risk_off TEXT",
     ),
     ColumnMigration(
         "rotation_active_index",

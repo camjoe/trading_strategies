@@ -21,7 +21,7 @@ function riskPolicyOptions(currentPolicy: string): string {
 }
 
 const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
-const ROTATION_MODE_OPTIONS = ["time", "optimal"] as const;
+const ROTATION_MODE_OPTIONS = ["time", "optimal", "regime"] as const;
 const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return", "hybrid_weighted"] as const;
 
 function instrumentModeOptions(currentMode: string): string {
@@ -359,6 +359,20 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <div class="bt-field" style="flex:1">
             <span>Rotation Schedule (comma-separated)</span>
             <input id="editRotationScheduleInput" type="text" value="${esc((detail.account.rotationSchedule ?? []).join(","))}" placeholder="trend,mean_reversion,breakout" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Regime Risk-On Strategy</span>
+            <input id="editRotationRegimeRiskOnInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOn ?? "")}" placeholder="trend" />
+          </div>
+          <div class="bt-field">
+            <span>Regime Neutral Strategy</span>
+            <input id="editRotationRegimeNeutralInput" type="text" value="${esc(detail.account.rotationRegimeStrategyNeutral ?? "")}" placeholder="ma_crossover" />
+          </div>
+          <div class="bt-field">
+            <span>Regime Risk-Off Strategy</span>
+            <input id="editRotationRegimeRiskOffInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOff ?? "")}" placeholder="mean_reversion" />
           </div>
         </div>
       </details>
