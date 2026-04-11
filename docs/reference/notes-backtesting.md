@@ -61,8 +61,8 @@ Backtesting in this repository runs on the in-house engine under:
 
 Dependency definitions live in:
 
-- `requirements/base.txt`
-- `requirements/dev.txt`
+- `requirements-base.txt`
+- `requirements-dev.txt`
 
 Operational notes:
 

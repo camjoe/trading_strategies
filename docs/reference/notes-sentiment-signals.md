@@ -90,7 +90,7 @@ The following items from the original "missing pieces" list are now implemented 
 - `trading/features/` package created with `base.py` (ABC + bundle) and three concrete providers.
 - All providers subclass `ExternalFeatureProvider`; caching, TTL, and degradation handled in base class.
 - API credentials sourced from env vars only (`NEWS_API_KEY`, `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`).
-- New runtime dependencies in `requirements/base.txt`: `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`.
+- New runtime dependencies in `requirements-base.txt`: `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`.
 
 ### Step 3: Create Trends Module Parallel — Not taken
 - Decided to isolate external-data providers in `trading/features/` rather than `trends/sentiment.py`.

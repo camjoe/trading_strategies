@@ -15,21 +15,21 @@ from common.constants import (
     RSI_OVERSOLD,
     TRADING_DAYS_PER_YEAR,
 )
-from trading.features.policy_feature_provider import (
+from trading.backtesting.trading_bridge import (
     POLICY_DEFENSIVE_TILT,
     POLICY_MAX_DEFENSIVE_TILT,
     POLICY_RISK_OFF_SELL_THRESHOLD,
     POLICY_RISK_ON_BUY_THRESHOLD,
     POLICY_RISK_ON_SCORE,
 )
-from trading.features.news_feature_provider import (
+from trading.backtesting.trading_bridge import (
     NEWS_BUY_SENTIMENT_THRESHOLD,
     NEWS_HEADLINE_COUNT,
     NEWS_MIN_HEADLINES_REQUIRED,
     NEWS_SELL_SENTIMENT_THRESHOLD,
     NEWS_SENTIMENT_SCORE,
 )
-from trading.features.social_feature_provider import (
+from trading.backtesting.trading_bridge import (
     SOCIAL_MENTION_COUNT,
     SOCIAL_MIN_REDDIT_SENTIMENT,
     SOCIAL_REDDIT_SENTIMENT,

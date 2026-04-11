@@ -27,10 +27,10 @@ Choose the dependency set that matches your purpose:
 
 ```sh
 # Core runtime for trends, trading, and UI backend
-pip install -r requirements/base.txt
+pip install -r requirements-base.txt
 
 # Runtime plus test dependencies
-pip install -r requirements/dev.txt
+pip install -r requirements-dev.txt
 ```
 
 **Execution Note:**
@@ -38,7 +38,6 @@ pip install -r requirements/dev.txt
   ```sh
   python -m trading.paper_trading init
   ```
-- `requirements.txt` points to `requirements/dev.txt`.
 
 ## CI Smoke Check
 
@@ -79,6 +78,34 @@ See [docs/backtesting.md](docs/backtesting.md) for walk-forward simulation and s
 ### Paper Trading
 
 See [trading/README.md](trading/README.md) for paper trading commands, account profiles, and scheduler operations.
+
+### UI Dashboard
+
+Run the backend and frontend together with the launch script:
+
+```sh
+python scripts/launch_ui.py
+```
+
+Or start each service separately (required when using the Python debugger — see below):
+
+```sh
+# Terminal 1 — FastAPI backend (no --reload so pdb stdin works)
+python -m uvicorn paper_trading_ui.backend.main:app --host 127.0.0.1 --port 8000
+
+# Terminal 2 — Vite frontend dev server
+cd paper_trading_ui/frontend
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+```
+
+#### Debugging with pdb
+
+Insert a
+`breakpoint()` call anywhere in the backend Python code, then start the services
+separately (as above, **without** `--reload` so pdb can read from stdin).
+
+When the breakpoint is hit the browser request will pause and a `(Pdb)` prompt
+appears in the backend terminal.
 
 ## Testing
 

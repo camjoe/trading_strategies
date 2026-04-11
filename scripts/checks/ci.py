@@ -100,8 +100,8 @@ def run_ci(
                 repo_root,
             )
             run_step(
-                "Python: install requirements/dev.txt",
-                [python_exe, "-m", "pip", "install", "-r", "requirements/dev.txt"],
+                "Python: install requirements-dev.txt",
+                [python_exe, "-m", "pip", "install", "-r", "requirements-dev.txt"],
                 repo_root,
             )
             if install_python_tools:

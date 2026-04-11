@@ -49,6 +49,9 @@ def benchmark_stats(
     if close is None or close.empty:
         return None, None
 
+    if not initial_cash:
+        return None, None
+
     start_price = float(close.iloc[0])
     end_price = float(close.iloc[-1])
     bench_equity = initial_cash * (end_price / start_price)

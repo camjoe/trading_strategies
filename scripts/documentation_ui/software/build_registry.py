@@ -14,8 +14,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     parser.add_argument("--registry", default="paper_trading_ui/frontend/src/assets/software.json")
-    parser.add_argument("--base", default="requirements/base.txt")
-    parser.add_argument("--dev", default="requirements/dev.txt")
+    parser.add_argument("--base", default="requirements-base.txt")
+    parser.add_argument("--dev", default="requirements-dev.txt")
     return parser.parse_args()
 
 

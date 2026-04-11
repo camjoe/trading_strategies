@@ -103,7 +103,7 @@ These strategies use real-time external API calls rather than pre-computed proxy
 
 Key distinctions from Proxy Feature Strategies (Phase 3):
 - Proxy strategies (Phase 3) use yfinance price data only — no new external dependencies.
-- Alternative strategies (Phase 4) make live calls to external APIs and require `praw`, `pytrends`, `vaderSentiment`, and optionally `newsapi-python` (all in `requirements/base.txt`).
+- Alternative strategies (Phase 4) make live calls to external APIs and require `praw`, `pytrends`, `vaderSentiment`, and optionally `newsapi-python` (all in `requirements-base.txt`).
 - All alternative strategies follow the degradation contract: `ExternalFeatureProvider.get_features()` never raises; a bundle with `available=False` causes the signal function to return "hold".
 - Architecture rules for alternative strategies are codified in `.github/BOT_ARCHITECTURE_CONVENTIONS.md §External Data Strategies`.
 

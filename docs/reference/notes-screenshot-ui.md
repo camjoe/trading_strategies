@@ -17,11 +17,11 @@ assistants to verify UI state without a live browser session.
 
 2. **Dependencies** — Playwright and Chromium must be installed:
    ```sh
-   pip install -r requirements.txt          # installs playwright package
+   pip install -r requirements-dev.txt      # installs playwright package
    python -m playwright install chromium    # downloads the browser binary
    ```
    Both are needed once per environment.  The `playwright` package is declared in
-   `requirements/dev.txt`, so `pip install -r requirements.txt` covers it.
+   `requirements-dev.txt`.
 
 ---
 
@@ -34,7 +34,7 @@ python -m venv .venv
 # source .venv/bin/activate           # macOS / Linux
 
 # 2. Install all project dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 3. Install the Playwright browser binary
 python -m playwright install chromium

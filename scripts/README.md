@@ -33,7 +33,7 @@ Financial & Market Knowledge (`scripts/documentation_ui/finance/`):
 
 Software (`scripts/documentation_ui/software/`):
 
-- `build_registry.py`: rebuilds `docs/reference/software.json` from `requirements/base.txt` and `requirements/dev.txt` while preserving curated package purposes.
+- `build_registry.py`: rebuilds `docs/reference/software.json` from `requirements-base.txt` and `requirements-dev.txt` while preserving curated package purposes.
 - `sync_markdown.py`: syncs `docs/reference/Software.md` from canonical values in `docs/reference/software.json`.
 - `sync_ui_docs.py`: syncs the Software card's Key Python Packages tables in the UI docs page from `docs/reference/software.json`.
 - `check.py`: standalone sync check that validates requirements, markdown, and UI docs match the canonical software registry.

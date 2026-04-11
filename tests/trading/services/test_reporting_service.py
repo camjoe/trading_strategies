@@ -55,6 +55,10 @@ class TestStrategyReturnPct:
     def test_no_change(self) -> None:
         assert strategy_return_pct(100.0, 100.0) == pytest.approx(0.0)
 
+    def test_zero_initial_cash_raises(self) -> None:
+        with pytest.raises(ValueError):
+            strategy_return_pct(100.0, 0.0)
+
 
 class TestBenchmarkAvailable:
     def test_both_present_returns_true(self) -> None:

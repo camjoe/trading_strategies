@@ -57,11 +57,13 @@ def compute_market_value_and_unrealized(
         if price is None:
             continue
         market_value += qty * price
-        unrealized += (price - avg_cost[ticker]) * qty
+        unrealized += (price - avg_cost.get(ticker, 0.0)) * qty
     return market_value, unrealized
 
 
 def strategy_return_pct(equity: float, initial_cash: float) -> float:
+    if not initial_cash:
+        raise ValueError(f"Cannot compute return %: initial_cash is 0 (equity={equity:.2f})")
     return ((equity / initial_cash) - 1.0) * 100.0
 
 
@@ -263,7 +265,7 @@ def _print_open_positions(
     print("Open Positions:")
     for ticker in sorted(positions.keys()):
         qty = positions[ticker]
-        avg = avg_cost[ticker]
+        avg = avg_cost.get(ticker, 0.0)
         px = prices.get(ticker)
         px_display = f"{px:.2f}" if px is not None else "N/A"
         print(f"- {ticker}: qty={qty:.4f}, avg_cost={avg:.2f}, last_price={px_display}")
@@ -304,10 +306,11 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     initial_cash = row_expect_float(account, "initial_cash")
     created_at = row_expect_str(account, "created_at")
+    effective_initial = initial_cash if initial_cash else state.total_deposited
     benchmark_equity, benchmark_return_pct = benchmark_stats(
-        benchmark_ticker, initial_cash, created_at
+        benchmark_ticker, effective_initial, created_at
     )
-    strategy_return_pct_value = strategy_return_pct(equity, initial_cash)
+    strategy_return_pct_value = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
 
     _print_account_header(account)
     _print_performance_lines(
@@ -345,6 +348,8 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     for account in accounts:
         state, _prices, _market_value, _unrealized, equity = build_account_stats(conn, account)
         initial_cash = row_expect_float(account, "initial_cash")
+        if not initial_cash:
+            continue
         benchmark_ticker = row_expect_str(account, "benchmark_ticker")
         created_at = row_expect_str(account, "created_at")
         account_id = row_expect_int(account, "id")
