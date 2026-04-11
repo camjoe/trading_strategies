@@ -95,6 +95,9 @@ class AdminCreateAccountRequest(BaseModel):
     rotationRegimeStrategyRiskOn: str | None = None
     rotationRegimeStrategyNeutral: str | None = None
     rotationRegimeStrategyRiskOff: str | None = None
+    rotationOverlayMode: str = "none"
+    rotationOverlayMinTickers: int | None = None
+    rotationOverlayConfidenceThreshold: float | None = None
     rotationActiveIndex: int = 0
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None
@@ -139,6 +142,9 @@ class AccountParamsRequest(BaseModel):
     rotationRegimeStrategyRiskOn: str | None = None
     rotationRegimeStrategyNeutral: str | None = None
     rotationRegimeStrategyRiskOff: str | None = None
+    rotationOverlayMode: str | None = None
+    rotationOverlayMinTickers: int | None = None
+    rotationOverlayConfidenceThreshold: float | None = None
     rotationActiveIndex: int | None = None
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None

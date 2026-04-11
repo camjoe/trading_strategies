@@ -7,12 +7,14 @@ from trading.domain.rotation import (
     OPTIMALITY_MODES,
     ROTATION_REGIME_STATES,
     ROTATION_MODES,
+    ROTATION_OVERLAY_MODES,
     dump_rotation_schedule,
     is_rotation_due,
     next_rotation_state,
     parse_rotation_schedule,
     resolve_active_strategy,
     resolve_optimality_mode,
+    resolve_rotation_overlay_mode,
     resolve_rotation_regime_strategy,
     resolve_rotation_mode,
 )
@@ -128,15 +130,19 @@ class TestResolveModes:
 
     def test_resolve_rotation_regime_strategy(self) -> None:
         assert ROTATION_REGIME_STATES == {"risk_on", "neutral", "risk_off"}
+        assert ROTATION_OVERLAY_MODES == {"none", "news", "social", "news_social"}
         account = {
             "rotation_regime_strategy_risk_on": "trend",
             "rotation_regime_strategy_neutral": "ma_crossover",
             "rotation_regime_strategy_risk_off": "mean_reversion",
+            "rotation_overlay_mode": "news_social",
         }
         assert resolve_rotation_regime_strategy(account, "risk_on") == "trend"
         assert resolve_rotation_regime_strategy(account, "neutral") == "ma_crossover"
         assert resolve_rotation_regime_strategy(account, "risk_off") == "mean_reversion"
         assert resolve_rotation_regime_strategy(account, "unknown") is None
+        assert resolve_rotation_overlay_mode(account) == "news_social"
+        assert resolve_rotation_overlay_mode({"rotation_overlay_mode": "weird"}) == "none"
 
 
 class TestIsRotationDue:

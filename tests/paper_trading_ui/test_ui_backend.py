@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 from trading.database import db
 from common.time import utc_now_iso
@@ -158,6 +159,9 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
             "rotationRegimeStrategyRiskOn": "trend",
             "rotationRegimeStrategyNeutral": "ma_crossover",
             "rotationRegimeStrategyRiskOff": "mean_reversion",
+            "rotationOverlayMode": "news",
+            "rotationOverlayMinTickers": 2,
+            "rotationOverlayConfidenceThreshold": 0.5,
             "rotationActiveIndex": 0,
             "rotationActiveStrategy": "trend",
         },
@@ -175,6 +179,9 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     assert payload["account"]["rotationRegimeStrategyRiskOn"] == "trend"
     assert payload["account"]["rotationRegimeStrategyNeutral"] == "ma_crossover"
     assert payload["account"]["rotationRegimeStrategyRiskOff"] == "mean_reversion"
+    assert payload["account"]["rotationOverlayMode"] == "news"
+    assert payload["account"]["rotationOverlayMinTickers"] == 2
+    assert payload["account"]["rotationOverlayConfidenceThreshold"] == 0.5
 
 
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:

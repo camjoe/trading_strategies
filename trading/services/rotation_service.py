@@ -5,13 +5,29 @@ from datetime import UTC, datetime, timedelta
 from typing import Callable, cast
 
 from trading.domain.returns import safe_return_pct as safe_return_pct_impl
+from trading.domain.rotation import resolve_rotation_overlay_mode
 from trading.features.base import ExternalFeatureBundle
+from trading.features.news_feature_provider import (
+    NEWS_BUY_SENTIMENT_THRESHOLD,
+    NEWS_HEADLINE_COUNT,
+    NEWS_MIN_HEADLINES_REQUIRED,
+    NEWS_SELL_SENTIMENT_THRESHOLD,
+    NEWS_SENTIMENT_SCORE,
+)
 from trading.features.policy_feature_provider import (
     POLICY_MAX_DEFENSIVE_TILT,
     POLICY_RISK_OFF_SELL_THRESHOLD,
     POLICY_RISK_ON_BUY_THRESHOLD,
     POLICY_DEFENSIVE_TILT,
     POLICY_RISK_ON_SCORE,
+)
+from trading.features.social_feature_provider import (
+    SOCIAL_MENTION_COUNT,
+    SOCIAL_MIN_REDDIT_SENTIMENT,
+    SOCIAL_REDDIT_SENTIMENT,
+    SOCIAL_TREND_BUY_THRESHOLD,
+    SOCIAL_TREND_EXIT_THRESHOLD,
+    SOCIAL_TREND_SCORE,
 )
 from trading.utils.coercion import coerce_float
 
@@ -26,6 +42,19 @@ HYBRID_LIVE_WEIGHT = 0.30
 
 # Ticker used to query the policy provider for account-level regime context.
 POLICY_REGIME_PROBE_TICKER = "SPY"
+
+# Require multiple covered positions before ticker-level news/social signals can
+# influence an account-level regime selection.
+DEFAULT_ROTATION_OVERLAY_MIN_TICKERS = 2
+
+# Require a clear majority of covered tickers to agree before the overlay nudges
+# the base policy regime one step more defensive or aggressive.
+DEFAULT_ROTATION_OVERLAY_CONFIDENCE_THRESHOLD = 0.50
+
+# Overlay states nudge the policy-derived regime up or down by one notch rather
+# than replacing it outright.
+ROTATION_OVERLAY_DIRECTIONS = ("bearish", "bullish")
+REGIME_STATE_ORDER = ("risk_off", "neutral", "risk_on")
 
 
 def parse_as_of_iso(as_of_iso: str) -> datetime:
@@ -57,6 +86,31 @@ def _average(values: list[float]) -> float | None:
     return sum(values) / len(values)
 
 
+def _coerce_positive_int(value: object, *, default: int) -> int:
+    parsed = coerce_float(value)
+    if parsed is None or parsed <= 0:
+        return default
+    return int(parsed)
+
+
+def _coerce_threshold(value: object, *, default: float) -> float:
+    parsed = coerce_float(value)
+    if parsed is None or parsed <= 0 or parsed > 1:
+        return default
+    return float(parsed)
+
+
+def _account_value(account: sqlite3.Row, key: str) -> object | None:
+    if hasattr(account, "keys") and key in account.keys():
+        return account[key]
+    if isinstance(account, dict):
+        return account.get(key)
+    try:
+        return account[key]
+    except (KeyError, TypeError, IndexError):
+        return None
+
+
 def classify_policy_regime(
     *,
     risk_on_score: object,
@@ -74,6 +128,124 @@ def classify_policy_regime(
     return "neutral"
 
 
+def fetch_rotation_overlay_tickers(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    *,
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
+    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+) -> list[str]:
+    state = cast(
+        object,
+        compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
+    )
+    positions = cast(dict[str, float], getattr(state, "positions", {}))
+    return sorted(ticker for ticker, qty in positions.items() if float(qty) > 0)
+
+
+def _classify_news_overlay_vote(
+    bundle: ExternalFeatureBundle,
+    *,
+    coerce_float_fn: Callable[[object], float | None],
+) -> int | None:
+    if not bundle.available:
+        return None
+    score = coerce_float_fn(bundle.get(NEWS_SENTIMENT_SCORE))
+    headline_count = coerce_float_fn(bundle.get(NEWS_HEADLINE_COUNT))
+    if score is None or headline_count is None or headline_count < NEWS_MIN_HEADLINES_REQUIRED:
+        return None
+    if score >= NEWS_BUY_SENTIMENT_THRESHOLD:
+        return 1
+    if score <= NEWS_SELL_SENTIMENT_THRESHOLD:
+        return -1
+    return 0
+
+
+def _classify_social_overlay_vote(
+    bundle: ExternalFeatureBundle,
+    *,
+    coerce_float_fn: Callable[[object], float | None],
+) -> int | None:
+    if not bundle.available:
+        return None
+    trend_score = coerce_float_fn(bundle.get(SOCIAL_TREND_SCORE))
+    mention_count = coerce_float_fn(bundle.get(SOCIAL_MENTION_COUNT))
+    reddit_sentiment = coerce_float_fn(bundle.get(SOCIAL_REDDIT_SENTIMENT))
+    if trend_score is None or mention_count is None or reddit_sentiment is None:
+        return None
+    if trend_score >= SOCIAL_TREND_BUY_THRESHOLD and mention_count > 0 and reddit_sentiment > 0:
+        return 1
+    if trend_score <= SOCIAL_TREND_EXIT_THRESHOLD and reddit_sentiment <= SOCIAL_MIN_REDDIT_SENTIMENT:
+        return -1
+    return 0
+
+
+def select_rotation_overlay_direction(
+    account: sqlite3.Row,
+    tickers: list[str],
+    *,
+    overlay_mode: str,
+    fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None,
+    fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None,
+    coerce_float_fn: Callable[[object], float | None] = coerce_float,
+) -> str | None:
+    if overlay_mode == "none" or not tickers:
+        return None
+
+    covered_tickers = 0
+    net_votes = 0
+    for ticker in tickers:
+        source_votes: list[int] = []
+        if overlay_mode in {"news", "news_social"} and fetch_news_features_fn is not None:
+            news_vote = _classify_news_overlay_vote(
+                fetch_news_features_fn(ticker),
+                coerce_float_fn=coerce_float_fn,
+            )
+            if news_vote is not None:
+                source_votes.append(news_vote)
+        if overlay_mode in {"social", "news_social"} and fetch_social_features_fn is not None:
+            social_vote = _classify_social_overlay_vote(
+                fetch_social_features_fn(ticker),
+                coerce_float_fn=coerce_float_fn,
+            )
+            if social_vote is not None:
+                source_votes.append(social_vote)
+        if not source_votes:
+            continue
+        covered_tickers += 1
+        combined_vote = sum(source_votes) / len(source_votes)
+        if combined_vote > 0:
+            net_votes += 1
+        elif combined_vote < 0:
+            net_votes -= 1
+
+    min_tickers = _coerce_positive_int(
+        _account_value(account, "rotation_overlay_min_tickers"),
+        default=DEFAULT_ROTATION_OVERLAY_MIN_TICKERS,
+    )
+    if covered_tickers < min_tickers or net_votes == 0:
+        return None
+
+    confidence_threshold = _coerce_threshold(
+        _account_value(account, "rotation_overlay_confidence_threshold"),
+        default=DEFAULT_ROTATION_OVERLAY_CONFIDENCE_THRESHOLD,
+    )
+    confidence = abs(net_votes) / covered_tickers
+    if confidence < confidence_threshold:
+        return None
+
+    return "bullish" if net_votes > 0 else "bearish"
+
+
+def apply_rotation_overlay_to_regime(regime_state: str, overlay_direction: str | None) -> str:
+    if regime_state not in REGIME_STATE_ORDER or overlay_direction not in ROTATION_OVERLAY_DIRECTIONS:
+        return regime_state
+    current_index = REGIME_STATE_ORDER.index(regime_state)
+    step = 1 if overlay_direction == "bullish" else -1
+    next_index = max(0, min(len(REGIME_STATE_ORDER) - 1, current_index + step))
+    return REGIME_STATE_ORDER[next_index]
+
+
 def select_regime_strategy(
     account: sqlite3.Row,
     *,
@@ -81,6 +253,11 @@ def select_regime_strategy(
     resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
     resolve_rotation_regime_strategy_fn: Callable[[sqlite3.Row, str], str | None],
     fetch_policy_features_fn: Callable[[str], ExternalFeatureBundle],
+    conn: sqlite3.Connection | None = None,
+    fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
+    fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
+    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, sqlite3.Row], list[str]] | None = None,
+    resolve_rotation_overlay_mode_fn: Callable[[sqlite3.Row], str] = resolve_rotation_overlay_mode,
     coerce_float_fn: Callable[[object], float | None] = coerce_float,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
@@ -99,6 +276,22 @@ def select_regime_strategy(
     )
     if regime_state is None:
         return active_strategy
+
+    overlay_mode = resolve_rotation_overlay_mode_fn(account)
+    if (
+        overlay_mode != "none"
+        and conn is not None
+        and fetch_rotation_overlay_tickers_fn is not None
+    ):
+        overlay_direction = select_rotation_overlay_direction(
+            account,
+            fetch_rotation_overlay_tickers_fn(conn, account),
+            overlay_mode=overlay_mode,
+            fetch_news_features_fn=fetch_news_features_fn,
+            fetch_social_features_fn=fetch_social_features_fn,
+            coerce_float_fn=coerce_float_fn,
+        )
+        regime_state = apply_rotation_overlay_to_regime(regime_state, overlay_direction)
 
     selected = resolve_rotation_regime_strategy_fn(account, regime_state)
     if not selected:
@@ -252,7 +445,7 @@ def select_optimal_strategy(
                 ending_equity = row["ending_equity"]
                 if starting_equity is None or ending_equity is None:
                     continue
-                live_return = safe_return_pct(starting_equity, ending_equity, coerce_float_fn=float)
+                live_return = safe_return_pct(starting_equity, ending_equity, coerce_float_fn=coerce_float)
                 if live_return is None:
                     continue
                 live_scores.setdefault(str(row["strategy_name"]), []).append(float(live_return))
@@ -264,6 +457,7 @@ def select_optimal_strategy(
             if backtest_score is None and live_score is None:
                 continue
             if backtest_score is None:
+                assert live_score is not None
                 scores[strategy_name] = float(live_score)
                 continue
             if live_score is None:

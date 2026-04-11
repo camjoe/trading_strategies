@@ -222,6 +222,23 @@
               <span>Regime Risk-Off Strategy</span>
               <input name="rotationRegimeStrategyRiskOff" />
             </label>
+            <label class="bt-field">
+              <span>Overlay Mode</span>
+              <select name="rotationOverlayMode">
+                <option value="none" selected>none</option>
+                <option value="news">news</option>
+                <option value="social">social</option>
+                <option value="news_social">news_social</option>
+              </select>
+            </label>
+            <label class="bt-field">
+              <span>Overlay Min Tickers</span>
+              <input name="rotationOverlayMinTickers" type="number" min="1" />
+            </label>
+            <label class="bt-field">
+              <span>Overlay Confidence Threshold</span>
+              <input name="rotationOverlayConfidenceThreshold" type="number" min="0.01" max="1" step="0.01" placeholder="0.50" />
+            </label>
           </div>
         </details>
       </div>

@@ -256,7 +256,7 @@ class TestApplyRotationFields:
         with pytest.raises(ValueError, match="rotation_mode"):
             apply_account_profiles(
                 conn,
-                [{"name": "bad_rot_mode", "initial_cash": 1000, "rotation_mode": "regime"}],
+                [{"name": "bad_rot_mode", "initial_cash": 1000, "rotation_mode": "orbital"}],
                 create_missing=True,
             )
 

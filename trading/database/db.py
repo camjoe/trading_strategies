@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS accounts (
     rotation_regime_strategy_risk_on TEXT,
     rotation_regime_strategy_neutral TEXT,
     rotation_regime_strategy_risk_off TEXT,
+    rotation_overlay_mode TEXT NOT NULL DEFAULT 'none',
+    rotation_overlay_min_tickers INTEGER,
+    rotation_overlay_confidence_threshold REAL,
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
     rotation_last_at TEXT,
     rotation_active_strategy TEXT
@@ -323,6 +326,18 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration(
         "rotation_regime_strategy_risk_off",
         "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_risk_off TEXT",
+    ),
+    ColumnMigration(
+        "rotation_overlay_mode",
+        "ALTER TABLE accounts ADD COLUMN rotation_overlay_mode TEXT NOT NULL DEFAULT 'none'",
+    ),
+    ColumnMigration(
+        "rotation_overlay_min_tickers",
+        "ALTER TABLE accounts ADD COLUMN rotation_overlay_min_tickers INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_overlay_confidence_threshold",
+        "ALTER TABLE accounts ADD COLUMN rotation_overlay_confidence_threshold REAL",
     ),
     ColumnMigration(
         "rotation_active_index",

@@ -23,6 +23,7 @@ function riskPolicyOptions(currentPolicy: string): string {
 const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
 const ROTATION_MODE_OPTIONS = ["time", "optimal", "regime"] as const;
 const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return", "hybrid_weighted"] as const;
+const ROTATION_OVERLAY_MODE_OPTIONS = ["none", "news", "social", "news_social"] as const;
 
 function instrumentModeOptions(currentMode: string): string {
   return INSTRUMENT_MODE_OPTIONS.map(
@@ -38,6 +39,12 @@ function rotationModeOptions(currentMode: string): string {
 
 function rotationOptimalityOptions(currentMode: string): string {
   return ROTATION_OPTIMALITY_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function rotationOverlayModeOptions(currentMode: string): string {
+  return ROTATION_OVERLAY_MODE_OPTIONS.map(
     (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
   ).join("");
 }
@@ -373,6 +380,22 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <div class="bt-field">
             <span>Regime Risk-Off Strategy</span>
             <input id="editRotationRegimeRiskOffInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOff ?? "")}" placeholder="mean_reversion" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Overlay Mode</span>
+            <select id="editRotationOverlayModeSelect">
+              ${rotationOverlayModeOptions(detail.account.rotationOverlayMode ?? "none")}
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Overlay Min Tickers</span>
+            <input id="editRotationOverlayMinTickersInput" type="number" step="1" min="1" value="${detail.account.rotationOverlayMinTickers ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Overlay Confidence Threshold</span>
+            <input id="editRotationOverlayConfidenceThresholdInput" type="number" step="0.01" min="0.01" max="1" value="${detail.account.rotationOverlayConfidenceThreshold ?? ""}" placeholder="0.50" />
           </div>
         </div>
       </details>

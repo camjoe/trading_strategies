@@ -78,6 +78,9 @@ def select_account_rotation_strategy(
     resolve_rotation_mode_fn: Callable[[sqlite3.Row], str],
     resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
     resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
+    fetch_news_features_fn: Callable[[str], object] | None = None,
+    fetch_social_features_fn: Callable[[str], object] | None = None,
+    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, sqlite3.Row], list[str]] | None = None,
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     if resolve_rotation_mode_fn(account) == "regime":
@@ -85,10 +88,14 @@ def select_account_rotation_strategy(
             return None
         return select_regime_strategy_impl_fn(
             account,
+            conn=conn,
             parse_rotation_schedule_fn=parse_rotation_schedule_fn,
             resolve_active_strategy_fn=resolve_active_strategy_fn,
             resolve_rotation_regime_strategy_fn=resolve_rotation_regime_strategy,
             fetch_policy_features_fn=fetch_policy_features_fn,
+            fetch_news_features_fn=fetch_news_features_fn,
+            fetch_social_features_fn=fetch_social_features_fn,
+            fetch_rotation_overlay_tickers_fn=fetch_rotation_overlay_tickers_fn,
         )
 
     return select_optimal_strategy_impl_fn(

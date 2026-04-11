@@ -9,6 +9,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+import pytest
 
 from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from trading.database import db
@@ -106,6 +107,9 @@ class TestAccountParamsEndpoint:
                 "rotationRegimeStrategyRiskOn": "trend",
                 "rotationRegimeStrategyNeutral": "ma_crossover",
                 "rotationRegimeStrategyRiskOff": "mean_reversion",
+                "rotationOverlayMode": "news_social",
+                "rotationOverlayMinTickers": 2,
+                "rotationOverlayConfidenceThreshold": 0.55,
                 "rotationActiveIndex": 1,
                 "rotationActiveStrategy": "ma_crossover",
                 "rotationLastAt": "2026-03-20T00:00:00Z",
@@ -125,6 +129,9 @@ class TestAccountParamsEndpoint:
         assert account["rotationRegimeStrategyRiskOn"] == "trend"
         assert account["rotationRegimeStrategyNeutral"] == "ma_crossover"
         assert account["rotationRegimeStrategyRiskOff"] == "mean_reversion"
+        assert account["rotationOverlayMode"] == "news_social"
+        assert account["rotationOverlayMinTickers"] == 2
+        assert account["rotationOverlayConfidenceThreshold"] == pytest.approx(0.55)
         assert account["rotationActiveIndex"] == 1
         assert account["rotationActiveStrategy"] == "ma_crossover"
         assert account["rotationLastAt"] == "2026-03-20T00:00:00Z"

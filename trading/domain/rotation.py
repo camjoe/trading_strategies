@@ -11,6 +11,7 @@ from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 ROTATION_MODES = {"time", "optimal", "regime"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
 ROTATION_REGIME_STATES = {"risk_on", "neutral", "risk_off"}
+ROTATION_OVERLAY_MODES = {"none", "news", "social", "news_social"}
 
 
 def _value(account: Mapping[str, object], key: str) -> object | None:
@@ -45,6 +46,12 @@ def resolve_rotation_regime_strategy(account: Mapping[str, object], regime_state
         return None
     strategy = str(_value(account, f"rotation_regime_strategy_{regime_state}") or "").strip()
     return strategy or None
+
+
+def resolve_rotation_overlay_mode(account: Mapping[str, object]) -> str:
+    mode_raw = _value(account, "rotation_overlay_mode")
+    mode = str(mode_raw or "none").strip().lower()
+    return mode if mode in ROTATION_OVERLAY_MODES else "none"
 
 
 def _parse_iso(value: str | None) -> datetime | None:

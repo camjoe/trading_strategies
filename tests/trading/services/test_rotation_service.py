@@ -184,3 +184,75 @@ def test_select_regime_strategy_keeps_active_when_features_unavailable() -> None
     )
 
     assert selected == "ma_crossover"
+
+
+def test_select_rotation_overlay_direction_requires_confident_majority() -> None:
+    account = _account(
+        rotation_overlay_min_tickers=2,
+        rotation_overlay_confidence_threshold=0.5,
+    )
+
+    direction = rotation_service.select_rotation_overlay_direction(
+        account,
+        ["AAPL", "MSFT", "NVDA"],
+        overlay_mode="news",
+        fetch_news_features_fn=lambda ticker: SimpleNamespace(
+            available=True,
+            get=lambda key, default=None: {
+                "AAPL": {
+                    "news_sentiment_score": 0.35,
+                    "news_headline_count": 6.0,
+                },
+                "MSFT": {
+                    "news_sentiment_score": 0.22,
+                    "news_headline_count": 5.0,
+                },
+                "NVDA": {
+                    "news_sentiment_score": -0.20,
+                    "news_headline_count": 5.0,
+                },
+            }[ticker].get(key, default),
+        ),
+        fetch_social_features_fn=None,
+    )
+
+    assert direction is None
+
+
+def test_select_regime_strategy_applies_bullish_news_overlay() -> None:
+    account = _account(
+        rotation_schedule='["trend","ma_crossover","mean_reversion"]',
+        rotation_active_strategy="ma_crossover",
+        rotation_regime_strategy_risk_on="trend",
+        rotation_regime_strategy_neutral="ma_crossover",
+        rotation_regime_strategy_risk_off="mean_reversion",
+        rotation_overlay_mode="news",
+        rotation_overlay_min_tickers=2,
+        rotation_overlay_confidence_threshold=0.5,
+    )
+
+    selected = rotation_service.select_regime_strategy(
+        account,
+        conn=object(),
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
+        resolve_rotation_regime_strategy_fn=lambda row, state: row[f"rotation_regime_strategy_{state}"],
+        fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
+            available=True,
+            get=lambda key, default=None: {
+                "policy_risk_on_score": 0.50,
+                "policy_defensive_tilt": 0.0,
+            }.get(key, default),
+        ),
+        fetch_news_features_fn=lambda _ticker: SimpleNamespace(
+            available=True,
+            get=lambda key, default=None: {
+                "news_sentiment_score": 0.30,
+                "news_headline_count": 6.0,
+            }.get(key, default),
+        ),
+        fetch_social_features_fn=None,
+        fetch_rotation_overlay_tickers_fn=lambda _conn, _account: ["AAPL", "MSFT"],
+    )
+
+    assert selected == "trend"

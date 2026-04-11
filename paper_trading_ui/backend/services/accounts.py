@@ -27,7 +27,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from common.coercion import coerce_int, row_float, row_int
+from common.coercion import coerce_float, coerce_int, row_float, row_int
 from trading.domain.rotation import parse_rotation_schedule
 from trading.models.account_config import AccountConfig
 from trading.backtesting.services.report_service import (
@@ -186,6 +186,9 @@ def _build_summary_from_stats(
         "rotationRegimeStrategyRiskOn": _row_value(row, "rotation_regime_strategy_risk_on"),
         "rotationRegimeStrategyNeutral": _row_value(row, "rotation_regime_strategy_neutral"),
         "rotationRegimeStrategyRiskOff": _row_value(row, "rotation_regime_strategy_risk_off"),
+        "rotationOverlayMode": str(_row_value(row, "rotation_overlay_mode") or "none"),
+        "rotationOverlayMinTickers": coerce_int(_row_value(row, "rotation_overlay_min_tickers")),
+        "rotationOverlayConfidenceThreshold": coerce_float(_row_value(row, "rotation_overlay_confidence_threshold")),
         "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
         "rotationLastAt": _row_value(row, "rotation_last_at"),
         "rotationActiveStrategy": _row_value(row, "rotation_active_strategy"),
@@ -373,6 +376,9 @@ def update_account_params(
     rotation_regime_strategy_risk_on: str | None = None,
     rotation_regime_strategy_neutral: str | None = None,
     rotation_regime_strategy_risk_off: str | None = None,
+    rotation_overlay_mode: str | None = None,
+    rotation_overlay_min_tickers: int | None = None,
+    rotation_overlay_confidence_threshold: float | None = None,
     rotation_active_index: int | None = None,
     rotation_last_at: str | None = None,
     rotation_active_strategy: str | None = None,
@@ -430,6 +436,12 @@ def update_account_params(
         rotation_profile["rotation_regime_strategy_neutral"] = rotation_regime_strategy_neutral
     if rotation_regime_strategy_risk_off is not None:
         rotation_profile["rotation_regime_strategy_risk_off"] = rotation_regime_strategy_risk_off
+    if rotation_overlay_mode is not None:
+        rotation_profile["rotation_overlay_mode"] = rotation_overlay_mode
+    if rotation_overlay_min_tickers is not None:
+        rotation_profile["rotation_overlay_min_tickers"] = rotation_overlay_min_tickers
+    if rotation_overlay_confidence_threshold is not None:
+        rotation_profile["rotation_overlay_confidence_threshold"] = rotation_overlay_confidence_threshold
     if rotation_active_index is not None:
         rotation_profile["rotation_active_index"] = rotation_active_index
     if rotation_last_at is not None:

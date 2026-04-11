@@ -44,6 +44,9 @@ def _base_account(**overrides):
         "rotation_regime_strategy_risk_on": None,
         "rotation_regime_strategy_neutral": None,
         "rotation_regime_strategy_risk_off": None,
+        "rotation_overlay_mode": "none",
+        "rotation_overlay_min_tickers": None,
+        "rotation_overlay_confidence_threshold": None,
     }
     base.update(overrides)
     return base
@@ -407,3 +410,34 @@ def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
     )
 
     assert selected == "mean_reversion"
+
+
+def test_select_account_rotation_strategy_passes_overlay_dependencies() -> None:
+    account = _base_account(
+        rotation_mode="regime",
+        rotation_overlay_mode="news_social",
+    )
+    calls: dict[str, object] = {}
+
+    selected = auto_trader_service.select_account_rotation_strategy(
+        conn=object(),
+        account=account,
+        as_of_iso="2026-03-21T00:00:00Z",
+        select_optimal_strategy_impl_fn=lambda *_args, **_kwargs: None,
+        select_regime_strategy_impl_fn=lambda row, **kwargs: calls.update(kwargs) or row["strategy"],
+        parse_rotation_schedule_fn=parse_rotation_schedule,
+        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
+        fetch_policy_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
+        fetch_news_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
+        fetch_social_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
+        fetch_rotation_overlay_tickers_fn=lambda _conn, _account: ["AAPL"],
+        resolve_rotation_mode_fn=resolve_rotation_mode,
+        resolve_active_strategy_fn=resolve_active_strategy,
+        resolve_optimality_mode_fn=resolve_optimality_mode,
+    )
+
+    assert selected == "trend"
+    assert calls["fetch_news_features_fn"] is not None
+    assert calls["fetch_social_features_fn"] is not None
+    assert calls["fetch_rotation_overlay_tickers_fn"] is not None

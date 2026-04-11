@@ -19,7 +19,9 @@ from trading.backtesting.services.history_service import fetch_strategy_backtest
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
 from trading.features.base import ExternalFeatureBundle
+from trading.features.news_feature_provider import NewsFeatureProvider
 from trading.features.policy_feature_provider import PolicyFeatureProvider
+from trading.features.social_feature_provider import SocialFeatureProvider
 from trading.repositories.rotation_repository import update_account_rotation_state
 from trading.repositories.rotation_repository import (
     close_rotation_episode,
@@ -44,6 +46,7 @@ from trading.services.auto_trader_service import (
 )
 from trading.services.rotation_service import (
     compute_live_account_metrics as compute_live_account_metrics_impl,
+    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
     parse_as_of_iso as parse_as_of_iso_impl,
     rotate_account_if_due as rotate_account_if_due_impl,
     select_regime_strategy as select_regime_strategy_impl,
@@ -63,6 +66,8 @@ from trading.services.trade_execution_service import (
 
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
+_news_rotation_provider: NewsFeatureProvider | None = None
+_social_rotation_provider: SocialFeatureProvider | None = None
 
 
 def _get_policy_rotation_provider() -> PolicyFeatureProvider:
@@ -72,11 +77,39 @@ def _get_policy_rotation_provider() -> PolicyFeatureProvider:
     return _policy_rotation_provider
 
 
+def _get_news_rotation_provider() -> NewsFeatureProvider:
+    global _news_rotation_provider
+    if _news_rotation_provider is None:
+        _news_rotation_provider = NewsFeatureProvider()
+    return _news_rotation_provider
+
+
+def _get_social_rotation_provider() -> SocialFeatureProvider:
+    global _social_rotation_provider
+    if _social_rotation_provider is None:
+        _social_rotation_provider = SocialFeatureProvider()
+    return _social_rotation_provider
+
+
 def _fetch_policy_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
     try:
         return _get_policy_rotation_provider().get_features(ticker)
     except Exception:
         return ExternalFeatureBundle.unavailable(source="etf-proxies")
+
+
+def _fetch_news_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_news_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="rss+vader")
+
+
+def _fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_social_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="reddit+gtrends")
 
 
 def _parse_runtime_as_of_iso(as_of_iso: str):
@@ -101,10 +134,25 @@ def _select_runtime_rotation_strategy(
         parse_as_of_iso_fn=_parse_runtime_as_of_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
         fetch_policy_features_fn=_fetch_policy_rotation_bundle,
+        fetch_news_features_fn=_fetch_news_rotation_bundle,
+        fetch_social_features_fn=_fetch_social_rotation_bundle,
+        fetch_rotation_overlay_tickers_fn=_fetch_runtime_rotation_overlay_tickers,
         resolve_rotation_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_rotation_mode),
         resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
         resolve_optimality_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_optimality_mode),
         fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
+    )
+
+
+def _fetch_runtime_rotation_overlay_tickers(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+) -> list[str]:
+    return fetch_rotation_overlay_tickers_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
     )
 
 
