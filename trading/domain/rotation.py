@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Mapping
+from typing import Callable, Mapping
 
 from trading.utils.coercion import coerce_int
 
-from common.constants import SECONDS_PER_DAY
+from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 
-ROTATION_MODES = {"time", "optimal"}
-OPTIMALITY_MODES = {"previous_period_best", "average_return"}
+ROTATION_MODES = {"time", "optimal", "regime"}
+OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
+ROTATION_REGIME_STATES = {"risk_on", "neutral", "risk_off"}
+ROTATION_OVERLAY_MODES = {"none", "news", "social", "news_social"}
 
 
 def _value(account: Mapping[str, object], key: str) -> object | None:
@@ -39,6 +41,19 @@ def resolve_optimality_mode(account: Mapping[str, object]) -> str:
     return mode if mode in OPTIMALITY_MODES else "previous_period_best"
 
 
+def resolve_rotation_regime_strategy(account: Mapping[str, object], regime_state: str) -> str | None:
+    if regime_state not in ROTATION_REGIME_STATES:
+        return None
+    strategy = str(_value(account, f"rotation_regime_strategy_{regime_state}") or "").strip()
+    return strategy or None
+
+
+def resolve_rotation_overlay_mode(account: Mapping[str, object]) -> str:
+    mode_raw = _value(account, "rotation_overlay_mode")
+    mode = str(mode_raw or "none").strip().lower()
+    return mode if mode in ROTATION_OVERLAY_MODES else "none"
+
+
 def _parse_iso(value: str | None) -> datetime | None:
     if value is None:
         return None
@@ -60,7 +75,13 @@ def _as_utc_iso(value: datetime) -> str:
     return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def parse_rotation_schedule(raw_value: object | None) -> list[str]:
+def _parse_unique_string_list(
+    raw_value: object | None,
+    *,
+    field_name: str,
+    item_label: str,
+    normalizer: Callable[[str], str] | None = None,
+) -> list[str]:
     if raw_value is None:
         return []
 
@@ -73,26 +94,53 @@ def parse_rotation_schedule(raw_value: object | None) -> list[str]:
         try:
             decoded = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ValueError("rotation_schedule must be valid JSON.") from exc
+            raise ValueError(f"{field_name} must be valid JSON.") from exc
         if not isinstance(decoded, list):
-            raise ValueError("rotation_schedule must decode to a list of strategy ids.")
+            raise ValueError(f"{field_name} must decode to a list of {item_label}.")
         raw_items = decoded
     else:
-        raise ValueError("rotation_schedule must be a list or JSON string.")
+        raise ValueError(f"{field_name} must be a list or JSON string.")
 
-    schedule: list[str] = []
+    items: list[str] = []
     for item in raw_items:
         if not isinstance(item, str) or not item.strip():
-            raise ValueError("rotation_schedule items must be non-empty strings.")
-        strategy_id = item.strip()
-        if strategy_id not in schedule:
-            schedule.append(strategy_id)
+            raise ValueError(f"{field_name} items must be non-empty strings.")
+        value = item.strip()
+        if normalizer is not None:
+            value = normalizer(value)
+        if value and value not in items:
+            items.append(value)
 
-    return schedule
+    return items
+
+
+def parse_rotation_schedule(raw_value: object | None) -> list[str]:
+    return _parse_unique_string_list(
+        raw_value,
+        field_name="rotation_schedule",
+        item_label="strategy ids",
+    )
 
 
 def dump_rotation_schedule(schedule: list[str]) -> str:
     return json.dumps(schedule, separators=(",", ":"))
+
+
+def parse_rotation_overlay_watchlist(raw_value: object | None) -> list[str]:
+    return _parse_unique_string_list(
+        raw_value,
+        field_name="rotation_overlay_watchlist",
+        item_label="tickers",
+        normalizer=lambda value: value.upper(),
+    )
+
+
+def dump_rotation_overlay_watchlist(watchlist: list[str]) -> str:
+    return json.dumps(watchlist, separators=(",", ":"))
+
+
+def resolve_rotation_overlay_watchlist(account: Mapping[str, object]) -> list[str]:
+    return parse_rotation_overlay_watchlist(_value(account, "rotation_overlay_watchlist"))
 
 
 def resolve_active_strategy(account: Mapping[str, object]) -> str:
@@ -121,11 +169,13 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
     if len(schedule) < 2:
         return False
 
-    interval_raw = _value(account, "rotation_interval_days")
-    if interval_raw is None:
-        return False
-    interval_days = _as_int(interval_raw, default=0)
-    if interval_days <= 0:
+    interval_minutes = _as_int(_value(account, "rotation_interval_minutes"), default=0)
+    interval_days = _as_int(_value(account, "rotation_interval_days"), default=0)
+    if interval_minutes > 0:
+        interval_seconds = interval_minutes * SECONDS_PER_MINUTE
+    elif interval_days > 0:
+        interval_seconds = interval_days * SECONDS_PER_DAY
+    else:
         return False
 
     now = _parse_iso(as_of_iso)
@@ -137,7 +187,7 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
         return True
 
     elapsed_seconds = (now - last_rotation).total_seconds()
-    return elapsed_seconds >= (interval_days * SECONDS_PER_DAY)
+    return elapsed_seconds >= interval_seconds
 
 
 def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dict[str, object]:

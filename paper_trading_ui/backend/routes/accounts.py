@@ -112,8 +112,24 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
                 roll_dte_threshold=body.rollDteThreshold,
                 profit_take_pct=body.profitTakePct,
                 max_loss_pct=body.maxLossPct,
+                rotation_enabled=body.rotationEnabled,
+                rotation_mode=body.rotationMode,
+                rotation_optimality_mode=body.rotationOptimalityMode,
+                rotation_interval_days=body.rotationIntervalDays,
+                rotation_interval_minutes=body.rotationIntervalMinutes,
+                rotation_lookback_days=body.rotationLookbackDays,
+                rotation_schedule=body.rotationSchedule,
+                rotation_regime_strategy_risk_on=body.rotationRegimeStrategyRiskOn,
+                rotation_regime_strategy_neutral=body.rotationRegimeStrategyNeutral,
+                rotation_regime_strategy_risk_off=body.rotationRegimeStrategyRiskOff,
+                rotation_overlay_mode=body.rotationOverlayMode,
+                rotation_overlay_min_tickers=body.rotationOverlayMinTickers,
+                rotation_overlay_confidence_threshold=body.rotationOverlayConfidenceThreshold,
+                rotation_overlay_watchlist=body.rotationOverlayWatchlist,
+                rotation_active_index=body.rotationActiveIndex,
+                rotation_last_at=body.rotationLastAt,
+                rotation_active_strategy=body.rotationActiveStrategy,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"status": "ok"}
-
