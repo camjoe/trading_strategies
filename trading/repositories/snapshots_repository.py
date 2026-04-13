@@ -90,10 +90,35 @@ def fetch_snapshot_count_between(
     return int(row["snapshot_count"]) if row is not None else 0
 
 
+def fetch_snapshot_count_for_account(conn: sqlite3.Connection, *, account_id: int) -> int:
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS snapshot_count
+        FROM equity_snapshots
+        WHERE account_id = ?
+        """,
+        (int(account_id),),
+    ).fetchone()
+    return int(row["snapshot_count"]) if row is not None else 0
+
+
 def fetch_latest_snapshot_row(conn: sqlite3.Connection, *, account_id: int) -> sqlite3.Row | None:
     return conn.execute(
         """
         SELECT snapshot_time, equity
+        FROM equity_snapshots
+        WHERE account_id = ?
+        ORDER BY snapshot_time DESC, id DESC
+        LIMIT 1
+        """,
+        (int(account_id),),
+    ).fetchone()
+
+
+def fetch_latest_snapshot_details_row(conn: sqlite3.Connection, *, account_id: int) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
         FROM equity_snapshots
         WHERE account_id = ?
         ORDER BY snapshot_time DESC, id DESC

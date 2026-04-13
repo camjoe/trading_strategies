@@ -137,3 +137,23 @@ def fetch_closed_rotation_episodes(
         """,
         (int(account_id), *strategy_names, start_iso, end_iso),
     ).fetchall()
+
+
+def fetch_latest_closed_rotation_episode(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    strategy_name: str,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT *
+        FROM rotation_episodes
+        WHERE account_id = ?
+          AND strategy_name = ?
+          AND ended_at IS NOT NULL
+        ORDER BY ended_at DESC, id DESC
+        LIMIT 1
+        """,
+        (int(account_id), strategy_name),
+    ).fetchone()
