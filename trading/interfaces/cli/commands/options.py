@@ -42,6 +42,18 @@ def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False)
     p.add_argument("--stop-loss-pct", type=float, default=None, help="Stop-loss percent")
     p.add_argument("--take-profit-pct", type=float, default=None, help="Take-profit percent")
     p.add_argument(
+        "--trade-size-pct",
+        type=float,
+        default=None if configure_mode else 10.0,
+        help="Target portfolio allocation percent for each new buy",
+    )
+    p.add_argument(
+        "--max-position-pct",
+        type=float,
+        default=None if configure_mode else 20.0,
+        help="Maximum portfolio allocation percent allowed for a single position",
+    )
+    p.add_argument(
         "--instrument-mode",
         default=None if configure_mode else "equity",
         choices=["equity", "leaps"],

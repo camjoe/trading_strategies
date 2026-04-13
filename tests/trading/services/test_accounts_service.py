@@ -40,6 +40,8 @@ def _account_row(
     goal_period: str = "monthly",
     learning_enabled: int = 0,
     risk_policy: str = "none",
+    trade_size_pct: float = 10.0,
+    max_position_pct: float = 20.0,
     instrument_mode: str = "equity",
     created_at: str = "2026-01-01T00:00:00",
     rotation_enabled: int = 0,
@@ -52,16 +54,17 @@ def _account_row(
             id INTEGER, name TEXT, descriptive_name TEXT, strategy TEXT,
             initial_cash REAL, benchmark_ticker TEXT,
             goal_min_return_pct REAL, goal_max_return_pct REAL, goal_period TEXT,
-            learning_enabled INTEGER, risk_policy TEXT, instrument_mode TEXT, created_at TEXT,
+            learning_enabled INTEGER, risk_policy TEXT, trade_size_pct REAL, max_position_pct REAL,
+            instrument_mode TEXT, created_at TEXT,
             rotation_enabled INTEGER, rotation_active_strategy TEXT
         )"""
     )
     conn.execute(
-        "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             id, name, descriptive_name, strategy, initial_cash, benchmark_ticker,
             goal_min_return_pct, goal_max_return_pct, goal_period,
-            learning_enabled, risk_policy, instrument_mode, created_at,
+            learning_enabled, risk_policy, trade_size_pct, max_position_pct, instrument_mode, created_at,
             rotation_enabled, rotation_active_strategy,
         ],
     )
@@ -147,7 +150,8 @@ def test_format_account_policy_text_for_non_rotation_account() -> None:
 
     assert format_account_policy_text(row) == (
         "base_strategy=Trend | active_strategy=Trend | benchmark=SPY | "
-        "heuristic_exploration=off | risk=none | instrument=equity"
+        "heuristic_exploration=off | risk=none | instrument=equity | "
+        "trade_size=10.00% | max_position=20.00%"
     )
 
 

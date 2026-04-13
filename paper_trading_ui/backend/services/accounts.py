@@ -28,6 +28,7 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from common.coercion import coerce_float, coerce_int, row_float, row_int
+from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.rotation import (
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
@@ -58,6 +59,13 @@ def _row_value(row: sqlite3.Row | dict[str, object], key: str) -> object | None:
     if hasattr(row, "keys") and key in row.keys():
         return row[key]
     return None
+
+
+def _row_pct_value(row: sqlite3.Row | dict[str, object], key: str, default: float) -> float:
+    value = coerce_float(_row_value(row, key))
+    if value is None:
+        return default
+    return value
 
 
 def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
@@ -165,6 +173,8 @@ def _build_summary_from_stats(
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
         "stopLossPct": row_float(row, "stop_loss_pct"),
         "takeProfitPct": row_float(row, "take_profit_pct"),
+        "tradeSizePct": _row_pct_value(row, "trade_size_pct", DEFAULT_TRADE_SIZE_PCT),
+        "maxPositionPct": _row_pct_value(row, "max_position_pct", DEFAULT_MAX_POSITION_PCT),
         "goalMinReturnPct": row_float(row, "goal_min_return_pct"),
         "goalMaxReturnPct": row_float(row, "goal_max_return_pct"),
         "goalPeriod": row["goal_period"] if "goal_period" in row.keys() else None,
@@ -361,6 +371,8 @@ def update_account_params(
     descriptive_name: str | None = None,
     stop_loss_pct: float | None = None,
     take_profit_pct: float | None = None,
+    trade_size_pct: float | None = None,
+    max_position_pct: float | None = None,
     instrument_mode: str | None = None,
     goal_min_return_pct: float | None = None,
     goal_max_return_pct: float | None = None,
@@ -407,6 +419,8 @@ def update_account_params(
         risk_policy=risk_policy,
         stop_loss_pct=stop_loss_pct,
         take_profit_pct=take_profit_pct,
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
         instrument_mode=instrument_mode,
         goal_min_return_pct=goal_min_return_pct,
         goal_max_return_pct=goal_max_return_pct,

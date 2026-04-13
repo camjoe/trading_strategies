@@ -11,6 +11,7 @@ from common.coercion import (
     row_expect_int,
     row_expect_str,
 )
+from trading.domain.auto_trader_policy import choose_buy_qty
 from trading.backtesting.trading_bridge import (
     get_account,
     resolve_active_strategy,
@@ -193,6 +194,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         insert_trade_fn=_insert_trade,
         insert_snapshot_fn=_insert_snapshot,
         resolve_signal_fn=resolve_signal,
+        choose_buy_qty_fn=choose_buy_qty,
         benchmark_return_pct_fn=benchmark_return_pct,
         max_drawdown_pct_fn=max_drawdown_pct,
         backtest_result_cls=BacktestResult,

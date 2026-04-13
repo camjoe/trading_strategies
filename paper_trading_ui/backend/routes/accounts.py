@@ -94,6 +94,8 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
                 descriptive_name=body.descriptiveName,
                 stop_loss_pct=body.stopLossPct,
                 take_profit_pct=body.takeProfitPct,
+                trade_size_pct=body.tradeSizePct,
+                max_position_pct=body.maxPositionPct,
                 instrument_mode=body.instrumentMode,
                 goal_min_return_pct=body.goalMinReturnPct,
                 goal_max_return_pct=body.goalMaxReturnPct,

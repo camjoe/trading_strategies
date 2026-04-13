@@ -29,6 +29,8 @@ def _insert(conn, name: str, strategy: str = "Trend") -> None:
         risk_policy="none",
         stop_loss_pct=None,
         take_profit_pct=None,
+        trade_size_pct=10.0,
+        max_position_pct=20.0,
         instrument_mode="equity",
         option_strike_offset_pct=None,
         option_min_dte=None,
@@ -74,6 +76,8 @@ class TestInsertAccount:
             risk_policy="fixed_stop",
             stop_loss_pct=5.0,
             take_profit_pct=10.0,
+            trade_size_pct=12.5,
+            max_position_pct=25.0,
             instrument_mode="leaps",
             option_strike_offset_pct=2.0,
             option_min_dte=90,
@@ -96,6 +100,8 @@ class TestInsertAccount:
         assert row["benchmark_ticker"] == "QQQ"
         assert float(row["goal_min_return_pct"]) == pytest.approx(1.5)
         assert int(row["learning_enabled"]) == 1
+        assert float(row["trade_size_pct"]) == pytest.approx(12.5)
+        assert float(row["max_position_pct"]) == pytest.approx(25.0)
         assert row["instrument_mode"] == "leaps"
         assert int(row["option_min_dte"]) == 90
 

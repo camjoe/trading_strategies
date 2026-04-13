@@ -14,6 +14,7 @@ from trading.repositories.accounts_repository import update_account_fields
 CONFIGURE_KEYS = {
     "descriptive_name", "goal_min_return_pct", "goal_max_return_pct", "goal_period",
     "learning_enabled", "risk_policy", "stop_loss_pct", "take_profit_pct",
+    "trade_size_pct", "max_position_pct",
     "instrument_mode", "option_strike_offset_pct", "option_min_dte", "option_max_dte",
     "option_type", "target_delta_min", "target_delta_max", "max_premium_per_trade",
     "max_contracts_per_trade", "iv_rank_min", "iv_rank_max", "roll_dte_threshold",
@@ -60,6 +61,8 @@ def extract_profile_fields(profile: dict[str, object]) -> AccountConfig:
         risk_policy=coerce_str(g("risk_policy")),
         stop_loss_pct=coerce_float(g("stop_loss_pct")),
         take_profit_pct=coerce_float(g("take_profit_pct")),
+        trade_size_pct=coerce_float(g("trade_size_pct")),
+        max_position_pct=coerce_float(g("max_position_pct")),
         instrument_mode=coerce_str(g("instrument_mode")),
         option_strike_offset_pct=coerce_float(g("option_strike_offset_pct")),
         option_min_dte=coerce_int(g("option_min_dte")),

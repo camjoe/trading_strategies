@@ -198,6 +198,29 @@ class TestBacktestRunFlow:
         assert summary["trade_count"] >= 0
         assert isinstance(summary["total_return_pct"], float)
 
+    def test_run_backtest_uses_account_trade_size_pct(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _create_bt_account(conn, "acct_bt_size_small", trade_size_pct=5.0, max_position_pct=10.0)
+        _create_bt_account(conn, "acct_bt_size_large", trade_size_pct=15.0, max_position_pct=30.0)
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 105.0])
+
+        small = run_backtest(conn, _backtest_config("acct_bt_size_small", run_name="small"))
+        large = run_backtest(conn, _backtest_config("acct_bt_size_large", run_name="large"))
+
+        small_qty = float(
+            conn.execute(
+                "SELECT qty FROM backtest_trades WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
+                (small.run_id,),
+            ).fetchone()["qty"]
+        )
+        large_qty = float(
+            conn.execute(
+                "SELECT qty FROM backtest_trades WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
+                (large.run_id,),
+            ).fetchone()["qty"]
+        )
+
+        assert small_qty < large_qty
+
     def test_backtest_report_summary_returns_model(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         _create_bt_account(conn, "acct_report_model")
         _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])

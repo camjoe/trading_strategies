@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     risk_policy TEXT NOT NULL DEFAULT 'none',
     stop_loss_pct REAL,
     take_profit_pct REAL,
+    trade_size_pct REAL,
+    max_position_pct REAL,
     instrument_mode TEXT NOT NULL DEFAULT 'equity',
     option_strike_offset_pct REAL,
     option_min_dte INTEGER,
@@ -423,6 +425,8 @@ ACCOUNT_MIGRATIONS = (
         "rotation_active_strategy",
         "ALTER TABLE accounts ADD COLUMN rotation_active_strategy TEXT",
     ),
+    ColumnMigration("trade_size_pct", "ALTER TABLE accounts ADD COLUMN trade_size_pct REAL"),
+    ColumnMigration("max_position_pct", "ALTER TABLE accounts ADD COLUMN max_position_pct REAL"),
 )
 
 BACKTEST_RUN_MIGRATIONS = (

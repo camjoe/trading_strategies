@@ -4,6 +4,7 @@ import sqlite3
 from typing import Callable
 
 from common.time import utc_now_iso
+from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.utils.coercion import (
     coerce_float,
@@ -89,11 +90,20 @@ def _resolve_base_and_active_strategy(row: sqlite3.Row) -> tuple[str, str]:
 def format_account_policy_text(row: sqlite3.Row) -> str:
     base_strategy, active_strategy = _resolve_base_and_active_strategy(row)
     learning_enabled = row_int(row, "learning_enabled")
+    trade_size_pct = row_float(row, "trade_size_pct")
+    max_position_pct = row_float(row, "max_position_pct")
+    resolved_trade_size_pct = (
+        trade_size_pct if trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
+    )
+    resolved_max_position_pct = (
+        max_position_pct if max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
+    )
     return (
         f"base_strategy={base_strategy} | active_strategy={active_strategy} | "
         f"benchmark={row['benchmark_ticker']} | "
         f"{HEURISTIC_EXPLORATION_LABEL}={'on' if learning_enabled else 'off'} | "
-        f"risk={row['risk_policy']} | instrument={row['instrument_mode']}"
+        f"risk={row['risk_policy']} | instrument={row['instrument_mode']} | "
+        f"trade_size={resolved_trade_size_pct:.2f}% | max_position={resolved_max_position_pct:.2f}%"
     )
 
 
@@ -265,6 +275,60 @@ def _validate_option_settings(
     _validate_range(iv_rank_min, iv_rank_max, "iv_rank")
 
 
+def _resolve_sizing_value(
+    value: float | None,
+    row: sqlite3.Row,
+    column: str,
+    default: float,
+) -> float:
+    if value is not None:
+        return value
+    existing = row_float(row, column)
+    if existing is not None:
+        return existing
+    return default
+
+
+def _validate_position_sizing(
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
+) -> None:
+    for field_name, value in (
+        ("trade_size_pct", trade_size_pct),
+        ("max_position_pct", max_position_pct),
+    ):
+        if value is None:
+            continue
+        numeric_value = coerce_float(value)
+        if numeric_value is None:
+            raise ValueError(f"{field_name} must be numeric.")
+        if numeric_value <= 0 or numeric_value > 100:
+            raise ValueError(f"{field_name} must be greater than 0 and <= 100.")
+    if trade_size_pct is not None and max_position_pct is not None and trade_size_pct > max_position_pct:
+        raise ValueError("trade_size_pct cannot be greater than max_position_pct.")
+
+
+def _validate_position_sizing_from_inputs(
+    account: sqlite3.Row,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
+) -> tuple[float, float]:
+    resolved_trade_size_pct = _resolve_sizing_value(
+        trade_size_pct,
+        account,
+        "trade_size_pct",
+        DEFAULT_TRADE_SIZE_PCT,
+    )
+    resolved_max_position_pct = _resolve_sizing_value(
+        max_position_pct,
+        account,
+        "max_position_pct",
+        DEFAULT_MAX_POSITION_PCT,
+    )
+    _validate_position_sizing(resolved_trade_size_pct, resolved_max_position_pct)
+    return resolved_trade_size_pct, resolved_max_position_pct
+
+
 def _append_update(
     updates: list[str],
     params: list[object],
@@ -366,6 +430,13 @@ def create_account(
 
     risk = _normalize_risk_policy(cfg.risk_policy or "none")
     mode = _normalize_instrument_mode(cfg.instrument_mode or "equity")
+    trade_size_pct = (
+        cfg.trade_size_pct if cfg.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
+    )
+    max_position_pct = (
+        cfg.max_position_pct if cfg.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
+    )
+    _validate_position_sizing(trade_size_pct, max_position_pct)
     _validate_option_settings(
         cfg.option_type,
         cfg.target_delta_min,
@@ -392,6 +463,8 @@ def create_account(
             risk_policy=risk,
             stop_loss_pct=cfg.stop_loss_pct,
             take_profit_pct=cfg.take_profit_pct,
+            trade_size_pct=trade_size_pct,
+            max_position_pct=max_position_pct,
             instrument_mode=mode,
             option_strike_offset_pct=cfg.option_strike_offset_pct,
             option_min_dte=cfg.option_min_dte,
@@ -463,6 +536,8 @@ def configure_account(
     numeric_fields: list[tuple[str, object | None, Callable[[object], object]]] = [
         ("stop_loss_pct", cfg.stop_loss_pct, to_float_obj),
         ("take_profit_pct", cfg.take_profit_pct, to_float_obj),
+        ("trade_size_pct", cfg.trade_size_pct, to_float_obj),
+        ("max_position_pct", cfg.max_position_pct, to_float_obj),
         ("option_strike_offset_pct", cfg.option_strike_offset_pct, to_float_obj),
         ("option_min_dte", cfg.option_min_dte, to_int_obj),
         ("option_max_dte", cfg.option_max_dte, to_int_obj),
@@ -478,6 +553,7 @@ def configure_account(
     ]
     _append_numeric_updates(updates, params, numeric_fields)
     _validate_goal_range_from_inputs(account, cfg.goal_min_return_pct, cfg.goal_max_return_pct)
+    _validate_position_sizing_from_inputs(account, cfg.trade_size_pct, cfg.max_position_pct)
     _validate_option_settings_from_inputs(
         account,
         cfg.option_type,

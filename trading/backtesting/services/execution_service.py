@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import sqlite3
 from collections import defaultdict
 from datetime import date
@@ -8,9 +7,17 @@ from typing import Any, Callable, cast
 
 from common.constants import BASIS_POINTS_DIVISOR
 from trading.backtesting.domain.metrics import summarize_backtest_performance
+from trading.domain.auto_trader_policy import choose_buy_qty as default_choose_buy_qty
 
-# Fraction of total portfolio equity allocated per buy signal
-POSITION_SIZE_PCT = 0.10
+
+def _row_optional_float(row: sqlite3.Row, column: str) -> float | None:
+    try:
+        value = row[column]
+    except (KeyError, IndexError):
+        return None
+    if value is None:
+        return None
+    return float(value)
 
 
 def run_backtest(
@@ -37,6 +44,7 @@ def run_backtest(
     insert_trade_fn,
     insert_snapshot_fn,
     resolve_signal_fn,
+    choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
     benchmark_return_pct_fn: Callable[[object, float], float | None],
     max_drawdown_pct_fn: Callable[[list[float]], float],
     backtest_result_cls,
@@ -124,12 +132,19 @@ def run_backtest(
                 if px <= 0:
                     continue
 
-                allocation = (cash + compute_market_value_fn(positions, trade_prices.to_dict())) * POSITION_SIZE_PCT
                 exec_px = px * slippage_multiplier_buy
                 if exec_px <= 0:
                     continue
 
-                qty_int = math.floor(max(0.0, allocation - cfg.fee_per_trade) / exec_px)
+                qty_int = choose_buy_qty_fn(
+                    cash,
+                    exec_px,
+                    cfg.fee_per_trade,
+                    trade_size_pct=_row_optional_float(account, "trade_size_pct"),
+                    max_position_pct=_row_optional_float(account, "max_position_pct"),
+                    current_position_value=float(positions[ticker]) * px,
+                    portfolio_equity=cash + compute_market_value_fn(positions, trade_prices.to_dict()),
+                )
                 if qty_int < 1:
                     continue
 

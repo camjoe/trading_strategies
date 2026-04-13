@@ -32,6 +32,8 @@ def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str
         risk_policy=payload.riskPolicy,
         stop_loss_pct=payload.stopLossPct,
         take_profit_pct=payload.takeProfitPct,
+        trade_size_pct=payload.tradeSizePct,
+        max_position_pct=payload.maxPositionPct,
         instrument_mode=payload.instrumentMode,
         option_strike_offset_pct=payload.optionStrikeOffsetPct,
         option_min_dte=payload.optionMinDte,

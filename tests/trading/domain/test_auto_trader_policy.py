@@ -31,11 +31,37 @@ def _base_account(**overrides):
 
 
 def test_choose_qty_helpers(monkeypatch) -> None:
-    monkeypatch.setattr(auto_trader_policy.random, "randint", lambda a, b: b)
     assert auto_trader_policy.choose_buy_qty(cash=10.0, price=11.0, fee=0.0) == 0
-    assert auto_trader_policy.choose_buy_qty(cash=100.0, price=10.0, fee=0.0) == 5
+    assert auto_trader_policy.choose_buy_qty(cash=100.0, price=10.0, fee=0.0) == 1
     assert auto_trader_policy.choose_sell_qty(position_qty=0.2) == 0
+    monkeypatch.setattr(auto_trader_policy.random, "randint", lambda a, b: b)
     assert auto_trader_policy.choose_sell_qty(position_qty=9.0) == 5
+
+
+def test_choose_buy_qty_respects_custom_trade_and_position_caps() -> None:
+    qty = auto_trader_policy.choose_buy_qty(
+        cash=10_000.0,
+        price=100.0,
+        fee=0.0,
+        trade_size_pct=12.0,
+        max_position_pct=15.0,
+        current_position_value=900.0,
+        portfolio_equity=10_000.0,
+    )
+    assert qty == 6
+
+
+def test_choose_buy_qty_blocks_buys_when_position_cap_is_full() -> None:
+    qty = auto_trader_policy.choose_buy_qty(
+        cash=10_000.0,
+        price=100.0,
+        fee=0.0,
+        trade_size_pct=10.0,
+        max_position_pct=20.0,
+        current_position_value=2_000.0,
+        portfolio_equity=10_000.0,
+    )
+    assert qty == 0
 
 
 def test_estimate_helpers_boundaries() -> None:

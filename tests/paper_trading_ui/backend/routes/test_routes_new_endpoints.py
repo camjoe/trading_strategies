@@ -59,6 +59,19 @@ class TestAccountParamsEndpoint:
         detail = api_client.get("/api/accounts/acct_params_risk").json()
         assert detail["account"]["riskPolicy"] == "fixed_stop"
 
+    def test_patch_params_updates_position_sizing(self, api_client: TestClient) -> None:
+        _seed_account("acct_params_sizing")
+
+        resp = api_client.patch(
+            "/api/accounts/acct_params_sizing/params",
+            json={"tradeSizePct": 11.5, "maxPositionPct": 22.5},
+        )
+        assert resp.status_code == 200
+
+        detail = api_client.get("/api/accounts/acct_params_sizing").json()
+        assert detail["account"]["tradeSizePct"] == pytest.approx(11.5)
+        assert detail["account"]["maxPositionPct"] == pytest.approx(22.5)
+
     def test_patch_params_empty_body_is_no_op(self, api_client: TestClient) -> None:
         _seed_account("acct_params_noop")
 
