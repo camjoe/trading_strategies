@@ -36,31 +36,31 @@ class TestRotationConfigFromProfile:
         rc = RotationConfig.from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
-            "rotation_schedule": ["a", "b", "c"],
+            "rotation_schedule": ["trend", "breakout", "macd"],
             "rotation_active_index": 1,
         })
         assert rc.active_index == 1
-        assert rc.active_strategy == "b"
+        assert rc.active_strategy == "breakout"
 
     def test_explicit_active_strategy_sets_index(self):
         rc = RotationConfig.from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
-            "rotation_schedule": ["a", "b", "c"],
-            "rotation_active_strategy": "b",
+            "rotation_schedule": ["trend", "breakout", "macd"],
+            "rotation_active_strategy": "breakout",
         })
         assert rc.active_index == 1
-        assert rc.active_strategy == "b"
+        assert rc.active_strategy == "breakout"
 
     def test_active_index_wraps_when_exceeds_schedule_length(self):
         rc = RotationConfig.from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
-            "rotation_schedule": ["a", "b"],
+            "rotation_schedule": ["trend", "breakout"],
             "rotation_active_index": 4,  # 4 % 2 = 0
         })
         assert rc.active_index == 0
-        assert rc.active_strategy == "a"
+        assert rc.active_strategy == "trend"
 
     def test_optimal_rotation_mode(self):
         rc = RotationConfig.from_profile({
@@ -161,8 +161,8 @@ class TestRotationConfigFromProfile:
             RotationConfig.from_profile({
                 "rotation_enabled": True,
                 "rotation_interval_days": 7,
-                "rotation_schedule": ["a", "b"],
-                "rotation_active_strategy": "z",
+                "rotation_schedule": ["trend", "breakout"],
+                "rotation_active_strategy": "macd",
             })
 
     def test_regime_strategy_not_in_schedule_raises(self):

@@ -35,15 +35,38 @@ class RotationConfig:
 
     @classmethod
     def from_profile(cls, profile: dict[str, object]) -> RotationConfig:
+        def _validate_strategy_field(value: str | None, field_name: str) -> str | None:
+            from trading.backtesting.domain.strategy_signals import validate_strategy_name
+
+            if value is None:
+                return None
+            strategy_name = value.strip()
+            if not strategy_name:
+                return None
+            try:
+                validate_strategy_name(strategy_name)
+            except ValueError as exc:
+                raise ValueError(f"{field_name}: {exc}") from exc
+            return strategy_name
+
         enabled = coerce_bool(profile.get("rotation_enabled"))
         rotation_mode_raw = coerce_str(profile.get("rotation_mode"))
         optimality_mode_raw = coerce_str(profile.get("rotation_optimality_mode"))
         interval_days = coerce_int(profile.get("rotation_interval_days"))
         interval_minutes = coerce_int(profile.get("rotation_interval_minutes"))
         lookback_days = coerce_int(profile.get("rotation_lookback_days"))
-        regime_strategy_risk_on = coerce_str(profile.get("rotation_regime_strategy_risk_on"))
-        regime_strategy_neutral = coerce_str(profile.get("rotation_regime_strategy_neutral"))
-        regime_strategy_risk_off = coerce_str(profile.get("rotation_regime_strategy_risk_off"))
+        regime_strategy_risk_on = _validate_strategy_field(
+            coerce_str(profile.get("rotation_regime_strategy_risk_on")),
+            "rotation_regime_strategy_risk_on",
+        )
+        regime_strategy_neutral = _validate_strategy_field(
+            coerce_str(profile.get("rotation_regime_strategy_neutral")),
+            "rotation_regime_strategy_neutral",
+        )
+        regime_strategy_risk_off = _validate_strategy_field(
+            coerce_str(profile.get("rotation_regime_strategy_risk_off")),
+            "rotation_regime_strategy_risk_off",
+        )
         overlay_mode_raw = coerce_str(profile.get("rotation_overlay_mode"))
         overlay_min_tickers = coerce_int(profile.get("rotation_overlay_min_tickers"))
         overlay_confidence_threshold_raw = profile.get("rotation_overlay_confidence_threshold")
@@ -54,8 +77,13 @@ class RotationConfig:
         )
         active_index = coerce_int(profile.get("rotation_active_index"))
         last_at = coerce_str(profile.get("rotation_last_at"))
-        active_strategy = coerce_str(profile.get("rotation_active_strategy"))
+        active_strategy = _validate_strategy_field(
+            coerce_str(profile.get("rotation_active_strategy")),
+            "rotation_active_strategy",
+        )
         schedule = parse_rotation_schedule(profile.get("rotation_schedule"))
+        for index, strategy_name in enumerate(schedule):
+            _validate_strategy_field(strategy_name, f"rotation_schedule[{index}]")
 
         mode = (rotation_mode_raw or "time").strip().lower()
         if mode not in ROTATION_MODES:

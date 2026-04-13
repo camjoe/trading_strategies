@@ -260,7 +260,9 @@ def build_trade_note(
     iv_est: float | None,
     strategy_name: str | None,
 ) -> str:
-    note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
+    note_parts = ["auto-daily"]
+    if learning_enabled:
+        note_parts.append("selection=heuristic-exploration")
     if forced_sell is not None:
         note_parts.append(f"risk={risk_policy}")
     if instrument_mode == "leaps":

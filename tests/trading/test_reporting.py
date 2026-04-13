@@ -162,8 +162,13 @@ class TestAccountReportOutput:
 
         assert stats["equity"] == pytest.approx(1040.0)
         assert positions == {"AAPL": 2.0}
+        assert "Display Name: acct_report_out" in out
+        assert (
+            "Account Policy: base_strategy=Trend | active_strategy=Trend | benchmark=SPY | "
+            "heuristic_exploration=off | risk=none | instrument=equity"
+        ) in out
         assert "Benchmark Equity: 1050.00" in out
-        assert "Strategy Alpha vs Benchmark %: -1.00" in out
+        assert "Account Alpha vs Benchmark %: -1.00" in out
         assert "Open Positions:" in out
 
         monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
@@ -200,9 +205,33 @@ class TestAccountReportOutput:
 
         account_report(conn, "acct_leaps")
         out = capsys.readouterr().out
-        assert "LEAPs Params:" in out
-        assert "Options Filters:" in out
-        assert "Options Risk:" in out
+        assert "LEAPs Parameters:" in out
+        assert "LEAPs Options Filters:" in out
+        assert "LEAPs/Options Risk Limits:" in out
+
+    def test_rotation_account_header_shows_base_and_active_strategy(
+        self,
+        conn,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys,
+    ) -> None:
+        create_account(conn, "acct_rot", "Trend", 1000.0, "SPY")
+        conn.execute(
+            """
+            UPDATE accounts
+            SET rotation_enabled = 1,
+                rotation_active_strategy = 'mean_reversion'
+            WHERE name = 'acct_rot'
+            """
+        )
+        conn.commit()
+
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {})
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
+
+        account_report(conn, "acct_rot")
+        out = capsys.readouterr().out
+        assert "base_strategy=Trend | active_strategy=mean_reversion" in out
 
 
 class TestCompareStrategies:
@@ -222,8 +251,11 @@ class TestCompareStrategies:
 
         compare_strategies(conn, lookback=5)
         out = capsys.readouterr().out
-        assert "Per-strategy comparison:" in out
-        assert "benchmark_equity=N/A benchmark_return=N/A alpha=N/A" in out
+        assert "Account policy comparison (current paper account state):" in out
+        assert "not canonical strategy research scores" in out
+        assert "display_name=Compare" in out
+        assert "account_policy=base_strategy=Trend | active_strategy=Trend | benchmark=SPY" in out
+        assert "benchmark_equity=N/A benchmark_return=N/A account_alpha=N/A" in out
         assert "positions: AAPL:1.00" in out
 
     def test_truncates_positions_list(self, conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:

@@ -37,10 +37,10 @@ class TestAccountLookupAndListing:
     @pytest.mark.parametrize(
         ("name", "goal_min", "goal_max", "goal_period", "expected_goal_text"),
         [
-            ("acct_goal_none", None, None, "monthly", "goal=not-set"),
-            ("acct_goal_range", 1.5, 3.0, "weekly", "goal=1.50% to 3.00% per weekly"),
-            ("acct_goal_min", 2.0, None, "monthly", "goal=>= 2.00% per monthly"),
-            ("acct_goal_max", None, 4.5, "quarterly", "goal=<= 4.50% per quarterly"),
+            ("acct_goal_none", None, None, "monthly", None),
+            ("acct_goal_range", 1.5, 3.0, "weekly", "goal_metadata=1.50% to 3.00% per weekly"),
+            ("acct_goal_min", 2.0, None, "monthly", "goal_metadata=>= 2.00% per monthly"),
+            ("acct_goal_max", None, 4.5, "quarterly", "goal_metadata=<= 4.50% per quarterly"),
         ],
     )
     def test_list_accounts_formats_goal_variants(
@@ -51,7 +51,7 @@ class TestAccountLookupAndListing:
         goal_min: float | None,
         goal_max: float | None,
         goal_period: str,
-        expected_goal_text: str,
+        expected_goal_text: str | None,
     ) -> None:
         create_account(
             conn,
@@ -69,7 +69,10 @@ class TestAccountLookupAndListing:
         list_accounts(conn)
 
         out = capsys.readouterr().out
-        assert expected_goal_text in out
+        if expected_goal_text is None:
+            assert "goal_metadata=" not in out
+        else:
+            assert expected_goal_text in out
         assert "benchmark=SPY" in out
 
 
@@ -310,7 +313,7 @@ class TestConfigureAccountOptionFields:
             create_account(
                 conn,
                 name="bad_dte",
-                strategy="Test",
+                strategy="Trend",
                 initial_cash=5000,
                 benchmark_ticker="SPY",
                 config=AccountConfig(

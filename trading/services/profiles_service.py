@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.backtesting.domain.strategy_signals import validate_strategy_name
 from trading.services.accounts_service import configure_account, create_account, get_account, set_benchmark
 from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.models.account_config import AccountConfig
@@ -113,6 +114,20 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
     )
     return True
 
+
+def _validated_profile_strategy(profile: dict[str, object]) -> str | None:
+    strategy_value = profile.get("strategy")
+    if strategy_value is None:
+        return None
+
+    strategy_name = str(strategy_value).strip()
+    if not strategy_name:
+        return None
+
+    validate_strategy_name(strategy_name)
+    return strategy_name
+
+
 def apply_account_profiles(
     conn: sqlite3.Connection,
     profiles: list[dict[str, object]],
@@ -125,7 +140,7 @@ def apply_account_profiles(
     for profile in profiles:
         name = str(profile["name"]).strip()
         benchmark = str(profile.get("benchmark_ticker", "SPY")).strip().upper()
-        strategy = str(profile.get("strategy", "Unspecified")).strip()
+        strategy = _validated_profile_strategy(profile)
         initial_cash = coerce_float(profile.get("initial_cash", 5000.0))
         if initial_cash is None:
             raise ValueError("initial_cash cannot be null")
@@ -140,8 +155,17 @@ def apply_account_profiles(
             if not create_missing:
                 skipped += 1
                 continue
+            if strategy is None:
+                raise ValueError(f"Profile '{name}' must define a valid strategy.")
 
-            create_account(conn, name, strategy, initial_cash, benchmark, config=extract_profile_fields(profile))
+            create_account(
+                conn,
+                name,
+                strategy,
+                initial_cash,
+                benchmark,
+                config=extract_profile_fields(profile),
+            )
             apply_rotation_fields(conn, name, profile)
             created += 1
             continue
@@ -152,7 +176,7 @@ def apply_account_profiles(
             set_benchmark(conn, name, benchmark)
             fields_updated = True
 
-        if "strategy" in profile and strategy:
+        if strategy is not None:
             account = get_account(conn, name)
             update_account_fields(
                 conn,

@@ -104,7 +104,7 @@ def test_build_trade_note_for_leaps_buy() -> None:
         iv_est=42.0,
         strategy_name="trend",
     )
-    assert "auto-daily-learn" in note
+    assert "selection=heuristic-exploration" in note
     assert "mode=leaps" in note
     assert "delta=0.33" in note
     assert "iv_rank=42.0" in note

@@ -6,7 +6,7 @@ from typing import Callable
 
 from common.market_data import get_provider
 from common.time import utc_now_iso
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_int
+from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
 from trading.repositories import (
@@ -15,11 +15,15 @@ from trading.repositories import (
     fetch_snapshot_history_rows,
     insert_snapshot_row,
 )
-from trading.services.accounts_service import format_goal_text, get_account
+from trading.services.accounts_service import (
+    GOAL_NOT_SET_TEXT,
+    format_account_policy_text,
+    format_goal_text,
+    get_account,
+)
 from trading.services.accounting_service import load_trades
 from trading.services.pricing_service import benchmark_stats as _benchmark_stats_svc
 from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
-
 
 # ---------------------------------------------------------------------------
 # Module-level adapters (provider injection)
@@ -189,34 +193,33 @@ def infer_overall_trend(
 
 def _print_leaps_params(account: sqlite3.Row) -> None:
     print(
-        "LEAPs Params: "
+        "LEAPs Parameters: "
         f"strike_offset_pct={account['option_strike_offset_pct']} "
         f"min_dte={account['option_min_dte']} max_dte={account['option_max_dte']}"
     )
     print(
-        "Options Filters: "
+        "LEAPs Options Filters: "
         f"type={account['option_type']} "
         f"delta={account['target_delta_min']}-{account['target_delta_max']} "
         f"iv_rank={account['iv_rank_min']}-{account['iv_rank_max']}"
     )
     print(
-        "Options Risk: "
+        "LEAPs/Options Risk Limits: "
         f"max_premium={account['max_premium_per_trade']} "
         f"max_contracts={account['max_contracts_per_trade']} "
         f"roll_dte={account['roll_dte_threshold']} "
-        f"profit_take={account['profit_take_pct']} "
-        f"max_loss={account['max_loss_pct']}"
+        f"leaps_profit_take_pct={account['profit_take_pct']} "
+        f"leaps_max_loss_pct={account['max_loss_pct']}"
     )
 
 
 def _print_account_header(account: sqlite3.Row) -> None:
-    print(f"Account: {account['name']} | Strategy: {account['strategy']}")
-    print(f"Descriptive Name: {account['descriptive_name']}")
-    print(f"Benchmark: {account['benchmark_ticker']}")
-    print(f"Goal: {format_goal_text(account)}")
-    print(f"Learning Enabled: {'yes' if row_int(account, 'learning_enabled') else 'no'}")
-    print(f"Risk Policy: {account['risk_policy']}")
-    print(f"Instrument Mode: {account['instrument_mode']}")
+    print(f"Account: {account['name']}")
+    print(f"Display Name: {account['descriptive_name']}")
+    print(f"Account Policy: {format_account_policy_text(account)}")
+    goal_text = format_goal_text(account)
+    if goal_text != GOAL_NOT_SET_TEXT:
+        print(f"Goal Metadata: {goal_text}")
     if account["instrument_mode"] == "leaps":
         _print_leaps_params(account)
 
@@ -237,7 +240,7 @@ def _print_performance_lines(
     print(f"Cash: {cash:.2f}")
     print(f"Market Value: {market_value:.2f}")
     print(f"Equity: {equity:.2f}")
-    print(f"Strategy Return %: {strategy_return_pct_value:.2f}")
+    print(f"Account Return %: {strategy_return_pct_value:.2f}")
     print(f"Realized PnL: {realized_pnl:.2f}")
     print(f"Unrealized PnL: {unrealized:.2f}")
 
@@ -247,7 +250,7 @@ def _print_performance_lines(
         alpha_value = alpha_pct(strategy_return_pct_value, benchmark_return_pct)
         print(f"Benchmark Equity: {benchmark_equity:.2f}")
         print(f"Benchmark Return %: {benchmark_return_pct:.2f}")
-        print(f"Strategy Alpha vs Benchmark %: {alpha_value:.2f}")
+        print(f"Account Alpha vs Benchmark %: {alpha_value:.2f}")
         return
 
     print("Benchmark comparison: unavailable (price history not found)")
@@ -272,12 +275,14 @@ def _print_open_positions(
 
 
 def _compare_account_header(account: sqlite3.Row) -> str:
-    learning = row_int(account, "learning_enabled")
-    return (
-        f"- {account['name']} ({account['descriptive_name']}) | strategy={account['strategy']} | "
-        f"benchmark={account['benchmark_ticker']} | learning={'on' if learning else 'off'} | "
-        f"risk={account['risk_policy']} | mode={account['instrument_mode']}"
-    )
+    return f"- {account['name']} | display_name={account['descriptive_name']}"
+
+
+def _compare_goal_metadata_line(account: sqlite3.Row) -> str | None:
+    goal_text = format_goal_text(account)
+    if goal_text == GOAL_NOT_SET_TEXT:
+        return None
+    return f"  goal_metadata={goal_text}"
 
 
 def _compare_benchmark_line(
@@ -291,9 +296,9 @@ def _compare_benchmark_line(
         alpha_value = alpha_pct(strategy_return_pct_value, benchmark_return_pct)
         return (
             f"  benchmark_equity={benchmark_equity:.2f} benchmark_return={benchmark_return_pct:.2f}% "
-            f"alpha={alpha_value:.2f}%"
+            f"account_alpha={alpha_value:.2f}%"
         )
-    return "  benchmark_equity=N/A benchmark_return=N/A alpha=N/A"
+    return "  benchmark_equity=N/A benchmark_return=N/A account_alpha=N/A"
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +349,8 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
         print("No paper accounts found.")
         return
 
-    print("Per-strategy comparison:")
+    print("Account policy comparison (current paper account state):")
+    print("Compares each account's current policy and holdings state, not canonical strategy research scores.")
     for account in accounts:
         state, _prices, _market_value, _unrealized, equity = build_account_stats(conn, account)
         initial_cash = row_expect_float(account, "initial_cash")
@@ -362,9 +368,12 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
         position_count, positions_text = positions_summary_text(state.positions)
 
         print(_compare_account_header(account))
-        print(f"  goal={format_goal_text(account)}")
+        print(f"  account_policy={format_account_policy_text(account)}")
+        goal_metadata_line = _compare_goal_metadata_line(account)
+        if goal_metadata_line is not None:
+            print(goal_metadata_line)
         print(
-            f"  equity={equity:.2f} return={strategy_return_pct_value:.2f}% "
+            f"  equity={equity:.2f} account_return={strategy_return_pct_value:.2f}% "
             f"positions={position_count} trend={trend}"
         )
         print(_compare_benchmark_line(strategy_return_pct_value, bench_equity, bench_return_pct))

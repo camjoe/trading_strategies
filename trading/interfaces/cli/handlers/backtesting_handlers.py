@@ -4,21 +4,25 @@ from typing import Any
 
 
 def handle_backtest(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
-    result = deps["run_backtest"](
-        conn,
-        deps["BacktestConfig"](
-            account_name=args.account,
-            tickers_file=args.tickers_file,
-            universe_history_dir=args.universe_history_dir,
-            start=args.start,
-            end=args.end,
-            lookback_months=args.lookback_months,
-            slippage_bps=args.slippage_bps,
-            fee_per_trade=args.fee,
-            run_name=args.run_name,
-            allow_approximate_leaps=bool(args.allow_approximate_leaps),
-        ),
-    )
+    try:
+        result = deps["run_backtest"](
+            conn,
+            deps["BacktestConfig"](
+                account_name=args.account,
+                tickers_file=args.tickers_file,
+                universe_history_dir=args.universe_history_dir,
+                start=args.start,
+                end=args.end,
+                lookback_months=args.lookback_months,
+                slippage_bps=args.slippage_bps,
+                fee_per_trade=args.fee,
+                run_name=args.run_name,
+                allow_approximate_leaps=bool(args.allow_approximate_leaps),
+            ),
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
     print(
         f"Backtest complete: run_id={result.run_id} account={result.account_name} "
         f"range={result.start_date}..{result.end_date} trades={result.trade_count}"
@@ -63,12 +67,16 @@ def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any], module_f
 
 
 def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
-    rows = deps["backtest_leaderboard_entries"](
-        conn,
-        limit=int(args.limit),
-        account_name=args.account,
-        strategy=args.strategy,
-    )
+    try:
+        rows = deps["backtest_leaderboard_entries"](
+            conn,
+            limit=int(args.limit),
+            account_name=args.account,
+            strategy=args.strategy,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
 
     if not rows:
         print("No backtest runs matched the selected filters.")
@@ -94,21 +102,25 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any], mod
 
 def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
     account_names = [name.strip() for name in args.accounts.split(",") if name.strip()]
-    results = deps["run_backtest_batch"](
-        conn,
-        deps["BacktestBatchConfig"](
-            account_names=account_names,
-            tickers_file=args.tickers_file,
-            universe_history_dir=args.universe_history_dir,
-            start=args.start,
-            end=args.end,
-            lookback_months=args.lookback_months,
-            slippage_bps=args.slippage_bps,
-            fee_per_trade=args.fee,
-            run_name_prefix=args.run_name_prefix,
-            allow_approximate_leaps=bool(args.allow_approximate_leaps),
-        ),
-    )
+    try:
+        results = deps["run_backtest_batch"](
+            conn,
+            deps["BacktestBatchConfig"](
+                account_names=account_names,
+                tickers_file=args.tickers_file,
+                universe_history_dir=args.universe_history_dir,
+                start=args.start,
+                end=args.end,
+                lookback_months=args.lookback_months,
+                slippage_bps=args.slippage_bps,
+                fee_per_trade=args.fee,
+                run_name_prefix=args.run_name_prefix,
+                allow_approximate_leaps=bool(args.allow_approximate_leaps),
+            ),
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
 
     print("Backtest batch complete.")
     print("rank,account_name,run_id,total_return_pct,max_drawdown_pct,ending_equity,trade_count")
@@ -120,23 +132,27 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any], module_fi
 
 
 def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
-    summary = deps["run_walk_forward_backtest"](
-        conn,
-        deps["WalkForwardConfig"](
-            account_name=args.account,
-            tickers_file=args.tickers_file,
-            universe_history_dir=args.universe_history_dir,
-            start=args.start,
-            end=args.end,
-            lookback_months=args.lookback_months,
-            test_months=args.test_months,
-            step_months=args.step_months,
-            slippage_bps=args.slippage_bps,
-            fee_per_trade=args.fee,
-            run_name_prefix=args.run_name_prefix,
-            allow_approximate_leaps=bool(args.allow_approximate_leaps),
-        ),
-    )
+    try:
+        summary = deps["run_walk_forward_backtest"](
+            conn,
+            deps["WalkForwardConfig"](
+                account_name=args.account,
+                tickers_file=args.tickers_file,
+                universe_history_dir=args.universe_history_dir,
+                start=args.start,
+                end=args.end,
+                lookback_months=args.lookback_months,
+                test_months=args.test_months,
+                step_months=args.step_months,
+                slippage_bps=args.slippage_bps,
+                fee_per_trade=args.fee,
+                run_name_prefix=args.run_name_prefix,
+                allow_approximate_leaps=bool(args.allow_approximate_leaps),
+            ),
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
 
     print(
         f"Walk-forward complete: account={summary.account_name} range={summary.start_date}..{summary.end_date} "

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import types
 
+import pytest
+
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
@@ -80,6 +82,16 @@ def test_handle_backtest_prints_warnings_when_present(capsys) -> None:
     assert "LEAPs mode is approximated" in capsys.readouterr().out
 
 
+def test_handle_backtest_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "BacktestConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_backtest": lambda *_: (_ for _ in ()).throw(ValueError("Unknown strategy 'mystery_strategy'")),
+    }
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest(object(), _backtest_args(), _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
     result = _fake_result(benchmark_return_pct=None, alpha_pct=None)
     deps = {
@@ -153,6 +165,18 @@ def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> Non
     assert "No backtest runs" in capsys.readouterr().out
 
 
+def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        )
+    }
+    args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_backtest_batch_prints_rank_table(capsys) -> None:
     deps = {
         "BacktestBatchConfig": lambda **kw: types.SimpleNamespace(**kw),
@@ -205,6 +229,30 @@ def test_handle_backtest_batch_splits_accounts_on_comma() -> None:
     assert seen_accounts == ["acct_a", "acct_b"]
 
 
+def test_handle_backtest_batch_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "BacktestBatchConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_backtest_batch": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        ),
+    }
+    args = types.SimpleNamespace(
+        accounts="acct_a",
+        tickers_file="tickers.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-01",
+        lookback_months=None,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name_prefix=None,
+        allow_approximate_leaps=False,
+    )
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest_batch(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
     summary = types.SimpleNamespace(
         account_name="acct",
@@ -239,3 +287,29 @@ def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
     handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
     assert "windows=3" in capsys.readouterr().out
+
+
+def test_handle_backtest_walk_forward_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "WalkForwardConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_walk_forward_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        ),
+    }
+    args = types.SimpleNamespace(
+        account="acct",
+        tickers_file="tickers.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-31",
+        lookback_months=None,
+        test_months=1,
+        step_months=1,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name_prefix=None,
+        allow_approximate_leaps=False,
+    )
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")

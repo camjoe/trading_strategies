@@ -603,6 +603,15 @@ class TestBacktestLeaderboardAndBatch:
 
 
 class TestBacktestValidationAndFailurePaths:
+    def test_run_backtest_rejects_unknown_account_strategy(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _create_bt_account(conn, "acct_invalid_strategy")
+        conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mystery_strategy", "acct_invalid_strategy"))
+        conn.commit()
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+
+        with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
+            run_backtest(conn, _backtest_config("acct_invalid_strategy"))
+
     def test_run_backtest_rejects_too_short_close_history(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         _create_bt_account(conn, "acct_short")
 
@@ -653,6 +662,10 @@ class TestBacktestValidationAndFailurePaths:
     def test_backtest_leaderboard_rejects_non_positive_limit(self, conn) -> None:
         with pytest.raises(ValueError, match="limit must be > 0"):
             backtest_leaderboard(conn, limit=0)
+
+    def test_backtest_leaderboard_rejects_unknown_strategy_filter(self, conn) -> None:
+        with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
+            backtest_leaderboard(conn, limit=5, strategy="mystery_strategy")
 
     def test_backtest_leaderboard_gracefully_handles_benchmark_fetch_error(
         self,

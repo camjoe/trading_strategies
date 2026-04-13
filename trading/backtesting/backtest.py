@@ -211,6 +211,16 @@ def backtest_report_summary(conn: sqlite3.Connection, run_id: int) -> BacktestRe
     return backtest_report_full(conn, run_id).summary
 
 
+def _validated_strategy_filter(strategy: str | None) -> str | None:
+    if strategy is None:
+        return None
+    strategy_name = strategy.strip()
+    if not strategy_name:
+        return None
+    resolve_strategy(strategy_name)
+    return strategy_name
+
+
 def backtest_leaderboard(
     conn: sqlite3.Connection,
     *,
@@ -218,12 +228,13 @@ def backtest_leaderboard(
     account_name: str | None = None,
     strategy: str | None = None,
 ) -> list[dict[str, object]]:
+    strategy_filter = _validated_strategy_filter(strategy)
     rows: list[dict[str, object]] = []
     for entry, starting_equity in _fetch_backtest_leaderboard_entries(
         conn,
         limit=limit,
         account_name=account_name,
-        strategy=strategy,
+        strategy=strategy_filter,
     ):
         row: dict[str, object] = {
             "run_id": entry.run_id,
@@ -252,13 +263,14 @@ def backtest_leaderboard_entries(
     account_name: str | None = None,
     strategy: str | None = None,
 ) -> list[BacktestLeaderboardEntry]:
+    strategy_filter = _validated_strategy_filter(strategy)
     return [
         entry
         for entry, _starting_equity in _fetch_backtest_leaderboard_entries(
             conn,
             limit=limit,
             account_name=account_name,
-            strategy=strategy,
+            strategy=strategy_filter,
         )
     ]
 

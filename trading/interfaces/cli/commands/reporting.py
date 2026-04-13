@@ -27,7 +27,7 @@ def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPars
 
     p_compare = sub.add_parser(
         "compare-strategies",
-        help="Compare accounts by strategy label, positions, benchmark, and trend.",
+        help="Compare current paper accounts by account policy state, holdings, benchmark, and trend (not canonical research scores).",
     )
     p_compare.add_argument(
         "--lookback",

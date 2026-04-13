@@ -53,7 +53,9 @@ def test_resolve_strategy_exact_and_keyword_aliases() -> None:
     assert strategy_signals.resolve_strategy("bollinger_band_v1").strategy_id == "bollinger_mean_reversion"
     assert strategy_signals.resolve_strategy("sector_rotation_proxy").strategy_id == "topic_proxy_rotation"
     assert strategy_signals.resolve_strategy("policy_proxy").strategy_id == "macro_proxy_regime"
-    assert strategy_signals.resolve_strategy("unknown").strategy_id == "trend"
+
+    with pytest.raises(ValueError, match="Unknown strategy 'unknown'"):
+        strategy_signals.resolve_strategy("unknown")
 
 
 def test_resolve_strategy_trims_and_uses_aliases() -> None:
@@ -196,7 +198,12 @@ def test_macro_proxy_regime_buy_sell_and_missing_features_hold() -> None:
 
 def test_default_hold_when_short_history() -> None:
     history = pd.Series([1.0, 2.0, 3.0])
-    _assert_signal("unknown_strategy", history, "hold")
+    _assert_signal("trend", history, "hold")
+
+
+def test_resolve_signal_rejects_unknown_strategy_name() -> None:
+    with pytest.raises(ValueError, match="Unknown strategy 'unknown_strategy'"):
+        strategy_signals.resolve_signal("unknown_strategy", _series_range(1, 40))
 
 
 def test_fuzz_resolve_signal_outputs_known_actions() -> None:
@@ -443,4 +450,3 @@ def test_hypothesis_inf_in_history_never_raises(
     # Must not raise; output must be a valid signal token.
     signal = strategy_signals.resolve_signal(strategy_id, history)
     assert signal in {"buy", "sell", "hold"}
-
