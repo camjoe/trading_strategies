@@ -7,6 +7,10 @@ def handle_report(conn, args, parser, *, deps: dict[str, Any], module_file: str,
     deps["account_report"](conn, args.account)
 
 
+def handle_promotion_status(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+    deps["show_promotion_status"](conn, args.account, args.strategy)
+
+
 def handle_snapshot(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
     deps["snapshot_account"](conn, args.account, args.time)
 

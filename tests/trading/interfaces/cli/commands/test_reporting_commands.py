@@ -38,6 +38,8 @@ def test_compare_strategies_and_snapshot_history_defaults() -> None:
 
     compare_args = parser.parse_args(["compare-strategies"])
     history_args = parser.parse_args(["snapshot-history", "--account", "acct1"])
+    promotion_args = parser.parse_args(["promotion-status", "--account", "acct1"])
 
     assert compare_args.lookback == 10
     assert history_args.limit == 20
+    assert promotion_args.strategy is None

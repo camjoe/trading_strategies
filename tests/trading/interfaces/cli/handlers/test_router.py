@@ -16,6 +16,7 @@ _EXPECTED_COMMANDS = {
     "list-accounts",
     "trade",
     "report",
+    "promotion-status",
     "snapshot",
     "snapshot-history",
     "compare-strategies",

@@ -4,6 +4,7 @@ import types
 
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_promotion_status,
     handle_report,
     handle_snapshot,
     handle_snapshot_history,
@@ -22,7 +23,14 @@ def test_handle_report_calls_account_report_dep() -> None:
     calls: list = []
     deps = {"account_report": lambda _conn, account: calls.append(account)}
 
-    handle_report(object(), types.SimpleNamespace(account="alice"), _parser(), deps=deps, module_file="", db_path="")
+    handle_report(
+        object(),
+        types.SimpleNamespace(account="alice"),
+        _parser(),
+        deps=deps,
+        module_file="",
+        db_path="",
+    )
 
     assert calls == ["alice"]
 
@@ -41,6 +49,26 @@ def test_handle_snapshot_calls_snapshot_account_dep() -> None:
     )
 
     assert calls == [("alice", "2026-03-01T00:00:00")]
+
+
+def test_handle_promotion_status_calls_show_promotion_status_dep() -> None:
+    calls: list = []
+    deps = {
+        "show_promotion_status": (
+            lambda _conn, account, strategy: calls.append((account, strategy))
+        )
+    }
+
+    handle_promotion_status(
+        object(),
+        types.SimpleNamespace(account="alice", strategy="trend_v1"),
+        _parser(),
+        deps=deps,
+        module_file="",
+        db_path="",
+    )
+
+    assert calls == [("alice", "trend_v1")]
 
 
 def test_handle_snapshot_history_calls_show_snapshots_dep() -> None:

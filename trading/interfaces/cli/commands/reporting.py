@@ -17,6 +17,13 @@ def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPars
     p_report = sub.add_parser("report", help="Show account status and open positions.")
     p_report.add_argument("--account", required=True, help="Account name")
 
+    p_promotion = sub.add_parser(
+        "promotion-status",
+        help="Show read-only promotion readiness based on the canonical evaluation artifact.",
+    )
+    p_promotion.add_argument("--account", required=True, help="Account name")
+    p_promotion.add_argument("--strategy", default=None, help="Optional strategy override")
+
     p_snapshot = sub.add_parser("snapshot", help="Save equity snapshot for an account.")
     p_snapshot.add_argument("--account", required=True, help="Account name")
     p_snapshot.add_argument("--time", default=None, help="Optional snapshot time (ISO string)")

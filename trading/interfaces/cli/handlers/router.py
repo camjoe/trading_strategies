@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from trading.interfaces.cli.handlers.accounts_handlers import (
@@ -21,6 +22,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_promotion_status,
     handle_report,
     handle_snapshot,
     handle_snapshot_history,
@@ -37,6 +39,7 @@ COMMAND_HANDLERS = {
     "list-accounts": handle_list_accounts,
     "trade": handle_trade,
     "report": handle_report,
+    "promotion-status": handle_promotion_status,
     "snapshot": handle_snapshot,
     "snapshot-history": handle_snapshot_history,
     "compare-strategies": handle_compare_strategies,
@@ -55,7 +58,7 @@ def dispatch_command(
     *,
     deps: dict[str, Any],
     module_file: str,
-    db_path: str,
+    db_path: str | Path,
 ) -> None:
     command_handler = COMMAND_HANDLERS.get(args.command)
     if command_handler is None:
