@@ -221,6 +221,49 @@ CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account
 CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id ON order_fills(broker_order_id);
 """
 
+WALK_FORWARD_GROUPS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS walk_forward_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grouping_key TEXT NOT NULL UNIQUE,
+    account_id INTEGER NOT NULL,
+    strategy_name TEXT NOT NULL,
+    run_name_prefix TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    test_months INTEGER NOT NULL,
+    step_months INTEGER NOT NULL,
+    window_count INTEGER NOT NULL,
+    average_return_pct REAL NOT NULL,
+    median_return_pct REAL NOT NULL,
+    best_return_pct REAL NOT NULL,
+    worst_return_pct REAL NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+WALK_FORWARD_GROUP_RUNS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS walk_forward_group_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    run_id INTEGER NOT NULL UNIQUE,
+    window_index INTEGER NOT NULL,
+    window_start TEXT NOT NULL,
+    window_end TEXT NOT NULL,
+    total_return_pct REAL NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id),
+    FOREIGN KEY (run_id) REFERENCES backtest_runs(id),
+    UNIQUE(group_id, window_index)
+);
+"""
+
+WALK_FORWARD_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_walk_forward_groups_account_strategy_created
+ON walk_forward_groups(account_id, strategy_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_walk_forward_group_runs_group_window
+ON walk_forward_group_runs(group_id, window_index ASC);
+"""
+
 SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
@@ -235,6 +278,9 @@ SCHEMA_SQL = "\n".join(
         BROKER_ORDERS_TABLE_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,
+        WALK_FORWARD_GROUPS_TABLE_SQL,
+        WALK_FORWARD_GROUP_RUNS_TABLE_SQL,
+        WALK_FORWARD_INDEXES_SQL,
     )
 )
 

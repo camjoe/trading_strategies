@@ -1,5 +1,9 @@
 import pytest
 
+from trading.backtesting.repositories.walk_forward_repository import (
+    insert_walk_forward_group,
+    insert_walk_forward_group_run,
+)
 from trading.services.accounts_service import create_account, get_account
 from trading.services.evaluation_service import fetch_strategy_evaluation
 
@@ -84,6 +88,43 @@ def _insert_backtest_trade(conn, *, run_id: int, trade_time: str) -> None:
     )
 
 
+def _insert_walk_forward_group(
+    conn,
+    *,
+    run_ids: list[int],
+    average_return_pct: float,
+    median_return_pct: float,
+    best_return_pct: float,
+    worst_return_pct: float,
+) -> None:
+    group_id = insert_walk_forward_group(
+        conn,
+        primary_run_id=run_ids[0],
+        grouping_key="wf-eval-group",
+        run_name_prefix="wf-eval",
+        start_date="2026-01-01",
+        end_date="2026-03-31",
+        test_months=1,
+        step_months=1,
+        window_count=len(run_ids),
+        average_return_pct=average_return_pct,
+        median_return_pct=median_return_pct,
+        best_return_pct=best_return_pct,
+        worst_return_pct=worst_return_pct,
+        created_at="2026-04-01T00:00:00Z",
+    )
+    for window_index, run_id in enumerate(run_ids, start=1):
+        insert_walk_forward_group_run(
+            conn,
+            group_id=group_id,
+            run_id=run_id,
+            window_index=window_index,
+            window_start=f"2026-0{window_index}-01",
+            window_end=f"2026-0{window_index}-28",
+            total_return_pct=float(window_index),
+        )
+
+
 def _insert_snapshot(
     conn,
     *,
@@ -157,6 +198,47 @@ def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(conn
     assert artifact.confidence.blended_score is not None
     assert artifact.confidence.blended_score > artifact.paper_live.return_pct
     assert "walk_forward_grouping_not_persisted" in artifact.diagnostics.data_gaps
+
+
+def test_fetch_strategy_evaluation_assembles_walk_forward_evidence_from_grouped_runs(conn) -> None:
+    create_account(conn, "acct_eval_walk_forward", "trend_v1", 1000.0, "SPY")
+    account = get_account(conn, "acct_eval_walk_forward")
+
+    run_ids = [
+        _insert_backtest_run(
+            conn,
+            account_id=account["id"],
+            strategy_name="trend_v1",
+            run_name="wf_eval_01",
+        ),
+        _insert_backtest_run(
+            conn,
+            account_id=account["id"],
+            strategy_name="trend_v1",
+            run_name="wf_eval_02",
+        ),
+    ]
+    for run_id in run_ids:
+        _insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
+        _insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=1010.0)
+
+    _insert_walk_forward_group(
+        conn,
+        run_ids=run_ids,
+        average_return_pct=1.5,
+        median_return_pct=1.5,
+        best_return_pct=2.0,
+        worst_return_pct=1.0,
+    )
+
+    artifact = fetch_strategy_evaluation(conn, account_name="acct_eval_walk_forward")
+
+    assert artifact.walk_forward.available is True
+    assert artifact.walk_forward.grouped is True
+    assert artifact.walk_forward.run_ids == run_ids
+    assert artifact.walk_forward.average_return_pct == pytest.approx(1.5)
+    assert artifact.walk_forward.best_return_pct == pytest.approx(2.0)
+    assert "walk_forward_grouping_not_persisted" not in artifact.diagnostics.data_gaps
 
 
 def test_fetch_strategy_evaluation_uses_closed_rotation_episode_for_inactive_strategy(conn) -> None:

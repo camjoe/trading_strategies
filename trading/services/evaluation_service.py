@@ -13,6 +13,10 @@ from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_trades,
     fetch_latest_backtest_run_id_for_account_strategy,
 )
+from trading.backtesting.repositories.walk_forward_repository import (
+    fetch_latest_walk_forward_group_for_account_strategy,
+    fetch_walk_forward_group_runs,
+)
 from trading.domain.evaluation_confidence import (
     compute_backtest_confidence,
     compute_blended_score,
@@ -63,7 +67,7 @@ BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
 # Diagnostics key used when no strategy-safe paper/live rows are persisted.
 PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 
-# Diagnostics key used until walk-forward runs have a durable grouping key.
+# Diagnostics key used when no grouped walk-forward evidence is persisted.
 WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
@@ -251,8 +255,33 @@ def _build_paper_live_evidence(
     )
 
 
-def _build_walk_forward_evidence() -> EvaluationWalkForwardEvidence:
-    return EvaluationWalkForwardEvidence()
+def _build_walk_forward_evidence(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    requested_strategy: str,
+) -> EvaluationWalkForwardEvidence:
+    group = fetch_latest_walk_forward_group_for_account_strategy(
+        conn,
+        account_id=account_id,
+        strategy_name=requested_strategy,
+    )
+    if group is None:
+        return EvaluationWalkForwardEvidence()
+
+    group_runs = fetch_walk_forward_group_runs(
+        conn,
+        group_id=row_expect_int(group, "id"),
+    )
+    return EvaluationWalkForwardEvidence(
+        available=bool(group_runs),
+        grouped=bool(group_runs),
+        run_ids=[row_expect_int(item, "run_id") for item in group_runs],
+        average_return_pct=row_float(group, "average_return_pct"),
+        median_return_pct=row_float(group, "median_return_pct"),
+        best_return_pct=row_float(group, "best_return_pct"),
+        worst_return_pct=row_float(group, "worst_return_pct"),
+    )
 
 
 def _build_confidence(
@@ -318,7 +347,11 @@ def fetch_strategy_evaluation_for_account_row(
         account=account,
         requested_strategy=requested_strategy,
     )
-    walk_forward = _build_walk_forward_evidence()
+    walk_forward = _build_walk_forward_evidence(
+        conn,
+        account_id=account_id,
+        requested_strategy=requested_strategy,
+    )
     confidence = _build_confidence(
         backtest=backtest,
         paper_live=paper_live,
