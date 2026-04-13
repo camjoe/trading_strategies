@@ -63,11 +63,13 @@ def api_account_detail(account_name: str) -> dict[str, object]:
         snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
         trades = fetch_account_trades(conn, int(account["id"]))
         latest_backtest = fetch_latest_backtest_summary(conn, resolved_name)
+        latest_backtest_metrics = fetch_latest_backtest_metrics(conn, resolved_name)
 
         return {
             "account": summary,
             "positions": positions,
             "latestBacktest": latest_backtest,
+            "latestBacktestMetrics": latest_backtest_metrics,
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade) for trade in trades[-100:]],
         }

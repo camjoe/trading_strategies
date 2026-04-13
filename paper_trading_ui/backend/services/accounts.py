@@ -335,7 +335,10 @@ def fetch_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -
     if latest_run_id is None:
         return None
 
-    report = fetch_backtest_report_summary(conn, int(latest_run_id))
+    try:
+        report = fetch_backtest_report_summary(conn, int(latest_run_id))
+    except ValueError:
+        return None
     return {
         "runId": report.run_id,
         "endDate": report.end_date,

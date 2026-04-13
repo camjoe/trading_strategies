@@ -52,7 +52,25 @@ describe("renderDetail", () => {
         feePerTrade: 1,
         tickersFile: "trading/config/trade_universe.txt",
       },
+      latestBacktestMetrics: {
+        runId: 12,
+        endDate: "2026-02-01",
+        totalReturnPct: 14,
+        maxDrawdownPct: -4,
+        alphaPct: 5,
+        sharpeRatio: 1.5,
+        winRatePct: 58,
+        profitFactor: 1.8,
+      },
       snapshots: [
+        {
+          time: "2026-03-14T00:00:00Z",
+          cash: 650,
+          marketValue: 390,
+          equity: 1040,
+          realizedPnl: 5,
+          unrealizedPnl: 35,
+        },
         {
           time: "2026-03-15T00:00:00Z",
           cash: 700,
@@ -79,6 +97,9 @@ describe("renderDetail", () => {
     const html = renderDetail(detail);
     expect(html).toContain("Latest Backtest Run 12");
     expect(html).toContain("Open Report");
+    expect(html).toContain("Backtest Return");
+    expect(html).toContain("Live Equity Curve");
+    expect(html).toContain("<svg");
     expect(html).toContain("Snapshot This Account");
     expect(html).toContain("Edit Parameters");
     expect(html).toContain("Rotation Settings");
@@ -131,6 +152,7 @@ describe("renderDetail", () => {
         maxLossPct: null,
       },
       latestBacktest: null,
+      latestBacktestMetrics: null,
       snapshots: [],
       trades: [],
       positions: [],
@@ -179,6 +201,7 @@ describe("renderDetail", () => {
         maxLossPct: null,
       },
       latestBacktest: null,
+      latestBacktestMetrics: null,
       snapshots: [],
       trades: [],
       positions: [],
@@ -228,6 +251,7 @@ describe("renderDetail", () => {
         maxLossPct: null,
       },
       latestBacktest: null,
+      latestBacktestMetrics: null,
       snapshots: [],
       trades: [],
       positions: [],

@@ -56,6 +56,44 @@ function tradeTypeBadge(note: string | null): string {
   return `<span class="chip chip--manual">manual</span>`;
 }
 
+function metricValue(value: number | null | undefined, suffix = "", digits = 2): string {
+  return value == null ? "—" : `${value.toFixed(digits)}${suffix}`;
+}
+
+function renderEquitySparkline(
+  snapshots: AccountDetail["snapshots"],
+  options: { title: string },
+): string {
+  const { title } = options;
+  if (snapshots.length < 2) {
+    return `<div class="muted">${esc(title)} unavailable.</div>`;
+  }
+
+  const equities = snapshots.map((item) => item.equity);
+  const minEquity = Math.min(...equities);
+  const maxEquity = Math.max(...equities);
+  const spread = Math.max(maxEquity - minEquity, 1);
+  const width = 320;
+  const height = 96;
+  const pad = 8;
+  const points = snapshots
+    .map((item, index) => {
+      const x = pad + ((width - (pad * 2)) * index) / Math.max(snapshots.length - 1, 1);
+      const y = height - pad - (((item.equity - minEquity) / spread) * (height - (pad * 2)));
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return `
+    <div class="bt-equity-curve">
+      <div class="row slim"><strong>${esc(title)}</strong> <span>${currency.format(minEquity)} to ${currency.format(maxEquity)}</span></div>
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(title)}">
+        <polyline fill="none" stroke="currentColor" stroke-width="2" points="${points}" />
+      </svg>
+    </div>
+  `;
+}
+
 export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
   const tradePageSize = Math.max(1, options.tradePageSize ?? 20);
   const totalTrades = detail.trades.length;
@@ -118,6 +156,16 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <div><strong>Latest Backtest Run ${detail.latestBacktest.runId}</strong> ${esc(detail.latestBacktest.runName ?? "(unnamed)")}</div>
         <div>Range: ${esc(detail.latestBacktest.startDate)}..${esc(detail.latestBacktest.endDate)} | Created: ${new Date(detail.latestBacktest.createdAt).toLocaleString()}</div>
         <div>Slippage: ${detail.latestBacktest.slippageBps.toFixed(2)} bps | Fee: ${currency.format(detail.latestBacktest.feePerTrade)}</div>
+        ${detail.latestBacktestMetrics
+          ? `<div class="analysis-summary">
+              <div class="analysis-stat"><span class="label">Backtest Return</span><span>${metricValue(detail.latestBacktestMetrics.totalReturnPct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Alpha</span><span>${metricValue(detail.latestBacktestMetrics.alphaPct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Max DD</span><span>${metricValue(detail.latestBacktestMetrics.maxDrawdownPct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Sharpe</span><span>${metricValue(detail.latestBacktestMetrics.sharpeRatio)}</span></div>
+              <div class="analysis-stat"><span class="label">Win Rate</span><span>${metricValue(detail.latestBacktestMetrics.winRatePct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Profit Factor</span><span>${metricValue(detail.latestBacktestMetrics.profitFactor)}</span></div>
+            </div>`
+          : ""}
         <button id="openLatestBacktestReportBtn" data-run-id="${detail.latestBacktest.runId}" type="button">Open Report</button>
       </div>
     `
@@ -428,6 +476,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       <div>
         <article>
           <h4>Equity Snapshots</h4>
+          ${renderEquitySparkline(detail.snapshots, { title: "Live Equity Curve" })}
           <table>
             <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
             <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
