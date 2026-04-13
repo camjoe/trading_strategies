@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any, Callable, cast
 
 from common.constants import BASIS_POINTS_DIVISOR
+from trading.backtesting.domain.metrics import summarize_backtest_performance
 
 # Fraction of total portfolio equity allocated per buy signal
 POSITION_SIZE_PCT = 0.10
@@ -78,6 +79,7 @@ def run_backtest(
     slippage_multiplier_sell = 1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
 
     equity_curve: list[float] = []
+    executed_trades: list[dict[str, object]] = []
     trade_count = 0
 
     dates = list(close.index)
@@ -149,6 +151,15 @@ def run_backtest(
                     cfg.slippage_bps,
                     "signal=buy",
                 )
+                executed_trades.append(
+                    {
+                        "ticker": ticker,
+                        "side": "buy",
+                        "qty": float(qty_int),
+                        "price": exec_px,
+                        "fee": cfg.fee_per_trade,
+                    }
+                )
 
             if signal == "sell" and positions[ticker] > 0:
                 px = float(trade_prices[ticker])
@@ -183,6 +194,15 @@ def run_backtest(
                     cfg.slippage_bps,
                     "signal=sell",
                 )
+                executed_trades.append(
+                    {
+                        "ticker": ticker,
+                        "side": "sell",
+                        "qty": qty_float,
+                        "price": exec_px,
+                        "fee": cfg.fee_per_trade,
+                    }
+                )
 
         marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
         market_value = compute_market_value_fn(positions, marks)
@@ -207,6 +227,7 @@ def run_backtest(
     total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
     benchmark_return = benchmark_return_pct_fn(benchmark_series, initial_cash)
     alpha_pct = None if benchmark_return is None else total_return_pct - benchmark_return
+    performance = summarize_backtest_performance(equity_curve, executed_trades)
 
     return backtest_result_cls(
         run_id=run_id,
@@ -220,5 +241,11 @@ def run_backtest(
         benchmark_return_pct=benchmark_return,
         alpha_pct=alpha_pct,
         max_drawdown_pct=max_drawdown_pct_fn(equity_curve),
+        sharpe_ratio=performance.sharpe_ratio,
+        sortino_ratio=performance.sortino_ratio,
+        calmar_ratio=performance.calmar_ratio,
+        win_rate_pct=performance.win_rate_pct,
+        profit_factor=performance.profit_factor,
+        avg_trade_return_pct=performance.avg_trade_return_pct,
         warnings=warnings,
     )

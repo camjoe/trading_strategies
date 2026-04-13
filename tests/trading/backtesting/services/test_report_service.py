@@ -60,6 +60,8 @@ def test_report_service_contract_builds_typed_model(conn, monkeypatch: pytest.Mo
     assert isinstance(report, BacktestFullReport)
     assert report.summary.run_id == result.run_id
     assert report.summary.account_name == "acct_report_service"
+    assert report.summary.sharpe_ratio is not None
+    assert report.summary.calmar_ratio is not None
 
 
 def test_report_service_contract_handles_benchmark_fetch_error(conn, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,3 +89,4 @@ def test_report_service_contract_handles_benchmark_fetch_error(conn, monkeypatch
 
     assert report.benchmark_return_pct is None
     assert report.alpha_pct is None
+    assert report.summary.sharpe_ratio is not None

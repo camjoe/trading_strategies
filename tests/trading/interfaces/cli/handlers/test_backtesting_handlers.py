@@ -50,6 +50,12 @@ def _fake_result(**kwargs) -> types.SimpleNamespace:
         max_drawdown_pct=-2.0,
         benchmark_return_pct=3.0,
         alpha_pct=2.0,
+        sharpe_ratio=None,
+        sortino_ratio=None,
+        calmar_ratio=None,
+        win_rate_pct=None,
+        profit_factor=None,
+        avg_trade_return_pct=None,
         warnings=[],
     )
     defaults.update(kwargs)
@@ -101,7 +107,10 @@ def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
 
     handle_backtest(object(), _backtest_args(), _parser(), deps=deps, module_file="", db_path="")
 
-    assert "Benchmark comparison unavailable" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Benchmark comparison unavailable" in out
+    assert "Risk Analytics:" in out
+    assert "Trade Analytics:" in out
 
 
 def test_handle_backtest_report_prints_run_id(capsys) -> None:
@@ -122,6 +131,12 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
         "fee_per_trade": 0.0,
         "tickers_file": "tickers.txt",
         "warnings": "",
+        "sharpe_ratio": 1.2,
+        "sortino_ratio": 1.5,
+        "calmar_ratio": 0.8,
+        "win_rate_pct": 60.0,
+        "profit_factor": 1.7,
+        "avg_trade_return_pct": 2.5,
     }
     deps = {"backtest_report": lambda _conn, _run_id: report}
 
@@ -129,7 +144,10 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
         object(), types.SimpleNamespace(run_id=42), _parser(), deps=deps, module_file="", db_path=""
     )
 
-    assert "42" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "42" in out
+    assert "Risk Analytics:" in out
+    assert "Trade Analytics:" in out
 
 
 def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
@@ -145,6 +163,12 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
         max_drawdown_pct=-2.0,
         benchmark_return_pct=3.0,
         alpha_pct=2.0,
+        sharpe_ratio=1.1,
+        sortino_ratio=1.4,
+        calmar_ratio=0.7,
+        win_rate_pct=55.0,
+        profit_factor=1.5,
+        avg_trade_return_pct=2.0,
         trade_count=3,
         created_at="2026-03-01",
     )
@@ -153,7 +177,9 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
 
     handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
-    assert "run_id" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "run_id" in out
+    assert "sharpe_ratio" in out
 
 
 def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> None:

@@ -70,6 +70,12 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
             "benchmarkReturnPct": result.benchmark_return_pct,
             "alphaPct": result.alpha_pct,
             "maxDrawdownPct": result.max_drawdown_pct,
+            "sharpeRatio": result.sharpe_ratio,
+            "sortinoRatio": result.sortino_ratio,
+            "calmarRatio": result.calmar_ratio,
+            "winRatePct": result.win_rate_pct,
+            "profitFactor": result.profit_factor,
+            "avgTradeReturnPct": result.avg_trade_return_pct,
             "warnings": result.warnings,
         }
 
@@ -110,4 +116,3 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
             "bestReturnPct": summary.best_return_pct,
             "worstReturnPct": summary.worst_return_pct,
         }
-

@@ -250,6 +250,12 @@ def backtest_leaderboard(
             "max_drawdown_pct": entry.max_drawdown_pct,
             "benchmark_return_pct": entry.benchmark_return_pct,
             "alpha_pct": entry.alpha_pct,
+            "sharpe_ratio": entry.sharpe_ratio,
+            "sortino_ratio": entry.sortino_ratio,
+            "calmar_ratio": entry.calmar_ratio,
+            "win_rate_pct": entry.win_rate_pct,
+            "profit_factor": entry.profit_factor,
+            "avg_trade_return_pct": entry.avg_trade_return_pct,
         }
         row["starting_equity"] = starting_equity
         rows.append(row)

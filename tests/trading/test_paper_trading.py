@@ -200,6 +200,12 @@ def test_main_backtest_dispatches_and_prints_summary(monkeypatch, capsys):
         max_drawdown_pct = -2.0
         benchmark_return_pct = 3.0
         alpha_pct = 1.5
+        sharpe_ratio = None
+        sortino_ratio = None
+        calmar_ratio = None
+        win_rate_pct = None
+        profit_factor = None
+        avg_trade_return_pct = None
         warnings = ["daily bars only"]
 
     def fake_run_backtest(conn, cfg):
@@ -547,6 +553,12 @@ class TestHandlerOutputsAndEdgeCases:
             max_drawdown_pct = -1.0
             benchmark_return_pct = None
             alpha_pct = None
+            sharpe_ratio = None
+            sortino_ratio = None
+            calmar_ratio = None
+            win_rate_pct = None
+            profit_factor = None
+            avg_trade_return_pct = None
             warnings = []
 
         monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
@@ -606,7 +618,10 @@ class TestHandlerOutputsAndEdgeCases:
 
         out = capsys.readouterr().out
         assert "run_id,run_name,account_name,strategy" in out
-        assert "10,,acct1,trend_v1,2026-01-01,2026-01-31,10050.00,0.5000,-0.4000,,,1,2026-03-20T00:00:00Z" in out
+        assert (
+            "10,,acct1,trend_v1,2026-01-01,2026-01-31,10050.00,0.5000,-0.4000,,,,,,,,,1,2026-03-20T00:00:00Z"
+            in out
+        )
         assert fake_conn.closed is True
 
     def test_main_backtest_report_without_warnings_omits_notes_line(self, monkeypatch, capsys):

@@ -513,6 +513,8 @@ class TestBacktestLeaderboardAndBatch:
         assert "max_drawdown_pct" in leaderboard[0]
         assert "benchmark_return_pct" in leaderboard[0]
         assert "alpha_pct" in leaderboard[0]
+        assert "sharpe_ratio" in leaderboard[0]
+        assert "profit_factor" in leaderboard[0]
 
         filtered = backtest_leaderboard(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
@@ -557,6 +559,12 @@ class TestBacktestLeaderboardAndBatch:
                 alpha_pct=0.5,
                 max_drawdown_pct=-1.0,
                 warnings=[],
+                sharpe_ratio=0.7,
+                sortino_ratio=0.9,
+                calmar_ratio=0.5,
+                win_rate_pct=50.0,
+                profit_factor=1.1,
+                avg_trade_return_pct=0.8,
             ),
             "acct_b": BacktestResult(
                 run_id=2,
@@ -571,6 +579,12 @@ class TestBacktestLeaderboardAndBatch:
                 alpha_pct=7.5,
                 max_drawdown_pct=-2.0,
                 warnings=[],
+                sharpe_ratio=1.3,
+                sortino_ratio=1.8,
+                calmar_ratio=0.9,
+                win_rate_pct=62.5,
+                profit_factor=1.9,
+                avg_trade_return_pct=2.2,
             ),
         }
 

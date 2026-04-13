@@ -332,6 +332,12 @@ def fetch_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -
         "totalReturnPct": report.total_return_pct,
         "maxDrawdownPct": report.max_drawdown_pct,
         "alphaPct": None,
+        "sharpeRatio": getattr(report, "sharpe_ratio", None),
+        "sortinoRatio": getattr(report, "sortino_ratio", None),
+        "calmarRatio": getattr(report, "calmar_ratio", None),
+        "winRatePct": getattr(report, "win_rate_pct", None),
+        "profitFactor": getattr(report, "profit_factor", None),
+        "avgTradeReturnPct": getattr(report, "avg_trade_return_pct", None),
     }
 
 

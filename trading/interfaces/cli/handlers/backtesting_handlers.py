@@ -3,6 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 
+def _format_metric(value: float | None, *, suffix: str = "") -> str:
+    return "n/a" if value is None else f"{value:.2f}{suffix}"
+
+
 def handle_backtest(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
     try:
         result = deps["run_backtest"](
@@ -37,6 +41,18 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any], module_file: st
         )
     else:
         print("Benchmark comparison unavailable for selected date range.")
+    print(
+        "Risk Analytics: "
+        f"Sharpe {_format_metric(result.sharpe_ratio)} | "
+        f"Sortino {_format_metric(result.sortino_ratio)} | "
+        f"Calmar {_format_metric(result.calmar_ratio)}"
+    )
+    print(
+        "Trade Analytics: "
+        f"Win Rate {_format_metric(result.win_rate_pct, suffix='%')} | "
+        f"Profit Factor {_format_metric(result.profit_factor)} | "
+        f"Avg Trade Return {_format_metric(result.avg_trade_return_pct, suffix='%')}"
+    )
 
     if result.warnings:
         print("Backtest safeguards / approximation notes:")
@@ -62,6 +78,18 @@ def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any], module_f
         f"Slippage (bps): {report['slippage_bps']:.2f} | Fee/Trade: {report['fee_per_trade']:.2f} "
         f"| Tickers File: {report['tickers_file']}"
     )
+    print(
+        "Risk Analytics: "
+        f"Sharpe {_format_metric(report.get('sharpe_ratio'))} | "
+        f"Sortino {_format_metric(report.get('sortino_ratio'))} | "
+        f"Calmar {_format_metric(report.get('calmar_ratio'))}"
+    )
+    print(
+        "Trade Analytics: "
+        f"Win Rate {_format_metric(report.get('win_rate_pct'), suffix='%')} | "
+        f"Profit Factor {_format_metric(report.get('profit_factor'))} | "
+        f"Avg Trade Return {_format_metric(report.get('avg_trade_return_pct'), suffix='%')}"
+    )
     if report["warnings"]:
         print(f"Safeguards / notes: {report['warnings']}")
 
@@ -84,19 +112,31 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any], mod
 
     print(
         "run_id,run_name,account_name,strategy,start_date,end_date,ending_equity,"
-        "total_return_pct,max_drawdown_pct,benchmark_return_pct,alpha_pct,trade_count,created_at"
+        "total_return_pct,max_drawdown_pct,benchmark_return_pct,alpha_pct,"
+        "sharpe_ratio,sortino_ratio,calmar_ratio,win_rate_pct,profit_factor,avg_trade_return_pct,"
+        "trade_count,created_at"
     )
     for row in rows:
         benchmark_return = row.benchmark_return_pct
         alpha = row.alpha_pct
         benchmark_text = "" if benchmark_return is None else f"{float(benchmark_return):.4f}"
         alpha_text = "" if alpha is None else f"{float(alpha):.4f}"
+        sharpe_text = "" if row.sharpe_ratio is None else f"{float(row.sharpe_ratio):.4f}"
+        sortino_text = "" if row.sortino_ratio is None else f"{float(row.sortino_ratio):.4f}"
+        calmar_text = "" if row.calmar_ratio is None else f"{float(row.calmar_ratio):.4f}"
+        win_rate_text = "" if row.win_rate_pct is None else f"{float(row.win_rate_pct):.4f}"
+        profit_factor_text = "" if row.profit_factor is None else f"{float(row.profit_factor):.4f}"
+        avg_trade_return_text = (
+            "" if row.avg_trade_return_pct is None else f"{float(row.avg_trade_return_pct):.4f}"
+        )
         run_name = "" if row.run_name is None else str(row.run_name)
         print(
             f"{row.run_id},{run_name},{row.account_name},{row.strategy},"
             f"{row.start_date},{row.end_date},{row.ending_equity:.2f},"
             f"{row.total_return_pct:.4f},{row.max_drawdown_pct:.4f},"
-            f"{benchmark_text},{alpha_text},{row.trade_count},{row.created_at}"
+            f"{benchmark_text},{alpha_text},{sharpe_text},{sortino_text},{calmar_text},"
+            f"{win_rate_text},{profit_factor_text},{avg_trade_return_text},"
+            f"{row.trade_count},{row.created_at}"
         )
 
 

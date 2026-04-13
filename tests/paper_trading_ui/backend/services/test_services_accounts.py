@@ -146,6 +146,12 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
             end_date="2026-01-31",
             total_return_pct=12.5,
             max_drawdown_pct=-4.2,
+            sharpe_ratio=1.4,
+            sortino_ratio=1.9,
+            calmar_ratio=0.8,
+            win_rate_pct=57.0,
+            profit_factor=1.6,
+            avg_trade_return_pct=2.1,
         ),
     )
 
@@ -156,6 +162,12 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "totalReturnPct": 12.5,
         "maxDrawdownPct": -4.2,
         "alphaPct": None,
+        "sharpeRatio": 1.4,
+        "sortinoRatio": 1.9,
+        "calmarRatio": 0.8,
+        "winRatePct": 57.0,
+        "profitFactor": 1.6,
+        "avgTradeReturnPct": 2.1,
     }
 
 
