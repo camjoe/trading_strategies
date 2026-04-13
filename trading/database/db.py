@@ -1,6 +1,9 @@
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from common.tickers import load_tickers_from_file
 from trading.database.db_backend import get_backend
 from trading.database.db_config import get_db_path
 
@@ -9,7 +12,21 @@ DBConnection = Any
 
 DB_PATH = get_db_path()
 
-ACCOUNTS_TABLE_SQL = """
+# Default source used to seed account-level overlay watchlists so regime overlays
+# can evaluate a stable baseline universe even before the account accumulates holdings.
+DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE = "trading/config/trade_universe.txt"
+
+# Canonical seeded overlay watchlist shared by new-account defaults and account
+# backfills when the watchlist column is introduced by migration.
+DEFAULT_ROTATION_OVERLAY_WATCHLIST = load_tickers_from_file(
+    str(Path(__file__).resolve().parents[2] / DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE)
+)
+DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
+    DEFAULT_ROTATION_OVERLAY_WATCHLIST,
+    separators=(",", ":"),
+)
+
+ACCOUNTS_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -43,8 +60,16 @@ CREATE TABLE IF NOT EXISTS accounts (
     rotation_mode TEXT NOT NULL DEFAULT 'time',
     rotation_optimality_mode TEXT NOT NULL DEFAULT 'previous_period_best',
     rotation_interval_days INTEGER,
+    rotation_interval_minutes INTEGER,
     rotation_lookback_days INTEGER,
     rotation_schedule TEXT,
+    rotation_regime_strategy_risk_on TEXT,
+    rotation_regime_strategy_neutral TEXT,
+    rotation_regime_strategy_risk_off TEXT,
+    rotation_overlay_mode TEXT NOT NULL DEFAULT 'none',
+    rotation_overlay_min_tickers INTEGER,
+    rotation_overlay_confidence_threshold REAL,
+    rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}',
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
     rotation_last_at TEXT,
     rotation_active_strategy TEXT
@@ -134,6 +159,30 @@ CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id)
 CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id ON backtest_equity_snapshots(run_id);
 """
 
+ROTATION_EPISODES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS rotation_episodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    strategy_name TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    starting_equity REAL NOT NULL,
+    ending_equity REAL,
+    starting_realized_pnl REAL NOT NULL DEFAULT 0,
+    ending_realized_pnl REAL,
+    realized_pnl_delta REAL,
+    snapshot_count INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+ROTATION_EPISODE_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_rotation_episodes_account_started
+ON rotation_episodes(account_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rotation_episodes_account_strategy_ended
+ON rotation_episodes(account_id, strategy_name, ended_at DESC);
+"""
+
 BROKER_ORDERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS broker_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,6 +230,8 @@ SCHEMA_SQL = "\n".join(
         BACKTEST_TRADES_TABLE_SQL,
         BACKTEST_EQUITY_SNAPSHOTS_TABLE_SQL,
         BACKTEST_INDEXES_SQL,
+        ROTATION_EPISODES_TABLE_SQL,
+        ROTATION_EPISODE_INDEXES_SQL,
         BROKER_ORDERS_TABLE_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,
@@ -271,12 +322,48 @@ ACCOUNT_MIGRATIONS = (
         "ALTER TABLE accounts ADD COLUMN rotation_interval_days INTEGER",
     ),
     ColumnMigration(
+        "rotation_interval_minutes",
+        "ALTER TABLE accounts ADD COLUMN rotation_interval_minutes INTEGER",
+    ),
+    ColumnMigration(
         "rotation_lookback_days",
         "ALTER TABLE accounts ADD COLUMN rotation_lookback_days INTEGER",
     ),
     ColumnMigration(
         "rotation_schedule",
         "ALTER TABLE accounts ADD COLUMN rotation_schedule TEXT",
+    ),
+    ColumnMigration(
+        "rotation_regime_strategy_risk_on",
+        "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_risk_on TEXT",
+    ),
+    ColumnMigration(
+        "rotation_regime_strategy_neutral",
+        "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_neutral TEXT",
+    ),
+    ColumnMigration(
+        "rotation_regime_strategy_risk_off",
+        "ALTER TABLE accounts ADD COLUMN rotation_regime_strategy_risk_off TEXT",
+    ),
+    ColumnMigration(
+        "rotation_overlay_mode",
+        "ALTER TABLE accounts ADD COLUMN rotation_overlay_mode TEXT NOT NULL DEFAULT 'none'",
+    ),
+    ColumnMigration(
+        "rotation_overlay_min_tickers",
+        "ALTER TABLE accounts ADD COLUMN rotation_overlay_min_tickers INTEGER",
+    ),
+    ColumnMigration(
+        "rotation_overlay_confidence_threshold",
+        "ALTER TABLE accounts ADD COLUMN rotation_overlay_confidence_threshold REAL",
+    ),
+    ColumnMigration(
+        "rotation_overlay_watchlist",
+        f"ALTER TABLE accounts ADD COLUMN rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}'",
+        (
+            f"UPDATE accounts SET rotation_overlay_watchlist = '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}' "
+            "WHERE rotation_overlay_watchlist IS NULL OR TRIM(rotation_overlay_watchlist) = ''",
+        ),
     ),
     ColumnMigration(
         "rotation_active_index",

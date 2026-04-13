@@ -89,6 +89,15 @@ function strOrUndefined(value: FormDataEntryValue | null): string | undefined {
   return raw || undefined;
 }
 
+function csvListOrUndefined(value: FormDataEntryValue | null): string[] | undefined {
+  const raw = strOrUndefined(value);
+  if (!raw) return undefined;
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
   const TEST_ACCOUNT_NAME = "test_account";
   let cachedCsvExports: CsvExportBatch[] = [];
@@ -335,10 +344,8 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     if (!output) return;
 
     const data = new FormData(form);
-    const rotationSchedule = (strOrUndefined(data.get("rotationScheduleCsv")) ?? "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv")) ?? [];
+    const rotationOverlayWatchlist = csvListOrUndefined(data.get("rotationOverlayWatchlistCsv"));
 
     const payload = {
       name: strOrUndefined(data.get("name")),
@@ -371,8 +378,16 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       rotationMode: strOrUndefined(data.get("rotationMode")) ?? "time",
       rotationOptimalityMode: strOrUndefined(data.get("rotationOptimalityMode")) ?? "previous_period_best",
       rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
+      rotationIntervalMinutes: intOrUndefined(data.get("rotationIntervalMinutes")),
       rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
       rotationSchedule,
+      rotationRegimeStrategyRiskOn: strOrUndefined(data.get("rotationRegimeStrategyRiskOn")),
+      rotationRegimeStrategyNeutral: strOrUndefined(data.get("rotationRegimeStrategyNeutral")),
+      rotationRegimeStrategyRiskOff: strOrUndefined(data.get("rotationRegimeStrategyRiskOff")),
+      rotationOverlayMode: strOrUndefined(data.get("rotationOverlayMode")) ?? "none",
+      rotationOverlayMinTickers: intOrUndefined(data.get("rotationOverlayMinTickers")),
+      rotationOverlayConfidenceThreshold: numOrUndefined(data.get("rotationOverlayConfidenceThreshold")),
+      rotationOverlayWatchlist,
       rotationActiveIndex: intOrUndefined(data.get("rotationActiveIndex")) ?? 0,
       rotationLastAt: strOrUndefined(data.get("rotationLastAt")),
       rotationActiveStrategy: strOrUndefined(data.get("rotationActiveStrategy")),

@@ -2,12 +2,13 @@
 
 Responsibilities
 ----------------
-- **Account summaries** — ``build_account_summary`` assembles the full 21-field
-  account payload (equity, PnL, risk params, goal params, options params, etc.)
+- **Account summaries** — ``build_account_summary`` assembles the account
+  payload (equity, PnL, risk params, goal params, options params, rotation
+  params, etc.)
   from a DB row, current pricing state, and the latest snapshot.
-- **Account parameter updates** — ``update_account_params`` accepts up to 23
-  mutable config fields and delegates to ``configure_account`` (for all fields
-  except ``strategy``, which is updated directly via ``update_account_fields_by_id``).
+- **Account parameter updates** — ``update_account_params`` accepts mutable
+  config fields plus rotation settings and delegates to canonical trading
+  services.
 - **Backtest helpers** — functions to fetch and format the latest backtest run
   summary and performance metrics for an account.
 - **Listing and filtering** — managed-account row listing, account-name lookup,
@@ -26,7 +27,11 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from common.coercion import row_float, row_int
+from common.coercion import coerce_float, coerce_int, row_float, row_int
+from trading.domain.rotation import (
+    parse_rotation_overlay_watchlist,
+    parse_rotation_schedule,
+)
 from trading.models.account_config import AccountConfig
 from trading.backtesting.services.report_service import (
     fetch_backtest_report_summary,
@@ -40,12 +45,19 @@ from trading.services.accounts_service import (
     fetch_snapshot_history_rows,
     update_account_fields_by_id,
 )
+from trading.services.profiles_service import apply_rotation_fields
 from trading.services.reporting_service import get_account_stats as build_account_stats
 
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
 from .db import fetch_latest_snapshot_row
 
 _SETTLEMENT_PRICE = 1.0
+
+
+def _row_value(row: sqlite3.Row | dict[str, object], key: str) -> object | None:
+    if hasattr(row, "keys") and key in row.keys():
+        return row[key]
+    return None
 
 
 def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
@@ -121,6 +133,11 @@ def _build_summary_from_stats(
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
     latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))
+    rotation_schedule = parse_rotation_schedule(_row_value(row, "rotation_schedule"))
+    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(
+        _row_value(row, "rotation_overlay_watchlist")
+    )
+    rotation_active_index = coerce_int(_row_value(row, "rotation_active_index"))
 
     initial_cash = float(row["initial_cash"])
     effective_initial = initial_cash if initial_cash else total_deposited
@@ -165,6 +182,23 @@ def _build_summary_from_stats(
         "rollDteThreshold": row_int(row, "roll_dte_threshold"),
         "profitTakePct": row_float(row, "profit_take_pct"),
         "maxLossPct": row_float(row, "max_loss_pct"),
+        "rotationEnabled": bool(coerce_int(_row_value(row, "rotation_enabled")) or 0),
+        "rotationMode": str(_row_value(row, "rotation_mode") or "time"),
+        "rotationOptimalityMode": str(_row_value(row, "rotation_optimality_mode") or "previous_period_best"),
+        "rotationIntervalDays": coerce_int(_row_value(row, "rotation_interval_days")),
+        "rotationIntervalMinutes": coerce_int(_row_value(row, "rotation_interval_minutes")),
+        "rotationLookbackDays": coerce_int(_row_value(row, "rotation_lookback_days")),
+        "rotationSchedule": rotation_schedule or None,
+        "rotationRegimeStrategyRiskOn": _row_value(row, "rotation_regime_strategy_risk_on"),
+        "rotationRegimeStrategyNeutral": _row_value(row, "rotation_regime_strategy_neutral"),
+        "rotationRegimeStrategyRiskOff": _row_value(row, "rotation_regime_strategy_risk_off"),
+        "rotationOverlayMode": str(_row_value(row, "rotation_overlay_mode") or "none"),
+        "rotationOverlayMinTickers": coerce_int(_row_value(row, "rotation_overlay_min_tickers")),
+        "rotationOverlayConfidenceThreshold": coerce_float(_row_value(row, "rotation_overlay_confidence_threshold")),
+        "rotationOverlayWatchlist": rotation_overlay_watchlist,
+        "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
+        "rotationLastAt": _row_value(row, "rotation_last_at"),
+        "rotationActiveStrategy": _row_value(row, "rotation_active_strategy"),
     }
 
 
@@ -339,6 +373,23 @@ def update_account_params(
     roll_dte_threshold: int | None = None,
     profit_take_pct: float | None = None,
     max_loss_pct: float | None = None,
+    rotation_enabled: bool | None = None,
+    rotation_mode: str | None = None,
+    rotation_optimality_mode: str | None = None,
+    rotation_interval_days: int | None = None,
+    rotation_interval_minutes: int | None = None,
+    rotation_lookback_days: int | None = None,
+    rotation_schedule: list[str] | None = None,
+    rotation_regime_strategy_risk_on: str | None = None,
+    rotation_regime_strategy_neutral: str | None = None,
+    rotation_regime_strategy_risk_off: str | None = None,
+    rotation_overlay_mode: str | None = None,
+    rotation_overlay_min_tickers: int | None = None,
+    rotation_overlay_confidence_threshold: float | None = None,
+    rotation_overlay_watchlist: list[str] | None = None,
+    rotation_active_index: int | None = None,
+    rotation_last_at: str | None = None,
+    rotation_active_strategy: str | None = None,
 ) -> None:
     """Update mutable account parameters. Only supplied (non-None) fields are changed."""
     # strategy is not handled by configure_account — update directly by id
@@ -372,3 +423,41 @@ def update_account_params(
     from trading.services.accounts_service import configure_account
     configure_account(conn, account_name, cfg)
 
+    rotation_profile: dict[str, object] = {}
+    if rotation_enabled is not None:
+        rotation_profile["rotation_enabled"] = rotation_enabled
+    if rotation_mode is not None:
+        rotation_profile["rotation_mode"] = rotation_mode
+    if rotation_optimality_mode is not None:
+        rotation_profile["rotation_optimality_mode"] = rotation_optimality_mode
+    if rotation_interval_days is not None:
+        rotation_profile["rotation_interval_days"] = rotation_interval_days
+    if rotation_interval_minutes is not None:
+        rotation_profile["rotation_interval_minutes"] = rotation_interval_minutes
+    if rotation_lookback_days is not None:
+        rotation_profile["rotation_lookback_days"] = rotation_lookback_days
+    if rotation_schedule is not None:
+        rotation_profile["rotation_schedule"] = rotation_schedule
+    if rotation_regime_strategy_risk_on is not None:
+        rotation_profile["rotation_regime_strategy_risk_on"] = rotation_regime_strategy_risk_on
+    if rotation_regime_strategy_neutral is not None:
+        rotation_profile["rotation_regime_strategy_neutral"] = rotation_regime_strategy_neutral
+    if rotation_regime_strategy_risk_off is not None:
+        rotation_profile["rotation_regime_strategy_risk_off"] = rotation_regime_strategy_risk_off
+    if rotation_overlay_mode is not None:
+        rotation_profile["rotation_overlay_mode"] = rotation_overlay_mode
+    if rotation_overlay_min_tickers is not None:
+        rotation_profile["rotation_overlay_min_tickers"] = rotation_overlay_min_tickers
+    if rotation_overlay_confidence_threshold is not None:
+        rotation_profile["rotation_overlay_confidence_threshold"] = rotation_overlay_confidence_threshold
+    if rotation_overlay_watchlist is not None:
+        rotation_profile["rotation_overlay_watchlist"] = rotation_overlay_watchlist
+    if rotation_active_index is not None:
+        rotation_profile["rotation_active_index"] = rotation_active_index
+    if rotation_last_at is not None:
+        rotation_profile["rotation_last_at"] = rotation_last_at
+    if rotation_active_strategy is not None:
+        rotation_profile["rotation_active_strategy"] = rotation_active_strategy
+
+    if rotation_profile:
+        apply_rotation_fields(conn, account_name, rotation_profile)

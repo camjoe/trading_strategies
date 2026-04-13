@@ -9,7 +9,7 @@ Provide a local dashboard and API for paper-trading operations, including:
 - **Account visibility** — live summary cards and per-account detail (snapshots, trades, backtest metrics).
 - **Test Account tab** — dedicated view for the virtual `test_account`, with a manual trade entry form to inject buy/sell records directly into its backing DB account.
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
-- **Account parameter editing** — inline update of up to 23 config fields per managed account via the account detail panel (core fields always visible; Return Goals and Options Settings in collapsible sections). Not available on the Test Account view.
+- **Account parameter editing** — inline update of core, options, and rotation fields per managed account via the account detail panel, including `rotationOverlayWatchlist` for regime overlays. Not available on the Test Account view.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown.
 - **Snapshots and operational logs** — snapshot actions and log-file browsing.
 
@@ -62,8 +62,14 @@ npm run dev
 
 - `GET /api/accounts` — list all managed accounts plus the virtual test account.
 - `GET /api/accounts/compare` — comparison payload for all accounts (used by the Compare tab).
-- `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest.
-- `PATCH /api/accounts/{account_name}/params` — update up to 23 mutable account config fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
+- `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest. Account summaries include rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
+- `PATCH /api/accounts/{account_name}/params` — update mutable account config and rotation fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
+
+### Admin
+
+- `POST /api/admin/accounts/create` — create a managed account. Body: `AdminCreateAccountRequest`. If `rotationOverlayWatchlist` is omitted, the new account starts with the default tickers seeded from `trading/config/trade_universe.txt`.
+- The seeded default is persisted in the DB schema/defaults. Updating `trading/config/trade_universe.txt` later does not automatically refresh already-migrated databases; use an explicit DB update or migration if you want new accounts to inherit the revised list.
+- `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
 
 ### Trades
 
@@ -93,11 +99,13 @@ For the complete, always-current route list (including backtesting endpoints), s
 
 ## Request Schemas
 
-New schemas introduced in `paper_trading_ui/backend/schemas.py`:
+Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
-| `AccountParamsRequest` | 23 optional fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `profitTakePct`, `maxLossPct`. | `PATCH /api/accounts/{name}/params` |
+| `AdminCreateAccountRequest` | Account creation payload with core fields plus rotation settings. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the account-level default seeded from `trading/config/trade_universe.txt`; that seeded default lives in the DB schema/defaults and requires an explicit DB update or migration to change for already-migrated databases. | `POST /api/admin/accounts/create` |
+| `AdminDeleteAccountRequest` | `accountName`, `confirm` | `POST /api/admin/accounts/delete` |
+| `AccountParamsRequest` | Optional mutable account fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `profitTakePct`, `maxLossPct`. **Rotation:** `rotationEnabled`, `rotationMode`, `rotationOptimalityMode`, `rotationIntervalDays`, `rotationIntervalMinutes`, `rotationLookbackDays`, `rotationSchedule`, `rotationRegimeStrategyRiskOn`, `rotationRegimeStrategyNeutral`, `rotationRegimeStrategyRiskOff`, `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, `rotationOverlayWatchlist`, `rotationActiveIndex`, `rotationLastAt`, `rotationActiveStrategy`. | `PATCH /api/accounts/{name}/params` |
 | `ManualTradeRequest` | `ticker`, `side` (`"buy"`\|`"sell"`), `qty` (>0), `price` (>0), `fee` (≥0, default 0) | `POST /api/accounts/{name}/trades` |
 | `FeatureSignalsRequest` | `ticker` | `POST /api/features/signals` |
 

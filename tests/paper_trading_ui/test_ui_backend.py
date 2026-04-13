@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 from trading.database import db
 from common.time import utc_now_iso
@@ -151,9 +152,17 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
             "takeProfitPct": 8,
             "instrumentMode": "equity",
             "rotationEnabled": True,
-            "rotationMode": "time",
+            "rotationMode": "regime",
             "rotationIntervalDays": 14,
-            "rotationSchedule": ["trend", "mean_reversion"],
+            "rotationIntervalMinutes": 240,
+            "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
+            "rotationRegimeStrategyRiskOn": "trend",
+            "rotationRegimeStrategyNeutral": "ma_crossover",
+            "rotationRegimeStrategyRiskOff": "mean_reversion",
+            "rotationOverlayMode": "news",
+            "rotationOverlayMinTickers": 2,
+            "rotationOverlayConfidenceThreshold": 0.5,
+            "rotationOverlayWatchlist": ["AAPL", "MSFT", "NVDA"],
             "rotationActiveIndex": 0,
             "rotationActiveStrategy": "trend",
         },
@@ -163,6 +172,48 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["account"]["name"] == "acct_admin_create"
+    assert payload["account"]["rotationEnabled"] is True
+    assert payload["account"]["rotationMode"] == "regime"
+    assert payload["account"]["rotationIntervalDays"] == 14
+    assert payload["account"]["rotationIntervalMinutes"] == 240
+    assert payload["account"]["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
+    assert payload["account"]["rotationRegimeStrategyRiskOn"] == "trend"
+    assert payload["account"]["rotationRegimeStrategyNeutral"] == "ma_crossover"
+    assert payload["account"]["rotationRegimeStrategyRiskOff"] == "mean_reversion"
+    assert payload["account"]["rotationOverlayMode"] == "news"
+    assert payload["account"]["rotationOverlayMinTickers"] == 2
+    assert payload["account"]["rotationOverlayConfidenceThreshold"] == 0.5
+    assert payload["account"]["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
+
+
+def test_admin_create_account_uses_seeded_watchlist_when_omitted(api_client: TestClient) -> None:
+    response = api_client.post(
+        "/api/admin/accounts/create",
+        json={
+            "name": "acct_admin_seeded_watchlist",
+            "strategy": "trend",
+            "initialCash": 5000,
+            "benchmarkTicker": "SPY",
+            "rotationEnabled": True,
+            "rotationMode": "regime",
+            "rotationIntervalMinutes": 240,
+            "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
+            "rotationRegimeStrategyRiskOn": "trend",
+            "rotationRegimeStrategyNeutral": "ma_crossover",
+            "rotationRegimeStrategyRiskOff": "mean_reversion",
+            "rotationOverlayMode": "news_social",
+            "rotationOverlayMinTickers": 2,
+            "rotationOverlayConfidenceThreshold": 0.5,
+            "rotationActiveIndex": 0,
+            "rotationActiveStrategy": "trend",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["account"]["name"] == "acct_admin_seeded_watchlist"
+    assert payload["account"]["rotationOverlayWatchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST
 
 
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:

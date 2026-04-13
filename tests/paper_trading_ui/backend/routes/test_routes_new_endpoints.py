@@ -9,6 +9,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+import pytest
 
 from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from trading.database import db
@@ -89,6 +90,53 @@ class TestAccountParamsEndpoint:
             json={"goalMinReturnPct": 0.50, "goalMaxReturnPct": 0.10},
         )
         assert resp.status_code == 422
+
+    def test_patch_params_updates_rotation_fields(self, api_client: TestClient) -> None:
+        _seed_account("acct_params_rotation")
+
+        resp = api_client.patch(
+            "/api/accounts/acct_params_rotation/params",
+            json={
+                "rotationEnabled": True,
+                "rotationMode": "regime",
+                "rotationOptimalityMode": "average_return",
+                "rotationIntervalDays": 7,
+                "rotationIntervalMinutes": 240,
+                "rotationLookbackDays": 30,
+                "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
+                "rotationRegimeStrategyRiskOn": "trend",
+                "rotationRegimeStrategyNeutral": "ma_crossover",
+                "rotationRegimeStrategyRiskOff": "mean_reversion",
+                "rotationOverlayMode": "news_social",
+                "rotationOverlayMinTickers": 2,
+                "rotationOverlayConfidenceThreshold": 0.55,
+                "rotationOverlayWatchlist": ["AAPL", "MSFT", "NVDA"],
+                "rotationActiveIndex": 1,
+                "rotationActiveStrategy": "ma_crossover",
+                "rotationLastAt": "2026-03-20T00:00:00Z",
+            },
+        )
+        assert resp.status_code == 200
+
+        detail = api_client.get("/api/accounts/acct_params_rotation").json()
+        account = detail["account"]
+        assert account["rotationEnabled"] is True
+        assert account["rotationMode"] == "regime"
+        assert account["rotationOptimalityMode"] == "average_return"
+        assert account["rotationIntervalDays"] == 7
+        assert account["rotationIntervalMinutes"] == 240
+        assert account["rotationLookbackDays"] == 30
+        assert account["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
+        assert account["rotationRegimeStrategyRiskOn"] == "trend"
+        assert account["rotationRegimeStrategyNeutral"] == "ma_crossover"
+        assert account["rotationRegimeStrategyRiskOff"] == "mean_reversion"
+        assert account["rotationOverlayMode"] == "news_social"
+        assert account["rotationOverlayMinTickers"] == 2
+        assert account["rotationOverlayConfidenceThreshold"] == pytest.approx(0.55)
+        assert account["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
+        assert account["rotationActiveIndex"] == 1
+        assert account["rotationActiveStrategy"] == "ma_crossover"
+        assert account["rotationLastAt"] == "2026-03-20T00:00:00Z"
 
 
 _TICKER_EXISTS = "paper_trading_ui.backend.routes.trades._ticker_exists"

@@ -18,7 +18,18 @@ from trading.repositories.broker_orders_repository import (
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
+from trading.features.base import ExternalFeatureBundle
+from trading.features.news_feature_provider import NewsFeatureProvider
+from trading.features.policy_feature_provider import PolicyFeatureProvider
+from trading.features.social_feature_provider import SocialFeatureProvider
 from trading.repositories.rotation_repository import update_account_rotation_state
+from trading.repositories.rotation_repository import (
+    close_rotation_episode,
+    fetch_closed_rotation_episodes,
+    fetch_open_rotation_episode,
+    insert_rotation_episode,
+)
+from trading.repositories.snapshots_repository import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
     next_rotation_state,
@@ -34,10 +45,15 @@ from trading.services.auto_trader_service import (
     RotationDeps,
 )
 from trading.services.rotation_service import (
+    compute_live_account_metrics as compute_live_account_metrics_impl,
+    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
     parse_as_of_iso as parse_as_of_iso_impl,
     rotate_account_if_due as rotate_account_if_due_impl,
+    select_regime_strategy as select_regime_strategy_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
+    sync_rotation_episode as sync_rotation_episode_impl,
 )
+from trading.services.reporting_service import compute_market_value_and_unrealized, fetch_latest_prices
 from trading.services.trade_execution_service import (
     build_leaps_candidates as build_leaps_candidates_impl,
     prepare_buy_trade as prepare_buy_trade_impl,
@@ -47,6 +63,53 @@ from trading.services.trade_execution_service import (
     refresh_account_state as refresh_account_state_impl,
     run_for_account as run_for_account_impl,
 )
+
+
+_policy_rotation_provider: PolicyFeatureProvider | None = None
+_news_rotation_provider: NewsFeatureProvider | None = None
+_social_rotation_provider: SocialFeatureProvider | None = None
+
+
+def _get_policy_rotation_provider() -> PolicyFeatureProvider:
+    global _policy_rotation_provider
+    if _policy_rotation_provider is None:
+        _policy_rotation_provider = PolicyFeatureProvider()
+    return _policy_rotation_provider
+
+
+def _get_news_rotation_provider() -> NewsFeatureProvider:
+    global _news_rotation_provider
+    if _news_rotation_provider is None:
+        _news_rotation_provider = NewsFeatureProvider()
+    return _news_rotation_provider
+
+
+def _get_social_rotation_provider() -> SocialFeatureProvider:
+    global _social_rotation_provider
+    if _social_rotation_provider is None:
+        _social_rotation_provider = SocialFeatureProvider()
+    return _social_rotation_provider
+
+
+def _fetch_policy_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_policy_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="etf-proxies")
+
+
+def _fetch_news_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_news_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="rss+vader")
+
+
+def _fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_social_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="reddit+gtrends")
 
 
 def _parse_runtime_as_of_iso(as_of_iso: str):
@@ -66,10 +129,64 @@ def _select_runtime_rotation_strategy(
         account,
         as_of_iso,
         select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
+        select_regime_strategy_impl_fn=select_regime_strategy_impl,
         parse_rotation_schedule_fn=parse_rotation_schedule,
         parse_as_of_iso_fn=_parse_runtime_as_of_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
+        fetch_policy_features_fn=_fetch_policy_rotation_bundle,
+        fetch_news_features_fn=_fetch_news_rotation_bundle,
+        fetch_social_features_fn=_fetch_social_rotation_bundle,
+        fetch_rotation_overlay_tickers_fn=_fetch_runtime_rotation_overlay_tickers,
+        resolve_rotation_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_rotation_mode),
+        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
         resolve_optimality_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_optimality_mode),
+        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
+    )
+
+
+def _fetch_runtime_rotation_overlay_tickers(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+) -> list[str]:
+    return fetch_rotation_overlay_tickers_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
+    )
+
+
+def _compute_runtime_live_account_metrics(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+) -> dict[str, float]:
+    return compute_live_account_metrics_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
+        fetch_latest_prices_fn=fetch_latest_prices,
+        compute_market_value_and_unrealized_fn=compute_market_value_and_unrealized,
+    )
+
+
+def _sync_runtime_rotation_episode(
+    conn: sqlite3.Connection,
+    account: sqlite3.Row,
+    now_iso: str,
+) -> None:
+    if not hasattr(conn, "execute"):
+        return
+    sync_rotation_episode_impl(
+        conn,
+        account,
+        now_iso,
+        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
+        fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
+        insert_rotation_episode_fn=insert_rotation_episode,
+        close_rotation_episode_fn=close_rotation_episode,
+        fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
+        compute_live_account_metrics_fn=_compute_runtime_live_account_metrics,
     )
 
 
@@ -79,6 +196,7 @@ def _rotate_runtime_account(
     account: sqlite3.Row,
     now_iso: str,
 ) -> sqlite3.Row:
+    _sync_runtime_rotation_episode(conn, account, now_iso)
     deps = RotationDeps(
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(cast(Mapping[str, object], row), as_of_iso=now_iso),
@@ -90,7 +208,9 @@ def _rotate_runtime_account(
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
-    return rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
+    rotated = rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
+    _sync_runtime_rotation_episode(conn, rotated, now_iso)
+    return rotated
 
 
 def _refresh_runtime_account_state(conn: sqlite3.Connection, account: sqlite3.Row):

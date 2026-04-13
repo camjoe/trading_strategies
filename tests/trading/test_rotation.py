@@ -5,13 +5,20 @@ import trading.domain.rotation as rotation
 
 from trading.domain.rotation import (
     OPTIMALITY_MODES,
+    ROTATION_REGIME_STATES,
     ROTATION_MODES,
+    ROTATION_OVERLAY_MODES,
+    dump_rotation_overlay_watchlist,
     dump_rotation_schedule,
     is_rotation_due,
     next_rotation_state,
+    parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
     resolve_active_strategy,
     resolve_optimality_mode,
+    resolve_rotation_overlay_mode,
+    resolve_rotation_overlay_watchlist,
+    resolve_rotation_regime_strategy,
     resolve_rotation_mode,
 )
 
@@ -69,6 +76,17 @@ class TestParseRotationSchedule:
         assert parse_rotation_schedule("   ") == []
 
 
+class TestParseRotationOverlayWatchlist:
+    def test_accepts_json_and_uppercases_unique_tickers(self) -> None:
+        assert parse_rotation_overlay_watchlist('["aapl","MSFT","aapl"]') == ["AAPL", "MSFT"]
+
+    def test_rejects_invalid_overlay_watchlist(self) -> None:
+        with pytest.raises(ValueError, match="rotation_overlay_watchlist"):
+            parse_rotation_overlay_watchlist('{"bad": true}')
+        with pytest.raises(ValueError, match="rotation_overlay_watchlist"):
+            parse_rotation_overlay_watchlist(["AAPL", ""])
+
+
 class TestResolveActiveStrategy:
     def test_prefers_strategy_from_rotation_state(self) -> None:
         account = {
@@ -98,14 +116,16 @@ class TestResolveActiveStrategy:
 
 class TestResolveModes:
     def test_resolve_rotation_mode_defaults_and_validation(self) -> None:
-        assert ROTATION_MODES == {"time", "optimal"}
+        assert ROTATION_MODES == {"time", "optimal", "regime"}
         assert resolve_rotation_mode({"rotation_mode": "optimal"}) == "optimal"
+        assert resolve_rotation_mode({"rotation_mode": "regime"}) == "regime"
         assert resolve_rotation_mode({"rotation_mode": "TIME"}) == "time"
         assert resolve_rotation_mode({"rotation_mode": "unknown"}) == "time"
 
     def test_resolve_optimality_mode_defaults_and_validation(self) -> None:
-        assert OPTIMALITY_MODES == {"previous_period_best", "average_return"}
+        assert OPTIMALITY_MODES == {"previous_period_best", "average_return", "hybrid_weighted"}
         assert resolve_optimality_mode({"rotation_optimality_mode": "average_return"}) == "average_return"
+        assert resolve_optimality_mode({"rotation_optimality_mode": "hybrid_weighted"}) == "hybrid_weighted"
         assert resolve_optimality_mode({"rotation_optimality_mode": "PREVIOUS_PERIOD_BEST"}) == "previous_period_best"
         assert resolve_optimality_mode({"rotation_optimality_mode": "unknown"}) == "previous_period_best"
 
@@ -122,6 +142,24 @@ class TestResolveModes:
     def test_resolve_optimality_mode_type_error_defaults(self) -> None:
         assert resolve_optimality_mode(_TypeErrorAccountMapping()) == "previous_period_best"
 
+    def test_resolve_rotation_regime_strategy(self) -> None:
+        assert ROTATION_REGIME_STATES == {"risk_on", "neutral", "risk_off"}
+        assert ROTATION_OVERLAY_MODES == {"none", "news", "social", "news_social"}
+        account = {
+            "rotation_regime_strategy_risk_on": "trend",
+            "rotation_regime_strategy_neutral": "ma_crossover",
+            "rotation_regime_strategy_risk_off": "mean_reversion",
+            "rotation_overlay_mode": "news_social",
+            "rotation_overlay_watchlist": dump_rotation_overlay_watchlist(["aapl", "msft"]),
+        }
+        assert resolve_rotation_regime_strategy(account, "risk_on") == "trend"
+        assert resolve_rotation_regime_strategy(account, "neutral") == "ma_crossover"
+        assert resolve_rotation_regime_strategy(account, "risk_off") == "mean_reversion"
+        assert resolve_rotation_regime_strategy(account, "unknown") is None
+        assert resolve_rotation_overlay_mode(account) == "news_social"
+        assert resolve_rotation_overlay_watchlist(account) == ["AAPL", "MSFT"]
+        assert resolve_rotation_overlay_mode({"rotation_overlay_mode": "weird"}) == "none"
+
 
 class TestIsRotationDue:
     @pytest.mark.parametrize(
@@ -133,6 +171,23 @@ class TestIsRotationDue:
     )
     def test_interval_threshold_behavior(self, as_of_iso: str, expected: bool) -> None:
         assert is_rotation_due(_due_account(), as_of_iso=as_of_iso) is expected
+
+    def test_minute_interval_supports_sub_day_rotation(self) -> None:
+        account = _due_account(
+            rotation_interval_days=None,
+            rotation_interval_minutes=240,
+            rotation_last_at="2026-03-01T00:00:00Z",
+        )
+        assert is_rotation_due(account, as_of_iso="2026-03-01T03:59:00Z") is False
+        assert is_rotation_due(account, as_of_iso="2026-03-01T04:00:00Z") is True
+
+    def test_minute_interval_takes_precedence_over_day_interval(self) -> None:
+        account = _due_account(
+            rotation_interval_days=7,
+            rotation_interval_minutes=240,
+            rotation_last_at="2026-03-01T00:00:00Z",
+        )
+        assert is_rotation_due(account, as_of_iso="2026-03-01T04:00:00Z") is True
 
     def test_raises_on_invalid_as_of_iso(self) -> None:
         with pytest.raises(ValueError, match="as_of_iso must be a valid ISO datetime"):
