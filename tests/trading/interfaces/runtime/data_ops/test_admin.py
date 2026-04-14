@@ -61,6 +61,20 @@ def _seed_admin_dataset() -> None:
                 (11, '2025-01-10T00:00:00Z', 900, 100, 1000, 0, 0),
                 (22, '2025-01-10T00:00:00Z', 1300, 200, 1500, 0, 0);
 
+            INSERT INTO walk_forward_groups (
+                id, grouping_key, account_id, strategy_name, run_name_prefix, start_date, end_date,
+                test_months, step_months, window_count, average_return_pct, median_return_pct,
+                best_return_pct, worst_return_pct, created_at
+            )
+            VALUES
+                (301, 'acct_a_wf', 1, 'Trend', 'wf_a', '2025-01-01', '2025-06-01', 1, 1, 1, 2.0, 2.0, 2.0, 2.0, '2026-01-03T00:00:00Z'),
+                (302, 'acct_b_wf', 2, 'Trend', 'wf_b', '2025-01-01', '2025-06-01', 1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-01-03T00:00:00Z');
+
+            INSERT INTO walk_forward_group_runs (group_id, run_id, window_index, window_start, window_end, total_return_pct)
+            VALUES
+                (301, 11, 1, '2025-01-01', '2025-06-01', 2.0),
+                (302, 22, 1, '2025-01-01', '2025-06-01', 3.0);
+
             INSERT INTO promotion_reviews (
                 id, account_id, account_name_snapshot, strategy_name, review_state,
                 assessment_stage, assessment_status, ready_for_live, overall_confidence,
@@ -156,6 +170,8 @@ class TestDeleteAccounts:
             "backtest_runs": 1,
             "backtest_trades": 1,
             "backtest_equity_snapshots": 1,
+            "walk_forward_groups": 1,
+            "walk_forward_group_runs": 1,
             "promotion_reviews": 1,
             "promotion_review_events": 1,
         }
@@ -196,14 +212,20 @@ class TestDeleteAccounts:
             runs = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = 1").fetchone()
             reviews = conn.execute("SELECT COUNT(*) AS n FROM promotion_reviews WHERE account_id = 1").fetchone()
             events = conn.execute("SELECT COUNT(*) AS n FROM promotion_review_events WHERE review_id = 101").fetchone()
+            walk_forward_groups = conn.execute("SELECT COUNT(*) AS n FROM walk_forward_groups WHERE account_id = 1").fetchone()
+            walk_forward_group_runs = conn.execute("SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE run_id = 11").fetchone()
             assert trades is not None
             assert runs is not None
             assert reviews is not None
             assert events is not None
+            assert walk_forward_groups is not None
+            assert walk_forward_group_runs is not None
             assert int(trades["n"]) == 0
             assert int(runs["n"]) == 0
             assert int(reviews["n"]) == 0
             assert int(events["n"]) == 0
+            assert int(walk_forward_groups["n"]) == 0
+            assert int(walk_forward_group_runs["n"]) == 0
         finally:
             conn.close()
 
@@ -245,6 +267,8 @@ class TestDeleteAccounts:
             "backtest_runs": 0,
             "backtest_trades": 0,
             "backtest_equity_snapshots": 0,
+            "walk_forward_groups": 0,
+            "walk_forward_group_runs": 0,
             "promotion_reviews": 0,
             "promotion_review_events": 0,
         }

@@ -133,3 +133,29 @@ def test_stale_market_data_cache_refetches(tmp_path: Path, monkeypatch: pytest.M
     assert first is not None and second is not None
     assert float(first.iloc[-1]) == 101.0
     assert float(second.iloc[-1]) == 103.0
+
+
+def test_cache_write_failure_does_not_break_close_history(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    provider = market_data.YFinanceProvider()
+    index = pd.date_range("2026-01-01", periods=2)
+    hist = pd.DataFrame({"Close": [100.0, 101.0]}, index=index)
+
+    monkeypatch.setattr("common.market_data.yf.download", lambda **_kwargs: hist)
+    original_open = market_data.Path.open
+
+    def _failing_open(self: Path, *args: object, **kwargs: object):
+        if self.suffix == ".pkl":
+            raise PermissionError("cache path is read-only")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(market_data.Path, "open", _failing_open)
+
+    result = provider.fetch_close_history(
+        ["AAPL"],
+        pd.Timestamp("2026-01-01").date(),
+        pd.Timestamp("2026-01-02").date(),
+    )
+
+    assert list(result.columns) == ["AAPL"]
+    assert float(result.iloc[-1]["AAPL"]) == 101.0

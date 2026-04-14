@@ -273,3 +273,44 @@ def test_execute_promotion_review_action_closes_open_review(
     joined = "\n".join(lines)
     assert "approved" in joined
     assert "approved for manual promotion" in joined
+
+
+def test_execute_promotion_review_request_canonicalizes_strategy_for_open_review_dedup(
+    conn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
+        VALUES (1, 'acct_service', 'trend', 1000, 'SPY', '2026-01-01T00:00:00Z')
+        """
+    )
+    conn.commit()
+
+    def _fake_fetch_strategy_evaluation(_conn, *, account_name, strategy_name=None):
+        return _ready_evaluation(
+            account_name=account_name,
+            strategy_name=strategy_name or "trend",
+        )
+
+    monkeypatch.setattr(
+        "trading.services.promotion_service.fetch_strategy_evaluation",
+        _fake_fetch_strategy_evaluation,
+    )
+
+    review = execute_promotion_review_request(
+        conn,
+        account_name="acct_service",
+        strategy_name="Trend",
+        requested_by="cam",
+    )
+
+    assert review.strategy_name == "trend"
+
+    with pytest.raises(ValueError, match="An open promotion review already exists"):
+        execute_promotion_review_request(
+            conn,
+            account_name="acct_service",
+            strategy_name="trend",
+            requested_by="cam",
+        )

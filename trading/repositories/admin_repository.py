@@ -72,6 +72,13 @@ def fetch_promotion_review_rows_for_accounts(
     return _fetch_rows_by_account_ids(conn, table="promotion_reviews", account_ids=account_ids)
 
 
+def fetch_walk_forward_group_rows_for_accounts(
+    conn: sqlite3.Connection,
+    account_ids: tuple[int, ...],
+) -> list[sqlite3.Row]:
+    return _fetch_rows_by_account_ids(conn, table="walk_forward_groups", account_ids=account_ids)
+
+
 def delete_backtest_equity_snapshots_by_run_ids(
     conn: sqlite3.Connection,
     run_ids: tuple[int, ...],
@@ -105,6 +112,20 @@ def delete_promotion_reviews_by_account_ids(
     account_ids: tuple[int, ...],
 ) -> None:
     _delete_by_ids(conn, table="promotion_reviews", column_name="account_id", ids=account_ids)
+
+
+def delete_walk_forward_group_runs_by_group_ids(
+    conn: sqlite3.Connection,
+    group_ids: tuple[int, ...],
+) -> None:
+    _delete_by_ids(conn, table="walk_forward_group_runs", column_name="group_id", ids=group_ids)
+
+
+def delete_walk_forward_groups_by_account_ids(
+    conn: sqlite3.Connection,
+    account_ids: tuple[int, ...],
+) -> None:
+    _delete_by_ids(conn, table="walk_forward_groups", column_name="account_id", ids=account_ids)
 
 
 def delete_equity_snapshots_by_account_ids(

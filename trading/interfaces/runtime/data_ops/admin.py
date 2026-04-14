@@ -63,6 +63,8 @@ def _print_delete_summary(action: str, counts: dict[str, int]) -> None:
     print(f"  backtest_runs: {counts['backtest_runs']}")
     print(f"  backtest_trades: {counts['backtest_trades']}")
     print(f"  backtest_equity_snapshots: {counts['backtest_equity_snapshots']}")
+    print(f"  walk_forward_groups: {counts['walk_forward_groups']}")
+    print(f"  walk_forward_group_runs: {counts['walk_forward_group_runs']}")
     print(f"  promotion_reviews: {counts['promotion_reviews']}")
     print(f"  promotion_review_events: {counts['promotion_review_events']}")
 

@@ -14,10 +14,13 @@ from trading.repositories.admin_repository import (
     delete_promotion_review_events_by_review_ids,
     delete_promotion_reviews_by_account_ids,
     delete_trades_by_account_ids,
+    delete_walk_forward_group_runs_by_group_ids,
+    delete_walk_forward_groups_by_account_ids,
     fetch_accounts_by_names,
     fetch_all_accounts,
     fetch_backtest_run_rows_for_accounts,
     fetch_promotion_review_rows_for_accounts,
+    fetch_walk_forward_group_rows_for_accounts,
 )
 
 DELETE_COUNT_KEYS = (
@@ -27,6 +30,8 @@ DELETE_COUNT_KEYS = (
     "backtest_runs",
     "backtest_trades",
     "backtest_equity_snapshots",
+    "walk_forward_groups",
+    "walk_forward_group_runs",
     "promotion_reviews",
     "promotion_review_events",
 )
@@ -94,6 +99,13 @@ def delete_accounts(
     run_rows = fetch_backtest_run_rows_for_accounts(conn, account_ids)
     run_ids = _collect_required_ids(run_rows, key="id", label="backtest run")
 
+    walk_forward_group_rows = fetch_walk_forward_group_rows_for_accounts(conn, account_ids)
+    walk_forward_group_ids = _collect_required_ids(
+        walk_forward_group_rows,
+        key="id",
+        label="walk-forward group",
+    )
+
     review_rows = fetch_promotion_review_rows_for_accounts(conn, account_ids)
     review_ids = _collect_required_ids(review_rows, key="id", label="promotion review")
 
@@ -105,6 +117,7 @@ def delete_accounts(
             "trades": count_rows(conn, "trades", account_placeholders_where, account_ids),
             "equity_snapshots": count_rows(conn, "equity_snapshots", account_placeholders_where, account_ids),
             "backtest_runs": len(run_ids),
+            "walk_forward_groups": len(walk_forward_group_ids),
             "promotion_reviews": len(review_ids),
         }
     )
@@ -117,6 +130,14 @@ def delete_accounts(
             "backtest_equity_snapshots",
             run_placeholders_where,
             run_ids,
+        )
+    if walk_forward_group_ids:
+        walk_forward_group_where = _in_clause("group_id", walk_forward_group_ids)
+        counts["walk_forward_group_runs"] = count_rows(
+            conn,
+            "walk_forward_group_runs",
+            walk_forward_group_where,
+            walk_forward_group_ids,
         )
     if review_ids:
         review_placeholders_where = _in_clause("review_id", review_ids)
@@ -131,6 +152,8 @@ def delete_accounts(
         return counts
 
     conn.execute("BEGIN")
+    if walk_forward_group_ids:
+        delete_walk_forward_group_runs_by_group_ids(conn, walk_forward_group_ids)
     if run_ids:
         delete_backtest_equity_snapshots_by_run_ids(conn, run_ids)
         delete_backtest_trades_by_run_ids(conn, run_ids)
@@ -138,6 +161,8 @@ def delete_accounts(
     if review_ids:
         delete_promotion_review_events_by_review_ids(conn, review_ids)
         delete_promotion_reviews_by_account_ids(conn, account_ids)
+    if walk_forward_group_ids:
+        delete_walk_forward_groups_by_account_ids(conn, account_ids)
 
     delete_equity_snapshots_by_account_ids(conn, account_ids)
     delete_trades_by_account_ids(conn, account_ids)

@@ -4,11 +4,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, timedelta
 import hashlib
-import pickle
-from pathlib import Path
 import json
+import logging
 import os
+import pickle
 import time
+from pathlib import Path
 from typing import Callable, Mapping, NoReturn
 
 import pandas as pd
@@ -35,6 +36,8 @@ _MARKET_DATA_CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
 _MARKET_DATA_CACHE_DISABLED_ENV = "TRADING_MARKET_DATA_CACHE_DISABLED"
 
 _CACHE_MISS = object()
+
+logger = logging.getLogger(__name__)
 
 
 class MarketDataProvider(ABC):
@@ -478,10 +481,13 @@ def _write_market_data_cache(cache_key: str, value: pd.DataFrame | pd.Series) ->
         return
 
     cache_dir = _market_data_cache_dir()
-    cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = _market_data_cache_path(cache_key)
-    with cache_path.open("wb") as handle:
-        pickle.dump(value, handle)
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        with cache_path.open("wb") as handle:
+            pickle.dump(value, handle)
+    except OSError as exc:
+        logger.warning("Skipping market data cache write for %s: %s", cache_path, exc)
 
 
 def _provider_name_from_file(config_path: Path) -> str | None:

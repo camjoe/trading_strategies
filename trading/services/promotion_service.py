@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from common.time import utc_now_iso
+from trading.backtesting.domain.strategy_signals import validate_strategy_name
 from trading.domain.evaluation_models import StrategyEvaluationArtifact
 from trading.domain.promotion_models import (
     PROMOTION_REVIEW_EVENT_APPROVED,
@@ -144,6 +145,7 @@ def _require_request_context(
     strategy_name = artifact.basic.requested_strategy
     if strategy_name is None:
         raise ValueError("Promotion review request requires a resolved strategy in the evaluation artifact.")
+    strategy_name = validate_strategy_name(strategy_name)
 
     if assessment.live_trading_enabled:
         raise ValueError("Promotion review requests are only available before live trading is enabled.")
@@ -247,6 +249,11 @@ def execute_promotion_review_request(
         strategy_name=strategy_name,
     )
     account_id, resolved_strategy_name = _require_request_context(artifact, assessment)
+    artifact = replace(
+        artifact,
+        basic=replace(artifact.basic, requested_strategy=resolved_strategy_name),
+    )
+    assessment = replace(assessment, strategy_name=resolved_strategy_name)
 
     _ensure_no_open_review_for_request(
         conn,
