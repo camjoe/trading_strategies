@@ -10,6 +10,11 @@ export type AccountSummary = {
   settlementCash: number;
   totalChange: number;
   totalChangePct: number;
+  liveBenchmarkReturnPct?: number | null;
+  liveAlphaPct?: number | null;
+  liveBenchmarkEquity?: number | null;
+  liveBenchmarkStartTime?: string | null;
+  liveBenchmarkEndTime?: string | null;
   changeSinceLastSnapshot: number | null;
   latestSnapshotTime: string | null;
   // config fields
@@ -51,10 +56,28 @@ export type AccountSummary = {
   rotationActiveStrategy?: string | null;
 };
 
+export type LiveBenchmarkOverlay = {
+  benchmark: string;
+  startTime: string;
+  endTime: string;
+  startingEquity: number;
+  endingEquity: number;
+  benchmarkEquity: number;
+  accountReturnPct: number;
+  benchmarkReturnPct: number;
+  alphaPct: number;
+  points: Array<{
+    time: string;
+    accountEquity: number;
+    benchmarkEquity: number;
+  }>;
+};
+
 export type AccountDetail = {
   account: AccountSummary;
   latestBacktest: BacktestRunSummary | null;
   latestBacktestMetrics?: LatestBacktestMetrics | null;
+  liveBenchmarkOverlay?: LiveBenchmarkOverlay | null;
   snapshots: Array<{
     time: string;
     cash: number;
@@ -219,6 +242,8 @@ export type AccountComparisonRow = {
   initialCash: number;
   totalChange: number;
   totalChangePct: number;
+  liveBenchmarkReturnPct: number | null;
+  liveAlphaPct: number | null;
   latestBacktest: LatestBacktestMetrics | null;
 };
 

@@ -27,6 +27,8 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
           <td>${currency.format(row.equity)}</td>
           <td class="${row.totalChange >= 0 ? "up" : "down"}">${currency.format(row.totalChange)}</td>
           <td class="${row.totalChangePct >= 0 ? "up" : "down"}">${pct(row.totalChangePct)}</td>
+          <td>${row.liveBenchmarkReturnPct === null ? "n/a" : pct(row.liveBenchmarkReturnPct)}</td>
+          <td>${row.liveAlphaPct === null ? "n/a" : pct(row.liveAlphaPct)}</td>
           <td>${bt ? pct(bt.totalReturnPct) : "n/a"}</td>
           <td>${bt && bt.alphaPct !== null ? pct(bt.alphaPct) : "n/a"}</td>
           <td>${bt ? pct(bt.maxDrawdownPct) : "n/a"}</td>
@@ -52,6 +54,8 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
             <th>Equity</th>
             <th>Total Change</th>
             <th>Total Return</th>
+            <th>Benchmark Return</th>
+            <th>Live Alpha</th>
             <th>Latest Backtest Return</th>
             <th>Latest Alpha</th>
             <th>Latest Max DD</th>

@@ -18,6 +18,11 @@ describe("renderDetail", () => {
         settlementCash: 0,
         totalChange: 100,
         totalChangePct: 10,
+        liveBenchmarkReturnPct: 8,
+        liveAlphaPct: 2,
+        liveBenchmarkEquity: 1080,
+        liveBenchmarkStartTime: "2026-03-14T00:00:00Z",
+        liveBenchmarkEndTime: "2026-03-15T00:00:00Z",
         changeSinceLastSnapshot: 5,
         latestSnapshotTime: "2026-03-15T00:00:00Z",
         stopLossPct: null,
@@ -62,6 +67,21 @@ describe("renderDetail", () => {
         winRatePct: 58,
         profitFactor: 1.8,
       },
+      liveBenchmarkOverlay: {
+        benchmark: "SPY",
+        startTime: "2026-03-14T00:00:00Z",
+        endTime: "2026-03-15T00:00:00Z",
+        startingEquity: 1000,
+        endingEquity: 1100,
+        benchmarkEquity: 1080,
+        accountReturnPct: 10,
+        benchmarkReturnPct: 8,
+        alphaPct: 2,
+        points: [
+          { time: "2026-03-14T00:00:00Z", accountEquity: 1040, benchmarkEquity: 1030 },
+          { time: "2026-03-15T00:00:00Z", accountEquity: 1100, benchmarkEquity: 1080 },
+        ],
+      },
       snapshots: [
         {
           time: "2026-03-14T00:00:00Z",
@@ -98,6 +118,9 @@ describe("renderDetail", () => {
     expect(html).toContain("Latest Backtest Run 12");
     expect(html).toContain("Open Report");
     expect(html).toContain("Backtest Return");
+    expect(html).toContain("Benchmark Return");
+    expect(html).toContain("Live Alpha");
+    expect(html).toContain("Live vs SPY");
     expect(html).toContain("Live Equity Curve");
     expect(html).toContain("<svg");
     expect(html).toContain("Snapshot This Account");
@@ -129,6 +152,11 @@ describe("renderDetail", () => {
         settlementCash: 10000,
         totalChange: 0,
         totalChangePct: 0,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
         stopLossPct: null,
@@ -153,6 +181,7 @@ describe("renderDetail", () => {
       },
       latestBacktest: null,
       latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
       snapshots: [],
       trades: [],
       positions: [],
@@ -178,6 +207,11 @@ describe("renderDetail", () => {
         settlementCash: 0,
         totalChange: -100,
         totalChangePct: -10,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
         stopLossPct: null,
@@ -202,6 +236,7 @@ describe("renderDetail", () => {
       },
       latestBacktest: null,
       latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
       snapshots: [],
       trades: [],
       positions: [],
@@ -228,6 +263,11 @@ describe("renderDetail", () => {
         settlementCash: 0,
         totalChange: -100,
         totalChangePct: -10,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
         stopLossPct: null,
@@ -252,6 +292,7 @@ describe("renderDetail", () => {
       },
       latestBacktest: null,
       latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
       snapshots: [],
       trades: [],
       positions: [],

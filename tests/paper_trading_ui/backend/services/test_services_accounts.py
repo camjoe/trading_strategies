@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 from common.time import utc_now_iso
@@ -63,6 +64,54 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     assert summary["totalChange"] == 200.0
     assert summary["totalChangePct"] == pytest.approx(20.0)
     assert summary["changeSinceLastSnapshot"] == 100.0
+
+
+def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> None:
+    close_index = pd.to_datetime(["2026-01-02", "2026-01-03", "2026-01-04"])
+    close_series = pd.Series([100.0, 105.0, 110.0], index=close_index)
+    monkeypatch.setattr(
+        services_accounts,
+        "fetch_benchmark_close_history",
+        lambda _ticker, *, start_date, end_date: close_series,
+    )
+
+    overlay = services_accounts.build_live_benchmark_overlay(
+        {"benchmark": "SPY", "equity": 1200.0},
+        [
+            {"snapshot_time": "2026-01-04T00:00:00Z", "equity": 1200.0},
+            {"snapshot_time": "2026-01-02T00:00:00Z", "equity": 1000.0},
+            {"snapshot_time": "2026-01-03T00:00:00Z", "equity": 1100.0},
+        ],
+    )
+
+    assert overlay is not None
+    assert overlay["benchmark"] == "SPY"
+    assert overlay["startTime"] == "2026-01-02T00:00:00Z"
+    assert overlay["endTime"] == "2026-01-04T00:00:00Z"
+    assert overlay["benchmarkReturnPct"] == pytest.approx(10.0)
+    assert overlay["alphaPct"] == pytest.approx(10.0)
+    points = overlay["points"]
+    assert len(points) == 3
+    assert points[-1]["benchmarkEquity"] == pytest.approx(1100.0)
+
+
+def test_attach_live_benchmark_summary_sets_fields() -> None:
+    summary = {"name": "acct"}
+    overlay = {
+        "benchmarkReturnPct": 6.0,
+        "alphaPct": 2.5,
+        "benchmarkEquity": 1060.0,
+        "startTime": "2026-01-01T00:00:00Z",
+        "endTime": "2026-01-10T00:00:00Z",
+    }
+
+    services_accounts.attach_live_benchmark_summary(summary, overlay)
+
+    assert summary["liveBenchmarkReturnPct"] == pytest.approx(6.0)
+    assert summary["liveAlphaPct"] == pytest.approx(2.5)
+    assert summary["liveBenchmarkEquity"] == pytest.approx(1060.0)
+    assert summary["liveBenchmarkStartTime"] == "2026-01-01T00:00:00Z"
+    assert summary["liveBenchmarkEndTime"] == "2026-01-10T00:00:00Z"
 
 
 def test_display_helpers_map_shadow_backtest_account() -> None:
@@ -169,6 +218,27 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "profitFactor": 1.6,
         "avgTradeReturnPct": 2.1,
     }
+
+
+def test_build_comparison_account_payload_includes_live_overlay_summary() -> None:
+    payload = services_accounts.build_comparison_account_payload(
+        {
+            "name": "acct_cmp",
+            "displayName": "Acct Compare",
+            "strategy": "trend",
+            "benchmark": "SPY",
+            "equity": 1100.0,
+            "initialCash": 1000.0,
+            "totalChange": 100.0,
+            "totalChangePct": 10.0,
+            "liveBenchmarkReturnPct": 7.0,
+            "liveAlphaPct": 3.0,
+        },
+        None,
+    )
+
+    assert payload["liveBenchmarkReturnPct"] == pytest.approx(7.0)
+    assert payload["liveAlphaPct"] == pytest.approx(3.0)
 
 
 # ---------------------------------------------------------------------------
