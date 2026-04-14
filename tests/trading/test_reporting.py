@@ -1,5 +1,12 @@
 import pytest
 
+from trading.domain.evaluation_models import (
+    EvaluationBacktestEvidence,
+    EvaluationBasicScope,
+    EvaluationConfidence,
+    EvaluationPaperLiveEvidence,
+    StrategyEvaluationArtifact,
+)
 from trading.services.accounts_service import create_account, get_account
 import trading.services.reporting_service as reporting_service
 from trading.models import AccountConfig
@@ -38,6 +45,38 @@ def _insert_snapshot(conn, account_id: int, snapshot_time: str, equity: float) -
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (account_id, snapshot_time, equity, 0.0, equity, 0.0, 0.0),
+    )
+
+
+def _evaluation_artifact(
+    *,
+    account_id: int,
+    account_name: str,
+    backtest_return_pct: float | None = None,
+    backtest_trade_count: int | None = None,
+    paper_live_mode: str | None = None,
+    paper_live_return_pct: float | None = None,
+    paper_live_snapshot_count: int | None = None,
+    blended_score: float | None = None,
+    overall_confidence: float = 0.0,
+) -> StrategyEvaluationArtifact:
+    return StrategyEvaluationArtifact(
+        basic=EvaluationBasicScope(account_id=account_id, account_name=account_name),
+        backtest=EvaluationBacktestEvidence(
+            available=backtest_return_pct is not None,
+            total_return_pct=backtest_return_pct,
+            trade_count=backtest_trade_count,
+        ),
+        paper_live=EvaluationPaperLiveEvidence(
+            available=paper_live_return_pct is not None,
+            mode=paper_live_mode,
+            return_pct=paper_live_return_pct,
+            snapshot_count=paper_live_snapshot_count,
+        ),
+        confidence=EvaluationConfidence(
+            overall_confidence=overall_confidence,
+            blended_score=blended_score,
+        ),
     )
 
 
@@ -156,14 +195,37 @@ class TestAccountReportOutput:
 
         monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {"AAPL": 120.0})
         monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (1050.0, 5.0))
+        monkeypatch.setattr(
+            "trading.services.reporting_service.fetch_strategy_evaluation_for_account_row",
+            lambda *_args, **_kwargs: _evaluation_artifact(
+                account_id=account["id"],
+                account_name="acct_report_out",
+                backtest_return_pct=12.5,
+                backtest_trade_count=18,
+                paper_live_mode="paper",
+                paper_live_return_pct=4.0,
+                paper_live_snapshot_count=6,
+                blended_score=9.25,
+                overall_confidence=0.62,
+            ),
+        )
 
         stats, positions = account_report(conn, "acct_report_out")
         out = capsys.readouterr().out
 
         assert stats["equity"] == pytest.approx(1040.0)
         assert positions == {"AAPL": 2.0}
+        assert "Display Name: acct_report_out" in out
+        assert (
+            "Account Policy: base_strategy=Trend | active_strategy=Trend | benchmark=SPY | "
+            "heuristic_exploration=off | risk=none | instrument=equity"
+        ) in out
         assert "Benchmark Equity: 1050.00" in out
-        assert "Strategy Alpha vs Benchmark %: -1.00" in out
+        assert "Account Alpha vs Benchmark %: -1.00" in out
+        assert (
+            "Evaluation Summary: backtest=12.50% (18 trades) | paper=4.00% (6 snapshots) | "
+            "blended_score=9.25% | confidence=0.62"
+        ) in out
         assert "Open Positions:" in out
 
         monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
@@ -200,9 +262,33 @@ class TestAccountReportOutput:
 
         account_report(conn, "acct_leaps")
         out = capsys.readouterr().out
-        assert "LEAPs Params:" in out
-        assert "Options Filters:" in out
-        assert "Options Risk:" in out
+        assert "LEAPs Parameters:" in out
+        assert "LEAPs Options Filters:" in out
+        assert "LEAPs/Options Risk Limits:" in out
+
+    def test_rotation_account_header_shows_base_and_active_strategy(
+        self,
+        conn,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys,
+    ) -> None:
+        create_account(conn, "acct_rot", "Trend", 1000.0, "SPY")
+        conn.execute(
+            """
+            UPDATE accounts
+            SET rotation_enabled = 1,
+                rotation_active_strategy = 'mean_reversion'
+            WHERE name = 'acct_rot'
+            """
+        )
+        conn.commit()
+
+        monkeypatch.setattr("trading.services.reporting_service.fetch_latest_prices", lambda _tickers: {})
+        monkeypatch.setattr("trading.services.reporting_service.benchmark_stats", lambda *_args: (None, None))
+
+        account_report(conn, "acct_rot")
+        out = capsys.readouterr().out
+        assert "base_strategy=Trend | active_strategy=mean_reversion" in out
 
 
 class TestCompareStrategies:
@@ -222,8 +308,12 @@ class TestCompareStrategies:
 
         compare_strategies(conn, lookback=5)
         out = capsys.readouterr().out
-        assert "Per-strategy comparison:" in out
-        assert "benchmark_equity=N/A benchmark_return=N/A alpha=N/A" in out
+        assert "Account policy comparison (current paper account state):" in out
+        assert "canonical evaluation evidence summaries when available" in out
+        assert "display_name=Compare" in out
+        assert "account_policy=base_strategy=Trend | active_strategy=Trend | benchmark=SPY" in out
+        assert "benchmark_equity=N/A benchmark_return=N/A account_alpha=N/A" in out
+        assert "backtest=N/A | paper=N/A | blended_score=N/A | confidence=0.00" in out
         assert "positions: AAPL:1.00" in out
 
     def test_truncates_positions_list(self, conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:

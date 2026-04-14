@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.backtesting.domain.strategy_signals import validate_strategy_name
 from trading.services.accounts_service import configure_account, create_account, get_account, set_benchmark
 from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.models.account_config import AccountConfig
@@ -13,6 +14,7 @@ from trading.repositories.accounts_repository import update_account_fields
 CONFIGURE_KEYS = {
     "descriptive_name", "goal_min_return_pct", "goal_max_return_pct", "goal_period",
     "learning_enabled", "risk_policy", "stop_loss_pct", "take_profit_pct",
+    "trade_size_pct", "max_position_pct",
     "instrument_mode", "option_strike_offset_pct", "option_min_dte", "option_max_dte",
     "option_type", "target_delta_min", "target_delta_max", "max_premium_per_trade",
     "max_contracts_per_trade", "iv_rank_min", "iv_rank_max", "roll_dte_threshold",
@@ -24,8 +26,16 @@ ROTATION_KEYS = {
     "rotation_mode",
     "rotation_optimality_mode",
     "rotation_interval_days",
+    "rotation_interval_minutes",
     "rotation_lookback_days",
     "rotation_schedule",
+    "rotation_regime_strategy_risk_on",
+    "rotation_regime_strategy_neutral",
+    "rotation_regime_strategy_risk_off",
+    "rotation_overlay_mode",
+    "rotation_overlay_min_tickers",
+    "rotation_overlay_confidence_threshold",
+    "rotation_overlay_watchlist",
     "rotation_active_index",
     "rotation_last_at",
     "rotation_active_strategy",
@@ -51,6 +61,8 @@ def extract_profile_fields(profile: dict[str, object]) -> AccountConfig:
         risk_policy=coerce_str(g("risk_policy")),
         stop_loss_pct=coerce_float(g("stop_loss_pct")),
         take_profit_pct=coerce_float(g("take_profit_pct")),
+        trade_size_pct=coerce_float(g("trade_size_pct")),
+        max_position_pct=coerce_float(g("max_position_pct")),
         instrument_mode=coerce_str(g("instrument_mode")),
         option_strike_offset_pct=coerce_float(g("option_strike_offset_pct")),
         option_min_dte=coerce_int(g("option_min_dte")),
@@ -105,6 +117,20 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
     )
     return True
 
+
+def _validated_profile_strategy(profile: dict[str, object]) -> str | None:
+    strategy_value = profile.get("strategy")
+    if strategy_value is None:
+        return None
+
+    strategy_name = str(strategy_value).strip()
+    if not strategy_name:
+        return None
+
+    validate_strategy_name(strategy_name)
+    return strategy_name
+
+
 def apply_account_profiles(
     conn: sqlite3.Connection,
     profiles: list[dict[str, object]],
@@ -117,7 +143,7 @@ def apply_account_profiles(
     for profile in profiles:
         name = str(profile["name"]).strip()
         benchmark = str(profile.get("benchmark_ticker", "SPY")).strip().upper()
-        strategy = str(profile.get("strategy", "Unspecified")).strip()
+        strategy = _validated_profile_strategy(profile)
         initial_cash = coerce_float(profile.get("initial_cash", 5000.0))
         if initial_cash is None:
             raise ValueError("initial_cash cannot be null")
@@ -132,8 +158,17 @@ def apply_account_profiles(
             if not create_missing:
                 skipped += 1
                 continue
+            if strategy is None:
+                raise ValueError(f"Profile '{name}' must define a valid strategy.")
 
-            create_account(conn, name, strategy, initial_cash, benchmark, config=extract_profile_fields(profile))
+            create_account(
+                conn,
+                name,
+                strategy,
+                initial_cash,
+                benchmark,
+                config=extract_profile_fields(profile),
+            )
             apply_rotation_fields(conn, name, profile)
             created += 1
             continue
@@ -144,7 +179,7 @@ def apply_account_profiles(
             set_benchmark(conn, name, benchmark)
             fields_updated = True
 
-        if "strategy" in profile and strategy:
+        if strategy is not None:
             account = get_account(conn, name)
             update_account_fields(
                 conn,

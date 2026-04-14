@@ -1,15 +1,23 @@
 from __future__ import annotations
 
-import math
 import sqlite3
 from collections import defaultdict
 from datetime import date
 from typing import Any, Callable, cast
 
 from common.constants import BASIS_POINTS_DIVISOR
+from trading.backtesting.domain.metrics import summarize_backtest_performance
+from trading.domain.auto_trader_policy import choose_buy_qty as default_choose_buy_qty
 
-# Fraction of total portfolio equity allocated per buy signal
-POSITION_SIZE_PCT = 0.10
+
+def _row_optional_float(row: sqlite3.Row, column: str) -> float | None:
+    try:
+        value = row[column]
+    except (KeyError, IndexError):
+        return None
+    if value is None:
+        return None
+    return float(value)
 
 
 def run_backtest(
@@ -36,6 +44,7 @@ def run_backtest(
     insert_trade_fn,
     insert_snapshot_fn,
     resolve_signal_fn,
+    choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
     benchmark_return_pct_fn: Callable[[object, float], float | None],
     max_drawdown_pct_fn: Callable[[list[float]], float],
     backtest_result_cls,
@@ -78,6 +87,7 @@ def run_backtest(
     slippage_multiplier_sell = 1.0 - (cfg.slippage_bps / BASIS_POINTS_DIVISOR)
 
     equity_curve: list[float] = []
+    executed_trades: list[dict[str, object]] = []
     trade_count = 0
 
     dates = list(close.index)
@@ -122,12 +132,19 @@ def run_backtest(
                 if px <= 0:
                     continue
 
-                allocation = (cash + compute_market_value_fn(positions, trade_prices.to_dict())) * POSITION_SIZE_PCT
                 exec_px = px * slippage_multiplier_buy
                 if exec_px <= 0:
                     continue
 
-                qty_int = math.floor(max(0.0, allocation - cfg.fee_per_trade) / exec_px)
+                qty_int = choose_buy_qty_fn(
+                    cash,
+                    exec_px,
+                    cfg.fee_per_trade,
+                    trade_size_pct=_row_optional_float(account, "trade_size_pct"),
+                    max_position_pct=_row_optional_float(account, "max_position_pct"),
+                    current_position_value=float(positions[ticker]) * px,
+                    portfolio_equity=cash + compute_market_value_fn(positions, trade_prices.to_dict()),
+                )
                 if qty_int < 1:
                     continue
 
@@ -148,6 +165,15 @@ def run_backtest(
                     cfg.fee_per_trade,
                     cfg.slippage_bps,
                     "signal=buy",
+                )
+                executed_trades.append(
+                    {
+                        "ticker": ticker,
+                        "side": "buy",
+                        "qty": float(qty_int),
+                        "price": exec_px,
+                        "fee": cfg.fee_per_trade,
+                    }
                 )
 
             if signal == "sell" and positions[ticker] > 0:
@@ -183,6 +209,15 @@ def run_backtest(
                     cfg.slippage_bps,
                     "signal=sell",
                 )
+                executed_trades.append(
+                    {
+                        "ticker": ticker,
+                        "side": "sell",
+                        "qty": qty_float,
+                        "price": exec_px,
+                        "fee": cfg.fee_per_trade,
+                    }
+                )
 
         marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
         market_value = compute_market_value_fn(positions, marks)
@@ -207,6 +242,7 @@ def run_backtest(
     total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
     benchmark_return = benchmark_return_pct_fn(benchmark_series, initial_cash)
     alpha_pct = None if benchmark_return is None else total_return_pct - benchmark_return
+    performance = summarize_backtest_performance(equity_curve, executed_trades)
 
     return backtest_result_cls(
         run_id=run_id,
@@ -220,5 +256,11 @@ def run_backtest(
         benchmark_return_pct=benchmark_return,
         alpha_pct=alpha_pct,
         max_drawdown_pct=max_drawdown_pct_fn(equity_curve),
+        sharpe_ratio=performance.sharpe_ratio,
+        sortino_ratio=performance.sortino_ratio,
+        calmar_ratio=performance.calmar_ratio,
+        win_rate_pct=performance.win_rate_pct,
+        profit_factor=performance.profit_factor,
+        avg_trade_return_pct=performance.avg_trade_return_pct,
         warnings=warnings,
     )

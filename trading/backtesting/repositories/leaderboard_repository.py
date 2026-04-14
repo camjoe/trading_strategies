@@ -63,3 +63,15 @@ def fetch_equity_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row
         """,
         (run_id,),
     ).fetchall()
+
+
+def fetch_trade_rows(conn: sqlite3.Connection, run_id: int) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT ticker, side, qty, price, fee
+        FROM backtest_trades
+        WHERE run_id = ?
+        ORDER BY trade_time ASC, id ASC
+        """,
+        (run_id,),
+    ).fetchall()

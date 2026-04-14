@@ -7,7 +7,8 @@ Schemas defined here:
 - ``AdminCreateAccountRequest`` — full account creation payload (all configurable
   fields including options, rotation, and goal parameters).
 - ``AdminDeleteAccountRequest`` — account deletion with a confirmation flag.
-- ``AccountParamsRequest`` — partial update of up to 23 mutable account config
+- ``AccountParamsRequest`` — partial update of mutable account config and
+  rotation fields
   fields for ``PATCH /api/accounts/{name}/params``.  All fields are optional;
   omitted fields are left unchanged.
 - ``ManualTradeRequest`` — manual trade injection for
@@ -70,6 +71,8 @@ class AdminCreateAccountRequest(BaseModel):
     riskPolicy: str = "none"
     stopLossPct: float | None = None
     takeProfitPct: float | None = None
+    tradeSizePct: float | None = None
+    maxPositionPct: float | None = None
     instrumentMode: str = "equity"
     optionStrikeOffsetPct: float | None = None
     optionMinDte: int | None = None
@@ -88,8 +91,16 @@ class AdminCreateAccountRequest(BaseModel):
     rotationMode: str = "time"
     rotationOptimalityMode: str = "previous_period_best"
     rotationIntervalDays: int | None = None
+    rotationIntervalMinutes: int | None = None
     rotationLookbackDays: int | None = None
     rotationSchedule: list[str] | None = None
+    rotationRegimeStrategyRiskOn: str | None = None
+    rotationRegimeStrategyNeutral: str | None = None
+    rotationRegimeStrategyRiskOff: str | None = None
+    rotationOverlayMode: str = "none"
+    rotationOverlayMinTickers: int | None = None
+    rotationOverlayConfidenceThreshold: float | None = None
+    rotationOverlayWatchlist: list[str] | None = None
     rotationActiveIndex: int = 0
     rotationLastAt: str | None = None
     rotationActiveStrategy: str | None = None
@@ -106,6 +117,8 @@ class AccountParamsRequest(BaseModel):
     riskPolicy: str | None = None
     stopLossPct: float | None = None
     takeProfitPct: float | None = None
+    tradeSizePct: float | None = None
+    maxPositionPct: float | None = None
     instrumentMode: str | None = None
     goalMinReturnPct: float | None = None
     goalMaxReturnPct: float | None = None
@@ -124,6 +137,23 @@ class AccountParamsRequest(BaseModel):
     rollDteThreshold: int | None = None
     profitTakePct: float | None = None
     maxLossPct: float | None = None
+    rotationEnabled: bool | None = None
+    rotationMode: str | None = None
+    rotationOptimalityMode: str | None = None
+    rotationIntervalDays: int | None = None
+    rotationIntervalMinutes: int | None = None
+    rotationLookbackDays: int | None = None
+    rotationSchedule: list[str] | None = None
+    rotationRegimeStrategyRiskOn: str | None = None
+    rotationRegimeStrategyNeutral: str | None = None
+    rotationRegimeStrategyRiskOff: str | None = None
+    rotationOverlayMode: str | None = None
+    rotationOverlayMinTickers: int | None = None
+    rotationOverlayConfidenceThreshold: float | None = None
+    rotationOverlayWatchlist: list[str] | None = None
+    rotationActiveIndex: int | None = None
+    rotationLastAt: str | None = None
+    rotationActiveStrategy: str | None = None
 
 
 class ManualTradeRequest(BaseModel):

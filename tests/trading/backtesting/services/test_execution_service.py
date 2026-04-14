@@ -95,3 +95,5 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
     assert result.run_id == 77
     assert result.trade_count == 0
     assert result.max_drawdown_pct == -2.0
+    assert result.sharpe_ratio is None
+    assert result.win_rate_pct is None

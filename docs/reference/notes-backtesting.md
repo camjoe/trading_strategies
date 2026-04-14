@@ -23,21 +23,37 @@ Detailed rationale is in:
 
 ## Commands
 
-All backtesting commands are under `python -m trading.paper_trading` and accept `--help` for the full reference.
+All backtesting commands are under `python -m trading.interfaces.cli.main` and accept `--help` for the full reference.
 
 ```sh
 # Single backtest
-python -m trading.paper_trading backtest --account trend_v1 --lookback-months 12
+python -m trading.interfaces.cli.main backtest --account trend_v1 --lookback-months 12
 
 # Walk-forward
-python -m trading.paper_trading backtest-walk-forward --account trend_v1 --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
+python -m trading.interfaces.cli.main backtest-walk-forward --account trend_v1 --start 2025-01-01 --end 2025-12-31 --test-months 1 --step-months 1
+
+# Persisted walk-forward detail report
+python -m trading.interfaces.cli.main backtest-walk-forward-report --account trend_v1
 
 # Batch comparison
-python -m trading.paper_trading backtest-batch --accounts trend_v1,meanrev_v1 --lookback-months 12
+python -m trading.interfaces.cli.main backtest-batch --accounts trend_v1,meanrev_v1 --lookback-months 12
 
 # Leaderboard
-python -m trading.paper_trading backtest-leaderboard --limit 10
+python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
 ```
+
+## Scheduled Refresh
+
+Recurring refreshes for persisted account backtests are handled by:
+
+- `python -m trading.interfaces.runtime.jobs.scheduled_backtest_refresh`
+
+Key behavior:
+
+- explicit opt-in via `--enable-run` or `SCHEDULED_BACKTEST_REFRESH_ENABLED=1`
+- duplicate same-day run guard unless `--force-run` is supplied
+- transient retry handling for market-data failures
+- machine-readable JSON artifacts under `local/exports/scheduled_backtest_refresh/`
 
 ## Strategy Notes
 

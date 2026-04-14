@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from trading.interfaces.cli.handlers.accounts_handlers import (
@@ -18,9 +19,14 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_report,
     handle_backtest_walk_forward,
+    handle_backtest_walk_forward_report,
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_promotion_request_review,
+    handle_promotion_review_action,
+    handle_promotion_review_history,
+    handle_promotion_status,
     handle_report,
     handle_snapshot,
     handle_snapshot_history,
@@ -37,6 +43,10 @@ COMMAND_HANDLERS = {
     "list-accounts": handle_list_accounts,
     "trade": handle_trade,
     "report": handle_report,
+    "promotion-status": handle_promotion_status,
+    "promotion-request-review": handle_promotion_request_review,
+    "promotion-review-history": handle_promotion_review_history,
+    "promotion-review-action": handle_promotion_review_action,
     "snapshot": handle_snapshot,
     "snapshot-history": handle_snapshot_history,
     "compare-strategies": handle_compare_strategies,
@@ -45,6 +55,7 @@ COMMAND_HANDLERS = {
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,
     "backtest-walk-forward": handle_backtest_walk_forward,
+    "backtest-walk-forward-report": handle_backtest_walk_forward_report,
 }
 
 
@@ -55,7 +66,7 @@ def dispatch_command(
     *,
     deps: dict[str, Any],
     module_file: str,
-    db_path: str,
+    db_path: str | Path,
 ) -> None:
     command_handler = COMMAND_HANDLERS.get(args.command)
     if command_handler is None:

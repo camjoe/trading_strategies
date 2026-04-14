@@ -11,7 +11,7 @@ Navigation index for docs and README files across the repository.
 **Execution Note:**
 All trading scripts must be run as Python modules from the repository root, e.g.,
 ```sh
-python -m trading.paper_trading
+python -m trading.interfaces.cli.main
 ```
 
 ## Docs Folder Files

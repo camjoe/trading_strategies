@@ -109,6 +109,9 @@ class TestPaperBrokerAdapter:
         with pytest.raises(NotImplementedError):
             PaperBrokerAdapter().cancel_order("paper-abc")
 
+    def test_get_open_trades_returns_empty_list(self):
+        assert PaperBrokerAdapter().get_open_trades() == []
+
     def test_get_positions_raises(self):
         with pytest.raises(NotImplementedError):
             PaperBrokerAdapter().get_positions()

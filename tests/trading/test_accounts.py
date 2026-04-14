@@ -37,10 +37,10 @@ class TestAccountLookupAndListing:
     @pytest.mark.parametrize(
         ("name", "goal_min", "goal_max", "goal_period", "expected_goal_text"),
         [
-            ("acct_goal_none", None, None, "monthly", "goal=not-set"),
-            ("acct_goal_range", 1.5, 3.0, "weekly", "goal=1.50% to 3.00% per weekly"),
-            ("acct_goal_min", 2.0, None, "monthly", "goal=>= 2.00% per monthly"),
-            ("acct_goal_max", None, 4.5, "quarterly", "goal=<= 4.50% per quarterly"),
+            ("acct_goal_none", None, None, "monthly", None),
+            ("acct_goal_range", 1.5, 3.0, "weekly", "goal_metadata=1.50% to 3.00% per weekly"),
+            ("acct_goal_min", 2.0, None, "monthly", "goal_metadata=>= 2.00% per monthly"),
+            ("acct_goal_max", None, 4.5, "quarterly", "goal_metadata=<= 4.50% per quarterly"),
         ],
     )
     def test_list_accounts_formats_goal_variants(
@@ -51,7 +51,7 @@ class TestAccountLookupAndListing:
         goal_min: float | None,
         goal_max: float | None,
         goal_period: str,
-        expected_goal_text: str,
+        expected_goal_text: str | None,
     ) -> None:
         create_account(
             conn,
@@ -69,7 +69,10 @@ class TestAccountLookupAndListing:
         list_accounts(conn)
 
         out = capsys.readouterr().out
-        assert expected_goal_text in out
+        if expected_goal_text is None:
+            assert "goal_metadata=" not in out
+        else:
+            assert expected_goal_text in out
         assert "benchmark=SPY" in out
 
 
@@ -110,6 +113,9 @@ class TestCreateAccount:
             ({"instrument_mode": "futures"}, "instrument_mode must be one of"),
             ({"goal_min_return_pct": 5, "goal_max_return_pct": 2}, "goal_min_return_pct cannot be greater"),
             ({"option_type": "strangle"}, "option_type must be one of"),
+            ({"trade_size_pct": 0}, "trade_size_pct must be greater than 0 and <= 100"),
+            ({"max_position_pct": 101}, "max_position_pct must be greater than 0 and <= 100"),
+            ({"trade_size_pct": 25, "max_position_pct": 20}, "trade_size_pct cannot be greater than max_position_pct"),
         ],
     )
     def test_rejects_invalid_inputs(self, conn, kwargs: dict[str, object], error_text: str) -> None:
@@ -258,6 +264,20 @@ class TestConfigureAccount:
         assert int(account["learning_enabled"]) == 1
 
 
+    def test_validates_position_sizing_against_existing_values(self, conn) -> None:
+        create_account(
+            conn,
+            "acct_sizing_validate",
+            "Trend",
+            3000.0,
+            "SPY",
+            config=AccountConfig(trade_size_pct=8.0, max_position_pct=16.0),
+        )
+
+        with pytest.raises(ValueError, match="trade_size_pct cannot be greater than max_position_pct"):
+            configure_account(conn, "acct_sizing_validate", config=AccountConfig(trade_size_pct=20.0))
+
+
     @pytest.mark.parametrize(
         ("kwargs", "error_text"),
         [
@@ -305,12 +325,25 @@ class TestConfigureAccountOptionFields:
         assert int(account["option_min_dte"]) == 150
         assert int(account["option_max_dte"]) == 365
 
+    def test_configure_account_updates_position_sizing_fields(self, conn) -> None:
+        create_account(conn, "acct_cfg_sizing", "Trend", 5000.0, "SPY")
+
+        configure_account(
+            conn,
+            account_name="acct_cfg_sizing",
+            config=AccountConfig(trade_size_pct=12.0, max_position_pct=24.0),
+        )
+
+        account = get_account(conn, "acct_cfg_sizing")
+        assert float(account["trade_size_pct"]) == pytest.approx(12.0)
+        assert float(account["max_position_pct"]) == pytest.approx(24.0)
+
     def test_create_account_rejects_invalid_option_dte_range(self, conn) -> None:
         with pytest.raises(ValueError, match="option_min_dte cannot be greater than option_max_dte"):
             create_account(
                 conn,
                 name="bad_dte",
-                strategy="Test",
+                strategy="Trend",
                 initial_cash=5000,
                 benchmark_ticker="SPY",
                 config=AccountConfig(

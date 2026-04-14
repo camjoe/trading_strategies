@@ -146,6 +146,16 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         const n = parseInt(v, 10);
         return Number.isFinite(n) ? n : undefined;
       };
+      const readCsv = (id: string): string[] | undefined => {
+        const input = find<HTMLInputElement>(id);
+        if (!input) return undefined;
+        const value = input.value.trim();
+        if (!value) return [];
+        return value
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0);
+      };
 
       const payload: AccountParamsUpdate = {
         strategy: readStr("#editStrategyInput"),
@@ -174,6 +184,26 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         rollDteThreshold: readInt("#editRollDteThresholdInput"),
         profitTakePct: readNum("#editProfitTakePctInput"),
         maxLossPct: readNum("#editMaxLossPctInput"),
+        rotationEnabled: (() => {
+          const el = find<HTMLSelectElement>("#editRotationEnabledSelect");
+          return el ? el.value === "true" : undefined;
+        })(),
+        rotationMode: find<HTMLSelectElement>("#editRotationModeSelect")?.value || undefined,
+        rotationOptimalityMode: find<HTMLSelectElement>("#editRotationOptimalityModeSelect")?.value || undefined,
+        rotationIntervalDays: readInt("#editRotationIntervalDaysInput"),
+        rotationIntervalMinutes: readInt("#editRotationIntervalMinutesInput"),
+        rotationLookbackDays: readInt("#editRotationLookbackDaysInput"),
+        rotationSchedule: readCsv("#editRotationScheduleInput"),
+        rotationRegimeStrategyRiskOn: readStr("#editRotationRegimeRiskOnInput"),
+        rotationRegimeStrategyNeutral: readStr("#editRotationRegimeNeutralInput"),
+        rotationRegimeStrategyRiskOff: readStr("#editRotationRegimeRiskOffInput"),
+        rotationOverlayMode: find<HTMLSelectElement>("#editRotationOverlayModeSelect")?.value || undefined,
+        rotationOverlayMinTickers: readInt("#editRotationOverlayMinTickersInput"),
+        rotationOverlayConfidenceThreshold: readNum("#editRotationOverlayConfidenceThresholdInput"),
+        rotationOverlayWatchlist: readCsv("#editRotationOverlayWatchlistInput"),
+        rotationActiveIndex: readInt("#editRotationActiveIndexInput"),
+        rotationLastAt: readStr("#editRotationLastAtInput"),
+        rotationActiveStrategy: readStr("#editRotationActiveStrategyInput"),
       };
 
       try {

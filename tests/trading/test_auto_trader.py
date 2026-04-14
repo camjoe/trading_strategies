@@ -226,7 +226,7 @@ class TestTradeLoopOrchestration:
         assert executed == 1
         assert calls[0]["side"] == "buy"
         assert calls[0]["ticker"] == "AAPL"
-        assert calls[0]["note"].startswith("auto-daily-learn")
+        assert "selection=heuristic-exploration" in calls[0]["note"]
         assert "strategy=trend" in calls[0]["note"]
 
 

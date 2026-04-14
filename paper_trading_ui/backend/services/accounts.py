@@ -2,12 +2,13 @@
 
 Responsibilities
 ----------------
-- **Account summaries** — ``build_account_summary`` assembles the full 21-field
-  account payload (equity, PnL, risk params, goal params, options params, etc.)
+- **Account summaries** — ``build_account_summary`` assembles the account
+  payload (equity, PnL, risk params, goal params, options params, rotation
+  params, etc.)
   from a DB row, current pricing state, and the latest snapshot.
-- **Account parameter updates** — ``update_account_params`` accepts up to 23
-  mutable config fields and delegates to ``configure_account`` (for all fields
-  except ``strategy``, which is updated directly via ``update_account_fields_by_id``).
+- **Account parameter updates** — ``update_account_params`` accepts mutable
+  config fields plus rotation settings and delegates to canonical trading
+  services.
 - **Backtest helpers** — functions to fetch and format the latest backtest run
   summary and performance metrics for an account.
 - **Listing and filtering** — managed-account row listing, account-name lookup,
@@ -24,9 +25,19 @@ adapters — no inline SQL lives here.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
+from datetime import date
+
+import pandas as pd
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from common.coercion import row_float, row_int
+from common.coercion import coerce_float, coerce_int, row_float, row_int
+from common.market_data import get_provider
+from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
+from trading.domain.rotation import (
+    parse_rotation_overlay_watchlist,
+    parse_rotation_schedule,
+)
 from trading.models.account_config import AccountConfig
 from trading.backtesting.services.report_service import (
     fetch_backtest_report_summary,
@@ -40,12 +51,161 @@ from trading.services.accounts_service import (
     fetch_snapshot_history_rows,
     update_account_fields_by_id,
 )
+from trading.services.profiles_service import apply_rotation_fields
 from trading.services.reporting_service import get_account_stats as build_account_stats
 
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
 from .db import fetch_latest_snapshot_row
 
 _SETTLEMENT_PRICE = 1.0
+
+
+def _row_value(row: sqlite3.Row | dict[str, object], key: str) -> object | None:
+    if hasattr(row, "keys") and key in row.keys():
+        return row[key]
+    return None
+
+
+def _row_pct_value(row: sqlite3.Row | dict[str, object], key: str, default: float) -> float:
+    value = coerce_float(_row_value(row, key))
+    if value is None:
+        return default
+    return value
+
+
+def _snapshot_time(snapshot: sqlite3.Row | dict[str, object]) -> str:
+    if hasattr(snapshot, "keys") and "time" in snapshot.keys():
+        return str(snapshot["time"])
+    return str(snapshot["snapshot_time"])
+
+
+def _snapshot_equity(snapshot: sqlite3.Row | dict[str, object]) -> float:
+    value = coerce_float(snapshot["equity"])
+    if value is None:
+        raise ValueError("Snapshot equity is required for benchmark overlay.")
+    return value
+
+
+def fetch_benchmark_close_history(
+    benchmark_ticker: str,
+    *,
+    start_date: date,
+    end_date: date,
+) -> pd.Series | None:
+    ticker = benchmark_ticker.strip().upper()
+    if not ticker:
+        return None
+    close_history = get_provider().fetch_close_history([ticker], start_date, end_date)
+    if close_history is None:
+        return None
+    try:
+        close_col = close_history[ticker]
+    except Exception:
+        return None
+    if isinstance(close_col, pd.DataFrame):
+        if close_col.shape[1] == 0:
+            return None
+        return close_col.iloc[:, 0].dropna()
+    return close_col.dropna()
+
+
+def _normalize_close_history(close_history: pd.Series) -> pd.Series:
+    normalized = close_history.copy()
+    normalized.index = pd.to_datetime(normalized.index, utc=True).tz_convert(None).normalize()
+    return normalized[~normalized.index.duplicated(keep="last")].sort_index()
+
+
+def _close_price_on_or_before(close_history: pd.Series, snapshot_time: str) -> float | None:
+    as_of = pd.Timestamp(snapshot_time).tz_localize(None).normalize()
+    matches = close_history.loc[:as_of]
+    if matches.empty:
+        return None
+    return float(matches.iloc[-1])
+
+
+def build_live_benchmark_overlay(
+    summary: dict[str, object],
+    snapshots: Sequence[sqlite3.Row | dict[str, object]],
+) -> dict[str, object] | None:
+    if len(snapshots) < 2:
+        return None
+
+    ordered_snapshots = sorted(list(snapshots), key=_snapshot_time)
+    starting_equity = _snapshot_equity(ordered_snapshots[0])
+    if starting_equity <= 0:
+        return None
+
+    benchmark_ticker = str(summary.get("benchmark") or "").strip().upper()
+    if not benchmark_ticker:
+        return None
+
+    start_date = date.fromisoformat(_snapshot_time(ordered_snapshots[0])[:10])
+    end_date = date.fromisoformat(_snapshot_time(ordered_snapshots[-1])[:10])
+    try:
+        close_history = fetch_benchmark_close_history(
+            benchmark_ticker,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except Exception:
+        return None
+    if close_history is None or close_history.empty:
+        return None
+
+    normalized_close = _normalize_close_history(close_history)
+    if normalized_close.empty:
+        return None
+    start_price = _close_price_on_or_before(normalized_close, _snapshot_time(ordered_snapshots[0]))
+    if start_price is None or start_price <= 0:
+        return None
+
+    points: list[dict[str, object]] = []
+    for snapshot in ordered_snapshots:
+        price = _close_price_on_or_before(normalized_close, _snapshot_time(snapshot))
+        if price is None:
+            continue
+        account_equity = _snapshot_equity(snapshot)
+        benchmark_equity = starting_equity * (price / start_price)
+        points.append({
+            "time": _snapshot_time(snapshot),
+            "accountEquity": account_equity,
+            "benchmarkEquity": benchmark_equity,
+        })
+
+    if len(points) < 2:
+        return None
+
+    benchmark_equity = coerce_float(points[-1]["benchmarkEquity"])
+    account_ending_equity = coerce_float(points[-1]["accountEquity"])
+    if benchmark_equity is None or account_ending_equity is None:
+        return None
+    account_return_pct = ((account_ending_equity / starting_equity) - 1.0) * 100.0
+    benchmark_return_pct = ((benchmark_equity / starting_equity) - 1.0) * 100.0
+    alpha_pct = account_return_pct - benchmark_return_pct
+    return {
+        "benchmark": benchmark_ticker,
+        "startTime": str(points[0]["time"]),
+        "endTime": str(points[-1]["time"]),
+        "startingEquity": starting_equity,
+        "endingEquity": account_ending_equity,
+        "benchmarkEquity": benchmark_equity,
+        "accountReturnPct": account_return_pct,
+        "benchmarkReturnPct": benchmark_return_pct,
+        "alphaPct": alpha_pct,
+        "points": points,
+    }
+
+
+def attach_live_benchmark_summary(
+    summary: dict[str, object],
+    overlay: dict[str, object] | None,
+) -> dict[str, object]:
+    summary["liveBenchmarkReturnPct"] = overlay["benchmarkReturnPct"] if overlay is not None else None
+    summary["liveAlphaPct"] = overlay["alphaPct"] if overlay is not None else None
+    summary["liveBenchmarkEquity"] = overlay["benchmarkEquity"] if overlay is not None else None
+    summary["liveBenchmarkStartTime"] = overlay["startTime"] if overlay is not None else None
+    summary["liveBenchmarkEndTime"] = overlay["endTime"] if overlay is not None else None
+    return summary
 
 
 def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
@@ -121,6 +281,11 @@ def _build_summary_from_stats(
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
     latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))
+    rotation_schedule = parse_rotation_schedule(_row_value(row, "rotation_schedule"))
+    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(
+        _row_value(row, "rotation_overlay_watchlist")
+    )
+    rotation_active_index = coerce_int(_row_value(row, "rotation_active_index"))
 
     initial_cash = float(row["initial_cash"])
     effective_initial = initial_cash if initial_cash else total_deposited
@@ -148,6 +313,8 @@ def _build_summary_from_stats(
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
         "stopLossPct": row_float(row, "stop_loss_pct"),
         "takeProfitPct": row_float(row, "take_profit_pct"),
+        "tradeSizePct": _row_pct_value(row, "trade_size_pct", DEFAULT_TRADE_SIZE_PCT),
+        "maxPositionPct": _row_pct_value(row, "max_position_pct", DEFAULT_MAX_POSITION_PCT),
         "goalMinReturnPct": row_float(row, "goal_min_return_pct"),
         "goalMaxReturnPct": row_float(row, "goal_max_return_pct"),
         "goalPeriod": row["goal_period"] if "goal_period" in row.keys() else None,
@@ -165,6 +332,23 @@ def _build_summary_from_stats(
         "rollDteThreshold": row_int(row, "roll_dte_threshold"),
         "profitTakePct": row_float(row, "profit_take_pct"),
         "maxLossPct": row_float(row, "max_loss_pct"),
+        "rotationEnabled": bool(coerce_int(_row_value(row, "rotation_enabled")) or 0),
+        "rotationMode": str(_row_value(row, "rotation_mode") or "time"),
+        "rotationOptimalityMode": str(_row_value(row, "rotation_optimality_mode") or "previous_period_best"),
+        "rotationIntervalDays": coerce_int(_row_value(row, "rotation_interval_days")),
+        "rotationIntervalMinutes": coerce_int(_row_value(row, "rotation_interval_minutes")),
+        "rotationLookbackDays": coerce_int(_row_value(row, "rotation_lookback_days")),
+        "rotationSchedule": rotation_schedule or None,
+        "rotationRegimeStrategyRiskOn": _row_value(row, "rotation_regime_strategy_risk_on"),
+        "rotationRegimeStrategyNeutral": _row_value(row, "rotation_regime_strategy_neutral"),
+        "rotationRegimeStrategyRiskOff": _row_value(row, "rotation_regime_strategy_risk_off"),
+        "rotationOverlayMode": str(_row_value(row, "rotation_overlay_mode") or "none"),
+        "rotationOverlayMinTickers": coerce_int(_row_value(row, "rotation_overlay_min_tickers")),
+        "rotationOverlayConfidenceThreshold": coerce_float(_row_value(row, "rotation_overlay_confidence_threshold")),
+        "rotationOverlayWatchlist": rotation_overlay_watchlist,
+        "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
+        "rotationLastAt": _row_value(row, "rotation_last_at"),
+        "rotationActiveStrategy": _row_value(row, "rotation_active_strategy"),
     }
 
 
@@ -259,6 +443,8 @@ def build_comparison_account_payload(
         "initialCash": summary["initialCash"],
         "totalChange": summary["totalChange"],
         "totalChangePct": summary["totalChangePct"],
+        "liveBenchmarkReturnPct": summary.get("liveBenchmarkReturnPct"),
+        "liveAlphaPct": summary.get("liveAlphaPct"),
         "latestBacktest": latest_backtest,
     }
 
@@ -291,13 +477,22 @@ def fetch_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -
     if latest_run_id is None:
         return None
 
-    report = fetch_backtest_report_summary(conn, int(latest_run_id))
+    try:
+        report = fetch_backtest_report_summary(conn, int(latest_run_id))
+    except ValueError:
+        return None
     return {
         "runId": report.run_id,
         "endDate": report.end_date,
         "totalReturnPct": report.total_return_pct,
         "maxDrawdownPct": report.max_drawdown_pct,
         "alphaPct": None,
+        "sharpeRatio": getattr(report, "sharpe_ratio", None),
+        "sortinoRatio": getattr(report, "sortino_ratio", None),
+        "calmarRatio": getattr(report, "calmar_ratio", None),
+        "winRatePct": getattr(report, "win_rate_pct", None),
+        "profitFactor": getattr(report, "profit_factor", None),
+        "avgTradeReturnPct": getattr(report, "avg_trade_return_pct", None),
     }
 
 
@@ -321,6 +516,8 @@ def update_account_params(
     descriptive_name: str | None = None,
     stop_loss_pct: float | None = None,
     take_profit_pct: float | None = None,
+    trade_size_pct: float | None = None,
+    max_position_pct: float | None = None,
     instrument_mode: str | None = None,
     goal_min_return_pct: float | None = None,
     goal_max_return_pct: float | None = None,
@@ -339,6 +536,23 @@ def update_account_params(
     roll_dte_threshold: int | None = None,
     profit_take_pct: float | None = None,
     max_loss_pct: float | None = None,
+    rotation_enabled: bool | None = None,
+    rotation_mode: str | None = None,
+    rotation_optimality_mode: str | None = None,
+    rotation_interval_days: int | None = None,
+    rotation_interval_minutes: int | None = None,
+    rotation_lookback_days: int | None = None,
+    rotation_schedule: list[str] | None = None,
+    rotation_regime_strategy_risk_on: str | None = None,
+    rotation_regime_strategy_neutral: str | None = None,
+    rotation_regime_strategy_risk_off: str | None = None,
+    rotation_overlay_mode: str | None = None,
+    rotation_overlay_min_tickers: int | None = None,
+    rotation_overlay_confidence_threshold: float | None = None,
+    rotation_overlay_watchlist: list[str] | None = None,
+    rotation_active_index: int | None = None,
+    rotation_last_at: str | None = None,
+    rotation_active_strategy: str | None = None,
 ) -> None:
     """Update mutable account parameters. Only supplied (non-None) fields are changed."""
     # strategy is not handled by configure_account — update directly by id
@@ -350,6 +564,8 @@ def update_account_params(
         risk_policy=risk_policy,
         stop_loss_pct=stop_loss_pct,
         take_profit_pct=take_profit_pct,
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
         instrument_mode=instrument_mode,
         goal_min_return_pct=goal_min_return_pct,
         goal_max_return_pct=goal_max_return_pct,
@@ -372,3 +588,41 @@ def update_account_params(
     from trading.services.accounts_service import configure_account
     configure_account(conn, account_name, cfg)
 
+    rotation_profile: dict[str, object] = {}
+    if rotation_enabled is not None:
+        rotation_profile["rotation_enabled"] = rotation_enabled
+    if rotation_mode is not None:
+        rotation_profile["rotation_mode"] = rotation_mode
+    if rotation_optimality_mode is not None:
+        rotation_profile["rotation_optimality_mode"] = rotation_optimality_mode
+    if rotation_interval_days is not None:
+        rotation_profile["rotation_interval_days"] = rotation_interval_days
+    if rotation_interval_minutes is not None:
+        rotation_profile["rotation_interval_minutes"] = rotation_interval_minutes
+    if rotation_lookback_days is not None:
+        rotation_profile["rotation_lookback_days"] = rotation_lookback_days
+    if rotation_schedule is not None:
+        rotation_profile["rotation_schedule"] = rotation_schedule
+    if rotation_regime_strategy_risk_on is not None:
+        rotation_profile["rotation_regime_strategy_risk_on"] = rotation_regime_strategy_risk_on
+    if rotation_regime_strategy_neutral is not None:
+        rotation_profile["rotation_regime_strategy_neutral"] = rotation_regime_strategy_neutral
+    if rotation_regime_strategy_risk_off is not None:
+        rotation_profile["rotation_regime_strategy_risk_off"] = rotation_regime_strategy_risk_off
+    if rotation_overlay_mode is not None:
+        rotation_profile["rotation_overlay_mode"] = rotation_overlay_mode
+    if rotation_overlay_min_tickers is not None:
+        rotation_profile["rotation_overlay_min_tickers"] = rotation_overlay_min_tickers
+    if rotation_overlay_confidence_threshold is not None:
+        rotation_profile["rotation_overlay_confidence_threshold"] = rotation_overlay_confidence_threshold
+    if rotation_overlay_watchlist is not None:
+        rotation_profile["rotation_overlay_watchlist"] = rotation_overlay_watchlist
+    if rotation_active_index is not None:
+        rotation_profile["rotation_active_index"] = rotation_active_index
+    if rotation_last_at is not None:
+        rotation_profile["rotation_last_at"] = rotation_last_at
+    if rotation_active_strategy is not None:
+        rotation_profile["rotation_active_strategy"] = rotation_active_strategy
+
+    if rotation_profile:
+        apply_rotation_fields(conn, account_name, rotation_profile)

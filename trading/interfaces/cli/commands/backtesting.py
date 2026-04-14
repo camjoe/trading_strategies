@@ -40,13 +40,13 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
 
     p_backtest_report = sub.add_parser(
         "backtest-report",
-        help="Show summary metrics for a previous backtest run.",
+        help="Show summary metrics for a previous backtest run tied to an account configuration.",
     )
     p_backtest_report.add_argument("--run-id", type=int, required=True, help="Backtest run id")
 
     p_backtest_leaderboard = sub.add_parser(
         "backtest-leaderboard",
-        help="Rank historical backtest runs by total return.",
+        help="Rank historical account backtest runs by total return.",
     )
     p_backtest_leaderboard.add_argument(
         "--limit",
@@ -62,7 +62,7 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     p_backtest_leaderboard.add_argument(
         "--strategy",
         default=None,
-        help="Optional case-insensitive strategy text filter",
+        help="Optional case-insensitive account strategy label filter",
     )
 
     p_backtest_batch = sub.add_parser(
@@ -144,3 +144,11 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         action="store_true",
         help="Allow approximate LEAPs backtest mode using underlying price proxies",
     )
+
+    p_walk_forward_report = sub.add_parser(
+        "backtest-walk-forward-report",
+        help="Show persisted walk-forward group details and per-window backtest summaries.",
+    )
+    p_walk_forward_report.add_argument("--group-id", type=int, default=None, help="Walk-forward group id")
+    p_walk_forward_report.add_argument("--account", default=None, help="Account name for latest walk-forward group")
+    p_walk_forward_report.add_argument("--strategy", default=None, help="Optional strategy filter with --account")

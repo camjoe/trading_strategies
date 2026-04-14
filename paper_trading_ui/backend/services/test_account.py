@@ -4,6 +4,7 @@ import re
 import sqlite3
 from pathlib import Path
 
+from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 from trading.services.accounts_service import fetch_account_by_name
@@ -105,6 +106,8 @@ def build_test_account_summary() -> dict[str, object]:
         "strategy": TEST_ACCOUNT_STRATEGY,
         "instrumentMode": "equity",
         "riskPolicy": "none",
+        "tradeSizePct": DEFAULT_TRADE_SIZE_PCT,
+        "maxPositionPct": DEFAULT_MAX_POSITION_PCT,
         "benchmark": benchmark,
         "initialCash": equity,
         "equity": equity,

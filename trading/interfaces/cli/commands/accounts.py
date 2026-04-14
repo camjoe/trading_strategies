@@ -15,7 +15,7 @@ def add_account_commands(
 
     p_create = sub.add_parser("create-account", help="Create a new paper account.")
     p_create.add_argument("--name", required=True, help="Account name, e.g. trend_v1")
-    p_create.add_argument("--strategy", required=True, help="Strategy label")
+    p_create.add_argument("--strategy", required=True, help="Base strategy label")
     p_create.add_argument("--initial-cash", type=float, required=True, help="Starting cash")
     add_option_args(p_create)
     p_create.add_argument(

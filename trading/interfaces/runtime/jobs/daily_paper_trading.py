@@ -6,16 +6,21 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
+from trading.services.notifications_service import notify_webhook_best_effort
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 DEFAULT_TRADE_CAPS_CONFIG = "trading/config/account_trade_caps.json"
+
+# Environment variable used to opt runtime jobs into webhook notifications.
+DEFAULT_NOTIFICATION_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
@@ -76,6 +81,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
     parser.add_argument("--run-source", default="scheduled-daily")
+    parser.add_argument(
+        "--notify-webhook-url",
+        default=os.environ.get(DEFAULT_NOTIFICATION_WEBHOOK_ENV, ""),
+        help=(
+            "Optional webhook URL for runtime notifications "
+            f"(default: ${DEFAULT_NOTIFICATION_WEBHOOK_ENV} if set)"
+        ),
+    )
+    parser.add_argument(
+        "--notify-on-success",
+        action="store_true",
+        help="Also send a webhook notification when the run completes successfully",
+    )
     parser.add_argument(
         "--repo-root",
         default=str(REPO_ROOT),
@@ -230,6 +248,25 @@ def run_auto_trader_group(
     stream_command(log_path, label, auto_trader_args, repo_root)
 
 
+def _maybe_send_notification(
+    *,
+    webhook_url: str,
+    notify_on_success: bool,
+    status: str,
+    message: str,
+    details: dict[str, object],
+) -> None:
+    if status == "ok" and not notify_on_success:
+        return
+    notify_webhook_best_effort(
+        webhook_url=webhook_url,
+        event="daily-paper-trading",
+        status=status,
+        message=message,
+        details=details,
+    )
+
+
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).expanduser().resolve()
@@ -364,9 +401,33 @@ def main() -> int:
         )
 
         tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")
+        _maybe_send_notification(
+            webhook_url=args.notify_webhook_url,
+            notify_on_success=args.notify_on_success,
+            status="ok",
+            message="Daily paper trading run completed successfully",
+            details={
+                "accounts": accounts,
+                "account_count": len(accounts),
+                "log_path": str(log_path),
+                "run_source": args.run_source,
+            },
+        )
         return 0
     except Exception as exc:
         tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] ERROR: {exc}")
+        _maybe_send_notification(
+            webhook_url=args.notify_webhook_url,
+            notify_on_success=args.notify_on_success,
+            status="fail",
+            message=f"Daily paper trading run failed: {exc}",
+            details={
+                "accounts": accounts,
+                "account_count": len(accounts),
+                "log_path": str(log_path),
+                "run_source": args.run_source,
+            },
+        )
         return 1
 
 

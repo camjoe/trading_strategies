@@ -32,6 +32,8 @@ def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str
         risk_policy=payload.riskPolicy,
         stop_loss_pct=payload.stopLossPct,
         take_profit_pct=payload.takeProfitPct,
+        trade_size_pct=payload.tradeSizePct,
+        max_position_pct=payload.maxPositionPct,
         instrument_mode=payload.instrumentMode,
         option_strike_offset_pct=payload.optionStrikeOffsetPct,
         option_min_dte=payload.optionMinDte,
@@ -57,17 +59,27 @@ def _build_create_account_kwargs(payload: AdminCreateAccountRequest) -> dict[str
 
 
 def _build_rotation_config(payload: AdminCreateAccountRequest) -> RotationConfig:
-    return RotationConfig.from_profile({
+    profile: dict[str, object] = {
         "rotation_enabled": bool(payload.rotationEnabled),
         "rotation_mode": payload.rotationMode,
         "rotation_optimality_mode": payload.rotationOptimalityMode,
         "rotation_interval_days": payload.rotationIntervalDays,
+        "rotation_interval_minutes": payload.rotationIntervalMinutes,
         "rotation_lookback_days": payload.rotationLookbackDays,
         "rotation_schedule": payload.rotationSchedule,
+        "rotation_regime_strategy_risk_on": payload.rotationRegimeStrategyRiskOn,
+        "rotation_regime_strategy_neutral": payload.rotationRegimeStrategyNeutral,
+        "rotation_regime_strategy_risk_off": payload.rotationRegimeStrategyRiskOff,
+        "rotation_overlay_mode": payload.rotationOverlayMode,
+        "rotation_overlay_min_tickers": payload.rotationOverlayMinTickers,
+        "rotation_overlay_confidence_threshold": payload.rotationOverlayConfidenceThreshold,
         "rotation_active_index": int(payload.rotationActiveIndex),
         "rotation_last_at": payload.rotationLastAt,
         "rotation_active_strategy": payload.rotationActiveStrategy,
-    })
+    }
+    if payload.rotationOverlayWatchlist is not None:
+        profile["rotation_overlay_watchlist"] = payload.rotationOverlayWatchlist
+    return RotationConfig.from_profile(profile)
 
 
 @router.post("/api/admin/accounts/create")
@@ -110,4 +122,3 @@ def api_csv_export_preview(
     limit: int = Query(default=200, ge=1, le=2000),
 ) -> dict[str, object]:
     return preview_csv_export(exportName, fileName, limit)
-

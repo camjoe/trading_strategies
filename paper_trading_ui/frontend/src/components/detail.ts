@@ -21,9 +21,30 @@ function riskPolicyOptions(currentPolicy: string): string {
 }
 
 const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
+const ROTATION_MODE_OPTIONS = ["time", "optimal", "regime"] as const;
+const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return", "hybrid_weighted"] as const;
+const ROTATION_OVERLAY_MODE_OPTIONS = ["none", "news", "social", "news_social"] as const;
 
 function instrumentModeOptions(currentMode: string): string {
   return INSTRUMENT_MODE_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function rotationModeOptions(currentMode: string): string {
+  return ROTATION_MODE_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function rotationOptimalityOptions(currentMode: string): string {
+  return ROTATION_OPTIMALITY_OPTIONS.map(
+    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
+  ).join("");
+}
+
+function rotationOverlayModeOptions(currentMode: string): string {
+  return ROTATION_OVERLAY_MODE_OPTIONS.map(
     (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
   ).join("");
 }
@@ -33,6 +54,86 @@ function tradeTypeBadge(note: string | null): string {
   if (note.includes("instrument=option")) return `<span class="chip chip--option">option</span>`;
   if (note.includes("auto-daily")) return `<span class="chip chip--auto">auto</span>`;
   return `<span class="chip chip--manual">manual</span>`;
+}
+
+function metricValue(value: number | null | undefined, suffix = "", digits = 2): string {
+  return value == null ? "—" : `${value.toFixed(digits)}${suffix}`;
+}
+
+function renderEquitySparkline(
+  snapshots: AccountDetail["snapshots"],
+  options: { title: string },
+): string {
+  const { title } = options;
+  if (snapshots.length < 2) {
+    return `<div class="muted">${esc(title)} unavailable.</div>`;
+  }
+
+  const equities = snapshots.map((item) => item.equity);
+  const minEquity = Math.min(...equities);
+  const maxEquity = Math.max(...equities);
+  const spread = Math.max(maxEquity - minEquity, 1);
+  const width = 320;
+  const height = 96;
+  const pad = 8;
+  const points = snapshots
+    .map((item, index) => {
+      const x = pad + ((width - (pad * 2)) * index) / Math.max(snapshots.length - 1, 1);
+      const y = height - pad - (((item.equity - minEquity) / spread) * (height - (pad * 2)));
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return `
+    <div class="bt-equity-curve">
+      <div class="row slim"><strong>${esc(title)}</strong> <span>${currency.format(minEquity)} to ${currency.format(maxEquity)}</span></div>
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(title)}">
+        <polyline fill="none" stroke="currentColor" stroke-width="2" points="${points}" />
+      </svg>
+    </div>
+  `;
+}
+
+function renderBenchmarkOverlaySparkline(overlay: NonNullable<AccountDetail["liveBenchmarkOverlay"]>): string {
+  if (overlay.points.length < 2) {
+    return `<div class="muted">Benchmark overlay unavailable.</div>`;
+  }
+
+  const values = overlay.points.flatMap((item) => [item.accountEquity, item.benchmarkEquity]);
+  const minEquity = Math.min(...values);
+  const maxEquity = Math.max(...values);
+  const spread = Math.max(maxEquity - minEquity, 1);
+  const width = 320;
+  const height = 96;
+  const pad = 8;
+  const pointFor = (value: number, index: number): string => {
+    const x = pad + ((width - (pad * 2)) * index) / Math.max(overlay.points.length - 1, 1);
+    const y = height - pad - (((value - minEquity) / spread) * (height - (pad * 2)));
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  };
+  const accountPoints = overlay.points
+    .map((item, index) => pointFor(item.accountEquity, index))
+    .join(" ");
+  const benchmarkPoints = overlay.points
+    .map((item, index) => pointFor(item.benchmarkEquity, index))
+    .join(" ");
+
+  return `
+    <div class="bt-equity-curve">
+      <div class="row slim">
+        <strong>Live vs ${esc(overlay.benchmark)}</strong>
+        <span>Account ${overlay.accountReturnPct.toFixed(2)}% | Benchmark ${overlay.benchmarkReturnPct.toFixed(2)}% | Alpha ${overlay.alphaPct.toFixed(2)}%</span>
+      </div>
+      <div class="row slim">
+        <span>Account line</span>
+        <span style="color:#6b7280">Benchmark line</span>
+      </div>
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Live vs ${esc(overlay.benchmark)}">
+        <polyline fill="none" stroke="currentColor" stroke-width="2" points="${accountPoints}" />
+        <polyline fill="none" stroke="#6b7280" stroke-width="2" stroke-dasharray="4 3" points="${benchmarkPoints}" />
+      </svg>
+    </div>
+  `;
 }
 
 export function renderDetail(detail: AccountDetail, options: DetailRenderOptions = {}): string {
@@ -97,10 +198,27 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <div><strong>Latest Backtest Run ${detail.latestBacktest.runId}</strong> ${esc(detail.latestBacktest.runName ?? "(unnamed)")}</div>
         <div>Range: ${esc(detail.latestBacktest.startDate)}..${esc(detail.latestBacktest.endDate)} | Created: ${new Date(detail.latestBacktest.createdAt).toLocaleString()}</div>
         <div>Slippage: ${detail.latestBacktest.slippageBps.toFixed(2)} bps | Fee: ${currency.format(detail.latestBacktest.feePerTrade)}</div>
+        ${detail.latestBacktestMetrics
+          ? `<div class="analysis-summary">
+              <div class="analysis-stat"><span class="label">Backtest Return</span><span>${metricValue(detail.latestBacktestMetrics.totalReturnPct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Alpha</span><span>${metricValue(detail.latestBacktestMetrics.alphaPct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Max DD</span><span>${metricValue(detail.latestBacktestMetrics.maxDrawdownPct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Sharpe</span><span>${metricValue(detail.latestBacktestMetrics.sharpeRatio)}</span></div>
+              <div class="analysis-stat"><span class="label">Win Rate</span><span>${metricValue(detail.latestBacktestMetrics.winRatePct, "%")}</span></div>
+              <div class="analysis-stat"><span class="label">Profit Factor</span><span>${metricValue(detail.latestBacktestMetrics.profitFactor)}</span></div>
+            </div>`
+          : ""}
         <button id="openLatestBacktestReportBtn" data-run-id="${detail.latestBacktest.runId}" type="button">Open Report</button>
       </div>
     `
     : `<div class="empty">No backtest run found for this account yet.</div>`;
+  const benchmarkSummary = detail.liveBenchmarkOverlay
+    ? `<div class="analysis-summary">
+         <div class="analysis-stat"><span class="label">Benchmark Return</span><span>${metricValue(detail.liveBenchmarkOverlay.benchmarkReturnPct, "%")}</span></div>
+         <div class="analysis-stat"><span class="label">Live Alpha</span><span>${metricValue(detail.liveBenchmarkOverlay.alphaPct, "%")}</span></div>
+         <div class="analysis-stat"><span class="label">Benchmark Equity</span><span>${currency.format(detail.liveBenchmarkOverlay.benchmarkEquity)}</span></div>
+       </div>`
+    : "";
 
   return `
     <div class="detail-head">
@@ -112,6 +230,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           &nbsp;·&nbsp; Settlement Cash: <strong>${currency.format(detail.account.settlementCash)}</strong>
           &nbsp;·&nbsp; Return: <span class="${detail.account.totalChangePct >= 0 ? "up" : "down"}">${detail.account.totalChangePct >= 0 ? "+" : ""}${detail.account.totalChangePct.toFixed(2)}%</span>
         </p>
+        ${benchmarkSummary}
       </div>
       ${showActions || showAddTrade ? `<div class="detail-head-actions">
         ${showAddTrade ? `<button id="addTradeBtn" type="button">+ Add Trade</button>` : ""}
@@ -290,6 +409,101 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         </div>
       </details>
 
+      <details class="edit-params-section">
+        <summary>Rotation Settings</summary>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Rotation Enabled</span>
+            <select id="editRotationEnabledSelect">
+              <option value="false"${!detail.account.rotationEnabled ? " selected" : ""}>Off</option>
+              <option value="true"${detail.account.rotationEnabled ? " selected" : ""}>On</option>
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Rotation Mode</span>
+            <select id="editRotationModeSelect">
+              ${rotationModeOptions(detail.account.rotationMode ?? "time")}
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Optimality Mode</span>
+            <select id="editRotationOptimalityModeSelect">
+              ${rotationOptimalityOptions(detail.account.rotationOptimalityMode ?? "previous_period_best")}
+            </select>
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Interval Days</span>
+            <input id="editRotationIntervalDaysInput" type="number" step="1" min="1" value="${detail.account.rotationIntervalDays ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Interval Minutes</span>
+            <input id="editRotationIntervalMinutesInput" type="number" step="1" min="1" value="${detail.account.rotationIntervalMinutes ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Lookback Days</span>
+            <input id="editRotationLookbackDaysInput" type="number" step="1" min="1" value="${detail.account.rotationLookbackDays ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Active Index</span>
+            <input id="editRotationActiveIndexInput" type="number" step="1" min="0" value="${detail.account.rotationActiveIndex ?? 0}" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Active Strategy</span>
+            <input id="editRotationActiveStrategyInput" type="text" value="${esc(detail.account.rotationActiveStrategy ?? "")}" placeholder="trend" />
+          </div>
+          <div class="bt-field">
+            <span>Last Rotated At</span>
+            <input id="editRotationLastAtInput" type="text" value="${esc(detail.account.rotationLastAt ?? "")}" placeholder="2026-03-18T12:00:00Z" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field" style="flex:1">
+            <span>Rotation Schedule (comma-separated)</span>
+            <input id="editRotationScheduleInput" type="text" value="${esc((detail.account.rotationSchedule ?? []).join(","))}" placeholder="trend,mean_reversion,breakout" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Regime Risk-On Strategy</span>
+            <input id="editRotationRegimeRiskOnInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOn ?? "")}" placeholder="trend" />
+          </div>
+          <div class="bt-field">
+            <span>Regime Neutral Strategy</span>
+            <input id="editRotationRegimeNeutralInput" type="text" value="${esc(detail.account.rotationRegimeStrategyNeutral ?? "")}" placeholder="ma_crossover" />
+          </div>
+          <div class="bt-field">
+            <span>Regime Risk-Off Strategy</span>
+            <input id="editRotationRegimeRiskOffInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOff ?? "")}" placeholder="mean_reversion" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field">
+            <span>Overlay Mode</span>
+            <select id="editRotationOverlayModeSelect">
+              ${rotationOverlayModeOptions(detail.account.rotationOverlayMode ?? "none")}
+            </select>
+          </div>
+          <div class="bt-field">
+            <span>Overlay Min Tickers</span>
+            <input id="editRotationOverlayMinTickersInput" type="number" step="1" min="1" value="${detail.account.rotationOverlayMinTickers ?? ""}" />
+          </div>
+          <div class="bt-field">
+            <span>Overlay Confidence Threshold</span>
+            <input id="editRotationOverlayConfidenceThresholdInput" type="number" step="0.01" min="0.01" max="1" value="${detail.account.rotationOverlayConfidenceThreshold ?? ""}" placeholder="0.50" />
+          </div>
+        </div>
+        <div class="bt-row">
+          <div class="bt-field" style="flex:1">
+            <span>Overlay Watchlist (comma-separated)</span>
+            <input id="editRotationOverlayWatchlistInput" type="text" value="${esc((detail.account.rotationOverlayWatchlist ?? []).join(","))}" placeholder="AAPL,MSFT,NVDA" />
+          </div>
+        </div>
+      </details>
+
       <div class="edit-params-actions">
         <button id="editParamsSaveBtn" type="button">Save</button>
         <button id="editParamsCancelBtn" type="button">Cancel</button>
@@ -312,6 +526,10 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       <div>
         <article>
           <h4>Equity Snapshots</h4>
+          ${detail.liveBenchmarkOverlay
+            ? renderBenchmarkOverlaySparkline(detail.liveBenchmarkOverlay)
+            : ""}
+          ${renderEquitySparkline(detail.snapshots, { title: "Live Equity Curve" })}
           <table>
             <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
             <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>

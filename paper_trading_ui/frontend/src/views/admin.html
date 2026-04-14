@@ -171,6 +171,7 @@
               <select name="rotationMode">
                 <option value="time" selected>time</option>
                 <option value="optimal">optimal</option>
+                <option value="regime">regime</option>
               </select>
             </label>
             <label class="bt-field">
@@ -178,11 +179,16 @@
               <select name="rotationOptimalityMode">
                 <option value="previous_period_best" selected>previous_period_best</option>
                 <option value="average_return">average_return</option>
+                <option value="hybrid_weighted">hybrid_weighted</option>
               </select>
             </label>
             <label class="bt-field">
               <span>Interval days</span>
               <input name="rotationIntervalDays" type="number" min="1" />
+            </label>
+            <label class="bt-field">
+              <span>Interval minutes</span>
+              <input name="rotationIntervalMinutes" type="number" min="1" />
             </label>
             <label class="bt-field">
               <span>Lookback days</span>
@@ -203,6 +209,39 @@
             <label class="bt-field admin-wide">
               <span>Rotation schedule (comma-separated)</span>
               <input name="rotationScheduleCsv" placeholder="trend,mean_reversion,breakout" />
+            </label>
+            <label class="bt-field">
+              <span>Regime Risk-On Strategy</span>
+              <input name="rotationRegimeStrategyRiskOn" />
+            </label>
+            <label class="bt-field">
+              <span>Regime Neutral Strategy</span>
+              <input name="rotationRegimeStrategyNeutral" />
+            </label>
+            <label class="bt-field">
+              <span>Regime Risk-Off Strategy</span>
+              <input name="rotationRegimeStrategyRiskOff" />
+            </label>
+            <label class="bt-field">
+              <span>Overlay Mode</span>
+              <select name="rotationOverlayMode">
+                <option value="none" selected>none</option>
+                <option value="news">news</option>
+                <option value="social">social</option>
+                <option value="news_social">news_social</option>
+              </select>
+            </label>
+            <label class="bt-field">
+              <span>Overlay Min Tickers</span>
+              <input name="rotationOverlayMinTickers" type="number" min="1" />
+            </label>
+            <label class="bt-field">
+              <span>Overlay Confidence Threshold</span>
+              <input name="rotationOverlayConfidenceThreshold" type="number" min="0.01" max="1" step="0.01" placeholder="0.50" />
+            </label>
+            <label class="bt-field admin-wide">
+              <span>Overlay Watchlist (comma-separated)</span>
+              <input name="rotationOverlayWatchlistCsv" placeholder="Leave blank to use trading/config/trade_universe.txt" />
             </label>
           </div>
         </details>

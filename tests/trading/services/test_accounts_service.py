@@ -2,8 +2,12 @@ import sqlite3
 
 import pytest
 
+import trading.services.accounts_service as accounts_service
+from trading.models.account_config import AccountConfig
 from trading.services.accounts_service import (
     build_account_listing_lines,
+    create_account,
+    format_account_policy_text,
     format_goal_text,
 )
 
@@ -36,8 +40,12 @@ def _account_row(
     goal_period: str = "monthly",
     learning_enabled: int = 0,
     risk_policy: str = "none",
+    trade_size_pct: float = 10.0,
+    max_position_pct: float = 20.0,
     instrument_mode: str = "equity",
     created_at: str = "2026-01-01T00:00:00",
+    rotation_enabled: int = 0,
+    rotation_active_strategy: str | None = None,
 ) -> sqlite3.Row:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
@@ -46,15 +54,18 @@ def _account_row(
             id INTEGER, name TEXT, descriptive_name TEXT, strategy TEXT,
             initial_cash REAL, benchmark_ticker TEXT,
             goal_min_return_pct REAL, goal_max_return_pct REAL, goal_period TEXT,
-            learning_enabled INTEGER, risk_policy TEXT, instrument_mode TEXT, created_at TEXT
+            learning_enabled INTEGER, risk_policy TEXT, trade_size_pct REAL, max_position_pct REAL,
+            instrument_mode TEXT, created_at TEXT,
+            rotation_enabled INTEGER, rotation_active_strategy TEXT
         )"""
     )
     conn.execute(
-        "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             id, name, descriptive_name, strategy, initial_cash, benchmark_ticker,
             goal_min_return_pct, goal_max_return_pct, goal_period,
-            learning_enabled, risk_policy, instrument_mode, created_at,
+            learning_enabled, risk_policy, trade_size_pct, max_position_pct, instrument_mode, created_at,
+            rotation_enabled, rotation_active_strategy,
         ],
     )
     return conn.execute("SELECT * FROM t").fetchone()
@@ -89,8 +100,8 @@ class TestBuildAccountListingLines:
             _account_row(name="b1", strategy="Trend"),
         ]
         lines = build_account_listing_lines(rows, by_strategy=True)
-        assert any("Strategy: Momentum" in line for line in lines)
-        assert any("Strategy: Trend" in line for line in lines)
+        assert any("Base Strategy: Momentum" in line for line in lines)
+        assert any("Base Strategy: Trend" in line for line in lines)
         assert any("a1" in line for line in lines)
         assert any("b1" in line for line in lines)
 
@@ -100,7 +111,7 @@ class TestBuildAccountListingLines:
             _account_row(name="b1", strategy="Trend"),
         ]
         lines = build_account_listing_lines(rows, by_strategy=False)
-        assert not any("Strategy:" in line for line in lines)
+        assert not any("Base Strategy:" in line for line in lines)
         assert any("a1" in line for line in lines)
         assert any("b1" in line for line in lines)
 
@@ -115,3 +126,51 @@ class TestBuildAccountListingLines:
         lines = build_account_listing_lines(rows, by_strategy=True)
         # A blank line separates strategy groups
         assert "" in lines
+
+    def test_rotation_accounts_show_base_and_active_strategy(self) -> None:
+        rows = [
+            _account_row(
+                name="rot",
+                strategy="Trend",
+                rotation_enabled=1,
+                rotation_active_strategy="mean_reversion",
+            ),
+        ]
+
+        lines = build_account_listing_lines(rows, by_strategy=False)
+
+        assert "account_policy=base_strategy=Trend | active_strategy=mean_reversion" in lines[0]
+        assert "display_name=Account" in lines[0]
+        assert "heuristic_exploration=off" in lines[0]
+        assert "goal_metadata=" not in lines[0]
+
+
+def test_format_account_policy_text_for_non_rotation_account() -> None:
+    row = _account_row(strategy="Trend")
+
+    assert format_account_policy_text(row) == (
+        "base_strategy=Trend | active_strategy=Trend | benchmark=SPY | "
+        "heuristic_exploration=off | risk=none | instrument=equity | "
+        "trade_size=10.00% | max_position=20.00%"
+    )
+
+
+def test_create_account_rejects_unknown_strategy_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    insert_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    monkeypatch.setattr(
+        accounts_service,
+        "insert_account",
+        lambda *args, **kwargs: insert_calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
+        create_account(
+            sqlite3.connect(":memory:"),
+            "acct",
+            "mystery_strategy",
+            5000.0,
+            "SPY",
+            config=AccountConfig(),
+        )
+
+    assert insert_calls == []

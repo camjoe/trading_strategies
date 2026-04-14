@@ -24,6 +24,8 @@ def insert_account(
     risk_policy: str,
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
     instrument_mode: str,
     option_strike_offset_pct: float | None,
     option_min_dte: int | None,
@@ -55,6 +57,8 @@ def insert_account(
             risk_policy,
             stop_loss_pct,
             take_profit_pct,
+            trade_size_pct,
+            max_position_pct,
             instrument_mode,
             option_strike_offset_pct,
             option_min_dte,
@@ -70,7 +74,7 @@ def insert_account(
             profit_take_pct,
             max_loss_pct
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             name,
@@ -86,6 +90,8 @@ def insert_account(
             risk_policy,
             stop_loss_pct,
             take_profit_pct,
+            trade_size_pct,
+            max_position_pct,
             instrument_mode,
             option_strike_offset_pct,
             option_min_dte,

@@ -50,6 +50,9 @@ class PaperBrokerAdapter(BrokerConnection):
     def cancel_order(self, broker_order_id: str) -> None:
         raise NotImplementedError("Paper orders fill immediately and cannot be cancelled.")
 
+    def get_open_trades(self) -> list[BrokerOrder]:
+        return []
+
     def get_positions(self) -> dict[str, float]:
         raise NotImplementedError(
             "Paper positions are tracked in the DB — use accounting_service instead."

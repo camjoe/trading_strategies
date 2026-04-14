@@ -36,6 +36,8 @@ def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
         assert "backtest_runs" in names
         assert "backtest_trades" in names
         assert "backtest_equity_snapshots" in names
+        assert "promotion_reviews" in names
+        assert "promotion_review_events" in names
     finally:
         conn.close()
 
@@ -76,18 +78,19 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
 
         assert "benchmark_ticker" in account_columns
         assert "descriptive_name" in account_columns
+        assert "rotation_overlay_watchlist" in account_columns
         assert "rotation_active_strategy" in account_columns
         assert "strategy_name" in run_columns
 
         row = conn.execute(
-            "SELECT name, descriptive_name, benchmark_ticker FROM accounts WHERE name = 'acct_legacy'"
+            "SELECT name, descriptive_name, benchmark_ticker, rotation_overlay_watchlist FROM accounts WHERE name = 'acct_legacy'"
         ).fetchone()
         assert row is not None
         assert row["descriptive_name"] == "acct_legacy"
         assert row["benchmark_ticker"] == "SPY"
+        assert row["rotation_overlay_watchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
     finally:
         conn.close()
-
 
 def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBackend) -> None:
     conn = sqlite_backend.open_connection()
@@ -115,6 +118,38 @@ def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBac
         row = conn.execute("SELECT descriptive_name FROM accounts WHERE name = 'acct_post'").fetchone()
         assert row is not None
         assert row["descriptive_name"] == "acct_post"
+    finally:
+        conn.close()
+
+
+def test_overlay_watchlist_migration_backfills_existing_accounts(sqlite_backend: SQLiteBackend) -> None:
+    conn = sqlite_backend.open_connection()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                strategy TEXT NOT NULL,
+                initial_cash REAL NOT NULL,
+                created_at TEXT NOT NULL
+            );
+
+            INSERT INTO accounts (name, strategy, initial_cash, created_at)
+            VALUES ('acct_watchlist', 'Trend', 1000, '2026-01-01T00:00:00Z');
+            """
+        )
+
+        migration = next(
+            item for item in db.ACCOUNT_MIGRATIONS if item.column_name == "rotation_overlay_watchlist"
+        )
+        db._ensure_column(conn, "accounts", migration)
+
+        row = conn.execute(
+            "SELECT rotation_overlay_watchlist FROM accounts WHERE name = 'acct_watchlist'"
+        ).fetchone()
+        assert row is not None
+        assert row["rotation_overlay_watchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
     finally:
         conn.close()
 

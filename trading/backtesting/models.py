@@ -31,6 +31,12 @@ class BacktestResult:
     alpha_pct: float | None
     max_drawdown_pct: float
     warnings: list[str]
+    sharpe_ratio: float | None = None
+    sortino_ratio: float | None = None
+    calmar_ratio: float | None = None
+    win_rate_pct: float | None = None
+    profit_factor: float | None = None
+    avg_trade_return_pct: float | None = None
 
 
 @dataclass

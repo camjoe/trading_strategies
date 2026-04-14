@@ -109,6 +109,10 @@ class BrokerConnection(ABC):
         """Request cancellation of an open order."""
 
     @abstractmethod
+    def get_open_trades(self) -> list[BrokerOrder]:
+        """Return currently open broker orders with their latest known fill state."""
+
+    @abstractmethod
     def get_positions(self) -> dict[str, float]:
         """Return current live positions as ``{ticker: qty}``."""
 

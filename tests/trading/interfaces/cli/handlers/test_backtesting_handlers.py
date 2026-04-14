@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import types
 
+import pytest
+
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
     handle_backtest_batch,
     handle_backtest_leaderboard,
     handle_backtest_report,
     handle_backtest_walk_forward,
+    handle_backtest_walk_forward_report,
 )
 
 
@@ -48,6 +51,12 @@ def _fake_result(**kwargs) -> types.SimpleNamespace:
         max_drawdown_pct=-2.0,
         benchmark_return_pct=3.0,
         alpha_pct=2.0,
+        sharpe_ratio=None,
+        sortino_ratio=None,
+        calmar_ratio=None,
+        win_rate_pct=None,
+        profit_factor=None,
+        avg_trade_return_pct=None,
         warnings=[],
     )
     defaults.update(kwargs)
@@ -80,6 +89,16 @@ def test_handle_backtest_prints_warnings_when_present(capsys) -> None:
     assert "LEAPs mode is approximated" in capsys.readouterr().out
 
 
+def test_handle_backtest_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "BacktestConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_backtest": lambda *_: (_ for _ in ()).throw(ValueError("Unknown strategy 'mystery_strategy'")),
+    }
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest(object(), _backtest_args(), _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
     result = _fake_result(benchmark_return_pct=None, alpha_pct=None)
     deps = {
@@ -89,7 +108,10 @@ def test_handle_backtest_omits_benchmark_line_when_unavailable(capsys) -> None:
 
     handle_backtest(object(), _backtest_args(), _parser(), deps=deps, module_file="", db_path="")
 
-    assert "Benchmark comparison unavailable" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Benchmark comparison unavailable" in out
+    assert "Risk Analytics:" in out
+    assert "Trade Analytics:" in out
 
 
 def test_handle_backtest_report_prints_run_id(capsys) -> None:
@@ -110,6 +132,12 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
         "fee_per_trade": 0.0,
         "tickers_file": "tickers.txt",
         "warnings": "",
+        "sharpe_ratio": 1.2,
+        "sortino_ratio": 1.5,
+        "calmar_ratio": 0.8,
+        "win_rate_pct": 60.0,
+        "profit_factor": 1.7,
+        "avg_trade_return_pct": 2.5,
     }
     deps = {"backtest_report": lambda _conn, _run_id: report}
 
@@ -117,7 +145,10 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
         object(), types.SimpleNamespace(run_id=42), _parser(), deps=deps, module_file="", db_path=""
     )
 
-    assert "42" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "42" in out
+    assert "Risk Analytics:" in out
+    assert "Trade Analytics:" in out
 
 
 def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
@@ -133,6 +164,12 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
         max_drawdown_pct=-2.0,
         benchmark_return_pct=3.0,
         alpha_pct=2.0,
+        sharpe_ratio=1.1,
+        sortino_ratio=1.4,
+        calmar_ratio=0.7,
+        win_rate_pct=55.0,
+        profit_factor=1.5,
+        avg_trade_return_pct=2.0,
         trade_count=3,
         created_at="2026-03-01",
     )
@@ -141,7 +178,9 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
 
     handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
-    assert "run_id" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "run_id" in out
+    assert "sharpe_ratio" in out
 
 
 def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> None:
@@ -151,6 +190,18 @@ def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> Non
     handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
     assert "No backtest runs" in capsys.readouterr().out
+
+
+def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        )
+    }
+    args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
 
 def test_handle_backtest_batch_prints_rank_table(capsys) -> None:
@@ -205,6 +256,30 @@ def test_handle_backtest_batch_splits_accounts_on_comma() -> None:
     assert seen_accounts == ["acct_a", "acct_b"]
 
 
+def test_handle_backtest_batch_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "BacktestBatchConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_backtest_batch": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        ),
+    }
+    args = types.SimpleNamespace(
+        accounts="acct_a",
+        tickers_file="tickers.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-01",
+        lookback_months=None,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name_prefix=None,
+        allow_approximate_leaps=False,
+    )
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest_batch(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
     summary = types.SimpleNamespace(
         account_name="acct",
@@ -239,3 +314,79 @@ def test_handle_backtest_walk_forward_prints_window_count(capsys) -> None:
     handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
     assert "windows=3" in capsys.readouterr().out
+
+
+def test_handle_backtest_walk_forward_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "WalkForwardConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_walk_forward_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        ),
+    }
+    args = types.SimpleNamespace(
+        account="acct",
+        tickers_file="tickers.txt",
+        universe_history_dir=None,
+        start="2026-01-01",
+        end="2026-03-31",
+        lookback_months=None,
+        test_months=1,
+        step_months=1,
+        slippage_bps=5.0,
+        fee=0.0,
+        run_name_prefix=None,
+        allow_approximate_leaps=False,
+    )
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
+def test_handle_backtest_walk_forward_report_prints_window_rows(capsys) -> None:
+    report = {
+        "group_id": 7,
+        "account_name": "acct",
+        "strategy_name": "trend",
+        "run_name_prefix": "wf",
+        "start_date": "2026-01-01",
+        "end_date": "2026-03-31",
+        "created_at": "2026-04-14T00:00:00Z",
+        "window_count": 2,
+        "average_return_pct": 4.0,
+        "median_return_pct": 4.0,
+        "best_return_pct": 5.0,
+        "worst_return_pct": 3.0,
+        "windows": [
+            {
+                "window_index": 1,
+                "window_start": "2026-01-01",
+                "window_end": "2026-01-31",
+                "total_return_pct": 3.0,
+                "backtest_summary": {
+                    "run_id": 101,
+                    "run_name": "wf_01",
+                    "max_drawdown_pct": -1.0,
+                    "trade_count": 5,
+                },
+            }
+        ],
+    }
+    deps = {"walk_forward_report": lambda *_a, **_kw: report}
+    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
+
+    handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+    out = capsys.readouterr().out
+    assert "Walk-forward Group 7" in out
+    assert "window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count" in out
+    assert "101,wf_01" in out
+
+
+def test_handle_backtest_walk_forward_report_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "walk_forward_report": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Walk-forward group 7 not found."))
+    }
+    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
+
+    with pytest.raises(SystemExit, match="Walk-forward group 7 not found."):
+        handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 from common.time import utc_now_iso
@@ -63,6 +64,54 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     assert summary["totalChange"] == 200.0
     assert summary["totalChangePct"] == pytest.approx(20.0)
     assert summary["changeSinceLastSnapshot"] == 100.0
+
+
+def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> None:
+    close_index = pd.to_datetime(["2026-01-02", "2026-01-03", "2026-01-04"])
+    close_series = pd.Series([100.0, 105.0, 110.0], index=close_index)
+    monkeypatch.setattr(
+        services_accounts,
+        "fetch_benchmark_close_history",
+        lambda _ticker, *, start_date, end_date: close_series,
+    )
+
+    overlay = services_accounts.build_live_benchmark_overlay(
+        {"benchmark": "SPY", "equity": 1200.0},
+        [
+            {"snapshot_time": "2026-01-04T00:00:00Z", "equity": 1200.0},
+            {"snapshot_time": "2026-01-02T00:00:00Z", "equity": 1000.0},
+            {"snapshot_time": "2026-01-03T00:00:00Z", "equity": 1100.0},
+        ],
+    )
+
+    assert overlay is not None
+    assert overlay["benchmark"] == "SPY"
+    assert overlay["startTime"] == "2026-01-02T00:00:00Z"
+    assert overlay["endTime"] == "2026-01-04T00:00:00Z"
+    assert overlay["benchmarkReturnPct"] == pytest.approx(10.0)
+    assert overlay["alphaPct"] == pytest.approx(10.0)
+    points = overlay["points"]
+    assert len(points) == 3
+    assert points[-1]["benchmarkEquity"] == pytest.approx(1100.0)
+
+
+def test_attach_live_benchmark_summary_sets_fields() -> None:
+    summary = {"name": "acct"}
+    overlay = {
+        "benchmarkReturnPct": 6.0,
+        "alphaPct": 2.5,
+        "benchmarkEquity": 1060.0,
+        "startTime": "2026-01-01T00:00:00Z",
+        "endTime": "2026-01-10T00:00:00Z",
+    }
+
+    services_accounts.attach_live_benchmark_summary(summary, overlay)
+
+    assert summary["liveBenchmarkReturnPct"] == pytest.approx(6.0)
+    assert summary["liveAlphaPct"] == pytest.approx(2.5)
+    assert summary["liveBenchmarkEquity"] == pytest.approx(1060.0)
+    assert summary["liveBenchmarkStartTime"] == "2026-01-01T00:00:00Z"
+    assert summary["liveBenchmarkEndTime"] == "2026-01-10T00:00:00Z"
 
 
 def test_display_helpers_map_shadow_backtest_account() -> None:
@@ -146,6 +195,12 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
             end_date="2026-01-31",
             total_return_pct=12.5,
             max_drawdown_pct=-4.2,
+            sharpe_ratio=1.4,
+            sortino_ratio=1.9,
+            calmar_ratio=0.8,
+            win_rate_pct=57.0,
+            profit_factor=1.6,
+            avg_trade_return_pct=2.1,
         ),
     )
 
@@ -156,7 +211,34 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "totalReturnPct": 12.5,
         "maxDrawdownPct": -4.2,
         "alphaPct": None,
+        "sharpeRatio": 1.4,
+        "sortinoRatio": 1.9,
+        "calmarRatio": 0.8,
+        "winRatePct": 57.0,
+        "profitFactor": 1.6,
+        "avgTradeReturnPct": 2.1,
     }
+
+
+def test_build_comparison_account_payload_includes_live_overlay_summary() -> None:
+    payload = services_accounts.build_comparison_account_payload(
+        {
+            "name": "acct_cmp",
+            "displayName": "Acct Compare",
+            "strategy": "trend",
+            "benchmark": "SPY",
+            "equity": 1100.0,
+            "initialCash": 1000.0,
+            "totalChange": 100.0,
+            "totalChangePct": 10.0,
+            "liveBenchmarkReturnPct": 7.0,
+            "liveAlphaPct": 3.0,
+        },
+        None,
+    )
+
+    assert payload["liveBenchmarkReturnPct"] == pytest.approx(7.0)
+    assert payload["liveAlphaPct"] == pytest.approx(3.0)
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +362,83 @@ class TestBuildAccountSummaryShape:
         for key in ("name", "equity", "initialCash", "totalChange",
                     "totalChangePct", "changeSinceLastSnapshot", "strategy"):
             assert key in summary, f"Missing key: {key}"
+
+    def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            services_accounts,
+            "build_account_stats",
+            lambda _conn, _row: (None, None, None, None, 1200.0),
+        )
+        monkeypatch.setattr(
+            services_accounts,
+            "fetch_latest_snapshot_row",
+            lambda _conn, _account_id: None,
+        )
+        row = {
+            "id": 1,
+            "name": "acct_rotation",
+            "descriptive_name": "Rotation Account",
+            "strategy": "trend",
+            "instrument_mode": "equity",
+            "risk_policy": "none",
+            "benchmark_ticker": "SPY",
+            "initial_cash": 1000.0,
+            "stop_loss_pct": None,
+            "take_profit_pct": None,
+            "goal_min_return_pct": None,
+            "goal_max_return_pct": None,
+            "goal_period": None,
+            "learning_enabled": None,
+            "option_strike_offset_pct": None,
+            "option_min_dte": None,
+            "option_max_dte": None,
+            "option_type": None,
+            "target_delta_min": None,
+            "target_delta_max": None,
+            "max_premium_per_trade": None,
+            "max_contracts_per_trade": None,
+            "iv_rank_min": None,
+            "iv_rank_max": None,
+            "roll_dte_threshold": None,
+            "profit_take_pct": None,
+            "max_loss_pct": None,
+            "rotation_enabled": 1,
+            "rotation_mode": "optimal",
+            "rotation_optimality_mode": "average_return",
+            "rotation_interval_days": 7,
+            "rotation_interval_minutes": 240,
+            "rotation_lookback_days": 30,
+            "rotation_schedule": '["trend","ma_crossover","mean_reversion"]',
+            "rotation_regime_strategy_risk_on": "trend",
+            "rotation_regime_strategy_neutral": "ma_crossover",
+            "rotation_regime_strategy_risk_off": "mean_reversion",
+            "rotation_overlay_mode": "news_social",
+            "rotation_overlay_min_tickers": 3,
+            "rotation_overlay_confidence_threshold": 0.65,
+            "rotation_overlay_watchlist": '["AAPL","MSFT","NVDA"]',
+            "rotation_active_index": 1,
+            "rotation_active_strategy": "ma_crossover",
+            "rotation_last_at": "2026-03-20T00:00:00Z",
+        }
+
+        summary = services_accounts.build_account_summary(conn=None, row=row)
+        assert summary["rotationEnabled"] is True
+        assert summary["rotationMode"] == "optimal"
+        assert summary["rotationOptimalityMode"] == "average_return"
+        assert summary["rotationIntervalDays"] == 7
+        assert summary["rotationIntervalMinutes"] == 240
+        assert summary["rotationLookbackDays"] == 30
+        assert summary["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
+        assert summary["rotationRegimeStrategyRiskOn"] == "trend"
+        assert summary["rotationRegimeStrategyNeutral"] == "ma_crossover"
+        assert summary["rotationRegimeStrategyRiskOff"] == "mean_reversion"
+        assert summary["rotationOverlayMode"] == "news_social"
+        assert summary["rotationOverlayMinTickers"] == 3
+        assert summary["rotationOverlayConfidenceThreshold"] == pytest.approx(0.65)
+        assert summary["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
+        assert summary["rotationActiveIndex"] == 1
+        assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
+        assert summary["rotationActiveStrategy"] == "ma_crossover"
 
     def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
         """zero initial_cash + no snapshot → delta_pct = 0.0 (no crash)."""

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from .accounts import (
+    attach_live_benchmark_summary,
     build_account_summary,
     build_account_summary_and_positions,
     build_backtest_run_summary,
     build_comparison_account_payload,
+    build_live_benchmark_overlay,
     build_snapshot_payload,
     build_trade_payload,
     display_account_name,
@@ -43,6 +45,7 @@ from .features import get_provider_status, get_signals
 
 __all__ = [
     "add_manual_trade",
+    "attach_live_benchmark_summary",
     "get_provider_status",
     "get_signals",
     "build_account_summary",
@@ -51,6 +54,7 @@ __all__ = [
     "build_backtest_config_from_run_request",
     "build_backtest_run_summary",
     "build_comparison_account_payload",
+    "build_live_benchmark_overlay",
     "build_snapshot_payload",
     "build_test_account_detail_payload",
     "build_test_account_live_summary",
