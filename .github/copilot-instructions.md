@@ -74,6 +74,7 @@
 Selection heuristics:
 
 - `Code Review`: reviewing changed files for regressions, architecture violations, missing tests, dependency issues — before committing or merging.
+- `Deep Code Review`: whole-area, high-depth read-only audits for simplification, stale code, superseded features, schema relevance, and consolidation across mature code areas.
 - `Docs Sync`: updating README files, architecture notes, reference docs, API documentation, and inline docstrings after code changes — when docs may have drifted from behavior.
 - `Frontend Code Cleanup`: frontend-only cleanup/refactor/readability in `paper_trading_ui/frontend`.
 - `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
@@ -91,6 +92,7 @@ Selection heuristics:
 Suggested keyword cues for fast matching:
 
 - `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
+- `Deep Code Review`: `deep code review`, `broad audit`, `whole area review`, `stale code`, `superseded code`, `simplify system`, `reduce code`, `redundant code`, `unused columns`, `unused tables`, `consolidation review`, `modernization audit`.
 - `Docs Sync`: `docs sync`, `documentation sync`, `stale readme`, `readme update`, `api docs`, `doc drift`, `update docs`, `docs out of sync`, `documentation drift`, `sync docs`, `keep docs`, `docs after change`.
 - `Frontend Code Cleanup`: `frontend`, `react`, `component`, `tsx`, `ui cleanup`, `vite`.
 - `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
@@ -106,18 +108,19 @@ Suggested keyword cues for fast matching:
 - `Docs Sync Bot`: `stale docs`, `docs drift`, `readme out of date`, `sync docs`, `keep docs fresh`, `documentation out of sync`, `update readme`, `docs stale`, `missing documentation`.
 
 1. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without writing code, choose `Finance and Strategy Domain Bot`.
-2. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
-3. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
-4. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-5. If the task is about implementing or interpreting existing backtesting or walk-forward flows, choose `Backtesting Analyst`.
-6. If the task is about modeling/research/alpha design as the primary objective, choose `Python Statistical Modeling`.
-7. If the task is about scheduler jobs, runtime operations, snapshots, health checks, or account operational flows, choose `Trading Runtime Investigator`.
-8. If the task is about backend/frontend route or schema contracts in `paper_trading_ui`, choose `UI API Steward`.
-9. If the task is about broker adapters, broker factory logic, reconciliation, or live-trading safety, choose `Broker Live Safety Steward`.
-10. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-11. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
-12. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose `Docs Sync Bot`.
-13. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
+2. If the task is about broad, read-only modernization review, simplification, stale code, redundant code, schema relevance, or superseded feature detection across `trading/`, `paper_trading_ui/`, or another large area, choose `Deep Code Review`.
+3. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
+4. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
+5. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
+6. If the task is about implementing or interpreting existing backtesting or walk-forward flows, choose `Backtesting Analyst`.
+7. If the task is about modeling/research/alpha design as the primary objective, choose `Python Statistical Modeling`.
+8. If the task is about scheduler jobs, runtime operations, snapshots, health checks, or account operational flows, choose `Trading Runtime Investigator`.
+9. If the task is about backend/frontend route or schema contracts in `paper_trading_ui`, choose `UI API Steward`.
+10. If the task is about broker adapters, broker factory logic, reconciliation, or live-trading safety, choose `Broker Live Safety Steward`.
+11. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
+12. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
+13. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose `Docs Sync Bot`.
+14. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
 If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 
@@ -130,6 +133,17 @@ If multiple bots seem valid, default to `Python Code Cleanup` and state why.
   - `code review: <file-or-folder>` — review a specific file or folder
 - The bot reads changed files, runs linters/type-checkers, and reports findings by severity (🔴 HIGH, 🟡 MEDIUM, 🔵 LOW).
 - It does not modify any files; it only audits and reports.
+
+# Deep Code Review Shortcut
+
+- If a user message starts with `deep code review` (ignoring leading/trailing whitespace and case), execute the deep review workflow defined in `.github/agents/deep-code-review.agent.md`.
+- Accepted forms:
+  - `deep code review` — review `trading/` and `paper_trading_ui/` together
+  - `deep code review: trading` — review `trading/`
+  - `deep code review: paper_trading_ui` — review `paper_trading_ui/`
+  - `deep code review: <file-or-folder>` — review a specific area with the same deep-audit method
+- This review is broader than normal `code review`: it focuses on simplification, stale or superseded code, extraction of common logic, schema/table/column relevance, abstraction quality, and opportunities to reduce complexity and code size.
+- It is read-only and should return an evidence-based cleanup roadmap, not a code patch.
 
 # Docs Sync Shortcut
 
@@ -232,6 +246,10 @@ Current shortcut catalog to show:
 	- Action: invokes the Code Review Bot — audits staged/unstaged changes or a branch diff for architecture violations, missing tests, regressions, and dependency issues. Reports findings by severity without modifying files.
 	- Example: `code review` or `code review: main`
 
-14. Trigger: `sync docs` / `docs sync`
+14. Trigger: `deep code review` / `deep code review: <area>`
+	- Action: runs the deep review workflow for whole-area simplification, stale-code detection, superseded-feature checks, schema relevance review, and architecture cleanup opportunities across `trading/`, `paper_trading_ui/`, or a specified scope.
+	- Example: `deep code review` or `deep code review: trading`
+
+15. Trigger: `sync docs` / `docs sync`
 	- Action: invokes the Docs Sync Bot — detects documentation drift after code changes, updates stale README files, architecture notes, reference docs, and API documentation to match current behavior.
 	- Example: `sync docs` or `docs sync`

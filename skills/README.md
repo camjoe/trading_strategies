@@ -95,6 +95,7 @@ If your assistant runtime supports a global skills folder, place unchanged copie
 |---|---|---|
 | `architecture-review.skill.md` | Layering and dependency checks | existing `project-structure-steward.global.agent.md` plus local architecture rules |
 | `code-review.skill.md` | Regression and changed-file audit | existing `code-review.global.agent.md` |
+| `deep-code-review.skill.md` | Whole-area modernization, simplification, and stale-code audit | `deep-code-review.agent.md` |
 | `docs-sync.skill.md` | Documentation drift detection | existing `docs-sync.global.agent.md` |
 | `python-cleanup.skill.md` | Backend cleanup and refactor guidance | existing `python-code-cleanup.global.agent.md` |
 | `test-expansion.skill.md` | Coverage and regression-test expansion | existing `python-test-expansion.global.agent.md` |
@@ -124,6 +125,7 @@ Add a new local overlay when the capability depends on:
 ## Initial local overlays added for trading_strategies
 
 - `backtesting-analyst.agent.md`
+- `deep-code-review.agent.md`
 - `broker-live-safety.agent.md`
 - `trading-runtime.agent.md`
 - `ui-api-steward.agent.md`
