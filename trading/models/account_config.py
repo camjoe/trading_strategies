@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, fields
 
 from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
@@ -37,12 +37,32 @@ class AccountConfig:
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> AccountConfig:
-        kwargs = {
-            field_name: coercer(values[field_name])
-            for field_name, coercer in ACCOUNT_CONFIG_FIELD_COERCERS.items()
-            if field_name in values
-        }
-        return cls(**kwargs)
+        return cls(
+            descriptive_name=coerce_str(values.get("descriptive_name")),
+            goal_min_return_pct=coerce_float(values.get("goal_min_return_pct")),
+            goal_max_return_pct=coerce_float(values.get("goal_max_return_pct")),
+            goal_period=coerce_str(values.get("goal_period")),
+            learning_enabled=coerce_bool(values.get("learning_enabled")),
+            risk_policy=coerce_str(values.get("risk_policy")),
+            stop_loss_pct=coerce_float(values.get("stop_loss_pct")),
+            take_profit_pct=coerce_float(values.get("take_profit_pct")),
+            trade_size_pct=coerce_float(values.get("trade_size_pct")),
+            max_position_pct=coerce_float(values.get("max_position_pct")),
+            instrument_mode=coerce_str(values.get("instrument_mode")),
+            option_strike_offset_pct=coerce_float(values.get("option_strike_offset_pct")),
+            option_min_dte=coerce_int(values.get("option_min_dte")),
+            option_max_dte=coerce_int(values.get("option_max_dte")),
+            option_type=coerce_str(values.get("option_type")),
+            target_delta_min=coerce_float(values.get("target_delta_min")),
+            target_delta_max=coerce_float(values.get("target_delta_max")),
+            max_premium_per_trade=coerce_float(values.get("max_premium_per_trade")),
+            max_contracts_per_trade=coerce_int(values.get("max_contracts_per_trade")),
+            iv_rank_min=coerce_float(values.get("iv_rank_min")),
+            iv_rank_max=coerce_float(values.get("iv_rank_max")),
+            roll_dte_threshold=coerce_int(values.get("roll_dte_threshold")),
+            profit_take_pct=coerce_float(values.get("profit_take_pct")),
+            max_loss_pct=coerce_float(values.get("max_loss_pct")),
+        )
 
     @classmethod
     def has_any_field(cls, values: Mapping[str, object]) -> bool:
@@ -50,30 +70,3 @@ class AccountConfig:
 
 
 ACCOUNT_CONFIG_FIELD_NAMES = tuple(field.name for field in fields(AccountConfig))
-
-ACCOUNT_CONFIG_FIELD_COERCERS: dict[str, Callable[[object], object | None]] = {
-    "descriptive_name": coerce_str,
-    "goal_min_return_pct": coerce_float,
-    "goal_max_return_pct": coerce_float,
-    "goal_period": coerce_str,
-    "learning_enabled": coerce_bool,
-    "risk_policy": coerce_str,
-    "stop_loss_pct": coerce_float,
-    "take_profit_pct": coerce_float,
-    "trade_size_pct": coerce_float,
-    "max_position_pct": coerce_float,
-    "instrument_mode": coerce_str,
-    "option_strike_offset_pct": coerce_float,
-    "option_min_dte": coerce_int,
-    "option_max_dte": coerce_int,
-    "option_type": coerce_str,
-    "target_delta_min": coerce_float,
-    "target_delta_max": coerce_float,
-    "max_premium_per_trade": coerce_float,
-    "max_contracts_per_trade": coerce_int,
-    "iv_rank_min": coerce_float,
-    "iv_rank_max": coerce_float,
-    "roll_dte_threshold": coerce_int,
-    "profit_take_pct": coerce_float,
-    "max_loss_pct": coerce_float,
-}

@@ -156,9 +156,11 @@ def test_format_account_policy_text_for_non_rotation_account() -> None:
 
 
 def test_create_account_rejects_unknown_strategy_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    from trading.services.accounts import mutations as account_mutations
+
     insert_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
     monkeypatch.setattr(
-        accounts_service,
+        account_mutations,
         "insert_account",
         lambda *args, **kwargs: insert_calls.append((args, kwargs)),
     )
