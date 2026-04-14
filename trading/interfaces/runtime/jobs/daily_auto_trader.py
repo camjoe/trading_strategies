@@ -1,6 +1,5 @@
 import argparse
 import random
-import sys
 
 from common.market_data import get_provider
 from common.repo_paths import get_repo_root
@@ -17,9 +16,7 @@ from trading.services.auto_trader_service import (
 )
 from trading.services.auto_trader_runtime_service import run_for_account
 
-PROJECT_ROOT = get_repo_root(__file__)
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+REPO_ROOT = get_repo_root(__file__)
 
 
 def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:

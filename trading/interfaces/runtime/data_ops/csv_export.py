@@ -4,7 +4,7 @@ import csv
 import shutil
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -111,7 +111,7 @@ def export_tables_to_csv(
     if not resolved_db_path.exists():
         raise FileNotFoundError(f"Database file not found: {resolved_db_path}")
 
-    stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     export_dir = output_base_dir.resolve() / f"db_csv_{stamp}"
     export_dir.mkdir(parents=True, exist_ok=True)
 
@@ -135,7 +135,7 @@ def export_tables_to_csv(
     return ExportBatchResult(
         db_path=resolved_db_path,
         output_dir=export_dir,
-        started_at_utc=datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        started_at_utc=datetime.now(timezone.utc).isoformat(timespec="seconds") + "Z",
         tables=tuple(results),
     )
 

@@ -10,7 +10,6 @@ from trading.backtesting.backtest import (
 )
 from trading.database.db import DB_PATH, ensure_db
 from trading.interfaces.cli.commands import build_parser
-from trading.interfaces.cli.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.services.profiles_service import apply_account_profiles, load_account_profiles
@@ -21,14 +20,6 @@ from trading.services.promotion_service import (
     show_promotion_status,
 )
 from trading.services.reporting_service import account_report, compare_strategies, show_snapshots, snapshot_account
-
-
-def _common_account_config_kwargs(args, *, include_learning_disabled: bool):
-    return common_account_config_kwargs(args, include_learning_disabled=include_learning_disabled)
-
-
-def _resolve_learning_enabled(args, include_learning_disabled: bool) -> bool | None:
-    return resolve_learning_enabled(args, include_learning_disabled)
 
 
 def _handler_deps() -> dict[str, object]:

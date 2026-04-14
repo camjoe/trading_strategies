@@ -20,7 +20,6 @@ from trading.services.profile_source import DEFAULT_TICKERS_FILE
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-BACKTEST_REFRESH_EXPORT_DIR = REPO_ROOT / "local" / "exports" / "scheduled_backtest_refresh"
 
 # Explicit opt-in env var so scheduled reruns remain operator-controlled.
 BACKTEST_REFRESH_ENABLED_ENV = "SCHEDULED_BACKTEST_REFRESH_ENABLED"

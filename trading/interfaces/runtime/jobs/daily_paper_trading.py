@@ -12,15 +12,12 @@ import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
+from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, RUNTIME_ALERT_WEBHOOK_ENV
 from trading.services.notifications_service import notify_webhook_best_effort
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 DEFAULT_TRADE_CAPS_CONFIG = "trading/config/account_trade_caps.json"
-
-# Environment variable used to opt runtime jobs into webhook notifications.
-DEFAULT_NOTIFICATION_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
@@ -83,10 +80,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-source", default="scheduled-daily")
     parser.add_argument(
         "--notify-webhook-url",
-        default=os.environ.get(DEFAULT_NOTIFICATION_WEBHOOK_ENV, ""),
+        default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
         help=(
             "Optional webhook URL for runtime notifications "
-            f"(default: ${DEFAULT_NOTIFICATION_WEBHOOK_ENV} if set)"
+            f"(default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"
         ),
     )
     parser.add_argument(
@@ -396,7 +393,7 @@ def main() -> int:
         stream_command(
             log_path,
             "Compare Strategies",
-            ["-m", "trading.interfaces.cli.main", "compare-strategies", "--lookback", "10"],
+            ["-m", "trading.interfaces.cli.main", "compare-strategies"],
             repo_root,
         )
 

@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+RUNTIME_ALERT_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
+
 
 def logs_dir_for_repo(repo_root: Path) -> Path:
     return repo_root / "local" / "logs"

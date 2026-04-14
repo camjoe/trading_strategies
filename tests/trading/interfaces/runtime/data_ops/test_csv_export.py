@@ -14,6 +14,10 @@ class FixedDateTime:
     def utcnow(cls) -> datetime:
         return datetime(2026, 3, 27, 12, 34, 56)
 
+    @classmethod
+    def now(cls, tz=None) -> datetime:
+        return datetime(2026, 3, 27, 12, 34, 56)
+
 
 @pytest.fixture
 def sqlite_db_file(tmp_path: Path) -> Path:
