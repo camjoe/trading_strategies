@@ -39,7 +39,6 @@ from trading.domain.rotation import (
     resolve_rotation_mode,
 )
 from trading.services.auto_trader_service import (
-    parse_runtime_as_of_iso as parse_runtime_as_of_iso_impl,
     rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
     RotationDeps,
@@ -112,12 +111,6 @@ def _fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
         return ExternalFeatureBundle.unavailable(source="reddit+gtrends")
 
 
-def _parse_runtime_as_of_iso(as_of_iso: str):
-    return parse_runtime_as_of_iso_impl(
-        as_of_iso,
-        parse_as_of_iso_fn=parse_as_of_iso_impl,
-    )
-
 
 def _select_runtime_rotation_strategy(
     conn: sqlite3.Connection,
@@ -131,7 +124,7 @@ def _select_runtime_rotation_strategy(
         select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
         select_regime_strategy_impl_fn=select_regime_strategy_impl,
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=_parse_runtime_as_of_iso,
+        parse_as_of_iso_fn=parse_as_of_iso_impl,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
         fetch_policy_features_fn=_fetch_policy_rotation_bundle,
         fetch_news_features_fn=_fetch_news_rotation_bundle,

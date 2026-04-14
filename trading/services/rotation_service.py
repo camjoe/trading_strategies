@@ -105,10 +105,9 @@ def classify_policy_regime(
     *,
     risk_on_score: object,
     defensive_tilt: object,
-    coerce_float_fn: Callable[[object], float | None],
 ) -> str | None:
-    score = coerce_float_fn(risk_on_score)
-    tilt = coerce_float_fn(defensive_tilt)
+    score = coerce_float(risk_on_score)
+    tilt = coerce_float(defensive_tilt)
     if score is None or tilt is None:
         return None
     if score >= POLICY_RISK_ON_BUY_THRESHOLD and tilt <= POLICY_MAX_DEFENSIVE_TILT:
@@ -136,13 +135,11 @@ def fetch_rotation_overlay_tickers(
 
 def _classify_news_overlay_vote(
     bundle: ExternalFeatureBundle,
-    *,
-    coerce_float_fn: Callable[[object], float | None],
 ) -> int | None:
     if not bundle.available:
         return None
-    score = coerce_float_fn(bundle.get(NEWS_SENTIMENT_SCORE))
-    headline_count = coerce_float_fn(bundle.get(NEWS_HEADLINE_COUNT))
+    score = coerce_float(bundle.get(NEWS_SENTIMENT_SCORE))
+    headline_count = coerce_float(bundle.get(NEWS_HEADLINE_COUNT))
     if score is None or headline_count is None or headline_count < NEWS_MIN_HEADLINES_REQUIRED:
         return None
     if score >= NEWS_BUY_SENTIMENT_THRESHOLD:
@@ -154,14 +151,12 @@ def _classify_news_overlay_vote(
 
 def _classify_social_overlay_vote(
     bundle: ExternalFeatureBundle,
-    *,
-    coerce_float_fn: Callable[[object], float | None],
 ) -> int | None:
     if not bundle.available:
         return None
-    trend_score = coerce_float_fn(bundle.get(SOCIAL_TREND_SCORE))
-    mention_count = coerce_float_fn(bundle.get(SOCIAL_MENTION_COUNT))
-    reddit_sentiment = coerce_float_fn(bundle.get(SOCIAL_REDDIT_SENTIMENT))
+    trend_score = coerce_float(bundle.get(SOCIAL_TREND_SCORE))
+    mention_count = coerce_float(bundle.get(SOCIAL_MENTION_COUNT))
+    reddit_sentiment = coerce_float(bundle.get(SOCIAL_REDDIT_SENTIMENT))
     if trend_score is None or mention_count is None or reddit_sentiment is None:
         return None
     if trend_score >= SOCIAL_TREND_BUY_THRESHOLD and mention_count > 0 and reddit_sentiment > 0:
@@ -178,7 +173,6 @@ def select_rotation_overlay_direction(
     overlay_mode: str,
     fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None,
     fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None,
-    coerce_float_fn: Callable[[object], float | None] = coerce_float,
 ) -> str | None:
     if overlay_mode == "none" or not tickers:
         return None
@@ -190,14 +184,12 @@ def select_rotation_overlay_direction(
         if overlay_mode in {"news", "news_social"} and fetch_news_features_fn is not None:
             news_vote = _classify_news_overlay_vote(
                 fetch_news_features_fn(ticker),
-                coerce_float_fn=coerce_float_fn,
             )
             if news_vote is not None:
                 source_votes.append(news_vote)
         if overlay_mode in {"social", "news_social"} and fetch_social_features_fn is not None:
             social_vote = _classify_social_overlay_vote(
                 fetch_social_features_fn(ticker),
-                coerce_float_fn=coerce_float_fn,
             )
             if social_vote is not None:
                 source_votes.append(social_vote)
@@ -248,8 +240,6 @@ def select_regime_strategy(
     fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, sqlite3.Row], list[str]] | None = None,
-    resolve_rotation_overlay_mode_fn: Callable[[sqlite3.Row], str] = resolve_rotation_overlay_mode,
-    coerce_float_fn: Callable[[object], float | None] = coerce_float,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
     if not schedule:
@@ -263,12 +253,11 @@ def select_regime_strategy(
     regime_state = classify_policy_regime(
         risk_on_score=bundle.get(POLICY_RISK_ON_SCORE),
         defensive_tilt=bundle.get(POLICY_DEFENSIVE_TILT),
-        coerce_float_fn=coerce_float_fn,
     )
     if regime_state is None:
         return active_strategy
 
-    overlay_mode = resolve_rotation_overlay_mode_fn(account)
+    overlay_mode = resolve_rotation_overlay_mode(account)
     if (
         overlay_mode != "none"
         and conn is not None
@@ -280,7 +269,6 @@ def select_regime_strategy(
             overlay_mode=overlay_mode,
             fetch_news_features_fn=fetch_news_features_fn,
             fetch_social_features_fn=fetch_social_features_fn,
-            coerce_float_fn=coerce_float_fn,
         )
         regime_state = apply_rotation_overlay_to_regime(regime_state, overlay_direction)
 

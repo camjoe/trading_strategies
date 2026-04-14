@@ -16,7 +16,8 @@ SETTLEMENT_TICKER = "CASH"
 # when converting daily volatility/returns to annualized figures.
 TRADING_DAYS_PER_YEAR = 252
 
-# Number of seconds in one calendar day
+# Square root of TRADING_DAYS_PER_YEAR; multiplied by mean excess return to annualize Sharpe/Sortino.
+ANNUALIZATION_FACTOR = float(TRADING_DAYS_PER_YEAR) ** 0.5
 SECONDS_PER_DAY = 86_400
 
 # Number of seconds in one calendar minute

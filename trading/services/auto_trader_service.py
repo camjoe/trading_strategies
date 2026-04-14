@@ -7,7 +7,7 @@ from typing import Callable
 
 import pandas as pd
 
-from common.constants import TRADING_DAYS_PER_YEAR
+from common.constants import ANNUALIZATION_FACTOR
 from trading.domain.rotation import resolve_rotation_regime_strategy
 
 def build_iv_rank_proxy(
@@ -24,7 +24,7 @@ def build_iv_rank_proxy(
             daily_ret = close.pct_change().dropna()
             if daily_ret.empty:
                 continue
-            vol_annual = float(daily_ret.std() * (TRADING_DAYS_PER_YEAR ** 0.5))
+            vol_annual = float(daily_ret.std() * ANNUALIZATION_FACTOR)
             vols[ticker] = vol_annual
         except Exception:
             continue
