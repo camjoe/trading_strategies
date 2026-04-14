@@ -79,6 +79,10 @@ Selection heuristics:
 - `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
 - `Python Test Expansion`: adding/improving tests and coverage depth.
 - `Python Statistical Modeling`: trading/finance statistical modeling and time-series analysis.
+- `Backtesting Analyst`: implementing or interpreting backtesting flows, walk-forward analysis, leaderboard/report behavior, and evaluation hygiene.
+- `Trading Runtime Investigator`: scheduler jobs, snapshots, health checks, account lifecycle operations, and operator/runtime debugging.
+- `UI API Steward`: `paper_trading_ui` backend/frontend route, schema, payload, and contract alignment.
+- `Broker Live Safety Steward`: broker adapters, broker factory routing, reconciliation, and live-trading safety guardrails.
 - `Project Structure Steward`: architecture boundaries, module ownership, dependency direction.
 - `Finance and Strategy Domain Bot`: explaining financial terminology, classifying trading strategies, interpreting signals, advising on equity mechanics and market microstructure — no implementation work.
 - `DB Migration Steward`: validating schema changes and migration safety for the trading SQLite database; auditing `ColumnMigration` additions in `trading/database/db.py`, enforcing additive-only migration rules, checking column guards, and reviewing backup hygiene before destructive DB operations.
@@ -92,22 +96,28 @@ Suggested keyword cues for fast matching:
 - `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
 - `Python Test Expansion`: `tests`, `coverage`, `pytest`, `edge case`, `regression test`.
 - `Python Statistical Modeling`: `alpha`, `factor`, `timeseries`, `walk-forward`, `backtest`, `signal`.
+- `Backtesting Analyst`: `backtest implementation`, `walk-forward report`, `leaderboard`, `evaluation flow`, `chronology`, `leakage`, `compare strategies`.
+- `Trading Runtime Investigator`: `runtime`, `scheduler`, `job`, `snapshot`, `health check`, `daily trader`, `backup job`, `account ops`.
+- `UI API Steward`: `api contract`, `schema drift`, `route payload`, `frontend backend`, `request schema`, `response shape`, `paper trading ui`.
+- `Broker Live Safety Steward`: `broker`, `ib`, `interactive brokers`, `live trading`, `reconciliation`, `broker factory`, `broker config`.
 - `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
 - `Finance and Strategy Domain Bot`: `terminology`, `strategy classification`, `equity mechanics`, `signal interpretation`, `market microstructure`, `order types`, `short selling`, `dividends`, `corporate actions`, `momentum`, `mean-reversion`, `arbitrage`, `carry`, `event-driven`.
 - `DB Migration Steward`: `migration`, `schema change`, `column migration`, `alter table`, `db schema`, `database migration`, `ColumnMigration`, `backup hygiene`, `destructive db`, `init_schema`, `sqlite migration`, `add column`.
 - `Docs Sync Bot`: `stale docs`, `docs drift`, `readme out of date`, `sync docs`, `keep docs fresh`, `documentation out of sync`, `update readme`, `docs stale`, `missing documentation`.
 
-- `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
-
 1. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without writing code, choose `Finance and Strategy Domain Bot`.
 2. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
 3. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
 4. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-5. If the task mentions modeling/research/backtesting as the primary objective, choose `Python Statistical Modeling`.
-6. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-7. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
-8. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose `Docs Sync Bot`.
-9. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
+5. If the task is about implementing or interpreting existing backtesting or walk-forward flows, choose `Backtesting Analyst`.
+6. If the task is about modeling/research/alpha design as the primary objective, choose `Python Statistical Modeling`.
+7. If the task is about scheduler jobs, runtime operations, snapshots, health checks, or account operational flows, choose `Trading Runtime Investigator`.
+8. If the task is about backend/frontend route or schema contracts in `paper_trading_ui`, choose `UI API Steward`.
+9. If the task is about broker adapters, broker factory logic, reconciliation, or live-trading safety, choose `Broker Live Safety Steward`.
+10. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
+11. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
+12. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose `Docs Sync Bot`.
+13. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
 
 If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 

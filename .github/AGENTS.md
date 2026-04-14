@@ -59,6 +59,34 @@ To sync global agents after pulling a submodule update:
 python tools/project_manager/scripts/sync_agents.py
 ```
 
+## Routing Guide
+
+Use the most specific bot that matches the task's main risk.
+
+| Task shape | Preferred bot | Why |
+|------|------|---------|
+| Architecture, layering, dependency direction | `project-structure-steward.global.agent.md` | Owns module-boundary review and placement rules |
+| Pre-commit or pre-merge audit | `code-review.global.agent.md` | Reviews diffs and validation evidence instead of editing |
+| README/reference drift | `docs-sync.global.agent.md` | Owns documentation freshness and targeted docs updates |
+| Generic Python cleanup | `python-code-cleanup.global.agent.md` | Best default for behavior-preserving backend refactors |
+| Generic test additions | `python-test-expansion.global.agent.md` | Focused on coverage and regression protection |
+| Frontend-only cleanup | `frontend-code-cleanup.global.agent.md` | Best for TypeScript/UI readability without backend work |
+| Cross-stack route/schema/UI contract work | `ui-api-steward.agent.md` | Specializes contract alignment across backend and frontend |
+| Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` | Specializes operator-facing runtime flows and job boundaries |
+| Broker adapters or live-trading safety | `broker-live-safety.agent.md` | Tightest guardrails for broker-facing and live-safety work |
+| Backtest execution, walk-forward, leaderboard/report interpretation | `backtesting-analyst.agent.md` | Specializes evaluation workflow correctness and interpretation |
+| Modeling, alpha research, feature engineering | `python-stat-modeling.agent.md` | Owns research and statistical modeling workflows |
+| Financial concept explanation, strategy classification | `finance-strategy.agent.md` | Domain explanation without implementation work |
+| Schema migration safety | `db-migration-steward.agent.md` | Owns SQLite migration review and backup hygiene |
+
+## Overlap Boundaries
+
+1. Prefer `backtesting-analyst.agent.md` for implementing or debugging existing evaluation flows; prefer `python-stat-modeling.agent.md` for designing or validating research pipelines.
+2. Prefer `ui-api-steward.agent.md` when both backend and frontend contracts are involved; prefer `frontend-code-cleanup.global.agent.md` when the change is purely frontend.
+3. Prefer `trading-runtime.agent.md` for job runners, operator commands, snapshots, or health checks; prefer `python-code-cleanup.global.agent.md` for general backend cleanup outside runtime orchestration.
+4. Prefer `broker-live-safety.agent.md` whenever a change touches broker configuration, factory logic, reconciliation, or live-trading protections.
+5. Portable skills in `skills/portable/` are the authoring starting point for similar repos; `.github/agents/` remains the execution-ready layer for this repo.
+
 ## Important Clarification
 
 Specialized bots are still present and usable in `.github/agents/`:
@@ -159,4 +187,4 @@ This table summarises the policy at a glance:
 - ❌ **None** — do not run any git commands
 - ✅ **Read-only** — `git diff`, `git log`, `git status`, `git show` only; never `commit`, `push`, `merge`, `rebase`, `reset`, or `checkout`
 
-When new bots are added, define their tier in the bot's `.agent.md` and update this table.
+When new bots are added, define their tier in the bot's `.agent.md`, update this table, and add a row to the routing guide above if the new bot overlaps an existing responsibility.

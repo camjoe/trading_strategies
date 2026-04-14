@@ -100,6 +100,42 @@ If your assistant runtime supports a global skills folder, place unchanged copie
 | `test-expansion.skill.md` | Coverage and regression-test expansion | existing `python-test-expansion.global.agent.md` |
 | `ui-api-contract.skill.md` | Backend/frontend contract stewardship | `ui-api-steward.agent.md` |
 
+## Routing guide for this repo
+
+Use this table when a task could fit more than one bot.
+
+| If the task is mainly about... | Prefer | Instead of |
+|---|---|---|
+| layering, module ownership, import direction | `project-structure-steward.global.agent.md` | broader cleanup bots |
+| changed-file audit before commit or merge | `code-review.global.agent.md` | general cleanup or test bots |
+| docs drift after code changes | `docs-sync.global.agent.md` | local overlays unless the docs are tightly coupled to a repo-specific workflow |
+| generic Python readability or refactor work | `python-code-cleanup.global.agent.md` | local overlays unless the work is runtime, broker, or backtesting specific |
+| generic test additions or regression tests | `python-test-expansion.global.agent.md` | broader cleanup bots |
+| pure frontend cleanup in `paper_trading_ui/frontend` | `frontend-code-cleanup.global.agent.md` | `ui-api-steward.agent.md` unless backend contracts are also in play |
+| frontend plus backend contract drift | `ui-api-steward.agent.md` | frontend-only or Python-only cleanup bots |
+| runtime jobs, schedulers, snapshots, health checks, backup ops | `trading-runtime.agent.md` | generic Python cleanup |
+| broker adapters, live-trading safety, reconciliation | `broker-live-safety.agent.md` | generic runtime or cleanup bots |
+| backtest execution, walk-forward reports, leaderboard meaning | `backtesting-analyst.agent.md` | `python-stat-modeling.agent.md` unless the main task is research/model design |
+| alpha research, feature engineering, modeling experiments | `python-stat-modeling.agent.md` | `backtesting-analyst.agent.md` unless the main task is implementation of existing evaluation flows |
+
+## Overlap notes
+
+1. `backtesting-analyst.agent.md` owns **evaluation workflow implementation and interpretation**; `python-stat-modeling.agent.md` owns **modeling and research design**.
+2. `ui-api-steward.agent.md` is for **cross-stack contracts**; `frontend-code-cleanup.global.agent.md` is for **frontend-only cleanup**.
+3. `trading-runtime.agent.md` is for **operator and scheduler flows**; `python-code-cleanup.global.agent.md` remains the default for **general backend cleanup**.
+4. `broker-live-safety.agent.md` is the safest choice whenever a change could accidentally weaken live-trading protections.
+
+## How to decide whether to add a new portable skill or local overlay
+
+Add a new portable skill when the capability can be reused in another repository with only light localization.
+
+Add a new local overlay when the capability depends on:
+
+- exact repo paths
+- exact commands
+- project-only safety rules
+- domain assumptions that would not transfer cleanly
+
 ## Initial local overlays added for trading_strategies
 
 - `backtesting-analyst.agent.md`
