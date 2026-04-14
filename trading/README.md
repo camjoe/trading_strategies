@@ -4,7 +4,7 @@ Core paper trading and backtesting engine for the repository.
 
 ## Purpose
 
-Provide the core runtime and tooling for paper trading, reporting, scheduler operations, and backtesting support.
+Provide the core runtime and tooling for paper trading, reporting, promotion review workflows, scheduler operations, and backtesting support.
 
 ## Scope
 
@@ -14,8 +14,9 @@ The `trading/` module handles:
 - Trade simulation and position tracking
 - Live broker integration (Interactive Brokers via TWS/IB Gateway; paper broker by default)
 - Snapshot history and reporting
+- Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
-- Backtesting and walk-forward analysis support
+- Backtesting and walk-forward analysis support, including persisted per-window detail reporting
 - **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `trading/features/`
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
@@ -34,6 +35,8 @@ python -m trading.interfaces.cli.main create-account --name momentum_5k --strate
 python -m trading.interfaces.cli.main report --account momentum_5k
 python -m trading.interfaces.cli.main snapshot --account momentum_5k
 python -m trading.interfaces.cli.main compare-strategies --lookback 10
+python -m trading.interfaces.cli.main promotion-status --account momentum_5k
+python -m trading.interfaces.cli.main promotion-request-review --account momentum_5k --requested-by operator
 python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k
 ```
 
@@ -61,6 +64,7 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 - `daily_paper_trading.py`: orchestrates scheduled daily paper-trading run.
 - `check_daily_trader_health.py`: verifies recency/health of daily trading runs.
 - `daily_snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
+- `scheduled_backtest_refresh.py`: scheduled recurring backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/scheduled_backtest_refresh/`.
 - `weekly_db_backup.py`: scheduled weekly backup execution.
 - `register_weekly_backup.py`: schedule registration helper for weekly backups.
 - `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts, a `default` fallback, and an `excluded` list of account names that are automatically skipped when running with `--accounts all`.
@@ -105,6 +109,9 @@ python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manua
 # Daily snapshot
 python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
 
+# Scheduled backtest refresh
+python -m trading.interfaces.runtime.jobs.scheduled_backtest_refresh --accounts all --enable-run
+
 # Weekly DB backup
 python -m trading.interfaces.runtime.jobs.weekly_db_backup
 
@@ -116,6 +123,31 @@ python -m trading.interfaces.runtime.jobs.register_weekly_backup --day-of-week S
 ```
 
 Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`.
+
+## Promotion Review Workflow
+
+Promotion readiness can now be reviewed through persisted operator workflows instead of read-only status checks only.
+
+```sh
+# Current computed readiness snapshot
+python -m trading.interfaces.cli.main promotion-status --account momentum_5k
+
+# Persist a manual review request with optional operator metadata
+python -m trading.interfaces.cli.main promotion-request-review --account momentum_5k --requested-by operator --note "Ready for desk review"
+
+# Inspect append-only review/audit history
+python -m trading.interfaces.cli.main promotion-review-history --account momentum_5k --limit 10
+
+# Approve, reject, or annotate an open review
+python -m trading.interfaces.cli.main promotion-review-action --review-id 42 --action note --actor operator --note "Need another week of paper evidence"
+```
+
+Review requests freeze the current evaluation evidence into a durable record and append operator events for request, note, approve, and reject actions.
+
+## Backtesting Notes
+
+- `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
+- Scheduled recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/scheduled_backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/scheduled_backtest_refresh/`.
 
 ## Notes
 
@@ -135,7 +167,7 @@ Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPa
 
 ## Related Docs
 
-- Backtesting: `docs/backtesting.md`
+- Backtesting: `docs/reference/notes-backtesting.md`
 - UI dashboard: `paper_trading_ui/README.md`
 - Broker integration: `docs/reference/notes-broker-integration.md`
 - Trading architecture guide: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
