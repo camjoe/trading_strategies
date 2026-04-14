@@ -3,9 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, timedelta
+import hashlib
+import pickle
 from pathlib import Path
 import json
 import os
+import time
 from typing import Callable, Mapping, NoReturn
 
 import pandas as pd
@@ -18,6 +21,20 @@ from common.repo_paths import get_repo_root
 _REPO_ROOT = get_repo_root(__file__)
 _DEFAULT_PROVIDER_NAME = "yfinance"
 _DEFAULT_MARKET_DATA_CONFIG_PATH = _REPO_ROOT / "local" / "market_data_config.json"
+
+# Default on-disk location for cached Yahoo Finance responses.
+_DEFAULT_MARKET_DATA_CACHE_DIR = _REPO_ROOT / "local" / "cache" / "market_data"
+
+# Freshness window for cached market data so repeated daily runs can reuse the same payloads.
+_MARKET_DATA_CACHE_TTL_SECONDS = 24 * 60 * 60
+
+# Environment variable that overrides the cache directory location.
+_MARKET_DATA_CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
+
+# Environment variable that disables the file-backed market data cache when set to a truthy value.
+_MARKET_DATA_CACHE_DISABLED_ENV = "TRADING_MARKET_DATA_CACHE_DISABLED"
+
+_CACHE_MISS = object()
 
 
 class MarketDataProvider(ABC):
@@ -218,6 +235,16 @@ class YFinanceProvider(MarketDataProvider):
     """Concrete market data provider backed by yfinance / Yahoo Finance."""
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        cache_key = _market_data_cache_key(
+            "ohlcv",
+            ticker=ticker.upper().strip(),
+            period=period,
+            interval=interval,
+        )
+        cached = _read_market_data_cache(cache_key)
+        if cached is not _CACHE_MISS:
+            return cached
+
         df = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
         if df.empty:
             raise ValueError(
@@ -231,6 +258,7 @@ class YFinanceProvider(MarketDataProvider):
                 df = df.xs(key, axis=1, level="Ticker", drop_level=True)
             else:
                 df.columns = df.columns.get_level_values(0)
+        _write_market_data_cache(cache_key, df)
         return df
 
     def fetch_close_history(
@@ -242,9 +270,20 @@ class YFinanceProvider(MarketDataProvider):
         if not tickers:
             raise ValueError("At least one ticker is required.")
 
+        normalized_tickers = [ticker.upper().strip() for ticker in tickers]
+        cache_key = _market_data_cache_key(
+            "close-history",
+            tickers=normalized_tickers,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+        )
+        cached = _read_market_data_cache(cache_key)
+        if cached is not _CACHE_MISS:
+            return cached
+
         # yfinance end date is exclusive — advance by one day to include end_date.
         hist = yf.download(
-            tickers=tickers,
+            tickers=normalized_tickers,
             start=start_date.isoformat(),
             end=(end_date + timedelta(days=1)).isoformat(),
             auto_adjust=True,
@@ -255,8 +294,8 @@ class YFinanceProvider(MarketDataProvider):
         if hist.empty:
             raise ValueError("No historical price data returned for requested tickers/date range.")
 
-        if len(tickers) == 1:
-            close = hist[["Close"]].rename(columns={"Close": tickers[0]})
+        if len(normalized_tickers) == 1:
+            close = hist[["Close"]].rename(columns={"Close": normalized_tickers[0]})
         else:
             if "Close" not in hist.columns.get_level_values(0):
                 raise ValueError("Downloaded price frame is missing Close column.")
@@ -271,19 +310,34 @@ class YFinanceProvider(MarketDataProvider):
 
         close.index = pd.to_datetime(close.index).tz_localize(None)
 
-        missing = [t for t in tickers if t not in close.columns]
+        missing = [t for t in normalized_tickers if t not in close.columns]
         if missing:
             raise ValueError(f"Missing close history for tickers: {', '.join(missing)}")
 
-        return close[tickers]
+        result = close[normalized_tickers]
+        _write_market_data_cache(cache_key, result)
+        return result
 
     def fetch_close_series(self, ticker: str, period: str) -> pd.Series | None:
+        normalized_ticker = ticker.upper().strip()
+        cache_key = _market_data_cache_key(
+            "close-series",
+            ticker=normalized_ticker,
+            period=period,
+        )
+        cached = _read_market_data_cache(cache_key)
+        if cached is not _CACHE_MISS:
+            return cached
+
         try:
-            hist = yf.Ticker(ticker).history(period=period, auto_adjust=True)
+            hist = yf.Ticker(normalized_ticker).history(period=period, auto_adjust=True)
             if hist.empty:
                 return None
             close = hist["Close"].dropna()
-            return close if not close.empty else None
+            if close.empty:
+                return None
+            _write_market_data_cache(cache_key, close)
+            return close
         except Exception:
             return None
 
@@ -366,6 +420,68 @@ def _config_path() -> Path:
     if raw:
         return Path(raw).expanduser().resolve()
     return _DEFAULT_MARKET_DATA_CONFIG_PATH
+
+
+def _market_data_cache_disabled() -> bool:
+    raw = str(os.getenv(_MARKET_DATA_CACHE_DISABLED_ENV, "")).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _market_data_cache_dir() -> Path:
+    raw = str(os.getenv(_MARKET_DATA_CACHE_DIR_ENV, "")).strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return _DEFAULT_MARKET_DATA_CACHE_DIR
+
+
+def _market_data_cache_key(kind: str, **parts: object) -> str:
+    payload = json.dumps(
+        {
+            "kind": kind,
+            "parts": parts,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _market_data_cache_path(cache_key: str) -> Path:
+    return _market_data_cache_dir() / f"{cache_key}.pkl"
+
+
+def _read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
+    if _market_data_cache_disabled():
+        return _CACHE_MISS
+
+    cache_path = _market_data_cache_path(cache_key)
+    if not cache_path.exists():
+        return _CACHE_MISS
+
+    cache_age_seconds = os.path.getmtime(cache_path)
+    if (time.time() - cache_age_seconds) > _MARKET_DATA_CACHE_TTL_SECONDS:
+        return _CACHE_MISS
+
+    try:
+        with cache_path.open("rb") as handle:
+            cached = pickle.load(handle)
+    except (OSError, pickle.UnpicklingError, EOFError):
+        return _CACHE_MISS
+
+    if not isinstance(cached, (pd.DataFrame, pd.Series)):
+        return _CACHE_MISS
+    return cached
+
+
+def _write_market_data_cache(cache_key: str, value: pd.DataFrame | pd.Series) -> None:
+    if _market_data_cache_disabled():
+        return
+
+    cache_dir = _market_data_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = _market_data_cache_path(cache_key)
+    with cache_path.open("wb") as handle:
+        pickle.dump(value, handle)
 
 
 def _provider_name_from_file(config_path: Path) -> str | None:
