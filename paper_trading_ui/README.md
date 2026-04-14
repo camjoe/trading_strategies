@@ -129,8 +129,9 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 
 - Route modules under `paper_trading_ui/backend/routes/` should stay thin and delegate DB mutations to backend service helpers.
 - Backend service modules now live under `paper_trading_ui/backend/services/`.
+- Admin account creation is handled by `create_account_with_rotation()` in `paper_trading_ui/backend/services/admin.py`. This function absorbs `AccountAlreadyExistsError` from the trading domain and re-raises it as `ValueError`; HTTP-layer translation (400 vs 409 etc.) stays in the route handler, not the service.
 - Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `paper_trading_ui/backend/services/admin.py`.
 - New UI/backend code should use canonical runtime data-ops modules (`trading.interfaces.runtime.data_ops.*`).
-- Account snapshot history, account-name listing, and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL.
+- Account snapshot history and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL. Account-name and account-row access now use canonical trading service names directly (`fetch_account_rows_excluding`, `fetch_all_account_names`) — local wrapper aliases were removed in the boundary refactor.
 - Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.
 - Account existence and latest-snapshot lookups in backend DB/test-account services are routed through trading repository adapters.

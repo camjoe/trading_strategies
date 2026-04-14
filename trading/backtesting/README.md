@@ -24,7 +24,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `backtest_data_service.py`: date resolution and market/universe data composition.
   - `history_service.py`: strategy-return loading and safe return calculations.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
-  - `report_service.py`: full report assembly into typed report models.
+  - `report_service.py`: full report assembly into typed report models. Also re-exports `resolve_signal` from `trading.backtesting.domain.strategy_signals` — callers that need signal dispatch should import from here, not the domain module directly.
   - `walk_forward_service.py`: walk-forward run orchestration and summary rollups.
 
 - `domain/`: pure reusable backtesting logic.
@@ -34,6 +34,8 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `windowing.py`: walk-forward date window generation.
   - `risk_warnings.py`: safeguard/warning policy composition.
   - `simulation_math.py`: position/cash/unrealized-PnL update math.
+
+- `models.py` (package root): typed dataclasses for result and config contracts. Key types: `BacktestConfig`, `BacktestResult`, `WalkForwardConfig`, `WalkForwardSummary`, `BacktestBatchConfig`. `BacktestResult` and `WalkForwardSummary` each expose a `to_payload(*, display_name_fn=None) -> dict` method that produces a JSON-ready dict; pass an optional `display_name_fn` to remap account names for UI presentation.
 
 ## Hook-Up Flow
 

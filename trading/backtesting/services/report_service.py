@@ -1,3 +1,19 @@
+"""Report service: full backtest report assembly and re-export facade.
+
+This service module owns:
+
+- ``fetch_backtest_report_data``: assembles a ``BacktestFullReport`` from
+  persisted run, snapshot, and trade rows, including benchmark return and alpha
+  calculation.
+- Thin wrappers around ``report_repository`` reads for latest-run and
+  recent-run lookups.
+
+Re-exports:
+
+- ``resolve_signal`` from ``trading.backtesting.domain.strategy_signals`` —
+  callers that need signal dispatch should import from here rather than the
+  domain module directly, keeping the service-layer boundary intact.
+"""
 from __future__ import annotations
 
 from datetime import date

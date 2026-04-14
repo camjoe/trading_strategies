@@ -3,6 +3,19 @@
 External callers should keep importing from ``trading.services.accounts_service``.
 The ``trading.services.accounts.*`` package is the implementation split used to
 organize listing, config, and mutation responsibilities internally.
+
+This module also re-exports domain constants and ``AccountAlreadyExistsError`` so
+that callers never need to reach into domain or config sub-packages directly:
+
+- ``DEFAULT_MAX_POSITION_PCT``, ``DEFAULT_TRADE_SIZE_PCT`` — default position-sizing
+  constants from ``trading.domain.auto_trader_policy``.
+- ``parse_rotation_schedule``, ``parse_rotation_overlay_watchlist``,
+  ``OPTIMALITY_MODES``, ``ROTATION_MODES``, ``ROTATION_OVERLAY_MODES`` — rotation
+  config parsers and allowed-value sets from ``trading.domain.rotation``.
+- ``INSTRUMENT_MODES``, ``OPTION_TYPES``, ``RISK_POLICIES`` — account config
+  allowed-value sets from ``trading.services.accounts.config``.
+- ``AccountAlreadyExistsError`` — domain exception raised on duplicate account
+  creation, from ``trading.domain.exceptions``.
 """
 
 from __future__ import annotations

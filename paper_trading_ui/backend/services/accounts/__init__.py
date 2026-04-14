@@ -3,6 +3,12 @@
 External callers within ``paper_trading_ui.backend`` should keep importing from
 ``paper_trading_ui.backend.services.accounts``. The submodules under this
 package are the internal split by responsibility.
+
+Note: ``display_strategy``, ``fetch_account_names``, and
+``fetch_account_snapshot_rows`` are no longer part of the public ``__all__``
+surface. ``display_strategy`` remains importable as a module attribute for test
+compatibility. Account-name and snapshot-row queries now delegate to canonical
+trading service function names directly rather than through local wrapper aliases.
 """
 
 from __future__ import annotations
