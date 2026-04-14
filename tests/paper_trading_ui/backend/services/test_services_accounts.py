@@ -7,6 +7,9 @@ import pytest
 
 from common.time import utc_now_iso
 from paper_trading_ui.backend.services import accounts as services_accounts
+from paper_trading_ui.backend.services.accounts import backtests as account_backtests
+from paper_trading_ui.backend.services.accounts import benchmark as account_benchmark
+from paper_trading_ui.backend.services.accounts import summaries as account_summaries
 from paper_trading_ui.backend.config import (
     TEST_ACCOUNT_NAME,
     TEST_ACCOUNT_STRATEGY,
@@ -17,12 +20,12 @@ from trading.models.account_state import AccountState
 
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
-        services_accounts,
+        account_summaries,
         "build_account_stats",
         lambda _conn, _row: (None, None, None, None, 1200.0),
     )
     monkeypatch.setattr(
-        services_accounts,
+        account_summaries,
         "fetch_latest_snapshot_row",
         lambda _conn, _account_id: {"equity": 1100.0, "snapshot_time": "2026-01-02T00:00:00Z"},
     )
@@ -70,7 +73,7 @@ def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> Non
     close_index = pd.to_datetime(["2026-01-02", "2026-01-03", "2026-01-04"])
     close_series = pd.Series([100.0, 105.0, 110.0], index=close_index)
     monkeypatch.setattr(
-        services_accounts,
+        account_benchmark,
         "fetch_benchmark_close_history",
         lambda _ticker, *, start_date, end_date: close_series,
     )
@@ -188,7 +191,7 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
     conn.commit()
 
     monkeypatch.setattr(
-        services_accounts,
+        account_backtests,
         "fetch_backtest_report_summary",
         lambda _conn, _run_id: SimpleNamespace(
             run_id=99,
@@ -320,12 +323,12 @@ class TestBuildPositionsFromStats:
 class TestBuildAccountSummaryShape:
     def test_required_keys_present(self, monkeypatch) -> None:
         monkeypatch.setattr(
-            services_accounts,
+            account_summaries,
             "build_account_stats",
             lambda _conn, _row: (None, None, None, None, 1200.0),
         )
         monkeypatch.setattr(
-            services_accounts,
+            account_summaries,
             "fetch_latest_snapshot_row",
             lambda _conn, _account_id: None,
         )
@@ -365,12 +368,12 @@ class TestBuildAccountSummaryShape:
 
     def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
         monkeypatch.setattr(
-            services_accounts,
+            account_summaries,
             "build_account_stats",
             lambda _conn, _row: (None, None, None, None, 1200.0),
         )
         monkeypatch.setattr(
-            services_accounts,
+            account_summaries,
             "fetch_latest_snapshot_row",
             lambda _conn, _account_id: None,
         )
@@ -443,12 +446,12 @@ class TestBuildAccountSummaryShape:
     def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
         """zero initial_cash + no snapshot → delta_pct = 0.0 (no crash)."""
         monkeypatch.setattr(
-            services_accounts,
+            account_summaries,
             "build_account_stats",
             lambda _conn, _row: (None, None, None, None, 1100.0),
         )
         monkeypatch.setattr(
-            services_accounts,
+            account_summaries,
             "fetch_latest_snapshot_row",
             lambda _conn, _account_id: None,
         )
