@@ -17,10 +17,10 @@ DEFAULT_TICKERS_FILE = "trading/config/trade_universe.txt"
 
 
 def _profiles_dir_candidates() -> list[Path]:
-    package_root = Path(__file__).resolve().parent
+    trading_root = Path(__file__).resolve().parents[1]
     return [
-        package_root / "config" / "account_profiles",
-        package_root / "account_profiles",
+        trading_root / "config" / "account_profiles",
+        trading_root / "account_profiles",
     ]
 
 

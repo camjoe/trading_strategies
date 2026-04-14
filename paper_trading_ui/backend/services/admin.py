@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from trading.models import RotationConfig
 from trading.services.accounts_service import update_account_fields_by_id
-from trading.services.admin_service import delete_accounts
+from trading.services.admin_service import build_managed_account_delete_counts, delete_accounts
 
 from .db import db_conn, fetch_account_row
 
@@ -49,11 +49,4 @@ def delete_account_and_dependents(account_name: str) -> dict[str, int]:
             raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from error
         raise
 
-    return {
-        "accounts": int(deleted["accounts"]),
-        "trades": int(deleted["trades"]),
-        "equitySnapshots": int(deleted["equity_snapshots"]),
-        "backtestRuns": int(deleted["backtest_runs"]),
-        "backtestTrades": int(deleted["backtest_trades"]),
-        "backtestEquitySnapshots": int(deleted["backtest_equity_snapshots"]),
-    }
+    return build_managed_account_delete_counts(deleted)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 import sqlite3
 
 from trading.utils.coercion import coerce_int, row_expect_int
@@ -23,18 +24,26 @@ from trading.repositories.admin_repository import (
     fetch_walk_forward_group_rows_for_accounts,
 )
 
-DELETE_COUNT_KEYS = (
-    "accounts",
-    "trades",
-    "equity_snapshots",
-    "backtest_runs",
-    "backtest_trades",
-    "backtest_equity_snapshots",
-    "walk_forward_groups",
-    "walk_forward_group_runs",
-    "promotion_reviews",
-    "promotion_review_events",
+@dataclass(frozen=True)
+class DeleteCountField:
+    key: str
+    ui_key: str | None = None
+
+
+DELETE_COUNT_FIELDS = (
+    DeleteCountField("accounts", "accounts"),
+    DeleteCountField("trades", "trades"),
+    DeleteCountField("equity_snapshots", "equitySnapshots"),
+    DeleteCountField("backtest_runs", "backtestRuns"),
+    DeleteCountField("backtest_trades", "backtestTrades"),
+    DeleteCountField("backtest_equity_snapshots", "backtestEquitySnapshots"),
+    DeleteCountField("walk_forward_groups"),
+    DeleteCountField("walk_forward_group_runs"),
+    DeleteCountField("promotion_reviews"),
+    DeleteCountField("promotion_review_events"),
 )
+
+DELETE_COUNT_KEYS = tuple(field.key for field in DELETE_COUNT_FIELDS)
 
 
 def _resolve_delete_targets(
@@ -61,6 +70,18 @@ def _resolve_delete_targets(
 
 def _empty_delete_counts() -> dict[str, int]:
     return {key: 0 for key in DELETE_COUNT_KEYS}
+
+
+def iter_delete_count_items(counts: dict[str, int]) -> list[tuple[str, int]]:
+    return [(field.key, int(counts.get(field.key, 0))) for field in DELETE_COUNT_FIELDS]
+
+
+def build_managed_account_delete_counts(counts: dict[str, int]) -> dict[str, int]:
+    return {
+        field.ui_key: int(counts.get(field.key, 0))
+        for field in DELETE_COUNT_FIELDS
+        if field.ui_key is not None
+    }
 
 
 def _collect_required_ids(

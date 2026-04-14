@@ -43,12 +43,16 @@ python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_
 Backup and export:
 
 ```sh
+python -m trading.interfaces.runtime.data_ops.admin backup-db
+python -m trading.interfaces.runtime.data_ops.csv_export
 python -m scripts.data_ops.backup_db
 python -m scripts.data_ops.export_db_csv
-python -m trading.interfaces.runtime.data_ops.admin backup-db
 ```
 
 Canonical admin/export modules live in `trading/interfaces/runtime/data_ops/`.
+The `scripts.data_ops.*` commands are convenience wrappers around those
+canonical runtime data-op modules and should not be treated as the ownership
+source.
 
 ## Script Boundaries
 

@@ -8,7 +8,7 @@ from typing import Callable, cast
 
 from trading.database.db import ensure_db
 from trading.database.db_backend import SQLiteBackend, get_backend
-from trading.services.admin_service import delete_accounts
+from trading.services.admin_service import delete_accounts, iter_delete_count_items
 
 
 def _sqlite_db_path() -> Path:
@@ -57,16 +57,8 @@ def backup_database(destination: str | None = None) -> Path:
 
 def _print_delete_summary(action: str, counts: dict[str, int]) -> None:
     print(f"{action} summary")
-    print(f"  accounts: {counts['accounts']}")
-    print(f"  trades: {counts['trades']}")
-    print(f"  equity_snapshots: {counts['equity_snapshots']}")
-    print(f"  backtest_runs: {counts['backtest_runs']}")
-    print(f"  backtest_trades: {counts['backtest_trades']}")
-    print(f"  backtest_equity_snapshots: {counts['backtest_equity_snapshots']}")
-    print(f"  walk_forward_groups: {counts['walk_forward_groups']}")
-    print(f"  walk_forward_group_runs: {counts['walk_forward_group_runs']}")
-    print(f"  promotion_reviews: {counts['promotion_reviews']}")
-    print(f"  promotion_review_events: {counts['promotion_review_events']}")
+    for key, value in iter_delete_count_items(counts):
+        print(f"  {key}: {value}")
 
 
 def _cmd_backup_db(args: argparse.Namespace) -> int:

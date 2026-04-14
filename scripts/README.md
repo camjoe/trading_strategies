@@ -56,22 +56,26 @@ Modular check scripts (`scripts/checks/`):
 
 Data operation scripts (`scripts/data_ops/`):
 
-- `backup_db.py`: retention-oriented backup helper writing to `local/db_backups/`.
-- `export_db_csv.py`: table export to timestamped CSV directory.
-- `export_db_csv_zip.py`: CSV export with ZIP packaging.
+- `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
+- `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
+- `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
 
 **Execution:**
 
 ```sh
-# Backup database
+# Canonical operator-facing entrypoints
+python -m trading.interfaces.runtime.data_ops.admin backup-db
+python -m trading.interfaces.runtime.data_ops.csv_export
+
+# Convenience wrappers
 python -m scripts.data_ops.backup_db
-
-# Export selected tables to CSV
 python -m scripts.data_ops.export_db_csv --tables accounts,trades
-
-# Export all tables and create ZIP archive
 python -m scripts.data_ops.export_db_csv_zip
 ```
+
+Treat `trading/interfaces/runtime/data_ops/` as the canonical home for backup,
+export, and delete flows. The `scripts.data_ops.*` modules exist as convenience
+entrypoints, not as the primary ownership location.
 
 What should not go here:
 
@@ -118,5 +122,4 @@ python -m scripts.checks.readme_check
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.checks.readme_check --enforce-style --enforce-staleness
 ```
-
 
