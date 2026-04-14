@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     risk_policy TEXT NOT NULL DEFAULT 'none',
     stop_loss_pct REAL,
     take_profit_pct REAL,
+    trade_size_pct REAL,
+    max_position_pct REAL,
     instrument_mode TEXT NOT NULL DEFAULT 'equity',
     option_strike_offset_pct REAL,
     option_min_dte INTEGER,
@@ -221,6 +223,107 @@ CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account
 CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id ON order_fills(broker_order_id);
 """
 
+WALK_FORWARD_GROUPS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS walk_forward_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grouping_key TEXT NOT NULL UNIQUE,
+    account_id INTEGER NOT NULL,
+    strategy_name TEXT NOT NULL,
+    run_name_prefix TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    test_months INTEGER NOT NULL,
+    step_months INTEGER NOT NULL,
+    window_count INTEGER NOT NULL,
+    average_return_pct REAL NOT NULL,
+    median_return_pct REAL NOT NULL,
+    best_return_pct REAL NOT NULL,
+    worst_return_pct REAL NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+WALK_FORWARD_GROUP_RUNS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS walk_forward_group_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    run_id INTEGER NOT NULL UNIQUE,
+    window_index INTEGER NOT NULL,
+    window_start TEXT NOT NULL,
+    window_end TEXT NOT NULL,
+    total_return_pct REAL NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id),
+    FOREIGN KEY (run_id) REFERENCES backtest_runs(id),
+    UNIQUE(group_id, window_index)
+);
+"""
+
+WALK_FORWARD_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_walk_forward_groups_account_strategy_created
+ON walk_forward_groups(account_id, strategy_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_walk_forward_group_runs_group_window
+ON walk_forward_group_runs(group_id, window_index ASC);
+"""
+
+PROMOTION_REVIEWS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS promotion_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    account_name_snapshot TEXT NOT NULL,
+    strategy_name TEXT NOT NULL,
+    review_state TEXT NOT NULL DEFAULT 'requested',
+    assessment_stage TEXT NOT NULL,
+    assessment_status TEXT NOT NULL,
+    ready_for_live INTEGER NOT NULL DEFAULT 0,
+    overall_confidence REAL NOT NULL DEFAULT 0,
+    live_trading_enabled_snapshot INTEGER NOT NULL DEFAULT 0,
+    promotion_assessment_version TEXT NOT NULL,
+    evaluation_artifact_version TEXT NOT NULL,
+    frozen_assessment_payload TEXT NOT NULL,
+    frozen_evaluation_payload TEXT NOT NULL,
+    requested_by TEXT,
+    reviewed_by TEXT,
+    operator_summary_note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    closed_at TEXT,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+PROMOTION_REVIEW_EVENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS promotion_review_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_id INTEGER NOT NULL,
+    event_seq INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    actor_type TEXT NOT NULL DEFAULT 'operator',
+    actor_name TEXT,
+    from_review_state TEXT,
+    to_review_state TEXT,
+    note TEXT,
+    event_payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (review_id) REFERENCES promotion_reviews(id),
+    UNIQUE(review_id, event_seq)
+);
+"""
+
+PROMOTION_REVIEW_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_promotion_reviews_account_strategy_created
+ON promotion_reviews(account_id, strategy_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promotion_reviews_state_updated
+ON promotion_reviews(review_state, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_promotion_reviews_open_requested
+ON promotion_reviews(account_id, strategy_name)
+WHERE review_state = 'requested';
+CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_seq
+ON promotion_review_events(review_id, event_seq ASC);
+CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_created
+ON promotion_review_events(review_id, created_at ASC);
+"""
+
 SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
@@ -235,6 +338,12 @@ SCHEMA_SQL = "\n".join(
         BROKER_ORDERS_TABLE_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,
+        WALK_FORWARD_GROUPS_TABLE_SQL,
+        WALK_FORWARD_GROUP_RUNS_TABLE_SQL,
+        WALK_FORWARD_INDEXES_SQL,
+        PROMOTION_REVIEWS_TABLE_SQL,
+        PROMOTION_REVIEW_EVENTS_TABLE_SQL,
+        PROMOTION_REVIEW_INDEXES_SQL,
     )
 )
 
@@ -377,6 +486,8 @@ ACCOUNT_MIGRATIONS = (
         "rotation_active_strategy",
         "ALTER TABLE accounts ADD COLUMN rotation_active_strategy TEXT",
     ),
+    ColumnMigration("trade_size_pct", "ALTER TABLE accounts ADD COLUMN trade_size_pct REAL"),
+    ColumnMigration("max_position_pct", "ALTER TABLE accounts ADD COLUMN max_position_pct REAL"),
 )
 
 BACKTEST_RUN_MIGRATIONS = (

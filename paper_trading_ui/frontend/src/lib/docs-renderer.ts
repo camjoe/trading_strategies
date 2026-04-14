@@ -242,12 +242,37 @@ ${buildPackagesSection(packages)}
 
 const API_GROUP_ORDER = [
   "Accounts & Snapshots Endpoints",
+  "Analysis Endpoints",
+  "Trading & Signals Endpoints",
   "Admin Endpoints",
   "Logs Endpoints",
   "Backtesting Endpoints",
 ];
 
 // Static content: request body model tables (not yet extracted to JSON).
+const ACCOUNTS_REQUEST_BODY_CONTENT = `
+      <p class="ref-subsection-label">PATCH /api/accounts/{account_name}/params (AccountParamsRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field Group</th><th>Key Fields</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Core</td><td>strategy, descriptiveName, riskPolicy, stopLossPct, takeProfitPct, instrumentMode, learningEnabled</td><td>Only supplied non-null fields are applied.</td></tr>
+          <tr><td>Goals</td><td>goalMinReturnPct, goalMaxReturnPct, goalPeriod</td><td>Lets the UI update operator-facing account goals without recreating the account.</td></tr>
+          <tr><td>Options</td><td>optionType, optionMinDte, optionMaxDte, optionStrikeOffsetPct, targetDeltaMin, targetDeltaMax, ivRankMin, ivRankMax, maxPremiumPerTrade, maxContractsPerTrade, rollDteThreshold, profitTakePct, maxLossPct</td><td>Used for LEAPs/options-aware account policies.</td></tr>
+          <tr><td>Rotation</td><td>rotationEnabled, rotationMode, rotationOptimalityMode, rotationIntervalDays, rotationIntervalMinutes, rotationLookbackDays, rotationSchedule, rotationRegimeStrategyRiskOn, rotationRegimeStrategyNeutral, rotationRegimeStrategyRiskOff, rotationOverlayMode, rotationOverlayMinTickers, rotationOverlayConfidenceThreshold, rotationOverlayWatchlist, rotationActiveIndex, rotationLastAt, rotationActiveStrategy</td><td>Supports both scheduled rotation and regime-overlay controls.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Important response fields on account endpoints</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Where it appears</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>liveBenchmarkReturnPct</td><td>GET /api/accounts, GET /api/accounts/compare</td><td>Benchmark return over the same persisted live snapshot period when enough history exists.</td></tr>
+          <tr><td>liveAlphaPct</td><td>GET /api/accounts, GET /api/accounts/compare</td><td>Live account return minus benchmark return over the aligned snapshot period.</td></tr>
+          <tr><td>liveBenchmarkOverlay</td><td>GET /api/accounts/{account_name}</td><td>Time-aligned benchmark overlay payload with benchmark ticker, summary stats, and chart-ready points.</td></tr>
+          <tr><td>latestBacktestMetrics</td><td>GET /api/accounts/{account_name}, GET /api/accounts/compare</td><td>Compact backtest metric bundle used by the UI for ratio and quality summaries.</td></tr>
+        </tbody>
+      </table>`;
+
 const ADMIN_REQUEST_BODY_CONTENT = `
       <p class="ref-subsection-label">POST /api/admin/accounts/create (AdminCreateAccountRequest)</p>
       <table class="ref-table">
@@ -301,6 +326,27 @@ const ADMIN_REQUEST_BODY_CONTENT = `
         </tbody>
       </table>`;
 
+const TRADING_SIGNALS_REQUEST_BODY_CONTENT = `
+      <p class="ref-subsection-label">POST /api/accounts/{account_name}/trades (ManualTradeRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>ticker</td><td>string (required)</td><td>Ticker is normalized to uppercase and validated against recent market data.</td></tr>
+          <tr><td>side</td><td>"buy" | "sell"</td><td>Manual trades are only permitted on the virtual test account.</td></tr>
+          <tr><td>qty</td><td>float (&gt; 0)</td><td>Position quantity.</td></tr>
+          <tr><td>price</td><td>float (&gt; 0)</td><td>Manual execution price.</td></tr>
+          <tr><td>fee</td><td>float, default 0.0</td><td>Optional execution fee.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">POST /api/features/signals (FeatureSignalsRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>ticker</td><td>string (required)</td><td>Runs the UI signal helpers for the requested ticker and returns provider-specific reasoning/context.</td></tr>
+        </tbody>
+      </table>`;
+
 const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
       <h3>Request Body Models</h3>
 
@@ -350,6 +396,20 @@ const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
           <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Allow LEAP approximation fallback.</td></tr>
         </tbody>
       </table>
+
+      <p class="ref-subsection-label">Key backtest result metrics used in the UI</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Meaning</th><th>Where the UI uses it</th></tr></thead>
+        <tbody>
+          <tr><td>sharpeRatio</td><td>Risk-adjusted return using total volatility.</td><td>Backtest run results, latest backtest summary, and compare table.</td></tr>
+          <tr><td>sortinoRatio</td><td>Risk-adjusted return using downside volatility only.</td><td>Backtest result views and persisted report payloads.</td></tr>
+          <tr><td>calmarRatio</td><td>Return relative to max drawdown.</td><td>Backtest result views and persisted report payloads.</td></tr>
+          <tr><td>winRatePct</td><td>Percent of profitable trades.</td><td>Latest backtest cards and compare table.</td></tr>
+          <tr><td>profitFactor</td><td>Gross profits divided by gross losses.</td><td>Latest backtest cards and compare table.</td></tr>
+          <tr><td>avgTradeReturnPct</td><td>Average return per trade.</td><td>Persisted report payloads and detailed backtest summaries.</td></tr>
+          <tr><td>benchmarkReturnPct / alphaPct</td><td>Benchmark-relative context for the same backtest window.</td><td>Backtest result summary and account comparison views.</td></tr>
+        </tbody>
+      </table>
     </div>`;
 
 function buildApiSection(title: string, endpoints: ApiEndpoint[], extra: string): string {
@@ -397,7 +457,14 @@ function buildApiCard(): string {
 
   const endpointSections = orderedGroups
     .map((group) => {
-      const extra = group === "Admin Endpoints" ? ADMIN_REQUEST_BODY_CONTENT : "";
+      const extra =
+        group === "Accounts & Snapshots Endpoints"
+          ? ACCOUNTS_REQUEST_BODY_CONTENT
+          : group === "Trading & Signals Endpoints"
+            ? TRADING_SIGNALS_REQUEST_BODY_CONTENT
+            : group === "Admin Endpoints"
+              ? ADMIN_REQUEST_BODY_CONTENT
+              : "";
       return buildApiSection(group, grouped[group], extra);
     })
     .join("\n\n");

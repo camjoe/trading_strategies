@@ -7,9 +7,9 @@ A Python suite for stock trends analysis, backtesting, paper trading, and strate
 This repository contains tools for:
 
 - **Trends Analysis**: Chart technical indicators and moving averages for stock tickers using `yfinance` and `matplotlib`.
-- **Backtesting**: Walk-forward simulation of trading strategies on historical data.
-- **Paper Trading**: Live strategy execution with simulated portfolio management.
-- **UI Dashboard**: Real-time monitoring of paper trading activity via a web interface.
+- **Backtesting**: Historical and walk-forward simulation with persisted run and per-window reporting.
+- **Paper Trading**: Live strategy execution with simulated portfolio management, benchmark tracking, and promotion review workflows.
+- **UI Dashboard**: Real-time monitoring of paper trading activity via a web interface, including live benchmark overlays.
 
 ## Directory Structure
 
@@ -36,7 +36,7 @@ pip install -r requirements-dev.txt
 **Execution Note:**
 - All trading scripts must be run as Python modules from the repository root, e.g.,
   ```sh
-  python -m trading.paper_trading init
+  python -m trading.interfaces.cli.main init
   ```
 
 ## CI Smoke Check
@@ -73,7 +73,7 @@ See [trends/README.md](trends/README.md) for full documentation and usage exampl
 
 ### Backtesting
 
-See [docs/backtesting.md](docs/backtesting.md) for walk-forward simulation and strategy testing.
+See [docs/reference/notes-backtesting.md](docs/reference/notes-backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
 
 ### Paper Trading
 

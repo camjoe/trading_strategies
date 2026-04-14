@@ -34,6 +34,12 @@ describe("renderBacktestRunResult", () => {
     benchmarkReturnPct: 3.0,
     alphaPct: 2.0,
     maxDrawdownPct: -1.5,
+    sharpeRatio: 1.3,
+    sortinoRatio: 1.9,
+    calmarRatio: 0.8,
+    winRatePct: 60.0,
+    profitFactor: 1.7,
+    avgTradeReturnPct: 2.4,
     warnings: [],
   };
 
@@ -70,6 +76,14 @@ describe("renderBacktestRunResult", () => {
   it("renders warning items when present", () => {
     const html = renderBacktestRunResult({ ...base, warnings: ["daily bars only"] });
     expect(html).toContain("daily bars only");
+  });
+
+  it("renders richer trade and risk metrics", () => {
+    const html = renderBacktestRunResult(base);
+    expect(html).toContain("Sharpe");
+    expect(html).toContain("Sortino");
+    expect(html).toContain("Win Rate");
+    expect(html).toContain("Profit Factor");
   });
 });
 
@@ -162,6 +176,32 @@ describe("renderBacktestReport", () => {
     ending_equity: 10200.0,
     total_return_pct: 2.0,
     max_drawdown_pct: -0.5,
+    benchmark_return_pct: 1.2,
+    alpha_pct: 0.8,
+    sharpe_ratio: 1.4,
+    sortino_ratio: 2.1,
+    calmar_ratio: 0.9,
+    win_rate_pct: 57.0,
+    profit_factor: 1.6,
+    avg_trade_return_pct: 1.9,
+    snapshots: [
+      {
+        snapshot_time: "2026-01-01",
+        cash: 10000.0,
+        market_value: 0.0,
+        equity: 10000.0,
+        realized_pnl: 0.0,
+        unrealized_pnl: 0.0,
+      },
+      {
+        snapshot_time: "2026-01-31",
+        cash: 2000.0,
+        market_value: 8200.0,
+        equity: 10200.0,
+        realized_pnl: 100.0,
+        unrealized_pnl: 100.0,
+      },
+    ],
   };
 
   it("renders run id, run name, and account", () => {
@@ -183,6 +223,14 @@ describe("renderBacktestReport", () => {
     expect(html).toContain("5.00 bps");
   });
 
+  it("renders analytics grid and equity curve", () => {
+    const html = renderBacktestReport(base);
+    expect(html).toContain("Sharpe");
+    expect(html).toContain("Win Rate");
+    expect(html).toContain("Equity Curve");
+    expect(html).toContain("<svg");
+  });
+
   it("splits pipe-separated warnings into individual items", () => {
     const html = renderBacktestReport(base);
     expect(html).toContain("daily bars only");
@@ -199,4 +247,3 @@ describe("renderBacktestReport", () => {
     expect(html).toContain("(unnamed)");
   });
 });
-

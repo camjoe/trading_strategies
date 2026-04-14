@@ -22,6 +22,12 @@ class BacktestReportSummary:
     ending_equity: float
     total_return_pct: float
     max_drawdown_pct: float
+    sharpe_ratio: float | None = None
+    sortino_ratio: float | None = None
+    calmar_ratio: float | None = None
+    win_rate_pct: float | None = None
+    profit_factor: float | None = None
+    avg_trade_return_pct: float | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "BacktestReportSummary":
@@ -42,6 +48,14 @@ class BacktestReportSummary:
             ending_equity=float(value["ending_equity"]),
             total_return_pct=float(value["total_return_pct"]),
             max_drawdown_pct=float(value["max_drawdown_pct"]),
+            sharpe_ratio=None if value.get("sharpe_ratio") is None else float(value["sharpe_ratio"]),
+            sortino_ratio=None if value.get("sortino_ratio") is None else float(value["sortino_ratio"]),
+            calmar_ratio=None if value.get("calmar_ratio") is None else float(value["calmar_ratio"]),
+            win_rate_pct=None if value.get("win_rate_pct") is None else float(value["win_rate_pct"]),
+            profit_factor=None if value.get("profit_factor") is None else float(value["profit_factor"]),
+            avg_trade_return_pct=(
+                None if value.get("avg_trade_return_pct") is None else float(value["avg_trade_return_pct"])
+            ),
         )
 
 
@@ -60,6 +74,12 @@ class BacktestLeaderboardEntry:
     max_drawdown_pct: float
     benchmark_return_pct: float | None
     alpha_pct: float | None
+    sharpe_ratio: float | None = None
+    sortino_ratio: float | None = None
+    calmar_ratio: float | None = None
+    win_rate_pct: float | None = None
+    profit_factor: float | None = None
+    avg_trade_return_pct: float | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "BacktestLeaderboardEntry":
@@ -79,6 +99,14 @@ class BacktestLeaderboardEntry:
             max_drawdown_pct=float(value["max_drawdown_pct"]),
             benchmark_return_pct=None if benchmark_return is None else float(benchmark_return),
             alpha_pct=None if alpha is None else float(alpha),
+            sharpe_ratio=None if value.get("sharpe_ratio") is None else float(value["sharpe_ratio"]),
+            sortino_ratio=None if value.get("sortino_ratio") is None else float(value["sortino_ratio"]),
+            calmar_ratio=None if value.get("calmar_ratio") is None else float(value["calmar_ratio"]),
+            win_rate_pct=None if value.get("win_rate_pct") is None else float(value["win_rate_pct"]),
+            profit_factor=None if value.get("profit_factor") is None else float(value["profit_factor"]),
+            avg_trade_return_pct=(
+                None if value.get("avg_trade_return_pct") is None else float(value["avg_trade_return_pct"])
+            ),
         )
 
 
@@ -124,4 +152,42 @@ class BacktestFullReport:
                 "alpha_pct": self.alpha_pct,
             }
         )
+        return payload
+
+
+@dataclass
+class WalkForwardWindowDetail:
+    window_index: int
+    window_start: str
+    window_end: str
+    total_return_pct: float
+    backtest_summary: BacktestReportSummary
+
+    def to_payload(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload["backtest_summary"] = asdict(self.backtest_summary)
+        return payload
+
+
+@dataclass
+class WalkForwardDetailReport:
+    group_id: int
+    account_name: str
+    strategy_name: str
+    run_name_prefix: str | None
+    start_date: str
+    end_date: str
+    test_months: int
+    step_months: int
+    window_count: int
+    average_return_pct: float
+    median_return_pct: float
+    best_return_pct: float
+    worst_return_pct: float
+    created_at: str
+    windows: list[WalkForwardWindowDetail]
+
+    def to_payload(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload["windows"] = [item.to_payload() for item in self.windows]
         return payload

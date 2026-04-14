@@ -27,9 +27,14 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
           <td>${currency.format(row.equity)}</td>
           <td class="${row.totalChange >= 0 ? "up" : "down"}">${currency.format(row.totalChange)}</td>
           <td class="${row.totalChangePct >= 0 ? "up" : "down"}">${pct(row.totalChangePct)}</td>
+          <td>${row.liveBenchmarkReturnPct === null ? "n/a" : pct(row.liveBenchmarkReturnPct)}</td>
+          <td>${row.liveAlphaPct === null ? "n/a" : pct(row.liveAlphaPct)}</td>
           <td>${bt ? pct(bt.totalReturnPct) : "n/a"}</td>
           <td>${bt && bt.alphaPct !== null ? pct(bt.alphaPct) : "n/a"}</td>
           <td>${bt ? pct(bt.maxDrawdownPct) : "n/a"}</td>
+          <td>${bt && bt.sharpeRatio !== null && bt.sharpeRatio !== undefined ? bt.sharpeRatio.toFixed(2) : "n/a"}</td>
+          <td>${bt && bt.winRatePct !== null && bt.winRatePct !== undefined ? pct(bt.winRatePct) : "n/a"}</td>
+          <td>${bt && bt.profitFactor !== null && bt.profitFactor !== undefined ? bt.profitFactor.toFixed(2) : "n/a"}</td>
           <td>${bt ? bt.endDate : "n/a"}</td>
         </tr>
       `;
@@ -49,9 +54,14 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
             <th>Equity</th>
             <th>Total Change</th>
             <th>Total Return</th>
+            <th>Benchmark Return</th>
+            <th>Live Alpha</th>
             <th>Latest Backtest Return</th>
             <th>Latest Alpha</th>
             <th>Latest Max DD</th>
+            <th>Latest Sharpe</th>
+            <th>Latest Win Rate</th>
+            <th>Latest Profit Factor</th>
             <th>Latest Backtest End</th>
           </tr>
         </thead>

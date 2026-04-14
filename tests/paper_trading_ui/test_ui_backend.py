@@ -150,6 +150,8 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
             "riskPolicy": "stop_and_target",
             "stopLossPct": 4,
             "takeProfitPct": 8,
+            "tradeSizePct": 12,
+            "maxPositionPct": 24,
             "instrumentMode": "equity",
             "rotationEnabled": True,
             "rotationMode": "regime",
@@ -172,6 +174,8 @@ def test_admin_create_account_endpoint(api_client: TestClient) -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["account"]["name"] == "acct_admin_create"
+    assert payload["account"]["tradeSizePct"] == 12
+    assert payload["account"]["maxPositionPct"] == 24
     assert payload["account"]["rotationEnabled"] is True
     assert payload["account"]["rotationMode"] == "regime"
     assert payload["account"]["rotationIntervalDays"] == 14

@@ -71,6 +71,8 @@ class AdminCreateAccountRequest(BaseModel):
     riskPolicy: str = "none"
     stopLossPct: float | None = None
     takeProfitPct: float | None = None
+    tradeSizePct: float | None = None
+    maxPositionPct: float | None = None
     instrumentMode: str = "equity"
     optionStrikeOffsetPct: float | None = None
     optionMinDte: int | None = None
@@ -115,6 +117,8 @@ class AccountParamsRequest(BaseModel):
     riskPolicy: str | None = None
     stopLossPct: float | None = None
     takeProfitPct: float | None = None
+    tradeSizePct: float | None = None
+    maxPositionPct: float | None = None
     instrumentMode: str | None = None
     goalMinReturnPct: float | None = None
     goalMaxReturnPct: float | None = None

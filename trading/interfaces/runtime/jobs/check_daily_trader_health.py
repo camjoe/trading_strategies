@@ -6,13 +6,18 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 from pathlib import Path
 from typing import TypedDict
 
 from common.repo_paths import get_repo_root
+from trading.services.notifications_service import notify_webhook_best_effort
 
 COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
+
+# Environment variable used to opt runtime jobs into webhook notifications.
+DEFAULT_NOTIFICATION_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 
 
 class HealthPayload(TypedDict):
@@ -45,6 +50,19 @@ def parse_args() -> argparse.Namespace:
         "--json",
         action="store_true",
         help="Print machine-readable JSON output",
+    )
+    parser.add_argument(
+        "--notify-webhook-url",
+        default=os.environ.get(DEFAULT_NOTIFICATION_WEBHOOK_ENV, ""),
+        help=(
+            "Optional webhook URL for runtime notifications "
+            f"(default: ${DEFAULT_NOTIFICATION_WEBHOOK_ENV} if set)"
+        ),
+    )
+    parser.add_argument(
+        "--notify-on-ok",
+        action="store_true",
+        help="Also send a webhook notification for successful health checks",
     )
     return parser.parse_args()
 
@@ -80,6 +98,28 @@ def _make_payload(
     }
 
 
+def _maybe_send_notification(args: argparse.Namespace, payload: HealthPayload) -> None:
+    if payload["status"] == "ok" and not args.notify_on_ok:
+        return
+    notify_webhook_best_effort(
+        webhook_url=args.notify_webhook_url,
+        event="daily-trader-health",
+        status=payload["status"],
+        message=payload["message"],
+        details={
+            "latest_log": payload["latest_log"],
+            "latest_log_age_hours": payload["latest_log_age_hours"],
+            "sentinel_found": payload["sentinel_found"],
+        },
+    )
+
+
+def _finish(args: argparse.Namespace, payload: HealthPayload, exit_code: int) -> int:
+    _emit(payload, args.json)
+    _maybe_send_notification(args, payload)
+    return exit_code
+
+
 def main() -> int:
     args = parse_args()
     if args.max_age_hours <= 0:
@@ -98,8 +138,7 @@ def main() -> int:
             latest_log_age_hours=None,
             sentinel_found=False,
         )
-        _emit(payload, args.json)
-        return 1
+        return _finish(args, payload, 1)
 
     latest = logs[0]
     now = dt.datetime.now(dt.timezone.utc)
@@ -116,8 +155,7 @@ def main() -> int:
             latest_log_age_hours=age_hours,
             sentinel_found=False,
         )
-        _emit(payload, args.json)
-        return 1
+        return _finish(args, payload, 1)
 
     sentinel_found = COMPLETE_SENTINEL in text
 
@@ -132,8 +170,7 @@ def main() -> int:
             latest_log_age_hours=age_hours,
             sentinel_found=sentinel_found,
         )
-        _emit(payload, args.json)
-        return 1
+        return _finish(args, payload, 1)
 
     if not sentinel_found:
         payload = _make_payload(
@@ -143,8 +180,7 @@ def main() -> int:
             latest_log_age_hours=age_hours,
             sentinel_found=False,
         )
-        _emit(payload, args.json)
-        return 1
+        return _finish(args, payload, 1)
 
     payload = _make_payload(
         status="ok",
@@ -153,8 +189,7 @@ def main() -> int:
         latest_log_age_hours=age_hours,
         sentinel_found=True,
     )
-    _emit(payload, args.json)
-    return 0
+    return _finish(args, payload, 0)
 
 
 if __name__ == "__main__":

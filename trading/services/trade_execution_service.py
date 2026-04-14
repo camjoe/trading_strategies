@@ -13,6 +13,82 @@ class TradePreparationStateLike(AccountStateLike, Protocol):
     cash: float
 
 
+def _account_value(account: sqlite3.Row, key: str) -> object | None:
+    try:
+        return account[key]
+    except (KeyError, IndexError):
+        return None
+
+
+def _position_mark_price(
+    ticker: str,
+    *,
+    prices: dict[str, float],
+    avg_cost: Mapping[str, float],
+    instrument_mode: str,
+    trade_price: float | None = None,
+) -> float:
+    if instrument_mode == "leaps":
+        if trade_price is not None:
+            return float(trade_price)
+        return float(avg_cost.get(ticker, 0.0))
+
+    market_price = prices.get(ticker)
+    if market_price is not None and market_price > 0:
+        return float(market_price)
+    return float(avg_cost.get(ticker, 0.0))
+
+
+def _estimate_portfolio_equity(
+    state: TradePreparationStateLike,
+    *,
+    prices: dict[str, float],
+    instrument_mode: str,
+    trade_ticker: str | None = None,
+    trade_price: float | None = None,
+) -> float:
+    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
+    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    equity = float(state.cash)
+    for held_ticker, qty in positions.items():
+        if qty <= 0:
+            continue
+        mark_price = _position_mark_price(
+            held_ticker,
+            prices=prices,
+            avg_cost=avg_cost,
+            instrument_mode=instrument_mode,
+            trade_price=trade_price if held_ticker == trade_ticker else None,
+        )
+        if mark_price <= 0:
+            continue
+        equity += float(qty) * mark_price
+    return equity
+
+
+def _current_position_value(
+    state: TradePreparationStateLike,
+    ticker: str,
+    *,
+    prices: dict[str, float],
+    instrument_mode: str,
+    trade_price: float,
+) -> float:
+    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
+    qty = float(positions.get(ticker, 0.0))
+    if qty <= 0:
+        return 0.0
+    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    mark_price = _position_mark_price(
+        ticker,
+        prices=prices,
+        avg_cost=avg_cost,
+        instrument_mode=instrument_mode,
+        trade_price=trade_price,
+    )
+    return qty * mark_price
+
+
 def refresh_account_state(
     conn: sqlite3.Connection,
     account: sqlite3.Row,
@@ -153,7 +229,7 @@ def prepare_buy_trade(
     *,
     build_leaps_candidates_fn: Callable[[sqlite3.Row, list[str], dict[str, float], dict[str, float]], list[tuple[str, float, float]]],
     estimate_option_premium_fn: Callable[[float, float, int | None, int | None], float],
-    choose_buy_qty_fn: Callable[[float, float, float], int],
+    choose_buy_qty_fn: Callable[..., int],
     apply_leaps_buy_qty_limits_fn: Callable[[int, float, sqlite3.Row], int],
     choose_buy_ticker_fn: Callable[[list[str], dict[str, float], object, bool], str],
 ) -> tuple[str, int, float, float | None, float | None] | None:
@@ -173,7 +249,27 @@ def prepare_buy_trade(
             int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
             int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
         )
-        qty = choose_buy_qty_fn(state.cash, option_price, fee)
+        qty = choose_buy_qty_fn(
+            state.cash,
+            option_price,
+            fee,
+            trade_size_pct=_account_value(account, "trade_size_pct"),
+            max_position_pct=_account_value(account, "max_position_pct"),
+            current_position_value=_current_position_value(
+                state,
+                ticker,
+                prices=prices,
+                instrument_mode=instrument_mode,
+                trade_price=float(option_price),
+            ),
+            portfolio_equity=_estimate_portfolio_equity(
+                state,
+                prices=prices,
+                instrument_mode=instrument_mode,
+                trade_ticker=ticker,
+                trade_price=float(option_price),
+            ),
+        )
         if qty <= 0:
             return None
 
@@ -188,7 +284,27 @@ def prepare_buy_trade(
     if price is None or price <= 0:
         return None
 
-    qty = choose_buy_qty_fn(state.cash, float(price), fee)
+    qty = choose_buy_qty_fn(
+        state.cash,
+        float(price),
+        fee,
+        trade_size_pct=_account_value(account, "trade_size_pct"),
+        max_position_pct=_account_value(account, "max_position_pct"),
+        current_position_value=_current_position_value(
+            state,
+            ticker,
+            prices=prices,
+            instrument_mode=instrument_mode,
+            trade_price=float(price),
+        ),
+        portfolio_equity=_estimate_portfolio_equity(
+            state,
+            prices=prices,
+            instrument_mode=instrument_mode,
+            trade_ticker=ticker,
+            trade_price=float(price),
+        ),
+    )
     if qty <= 0:
         return None
 

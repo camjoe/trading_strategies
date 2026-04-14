@@ -16,6 +16,10 @@ _EXPECTED_COMMANDS = {
     "list-accounts",
     "trade",
     "report",
+    "promotion-status",
+    "promotion-request-review",
+    "promotion-review-history",
+    "promotion-review-action",
     "snapshot",
     "snapshot-history",
     "compare-strategies",
@@ -24,6 +28,7 @@ _EXPECTED_COMMANDS = {
     "backtest-leaderboard",
     "backtest-batch",
     "backtest-walk-forward",
+    "backtest-walk-forward-report",
 }
 
 

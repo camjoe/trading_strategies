@@ -134,3 +134,96 @@ class TestMainLogScenarios:
         data = json.loads(capsys.readouterr().out)
         assert data["status"] == "ok"
         assert data["sentinel_found"] is True
+
+    def test_failure_sends_notification_when_webhook_configured(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        log_dir = self._log_dir(tmp_path)
+        (log_dir / "daily_paper_trading_NOW.log").write_text(
+            "partial run\n", encoding="utf-8"
+        )
+
+        sent: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.check_daily_trader_health.notify_webhook_best_effort",
+            lambda **kwargs: sent.append(kwargs) or True,
+        )
+
+        code = _run_main(
+            monkeypatch,
+            [
+                "--repo-root",
+                str(tmp_path),
+                "--max-age-hours",
+                "9999",
+                "--notify-webhook-url",
+                "https://example.test/webhook",
+            ],
+        )
+
+        assert code == 1
+        assert len(sent) == 1
+        assert sent[0]["status"] == "fail"
+        assert sent[0]["event"] == "daily-trader-health"
+
+    def test_success_does_not_send_notification_without_notify_on_ok(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        log_dir = self._log_dir(tmp_path)
+        (log_dir / "daily_paper_trading_NOW.log").write_text(
+            f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+        )
+
+        sent: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.check_daily_trader_health.notify_webhook_best_effort",
+            lambda **kwargs: sent.append(kwargs) or True,
+        )
+
+        code = _run_main(
+            monkeypatch,
+            [
+                "--repo-root",
+                str(tmp_path),
+                "--max-age-hours",
+                "9999",
+                "--notify-webhook-url",
+                "https://example.test/webhook",
+            ],
+        )
+
+        assert code == 0
+        assert sent == []
+
+    def test_success_sends_notification_with_notify_on_ok(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        log_dir = self._log_dir(tmp_path)
+        (log_dir / "daily_paper_trading_NOW.log").write_text(
+            f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+        )
+
+        sent: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.check_daily_trader_health.notify_webhook_best_effort",
+            lambda **kwargs: sent.append(kwargs) or True,
+        )
+
+        code = _run_main(
+            monkeypatch,
+            [
+                "--repo-root",
+                str(tmp_path),
+                "--max-age-hours",
+                "9999",
+                "--notify-webhook-url",
+                "https://example.test/webhook",
+                "--notify-on-ok",
+            ],
+        )
+
+        assert code == 0
+        assert len(sent) == 1
+        assert sent[0]["status"] == "ok"

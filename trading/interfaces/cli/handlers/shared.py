@@ -27,6 +27,8 @@ def common_account_config_kwargs(args, *, include_learning_disabled: bool) -> Ac
         risk_policy=args.risk_policy,
         stop_loss_pct=args.stop_loss_pct,
         take_profit_pct=args.take_profit_pct,
+        trade_size_pct=getattr(args, "trade_size_pct", None),
+        max_position_pct=getattr(args, "max_position_pct", None),
         instrument_mode=args.instrument_mode,
         option_strike_offset_pct=args.option_strike_offset_pct,
         option_min_dte=args.option_min_dte,

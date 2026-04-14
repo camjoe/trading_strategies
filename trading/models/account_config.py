@@ -15,6 +15,8 @@ class AccountConfig:
     risk_policy: str | None = None
     stop_loss_pct: float | None = None
     take_profit_pct: float | None = None
+    trade_size_pct: float | None = None
+    max_position_pct: float | None = None
     instrument_mode: str | None = None
     option_strike_offset_pct: float | None = None
     option_min_dte: int | None = None

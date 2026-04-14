@@ -5,10 +5,12 @@ from fastapi import APIRouter, HTTPException
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
 from ..services import (
+    attach_live_benchmark_summary,
     fetch_account_row,
     build_account_summary,
     build_account_summary_and_positions,
     build_comparison_account_payload,
+    build_live_benchmark_overlay,
     fetch_account_snapshot_rows,
     db_conn,
     fetch_account_trades,
@@ -41,10 +43,17 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
         comparison: list[dict[str, object]] = []
         for row in fetch_managed_account_rows(conn):
             summary = build_account_summary(conn, row)
+            snapshots = fetch_account_snapshot_rows(conn, int(row["id"]), limit=100)
+            attach_live_benchmark_summary(summary, build_live_benchmark_overlay(summary, snapshots))
             latest_backtest = fetch_latest_backtest_metrics(conn, str(row["name"]))
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
 
-        comparison.append(build_comparison_account_payload(build_test_account_live_summary(conn), None))
+        test_summary = build_test_account_live_summary(conn)
+        resolved_test_name = resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
+        test_account = fetch_account_row(conn, resolved_test_name)
+        test_snapshots = fetch_account_snapshot_rows(conn, int(test_account["id"]), limit=100)
+        attach_live_benchmark_summary(test_summary, build_live_benchmark_overlay(test_summary, test_snapshots))
+        comparison.append(build_comparison_account_payload(test_summary, None))
         comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 
@@ -61,13 +70,18 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
 
         snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
+        overlay = build_live_benchmark_overlay(summary, snapshots)
+        attach_live_benchmark_summary(summary, overlay)
         trades = fetch_account_trades(conn, int(account["id"]))
         latest_backtest = fetch_latest_backtest_summary(conn, resolved_name)
+        latest_backtest_metrics = fetch_latest_backtest_metrics(conn, resolved_name)
 
         return {
             "account": summary,
             "positions": positions,
             "latestBacktest": latest_backtest,
+            "latestBacktestMetrics": latest_backtest_metrics,
+            "liveBenchmarkOverlay": overlay,
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade) for trade in trades[-100:]],
         }
@@ -94,6 +108,8 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
                 descriptive_name=body.descriptiveName,
                 stop_loss_pct=body.stopLossPct,
                 take_profit_pct=body.takeProfitPct,
+                trade_size_pct=body.tradeSizePct,
+                max_position_pct=body.maxPositionPct,
                 instrument_mode=body.instrumentMode,
                 goal_min_return_pct=body.goalMinReturnPct,
                 goal_max_return_pct=body.goalMaxReturnPct,

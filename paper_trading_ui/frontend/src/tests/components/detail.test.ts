@@ -18,6 +18,11 @@ describe("renderDetail", () => {
         settlementCash: 0,
         totalChange: 100,
         totalChangePct: 10,
+        liveBenchmarkReturnPct: 8,
+        liveAlphaPct: 2,
+        liveBenchmarkEquity: 1080,
+        liveBenchmarkStartTime: "2026-03-14T00:00:00Z",
+        liveBenchmarkEndTime: "2026-03-15T00:00:00Z",
         changeSinceLastSnapshot: 5,
         latestSnapshotTime: "2026-03-15T00:00:00Z",
         stopLossPct: null,
@@ -52,7 +57,40 @@ describe("renderDetail", () => {
         feePerTrade: 1,
         tickersFile: "trading/config/trade_universe.txt",
       },
+      latestBacktestMetrics: {
+        runId: 12,
+        endDate: "2026-02-01",
+        totalReturnPct: 14,
+        maxDrawdownPct: -4,
+        alphaPct: 5,
+        sharpeRatio: 1.5,
+        winRatePct: 58,
+        profitFactor: 1.8,
+      },
+      liveBenchmarkOverlay: {
+        benchmark: "SPY",
+        startTime: "2026-03-14T00:00:00Z",
+        endTime: "2026-03-15T00:00:00Z",
+        startingEquity: 1000,
+        endingEquity: 1100,
+        benchmarkEquity: 1080,
+        accountReturnPct: 10,
+        benchmarkReturnPct: 8,
+        alphaPct: 2,
+        points: [
+          { time: "2026-03-14T00:00:00Z", accountEquity: 1040, benchmarkEquity: 1030 },
+          { time: "2026-03-15T00:00:00Z", accountEquity: 1100, benchmarkEquity: 1080 },
+        ],
+      },
       snapshots: [
+        {
+          time: "2026-03-14T00:00:00Z",
+          cash: 650,
+          marketValue: 390,
+          equity: 1040,
+          realizedPnl: 5,
+          unrealizedPnl: 35,
+        },
         {
           time: "2026-03-15T00:00:00Z",
           cash: 700,
@@ -79,6 +117,12 @@ describe("renderDetail", () => {
     const html = renderDetail(detail);
     expect(html).toContain("Latest Backtest Run 12");
     expect(html).toContain("Open Report");
+    expect(html).toContain("Backtest Return");
+    expect(html).toContain("Benchmark Return");
+    expect(html).toContain("Live Alpha");
+    expect(html).toContain("Live vs SPY");
+    expect(html).toContain("Live Equity Curve");
+    expect(html).toContain("<svg");
     expect(html).toContain("Snapshot This Account");
     expect(html).toContain("Edit Parameters");
     expect(html).toContain("Rotation Settings");
@@ -108,6 +152,11 @@ describe("renderDetail", () => {
         settlementCash: 10000,
         totalChange: 0,
         totalChangePct: 0,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
         stopLossPct: null,
@@ -131,6 +180,8 @@ describe("renderDetail", () => {
         maxLossPct: null,
       },
       latestBacktest: null,
+      latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
       snapshots: [],
       trades: [],
       positions: [],
@@ -156,6 +207,11 @@ describe("renderDetail", () => {
         settlementCash: 0,
         totalChange: -100,
         totalChangePct: -10,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
         stopLossPct: null,
@@ -179,6 +235,8 @@ describe("renderDetail", () => {
         maxLossPct: null,
       },
       latestBacktest: null,
+      latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
       snapshots: [],
       trades: [],
       positions: [],
@@ -205,6 +263,11 @@ describe("renderDetail", () => {
         settlementCash: 0,
         totalChange: -100,
         totalChangePct: -10,
+        liveBenchmarkReturnPct: null,
+        liveAlphaPct: null,
+        liveBenchmarkEquity: null,
+        liveBenchmarkStartTime: null,
+        liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
         stopLossPct: null,
@@ -228,6 +291,8 @@ describe("renderDetail", () => {
         maxLossPct: null,
       },
       latestBacktest: null,
+      latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
       snapshots: [],
       trades: [],
       positions: [],
