@@ -146,6 +146,66 @@ def fetch_latest_walk_forward_group_for_account_strategy(
     ).fetchone()
 
 
+def fetch_latest_walk_forward_group_for_account(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT id,
+               grouping_key,
+               account_id,
+               strategy_name,
+               run_name_prefix,
+               start_date,
+               end_date,
+               test_months,
+               step_months,
+               window_count,
+               average_return_pct,
+               median_return_pct,
+               best_return_pct,
+               worst_return_pct,
+               created_at
+        FROM walk_forward_groups
+        WHERE account_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        """,
+        (int(account_id),),
+    ).fetchone()
+
+
+def fetch_walk_forward_group_by_id(
+    conn: sqlite3.Connection,
+    *,
+    group_id: int,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT id,
+               grouping_key,
+               account_id,
+               strategy_name,
+               run_name_prefix,
+               start_date,
+               end_date,
+               test_months,
+               step_months,
+               window_count,
+               average_return_pct,
+               median_return_pct,
+               best_return_pct,
+               worst_return_pct,
+               created_at
+        FROM walk_forward_groups
+        WHERE id = ?
+        """,
+        (int(group_id),),
+    ).fetchone()
+
+
 def fetch_walk_forward_group_runs(
     conn: sqlite3.Connection,
     *,

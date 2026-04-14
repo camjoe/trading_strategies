@@ -153,3 +153,41 @@ class BacktestFullReport:
             }
         )
         return payload
+
+
+@dataclass
+class WalkForwardWindowDetail:
+    window_index: int
+    window_start: str
+    window_end: str
+    total_return_pct: float
+    backtest_summary: BacktestReportSummary
+
+    def to_payload(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload["backtest_summary"] = asdict(self.backtest_summary)
+        return payload
+
+
+@dataclass
+class WalkForwardDetailReport:
+    group_id: int
+    account_name: str
+    strategy_name: str
+    run_name_prefix: str | None
+    start_date: str
+    end_date: str
+    test_months: int
+    step_months: int
+    window_count: int
+    average_return_pct: float
+    median_return_pct: float
+    best_return_pct: float
+    worst_return_pct: float
+    created_at: str
+    windows: list[WalkForwardWindowDetail]
+
+    def to_payload(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload["windows"] = [item.to_payload() for item in self.windows]
+        return payload

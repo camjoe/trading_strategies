@@ -19,6 +19,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_report,
     handle_backtest_walk_forward,
+    handle_backtest_walk_forward_report,
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
@@ -54,6 +55,7 @@ COMMAND_HANDLERS = {
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,
     "backtest-walk-forward": handle_backtest_walk_forward,
+    "backtest-walk-forward-report": handle_backtest_walk_forward_report,
 }
 
 

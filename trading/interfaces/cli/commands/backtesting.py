@@ -144,3 +144,11 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
         action="store_true",
         help="Allow approximate LEAPs backtest mode using underlying price proxies",
     )
+
+    p_walk_forward_report = sub.add_parser(
+        "backtest-walk-forward-report",
+        help="Show persisted walk-forward group details and per-window backtest summaries.",
+    )
+    p_walk_forward_report.add_argument("--group-id", type=int, default=None, help="Walk-forward group id")
+    p_walk_forward_report.add_argument("--account", default=None, help="Account name for latest walk-forward group")
+    p_walk_forward_report.add_argument("--strategy", default=None, help="Optional strategy filter with --account")

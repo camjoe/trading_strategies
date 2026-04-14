@@ -45,6 +45,7 @@ from trading.backtesting.services import (
     execute_walk_forward_backtest,
     fetch_backtest_leaderboard_entries,
     fetch_backtest_report_data,
+    fetch_walk_forward_report_data,
     fetch_benchmark_close,
     fetch_close_history,
     load_tickers_from_file,
@@ -346,3 +347,18 @@ def run_walk_forward_backtest(
         windows=windows,
         run_backtest_fn=run_backtest,
     )
+
+
+def walk_forward_report(
+    conn: sqlite3.Connection,
+    *,
+    group_id: int | None = None,
+    account_name: str | None = None,
+    strategy_name: str | None = None,
+) -> dict[str, object]:
+    return fetch_walk_forward_report_data(
+        conn,
+        group_id=group_id,
+        account_name=account_name,
+        strategy_name=strategy_name,
+    ).to_payload()

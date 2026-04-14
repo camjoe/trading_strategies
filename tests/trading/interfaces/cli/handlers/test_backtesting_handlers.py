@@ -10,6 +10,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_leaderboard,
     handle_backtest_report,
     handle_backtest_walk_forward,
+    handle_backtest_walk_forward_report,
 )
 
 
@@ -339,3 +340,53 @@ def test_handle_backtest_walk_forward_routes_value_error_to_parser_error() -> No
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
         handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
+def test_handle_backtest_walk_forward_report_prints_window_rows(capsys) -> None:
+    report = {
+        "group_id": 7,
+        "account_name": "acct",
+        "strategy_name": "trend",
+        "run_name_prefix": "wf",
+        "start_date": "2026-01-01",
+        "end_date": "2026-03-31",
+        "created_at": "2026-04-14T00:00:00Z",
+        "window_count": 2,
+        "average_return_pct": 4.0,
+        "median_return_pct": 4.0,
+        "best_return_pct": 5.0,
+        "worst_return_pct": 3.0,
+        "windows": [
+            {
+                "window_index": 1,
+                "window_start": "2026-01-01",
+                "window_end": "2026-01-31",
+                "total_return_pct": 3.0,
+                "backtest_summary": {
+                    "run_id": 101,
+                    "run_name": "wf_01",
+                    "max_drawdown_pct": -1.0,
+                    "trade_count": 5,
+                },
+            }
+        ],
+    }
+    deps = {"walk_forward_report": lambda *_a, **_kw: report}
+    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
+
+    handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+    out = capsys.readouterr().out
+    assert "Walk-forward Group 7" in out
+    assert "window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count" in out
+    assert "101,wf_01" in out
+
+
+def test_handle_backtest_walk_forward_report_routes_value_error_to_parser_error() -> None:
+    deps = {
+        "walk_forward_report": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Walk-forward group 7 not found."))
+    }
+    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
+
+    with pytest.raises(SystemExit, match="Walk-forward group 7 not found."):
+        handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")

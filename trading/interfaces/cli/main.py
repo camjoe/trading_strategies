@@ -5,6 +5,7 @@ from trading.backtesting.backtest import (
     backtest_report,
     run_backtest,
     run_backtest_batch,
+    walk_forward_report,
     run_walk_forward_backtest,
 )
 from trading.database.db import DB_PATH, ensure_db
@@ -43,6 +44,7 @@ def _handler_deps() -> dict[str, object]:
         "WalkForwardConfig": WalkForwardConfig,
         "backtest_leaderboard_entries": backtest_leaderboard_entries,
         "backtest_report": backtest_report,
+        "walk_forward_report": walk_forward_report,
         "run_backtest": run_backtest,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_backtest": run_walk_forward_backtest,

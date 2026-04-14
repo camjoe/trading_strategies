@@ -206,3 +206,45 @@ def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any], mo
     if len(summary.run_ids) > 10:
         run_ids_preview += ", ..."
     print(f"Generated run ids: {run_ids_preview}")
+
+
+def handle_backtest_walk_forward_report(
+    conn,
+    args,
+    parser,
+    *,
+    deps: dict[str, Any],
+    module_file: str,
+    db_path: str,
+) -> None:
+    try:
+        report = deps["walk_forward_report"](
+            conn,
+            group_id=args.group_id,
+            account_name=args.account,
+            strategy_name=args.strategy,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
+
+    print(
+        f"Walk-forward Group {report['group_id']} | account={report['account_name']} "
+        f"strategy={report['strategy_name']}"
+    )
+    print(
+        f"Range: {report['start_date']}..{report['end_date']} | Created: {report['created_at']} "
+        f"| Windows: {report['window_count']} | Prefix: {report['run_name_prefix'] or 'n/a'}"
+    )
+    print(
+        f"Average Return: {report['average_return_pct']:.2f}% | Median Return: {report['median_return_pct']:.2f}% "
+        f"| Best: {report['best_return_pct']:.2f}% | Worst: {report['worst_return_pct']:.2f}%"
+    )
+    print("window,range,run_id,run_name,return_pct,max_drawdown_pct,trade_count")
+    for window in report["windows"]:
+        summary = window["backtest_summary"]
+        print(
+            f"{window['window_index']},{window['window_start']}..{window['window_end']},"
+            f"{summary['run_id']},{summary['run_name'] or ''},{window['total_return_pct']:.4f},"
+            f"{summary['max_drawdown_pct']:.4f},{summary['trade_count']}"
+        )
