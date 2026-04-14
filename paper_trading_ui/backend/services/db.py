@@ -7,7 +7,7 @@ from typing import Iterator
 from fastapi import HTTPException
 
 from trading.database.db import ensure_db
-from trading.services.accounts_service import fetch_account_by_name, fetch_latest_snapshot_row as _fetch_latest_snapshot_row
+from trading.services.accounts_service import fetch_account_by_name, fetch_latest_snapshot_row
 
 
 @contextmanager
@@ -26,5 +26,4 @@ def fetch_account_row(conn: sqlite3.Connection, account_name: str) -> sqlite3.Ro
     return row
 
 
-def fetch_latest_snapshot_row(conn: sqlite3.Connection, account_id: int) -> sqlite3.Row | None:
-    return _fetch_latest_snapshot_row(conn, account_id)
+

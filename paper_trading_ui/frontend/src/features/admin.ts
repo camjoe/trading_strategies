@@ -2,6 +2,8 @@ import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
 import { applyAccountConfigOptionsToAdminForm, getAccountConfigOptions } from "../lib/account-config-options";
 import { errorMessage, getJson, postJson } from "../lib/http";
+import { numOrUndefined, intOrUndefined, strOrUndefined } from "../lib/form-parse";
+import { TEST_ACCOUNT_NAME } from "../lib/constants";
 import type { AccountListItem, AccountSummary, AdminCreateAccountPayload } from "../types";
 
 interface DeleteResponse {
@@ -68,26 +70,8 @@ function setOutput(
   }
 }
 
-function numOrUndefined(value: FormDataEntryValue | null): number | undefined {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (!raw) return undefined;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function intOrUndefined(value: FormDataEntryValue | null): number | undefined {
-  const parsed = numOrUndefined(value);
-  if (parsed === undefined) return undefined;
-  return Math.trunc(parsed);
-}
-
 function isTradeSide(value: string): value is "buy" | "sell" {
   return value === "buy" || value === "sell";
-}
-
-function strOrUndefined(value: FormDataEntryValue | null): string | undefined {
-  const raw = typeof value === "string" ? value.trim() : "";
-  return raw || undefined;
 }
 
 function csvListOrUndefined(value: FormDataEntryValue | null): string[] | undefined {
@@ -100,7 +84,6 @@ function csvListOrUndefined(value: FormDataEntryValue | null): string[] | undefi
 }
 
 export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
-  const TEST_ACCOUNT_NAME = "test_account";
   let cachedCsvExports: CsvExportBatch[] = [];
 
   function syncInstrumentDetails(form?: HTMLFormElement | null): void {

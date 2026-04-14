@@ -3,12 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from ..account_contract import build_admin_create_account_command
-from trading.services.accounts_service import create_account
-from trading.domain import AccountAlreadyExistsError
-
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services import (
-    apply_account_rotation_profile,
     fetch_account_row,
     build_account_summary,
     db_conn,
@@ -17,6 +13,9 @@ from ..services import (
     preview_csv_export,
 )
 from ..config import TEST_ACCOUNT_NAME
+from trading.services.accounts_service import create_account
+from trading.domain import AccountAlreadyExistsError
+from trading.services.profiles_service import apply_rotation_fields
 
 router = APIRouter()
 
@@ -39,7 +38,7 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
         except AccountAlreadyExistsError as error:
             raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
 
-        apply_account_rotation_profile(conn, command.name, command.rotation_profile)
+        apply_rotation_fields(conn, command.name, command.rotation_profile)
 
         account = fetch_account_row(conn, command.name)
         return {"status": "ok", "account": build_account_summary(conn, account)}

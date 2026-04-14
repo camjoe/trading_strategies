@@ -130,6 +130,16 @@ def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection
     return resolved
 
 
+from .accounts import build_account_summary
+from .db import fetch_account_row
+
+
+def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> sqlite3.Row:
+    """Resolve ``account_name`` (handles test-account aliasing) and return its DB row."""
+    resolved_name = resolve_backtest_payload_account(account_name, conn)
+    return fetch_account_row(conn, resolved_name)
+
+
 def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:
     """Build the test_account summary using live equity from test_account_bt in the DB.
 
@@ -137,11 +147,7 @@ def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, objec
     ``build_account_summary`` path so equity and PnL are always computed from real
     trades rather than the static investments file.
     """
-    from .accounts import build_account_summary
-    from .db import fetch_account_row
-
-    resolved_name = resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
-    row = fetch_account_row(conn, resolved_name)
+    row = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
     summary = build_account_summary(conn, row)
     # Surface under the virtual "test_account" name the UI expects.
     summary["name"] = TEST_ACCOUNT_NAME

@@ -20,7 +20,7 @@ from ..services import (
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
-    resolve_backtest_payload_account,
+    fetch_resolved_account_row,
     build_snapshot_payload,
     build_test_account_live_summary,
     build_trade_payload,
@@ -57,8 +57,7 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
 
         test_summary = build_test_account_live_summary(conn)
-        resolved_test_name = resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
-        test_account = fetch_account_row(conn, resolved_test_name)
+        test_account = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
         test_snapshots = fetch_account_snapshot_rows(conn, int(test_account["id"]), limit=100)
         attach_live_benchmark_summary(test_summary, build_live_benchmark_overlay(test_summary, test_snapshots))
         comparison.append(build_comparison_account_payload(test_summary, None))
@@ -69,8 +68,7 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
 @router.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
     with db_conn() as conn:
-        resolved_name = resolve_backtest_payload_account(account_name, conn)
-        account = fetch_account_row(conn, resolved_name)
+        account = fetch_resolved_account_row(conn, account_name)
         summary, positions = build_account_summary_and_positions(conn, account)
 
         if account_name == TEST_ACCOUNT_NAME:
@@ -81,8 +79,8 @@ def api_account_detail(account_name: str) -> dict[str, object]:
         overlay = build_live_benchmark_overlay(summary, snapshots)
         attach_live_benchmark_summary(summary, overlay)
         trades = fetch_account_trades(conn, int(account["id"]))
-        latest_backtest = fetch_latest_backtest_summary(conn, resolved_name)
-        latest_backtest_metrics = fetch_latest_backtest_metrics(conn, resolved_name)
+        latest_backtest = fetch_latest_backtest_summary(conn, str(account["name"]))
+        latest_backtest_metrics = fetch_latest_backtest_metrics(conn, str(account["name"]))
 
         return {
             "account": summary,

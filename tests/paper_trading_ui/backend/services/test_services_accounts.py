@@ -213,7 +213,6 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "endDate": "2026-01-31",
         "totalReturnPct": 12.5,
         "maxDrawdownPct": -4.2,
-        "alphaPct": None,
         "sharpeRatio": 1.4,
         "sortinoRatio": 1.9,
         "calmarRatio": 0.8,

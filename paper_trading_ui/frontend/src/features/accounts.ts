@@ -2,11 +2,10 @@ import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
 import { errorMessage, getJson, patchJson, postJson } from "../lib/http";
 import { parseRunId } from "../lib/parse";
+import { TEST_ACCOUNT_NAME } from "../lib/constants";
 import { accountCard } from "../components/accounts";
 import { renderDetail, renderAnalysisPanel } from "../components/detail";
 import type { AccountAnalysis, AccountDetail, AccountListItem, AccountParamsUpdate } from "../types";
-
-const TEST_ACCOUNT_NAME = "test_account";
 
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountListItem[]) => void;

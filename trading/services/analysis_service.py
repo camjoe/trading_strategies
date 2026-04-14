@@ -217,6 +217,7 @@ def fetch_account_analysis(
     return {
         "accountReturnPct": account_return,
         "benchmarkReturnPct": bench_return,
+        "benchmarkTicker": benchmark_ticker,
         "alphaPct": alpha,
         "realizedPnl": state.realized_pnl,
         "unrealizedPnl": unrealized,

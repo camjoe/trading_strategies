@@ -191,7 +191,6 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         ${detail.latestBacktestMetrics
           ? `<div class="analysis-summary">
               <div class="analysis-stat"><span class="label">Backtest Return</span><span>${metricValue(detail.latestBacktestMetrics.totalReturnPct, "%")}</span></div>
-              <div class="analysis-stat"><span class="label">Alpha</span><span>${metricValue(detail.latestBacktestMetrics.alphaPct, "%")}</span></div>
               <div class="analysis-stat"><span class="label">Max DD</span><span>${metricValue(detail.latestBacktestMetrics.maxDrawdownPct, "%")}</span></div>
               <div class="analysis-stat"><span class="label">Sharpe</span><span>${metricValue(detail.latestBacktestMetrics.sharpeRatio)}</span></div>
               <div class="analysis-stat"><span class="label">Win Rate</span><span>${metricValue(detail.latestBacktestMetrics.winRatePct, "%")}</span></div>
@@ -606,7 +605,7 @@ export function renderAnalysisPanel(analysis: AccountAnalysis): string {
         <span class="${signClass(analysis.accountReturnPct)}">${pct(analysis.accountReturnPct)}</span>
       </div>
       <div class="analysis-stat">
-        <span class="label">Benchmark (${analysis.benchmarkReturnPct != null ? "SPY" : "—"})</span>
+        <span class="label">Benchmark (${analysis.benchmarkReturnPct != null ? (analysis.benchmarkTicker ?? "—") : "—"})</span>
         ${benchmarkLine}
       </div>
       <div class="analysis-stat">

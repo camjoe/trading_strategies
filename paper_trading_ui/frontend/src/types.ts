@@ -15,8 +15,8 @@ export interface AccountConfigFields {
   riskPolicy: string;
   stopLossPct: number | null;
   takeProfitPct: number | null;
-  tradeSizePct?: number | null;
-  maxPositionPct?: number | null;
+  tradeSizePct: number;
+  maxPositionPct: number;
   instrumentMode: string;
   goalMinReturnPct: number | null;
   goalMaxReturnPct: number | null;
@@ -161,6 +161,7 @@ export type AnalysisPosition = {
 export type AccountAnalysis = {
   accountReturnPct: number;
   benchmarkReturnPct: number | null;
+  benchmarkTicker: string | null;
   alphaPct: number | null;
   realizedPnl: number;
   unrealizedPnl: number;
@@ -265,7 +266,6 @@ export type LatestBacktestMetrics = {
   endDate: string;
   totalReturnPct: number;
   maxDrawdownPct: number;
-  alphaPct: number | null;
   sharpeRatio?: number | null;
   sortinoRatio?: number | null;
   calmarRatio?: number | null;
