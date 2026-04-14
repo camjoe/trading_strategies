@@ -451,7 +451,7 @@ def reconcile_open_ib_orders(
     account: sqlite3.Row,
     fee: float,
 ) -> int:
-    """Poll IB for fill updates on all open (non-terminal) broker orders.
+    """Poll the account broker for fill updates on all open persisted broker orders.
 
     For each order that has transitioned to FILLED since it was last persisted,
     this function:
@@ -462,14 +462,11 @@ def reconcile_open_ib_orders(
     Returns the number of orders that were newly FILLED in this call.
 
     This should be called periodically (e.g. once per trading loop iteration)
-    for accounts with ``broker_type = 'interactive_brokers'``.  It is a no-op
-    for paper accounts since paper orders are synchronously filled.
+    for accounts with broker-managed open orders. It is a no-op for paper
+    accounts since paper orders are synchronously filled and report no open
+    trades through the broker interface.
     """
-    from trading.brokers.ib_adapter import InteractiveBrokersAdapter
-
     broker = get_broker_for_account(account)
-    if not isinstance(broker, InteractiveBrokersAdapter):
-        return 0
 
     open_rows = fetch_open_broker_orders(conn, account_id=int(account["id"]))
     if not open_rows:
