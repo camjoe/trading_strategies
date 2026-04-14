@@ -1,3 +1,10 @@
+"""Stable public facade for account-related service helpers.
+
+External callers should keep importing from ``trading.services.accounts_service``.
+The ``trading.services.accounts.*`` package is the implementation split used to
+organize listing, config, and mutation responsibilities internally.
+"""
+
 from __future__ import annotations
 
 import sqlite3
