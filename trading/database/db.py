@@ -266,6 +266,64 @@ CREATE INDEX IF NOT EXISTS idx_walk_forward_group_runs_group_window
 ON walk_forward_group_runs(group_id, window_index ASC);
 """
 
+PROMOTION_REVIEWS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS promotion_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    account_name_snapshot TEXT NOT NULL,
+    strategy_name TEXT NOT NULL,
+    review_state TEXT NOT NULL DEFAULT 'requested',
+    assessment_stage TEXT NOT NULL,
+    assessment_status TEXT NOT NULL,
+    ready_for_live INTEGER NOT NULL DEFAULT 0,
+    overall_confidence REAL NOT NULL DEFAULT 0,
+    live_trading_enabled_snapshot INTEGER NOT NULL DEFAULT 0,
+    promotion_assessment_version TEXT NOT NULL,
+    evaluation_artifact_version TEXT NOT NULL,
+    frozen_assessment_payload TEXT NOT NULL,
+    frozen_evaluation_payload TEXT NOT NULL,
+    requested_by TEXT,
+    reviewed_by TEXT,
+    operator_summary_note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    closed_at TEXT,
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+"""
+
+PROMOTION_REVIEW_EVENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS promotion_review_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_id INTEGER NOT NULL,
+    event_seq INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    actor_type TEXT NOT NULL DEFAULT 'operator',
+    actor_name TEXT,
+    from_review_state TEXT,
+    to_review_state TEXT,
+    note TEXT,
+    event_payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (review_id) REFERENCES promotion_reviews(id),
+    UNIQUE(review_id, event_seq)
+);
+"""
+
+PROMOTION_REVIEW_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_promotion_reviews_account_strategy_created
+ON promotion_reviews(account_id, strategy_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promotion_reviews_state_updated
+ON promotion_reviews(review_state, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_promotion_reviews_open_requested
+ON promotion_reviews(account_id, strategy_name)
+WHERE review_state = 'requested';
+CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_seq
+ON promotion_review_events(review_id, event_seq ASC);
+CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_created
+ON promotion_review_events(review_id, created_at ASC);
+"""
+
 SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
@@ -283,6 +341,9 @@ SCHEMA_SQL = "\n".join(
         WALK_FORWARD_GROUPS_TABLE_SQL,
         WALK_FORWARD_GROUP_RUNS_TABLE_SQL,
         WALK_FORWARD_INDEXES_SQL,
+        PROMOTION_REVIEWS_TABLE_SQL,
+        PROMOTION_REVIEW_EVENTS_TABLE_SQL,
+        PROMOTION_REVIEW_INDEXES_SQL,
     )
 )
 

@@ -41,6 +41,17 @@ def fetch_backtest_run_rows_for_accounts(
     ).fetchall()
 
 
+def fetch_promotion_review_rows_for_accounts(
+    conn: sqlite3.Connection,
+    account_ids: tuple[int, ...],
+) -> list[sqlite3.Row]:
+    placeholders = ",".join(["?"] * len(account_ids))
+    return conn.execute(
+        f"SELECT id FROM promotion_reviews WHERE account_id IN ({placeholders})",
+        account_ids,
+    ).fetchall()
+
+
 def delete_backtest_equity_snapshots_by_run_ids(
     conn: sqlite3.Connection,
     run_ids: tuple[int, ...],
@@ -63,6 +74,22 @@ def delete_backtest_runs_by_account_ids(
 ) -> None:
     placeholders = ",".join(["?"] * len(account_ids))
     conn.execute(f"DELETE FROM backtest_runs WHERE account_id IN ({placeholders})", account_ids)
+
+
+def delete_promotion_review_events_by_review_ids(
+    conn: sqlite3.Connection,
+    review_ids: tuple[int, ...],
+) -> None:
+    placeholders = ",".join(["?"] * len(review_ids))
+    conn.execute(f"DELETE FROM promotion_review_events WHERE review_id IN ({placeholders})", review_ids)
+
+
+def delete_promotion_reviews_by_account_ids(
+    conn: sqlite3.Connection,
+    account_ids: tuple[int, ...],
+) -> None:
+    placeholders = ",".join(["?"] * len(account_ids))
+    conn.execute(f"DELETE FROM promotion_reviews WHERE account_id IN ({placeholders})", account_ids)
 
 
 def delete_equity_snapshots_by_account_ids(

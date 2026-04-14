@@ -22,6 +22,9 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_promotion_request_review,
+    handle_promotion_review_action,
+    handle_promotion_review_history,
     handle_promotion_status,
     handle_report,
     handle_snapshot,
@@ -40,6 +43,9 @@ COMMAND_HANDLERS = {
     "trade": handle_trade,
     "report": handle_report,
     "promotion-status": handle_promotion_status,
+    "promotion-request-review": handle_promotion_request_review,
+    "promotion-review-history": handle_promotion_review_history,
+    "promotion-review-action": handle_promotion_review_action,
     "snapshot": handle_snapshot,
     "snapshot-history": handle_snapshot_history,
     "compare-strategies": handle_compare_strategies,

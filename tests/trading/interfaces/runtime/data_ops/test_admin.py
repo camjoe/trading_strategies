@@ -60,6 +60,37 @@ def _seed_admin_dataset() -> None:
             VALUES
                 (11, '2025-01-10T00:00:00Z', 900, 100, 1000, 0, 0),
                 (22, '2025-01-10T00:00:00Z', 1300, 200, 1500, 0, 0);
+
+            INSERT INTO promotion_reviews (
+                id, account_id, account_name_snapshot, strategy_name, review_state,
+                assessment_stage, assessment_status, ready_for_live, overall_confidence,
+                live_trading_enabled_snapshot, promotion_assessment_version, evaluation_artifact_version,
+                frozen_assessment_payload, frozen_evaluation_payload,
+                requested_by, operator_summary_note, created_at, updated_at
+            )
+            VALUES
+                (
+                    101, 1, 'acct_a', 'Trend', 'requested',
+                    'promotion_review', 'ready_for_review', 1, 0.75,
+                    0, 'phase3.v1', 'phase2.v1',
+                    '{"status":"ready_for_review"}', '{"basic":{"account_name":"acct_a"}}',
+                    'alice', 'initial request', '2026-01-04T00:00:00Z', '2026-01-04T00:00:00Z'
+                ),
+                (
+                    202, 2, 'acct_b', 'Trend', 'requested',
+                    'promotion_review', 'ready_for_review', 1, 0.70,
+                    0, 'phase3.v1', 'phase2.v1',
+                    '{"status":"ready_for_review"}', '{"basic":{"account_name":"acct_b"}}',
+                    'bob', 'initial request', '2026-01-04T00:00:00Z', '2026-01-04T00:00:00Z'
+                );
+
+            INSERT INTO promotion_review_events (
+                review_id, event_seq, event_type, actor_type, actor_name,
+                from_review_state, to_review_state, note, event_payload, created_at
+            )
+            VALUES
+                (101, 1, 'requested', 'operator', 'alice', NULL, 'requested', 'initial request', '{}', '2026-01-04T00:00:00Z'),
+                (202, 1, 'requested', 'operator', 'bob', NULL, 'requested', 'initial request', '{}', '2026-01-04T00:00:00Z');
             """
         )
         conn.commit()
@@ -125,6 +156,8 @@ class TestDeleteAccounts:
             "backtest_runs": 1,
             "backtest_trades": 1,
             "backtest_equity_snapshots": 1,
+            "promotion_reviews": 1,
+            "promotion_review_events": 1,
         }
 
         conn = db.ensure_db()
@@ -152,6 +185,7 @@ class TestDeleteAccounts:
         assert counts["accounts"] == 1
         assert counts["trades"] == 1
         assert counts["backtest_runs"] == 1
+        assert counts["promotion_reviews"] == 1
 
         conn = db.ensure_db()
         try:
@@ -160,10 +194,16 @@ class TestDeleteAccounts:
 
             trades = conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = 1").fetchone()
             runs = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = 1").fetchone()
+            reviews = conn.execute("SELECT COUNT(*) AS n FROM promotion_reviews WHERE account_id = 1").fetchone()
+            events = conn.execute("SELECT COUNT(*) AS n FROM promotion_review_events WHERE review_id = 101").fetchone()
             assert trades is not None
             assert runs is not None
+            assert reviews is not None
+            assert events is not None
             assert int(trades["n"]) == 0
             assert int(runs["n"]) == 0
+            assert int(reviews["n"]) == 0
+            assert int(events["n"]) == 0
         finally:
             conn.close()
 
@@ -205,6 +245,8 @@ class TestDeleteAccounts:
             "backtest_runs": 0,
             "backtest_trades": 0,
             "backtest_equity_snapshots": 0,
+            "promotion_reviews": 0,
+            "promotion_review_events": 0,
         }
 
 

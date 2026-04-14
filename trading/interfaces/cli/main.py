@@ -13,7 +13,12 @@ from trading.interfaces.cli.handlers.shared import common_account_config_kwargs,
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
 from trading.services.profiles_service import apply_account_profiles, load_account_profiles
-from trading.services.promotion_service import show_promotion_status
+from trading.services.promotion_service import (
+    execute_promotion_review_action,
+    execute_promotion_review_request,
+    show_promotion_review_history,
+    show_promotion_status,
+)
 from trading.services.reporting_service import account_report, compare_strategies, show_snapshots, snapshot_account
 
 
@@ -45,6 +50,9 @@ def _handler_deps() -> dict[str, object]:
         "apply_account_profiles": apply_account_profiles,
         "account_report": account_report,
         "show_promotion_status": show_promotion_status,
+        "execute_promotion_review_request": execute_promotion_review_request,
+        "show_promotion_review_history": show_promotion_review_history,
+        "execute_promotion_review_action": execute_promotion_review_action,
         "compare_strategies": compare_strategies,
         "show_snapshots": show_snapshots,
         "snapshot_account": snapshot_account,

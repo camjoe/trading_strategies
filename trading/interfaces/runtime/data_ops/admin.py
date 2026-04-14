@@ -63,6 +63,8 @@ def _print_delete_summary(action: str, counts: dict[str, int]) -> None:
     print(f"  backtest_runs: {counts['backtest_runs']}")
     print(f"  backtest_trades: {counts['backtest_trades']}")
     print(f"  backtest_equity_snapshots: {counts['backtest_equity_snapshots']}")
+    print(f"  promotion_reviews: {counts['promotion_reviews']}")
+    print(f"  promotion_review_events: {counts['promotion_review_events']}")
 
 
 def _cmd_backup_db(args: argparse.Namespace) -> int:
