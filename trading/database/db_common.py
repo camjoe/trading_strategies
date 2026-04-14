@@ -2,6 +2,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+
+def in_placeholders(values: tuple[object, ...] | list[object]) -> str:
+    """Return comma-separated ``?`` placeholders for a SQL IN clause."""
+    return ",".join(["?"] * len(values))
+
 from common.tickers import load_tickers_from_file
 from trading.database.db_config import get_db_path
 

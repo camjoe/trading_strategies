@@ -15,8 +15,7 @@ Design rules (enforced by BOT_ARCHITECTURE_CONVENTIONS.md):
    flag is ``False``.  Signal functions treat ``available=False`` as a
    ``"hold"`` signal.
 3. API keys go in environment variables only — never in source code.
-   Use :func:`os.getenv` and raise :class:`ExternalDataUnavailableError`
-   when a required key is absent rather than hard-coding a fallback key.
+   Use :func:`os.getenv` — never hard-code API keys.
 4. Providers should cache results with a configurable TTL to avoid
    redundant API calls across multiple tickers in the same trading loop.
 """
@@ -28,19 +27,6 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-
-
-# ---------------------------------------------------------------------------
-# Sentinel / exception
-# ---------------------------------------------------------------------------
-
-
-class ExternalDataUnavailableError(RuntimeError):
-    """Raised when a required external data source cannot be reached.
-
-    Signal functions must catch this and return ``"hold"`` rather than
-    propagating it up to the trading loop.
-    """
 
 
 # ---------------------------------------------------------------------------

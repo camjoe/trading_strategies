@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.brokers.base import BrokerOrder, OrderFill, OrderStatus
+from trading.database.db_common import in_placeholders
+from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 
 
 def insert_broker_order(conn: sqlite3.Connection, order: BrokerOrder) -> None:
@@ -103,7 +104,7 @@ def fetch_open_broker_orders(conn: sqlite3.Connection, *, account_id: int) -> li
         OrderStatus.CANCELLED.value,
         OrderStatus.REJECTED.value,
     )
-    placeholders = ", ".join("?" * len(terminal))
+    placeholders = in_placeholders(terminal)
     return conn.execute(
         f"""
         SELECT * FROM broker_orders

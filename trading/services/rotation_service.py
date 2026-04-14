@@ -4,7 +4,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Callable, cast
 
-from trading.domain.returns import safe_return_pct as safe_return_pct_impl
+from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
     resolve_rotation_overlay_mode,
     resolve_rotation_overlay_watchlist,
@@ -68,19 +68,6 @@ def parse_as_of_iso(as_of_iso: str) -> datetime:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=UTC)
     return parsed.astimezone(UTC)
-
-
-def safe_return_pct(
-    starting_equity: object,
-    ending_equity: object,
-    *,
-    coerce_float_fn: Callable[[object], float | None],
-) -> float | None:
-    return safe_return_pct_impl(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float_fn,
-    )
 
 
 def _average(values: list[float]) -> float | None:
@@ -449,7 +436,7 @@ def select_optimal_strategy(
                 ending_equity = row["ending_equity"]
                 if starting_equity is None or ending_equity is None:
                     continue
-                live_return = safe_return_pct(starting_equity, ending_equity, coerce_float_fn=coerce_float)
+                live_return = safe_return_pct(starting_equity, ending_equity)
                 if live_return is None:
                     continue
                 live_scores.setdefault(str(row["strategy_name"]), []).append(float(live_return))

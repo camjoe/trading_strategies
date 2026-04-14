@@ -15,7 +15,7 @@ from trading.services.auto_trader_service import (
     run_accounts as run_accounts_impl,
     validate_trade_count_range as validate_trade_count_range_impl,
 )
-from trading.services.auto_trader_runtime_service import run_for_account as run_for_account_runtime_impl
+from trading.services.auto_trader_runtime_service import run_for_account
 
 PROJECT_ROOT = get_repo_root(__file__)
 if str(PROJECT_ROOT) not in sys.path:
@@ -52,28 +52,6 @@ def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
     return build_iv_rank_proxy_impl(
         universe,
         fetch_close_series_fn=get_provider().fetch_close_series,
-    )
-
-
-def run_for_account(
-    conn,
-    account_name: str,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    min_trades: int,
-    max_trades: int,
-    fee: float,
-) -> int:
-    return run_for_account_runtime_impl(
-        conn,
-        account_name,
-        universe,
-        prices,
-        iv_rank_proxy,
-        min_trades,
-        max_trades,
-        fee,
     )
 
 

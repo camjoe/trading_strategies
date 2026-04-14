@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.database.db_common import in_placeholders
 
-def _in_placeholders(values: tuple[object, ...]) -> str:
-    return ",".join(["?"] * len(values))
+__all__ = ["in_placeholders"]
 
 
 def _fetch_rows_by_account_ids(
@@ -13,7 +13,7 @@ def _fetch_rows_by_account_ids(
     table: str,
     account_ids: tuple[int, ...],
 ) -> list[sqlite3.Row]:
-    placeholders = _in_placeholders(account_ids)
+    placeholders = in_placeholders(account_ids)
     return conn.execute(
         f"SELECT id FROM {table} WHERE account_id IN ({placeholders})",
         account_ids,
@@ -27,7 +27,7 @@ def _delete_by_ids(
     column_name: str,
     ids: tuple[int, ...],
 ) -> None:
-    placeholders = _in_placeholders(ids)
+    placeholders = in_placeholders(ids)
     conn.execute(f"DELETE FROM {table} WHERE {column_name} IN ({placeholders})", ids)
 
 
@@ -36,7 +36,7 @@ def fetch_all_accounts(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def fetch_accounts_by_names(conn: sqlite3.Connection, names: tuple[str, ...]) -> list[sqlite3.Row]:
-    placeholders = _in_placeholders(names)
+    placeholders = in_placeholders(names)
     return conn.execute(
         f"SELECT id, name FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
         names,

@@ -7,6 +7,7 @@ from typing import Callable
 
 import pandas as pd
 
+from common.constants import TRADING_DAYS_PER_YEAR
 from trading.domain.rotation import resolve_rotation_regime_strategy
 
 def build_iv_rank_proxy(
@@ -23,7 +24,7 @@ def build_iv_rank_proxy(
             daily_ret = close.pct_change().dropna()
             if daily_ret.empty:
                 continue
-            vol_annual = float(daily_ret.std() * (252 ** 0.5))
+            vol_annual = float(daily_ret.std() * (TRADING_DAYS_PER_YEAR ** 0.5))
             vols[ticker] = vol_annual
         except Exception:
             continue
@@ -48,20 +49,6 @@ def parse_runtime_as_of_iso(
     parse_as_of_iso_fn: Callable[[str], datetime],
 ) -> datetime:
     return parse_as_of_iso_fn(as_of_iso)
-
-
-def compute_safe_return_pct(
-    starting_equity: object,
-    ending_equity: object,
-    *,
-    safe_return_pct_fn: Callable[..., float | None],
-    coerce_float_fn: Callable[[object], float | None],
-) -> float | None:
-    return safe_return_pct_fn(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float_fn,
-    )
 
 
 def select_account_rotation_strategy(

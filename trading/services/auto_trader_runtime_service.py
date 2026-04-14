@@ -4,7 +4,7 @@ import sqlite3
 from typing import Callable, Mapping, cast
 
 from common.time import utc_now_iso
-from trading.brokers.base import BrokerOrder, OrderStatus
+from trading.models.broker_order import BrokerOrder, OrderStatus
 from trading.brokers.factory import get_broker_for_account
 from trading.services.accounts_service import get_account
 from trading.domain.accounting import compute_account_state

@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from trading.brokers.base import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
+from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
 from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
 from trading.brokers.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.ib_client import IBClientProtocol, IbApiClient

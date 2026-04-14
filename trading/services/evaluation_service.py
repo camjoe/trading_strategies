@@ -4,7 +4,7 @@ import sqlite3
 from dataclasses import replace
 from typing import Mapping, cast
 
-from common.coercion import coerce_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
 from common.time import utc_now_iso
 from trading.backtesting.domain.metrics import max_drawdown_pct
 from trading.backtesting.repositories.report_repository import (
@@ -71,14 +71,6 @@ PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
-def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    return safe_return_pct(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float,
-    )
-
-
 def _resolve_requested_strategy(account: sqlite3.Row, strategy_name: str | None) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
@@ -139,7 +131,7 @@ def _build_backtest_evidence(
         snapshot_count=len(snapshots),
         starting_equity=starting_equity,
         ending_equity=ending_equity,
-        total_return_pct=_safe_return_pct(starting_equity, ending_equity),
+        total_return_pct=safe_return_pct(starting_equity, ending_equity),
         max_drawdown_pct=max_drawdown_pct(equity_curve),
         warnings=row_str(run, "warnings"),
     )
@@ -180,7 +172,7 @@ def _latest_rotation_episode_evidence(
             snapshot_count=snapshot_count,
             starting_equity=starting_equity,
             latest_equity=latest_equity,
-            return_pct=_safe_return_pct(starting_equity, latest_equity),
+            return_pct=safe_return_pct(starting_equity, latest_equity),
             cash=row_float(latest_snapshot, "cash"),
             market_value=row_float(latest_snapshot, "market_value"),
             realized_pnl=row_float(latest_snapshot, "realized_pnl"),
@@ -208,7 +200,7 @@ def _latest_rotation_episode_evidence(
         snapshot_count=row_int(closed_episode, "snapshot_count"),
         starting_equity=starting_equity,
         latest_equity=ending_equity,
-        return_pct=_safe_return_pct(starting_equity, ending_equity),
+        return_pct=safe_return_pct(starting_equity, ending_equity),
         realized_pnl=row_float(closed_episode, "ending_realized_pnl"),
         rotation_episode_id=row_int(closed_episode, "id"),
         episode_started_at=row_str(closed_episode, "started_at"),
@@ -247,7 +239,7 @@ def _build_paper_live_evidence(
         snapshot_count=fetch_snapshot_count_for_account(conn, account_id=account_id),
         starting_equity=row_float(account, "initial_cash"),
         latest_equity=latest_equity,
-        return_pct=_safe_return_pct(row_float(account, "initial_cash"), latest_equity),
+        return_pct=safe_return_pct(row_float(account, "initial_cash"), latest_equity),
         cash=row_float(latest_snapshot, "cash"),
         market_value=row_float(latest_snapshot, "market_value"),
         realized_pnl=row_float(latest_snapshot, "realized_pnl"),
