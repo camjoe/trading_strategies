@@ -5,12 +5,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import subprocess
-import sys
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, tee_line
+from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line, ts
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -52,32 +50,18 @@ def main() -> int:
 
     timestamp = now.strftime("%Y%m%d_%H%M%S")
     log_path = LOGS_DIR / f"weekly_db_backup_{tag}_{timestamp}.log"
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: force={bool(args.force_run)}")
+    tee_line(log_path, f"[{ts()}] RUN META: force={bool(args.force_run)}")
 
-    cmd = [sys.executable, "-m", "trading.interfaces.runtime.data_ops.admin", "backup-db"]
+    cmd = ["-m", "trading.interfaces.runtime.data_ops.admin", "backup-db"]
     if args.backup_dir:
         cmd.append(args.backup_dir)
 
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] START: Database backup")
-    process = subprocess.Popen(
-        cmd,
-        cwd=str(REPO_ROOT),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-    )
-    assert process.stdout is not None
-    for line in process.stdout:
-        tee_line(log_path, line.rstrip("\n"))
-    exit_code = process.wait()
+    exit_code, _ = run_command(log_path, "Database backup", cmd, REPO_ROOT)
 
     if exit_code != 0:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] ERROR: Database backup failed.")
         return exit_code
 
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] DONE: Database backup")
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")
+    tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
     return 0
 
 

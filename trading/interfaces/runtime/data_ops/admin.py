@@ -8,6 +8,7 @@ from typing import Callable, cast
 
 from trading.database.db import ensure_db
 from trading.database.db_backend import SQLiteBackend, get_backend
+from trading.repositories.accounts_repository import fetch_account_listing_rows
 from trading.services.admin_service import delete_accounts, iter_delete_count_items
 
 
@@ -70,7 +71,7 @@ def _cmd_backup_db(args: argparse.Namespace) -> int:
 def _cmd_list_accounts(_args: argparse.Namespace) -> int:
     conn = ensure_db()
     try:
-        rows = conn.execute("SELECT id, name, strategy, initial_cash, benchmark_ticker FROM accounts ORDER BY name ASC").fetchall()
+        rows = fetch_account_listing_rows(conn)
     finally:
         conn.close()
 
