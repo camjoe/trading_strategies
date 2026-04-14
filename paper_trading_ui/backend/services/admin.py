@@ -4,35 +4,18 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from trading.models import RotationConfig
-from trading.services.accounts_service import update_account_fields_by_id
 from trading.services.admin_service import build_managed_account_delete_counts, delete_accounts
+from trading.services.profiles_service import apply_rotation_fields
 
-from .db import db_conn, fetch_account_row
-
-
-def clean_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-    text = value.strip()
-    return text or None
+from .db import db_conn
 
 
-def update_account_rotation_settings(
+def apply_account_rotation_profile(
     conn: sqlite3.Connection,
     account_name: str,
-    rotation: RotationConfig,
+    rotation_profile: dict[str, object],
 ) -> None:
-    account = fetch_account_row(conn, account_name)
-    db_values = rotation.to_db_dict()
-    updates = [f"{key} = ?" for key in db_values]
-    params = list(db_values.values())
-    update_account_fields_by_id(
-        conn,
-        account_id=int(account["id"]),
-        updates=updates,
-        params=params,
-    )
+    apply_rotation_fields(conn, account_name, rotation_profile)
 
 
 def delete_account_and_dependents(account_name: str) -> dict[str, int]:

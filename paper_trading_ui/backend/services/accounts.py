@@ -56,6 +56,7 @@ from trading.services.accounts_service import (
 from trading.services.profiles_service import apply_rotation_fields
 from trading.services.reporting_service import get_account_stats as build_account_stats
 
+from ..account_contract import AccountParamsUpdateCommand
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY, TEST_BACKTEST_ACCOUNT_NAME
 from .db import fetch_latest_snapshot_row
 
@@ -527,119 +528,17 @@ def update_account_params(
     conn: sqlite3.Connection,
     account_id: int,
     account_name: str,
-    *,
-    strategy: str | None = None,
-    risk_policy: str | None = None,
-    descriptive_name: str | None = None,
-    stop_loss_pct: float | None = None,
-    take_profit_pct: float | None = None,
-    trade_size_pct: float | None = None,
-    max_position_pct: float | None = None,
-    instrument_mode: str | None = None,
-    goal_min_return_pct: float | None = None,
-    goal_max_return_pct: float | None = None,
-    goal_period: str | None = None,
-    learning_enabled: bool | None = None,
-    option_strike_offset_pct: float | None = None,
-    option_min_dte: int | None = None,
-    option_max_dte: int | None = None,
-    option_type: str | None = None,
-    target_delta_min: float | None = None,
-    target_delta_max: float | None = None,
-    max_premium_per_trade: float | None = None,
-    max_contracts_per_trade: int | None = None,
-    iv_rank_min: float | None = None,
-    iv_rank_max: float | None = None,
-    roll_dte_threshold: int | None = None,
-    profit_take_pct: float | None = None,
-    max_loss_pct: float | None = None,
-    rotation_enabled: bool | None = None,
-    rotation_mode: str | None = None,
-    rotation_optimality_mode: str | None = None,
-    rotation_interval_days: int | None = None,
-    rotation_interval_minutes: int | None = None,
-    rotation_lookback_days: int | None = None,
-    rotation_schedule: list[str] | None = None,
-    rotation_regime_strategy_risk_on: str | None = None,
-    rotation_regime_strategy_neutral: str | None = None,
-    rotation_regime_strategy_risk_off: str | None = None,
-    rotation_overlay_mode: str | None = None,
-    rotation_overlay_min_tickers: int | None = None,
-    rotation_overlay_confidence_threshold: float | None = None,
-    rotation_overlay_watchlist: list[str] | None = None,
-    rotation_active_index: int | None = None,
-    rotation_last_at: str | None = None,
-    rotation_active_strategy: str | None = None,
+    command: AccountParamsUpdateCommand,
 ) -> None:
     """Update mutable account parameters. Only supplied (non-None) fields are changed."""
     # strategy is not handled by configure_account — update directly by id
-    if strategy is not None:
-        update_account_fields_by_id(conn, account_id, updates=["strategy = ?"], params=[strategy])
+    if command.strategy is not None:
+        update_account_fields_by_id(conn, account_id, updates=["strategy = ?"], params=[command.strategy])
 
-    cfg = AccountConfig(
-        descriptive_name=descriptive_name,
-        risk_policy=risk_policy,
-        stop_loss_pct=stop_loss_pct,
-        take_profit_pct=take_profit_pct,
-        trade_size_pct=trade_size_pct,
-        max_position_pct=max_position_pct,
-        instrument_mode=instrument_mode,
-        goal_min_return_pct=goal_min_return_pct,
-        goal_max_return_pct=goal_max_return_pct,
-        goal_period=goal_period,
-        learning_enabled=learning_enabled,
-        option_strike_offset_pct=option_strike_offset_pct,
-        option_min_dte=option_min_dte,
-        option_max_dte=option_max_dte,
-        option_type=option_type,
-        target_delta_min=target_delta_min,
-        target_delta_max=target_delta_max,
-        max_premium_per_trade=max_premium_per_trade,
-        max_contracts_per_trade=max_contracts_per_trade,
-        iv_rank_min=iv_rank_min,
-        iv_rank_max=iv_rank_max,
-        roll_dte_threshold=roll_dte_threshold,
-        profit_take_pct=profit_take_pct,
-        max_loss_pct=max_loss_pct,
-    )
-    from trading.services.accounts_service import configure_account
-    configure_account(conn, account_name, cfg)
+    if AccountConfig.has_any_field(command.config_values):
+        from trading.services.accounts_service import configure_account
 
-    rotation_profile: dict[str, object] = {}
-    if rotation_enabled is not None:
-        rotation_profile["rotation_enabled"] = rotation_enabled
-    if rotation_mode is not None:
-        rotation_profile["rotation_mode"] = rotation_mode
-    if rotation_optimality_mode is not None:
-        rotation_profile["rotation_optimality_mode"] = rotation_optimality_mode
-    if rotation_interval_days is not None:
-        rotation_profile["rotation_interval_days"] = rotation_interval_days
-    if rotation_interval_minutes is not None:
-        rotation_profile["rotation_interval_minutes"] = rotation_interval_minutes
-    if rotation_lookback_days is not None:
-        rotation_profile["rotation_lookback_days"] = rotation_lookback_days
-    if rotation_schedule is not None:
-        rotation_profile["rotation_schedule"] = rotation_schedule
-    if rotation_regime_strategy_risk_on is not None:
-        rotation_profile["rotation_regime_strategy_risk_on"] = rotation_regime_strategy_risk_on
-    if rotation_regime_strategy_neutral is not None:
-        rotation_profile["rotation_regime_strategy_neutral"] = rotation_regime_strategy_neutral
-    if rotation_regime_strategy_risk_off is not None:
-        rotation_profile["rotation_regime_strategy_risk_off"] = rotation_regime_strategy_risk_off
-    if rotation_overlay_mode is not None:
-        rotation_profile["rotation_overlay_mode"] = rotation_overlay_mode
-    if rotation_overlay_min_tickers is not None:
-        rotation_profile["rotation_overlay_min_tickers"] = rotation_overlay_min_tickers
-    if rotation_overlay_confidence_threshold is not None:
-        rotation_profile["rotation_overlay_confidence_threshold"] = rotation_overlay_confidence_threshold
-    if rotation_overlay_watchlist is not None:
-        rotation_profile["rotation_overlay_watchlist"] = rotation_overlay_watchlist
-    if rotation_active_index is not None:
-        rotation_profile["rotation_active_index"] = rotation_active_index
-    if rotation_last_at is not None:
-        rotation_profile["rotation_last_at"] = rotation_last_at
-    if rotation_active_strategy is not None:
-        rotation_profile["rotation_active_strategy"] = rotation_active_strategy
+        configure_account(conn, account_name, command.config)
 
-    if rotation_profile:
-        apply_rotation_fields(conn, account_name, rotation_profile)
+    if command.rotation_profile:
+        apply_rotation_fields(conn, account_name, command.rotation_profile)

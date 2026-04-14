@@ -1,7 +1,7 @@
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
-import type { AccountListItem, AccountSummary } from "../types";
+import type { AccountListItem, AccountSummary, AdminCreateAccountPayload } from "../types";
 
 interface DeleteResponse {
   status: string;
@@ -347,7 +347,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv")) ?? [];
     const rotationOverlayWatchlist = csvListOrUndefined(data.get("rotationOverlayWatchlistCsv"));
 
-    const payload = {
+    const payload: AdminCreateAccountPayload = {
       name: strOrUndefined(data.get("name")),
       descriptiveName: strOrUndefined(data.get("descriptiveName")),
       strategy: strOrUndefined(data.get("strategy")),

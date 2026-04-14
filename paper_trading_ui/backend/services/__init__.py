@@ -23,9 +23,8 @@ from .accounts import (
     update_account_params,
 )
 from .admin import (
-    clean_text,
+    apply_account_rotation_profile,
     delete_account_and_dependents,
-    update_account_rotation_settings,
 )
 from .backtests import (
     build_backtest_config_from_preflight_request,
@@ -59,7 +58,7 @@ __all__ = [
     "build_test_account_live_summary",
     "build_trade_payload",
     "build_walk_forward_config_from_request",
-    "clean_text",
+    "apply_account_rotation_profile",
     "db_conn",
     "delete_account_and_dependents",
     "display_account_name",
@@ -77,5 +76,4 @@ __all__ = [
     "resolve_backtest_payload_account",
     "take_snapshot",
     "update_account_params",
-    "update_account_rotation_settings",
 ]

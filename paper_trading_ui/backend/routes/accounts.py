@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from ..account_contract import build_account_params_update_command
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
 from ..services import (
@@ -99,53 +100,13 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
     """
     with db_conn() as conn:
         account = fetch_account_row(conn, account_name)
+        command = build_account_params_update_command(body)
         try:
             update_account_params(
                 conn,
                 int(account["id"]),
                 account_name,
-                strategy=body.strategy,
-                risk_policy=body.riskPolicy,
-                descriptive_name=body.descriptiveName,
-                stop_loss_pct=body.stopLossPct,
-                take_profit_pct=body.takeProfitPct,
-                trade_size_pct=body.tradeSizePct,
-                max_position_pct=body.maxPositionPct,
-                instrument_mode=body.instrumentMode,
-                goal_min_return_pct=body.goalMinReturnPct,
-                goal_max_return_pct=body.goalMaxReturnPct,
-                goal_period=body.goalPeriod,
-                learning_enabled=body.learningEnabled,
-                option_strike_offset_pct=body.optionStrikeOffsetPct,
-                option_min_dte=body.optionMinDte,
-                option_max_dte=body.optionMaxDte,
-                option_type=body.optionType,
-                target_delta_min=body.targetDeltaMin,
-                target_delta_max=body.targetDeltaMax,
-                max_premium_per_trade=body.maxPremiumPerTrade,
-                max_contracts_per_trade=body.maxContractsPerTrade,
-                iv_rank_min=body.ivRankMin,
-                iv_rank_max=body.ivRankMax,
-                roll_dte_threshold=body.rollDteThreshold,
-                profit_take_pct=body.profitTakePct,
-                max_loss_pct=body.maxLossPct,
-                rotation_enabled=body.rotationEnabled,
-                rotation_mode=body.rotationMode,
-                rotation_optimality_mode=body.rotationOptimalityMode,
-                rotation_interval_days=body.rotationIntervalDays,
-                rotation_interval_minutes=body.rotationIntervalMinutes,
-                rotation_lookback_days=body.rotationLookbackDays,
-                rotation_schedule=body.rotationSchedule,
-                rotation_regime_strategy_risk_on=body.rotationRegimeStrategyRiskOn,
-                rotation_regime_strategy_neutral=body.rotationRegimeStrategyNeutral,
-                rotation_regime_strategy_risk_off=body.rotationRegimeStrategyRiskOff,
-                rotation_overlay_mode=body.rotationOverlayMode,
-                rotation_overlay_min_tickers=body.rotationOverlayMinTickers,
-                rotation_overlay_confidence_threshold=body.rotationOverlayConfidenceThreshold,
-                rotation_overlay_watchlist=body.rotationOverlayWatchlist,
-                rotation_active_index=body.rotationActiveIndex,
-                rotation_last_at=body.rotationLastAt,
-                rotation_active_strategy=body.rotationActiveStrategy,
+                command=command,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

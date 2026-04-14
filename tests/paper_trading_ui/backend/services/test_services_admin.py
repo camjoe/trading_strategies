@@ -7,12 +7,6 @@ from common.time import utc_now_iso
 from paper_trading_ui.backend.services import admin as services_admin
 
 
-def test_clean_text() -> None:
-    assert services_admin.clean_text(None) is None
-    assert services_admin.clean_text("   ") is None
-    assert services_admin.clean_text("  hello  ") == "hello"
-
-
 def test_delete_account_and_dependents_not_found_raises(conn) -> None:
     with pytest.raises(HTTPException) as exc_info:
         services_admin.delete_account_and_dependents("missing")
