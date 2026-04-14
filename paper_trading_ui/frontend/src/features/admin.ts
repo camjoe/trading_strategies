@@ -1,7 +1,7 @@
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
 import { applyAccountConfigOptionsToAdminForm, getAccountConfigOptions } from "../lib/account-config-options";
-import { getJson, postJson } from "../lib/http";
+import { errorMessage, getJson, postJson } from "../lib/http";
 import type { AccountListItem, AccountSummary, AdminCreateAccountPayload } from "../types";
 
 interface DeleteResponse {
@@ -229,7 +229,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     } catch (err) {
       if (resultEl) {
         resultEl.className = "error";
-        resultEl.textContent = err instanceof Error ? err.message : "Trade failed.";
+        resultEl.textContent = errorMessage(err, "Trade failed.");
       }
     }
   }

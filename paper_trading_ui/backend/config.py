@@ -23,7 +23,7 @@ LOGS_DIR = (ROOT_DIR / logs_dir_raw).resolve() if not Path(logs_dir_raw).is_abso
 EXPORTS_DIR = (ROOT_DIR / "local" / "exports").resolve()
 TEST_INVESTMENTS_CANDIDATES = (
     (ROOT_DIR / "local" / "test_investments.txt").resolve(),
-    (ROOT_DIR / "local" / "test_invesments.txt").resolve(),
+    (ROOT_DIR / "local" / "test_invesments.txt").resolve(),  # legacy typo fallback
 )
 TEST_ACCOUNT_NAME = "test_account"
 TEST_BACKTEST_ACCOUNT_NAME = "test_account_bt"

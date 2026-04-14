@@ -103,12 +103,7 @@ def _coerce_float(value: object) -> float:
 
 
 def _dump_model(model: BaseModel, *, exclude_none: bool) -> dict[str, object]:
-    model_dump = getattr(model, "model_dump", None)
-    if callable(model_dump):
-        values = model_dump(exclude_none=exclude_none)
-    else:
-        values = model.dict(exclude_none=exclude_none)
-    return dict(values)
+    return dict(model.model_dump(exclude_none=exclude_none))
 
 
 def _map_api_values(

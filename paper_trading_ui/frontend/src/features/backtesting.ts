@@ -1,6 +1,7 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
+import { errorMessage, getJson, postJson } from "../lib/http";
+import { parseRunId } from "../lib/parse";
 import { debounce } from "../lib/timing";
 import {
   renderBacktestReport,
@@ -66,16 +67,6 @@ interface WalkForwardPayload extends BacktestBasePayload {
   slippageBps: number;
   fee: number;
   runNamePrefix: string | null;
-}
-
-function parseRunId(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function renderDownMessage(message: string): string {

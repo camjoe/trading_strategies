@@ -4,7 +4,6 @@ import re
 import sqlite3
 from pathlib import Path
 
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 from trading.services.accounts_service import fetch_account_by_name
@@ -13,7 +12,6 @@ from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
     TEST_ACCOUNT_DISPLAY_NAME,
     TEST_ACCOUNT_NAME,
-    TEST_ACCOUNT_TRADE_TIME,
     TEST_BACKTEST_ACCOUNT_NAME,
     TEST_INVESTMENTS_CANDIDATES,
 )

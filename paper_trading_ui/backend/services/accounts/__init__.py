@@ -38,7 +38,6 @@ from .summaries import (
 )
 
 __all__ = [
-    "_build_positions_from_stats",
     "attach_live_benchmark_summary",
     "build_account_list_payload",
     "build_account_summary",
@@ -49,7 +48,6 @@ __all__ = [
     "build_snapshot_payload",
     "build_trade_payload",
     "display_account_name",
-    "display_strategy",
     "fetch_account_names",
     "fetch_account_snapshot_rows",
     "fetch_account_trades",

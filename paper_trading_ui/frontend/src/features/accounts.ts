@@ -1,6 +1,7 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, patchJson, postJson } from "../lib/http";
+import { errorMessage, getJson, patchJson, postJson } from "../lib/http";
+import { parseRunId } from "../lib/parse";
 import { accountCard } from "../components/accounts";
 import { renderDetail, renderAnalysisPanel } from "../components/detail";
 import type { AccountAnalysis, AccountDetail, AccountListItem, AccountParamsUpdate } from "../types";
@@ -26,12 +27,6 @@ function bindClick<T extends Element>(selector: string, handler: (element: T) =>
   element.addEventListener("click", () => {
     void handler(element);
   });
-}
-
-function parseRunId(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function createAccountsFeature(options: AccountsFeatureOptions = {}): AccountsFeature {
@@ -113,7 +108,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       } catch (err) {
         if (msgEl) {
           msgEl.className = "error";
-          msgEl.textContent = err instanceof Error ? err.message : "Failed to add trade.";
+          msgEl.textContent = errorMessage(err, "Failed to add trade.");
         }
       }
     });
@@ -221,7 +216,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       } catch (err) {
         if (msgEl) {
           msgEl.className = "error";
-          msgEl.textContent = err instanceof Error ? err.message : "Save failed.";
+          msgEl.textContent = errorMessage(err, "Save failed.");
         }
       }
     });
@@ -243,7 +238,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     try {
       data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
     } catch (err) {
-      target.innerHTML = `<div class="error">Failed to load accounts: ${esc(err instanceof Error ? err.message : "network error")}. Is the backend running?</div>`;
+      target.innerHTML = `<div class="error">Failed to load accounts: ${esc(errorMessage(err, "network error"))}. Is the backend running?</div>`;
       return;
     }
 
@@ -274,7 +269,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     try {
       currentDetail = await getJson<AccountDetail>(`/api/accounts/${encodeURIComponent(accountName)}`);
     } catch (err) {
-      target.innerHTML = `<div class="error">Failed to load account detail: ${esc(err instanceof Error ? err.message : "network error")}</div>`;
+      target.innerHTML = `<div class="error">Failed to load account detail: ${esc(errorMessage(err, "network error"))}</div>`;
       return;
     }
     currentTradePage = 1;
