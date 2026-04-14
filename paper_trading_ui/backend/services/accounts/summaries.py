@@ -4,12 +4,13 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from common.coercion import coerce_float, coerce_int, row_float, row_int
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
-from trading.domain.rotation import (
+from trading.services.accounts_service import (
+    DEFAULT_MAX_POSITION_PCT,
+    DEFAULT_TRADE_SIZE_PCT,
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
-from trading.services.reporting_service import get_account_stats as build_account_stats
+from trading.services.reporting_service import build_account_stats
 
 from ..db import fetch_latest_snapshot_row
 
@@ -29,15 +30,24 @@ def _row_pct_value(row: sqlite3.Row | dict[str, object], key: str, default: floa
     return value
 
 
+def _settlement_corrected_equity(state: object, prices: object) -> float:
+    """Equity including the settlement position (cash-equivalent held as a ticker)."""
+    from trading.models.account_state import AccountState
+
+    if not isinstance(state, AccountState) or not isinstance(prices, dict):
+        return 0.0
+    return state.cash + sum(
+        state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
+    )
+
+
 def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
     from trading.models.account_state import AccountState
 
     state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
     _inject_settlement_price(state, prices)
     if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = state.cash + sum(
-            state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
-        )
+        equity = _settlement_corrected_equity(state, prices)
     total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
     return _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
 
@@ -66,9 +76,7 @@ def build_account_summary_and_positions(
     state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
     _inject_settlement_price(state, prices)
     if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = state.cash + sum(
-            state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
-        )
+        equity = _settlement_corrected_equity(state, prices)
     total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
     summary = _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
     positions = _build_positions_from_stats(state, prices)
@@ -213,7 +221,7 @@ def build_comparison_account_payload(
         "initialCash": summary["initialCash"],
         "totalChange": summary["totalChange"],
         "totalChangePct": summary["totalChangePct"],
-        "liveBenchmarkReturnPct": summary.get("liveBenchmarkReturnPct"),
-        "liveAlphaPct": summary.get("liveAlphaPct"),
+        "liveBenchmarkReturnPct": summary["liveBenchmarkReturnPct"],
+        "liveAlphaPct": summary["liveAlphaPct"],
         "latestBacktest": latest_backtest,
     }

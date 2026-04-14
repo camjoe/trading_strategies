@@ -150,7 +150,7 @@ class TestAdminRoutes:
         def _raise_value_error(*_args, **_kwargs):
             raise ValueError("bad payload")
 
-        monkeypatch.setattr(admin_routes, "create_account", _raise_value_error)
+        monkeypatch.setattr(admin_routes, "create_account_with_rotation", _raise_value_error)
 
         response = api_client.post(
             "/api/admin/accounts/create",
@@ -167,9 +167,9 @@ class TestAdminRoutes:
 
     def test_admin_create_account_handles_duplicate_record(self, monkeypatch, api_client: TestClient) -> None:
         def _raise_duplicate(*_args, **_kwargs):
-            raise AccountAlreadyExistsError("already exists")
+            raise ValueError("Account create failed: already exists")
 
-        monkeypatch.setattr(admin_routes, "create_account", _raise_duplicate)
+        monkeypatch.setattr(admin_routes, "create_account_with_rotation", _raise_duplicate)
 
         response = api_client.post(
             "/api/admin/accounts/create",

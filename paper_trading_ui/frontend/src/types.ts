@@ -63,7 +63,7 @@ export interface AdminCreateAccountPayload extends Partial<AccountConfigFields> 
   name: string | undefined;
   strategy: string | undefined;
   initialCash: number | undefined;
-  benchmarkTicker: string;
+  benchmarkTicker?: string;
   descriptiveName: string | undefined;
 }
 
@@ -90,11 +90,11 @@ export interface AccountConfigOptions {
 export type AccountSummary = AccountListItem & AccountConfigFields & {
   initialCash: number;
   settlementCash: number;
-  liveBenchmarkReturnPct?: number | null;
-  liveAlphaPct?: number | null;
-  liveBenchmarkEquity?: number | null;
-  liveBenchmarkStartTime?: string | null;
-  liveBenchmarkEndTime?: string | null;
+  liveBenchmarkReturnPct: number | null;
+  liveAlphaPct: number | null;
+  liveBenchmarkEquity: number | null;
+  liveBenchmarkStartTime: string | null;
+  liveBenchmarkEndTime: string | null;
 };
 
 export type LiveBenchmarkOverlay = {

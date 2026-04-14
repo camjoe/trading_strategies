@@ -59,25 +59,7 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return {
-            "runId": result.run_id,
-            "accountName": display_account_name(result.account_name),
-            "startDate": result.start_date,
-            "endDate": result.end_date,
-            "tradeCount": result.trade_count,
-            "endingEquity": result.ending_equity,
-            "totalReturnPct": result.total_return_pct,
-            "benchmarkReturnPct": result.benchmark_return_pct,
-            "alphaPct": result.alpha_pct,
-            "maxDrawdownPct": result.max_drawdown_pct,
-            "sharpeRatio": result.sharpe_ratio,
-            "sortinoRatio": result.sortino_ratio,
-            "calmarRatio": result.calmar_ratio,
-            "winRatePct": result.win_rate_pct,
-            "profitFactor": result.profit_factor,
-            "avgTradeReturnPct": result.avg_trade_return_pct,
-            "warnings": result.warnings,
-        }
+        return result.to_payload(display_name_fn=display_account_name)
 
 
 @router.post("/api/backtests/preflight")
@@ -105,14 +87,4 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return {
-            "accountName": display_account_name(summary.account_name),
-            "startDate": summary.start_date,
-            "endDate": summary.end_date,
-            "windowCount": summary.window_count,
-            "runIds": summary.run_ids,
-            "averageReturnPct": summary.average_return_pct,
-            "medianReturnPct": summary.median_return_pct,
-            "bestReturnPct": summary.best_return_pct,
-            "worstReturnPct": summary.worst_return_pct,
-        }
+        return summary.to_payload(display_name_fn=display_account_name)

@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from trading.domain.rotation import OPTIMALITY_MODES, ROTATION_MODES, ROTATION_OVERLAY_MODES
-from trading.services.accounts.config import INSTRUMENT_MODES, OPTION_TYPES, RISK_POLICIES
+from trading.services.accounts_service import (
+    INSTRUMENT_MODES,
+    OPTIMALITY_MODES,
+    OPTION_TYPES,
+    RISK_POLICIES,
+    ROTATION_MODES,
+    ROTATION_OVERLAY_MODES,
+)
 
 GOAL_PERIODS = ("monthly", "weekly", "quarterly", "yearly")
 
@@ -11,6 +17,14 @@ _OPTION_TYPE_ORDER = ("call", "put", "both")
 _ROTATION_MODE_ORDER = ("time", "optimal", "regime")
 _ROTATION_OPTIMALITY_ORDER = ("previous_period_best", "average_return", "hybrid_weighted")
 _ROTATION_OVERLAY_ORDER = ("none", "news", "social", "news_social")
+
+# Guard against silent drift: every known value must appear in the order tuple.
+assert frozenset(_RISK_POLICY_ORDER) == RISK_POLICIES, f"_RISK_POLICY_ORDER out of sync: {RISK_POLICIES}"
+assert frozenset(_INSTRUMENT_MODE_ORDER) == INSTRUMENT_MODES, f"_INSTRUMENT_MODE_ORDER out of sync: {INSTRUMENT_MODES}"
+assert frozenset(_OPTION_TYPE_ORDER) == OPTION_TYPES, f"_OPTION_TYPE_ORDER out of sync: {OPTION_TYPES}"
+assert frozenset(_ROTATION_MODE_ORDER) <= ROTATION_MODES, f"_ROTATION_MODE_ORDER out of sync: {ROTATION_MODES}"
+assert frozenset(_ROTATION_OPTIMALITY_ORDER) <= OPTIMALITY_MODES, f"_ROTATION_OPTIMALITY_ORDER out of sync: {OPTIMALITY_MODES}"
+assert frozenset(_ROTATION_OVERLAY_ORDER) <= ROTATION_OVERLAY_MODES, f"_ROTATION_OVERLAY_ORDER out of sync: {ROTATION_OVERLAY_MODES}"
 
 
 def _ordered_values(preferred: tuple[str, ...], allowed: set[str]) -> list[str]:

@@ -7,15 +7,13 @@ from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services import (
     fetch_account_row,
     build_account_summary,
+    create_account_with_rotation,
     db_conn,
     delete_account_and_dependents,
     list_csv_exports,
     preview_csv_export,
 )
 from ..config import TEST_ACCOUNT_NAME
-from trading.services.accounts_service import create_account
-from trading.domain import AccountAlreadyExistsError
-from trading.services.profiles_service import apply_rotation_fields
 
 router = APIRouter()
 
@@ -25,20 +23,9 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
     command = build_admin_create_account_command(payload)
     with db_conn() as conn:
         try:
-            create_account(
-                conn,
-                name=command.name,
-                strategy=command.strategy,
-                initial_cash=command.initial_cash,
-                benchmark_ticker=command.benchmark_ticker,
-                config=command.config,
-            )
+            create_account_with_rotation(conn, command)
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
-        except AccountAlreadyExistsError as error:
-            raise HTTPException(status_code=400, detail=f"Account create failed: {error}") from error
-
-        apply_rotation_fields(conn, command.name, command.rotation_profile)
 
         account = fetch_account_row(conn, command.name)
         return {"status": "ok", "account": build_account_summary(conn, account)}

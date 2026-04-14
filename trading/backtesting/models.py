@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 
 @dataclass
@@ -38,6 +39,32 @@ class BacktestResult:
     profit_factor: float | None = None
     avg_trade_return_pct: float | None = None
 
+    def to_payload(
+        self,
+        *,
+        display_name_fn: Callable[[str], str] | None = None,
+    ) -> dict[str, object]:
+        account_name = display_name_fn(self.account_name) if display_name_fn else self.account_name
+        return {
+            "runId": self.run_id,
+            "accountName": account_name,
+            "startDate": self.start_date,
+            "endDate": self.end_date,
+            "tradeCount": self.trade_count,
+            "endingEquity": self.ending_equity,
+            "totalReturnPct": self.total_return_pct,
+            "benchmarkReturnPct": self.benchmark_return_pct,
+            "alphaPct": self.alpha_pct,
+            "maxDrawdownPct": self.max_drawdown_pct,
+            "sharpeRatio": self.sharpe_ratio,
+            "sortinoRatio": self.sortino_ratio,
+            "calmarRatio": self.calmar_ratio,
+            "winRatePct": self.win_rate_pct,
+            "profitFactor": self.profit_factor,
+            "avgTradeReturnPct": self.avg_trade_return_pct,
+            "warnings": self.warnings,
+        }
+
 
 @dataclass
 class WalkForwardConfig:
@@ -66,6 +93,24 @@ class WalkForwardSummary:
     median_return_pct: float
     best_return_pct: float
     worst_return_pct: float
+
+    def to_payload(
+        self,
+        *,
+        display_name_fn: Callable[[str], str] | None = None,
+    ) -> dict[str, object]:
+        account_name = display_name_fn(self.account_name) if display_name_fn else self.account_name
+        return {
+            "accountName": account_name,
+            "startDate": self.start_date,
+            "endDate": self.end_date,
+            "windowCount": self.window_count,
+            "runIds": self.run_ids,
+            "averageReturnPct": self.average_return_pct,
+            "medianReturnPct": self.median_return_pct,
+            "bestReturnPct": self.best_return_pct,
+            "worstReturnPct": self.worst_return_pct,
+        }
 
 
 @dataclass

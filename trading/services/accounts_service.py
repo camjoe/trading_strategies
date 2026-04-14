@@ -36,6 +36,25 @@ from trading.services.accounts.mutations import (
     update_account_fields_by_id,
 )
 
+# Re-exported for callers that should not reach into domain directly.
+from trading.domain.exceptions import AccountAlreadyExistsError  # noqa: F401
+from trading.domain.auto_trader_policy import (  # noqa: F401
+    DEFAULT_MAX_POSITION_PCT,
+    DEFAULT_TRADE_SIZE_PCT,
+)
+from trading.domain.rotation import (  # noqa: F401
+    parse_rotation_overlay_watchlist,
+    parse_rotation_schedule,
+    OPTIMALITY_MODES,
+    ROTATION_MODES,
+    ROTATION_OVERLAY_MODES,
+)
+from trading.services.accounts.config import (  # noqa: F401
+    INSTRUMENT_MODES,
+    OPTION_TYPES,
+    RISK_POLICIES,
+)
+
 
 def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> sqlite3.Row | None:
     return _repo_fetch_account_by_name(conn, name)

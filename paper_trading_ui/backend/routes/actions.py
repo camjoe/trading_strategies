@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from ..config import TEST_ACCOUNT_NAME
-from ..services import fetch_account_names, fetch_account_row, db_conn, take_snapshot
+from ..services import fetch_account_row, db_conn, take_snapshot
+from trading.services.accounts_service import fetch_all_account_names
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ def api_snapshot(account_name: str) -> dict[str, str]:
 @router.post("/api/actions/snapshot-all")
 def api_snapshot_all() -> dict[str, object]:
     with db_conn() as conn:
-        names = fetch_account_names(conn)
+        names = fetch_all_account_names(conn)
         for name in names:
             take_snapshot(conn, name, snapshot_time=None)
         return {"status": "ok", "snapshotted": names + [TEST_ACCOUNT_NAME]}

@@ -14,7 +14,6 @@ from ..services import (
     build_account_summary_and_positions,
     build_comparison_account_payload,
     build_live_benchmark_overlay,
-    fetch_account_snapshot_rows,
     db_conn,
     fetch_account_trades,
     fetch_latest_backtest_metrics,
@@ -26,6 +25,7 @@ from ..services import (
     build_trade_payload,
     update_account_params,
 )
+from trading.services.accounts_service import fetch_snapshot_history_rows
 
 router = APIRouter()
 
@@ -51,14 +51,14 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
         comparison: list[dict[str, object]] = []
         for row in fetch_managed_account_rows(conn):
             summary = build_account_summary(conn, row)
-            snapshots = fetch_account_snapshot_rows(conn, int(row["id"]), limit=100)
+            snapshots = fetch_snapshot_history_rows(conn, int(row["id"]), limit=100)
             attach_live_benchmark_summary(summary, build_live_benchmark_overlay(summary, snapshots))
             latest_backtest = fetch_latest_backtest_metrics(conn, str(row["name"]))
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
 
         test_summary = build_test_account_live_summary(conn)
         test_account = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
-        test_snapshots = fetch_account_snapshot_rows(conn, int(test_account["id"]), limit=100)
+        test_snapshots = fetch_snapshot_history_rows(conn, int(test_account["id"]), limit=100)
         attach_live_benchmark_summary(test_summary, build_live_benchmark_overlay(test_summary, test_snapshots))
         comparison.append(build_comparison_account_payload(test_summary, None))
         comparison.sort(key=lambda item: str(item["name"]))
@@ -75,7 +75,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             summary["name"] = TEST_ACCOUNT_NAME
             summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
 
-        snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
+        snapshots = fetch_snapshot_history_rows(conn, int(account["id"]), limit=100)
         overlay = build_live_benchmark_overlay(summary, snapshots)
         attach_live_benchmark_summary(summary, overlay)
         trades = fetch_account_trades(conn, int(account["id"]))

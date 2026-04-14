@@ -10,7 +10,7 @@ from __future__ import annotations
 from .backtests import (
     build_backtest_run_summary,
     display_account_name,
-    display_strategy,
+    display_strategy,  # accessed by tests via module attribute
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     fetch_recent_backtest_run_summaries,
@@ -22,15 +22,13 @@ from .benchmark import (
 from .data_access import (
     build_snapshot_payload,
     build_trade_payload,
-    fetch_account_names,
-    fetch_account_snapshot_rows,
     fetch_account_trades,
     fetch_managed_account_rows,
     take_snapshot,
 )
 from .mutations import update_account_params
 from .summaries import (
-    _build_positions_from_stats,
+    _build_positions_from_stats,  # accessed by tests via module attribute
     build_account_list_payload,
     build_account_summary,
     build_account_summary_and_positions,
@@ -48,8 +46,6 @@ __all__ = [
     "build_snapshot_payload",
     "build_trade_payload",
     "display_account_name",
-    "fetch_account_names",
-    "fetch_account_snapshot_rows",
     "fetch_account_trades",
     "fetch_latest_backtest_metrics",
     "fetch_latest_backtest_summary",

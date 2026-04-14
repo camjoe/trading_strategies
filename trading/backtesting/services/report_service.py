@@ -5,6 +5,9 @@ from typing import Callable
 
 import pandas as pd
 
+# Re-exported so callers never reach into trading.backtesting.domain directly.
+from trading.backtesting.domain.strategy_signals import resolve_signal  # noqa: F401
+
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
     max_drawdown_pct,
