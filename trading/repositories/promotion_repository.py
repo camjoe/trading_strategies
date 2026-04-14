@@ -12,6 +12,9 @@ from trading.domain.promotion_models import (
     PromotionReviewRecord,
 )
 
+# Compact JSON storage keeps persisted review payloads stable and easy to diff.
+JSON_COMPACT_SEPARATORS = (",", ":")
+
 
 def _row_text(row: sqlite3.Row, key: str) -> str | None:
     value = row[key]
@@ -29,6 +32,31 @@ def _row_json_object(row: sqlite3.Row, key: str) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object in column '{key}'.")
     return payload
+
+
+def _json_object_dumps(payload: dict[str, object]) -> str:
+    return json.dumps(payload, separators=JSON_COMPACT_SEPARATORS, sort_keys=True)
+
+
+def _db_optional_text(value: str | None) -> str:
+    return value or ""
+
+
+def _require_review(conn: sqlite3.Connection, *, review_id: int, context: str) -> PromotionReviewRecord:
+    review = fetch_promotion_review_by_id(conn, review_id=review_id)
+    if review is None:
+        raise ValueError(f"Promotion review {review_id} not found after {context}.")
+    return review
+
+
+def _require_event(conn: sqlite3.Connection, *, event_id: int) -> PromotionReviewEvent:
+    row = conn.execute(
+        "SELECT * FROM promotion_review_events WHERE id = ?",
+        (event_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"Promotion review event {event_id} not found after insert.")
+    return _map_event_row(row)
 
 
 def _map_review_row(row: sqlite3.Row) -> PromotionReviewRecord:
@@ -124,11 +152,11 @@ def insert_promotion_review(
             int(assessment.live_trading_enabled),
             assessment.version,
             evaluation.meta.artifact_version,
-            json.dumps(assessment.to_payload(), separators=(",", ":"), sort_keys=True),
-            json.dumps(evaluation.to_payload(), separators=(",", ":"), sort_keys=True),
+            _json_object_dumps(assessment.to_payload()),
+            _json_object_dumps(evaluation.to_payload()),
             requested_by,
             None,
-            operator_summary_note or "",
+            _db_optional_text(operator_summary_note),
             created_at,
             created_at,
             None,
@@ -137,10 +165,7 @@ def insert_promotion_review(
     review_id = cursor.lastrowid
     if not isinstance(review_id, int):
         raise ValueError("Expected integer promotion review id after insert.")
-    review = fetch_promotion_review_by_id(conn, review_id=review_id)
-    if review is None:
-        raise ValueError(f"Promotion review {review_id} not found after insert.")
-    return review
+    return _require_review(conn, review_id=review_id, context="insert")
 
 
 def fetch_promotion_review_by_id(
@@ -181,28 +206,17 @@ def fetch_promotion_reviews_for_account(
     strategy_name: str | None = None,
     limit: int,
 ) -> list[PromotionReviewRecord]:
-    if strategy_name is None:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM promotion_reviews
-            WHERE account_id = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT ?
-            """,
-            (account_id, limit),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM promotion_reviews
-            WHERE account_id = ? AND strategy_name = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT ?
-            """,
-            (account_id, strategy_name, limit),
-        ).fetchall()
+    query = [
+        "SELECT *",
+        "FROM promotion_reviews",
+        "WHERE account_id = ?",
+    ]
+    params: tuple[object, ...] = (account_id,)
+    if strategy_name is not None:
+        query.append("AND strategy_name = ?")
+        params += (strategy_name,)
+    query.extend(["ORDER BY created_at DESC, id DESC", "LIMIT ?"])
+    rows = conn.execute("\n".join(query), params + (limit,)).fetchall()
     return [_map_review_row(row) for row in rows]
 
 
@@ -249,20 +263,14 @@ def insert_promotion_review_event(
             from_review_state,
             to_review_state,
             note,
-            json.dumps(event_payload, separators=(",", ":"), sort_keys=True),
+            _json_object_dumps(event_payload),
             created_at,
         ),
     )
     event_id = cursor.lastrowid
     if not isinstance(event_id, int):
         raise ValueError("Expected integer promotion review event id after insert.")
-    row = conn.execute(
-        "SELECT * FROM promotion_review_events WHERE id = ?",
-        (event_id,),
-    ).fetchone()
-    if row is None:
-        raise ValueError(f"Promotion review event {event_id} not found after insert.")
-    return _map_event_row(row)
+    return _require_event(conn, event_id=event_id)
 
 
 def fetch_promotion_review_events(
@@ -301,13 +309,10 @@ def update_promotion_review_record(
         (
             review_state,
             reviewed_by,
-            operator_summary_note or "",
+            _db_optional_text(operator_summary_note),
             updated_at,
             closed_at,
             review_id,
         ),
     )
-    review = fetch_promotion_review_by_id(conn, review_id=review_id)
-    if review is None:
-        raise ValueError(f"Promotion review {review_id} not found after update.")
-    return review
+    return _require_review(conn, review_id=review_id, context="update")

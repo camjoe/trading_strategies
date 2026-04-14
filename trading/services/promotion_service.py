@@ -52,6 +52,10 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return normalized or None
 
 
+def _render_bool(value: bool) -> str:
+    return YES_TEXT if value else NO_TEXT
+
+
 def _fetch_current_promotion_snapshot(
     conn: sqlite3.Connection,
     *,
@@ -115,8 +119,8 @@ def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
         f"Strategy: {assessment.strategy_name}",
         f"Stage: {assessment.stage}",
         f"Status: {assessment.status}",
-        f"Ready for Live: {YES_TEXT if assessment.ready_for_live else NO_TEXT}",
-        f"Live Trading Enabled: {YES_TEXT if assessment.live_trading_enabled else NO_TEXT}",
+        f"Ready for Live: {_render_bool(assessment.ready_for_live)}",
+        f"Live Trading Enabled: {_render_bool(assessment.live_trading_enabled)}",
         f"Overall Confidence: {assessment.overall_confidence:.2f}",
         "Evaluation Generated At: "
         f"{assessment.evaluation_generated_at or NONE_TEXT}",
@@ -127,6 +131,106 @@ def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
     lines.extend(_render_section("Blockers", assessment.blockers))
     lines.extend(_render_section("Warnings", assessment.warnings))
     return lines
+
+
+def _require_request_context(
+    artifact: StrategyEvaluationArtifact,
+    assessment: PromotionAssessment,
+) -> tuple[int, str]:
+    account_id = artifact.basic.account_id
+    if account_id is None:
+        raise ValueError("Promotion review request requires an account id in the evaluation artifact.")
+
+    strategy_name = artifact.basic.requested_strategy
+    if strategy_name is None:
+        raise ValueError("Promotion review request requires a resolved strategy in the evaluation artifact.")
+
+    if assessment.live_trading_enabled:
+        raise ValueError("Promotion review requests are only available before live trading is enabled.")
+
+    return account_id, strategy_name
+
+
+def _ensure_no_open_review_for_request(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    strategy_name: str,
+    account_name: str,
+) -> None:
+    open_review = fetch_open_promotion_review(
+        conn,
+        account_id=account_id,
+        strategy_name=strategy_name,
+    )
+    if open_review is None:
+        return
+    raise ValueError(
+        "An open promotion review already exists for "
+        f"{account_name}/{strategy_name}."
+    )
+
+
+def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
+    review = fetch_promotion_review_by_id(conn, review_id=review_id)
+    if review is None:
+        raise ValueError(f"Promotion review {review_id} not found.")
+    return review
+
+
+def _record_review_event(
+    conn: sqlite3.Connection,
+    *,
+    review_id: int,
+    event_type: str,
+    actor_name: str | None,
+    from_review_state: str | None,
+    to_review_state: str | None,
+    note: str | None,
+    event_payload: dict[str, object],
+    created_at: str,
+) -> None:
+    insert_promotion_review_event(
+        conn,
+        review_id=review_id,
+        event_type=event_type,
+        actor_name=actor_name,
+        from_review_state=from_review_state,
+        to_review_state=to_review_state,
+        note=note,
+        event_payload=event_payload,
+        created_at=created_at,
+    )
+
+
+def _update_review(
+    conn: sqlite3.Connection,
+    *,
+    review_id: int,
+    review_state: str,
+    reviewed_by: str | None,
+    operator_summary_note: str | None,
+    updated_at: str,
+    closed_at: str | None,
+) -> PromotionReviewRecord:
+    return update_promotion_review_record(
+        conn,
+        review_id=review_id,
+        review_state=review_state,
+        reviewed_by=reviewed_by,
+        operator_summary_note=operator_summary_note,
+        updated_at=updated_at,
+        closed_at=closed_at,
+    )
+
+
+def _request_event_payload(assessment: PromotionAssessment) -> dict[str, object]:
+    return {
+        "ready_for_live": assessment.ready_for_live,
+        "assessment_stage": assessment.stage,
+        "assessment_status": assessment.status,
+        "overall_confidence": assessment.overall_confidence,
+    }
 
 
 def execute_promotion_review_request(
@@ -142,23 +246,14 @@ def execute_promotion_review_request(
         account_name=account_name,
         strategy_name=strategy_name,
     )
-    if artifact.basic.account_id is None:
-        raise ValueError("Promotion review request requires an account id in the evaluation artifact.")
-    if artifact.basic.requested_strategy is None:
-        raise ValueError("Promotion review request requires a resolved strategy in the evaluation artifact.")
-    if assessment.live_trading_enabled:
-        raise ValueError("Promotion review requests are only available before live trading is enabled.")
+    account_id, resolved_strategy_name = _require_request_context(artifact, assessment)
 
-    open_review = fetch_open_promotion_review(
+    _ensure_no_open_review_for_request(
         conn,
-        account_id=artifact.basic.account_id,
-        strategy_name=artifact.basic.requested_strategy,
+        account_id=account_id,
+        strategy_name=resolved_strategy_name,
+        account_name=artifact.basic.account_name or account_name,
     )
-    if open_review is not None:
-        raise ValueError(
-            "An open promotion review already exists for "
-            f"{artifact.basic.account_name}/{artifact.basic.requested_strategy}."
-        )
 
     created_at = utc_now_iso()
     normalized_requested_by = _normalize_optional_text(requested_by)
@@ -172,7 +267,7 @@ def execute_promotion_review_request(
             operator_summary_note=normalized_note,
             created_at=created_at,
         )
-        insert_promotion_review_event(
+        _record_review_event(
             conn,
             review_id=int(review.id),
             event_type=PROMOTION_REVIEW_EVENT_REQUESTED,
@@ -180,12 +275,7 @@ def execute_promotion_review_request(
             from_review_state=None,
             to_review_state=PROMOTION_REVIEW_STATE_REQUESTED,
             note=normalized_note,
-            event_payload={
-                "ready_for_live": assessment.ready_for_live,
-                "assessment_stage": assessment.stage,
-                "assessment_status": assessment.status,
-                "overall_confidence": assessment.overall_confidence,
-            },
+            event_payload=_request_event_payload(assessment),
             created_at=created_at,
         )
         refreshed = fetch_promotion_review_by_id(conn, review_id=int(review.id))
@@ -194,11 +284,52 @@ def execute_promotion_review_request(
     return refreshed
 
 
-def _require_existing_review(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
-    review = fetch_promotion_review_by_id(conn, review_id=review_id)
-    if review is None:
-        raise ValueError(f"Promotion review {review_id} not found.")
+def _require_open_review(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
+    review = _fetch_review_or_raise(conn, review_id=review_id)
+    if review.review_state != PROMOTION_REVIEW_STATE_REQUESTED:
+        raise ValueError(f"Promotion review {review_id} is already closed with state '{review.review_state}'.")
     return review
+
+
+def _resolve_review_closure(action: str, *, ready_for_live: bool) -> tuple[str, str]:
+    if action == PROMOTION_REVIEW_ACTION_APPROVE:
+        if not ready_for_live:
+            raise ValueError("Only ready-for-live promotion reviews can be approved.")
+        return PROMOTION_REVIEW_STATE_APPROVED, PROMOTION_REVIEW_EVENT_APPROVED
+    if action == PROMOTION_REVIEW_ACTION_REJECT:
+        return PROMOTION_REVIEW_STATE_REJECTED, PROMOTION_REVIEW_EVENT_REJECTED
+    raise ValueError(f"Unsupported promotion review action '{action}'.")
+
+
+def _execute_promotion_review_note(
+    conn: sqlite3.Connection,
+    *,
+    review: PromotionReviewRecord,
+    actor_name: str | None,
+    note: str | None,
+    updated_at: str,
+) -> PromotionReviewRecord:
+    with conn:
+        _record_review_event(
+            conn,
+            review_id=int(review.id),
+            event_type=PROMOTION_REVIEW_EVENT_NOTE_ADDED,
+            actor_name=actor_name,
+            from_review_state=review.review_state,
+            to_review_state=review.review_state,
+            note=note,
+            event_payload={},
+            created_at=updated_at,
+        )
+        return _update_review(
+            conn,
+            review_id=int(review.id),
+            review_state=review.review_state,
+            reviewed_by=review.reviewed_by,
+            operator_summary_note=note or review.operator_summary_note,
+            updated_at=updated_at,
+            closed_at=review.closed_at,
+        )
 
 
 def execute_promotion_review_action(
@@ -209,50 +340,25 @@ def execute_promotion_review_action(
     actor_name: str | None = None,
     note: str | None = None,
 ) -> PromotionReviewRecord:
-    review = _require_existing_review(conn, review_id=review_id)
-    if review.review_state != PROMOTION_REVIEW_STATE_REQUESTED:
-        raise ValueError(f"Promotion review {review_id} is already closed with state '{review.review_state}'.")
+    review = _require_open_review(conn, review_id=review_id)
 
     normalized_actor_name = _normalize_optional_text(actor_name)
     normalized_note = _normalize_optional_text(note)
     updated_at = utc_now_iso()
 
     if action == PROMOTION_REVIEW_ACTION_NOTE:
-        with conn:
-            insert_promotion_review_event(
-                conn,
-                review_id=review_id,
-                event_type=PROMOTION_REVIEW_EVENT_NOTE_ADDED,
-                actor_name=normalized_actor_name,
-                from_review_state=review.review_state,
-                to_review_state=review.review_state,
-                note=normalized_note,
-                event_payload={},
-                created_at=updated_at,
-            )
-            return update_promotion_review_record(
-                conn,
-                review_id=review_id,
-                review_state=review.review_state,
-                reviewed_by=review.reviewed_by,
-                operator_summary_note=normalized_note or review.operator_summary_note,
-                updated_at=updated_at,
-                closed_at=review.closed_at,
-            )
+        return _execute_promotion_review_note(
+            conn,
+            review=review,
+            actor_name=normalized_actor_name,
+            note=normalized_note,
+            updated_at=updated_at,
+        )
 
-    if action == PROMOTION_REVIEW_ACTION_APPROVE:
-        if not review.ready_for_live:
-            raise ValueError("Only ready-for-live promotion reviews can be approved.")
-        next_state = PROMOTION_REVIEW_STATE_APPROVED
-        event_type = PROMOTION_REVIEW_EVENT_APPROVED
-    elif action == PROMOTION_REVIEW_ACTION_REJECT:
-        next_state = PROMOTION_REVIEW_STATE_REJECTED
-        event_type = PROMOTION_REVIEW_EVENT_REJECTED
-    else:
-        raise ValueError(f"Unsupported promotion review action '{action}'.")
+    next_state, event_type = _resolve_review_closure(action, ready_for_live=review.ready_for_live)
 
     with conn:
-        insert_promotion_review_event(
+        _record_review_event(
             conn,
             review_id=review_id,
             event_type=event_type,
@@ -263,7 +369,7 @@ def execute_promotion_review_action(
             event_payload={},
             created_at=updated_at,
         )
-        return update_promotion_review_record(
+        return _update_review(
             conn,
             review_id=review_id,
             review_state=next_state,
@@ -313,7 +419,7 @@ def render_promotion_review_history_lines(entries: list[PromotionReviewHistoryEn
             [
                 (
                     f"Review #{review.id}: {review.account_name_snapshot}/{review.strategy_name} "
-                    f"| state={review.review_state} | ready_for_live={YES_TEXT if review.ready_for_live else NO_TEXT}"
+                    f"| state={review.review_state} | ready_for_live={_render_bool(review.ready_for_live)}"
                 ),
                 f"Created: {review.created_at}",
                 f"Updated: {review.updated_at}",
