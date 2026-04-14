@@ -229,7 +229,7 @@ export type BacktestReport = {
   fee_per_trade: number;
   tickers_file: string;
   notes: string | null;
-  warnings: string;
+  warnings: string[];
   trade_count: number;
   starting_equity: number;
   ending_equity: number;
