@@ -67,6 +67,26 @@ export interface AdminCreateAccountPayload extends Partial<AccountConfigFields> 
   descriptiveName: string | undefined;
 }
 
+export interface AccountConfigOptionDefaults {
+  goalPeriod: string;
+  riskPolicy: string;
+  instrumentMode: string;
+  rotationMode: string;
+  rotationOptimalityMode: string;
+  rotationOverlayMode: string;
+}
+
+export interface AccountConfigOptions {
+  goalPeriods: string[];
+  riskPolicies: string[];
+  instrumentModes: string[];
+  optionTypes: string[];
+  rotationModes: string[];
+  rotationOptimalityModes: string[];
+  rotationOverlayModes: string[];
+  defaults: AccountConfigOptionDefaults;
+}
+
 export type AccountSummary = AccountListItem & AccountConfigFields & {
   initialCash: number;
   settlementCash: number;

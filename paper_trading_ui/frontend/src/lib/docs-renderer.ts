@@ -255,7 +255,8 @@ const ACCOUNTS_REQUEST_BODY_CONTENT = `
       <p class="muted">
         Canonical editable-field definitions live in
         <code>paper_trading_ui/backend/schemas.py</code> (<code>AccountParamsRequest</code>)
-        and <code>paper_trading_ui/backend/account_contract.py</code>. The UI groups
+        , <code>paper_trading_ui/backend/account_contract.py</code>, and
+        <code>GET /api/accounts/config/options</code>. The UI groups
         those fields into the sections below instead of restating the full field-by-field
         wire contract here.
       </p>
@@ -285,7 +286,8 @@ const ADMIN_REQUEST_BODY_CONTENT = `
       <p class="muted">
         Canonical create-field definitions live in
         <code>paper_trading_ui/backend/schemas.py</code> (<code>AdminCreateAccountRequest</code>)
-        and <code>paper_trading_ui/backend/account_contract.py</code>. This summary
+        , <code>paper_trading_ui/backend/account_contract.py</code>, and
+        <code>GET /api/accounts/config/options</code>. This summary
         focuses on grouped intent rather than repeating the full contract.
       </p>
       <table class="ref-table">

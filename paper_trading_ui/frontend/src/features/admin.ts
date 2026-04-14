@@ -1,5 +1,6 @@
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
+import { applyAccountConfigOptionsToAdminForm, getAccountConfigOptions } from "../lib/account-config-options";
 import { getJson, postJson } from "../lib/http";
 import type { AccountListItem, AccountSummary, AdminCreateAccountPayload } from "../types";
 
@@ -343,6 +344,12 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const output = find<HTMLDivElement>("#createAccountOutput");
     if (!output) return;
 
+    const configOptions = getAccountConfigOptions();
+    if (!configOptions) {
+      setOutput(output, "error", "Account config options are unavailable.");
+      return;
+    }
+
     const data = new FormData(form);
     const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv")) ?? [];
     const rotationOverlayWatchlist = csvListOrUndefined(data.get("rotationOverlayWatchlistCsv"));
@@ -355,12 +362,12 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       initialCash: numOrUndefined(data.get("initialCash")),
       goalMinReturnPct: numOrUndefined(data.get("goalMinReturnPct")),
       goalMaxReturnPct: numOrUndefined(data.get("goalMaxReturnPct")),
-      goalPeriod: strOrUndefined(data.get("goalPeriod")) ?? "monthly",
+      goalPeriod: strOrUndefined(data.get("goalPeriod")) ?? configOptions.defaults.goalPeriod,
       learningEnabled: data.get("learningEnabled") === "on",
-      riskPolicy: strOrUndefined(data.get("riskPolicy")) ?? "none",
+      riskPolicy: strOrUndefined(data.get("riskPolicy")) ?? configOptions.defaults.riskPolicy,
       stopLossPct: numOrUndefined(data.get("stopLossPct")),
       takeProfitPct: numOrUndefined(data.get("takeProfitPct")),
-      instrumentMode: strOrUndefined(data.get("instrumentMode")) ?? "equity",
+      instrumentMode: strOrUndefined(data.get("instrumentMode")) ?? configOptions.defaults.instrumentMode,
       optionStrikeOffsetPct: numOrUndefined(data.get("optionStrikeOffsetPct")),
       optionMinDte: intOrUndefined(data.get("optionMinDte")),
       optionMaxDte: intOrUndefined(data.get("optionMaxDte")),
@@ -375,8 +382,9 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       profitTakePct: numOrUndefined(data.get("profitTakePct")),
       maxLossPct: numOrUndefined(data.get("maxLossPct")),
       rotationEnabled: data.get("rotationEnabled") === "on",
-      rotationMode: strOrUndefined(data.get("rotationMode")) ?? "time",
-      rotationOptimalityMode: strOrUndefined(data.get("rotationOptimalityMode")) ?? "previous_period_best",
+      rotationMode: strOrUndefined(data.get("rotationMode")) ?? configOptions.defaults.rotationMode,
+      rotationOptimalityMode:
+        strOrUndefined(data.get("rotationOptimalityMode")) ?? configOptions.defaults.rotationOptimalityMode,
       rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
       rotationIntervalMinutes: intOrUndefined(data.get("rotationIntervalMinutes")),
       rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
@@ -384,7 +392,8 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       rotationRegimeStrategyRiskOn: strOrUndefined(data.get("rotationRegimeStrategyRiskOn")),
       rotationRegimeStrategyNeutral: strOrUndefined(data.get("rotationRegimeStrategyNeutral")),
       rotationRegimeStrategyRiskOff: strOrUndefined(data.get("rotationRegimeStrategyRiskOff")),
-      rotationOverlayMode: strOrUndefined(data.get("rotationOverlayMode")) ?? "none",
+      rotationOverlayMode:
+        strOrUndefined(data.get("rotationOverlayMode")) ?? configOptions.defaults.rotationOverlayMode,
       rotationOverlayMinTickers: intOrUndefined(data.get("rotationOverlayMinTickers")),
       rotationOverlayConfidenceThreshold: numOrUndefined(data.get("rotationOverlayConfidenceThreshold")),
       rotationOverlayWatchlist,
@@ -462,6 +471,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
 
     syncInstrumentDetails(createForm);
     syncRotationDetails(createForm);
+    applyAccountConfigOptionsToAdminForm();
     void loadCsvExports();
   }
 

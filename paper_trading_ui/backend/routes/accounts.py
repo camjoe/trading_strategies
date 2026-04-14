@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
@@ -27,6 +28,11 @@ from ..services import (
 )
 
 router = APIRouter()
+
+
+@router.get("/api/accounts/config/options")
+def api_account_config_options() -> dict[str, object]:
+    return get_account_config_options()
 
 
 @router.get("/api/accounts")

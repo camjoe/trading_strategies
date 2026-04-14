@@ -1,9 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AccountDetail } from "../../types";
 import { renderDetail } from "../../components/detail";
+import { resetAccountConfigOptions, setAccountConfigOptions } from "../../lib/account-config-options";
 
 describe("renderDetail", () => {
+  beforeEach(() => {
+    setAccountConfigOptions({
+      goalPeriods: ["monthly", "weekly", "quarterly", "yearly"],
+      riskPolicies: ["none", "fixed_stop", "take_profit", "stop_and_target"],
+      instrumentModes: ["equity", "leaps"],
+      optionTypes: ["call", "put", "both"],
+      rotationModes: ["time", "optimal", "regime"],
+      rotationOptimalityModes: ["previous_period_best", "average_return", "hybrid_weighted"],
+      rotationOverlayModes: ["none", "news", "social", "news_social"],
+      defaults: {
+        goalPeriod: "monthly",
+        riskPolicy: "none",
+        instrumentMode: "equity",
+        rotationMode: "time",
+        rotationOptimalityMode: "previous_period_best",
+        rotationOverlayMode: "none",
+      },
+    });
+  });
+
+  afterEach(() => {
+    resetAccountConfigOptions();
+  });
+
   it("renders latest backtest section when available", () => {
     const detail: AccountDetail = {
       account: {

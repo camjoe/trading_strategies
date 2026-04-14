@@ -56,12 +56,7 @@
         <p class="admin-section-label admin-wide">Goals</p>
         <label class="bt-field">
           <span>Goal period</span>
-          <select name="goalPeriod">
-            <option value="monthly" selected>monthly</option>
-            <option value="weekly">weekly</option>
-            <option value="quarterly">quarterly</option>
-            <option value="yearly">yearly</option>
-          </select>
+          <select name="goalPeriod"></select>
         </label>
         <label class="bt-field">
           <span>Goal min return %</span>
@@ -75,12 +70,7 @@
         <p class="admin-section-label admin-wide">Risk</p>
         <label class="bt-field">
           <span>Risk policy</span>
-          <select name="riskPolicy">
-            <option value="none" selected>none</option>
-            <option value="fixed_stop">fixed_stop</option>
-            <option value="take_profit">take_profit</option>
-            <option value="stop_and_target">stop_and_target</option>
-          </select>
+          <select name="riskPolicy"></select>
         </label>
         <label class="bt-field">
           <span>Stop loss %</span>
@@ -102,23 +92,15 @@
         <p class="admin-section-label admin-wide">Instrument</p>
         <label class="bt-field">
           <span>Instrument mode</span>
-          <select id="adminInstrumentMode" name="instrumentMode">
-            <option value="equity" selected>equity</option>
-            <option value="leaps">leaps</option>
-          </select>
+          <select id="adminInstrumentMode" name="instrumentMode"></select>
         </label>
         <details id="adminInstrumentAdvanced" class="admin-collapsible admin-wide">
           <summary>Instrument details</summary>
           <div class="admin-grid-section">
-            <label class="bt-field">
-              <span>Option type</span>
-              <select name="optionType">
-                <option value="">(none)</option>
-                <option value="call">call</option>
-                <option value="put">put</option>
-                <option value="both">both</option>
-              </select>
-            </label>
+              <label class="bt-field">
+                <span>Option type</span>
+                <select name="optionType"></select>
+              </label>
             <label class="bt-field">
               <span>Option strike offset %</span>
               <input name="optionStrikeOffsetPct" type="number" step="0.1" />
@@ -168,19 +150,11 @@
           <div class="admin-grid-section">
             <label class="bt-field">
               <span>Rotation mode</span>
-              <select name="rotationMode">
-                <option value="time" selected>time</option>
-                <option value="optimal">optimal</option>
-                <option value="regime">regime</option>
-              </select>
+              <select name="rotationMode"></select>
             </label>
             <label class="bt-field">
               <span>Optimality mode</span>
-              <select name="rotationOptimalityMode">
-                <option value="previous_period_best" selected>previous_period_best</option>
-                <option value="average_return">average_return</option>
-                <option value="hybrid_weighted">hybrid_weighted</option>
-              </select>
+              <select name="rotationOptimalityMode"></select>
             </label>
             <label class="bt-field">
               <span>Interval days</span>
@@ -224,12 +198,7 @@
             </label>
             <label class="bt-field">
               <span>Overlay Mode</span>
-              <select name="rotationOverlayMode">
-                <option value="none" selected>none</option>
-                <option value="news">news</option>
-                <option value="social">social</option>
-                <option value="news_social">news_social</option>
-              </select>
+              <select name="rotationOverlayMode"></select>
             </label>
             <label class="bt-field">
               <span>Overlay Min Tickers</span>

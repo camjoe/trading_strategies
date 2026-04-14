@@ -1,4 +1,5 @@
 import { currency, esc } from "../lib/format";
+import { getAccountConfigOptions, renderOptionTags } from "../lib/account-config-options";
 import type { AccountAnalysis, AccountDetail } from "../types";
 
 export interface DetailRenderOptions {
@@ -12,41 +13,30 @@ export interface DetailRenderOptions {
   showBacktest?: boolean;
 }
 
-const RISK_POLICY_OPTIONS = ["none", "fixed_stop", "take_profit", "stop_and_target"] as const;
-
 function riskPolicyOptions(currentPolicy: string): string {
-  return RISK_POLICY_OPTIONS.map(
-    (opt) => `<option value="${opt}"${currentPolicy === opt ? " selected" : ""}>${opt}</option>`,
-  ).join("");
+  return renderOptionTags(getAccountConfigOptions()?.riskPolicies ?? [], currentPolicy);
 }
 
-const INSTRUMENT_MODE_OPTIONS = ["equity", "leaps"] as const;
-const ROTATION_MODE_OPTIONS = ["time", "optimal", "regime"] as const;
-const ROTATION_OPTIMALITY_OPTIONS = ["previous_period_best", "average_return", "hybrid_weighted"] as const;
-const ROTATION_OVERLAY_MODE_OPTIONS = ["none", "news", "social", "news_social"] as const;
-
 function instrumentModeOptions(currentMode: string): string {
-  return INSTRUMENT_MODE_OPTIONS.map(
-    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
-  ).join("");
+  return renderOptionTags(getAccountConfigOptions()?.instrumentModes ?? [], currentMode);
 }
 
 function rotationModeOptions(currentMode: string): string {
-  return ROTATION_MODE_OPTIONS.map(
-    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
-  ).join("");
+  return renderOptionTags(getAccountConfigOptions()?.rotationModes ?? [], currentMode);
 }
 
 function rotationOptimalityOptions(currentMode: string): string {
-  return ROTATION_OPTIMALITY_OPTIONS.map(
-    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
-  ).join("");
+  return renderOptionTags(getAccountConfigOptions()?.rotationOptimalityModes ?? [], currentMode);
 }
 
 function rotationOverlayModeOptions(currentMode: string): string {
-  return ROTATION_OVERLAY_MODE_OPTIONS.map(
-    (opt) => `<option value="${opt}"${currentMode === opt ? " selected" : ""}>${opt}</option>`,
-  ).join("");
+  return renderOptionTags(getAccountConfigOptions()?.rotationOverlayModes ?? [], currentMode);
+}
+
+function optionTypeOptions(currentType: string | null): string {
+  return renderOptionTags(getAccountConfigOptions()?.optionTypes ?? [], currentType ?? undefined, {
+    includeEmpty: true,
+  });
 }
 
 function tradeTypeBadge(note: string | null): string {
@@ -346,10 +336,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
           <div class="bt-field">
             <span>Option Type</span>
             <select id="editOptionTypeSelect">
-              <option value="">— none —</option>
-              <option value="call"${detail.account.optionType === "call" ? " selected" : ""}>call</option>
-              <option value="put"${detail.account.optionType === "put" ? " selected" : ""}>put</option>
-              <option value="both"${detail.account.optionType === "both" ? " selected" : ""}>both</option>
+              ${optionTypeOptions(detail.account.optionType)}
             </select>
           </div>
           <div class="bt-field">
