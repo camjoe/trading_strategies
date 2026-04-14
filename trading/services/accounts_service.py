@@ -33,8 +33,7 @@ from trading.repositories.snapshots_repository import (
     fetch_snapshot_history_rows as _repo_fetch_snapshot_history_rows,
 )
 from trading.services.accounts.listing import (
-    GOAL_NOT_SET_TEXT,
-    HEURISTIC_EXPLORATION_LABEL,
+    GOAL_NOT_SET_TEXT,  # re-exported; used by reporting_service
     build_account_listing_lines,
     format_account_policy_text,
     format_goal_text,

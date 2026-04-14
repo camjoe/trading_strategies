@@ -4,7 +4,7 @@ import sqlite3
 
 from trading.services.accounts_service import (
     fetch_account_rows_excluding,
-    fetch_snapshot_history_rows,
+    fetch_snapshot_history_rows as _fetch_snapshot_history_rows,
 )
 from trading.services.accounting_service import load_trades
 from trading.services.reporting_service import snapshot_account
@@ -45,3 +45,7 @@ def fetch_account_trades(conn: sqlite3.Connection, account_id: int) -> list[sqli
 
 def take_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time: str | None = None) -> None:
     snapshot_account(conn, account_name, snapshot_time)
+
+
+def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[sqlite3.Row]:
+    return _fetch_snapshot_history_rows(conn, account_id, limit=limit)

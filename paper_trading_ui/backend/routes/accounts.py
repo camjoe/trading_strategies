@@ -20,12 +20,12 @@ from ..services import (
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
     fetch_resolved_account_row,
+    fetch_snapshot_history_rows,
     build_snapshot_payload,
     build_test_account_live_summary,
     build_trade_payload,
     update_account_params,
 )
-from trading.services.accounts_service import fetch_snapshot_history_rows
 
 router = APIRouter()
 

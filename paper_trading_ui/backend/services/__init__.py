@@ -16,6 +16,7 @@ from .accounts import (
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
+    fetch_snapshot_history_rows,
     take_snapshot,
     update_account_params,
 )
@@ -65,6 +66,7 @@ __all__ = [
     "fetch_latest_backtest_summary",
     "fetch_managed_account_rows",
     "fetch_resolved_account_row",
+    "fetch_snapshot_history_rows",
     "list_csv_exports",
     "preview_csv_export",
     "resolve_backtest_payload_account",

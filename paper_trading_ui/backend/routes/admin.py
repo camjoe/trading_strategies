@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from ..account_contract import build_admin_create_account_command
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
 from ..services import (
+    attach_live_benchmark_summary,
     fetch_account_row,
     build_account_summary,
     create_account_with_rotation,
@@ -28,7 +29,9 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
             raise HTTPException(status_code=400, detail=str(error)) from error
 
         account = fetch_account_row(conn, command.name)
-        return {"status": "ok", "account": build_account_summary(conn, account)}
+        summary = build_account_summary(conn, account)
+        attach_live_benchmark_summary(summary, None)
+        return {"status": "ok", "account": summary}
 
 
 @router.post("/api/admin/accounts/delete")

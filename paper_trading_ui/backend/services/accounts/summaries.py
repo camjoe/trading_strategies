@@ -184,7 +184,8 @@ def _build_positions_from_stats(
 ) -> list[dict[str, object]]:
     from trading.models.account_state import AccountState
 
-    assert isinstance(state, AccountState)
+    if not isinstance(state, AccountState):
+        return []
     result = []
     for ticker, qty in sorted(state.positions.items()):
         if qty <= 0 or ticker == _SETTLEMENT_TICKER:
@@ -212,6 +213,13 @@ def build_comparison_account_payload(
     summary: dict[str, object],
     latest_backtest: dict[str, object] | None,
 ) -> dict[str, object]:
+    """Build comparison payload from a fully-enriched account summary.
+
+    Precondition: ``summary`` must have been produced by calling
+    ``attach_live_benchmark_summary`` after ``build_account_summary``;
+    bare ``build_account_summary`` results lack the five live-benchmark keys
+    and will raise ``KeyError`` here.
+    """
     return {
         "name": summary["name"],
         "displayName": summary["displayName"],

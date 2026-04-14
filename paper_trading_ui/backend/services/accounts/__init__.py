@@ -30,6 +30,7 @@ from .data_access import (
     build_trade_payload,
     fetch_account_trades,
     fetch_managed_account_rows,
+    fetch_snapshot_history_rows,
     take_snapshot,
 )
 from .mutations import update_account_params
@@ -57,6 +58,7 @@ __all__ = [
     "fetch_latest_backtest_summary",
     "fetch_managed_account_rows",
     "fetch_recent_backtest_run_summaries",
+    "fetch_snapshot_history_rows",
     "take_snapshot",
     "update_account_params",
 ]
