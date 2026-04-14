@@ -11,9 +11,7 @@ import sys
 import time
 from pathlib import Path
 
-HOST = "127.0.0.1"
-API_PORT = "8000"
-FRONTEND_PORT = "5173"
+from scripts.ui_config import BACKEND_PORT, FRONTEND_PORT, UI_HOST
 
 
 def npm_command() -> str:
@@ -28,9 +26,9 @@ def build_commands() -> tuple[list[str], list[str]]:
         "paper_trading_ui.backend.main:app",
         "--reload",
         "--host",
-        HOST,
+        UI_HOST,
         "--port",
-        API_PORT,
+        BACKEND_PORT,
     ]
     frontend_command = [
         npm_command(),
@@ -38,7 +36,7 @@ def build_commands() -> tuple[list[str], list[str]]:
         "dev",
         "--",
         "--host",
-        HOST,
+        UI_HOST,
         "--port",
         FRONTEND_PORT,
         "--strictPort",
@@ -47,7 +45,7 @@ def build_commands() -> tuple[list[str], list[str]]:
 
 
 def _service_url(port: str) -> str:
-    return f"http://{HOST}:{port}"
+    return f"http://{UI_HOST}:{port}"
 
 
 def terminate_process(proc: subprocess.Popen[str]) -> None:
@@ -80,7 +78,7 @@ def main() -> int:
     backend_command, frontend_command = build_commands()
     env = {
         **os.environ,
-        "VITE_API_BASE": _service_url(API_PORT),
+        "VITE_API_BASE": _service_url(BACKEND_PORT),
     }
 
     if shutil.which(frontend_command[0]) is None:
@@ -99,7 +97,7 @@ def main() -> int:
     )
 
     print("Launched backend and frontend.")
-    print(f"Backend:  {_service_url(API_PORT)}")
+    print(f"Backend:  {_service_url(BACKEND_PORT)}")
     print(f"Frontend: {_service_url(FRONTEND_PORT)}")
     print("Press Ctrl+C to stop both services.")
 

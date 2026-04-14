@@ -4,7 +4,11 @@ import ast
 import json
 from pathlib import Path
 
+from scripts.documentation_ui.registry_utils import sort_registry_rows
 
+
+ROUTES_DIR = "paper_trading_ui/backend/routes"
+API_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/api.json"
 
 GROUP_ORDER = [
     "Accounts & Snapshots Endpoints",
@@ -16,7 +20,10 @@ GROUP_ORDER = [
 GROUP_BY_MODULE = {
     "accounts": "Accounts & Snapshots Endpoints",
     "actions": "Accounts & Snapshots Endpoints",
+    "analysis": "Accounts & Snapshots Endpoints",
+    "features": "Accounts & Snapshots Endpoints",
     "health": "Accounts & Snapshots Endpoints",
+    "trades": "Accounts & Snapshots Endpoints",
     "admin": "Admin Endpoints",
     "logs": "Logs Endpoints",
     "backtests": "Backtesting Endpoints",
@@ -113,7 +120,5 @@ def build_registry(
                 "_sort_group": str(group_rank),
             }
         )
-    rows.sort(key=lambda item: (int(item["_sort_group"]), item["path"], item["method"]))
-    for row in rows:
-        del row["_sort_group"]
+    sort_registry_rows(rows, lambda item: (item["path"], item["method"]))
     return rows
