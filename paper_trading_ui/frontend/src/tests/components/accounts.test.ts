@@ -1,48 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import type { AccountSummary } from "../../types";
+import type { AccountListItem } from "../../types";
 import { accountCard } from "../../components/accounts";
 
 describe("accountCard", () => {
   it("renders account stats with positive styling", () => {
-    const account: AccountSummary = {
+    const account: AccountListItem = {
       name: "acct1",
       displayName: "Growth",
       strategy: "Momentum",
       instrumentMode: "equity",
-      riskPolicy: "none",
       benchmark: "SPY",
-      initialCash: 10000,
-        equity: 10500,
-        settlementCash: 0,
-        totalChange: 500,
-        totalChangePct: 5,
-        liveBenchmarkReturnPct: null,
-        liveAlphaPct: null,
-        liveBenchmarkEquity: null,
-        liveBenchmarkStartTime: null,
-        liveBenchmarkEndTime: null,
-        changeSinceLastSnapshot: 10,
-        latestSnapshotTime: "2026-03-15T00:00:00Z",
-      stopLossPct: null,
-      takeProfitPct: null,
-      goalMinReturnPct: null,
-      goalMaxReturnPct: null,
-      goalPeriod: null,
-      learningEnabled: false,
-      optionStrikeOffsetPct: null,
-      optionMinDte: null,
-      optionMaxDte: null,
-      optionType: null,
-      targetDeltaMin: null,
-      targetDeltaMax: null,
-      maxPremiumPerTrade: null,
-      maxContractsPerTrade: null,
-      ivRankMin: null,
-      ivRankMax: null,
-      rollDteThreshold: null,
-      profitTakePct: null,
-      maxLossPct: null,
+      equity: 10500,
+      totalChange: 500,
+      totalChangePct: 5,
+      changeSinceLastSnapshot: 10,
+      latestSnapshotTime: "2026-03-15T00:00:00Z",
     };
 
     const html = accountCard(account);
@@ -53,44 +26,17 @@ describe("accountCard", () => {
   });
 
   it("escapes text and handles null snapshot change", () => {
-    const account: AccountSummary = {
+    const account: AccountListItem = {
       name: "acct<script>",
       displayName: "Display",
       strategy: "MeanReversion",
       instrumentMode: "equity",
-      riskPolicy: "none",
       benchmark: "QQQ",
-      initialCash: 1000,
-        equity: 900,
-        settlementCash: 0,
-        totalChange: -100,
-        totalChangePct: -10,
-        liveBenchmarkReturnPct: null,
-        liveAlphaPct: null,
-        liveBenchmarkEquity: null,
-        liveBenchmarkStartTime: null,
-        liveBenchmarkEndTime: null,
-        changeSinceLastSnapshot: null,
-        latestSnapshotTime: null,
-      stopLossPct: null,
-      takeProfitPct: null,
-      goalMinReturnPct: null,
-      goalMaxReturnPct: null,
-      goalPeriod: null,
-      learningEnabled: false,
-      optionStrikeOffsetPct: null,
-      optionMinDte: null,
-      optionMaxDte: null,
-      optionType: null,
-      targetDeltaMin: null,
-      targetDeltaMax: null,
-      maxPremiumPerTrade: null,
-      maxContractsPerTrade: null,
-      ivRankMin: null,
-      ivRankMax: null,
-      rollDteThreshold: null,
-      profitTakePct: null,
-      maxLossPct: null,
+      equity: 900,
+      totalChange: -100,
+      totalChangePct: -10,
+      changeSinceLastSnapshot: null,
+      latestSnapshotTime: null,
     };
 
     const html = accountCard(account);

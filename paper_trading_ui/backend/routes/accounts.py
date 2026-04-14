@@ -6,6 +6,7 @@ from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
 from ..services import (
     attach_live_benchmark_summary,
+    build_account_list_payload,
     fetch_account_row,
     build_account_summary,
     build_account_summary_and_positions,
@@ -31,8 +32,8 @@ router = APIRouter()
 def api_accounts() -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
         rows = fetch_managed_account_rows(conn)
-        accounts = [build_account_summary(conn, row) for row in rows]
-        accounts.append(build_test_account_live_summary(conn))
+        accounts = [build_account_list_payload(build_account_summary(conn, row)) for row in rows]
+        accounts.append(build_account_list_payload(build_test_account_live_summary(conn)))
         accounts.sort(key=lambda item: str(item["name"]))
         return {"accounts": accounts}
 

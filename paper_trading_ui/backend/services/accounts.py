@@ -3,9 +3,11 @@
 Responsibilities
 ----------------
 - **Account summaries** — ``build_account_summary`` assembles the account
-  payload (equity, PnL, risk params, goal params, options params, rotation
-  params, etc.)
-  from a DB row, current pricing state, and the latest snapshot.
+   payload (equity, PnL, risk params, goal params, options params, rotation
+   params, etc.)
+   from a DB row, current pricing state, and the latest snapshot.
+- **Account list payloads** — ``build_account_list_payload`` trims the full
+  summary shape down to the fields needed by list and selector views.
 - **Account parameter updates** — ``update_account_params`` accepts mutable
   config fields plus rotation settings and delegates to canonical trading
   services.
@@ -218,6 +220,21 @@ def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[st
         )
     total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
     return _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
+
+
+def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
+    return {
+        "name": summary["name"],
+        "displayName": summary["displayName"],
+        "strategy": summary["strategy"],
+        "instrumentMode": summary["instrumentMode"],
+        "benchmark": summary["benchmark"],
+        "equity": summary["equity"],
+        "totalChange": summary["totalChange"],
+        "totalChangePct": summary["totalChangePct"],
+        "changeSinceLastSnapshot": summary["changeSinceLastSnapshot"],
+        "latestSnapshotTime": summary["latestSnapshotTime"],
+    }
 
 
 def build_account_summary_and_positions(

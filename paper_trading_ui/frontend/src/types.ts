@@ -1,22 +1,25 @@
-export type AccountSummary = {
+export type AccountListItem = {
   name: string;
   displayName: string;
   strategy: string;
   instrumentMode: string;
-  riskPolicy: string;
   benchmark: string;
-  initialCash: number;
   equity: number;
-  settlementCash: number;
   totalChange: number;
   totalChangePct: number;
+  changeSinceLastSnapshot: number | null;
+  latestSnapshotTime: string | null;
+};
+
+export type AccountSummary = AccountListItem & {
+  riskPolicy: string;
+  initialCash: number;
+  settlementCash: number;
   liveBenchmarkReturnPct?: number | null;
   liveAlphaPct?: number | null;
   liveBenchmarkEquity?: number | null;
   liveBenchmarkStartTime?: string | null;
   liveBenchmarkEndTime?: string | null;
-  changeSinceLastSnapshot: number | null;
-  latestSnapshotTime: string | null;
   // config fields
   stopLossPct: number | null;
   takeProfitPct: number | null;

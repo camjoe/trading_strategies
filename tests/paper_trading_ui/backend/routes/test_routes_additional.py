@@ -68,9 +68,14 @@ class TestHealthAndAccountsRoutes:
         response = api_client.get("/api/accounts")
         assert response.status_code == 200
 
-        names = [item["name"] for item in response.json()["accounts"]]
+        accounts = response.json()["accounts"]
+        names = [item["name"] for item in accounts]
         assert "acct_listed" in names
         assert TEST_ACCOUNT_NAME in names
+        listed = next(item for item in accounts if item["name"] == "acct_listed")
+        assert "instrumentMode" in listed
+        assert "optionMinDte" not in listed
+        assert "rotationOverlayWatchlist" not in listed
 
     def test_account_detail_virtual_test_account_branch(self, api_client: TestClient) -> None:
         response = api_client.get(f"/api/accounts/{TEST_ACCOUNT_NAME}")

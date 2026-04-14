@@ -1,7 +1,7 @@
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
 import { getJson, postJson } from "../lib/http";
-import type { AccountSummary } from "../types";
+import type { AccountListItem, AccountSummary } from "../types";
 
 interface DeleteResponse {
   status: string;
@@ -286,7 +286,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const select = find<HTMLSelectElement>("#deleteAccountSelect");
     if (!select) return;
 
-    const data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+    const data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
     const optionsHtml = data.accounts
       .filter((a) => a.name !== TEST_ACCOUNT_NAME)
       .map((a) => `<option value="${esc(a.name)}">${esc(a.name)} (${esc(a.strategy)})</option>`)

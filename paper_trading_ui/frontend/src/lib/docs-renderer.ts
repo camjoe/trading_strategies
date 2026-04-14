@@ -266,8 +266,8 @@ const ACCOUNTS_REQUEST_BODY_CONTENT = `
       <table class="ref-table">
         <thead><tr><th>Field</th><th>Where it appears</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td>liveBenchmarkReturnPct</td><td>GET /api/accounts, GET /api/accounts/compare</td><td>Benchmark return over the same persisted live snapshot period when enough history exists.</td></tr>
-          <tr><td>liveAlphaPct</td><td>GET /api/accounts, GET /api/accounts/compare</td><td>Live account return minus benchmark return over the aligned snapshot period.</td></tr>
+          <tr><td>liveBenchmarkReturnPct</td><td>GET /api/accounts/compare</td><td>Benchmark return over the same persisted live snapshot period when enough history exists.</td></tr>
+          <tr><td>liveAlphaPct</td><td>GET /api/accounts/compare</td><td>Live account return minus benchmark return over the aligned snapshot period.</td></tr>
           <tr><td>liveBenchmarkOverlay</td><td>GET /api/accounts/{account_name}</td><td>Time-aligned benchmark overlay payload with benchmark ticker, summary stats, and chart-ready points.</td></tr>
           <tr><td>latestBacktestMetrics</td><td>GET /api/accounts/{account_name}, GET /api/accounts/compare</td><td>Compact backtest metric bundle used by the UI for ratio and quality summaries.</td></tr>
         </tbody>

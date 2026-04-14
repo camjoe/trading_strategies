@@ -9,7 +9,7 @@ import {
   warningListHtml,
 } from "../components/backtesting";
 import type {
-  AccountSummary,
+  AccountListItem,
   BacktestReport,
   BacktestRunResult,
   BacktestRunSummary,
@@ -17,7 +17,7 @@ import type {
 } from "../types";
 
 export interface BacktestingFeature {
-  setAccounts: (accounts: AccountSummary[]) => void;
+  setAccounts: (accounts: AccountListItem[]) => void;
   loadBacktestRuns: () => Promise<void>;
   loadBacktestReport: (runId: number) => Promise<void>;
   wireActions: () => void;
@@ -145,12 +145,12 @@ function validateDateInputs(start: string | null, lookbackMonths: number | null)
 }
 
 export function createBacktestingFeature(): BacktestingFeature {
-  let cachedAccounts: AccountSummary[] = [];
+  let cachedAccounts: AccountListItem[] = [];
 
   const isWalkForwardRun = (run: BacktestRunSummary): boolean =>
     Boolean(run.runName && /^wf(?:_|-)/i.test(run.runName));
 
-  function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
+  function populateBacktestAccountSelects(accounts: AccountListItem[]): void {
     const accountOptions = accounts
       .map((a) => `<option value="${esc(a.name)}">${esc(a.displayName)} (${esc(a.name)})</option>`)
       .join("");
@@ -402,7 +402,7 @@ export function createBacktestingFeature(): BacktestingFeature {
     wirePreflight(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
   }
 
-  function setAccounts(accounts: AccountSummary[]): void {
+  function setAccounts(accounts: AccountListItem[]): void {
     cachedAccounts = accounts;
     populateBacktestAccountSelects(cachedAccounts);
   }

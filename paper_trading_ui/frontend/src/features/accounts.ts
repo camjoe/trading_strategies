@@ -3,17 +3,17 @@ import { esc } from "../lib/format";
 import { getJson, patchJson, postJson } from "../lib/http";
 import { accountCard } from "../components/accounts";
 import { renderDetail, renderAnalysisPanel } from "../components/detail";
-import type { AccountAnalysis, AccountDetail, AccountParamsUpdate, AccountSummary } from "../types";
+import type { AccountAnalysis, AccountDetail, AccountListItem, AccountParamsUpdate } from "../types";
 
 const TEST_ACCOUNT_NAME = "test_account";
 
 export interface AccountsFeatureOptions {
-  onAccountsLoaded?: (accounts: AccountSummary[]) => void;
+  onAccountsLoaded?: (accounts: AccountListItem[]) => void;
   onOpenRunReport?: (runId: number) => Promise<void> | void;
 }
 
 export interface AccountsFeature {
-  getAccounts: () => AccountSummary[];
+  getAccounts: () => AccountListItem[];
   loadAccounts: () => Promise<void>;
   loadAccountDetail: (accountName: string) => Promise<void>;
   snapshotAll: () => Promise<void>;
@@ -35,7 +35,7 @@ function parseRunId(raw: string | undefined): number | null {
 }
 
 export function createAccountsFeature(options: AccountsFeatureOptions = {}): AccountsFeature {
-  let cachedAccounts: AccountSummary[] = [];
+  let cachedAccounts: AccountListItem[] = [];
   let currentDetail: AccountDetail | null = null;
   let currentTradePage = 1;
   let currentAnalysis: AccountAnalysis | null = null;
@@ -239,9 +239,9 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
 
     target.innerHTML = `<div class="empty">Loading accounts...</div>`;
 
-    let data: { accounts: AccountSummary[] };
+    let data: { accounts: AccountListItem[] };
     try {
-      data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+      data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
     } catch (err) {
       target.innerHTML = `<div class="error">Failed to load accounts: ${esc(err instanceof Error ? err.message : "network error")}. Is the backend running?</div>`;
       return;

@@ -1,7 +1,7 @@
 import { currency, esc, num, pct } from "../lib/format";
-import type { AccountSummary } from "../types";
+import type { AccountListItem } from "../types";
 
-export function accountCard(a: AccountSummary): string {
+export function accountCard(a: AccountListItem): string {
   const pnlClass = a.totalChange >= 0 ? "up" : "down";
   const latestSnapshot = a.latestSnapshotTime ? new Date(a.latestSnapshotTime).toLocaleString() : "none";
   const snapshotChange = a.changeSinceLastSnapshot === null ? "n/a" : num(a.changeSinceLastSnapshot);
