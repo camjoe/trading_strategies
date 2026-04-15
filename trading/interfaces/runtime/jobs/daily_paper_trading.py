@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, RUNTIME_ALERT_WEBHOOK_ENV
+from trading.interfaces.runtime.jobs.task_runs import CLI_MAIN_MODULE, DAILY_AUTO_TRADER_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts
 from trading.services.notifications_service import notify_webhook_best_effort
 
 REPO_ROOT = get_repo_root(__file__)
@@ -230,7 +230,7 @@ def run_auto_trader_group(
         return
     auto_trader_args = [
         "-m",
-        "trading.interfaces.runtime.jobs.daily_auto_trader",
+        DAILY_AUTO_TRADER_MODULE,
         "--accounts",
         ",".join(group_accounts),
         "--min-trades",
@@ -386,14 +386,14 @@ def main() -> int:
             stream_command(
                 log_path,
                 f"Snapshot {account}",
-                ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
+                ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
                 repo_root,
             )
 
         stream_command(
             log_path,
             "Compare Strategies",
-            ["-m", "trading.interfaces.cli.main", "compare-strategies"],
+            ["-m", CLI_MAIN_MODULE, "compare-strategies"],
             repo_root,
         )
 

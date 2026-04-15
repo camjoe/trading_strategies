@@ -9,6 +9,11 @@ from pathlib import Path
 
 RUNTIME_ALERT_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 
+# Subprocess module path constants — update here if a module is ever relocated.
+CLI_MAIN_MODULE = "trading.interfaces.cli.main"
+ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
+DAILY_AUTO_TRADER_MODULE = "trading.interfaces.runtime.jobs.daily_auto_trader"
+
 # Transient connectivity/rate-limit strings that indicate a retry may succeed.
 TRANSIENT_ERROR_TOKENS = (
     "temporarily unavailable",

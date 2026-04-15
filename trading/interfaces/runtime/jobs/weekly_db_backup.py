@@ -8,7 +8,7 @@ import datetime as dt
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line, ts
+from trading.interfaces.runtime.jobs.task_runs import ADMIN_MODULE, latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line, ts
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -52,7 +52,7 @@ def main() -> int:
     log_path = LOGS_DIR / f"weekly_db_backup_{tag}_{timestamp}.log"
     tee_line(log_path, f"[{ts()}] RUN META: force={bool(args.force_run)}")
 
-    cmd = ["-m", "trading.interfaces.runtime.data_ops.admin", "backup-db"]
+    cmd = ["-m", ADMIN_MODULE, "backup-db"]
     if args.backup_dir:
         cmd.append(args.backup_dir)
 

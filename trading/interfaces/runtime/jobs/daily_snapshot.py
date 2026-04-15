@@ -25,6 +25,7 @@ from trading.interfaces.runtime.jobs.task_runs import (
     tee_line,
     ts,
     write_artifact,
+    CLI_MAIN_MODULE,
 )
 
 REPO_ROOT = get_repo_root(__file__)
@@ -96,7 +97,7 @@ def run_snapshot_with_retry(
         exit_code, output = run_command_fn(
             log_path,
             label,
-            ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
+            ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
             repo_root,
         )
         if exit_code == 0:

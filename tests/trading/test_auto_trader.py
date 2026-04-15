@@ -52,7 +52,7 @@ class TestInputLoadingAndPrimitiveHelpers:
                 "--accounts",
                 "acct1,acct2",
                 "--tickers-file",
-                "trading/config/trade_universe.txt",
+                str(auto_trader.DEFAULT_TICKERS_FILE),
                 "--min-trades",
                 "2",
                 "--max-trades",

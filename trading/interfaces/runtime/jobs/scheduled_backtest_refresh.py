@@ -25,6 +25,7 @@ from trading.interfaces.runtime.jobs.task_runs import (
     tee_line,
     ts,
     write_artifact,
+    CLI_MAIN_MODULE,
 )
 from trading.services.accounts_service import load_all_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
@@ -131,7 +132,7 @@ def build_backtest_command(
 ) -> list[str]:
     command = [
         "-m",
-        "trading.interfaces.cli.main",
+        CLI_MAIN_MODULE,
         "backtest",
         "--account",
         account,
