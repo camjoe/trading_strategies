@@ -15,6 +15,7 @@ from trading.repositories.broker_orders_repository import (
     insert_order_fill,
     update_broker_order_status,
 )
+from trading.utils.coercion import row_expect_int
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
@@ -363,7 +364,7 @@ def _record_runtime_trade(
             note: str | None,
         ) -> None:
             order = BrokerOrder(
-                account_id=int(account["id"]),
+                account_id=row_expect_int(account, "id"),
                 ticker=ticker,
                 side=side,
                 qty=qty,
@@ -461,7 +462,7 @@ def reconcile_open_ib_orders(
     """
     broker = get_broker_for_account(account)
 
-    open_rows = fetch_open_broker_orders(conn, account_id=int(account["id"]))
+    open_rows = fetch_open_broker_orders(conn, account_id=row_expect_int(account, "id"))
     if not open_rows:
         broker.disconnect()
         return 0

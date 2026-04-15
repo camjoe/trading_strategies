@@ -4,6 +4,8 @@ import random
 import sqlite3
 from typing import Callable, Mapping, Protocol, cast
 
+from trading.utils.coercion import row_expect_int, row_float, row_int
+
 
 class AccountStateLike(Protocol):
     positions: Mapping[str, float]
@@ -96,7 +98,7 @@ def refresh_account_state(
     compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
     load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
 ):
-    return compute_account_state_fn(account["initial_cash"], load_trades_fn(conn, account["id"]))
+    return compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id")))
 
 
 def prepare_trade_selection(
@@ -246,8 +248,8 @@ def prepare_buy_trade(
         option_price = estimate_option_premium_fn(
             float(price),
             delta_est,
-            int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
-            int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
+            row_int(account, "option_min_dte"),
+            row_int(account, "option_max_dte"),
         )
         qty = choose_buy_qty_fn(
             state.cash,

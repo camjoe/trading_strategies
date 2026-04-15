@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from common.coercion import coerce_float, coerce_int, row_float, row_int
+from common.coercion import coerce_float, coerce_int, row_expect_int, row_float, row_int
 from trading.services.accounts_service import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
@@ -94,14 +94,14 @@ def _build_summary_from_stats(
     settlement_cash: float = 0.0,
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
-    latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))  # type: ignore[arg-type]
+    latest_snapshot = fetch_latest_snapshot_row(conn, row_expect_int(row, "id"))  # type: ignore[arg-type]
     rotation_schedule = parse_rotation_schedule(row.get("rotation_schedule"))
     rotation_overlay_watchlist = parse_rotation_overlay_watchlist(
         row.get("rotation_overlay_watchlist")
     )
     rotation_active_index = coerce_int(row.get("rotation_active_index"))
 
-    initial_cash = float(row["initial_cash"])
+    initial_cash = row_float(row, "initial_cash")
     effective_initial = initial_cash if initial_cash else total_deposited
     delta = equity - effective_initial
     delta_pct = ((equity / effective_initial) - 1.0) * 100.0 if effective_initial else 0.0

@@ -3,6 +3,7 @@ from collections import defaultdict
 
 from common.constants import SETTLEMENT_TICKER
 from trading.models import AccountState
+from trading.utils.coercion import row_float
 
 VALID_SIDES = {"buy", "sell"}
 
@@ -11,9 +12,9 @@ def _normalize_trade_fields(trade: dict[str, object]) -> tuple[str, str, float, 
     return (
         str(trade["ticker"]).upper(),
         str(trade["side"]).lower(),
-        float(trade["qty"]),
-        float(trade["price"]),
-        float(trade["fee"]),
+        row_float(trade, "qty") or 0.0,
+        row_float(trade, "price") or 0.0,
+        row_float(trade, "fee") or 0.0,
     )
 
 

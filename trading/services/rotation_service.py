@@ -32,7 +32,7 @@ from trading.features.social_feature_provider import (
     SOCIAL_TREND_EXIT_THRESHOLD,
     SOCIAL_TREND_SCORE,
 )
-from trading.utils.coercion import coerce_float
+from trading.utils.coercion import coerce_float, row_expect_int, row_float, row_int
 
 # Minimum completed live episodes required before the live component receives
 # its full configured weight in hybrid rotation scoring.
@@ -119,7 +119,7 @@ def fetch_rotation_overlay_tickers(
 ) -> list[str]:
     state = cast(
         object,
-        compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
+        compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id"))),
     )
     positions = cast(dict[str, float], getattr(state, "positions", {}))
     held_tickers = {ticker for ticker, qty in positions.items() if float(qty) > 0}
@@ -283,7 +283,7 @@ def compute_live_account_metrics(
 ) -> dict[str, float]:
     state = cast(
         object,
-        compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
+        compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id"))),
     )
     positions = cast(dict[str, float], getattr(state, "positions"))
     avg_cost = cast(dict[str, float], getattr(state, "avg_cost"))
@@ -316,13 +316,13 @@ def sync_rotation_episode(
         return
 
     metrics = compute_live_account_metrics_fn(conn, account)
-    open_episode = fetch_open_rotation_episode_fn(conn, account_id=int(account["id"]))
+    open_episode = fetch_open_rotation_episode_fn(conn, account_id=row_expect_int(account, "id"))
     episode_started_at = str(account["rotation_last_at"] or as_of_iso)
 
     if open_episode is None:
         insert_rotation_episode_fn(
             conn,
-            account_id=int(account["id"]),
+            account_id=row_expect_int(account, "id"),
             strategy_name=active_strategy,
             started_at=episode_started_at,
             starting_equity=float(metrics["equity"]),
@@ -335,7 +335,7 @@ def sync_rotation_episode(
 
     snapshot_count = fetch_snapshot_count_between_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         start_iso=str(open_episode["started_at"]),
         end_iso=as_of_iso,
     )
@@ -351,7 +351,7 @@ def sync_rotation_episode(
     )
     insert_rotation_episode_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         strategy_name=active_strategy,
         started_at=as_of_iso,
         starting_equity=float(metrics["equity"]),
@@ -374,14 +374,14 @@ def select_optimal_strategy(
     if not schedule:
         return None
 
-    lookback_days = int(account["rotation_lookback_days"] or 180)
+    lookback_days = row_int(account, "rotation_lookback_days") or 180
     as_of_dt = parse_as_of_iso_fn(as_of_iso)
     end_day = as_of_dt.date().isoformat()
     start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
 
     returns = fetch_strategy_backtest_returns_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         strategy_names=schedule,
         start_day=start_day,
         end_day=end_day,
@@ -407,7 +407,7 @@ def select_optimal_strategy(
         if fetch_closed_rotation_episodes_fn is not None:
             closed_rows = fetch_closed_rotation_episodes_fn(
                 conn,
-                account_id=int(account["id"]),
+                account_id=row_expect_int(account, "id"),
                 strategy_names=schedule,
                 start_iso=f"{start_day}T00:00:00Z",
                 end_iso=as_of_iso,
@@ -489,7 +489,7 @@ def rotate_account_if_due(
 
     update_account_rotation_state_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         strategy=str(next_state["rotation_active_strategy"]),
         rotation_active_index=int(
             cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])

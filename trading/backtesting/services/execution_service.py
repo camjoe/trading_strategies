@@ -17,7 +17,7 @@ def _row_optional_float(row: dict[str, object], column: str) -> float | None:
         return None
     if value is None:
         return None
-    return float(value)
+    return float(value)  # type: ignore[arg-type]
 
 
 def run_backtest(
