@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from .backtests import (
     display_account_name,
-    display_strategy,  # accessed by tests via module attribute
+    display_strategy,  # noqa: F401  accessed by tests via module attribute
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     fetch_recent_backtest_run_summaries,
@@ -34,7 +34,7 @@ from .data_access import (
 )
 from .mutations import update_account_params
 from .summaries import (
-    _build_positions_from_stats,  # accessed by tests via module attribute
+    _build_positions_from_stats,  # noqa: F401  accessed by tests via module attribute
     build_account_list_payload,
     build_account_summary,
     build_account_summary_and_positions,

@@ -7,7 +7,7 @@ from typing import Iterator
 from fastapi import HTTPException
 
 from trading.database.db import ensure_db
-from trading.services.accounts_service import fetch_account_by_name, fetch_latest_snapshot_row
+from trading.services.accounts_service import fetch_account_by_name, fetch_latest_snapshot_row  # noqa: F401
 
 
 @contextmanager

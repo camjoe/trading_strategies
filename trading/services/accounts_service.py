@@ -32,17 +32,16 @@ from trading.repositories.snapshots_repository import (
     fetch_latest_snapshot_row as _repo_fetch_latest_snapshot_row,
     fetch_snapshot_history_rows as _repo_fetch_snapshot_history_rows,
 )
-from trading.services.accounts.listing import (
-    GOAL_NOT_SET_TEXT,  # re-exported; used by reporting_service
+from trading.services.accounts.listing import (  # noqa: F401
+    GOAL_NOT_SET_TEXT,
     build_account_listing_lines,
     format_account_policy_text,
     format_goal_text,
     list_accounts,
 )
-from trading.services.accounts.mutations import (
+from trading.services.accounts.mutations import (  # noqa: F401
     configure_account,
     create_account,
-    create_managed_account,
     get_account,
     set_benchmark,
     update_account_fields_by_id,
