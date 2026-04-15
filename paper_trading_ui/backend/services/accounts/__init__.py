@@ -14,7 +14,6 @@ trading service function names directly rather than through local wrapper aliase
 from __future__ import annotations
 
 from .backtests import (
-    build_backtest_run_summary,
     display_account_name,
     display_strategy,  # accessed by tests via module attribute
     fetch_latest_backtest_metrics,
@@ -47,7 +46,6 @@ __all__ = [
     "build_account_list_payload",
     "build_account_summary",
     "build_account_summary_and_positions",
-    "build_backtest_run_summary",
     "build_comparison_account_payload",
     "build_live_benchmark_overlay",
     "build_snapshot_payload",

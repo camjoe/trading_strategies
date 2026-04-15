@@ -17,19 +17,6 @@ from ..db import fetch_latest_snapshot_row
 _SETTLEMENT_PRICE = 1.0
 
 
-def _row_value(row: sqlite3.Row | dict[str, object], key: str) -> object | None:
-    if hasattr(row, "keys") and key in row.keys():
-        return row[key]
-    return None
-
-
-def _row_pct_value(row: sqlite3.Row | dict[str, object], key: str, default: float) -> float:
-    value = coerce_float(_row_value(row, key))
-    if value is None:
-        return default
-    return value
-
-
 def _settlement_corrected_equity(state: object, prices: object) -> float:
     """Equity including the settlement position (cash-equivalent held as a ticker)."""
     from trading.models.account_state import AccountState
@@ -41,7 +28,7 @@ def _settlement_corrected_equity(state: object, prices: object) -> float:
     )
 
 
-def build_account_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
+def build_account_summary(conn: sqlite3.Connection, row: dict[str, object]) -> dict[str, object]:
     from trading.models.account_state import AccountState
 
     state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
@@ -68,7 +55,7 @@ def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
 
 
 def build_account_summary_and_positions(
-    conn: sqlite3.Connection, row: sqlite3.Row
+    conn: sqlite3.Connection, row: dict[str, object]
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     """Call build_account_stats once and return both summary and open positions."""
     from trading.models.account_state import AccountState
@@ -102,17 +89,17 @@ def _settlement_cash(state: object, prices: object) -> float:
 
 def _build_summary_from_stats(
     conn: sqlite3.Connection,
-    row: sqlite3.Row,
+    row: dict[str, object],
     equity: float,
     settlement_cash: float = 0.0,
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
-    latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))
-    rotation_schedule = parse_rotation_schedule(_row_value(row, "rotation_schedule"))
+    latest_snapshot = fetch_latest_snapshot_row(conn, int(row["id"]))  # type: ignore[arg-type]
+    rotation_schedule = parse_rotation_schedule(row.get("rotation_schedule"))
     rotation_overlay_watchlist = parse_rotation_overlay_watchlist(
-        _row_value(row, "rotation_overlay_watchlist")
+        row.get("rotation_overlay_watchlist")
     )
-    rotation_active_index = coerce_int(_row_value(row, "rotation_active_index"))
+    rotation_active_index = coerce_int(row.get("rotation_active_index"))
 
     initial_cash = float(row["initial_cash"])
     effective_initial = initial_cash if initial_cash else total_deposited
@@ -140,16 +127,16 @@ def _build_summary_from_stats(
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
         "stopLossPct": row_float(row, "stop_loss_pct"),
         "takeProfitPct": row_float(row, "take_profit_pct"),
-        "tradeSizePct": _row_pct_value(row, "trade_size_pct", DEFAULT_TRADE_SIZE_PCT),
-        "maxPositionPct": _row_pct_value(row, "max_position_pct", DEFAULT_MAX_POSITION_PCT),
+        "tradeSizePct": coerce_float(row.get("trade_size_pct")) if coerce_float(row.get("trade_size_pct")) is not None else DEFAULT_TRADE_SIZE_PCT,
+        "maxPositionPct": coerce_float(row.get("max_position_pct")) if coerce_float(row.get("max_position_pct")) is not None else DEFAULT_MAX_POSITION_PCT,
         "goalMinReturnPct": row_float(row, "goal_min_return_pct"),
         "goalMaxReturnPct": row_float(row, "goal_max_return_pct"),
-        "goalPeriod": row["goal_period"] if "goal_period" in row.keys() else None,
+        "goalPeriod": row.get("goal_period"),
         "learningEnabled": bool(row["learning_enabled"]) if row["learning_enabled"] is not None else False,
         "optionStrikeOffsetPct": row_float(row, "option_strike_offset_pct"),
         "optionMinDte": row_int(row, "option_min_dte"),
         "optionMaxDte": row_int(row, "option_max_dte"),
-        "optionType": row["option_type"] if "option_type" in row.keys() else None,
+        "optionType": row.get("option_type"),
         "targetDeltaMin": row_float(row, "target_delta_min"),
         "targetDeltaMax": row_float(row, "target_delta_max"),
         "maxPremiumPerTrade": row_float(row, "max_premium_per_trade"),
@@ -159,23 +146,23 @@ def _build_summary_from_stats(
         "rollDteThreshold": row_int(row, "roll_dte_threshold"),
         "profitTakePct": row_float(row, "profit_take_pct"),
         "maxLossPct": row_float(row, "max_loss_pct"),
-        "rotationEnabled": bool(coerce_int(_row_value(row, "rotation_enabled")) or 0),
-        "rotationMode": str(_row_value(row, "rotation_mode") or "time"),
-        "rotationOptimalityMode": str(_row_value(row, "rotation_optimality_mode") or "previous_period_best"),
-        "rotationIntervalDays": coerce_int(_row_value(row, "rotation_interval_days")),
-        "rotationIntervalMinutes": coerce_int(_row_value(row, "rotation_interval_minutes")),
-        "rotationLookbackDays": coerce_int(_row_value(row, "rotation_lookback_days")),
+        "rotationEnabled": bool(coerce_int(row.get("rotation_enabled")) or 0),
+        "rotationMode": str(row.get("rotation_mode") or "time"),
+        "rotationOptimalityMode": str(row.get("rotation_optimality_mode") or "previous_period_best"),
+        "rotationIntervalDays": coerce_int(row.get("rotation_interval_days")),
+        "rotationIntervalMinutes": coerce_int(row.get("rotation_interval_minutes")),
+        "rotationLookbackDays": coerce_int(row.get("rotation_lookback_days")),
         "rotationSchedule": rotation_schedule or None,
-        "rotationRegimeStrategyRiskOn": _row_value(row, "rotation_regime_strategy_risk_on"),
-        "rotationRegimeStrategyNeutral": _row_value(row, "rotation_regime_strategy_neutral"),
-        "rotationRegimeStrategyRiskOff": _row_value(row, "rotation_regime_strategy_risk_off"),
-        "rotationOverlayMode": str(_row_value(row, "rotation_overlay_mode") or "none"),
-        "rotationOverlayMinTickers": coerce_int(_row_value(row, "rotation_overlay_min_tickers")),
-        "rotationOverlayConfidenceThreshold": coerce_float(_row_value(row, "rotation_overlay_confidence_threshold")),
+        "rotationRegimeStrategyRiskOn": row.get("rotation_regime_strategy_risk_on"),
+        "rotationRegimeStrategyNeutral": row.get("rotation_regime_strategy_neutral"),
+        "rotationRegimeStrategyRiskOff": row.get("rotation_regime_strategy_risk_off"),
+        "rotationOverlayMode": str(row.get("rotation_overlay_mode") or "none"),
+        "rotationOverlayMinTickers": coerce_int(row.get("rotation_overlay_min_tickers")),
+        "rotationOverlayConfidenceThreshold": coerce_float(row.get("rotation_overlay_confidence_threshold")),
         "rotationOverlayWatchlist": rotation_overlay_watchlist,
         "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
-        "rotationLastAt": _row_value(row, "rotation_last_at"),
-        "rotationActiveStrategy": _row_value(row, "rotation_active_strategy"),
+        "rotationLastAt": row.get("rotation_last_at"),
+        "rotationActiveStrategy": row.get("rotation_active_strategy"),
     }
 
 

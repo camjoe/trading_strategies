@@ -86,7 +86,7 @@ def build_managed_account_delete_counts(counts: dict[str, int]) -> dict[str, int
 
 
 def _collect_required_ids(
-    rows: Sequence[sqlite3.Row | dict[str, object]],
+    rows: Sequence[dict[str, object]],
     *,
     key: str,
     label: str,

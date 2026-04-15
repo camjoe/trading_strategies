@@ -1,5 +1,4 @@
 """Pure ledger computation — no I/O, no repository calls."""
-import sqlite3
 from collections import defaultdict
 
 from common.constants import SETTLEMENT_TICKER
@@ -8,7 +7,7 @@ from trading.models import AccountState
 VALID_SIDES = {"buy", "sell"}
 
 
-def _normalize_trade_fields(trade: sqlite3.Row) -> tuple[str, str, float, float, float]:
+def _normalize_trade_fields(trade: dict[str, object]) -> tuple[str, str, float, float, float]:
     return (
         str(trade["ticker"]).upper(),
         str(trade["side"]).lower(),
@@ -77,7 +76,7 @@ def _compact_positions(
 
 
 def _apply_trade_to_state(
-    trade: sqlite3.Row,
+    trade: dict[str, object],
     positions: dict[str, float],
     avg_cost: dict[str, float],
     cash: float,
@@ -126,7 +125,7 @@ def _ensure_sufficient_cash_for_buy(
 
 def compute_account_state(
     initial_cash: float,
-    trades: list[sqlite3.Row],
+    trades: list[dict[str, object]],
     settlement_ticker: str | None = SETTLEMENT_TICKER,
 ) -> AccountState:
     """Replay a trade list and return the resulting ``AccountState``.

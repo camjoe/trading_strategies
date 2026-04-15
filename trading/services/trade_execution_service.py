@@ -13,7 +13,7 @@ class TradePreparationStateLike(AccountStateLike, Protocol):
     cash: float
 
 
-def _account_value(account: sqlite3.Row, key: str) -> object | None:
+def _account_value(account: dict[str, object], key: str) -> object | None:
     try:
         return account[key]
     except (KeyError, IndexError):
@@ -91,16 +91,16 @@ def _current_position_value(
 
 def refresh_account_state(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
 ):
     return compute_account_state_fn(account["initial_cash"], load_trades_fn(conn, account["id"]))
 
 
 def prepare_trade_selection(
-    account: sqlite3.Row,
+    account: dict[str, object],
     active_strategy: str | None,
     state,
     can_sell: list[str],
@@ -154,7 +154,7 @@ def prepare_trade_selection(
 def record_prepared_trade(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     learning_enabled: bool,
     risk_policy: str,
     instrument_mode: str,
@@ -192,12 +192,12 @@ def record_prepared_trade(
 
 
 def build_leaps_candidates(
-    account: sqlite3.Row,
+    account: dict[str, object],
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
     *,
-    option_candidate_allowed_fn: Callable[[sqlite3.Row, str, float, dict[str, float]], tuple[bool, float, float]],
+    option_candidate_allowed_fn: Callable[[dict[str, object], str, float, dict[str, float]], tuple[bool, float, float]],
 ) -> list[tuple[str, float, float]]:
     candidates: list[tuple[str, float, float]] = []
     for ticker in universe:
@@ -218,7 +218,7 @@ def build_leaps_candidates(
 
 
 def prepare_buy_trade(
-    account: sqlite3.Row,
+    account: dict[str, object],
     instrument_mode: str,
     universe: list[str],
     prices: dict[str, float],
@@ -227,10 +227,10 @@ def prepare_buy_trade(
     learning_enabled: bool,
     fee: float,
     *,
-    build_leaps_candidates_fn: Callable[[sqlite3.Row, list[str], dict[str, float], dict[str, float]], list[tuple[str, float, float]]],
+    build_leaps_candidates_fn: Callable[[dict[str, object], list[str], dict[str, float], dict[str, float]], list[tuple[str, float, float]]],
     estimate_option_premium_fn: Callable[[float, float, int | None, int | None], float],
     choose_buy_qty_fn: Callable[..., int],
-    apply_leaps_buy_qty_limits_fn: Callable[[int, float, sqlite3.Row], int],
+    apply_leaps_buy_qty_limits_fn: Callable[[int, float, dict[str, object]], int],
     choose_buy_ticker_fn: Callable[[list[str], dict[str, float], object, bool], str],
 ) -> tuple[str, int, float, float | None, float | None] | None:
     if instrument_mode == "leaps":
@@ -351,11 +351,11 @@ def run_for_account(
     max_trades: int,
     fee: float,
     *,
-    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
+    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]],
     utc_now_iso_fn: Callable[[], str],
-    rotate_account_if_due_fn: Callable[[sqlite3.Connection, str, sqlite3.Row, str], sqlite3.Row],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
-    refresh_account_state_fn: Callable[[sqlite3.Connection, sqlite3.Row], AccountStateLike],
+    rotate_account_if_due_fn: Callable[[sqlite3.Connection, str, dict[str, object], str], dict[str, object]],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
+    refresh_account_state_fn: Callable[[sqlite3.Connection, dict[str, object]], AccountStateLike],
     resolve_forced_sell_ticker_fn: Callable[..., str | None],
     prepare_trade_selection_fn: Callable[..., tuple[str, str, int, float, float | None, float | None] | None],
     record_prepared_trade_fn: Callable[..., None],

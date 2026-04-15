@@ -6,8 +6,8 @@ from common.coercion import row_expect_int, row_expect_str
 from common.time import utc_now_iso
 
 
-def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> sqlite3.Row | None:
-    return conn.execute(
+def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> dict[str, object] | None:
+    row = conn.execute(
         """
         SELECT r.account_id, COALESCE(r.strategy_name, a.strategy) AS strategy_name
         FROM backtest_runs r
@@ -16,6 +16,7 @@ def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> sqlit
         """,
         (int(run_id),),
     ).fetchone()
+    return dict(row) if row is not None else None
 
 
 def insert_walk_forward_group(
@@ -118,8 +119,8 @@ def fetch_latest_walk_forward_group_for_account_strategy(
     *,
     account_id: int,
     strategy_name: str,
-) -> sqlite3.Row | None:
-    return conn.execute(
+) -> dict[str, object] | None:
+    row = conn.execute(
         """
         SELECT id,
                grouping_key,
@@ -144,14 +145,15 @@ def fetch_latest_walk_forward_group_for_account_strategy(
         """,
         (int(account_id), strategy_name),
     ).fetchone()
+    return dict(row) if row is not None else None
 
 
 def fetch_latest_walk_forward_group_for_account(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-) -> sqlite3.Row | None:
-    return conn.execute(
+) -> dict[str, object] | None:
+    row = conn.execute(
         """
         SELECT id,
                grouping_key,
@@ -175,14 +177,15 @@ def fetch_latest_walk_forward_group_for_account(
         """,
         (int(account_id),),
     ).fetchone()
+    return dict(row) if row is not None else None
 
 
 def fetch_walk_forward_group_by_id(
     conn: sqlite3.Connection,
     *,
     group_id: int,
-) -> sqlite3.Row | None:
-    return conn.execute(
+) -> dict[str, object] | None:
+    row = conn.execute(
         """
         SELECT id,
                grouping_key,
@@ -204,19 +207,23 @@ def fetch_walk_forward_group_by_id(
         """,
         (int(group_id),),
     ).fetchone()
+    return dict(row) if row is not None else None
 
 
 def fetch_walk_forward_group_runs(
     conn: sqlite3.Connection,
     *,
     group_id: int,
-) -> list[sqlite3.Row]:
-    return conn.execute(
-        """
-        SELECT run_id, window_index, window_start, window_end, total_return_pct
-        FROM walk_forward_group_runs
-        WHERE group_id = ?
-        ORDER BY window_index ASC, id ASC
-        """,
-        (int(group_id),),
-    ).fetchall()
+) -> list[dict[str, object]]:
+    return [
+        dict(row)
+        for row in conn.execute(
+            """
+            SELECT run_id, window_index, window_start, window_end, total_return_pct
+            FROM walk_forward_group_runs
+            WHERE group_id = ?
+            ORDER BY window_index ASC, id ASC
+            """,
+            (int(group_id),),
+        ).fetchall()
+    ]

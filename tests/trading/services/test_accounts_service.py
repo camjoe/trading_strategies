@@ -17,14 +17,14 @@ def _goal_row(
     goal_min: float | None = None,
     goal_max: float | None = None,
     goal_period: str = "monthly",
-) -> sqlite3.Row:
+) -> dict[str, object]:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute(
         "CREATE TABLE t (goal_min_return_pct REAL, goal_max_return_pct REAL, goal_period TEXT)"
     )
     conn.execute("INSERT INTO t VALUES (?, ?, ?)", [goal_min, goal_max, goal_period])
-    return conn.execute("SELECT * FROM t").fetchone()
+    return dict(conn.execute("SELECT * FROM t").fetchone())
 
 
 def _account_row(
@@ -46,7 +46,7 @@ def _account_row(
     created_at: str = "2026-01-01T00:00:00",
     rotation_enabled: int = 0,
     rotation_active_strategy: str | None = None,
-) -> sqlite3.Row:
+) -> dict[str, object]:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute(
@@ -68,7 +68,7 @@ def _account_row(
             rotation_enabled, rotation_active_strategy,
         ],
     )
-    return conn.execute("SELECT * FROM t").fetchone()
+    return dict(conn.execute("SELECT * FROM t").fetchone())
 
 
 class TestFormatGoalText:

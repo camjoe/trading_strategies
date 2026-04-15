@@ -31,7 +31,7 @@ from trading.services.accounts.config import (
 from trading.utils.coercion import to_float_obj, to_int_obj
 
 
-def get_account(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
+def get_account(conn: sqlite3.Connection, name: str) -> dict[str, object]:
     row = repo_fetch_account_by_name(conn, name)
     if row is None:
         raise ValueError(f"Account '{name}' not found.")

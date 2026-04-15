@@ -68,7 +68,7 @@ from trading.services.accounts.config import (  # noqa: F401
 )
 
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> sqlite3.Row | None:
+def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
     return _repo_fetch_account_by_name(conn, name)
 
 
@@ -76,15 +76,15 @@ def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
     return fetch_all_account_names_from_conn(conn)
 
 
-def fetch_account_rows_excluding(conn: sqlite3.Connection, *, excluded_name: str) -> list[sqlite3.Row]:
+def fetch_account_rows_excluding(conn: sqlite3.Connection, *, excluded_name: str) -> list[dict[str, object]]:
     return fetch_account_rows_excluding_name(conn, excluded_name=excluded_name)
 
 
-def fetch_latest_snapshot_row(conn: sqlite3.Connection, account_id: int) -> sqlite3.Row | None:
+def fetch_latest_snapshot_row(conn: sqlite3.Connection, account_id: int) -> dict[str, object] | None:
     return _repo_fetch_latest_snapshot_row(conn, account_id=account_id)
 
 
-def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[sqlite3.Row]:
+def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[dict[str, object]]:
     return _repo_fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
 
 

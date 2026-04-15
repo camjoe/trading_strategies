@@ -8,17 +8,20 @@ def fetch_recent_equity_rows(
     *,
     account_id: int,
     limit: int,
-) -> list[sqlite3.Row]:
-    return conn.execute(
-        """
-        SELECT equity
-        FROM equity_snapshots
-        WHERE account_id = ?
-        ORDER BY snapshot_time DESC, id DESC
-        LIMIT ?
-        """,
-        (account_id, int(limit)),
-    ).fetchall()
+) -> list[dict[str, object]]:
+    return [
+        dict(row)
+        for row in conn.execute(
+            """
+            SELECT equity
+            FROM equity_snapshots
+            WHERE account_id = ?
+            ORDER BY snapshot_time DESC, id DESC
+            LIMIT ?
+            """,
+            (account_id, int(limit)),
+        ).fetchall()
+    ]
 
 
 def insert_snapshot_row(
@@ -57,17 +60,20 @@ def fetch_snapshot_history_rows(
     *,
     account_id: int,
     limit: int,
-) -> list[sqlite3.Row]:
-    return conn.execute(
-        """
-        SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        FROM equity_snapshots
-        WHERE account_id = ?
-        ORDER BY snapshot_time DESC, id DESC
-        LIMIT ?
-        """,
-        (account_id, int(limit)),
-    ).fetchall()
+) -> list[dict[str, object]]:
+    return [
+        dict(row)
+        for row in conn.execute(
+            """
+            SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+            FROM equity_snapshots
+            WHERE account_id = ?
+            ORDER BY snapshot_time DESC, id DESC
+            LIMIT ?
+            """,
+            (account_id, int(limit)),
+        ).fetchall()
+    ]
 
 
 def fetch_snapshot_count_between(
@@ -102,8 +108,8 @@ def fetch_snapshot_count_for_account(conn: sqlite3.Connection, *, account_id: in
     return int(row["snapshot_count"]) if row is not None else 0
 
 
-def fetch_latest_snapshot_row(conn: sqlite3.Connection, *, account_id: int) -> sqlite3.Row | None:
-    return conn.execute(
+def fetch_latest_snapshot_row(conn: sqlite3.Connection, *, account_id: int) -> dict[str, object] | None:
+    row = conn.execute(
         """
         SELECT snapshot_time, equity
         FROM equity_snapshots
@@ -113,10 +119,11 @@ def fetch_latest_snapshot_row(conn: sqlite3.Connection, *, account_id: int) -> s
         """,
         (int(account_id),),
     ).fetchone()
+    return dict(row) if row is not None else None
 
 
-def fetch_latest_snapshot_details_row(conn: sqlite3.Connection, *, account_id: int) -> sqlite3.Row | None:
-    return conn.execute(
+def fetch_latest_snapshot_details_row(conn: sqlite3.Connection, *, account_id: int) -> dict[str, object] | None:
+    row = conn.execute(
         """
         SELECT snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
         FROM equity_snapshots
@@ -126,3 +133,4 @@ def fetch_latest_snapshot_details_row(conn: sqlite3.Connection, *, account_id: i
         """,
         (int(account_id),),
     ).fetchone()
+    return dict(row) if row is not None else None

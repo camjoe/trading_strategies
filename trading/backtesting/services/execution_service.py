@@ -10,7 +10,7 @@ from trading.backtesting.domain.metrics import summarize_backtest_performance
 from trading.domain.auto_trader_policy import choose_buy_qty as default_choose_buy_qty
 
 
-def _row_optional_float(row: sqlite3.Row, column: str) -> float | None:
+def _row_optional_float(row: dict[str, object], column: str) -> float | None:
     try:
         value = row[column]
     except (KeyError, IndexError):
@@ -24,16 +24,16 @@ def run_backtest(
     conn: sqlite3.Connection,
     cfg,
     *,
-    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
+    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]],
     resolve_backtest_dates_fn: Callable[..., tuple[date, date]],
-    warnings_for_config_fn: Callable[[sqlite3.Row, bool], list[str]],
+    warnings_for_config_fn: Callable[[dict[str, object], bool], list[str]],
     resolve_universe_fn: Callable[..., tuple[list[str], dict[str, list[str]], list[str], list[str]]],
     fetch_close_history_fn: Callable[..., object],
     fetch_benchmark_close_fn: Callable[..., object],
-    row_expect_str_fn: Callable[[sqlite3.Row, str], str],
-    row_expect_int_fn: Callable[[sqlite3.Row, str], int],
-    row_expect_float_fn: Callable[[sqlite3.Row, str], float],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    row_expect_str_fn: Callable[[dict[str, object], str], str],
+    row_expect_int_fn: Callable[[dict[str, object], str], int],
+    row_expect_float_fn: Callable[[dict[str, object], str], float],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
     resolve_strategy_fn,
     get_feature_provider_fn,
     insert_run_fn: Callable[..., int],

@@ -134,7 +134,7 @@ from .accounts import build_account_summary
 from .db import fetch_account_row
 
 
-def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> sqlite3.Row:
+def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> dict[str, object]:
     """Resolve ``account_name`` (handles test-account aliasing) and return its DB row."""
     resolved_name = resolve_backtest_payload_account(account_name, conn)
     return fetch_account_row(conn, resolved_name)

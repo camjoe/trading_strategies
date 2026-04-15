@@ -90,15 +90,8 @@ def _coerce_threshold(value: object, *, default: float) -> float:
     return float(parsed)
 
 
-def _account_value(account: sqlite3.Row, key: str) -> object | None:
-    if hasattr(account, "keys") and key in account.keys():
-        return account[key]
-    if isinstance(account, dict):
-        return account.get(key)
-    try:
-        return account[key]
-    except (KeyError, TypeError, IndexError):
-        return None
+def _account_value(account: dict[str, object], key: str) -> object | None:
+    return account.get(key)
 
 
 def classify_policy_regime(
@@ -119,10 +112,10 @@ def classify_policy_regime(
 
 def fetch_rotation_overlay_tickers(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
 ) -> list[str]:
     state = cast(
         object,
@@ -167,7 +160,7 @@ def _classify_social_overlay_vote(
 
 
 def select_rotation_overlay_direction(
-    account: sqlite3.Row,
+    account: dict[str, object],
     tickers: list[str],
     *,
     overlay_mode: str,
@@ -230,16 +223,16 @@ def apply_rotation_overlay_to_regime(regime_state: str, overlay_direction: str |
 
 
 def select_regime_strategy(
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
-    resolve_rotation_regime_strategy_fn: Callable[[sqlite3.Row, str], str | None],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
+    resolve_rotation_regime_strategy_fn: Callable[[dict[str, object], str], str | None],
     fetch_policy_features_fn: Callable[[str], ExternalFeatureBundle],
     conn: sqlite3.Connection | None = None,
     fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
-    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, sqlite3.Row], list[str]] | None = None,
+    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, dict[str, object]], list[str]] | None = None,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
     if not schedule:
@@ -281,10 +274,10 @@ def select_regime_strategy(
 
 def compute_live_account_metrics(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
     fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
     compute_market_value_and_unrealized_fn: Callable[[dict[str, float], dict[str, float], dict[str, float]], tuple[float, float]],
 ) -> dict[str, float]:
@@ -305,15 +298,15 @@ def compute_live_account_metrics(
 
 def sync_rotation_episode(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     as_of_iso: str,
     *,
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
     fetch_open_rotation_episode_fn: Callable[..., sqlite3.Row | None],
     insert_rotation_episode_fn: Callable[..., None],
     close_rotation_episode_fn: Callable[..., None],
     fetch_snapshot_count_between_fn: Callable[..., int],
-    compute_live_account_metrics_fn: Callable[[sqlite3.Connection, sqlite3.Row], dict[str, float]],
+    compute_live_account_metrics_fn: Callable[[sqlite3.Connection, dict[str, object]], dict[str, float]],
 ) -> None:
     if not bool(int(cast(int | float | str | bytes | bytearray, account["rotation_enabled"] or 0))):
         return
@@ -368,13 +361,13 @@ def sync_rotation_episode(
 
 def select_optimal_strategy(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     as_of_iso: str,
     *,
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
     parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
-    resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
+    resolve_optimality_mode_fn: Callable[[dict[str, object]], str],
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
@@ -462,18 +455,18 @@ def select_optimal_strategy(
 def rotate_account_if_due(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     now_iso: str,
     *,
-    is_rotation_due_fn: Callable[[sqlite3.Row], bool],
-    resolve_rotation_mode_fn: Callable[[sqlite3.Row], str],
-    select_optimal_strategy_fn: Callable[[sqlite3.Connection, sqlite3.Row, str], str | None],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    is_rotation_due_fn: Callable[[dict[str, object]], bool],
+    resolve_rotation_mode_fn: Callable[[dict[str, object]], str],
+    select_optimal_strategy_fn: Callable[[sqlite3.Connection, dict[str, object], str], str | None],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    next_rotation_state_fn: Callable[[sqlite3.Row, str], dict[str, object]],
+    next_rotation_state_fn: Callable[[dict[str, object], str], dict[str, object]],
     update_account_rotation_state_fn: Callable[..., None],
-    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
-) -> sqlite3.Row:
+    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]],
+) -> dict[str, object]:
     if not is_rotation_due_fn(account):
         return account
 

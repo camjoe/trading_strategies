@@ -12,12 +12,15 @@ def _fetch_rows_by_account_ids(
     *,
     table: str,
     account_ids: tuple[int, ...],
-) -> list[sqlite3.Row]:
+) -> list[dict[str, object]]:
     placeholders = in_placeholders(account_ids)
-    return conn.execute(
-        f"SELECT id FROM {table} WHERE account_id IN ({placeholders})",
-        account_ids,
-    ).fetchall()
+    return [
+        dict(row)
+        for row in conn.execute(
+            f"SELECT id FROM {table} WHERE account_id IN ({placeholders})",
+            account_ids,
+        ).fetchall()
+    ]
 
 
 def _delete_by_ids(
@@ -31,16 +34,19 @@ def _delete_by_ids(
     conn.execute(f"DELETE FROM {table} WHERE {column_name} IN ({placeholders})", ids)
 
 
-def fetch_all_accounts(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    return conn.execute("SELECT id, name FROM accounts ORDER BY name ASC").fetchall()
+def fetch_all_accounts(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    return [dict(row) for row in conn.execute("SELECT id, name FROM accounts ORDER BY name ASC").fetchall()]
 
 
-def fetch_accounts_by_names(conn: sqlite3.Connection, names: tuple[str, ...]) -> list[sqlite3.Row]:
+def fetch_accounts_by_names(conn: sqlite3.Connection, names: tuple[str, ...]) -> list[dict[str, object]]:
     placeholders = in_placeholders(names)
-    return conn.execute(
-        f"SELECT id, name FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
-        names,
-    ).fetchall()
+    return [
+        dict(row)
+        for row in conn.execute(
+            f"SELECT id, name FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
+            names,
+        ).fetchall()
+    ]
 
 
 def count_rows(
@@ -61,21 +67,21 @@ def count_rows(
 def fetch_backtest_run_rows_for_accounts(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
-) -> list[sqlite3.Row]:
+) -> list[dict[str, object]]:
     return _fetch_rows_by_account_ids(conn, table="backtest_runs", account_ids=account_ids)
 
 
 def fetch_promotion_review_rows_for_accounts(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
-) -> list[sqlite3.Row]:
+) -> list[dict[str, object]]:
     return _fetch_rows_by_account_ids(conn, table="promotion_reviews", account_ids=account_ids)
 
 
 def fetch_walk_forward_group_rows_for_accounts(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
-) -> list[sqlite3.Row]:
+) -> list[dict[str, object]]:
     return _fetch_rows_by_account_ids(conn, table="walk_forward_groups", account_ids=account_ids)
 
 

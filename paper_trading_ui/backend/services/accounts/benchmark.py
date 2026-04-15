@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Sequence
 from datetime import date
 
@@ -10,13 +9,11 @@ from common.coercion import coerce_float
 from common.market_data import get_provider
 
 
-def _snapshot_time(snapshot: sqlite3.Row | dict[str, object]) -> str:
-    if hasattr(snapshot, "keys") and "time" in snapshot.keys():
-        return str(snapshot["time"])
+def _snapshot_time(snapshot: dict[str, object]) -> str:
     return str(snapshot["snapshot_time"])
 
 
-def _snapshot_equity(snapshot: sqlite3.Row | dict[str, object]) -> float:
+def _snapshot_equity(snapshot: dict[str, object]) -> float:
     value = coerce_float(snapshot["equity"])
     if value is None:
         raise ValueError("Snapshot equity is required for benchmark overlay.")
@@ -62,7 +59,7 @@ def _close_price_on_or_before(close_history: pd.Series, snapshot_time: str) -> f
 
 def build_live_benchmark_overlay(
     summary: dict[str, object],
-    snapshots: Sequence[sqlite3.Row | dict[str, object]],
+    snapshots: Sequence[dict[str, object]],
 ) -> dict[str, object] | None:
     if len(snapshots) < 2:
         return None

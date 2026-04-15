@@ -124,25 +124,21 @@ def test_display_helpers_map_shadow_backtest_account() -> None:
     assert services_accounts.display_strategy("acct_live", "trend") == "trend"
 
 
-def test_build_backtest_run_summary_uses_display_transforms(conn) -> None:
-    row = conn.execute(
-        """
-        SELECT
-            7 AS id,
-            'run-shadow' AS run_name,
-            '2026-01-01' AS start_date,
-            '2026-01-31' AS end_date,
-            '2026-02-01T00:00:00Z' AS created_at,
-            5.0 AS slippage_bps,
-            1.25 AS fee_per_trade,
-            'trading/config/trade_universe.txt' AS tickers_file,
-            ? AS account_name,
-            'trend' AS strategy
-        """,
-        (TEST_BACKTEST_ACCOUNT_NAME,),
-    ).fetchone()
+def test_build_backtest_run_summary_uses_display_transforms() -> None:
+    run_dict = {
+        "runId": 7,
+        "runName": "run-shadow",
+        "accountName": TEST_BACKTEST_ACCOUNT_NAME,
+        "strategy": "trend",
+        "startDate": "2026-01-01",
+        "endDate": "2026-01-31",
+        "createdAt": "2026-02-01T00:00:00Z",
+        "slippageBps": 5.0,
+        "feePerTrade": 1.25,
+        "tickersFile": "trading/config/trade_universe.txt",
+    }
 
-    payload = services_accounts.build_backtest_run_summary(row)
+    payload = account_backtests._apply_display_names(run_dict)
     assert payload["runId"] == 7
     assert payload["accountName"] == TEST_ACCOUNT_NAME
     assert payload["strategy"] == TEST_ACCOUNT_STRATEGY

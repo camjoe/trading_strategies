@@ -10,7 +10,7 @@ HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
 GOAL_NOT_SET_TEXT = "not-set"
 
 
-def format_goal_text(row: sqlite3.Row) -> str:
+def format_goal_text(row: dict[str, object]) -> str:
     min_goal = row_float(row, "goal_min_return_pct")
     max_goal = row_float(row, "goal_max_return_pct")
     goal_period = row_str(row, "goal_period") or "period"
@@ -23,11 +23,11 @@ def format_goal_text(row: sqlite3.Row) -> str:
     return f"<= {max_goal:.2f}% per {goal_period}"
 
 
-def _has_column(row: sqlite3.Row, column: str) -> bool:
-    return column in row.keys()
+def _has_column(row: dict[str, object], column: str) -> bool:
+    return column in row
 
 
-def _resolve_base_and_active_strategy(row: sqlite3.Row) -> tuple[str, str]:
+def _resolve_base_and_active_strategy(row: dict[str, object]) -> tuple[str, str]:
     base_strategy = str(row["strategy"])
     rotation_enabled = _has_column(row, "rotation_enabled") and bool(row_int(row, "rotation_enabled"))
     if not rotation_enabled:
@@ -37,7 +37,7 @@ def _resolve_base_and_active_strategy(row: sqlite3.Row) -> tuple[str, str]:
     return base_strategy, active_strategy
 
 
-def format_account_policy_text(row: sqlite3.Row) -> str:
+def format_account_policy_text(row: dict[str, object]) -> str:
     base_strategy, active_strategy = _resolve_base_and_active_strategy(row)
     learning_enabled = row_int(row, "learning_enabled")
     trade_size_pct = row_float(row, "trade_size_pct")
@@ -55,7 +55,7 @@ def format_account_policy_text(row: sqlite3.Row) -> str:
     )
 
 
-def build_account_summary_line(row: sqlite3.Row) -> str:
+def build_account_summary_line(row: dict[str, object]) -> str:
     initial_cash = row_float(row, "initial_cash")
     initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
     policy_text = format_account_policy_text(row)
@@ -70,7 +70,7 @@ def build_account_summary_line(row: sqlite3.Row) -> str:
     return summary
 
 
-def build_account_listing_lines(accounts: list[sqlite3.Row], *, by_strategy: bool) -> list[str]:
+def build_account_listing_lines(accounts: list[dict[str, object]], *, by_strategy: bool) -> list[str]:
     lines: list[str] = []
     if by_strategy:
         current_strategy = None

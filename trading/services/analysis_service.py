@@ -165,7 +165,7 @@ def _generate_improvement_notes(
 
 def fetch_account_analysis(
     conn: sqlite3.Connection,
-    account_row: sqlite3.Row,
+    account_row: dict[str, object],
 ) -> dict[str, object]:
     """Return a full performance analysis dict for an account.
 

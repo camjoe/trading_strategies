@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import replace
-from typing import Mapping, cast
 
 from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
 from common.time import utc_now_iso
@@ -71,22 +70,22 @@ PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
-def _resolve_requested_strategy(account: sqlite3.Row, strategy_name: str | None) -> str:
+def _resolve_requested_strategy(account: dict[str, object], strategy_name: str | None) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
         if normalized:
             return normalized
-    return resolve_active_strategy(cast(Mapping[str, object], account))
+    return resolve_active_strategy(account)
 
 
-def _build_basic_scope(account: sqlite3.Row, requested_strategy: str) -> EvaluationBasicScope:
+def _build_basic_scope(account: dict[str, object], requested_strategy: str) -> EvaluationBasicScope:
     return EvaluationBasicScope(
         account_id=row_expect_int(account, "id"),
         account_name=row_expect_str(account, "name"),
         descriptive_name=row_str(account, "descriptive_name"),
         requested_strategy=requested_strategy,
         base_strategy=row_expect_str(account, "strategy"),
-        active_strategy=resolve_active_strategy(cast(Mapping[str, object], account)),
+        active_strategy=resolve_active_strategy(account),
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=row_str(account, "instrument_mode"),
         rotation_enabled=bool(row_int(account, "rotation_enabled")),
@@ -137,7 +136,7 @@ def _build_backtest_evidence(
     )
 
 
-def _evidence_mode(account: sqlite3.Row) -> str:
+def _evidence_mode(account: dict[str, object]) -> str:
     return LIVE_EVIDENCE_MODE if bool(row_int(account, "live_trading_enabled")) else PAPER_EVIDENCE_MODE
 
 
@@ -146,7 +145,7 @@ def _latest_rotation_episode_evidence(
     *,
     account_id: int,
     requested_strategy: str,
-    latest_snapshot: sqlite3.Row | None,
+    latest_snapshot: dict[str, object] | None,
 ) -> EvaluationPaperLiveEvidence:
     open_episode = fetch_open_rotation_episode(conn, account_id=account_id)
     if (
@@ -212,7 +211,7 @@ def _latest_rotation_episode_evidence(
 def _build_paper_live_evidence(
     conn: sqlite3.Connection,
     *,
-    account: sqlite3.Row,
+    account: dict[str, object],
     requested_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = row_expect_int(account, "id")
@@ -322,7 +321,7 @@ def _build_diagnostics(
 
 def fetch_strategy_evaluation_for_account_row(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
     strategy_name: str | None = None,
 ) -> StrategyEvaluationArtifact:
