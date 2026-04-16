@@ -170,7 +170,7 @@ describe("renderBacktestReport", () => {
     fee_per_trade: 0.25,
     tickers_file: "trading/config/trade_universe.txt",
     notes: null,
-    warnings: "daily bars only | approximate pricing",
+    warnings: ["daily bars only", "approximate pricing"],
     trade_count: 4,
     starting_equity: 10000.0,
     ending_equity: 10200.0,
@@ -231,14 +231,14 @@ describe("renderBacktestReport", () => {
     expect(html).toContain("<svg");
   });
 
-  it("splits pipe-separated warnings into individual items", () => {
+  it("renders pipe-separated warnings as individual items", () => {
     const html = renderBacktestReport(base);
     expect(html).toContain("daily bars only");
     expect(html).toContain("approximate pricing");
   });
 
-  it("shows empty-state when warnings string is empty", () => {
-    const html = renderBacktestReport({ ...base, warnings: "" });
+  it("shows empty-state when warnings array is empty", () => {
+    const html = renderBacktestReport({ ...base, warnings: [] });
     expect(html).toContain("No financial-model warnings");
   });
 

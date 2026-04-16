@@ -2,6 +2,7 @@ import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
+import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createCompareFeature } from "./features/compare";
@@ -67,6 +68,8 @@ const altStrategiesFeature = createAltStrategiesFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
+  await loadAccountConfigOptions();
+  applyAccountConfigOptionsToAdminForm();
   initTabs();
   initDocsFeature(openTab);
   accountsFeature.wireActions();

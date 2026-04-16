@@ -8,7 +8,7 @@ Audience: Developers, DB Migration Steward bot, Code Review bot
 
 ## Overview
 
-This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in a single file via a `ColumnMigration` dataclass and is applied automatically at startup.
+This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `trading/database/` via a `ColumnMigration` dataclass and is applied automatically at startup.
 
 ---
 
@@ -16,7 +16,11 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 
 | File | Role |
 |------|------|
-| `trading/database/db.py` | Schema DDL, `ColumnMigration` dataclass, migration tuples, `init_schema()` |
+| `trading/database/db.py` | Stable public facade for DB schema/migration helpers |
+| `trading/database/db_common.py` | Shared DB path/type aliases and seeded overlay-watchlist defaults |
+| `trading/database/db_schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
+| `trading/database/db_migrations.py` | `ColumnMigration` dataclass and migration tuples |
+| `trading/database/db_init.py` | `ensure_db()`, `init_schema()`, and column-guard helpers |
 | `trading/database/db_backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `trading/database/db_config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
 | `trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
@@ -38,7 +42,9 @@ All paths use `pathlib` — never hardcode slash direction.
 
 ## Schema Initialization: `init_schema()`
 
-Called from `ensure_db()` on every connection:
+Called from `ensure_db()` on every connection. The public import path remains
+`trading.database.db`, while the implementation currently lives in
+`trading/database/db_init.py`:
 
 ```python
 def init_schema(conn: DBConnection) -> None:
@@ -181,7 +187,7 @@ Do not mix trading DB backup logic with project_manager DB backups.
 
 If a new table is needed:
 
-1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `db.py`.
+1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `db_schema.py`.
 2. Add it to `SCHEMA_SQL`.
 3. If it will need future column migrations, create a new migration tuple (e.g. `NEW_TABLE_MIGRATIONS`) and register it in `init_schema()`.
 4. Add any performance indexes as `CREATE INDEX IF NOT EXISTS` in a companion `*_INDEXES_SQL` string.

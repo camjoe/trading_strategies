@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 import sqlite3
 
 from trading.utils.coercion import coerce_int, row_expect_int
@@ -21,20 +22,29 @@ from trading.repositories.admin_repository import (
     fetch_backtest_run_rows_for_accounts,
     fetch_promotion_review_rows_for_accounts,
     fetch_walk_forward_group_rows_for_accounts,
+    in_placeholders,
 )
 
-DELETE_COUNT_KEYS = (
-    "accounts",
-    "trades",
-    "equity_snapshots",
-    "backtest_runs",
-    "backtest_trades",
-    "backtest_equity_snapshots",
-    "walk_forward_groups",
-    "walk_forward_group_runs",
-    "promotion_reviews",
-    "promotion_review_events",
+@dataclass(frozen=True)
+class DeleteCountField:
+    key: str
+    ui_key: str | None = None
+
+
+DELETE_COUNT_FIELDS = (
+    DeleteCountField("accounts", "accounts"),
+    DeleteCountField("trades", "trades"),
+    DeleteCountField("equity_snapshots", "equitySnapshots"),
+    DeleteCountField("backtest_runs", "backtestRuns"),
+    DeleteCountField("backtest_trades", "backtestTrades"),
+    DeleteCountField("backtest_equity_snapshots", "backtestEquitySnapshots"),
+    DeleteCountField("walk_forward_groups"),
+    DeleteCountField("walk_forward_group_runs"),
+    DeleteCountField("promotion_reviews"),
+    DeleteCountField("promotion_review_events"),
 )
+
+DELETE_COUNT_KEYS = tuple(field.key for field in DELETE_COUNT_FIELDS)
 
 
 def _resolve_delete_targets(
@@ -63,8 +73,20 @@ def _empty_delete_counts() -> dict[str, int]:
     return {key: 0 for key in DELETE_COUNT_KEYS}
 
 
+def iter_delete_count_items(counts: dict[str, int]) -> list[tuple[str, int]]:
+    return [(field.key, int(counts.get(field.key, 0))) for field in DELETE_COUNT_FIELDS]
+
+
+def build_managed_account_delete_counts(counts: dict[str, int]) -> dict[str, int]:
+    return {
+        field.ui_key: int(counts.get(field.key, 0))
+        for field in DELETE_COUNT_FIELDS
+        if field.ui_key is not None
+    }
+
+
 def _collect_required_ids(
-    rows: Sequence[sqlite3.Row | dict[str, object]],
+    rows: Sequence[dict[str, object]],
     *,
     key: str,
     label: str,
@@ -77,10 +99,6 @@ def _collect_required_ids(
     if len(ids) != len(rows):
         raise ValueError(f"Unexpected non-integer {label} id in delete target set.")
     return ids
-
-
-def _in_clause(column_name: str, values: tuple[int, ...]) -> str:
-    return f"{column_name} IN ({','.join(['?'] * len(values))})"
 
 
 def delete_accounts(
@@ -109,7 +127,7 @@ def delete_accounts(
     review_rows = fetch_promotion_review_rows_for_accounts(conn, account_ids)
     review_ids = _collect_required_ids(review_rows, key="id", label="promotion review")
 
-    account_placeholders_where = _in_clause("account_id", account_ids)
+    account_placeholders_where = f"account_id IN ({in_placeholders(account_ids)})"
     counts = _empty_delete_counts()
     counts.update(
         {
@@ -123,7 +141,7 @@ def delete_accounts(
     )
 
     if run_ids:
-        run_placeholders_where = _in_clause("run_id", run_ids)
+        run_placeholders_where = f"run_id IN ({in_placeholders(run_ids)})"
         counts["backtest_trades"] = count_rows(conn, "backtest_trades", run_placeholders_where, run_ids)
         counts["backtest_equity_snapshots"] = count_rows(
             conn,
@@ -132,7 +150,7 @@ def delete_accounts(
             run_ids,
         )
     if walk_forward_group_ids:
-        walk_forward_group_where = _in_clause("group_id", walk_forward_group_ids)
+        walk_forward_group_where = f"group_id IN ({in_placeholders(walk_forward_group_ids)})"
         counts["walk_forward_group_runs"] = count_rows(
             conn,
             "walk_forward_group_runs",
@@ -140,7 +158,7 @@ def delete_accounts(
             walk_forward_group_ids,
         )
     if review_ids:
-        review_placeholders_where = _in_clause("review_id", review_ids)
+        review_placeholders_where = f"review_id IN ({in_placeholders(review_ids)})"
         counts["promotion_review_events"] = count_rows(
             conn,
             "promotion_review_events",

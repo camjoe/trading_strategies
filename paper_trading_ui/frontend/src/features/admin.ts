@@ -1,7 +1,10 @@
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
-import type { AccountSummary } from "../types";
+import { applyAccountConfigOptionsToAdminForm, getAccountConfigOptions } from "../lib/account-config-options";
+import { errorMessage, getJson, postJson } from "../lib/http";
+import { numOrUndefined, intOrUndefined, strOrUndefined } from "../lib/form-parse";
+import { TEST_ACCOUNT_NAME } from "../lib/constants";
+import type { AccountListItem, AccountSummary, AdminCreateAccountPayload } from "../types";
 
 interface DeleteResponse {
   status: string;
@@ -67,26 +70,8 @@ function setOutput(
   }
 }
 
-function numOrUndefined(value: FormDataEntryValue | null): number | undefined {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (!raw) return undefined;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function intOrUndefined(value: FormDataEntryValue | null): number | undefined {
-  const parsed = numOrUndefined(value);
-  if (parsed === undefined) return undefined;
-  return Math.trunc(parsed);
-}
-
 function isTradeSide(value: string): value is "buy" | "sell" {
   return value === "buy" || value === "sell";
-}
-
-function strOrUndefined(value: FormDataEntryValue | null): string | undefined {
-  const raw = typeof value === "string" ? value.trim() : "";
-  return raw || undefined;
 }
 
 function csvListOrUndefined(value: FormDataEntryValue | null): string[] | undefined {
@@ -99,7 +84,6 @@ function csvListOrUndefined(value: FormDataEntryValue | null): string[] | undefi
 }
 
 export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
-  const TEST_ACCOUNT_NAME = "test_account";
   let cachedCsvExports: CsvExportBatch[] = [];
 
   function syncInstrumentDetails(form?: HTMLFormElement | null): void {
@@ -228,7 +212,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     } catch (err) {
       if (resultEl) {
         resultEl.className = "error";
-        resultEl.textContent = err instanceof Error ? err.message : "Trade failed.";
+        resultEl.textContent = errorMessage(err, "Trade failed.");
       }
     }
   }
@@ -286,7 +270,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const select = find<HTMLSelectElement>("#deleteAccountSelect");
     if (!select) return;
 
-    const data = await getJson<{ accounts: AccountSummary[] }>("/api/accounts");
+    const data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
     const optionsHtml = data.accounts
       .filter((a) => a.name !== TEST_ACCOUNT_NAME)
       .map((a) => `<option value="${esc(a.name)}">${esc(a.name)} (${esc(a.strategy)})</option>`)
@@ -343,11 +327,17 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const output = find<HTMLDivElement>("#createAccountOutput");
     if (!output) return;
 
+    const configOptions = getAccountConfigOptions();
+    if (!configOptions) {
+      setOutput(output, "error", "Account config options are unavailable.");
+      return;
+    }
+
     const data = new FormData(form);
     const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv")) ?? [];
     const rotationOverlayWatchlist = csvListOrUndefined(data.get("rotationOverlayWatchlistCsv"));
 
-    const payload = {
+    const payload: AdminCreateAccountPayload = {
       name: strOrUndefined(data.get("name")),
       descriptiveName: strOrUndefined(data.get("descriptiveName")),
       strategy: strOrUndefined(data.get("strategy")),
@@ -355,12 +345,12 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       initialCash: numOrUndefined(data.get("initialCash")),
       goalMinReturnPct: numOrUndefined(data.get("goalMinReturnPct")),
       goalMaxReturnPct: numOrUndefined(data.get("goalMaxReturnPct")),
-      goalPeriod: strOrUndefined(data.get("goalPeriod")) ?? "monthly",
+      goalPeriod: strOrUndefined(data.get("goalPeriod")) ?? configOptions.defaults.goalPeriod,
       learningEnabled: data.get("learningEnabled") === "on",
-      riskPolicy: strOrUndefined(data.get("riskPolicy")) ?? "none",
+      riskPolicy: strOrUndefined(data.get("riskPolicy")) ?? configOptions.defaults.riskPolicy,
       stopLossPct: numOrUndefined(data.get("stopLossPct")),
       takeProfitPct: numOrUndefined(data.get("takeProfitPct")),
-      instrumentMode: strOrUndefined(data.get("instrumentMode")) ?? "equity",
+      instrumentMode: strOrUndefined(data.get("instrumentMode")) ?? configOptions.defaults.instrumentMode,
       optionStrikeOffsetPct: numOrUndefined(data.get("optionStrikeOffsetPct")),
       optionMinDte: intOrUndefined(data.get("optionMinDte")),
       optionMaxDte: intOrUndefined(data.get("optionMaxDte")),
@@ -375,8 +365,9 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       profitTakePct: numOrUndefined(data.get("profitTakePct")),
       maxLossPct: numOrUndefined(data.get("maxLossPct")),
       rotationEnabled: data.get("rotationEnabled") === "on",
-      rotationMode: strOrUndefined(data.get("rotationMode")) ?? "time",
-      rotationOptimalityMode: strOrUndefined(data.get("rotationOptimalityMode")) ?? "previous_period_best",
+      rotationMode: strOrUndefined(data.get("rotationMode")) ?? configOptions.defaults.rotationMode,
+      rotationOptimalityMode:
+        strOrUndefined(data.get("rotationOptimalityMode")) ?? configOptions.defaults.rotationOptimalityMode,
       rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
       rotationIntervalMinutes: intOrUndefined(data.get("rotationIntervalMinutes")),
       rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
@@ -384,7 +375,8 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       rotationRegimeStrategyRiskOn: strOrUndefined(data.get("rotationRegimeStrategyRiskOn")),
       rotationRegimeStrategyNeutral: strOrUndefined(data.get("rotationRegimeStrategyNeutral")),
       rotationRegimeStrategyRiskOff: strOrUndefined(data.get("rotationRegimeStrategyRiskOff")),
-      rotationOverlayMode: strOrUndefined(data.get("rotationOverlayMode")) ?? "none",
+      rotationOverlayMode:
+        strOrUndefined(data.get("rotationOverlayMode")) ?? configOptions.defaults.rotationOverlayMode,
       rotationOverlayMinTickers: intOrUndefined(data.get("rotationOverlayMinTickers")),
       rotationOverlayConfidenceThreshold: numOrUndefined(data.get("rotationOverlayConfidenceThreshold")),
       rotationOverlayWatchlist,
@@ -462,6 +454,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
 
     syncInstrumentDetails(createForm);
     syncRotationDetails(createForm);
+    applyAccountConfigOptionsToAdminForm();
     void loadCsvExports();
   }
 

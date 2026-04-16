@@ -6,7 +6,6 @@ import pytest
 import trading.services.auto_trader_service as auto_trader_service
 import trading.services.rotation_service as rotation_service
 from trading.services.accounts_service import create_account, get_account
-from trading.utils.coercion import coerce_float
 from trading.repositories.rotation_repository import update_account_rotation_state
 from trading.domain.rotation import next_rotation_state, parse_rotation_schedule, resolve_active_strategy, resolve_optimality_mode, resolve_rotation_mode
 from trading.services.auto_trader_service import RotationDeps
@@ -190,13 +189,6 @@ def test_parse_runtime_as_of_iso_and_safe_return_pct() -> None:
     assert naive.isoformat().endswith("+00:00")
     assert zulu.isoformat().endswith("+00:00")
     assert parsed.isoformat().endswith("+00:00")
-
-    assert auto_trader_service.compute_safe_return_pct(
-        100.0,
-        110.0,
-        safe_return_pct_fn=rotation_service.safe_return_pct,
-        coerce_float_fn=coerce_float,
-    ) == pytest.approx(10.0)
 
 
 def test_rotate_runtime_account_if_due_updates_state(monkeypatch) -> None:

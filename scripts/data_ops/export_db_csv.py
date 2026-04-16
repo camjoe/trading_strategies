@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--tables",
         default=",".join(DEFAULT_EXPORT_TABLES),
-        help="Comma-separated table list. Default: accounts,equity_snapshots,trades,backtest_runs,backtest_trades",
+        help=f"Comma-separated table list. Default: {','.join(DEFAULT_EXPORT_TABLES)}",
     )
     parser.add_argument(
         "--output-dir",

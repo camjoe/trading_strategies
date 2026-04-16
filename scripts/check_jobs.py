@@ -14,11 +14,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-LOGS_DIR = REPO_ROOT / "local" / "logs"
+from common.repo_paths import get_repo_root
+from trading.interfaces.runtime.jobs.daily_paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
+from trading.interfaces.runtime.jobs.task_runs import logs_dir_for_repo
+from trading.interfaces.runtime.jobs.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
 
-DAILY_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-WEEKLY_SENTINEL = "COMPLETE: Weekly database backup succeeded."
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
 DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily_paper_trading"
 WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.weekly_db_backup"
@@ -28,15 +30,11 @@ WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.weekly_db_backup"
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _read_log(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-
-
 def _log_has_sentinel(path: Path, sentinel: str) -> bool:
-    return sentinel in _read_log(path)
+    try:
+        return sentinel in path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
 
 
 def _log_mtime(path: Path) -> dt.datetime:
@@ -249,6 +247,8 @@ def main() -> int:
             _trigger(daily["run_cmd"], daily["job"])
         if not weekly_ok:
             _trigger(weekly["run_cmd"], weekly["job"])
+        daily_ok = _check_daily()["today_complete"]
+        weekly_ok = _check_weekly()["this_week_complete"]
     else:
         if not daily_ok or not weekly_ok:
             print("  Tip: pass --run-missing to trigger any outstanding jobs.\n")

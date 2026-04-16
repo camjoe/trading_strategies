@@ -1,25 +1,23 @@
-export type AccountSummary = {
+export type AccountListItem = {
   name: string;
   displayName: string;
   strategy: string;
   instrumentMode: string;
-  riskPolicy: string;
   benchmark: string;
-  initialCash: number;
   equity: number;
-  settlementCash: number;
   totalChange: number;
   totalChangePct: number;
-  liveBenchmarkReturnPct?: number | null;
-  liveAlphaPct?: number | null;
-  liveBenchmarkEquity?: number | null;
-  liveBenchmarkStartTime?: string | null;
-  liveBenchmarkEndTime?: string | null;
   changeSinceLastSnapshot: number | null;
   latestSnapshotTime: string | null;
-  // config fields
+};
+
+export interface AccountConfigFields {
+  riskPolicy: string;
   stopLossPct: number | null;
   takeProfitPct: number | null;
+  tradeSizePct: number;
+  maxPositionPct: number;
+  instrumentMode: string;
   goalMinReturnPct: number | null;
   goalMaxReturnPct: number | null;
   goalPeriod: string | null;
@@ -51,9 +49,52 @@ export type AccountSummary = {
   rotationOverlayMinTickers?: number | null;
   rotationOverlayConfidenceThreshold?: number | null;
   rotationOverlayWatchlist?: string[] | null;
-  rotationActiveIndex?: number;
+  rotationActiveIndex?: number | null;
   rotationLastAt?: string | null;
   rotationActiveStrategy?: string | null;
+}
+
+export interface AccountMutableIdentityFields {
+  strategy: string;
+  descriptiveName: string;
+}
+
+export interface AdminCreateAccountPayload extends Partial<AccountConfigFields> {
+  name: string | undefined;
+  strategy: string | undefined;
+  initialCash: number | undefined;
+  benchmarkTicker?: string;
+  descriptiveName: string | undefined;
+}
+
+export interface AccountConfigOptionDefaults {
+  goalPeriod: string;
+  riskPolicy: string;
+  instrumentMode: string;
+  rotationMode: string;
+  rotationOptimalityMode: string;
+  rotationOverlayMode: string;
+}
+
+export interface AccountConfigOptions {
+  goalPeriods: string[];
+  riskPolicies: string[];
+  instrumentModes: string[];
+  optionTypes: string[];
+  rotationModes: string[];
+  rotationOptimalityModes: string[];
+  rotationOverlayModes: string[];
+  defaults: AccountConfigOptionDefaults;
+}
+
+export type AccountSummary = AccountListItem & AccountConfigFields & {
+  initialCash: number;
+  settlementCash: number;
+  liveBenchmarkReturnPct: number | null;
+  liveAlphaPct: number | null;
+  liveBenchmarkEquity: number | null;
+  liveBenchmarkStartTime: string | null;
+  liveBenchmarkEndTime: string | null;
 };
 
 export type LiveBenchmarkOverlay = {
@@ -120,6 +161,7 @@ export type AnalysisPosition = {
 export type AccountAnalysis = {
   accountReturnPct: number;
   benchmarkReturnPct: number | null;
+  benchmarkTicker: string | null;
   alphaPct: number | null;
   realizedPnl: number;
   unrealizedPnl: number;
@@ -187,7 +229,7 @@ export type BacktestReport = {
   fee_per_trade: number;
   tickers_file: string;
   notes: string | null;
-  warnings: string;
+  warnings: string[];
   trade_count: number;
   starting_equity: number;
   ending_equity: number;
@@ -224,7 +266,6 @@ export type LatestBacktestMetrics = {
   endDate: string;
   totalReturnPct: number;
   maxDrawdownPct: number;
-  alphaPct: number | null;
   sharpeRatio?: number | null;
   sortinoRatio?: number | null;
   calmarRatio?: number | null;
@@ -247,48 +288,7 @@ export type AccountComparisonRow = {
   latestBacktest: LatestBacktestMetrics | null;
 };
 
-export interface AccountParamsUpdate {
-  strategy?: string;
-  descriptiveName?: string;
-  riskPolicy?: string;
-  stopLossPct?: number | null;
-  takeProfitPct?: number | null;
-  instrumentMode?: string;
-  goalMinReturnPct?: number | null;
-  goalMaxReturnPct?: number | null;
-  goalPeriod?: string;
-  learningEnabled?: boolean;
-  optionStrikeOffsetPct?: number | null;
-  optionMinDte?: number | null;
-  optionMaxDte?: number | null;
-  optionType?: string | null;
-  targetDeltaMin?: number | null;
-  targetDeltaMax?: number | null;
-  maxPremiumPerTrade?: number | null;
-  maxContractsPerTrade?: number | null;
-  ivRankMin?: number | null;
-  ivRankMax?: number | null;
-  rollDteThreshold?: number | null;
-  profitTakePct?: number | null;
-  maxLossPct?: number | null;
-  rotationEnabled?: boolean;
-  rotationMode?: string;
-  rotationOptimalityMode?: string;
-  rotationIntervalDays?: number | null;
-  rotationIntervalMinutes?: number | null;
-  rotationLookbackDays?: number | null;
-  rotationSchedule?: string[] | null;
-  rotationRegimeStrategyRiskOn?: string | null;
-  rotationRegimeStrategyNeutral?: string | null;
-  rotationRegimeStrategyRiskOff?: string | null;
-  rotationOverlayMode?: string;
-  rotationOverlayMinTickers?: number | null;
-  rotationOverlayConfidenceThreshold?: number | null;
-  rotationOverlayWatchlist?: string[] | null;
-  rotationActiveIndex?: number | null;
-  rotationLastAt?: string | null;
-  rotationActiveStrategy?: string | null;
-}
+export type AccountParamsUpdate = Partial<AccountConfigFields> & Partial<AccountMutableIdentityFields>;
 
 export interface ManualTradeRequest {
   ticker: string;

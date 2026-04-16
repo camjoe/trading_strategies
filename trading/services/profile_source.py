@@ -11,16 +11,18 @@ import json
 from pathlib import Path
 from typing import Protocol
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
-DEFAULT_ACCOUNT_PROFILES_FILE = "trading/config/account_profiles/default.json"
-DEFAULT_TICKERS_FILE = "trading/config/trade_universe.txt"
+# Mirrors trading.database.db_common.DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE — same file.
+DEFAULT_ACCOUNT_PROFILES_FILE = str(_REPO_ROOT / "trading" / "config" / "account_profiles" / "default.json")
+DEFAULT_TICKERS_FILE = str(_REPO_ROOT / "trading" / "config" / "trade_universe.txt")
 
 
 def _profiles_dir_candidates() -> list[Path]:
-    package_root = Path(__file__).resolve().parent
+    trading_root = Path(__file__).resolve().parents[1]
     return [
-        package_root / "config" / "account_profiles",
-        package_root / "account_profiles",
+        trading_root / "config" / "account_profiles",
+        trading_root / "account_profiles",
     ]
 
 
@@ -43,7 +45,7 @@ def resolve_profile_file_path(file_path: str | Path) -> Path:
     normalized = candidate.as_posix()
     if normalized.startswith(legacy_prefix):
         suffix = normalized[len(legacy_prefix) :]
-        return Path("trading/config/account_profiles") / suffix
+        return _REPO_ROOT / "trading" / "config" / "account_profiles" / suffix
 
     return candidate
 

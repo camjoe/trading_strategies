@@ -6,7 +6,7 @@ from typing import Mapping, Sequence
 
 import pandas as pd
 
-from common.constants import TRADING_DAYS_PER_YEAR
+from common.constants import ANNUALIZATION_FACTOR, TRADING_DAYS_PER_YEAR
 from trading.backtesting.domain.simulation_math import update_on_buy, update_on_sell
 
 # Scale factor for converting decimal returns into operator-facing percentage values.
@@ -14,9 +14,6 @@ PERCENT_SCALE = 100.0
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
-
-# Daily returns are annualized using the standard square-root-of-time convention.
-ANNUALIZATION_FACTOR = float(TRADING_DAYS_PER_YEAR) ** 0.5
 
 
 @dataclass(frozen=True)

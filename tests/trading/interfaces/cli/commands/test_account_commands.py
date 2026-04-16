@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.interfaces.cli.commands import build_parser
+from trading.services.profile_source import DEFAULT_ACCOUNT_PROFILES_FILE
 
 
 def test_create_account_defaults_and_required_fields() -> None:
@@ -96,7 +97,7 @@ def test_apply_account_profiles_defaults() -> None:
 
     args = parser.parse_args(["apply-account-profiles"])
 
-    assert args.file == "trading/config/account_profiles/default.json"
+    assert args.file == DEFAULT_ACCOUNT_PROFILES_FILE
     assert args.no_create_missing is False
 
 

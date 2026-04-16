@@ -1,9 +1,28 @@
+"""Report service: full backtest report assembly and re-export facade.
+
+This service module owns:
+
+- ``fetch_backtest_report_data``: assembles a ``BacktestFullReport`` from
+  persisted run, snapshot, and trade rows, including benchmark return and alpha
+  calculation.
+- Thin wrappers around ``report_repository`` reads for latest-run and
+  recent-run lookups.
+
+Re-exports:
+
+- ``resolve_signal`` from ``trading.backtesting.domain.strategy_signals`` —
+  callers that need signal dispatch should import from here rather than the
+  domain module directly, keeping the service-layer boundary intact.
+"""
 from __future__ import annotations
 
 from datetime import date
 from typing import Callable
 
 import pandas as pd
+
+# Re-exported so callers never reach into trading.backtesting.domain directly.
+from trading.backtesting.domain.strategy_signals import resolve_signal  # noqa: F401
 
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
@@ -129,16 +148,35 @@ def fetch_backtest_report_data(
     )
 
 
-def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> object:
-    return _repo_fetch_latest_backtest_run_for_account(conn, account_name=account_name)
-
-
 def fetch_latest_backtest_run_id_for_account(conn, *, account_name: str) -> int | None:
     return _repo_fetch_latest_backtest_run_id_for_account(conn, account_name=account_name)
 
 
-def fetch_recent_backtest_runs(conn, *, limit: int) -> list[object]:
-    return _repo_fetch_recent_backtest_runs(conn, limit=limit)
+def _build_backtest_run_dict(row: object) -> dict[str, object]:
+    """Convert a backtest run row to a serialisable dict with raw (un-substituted) values."""
+    return {
+        "runId": int(row["id"]),  # type: ignore[index]
+        "runName": row["run_name"],  # type: ignore[index]
+        "accountName": str(row["account_name"]),  # type: ignore[index]
+        "strategy": str(row["strategy"]),  # type: ignore[index]
+        "startDate": row["start_date"],  # type: ignore[index]
+        "endDate": row["end_date"],  # type: ignore[index]
+        "createdAt": row["created_at"],  # type: ignore[index]
+        "slippageBps": float(row["slippage_bps"]),  # type: ignore[index]
+        "feePerTrade": float(row["fee_per_trade"]),  # type: ignore[index]
+        "tickersFile": row["tickers_file"],  # type: ignore[index]
+    }
+
+
+def fetch_latest_backtest_run_for_account(conn, *, account_name: str) -> dict[str, object] | None:
+    row = _repo_fetch_latest_backtest_run_for_account(conn, account_name=account_name)
+    if row is None:
+        return None
+    return _build_backtest_run_dict(row)
+
+
+def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
+    return [_build_backtest_run_dict(row) for row in _repo_fetch_recent_backtest_runs(conn, limit=limit)]
 
 
 def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:

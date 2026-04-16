@@ -4,7 +4,6 @@ import re
 import sqlite3
 from pathlib import Path
 
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 from trading.services.accounts_service import fetch_account_by_name
@@ -13,8 +12,6 @@ from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
     TEST_ACCOUNT_DISPLAY_NAME,
     TEST_ACCOUNT_NAME,
-    TEST_ACCOUNT_STRATEGY,
-    TEST_ACCOUNT_TRADE_TIME,
     TEST_BACKTEST_ACCOUNT_NAME,
     TEST_INVESTMENTS_CANDIDATES,
 )
@@ -95,63 +92,6 @@ def parse_test_account_benchmark() -> str:
 
     return str(match.group(1)).strip().upper() or TEST_ACCOUNT_BENCHMARK_DEFAULT
 
-
-def build_test_account_summary() -> dict[str, object]:
-    rows = parse_test_investments()
-    equity = compute_test_account_equity(rows)
-    benchmark = parse_test_account_benchmark()
-    return {
-        "name": TEST_ACCOUNT_NAME,
-        "displayName": TEST_ACCOUNT_DISPLAY_NAME,
-        "strategy": TEST_ACCOUNT_STRATEGY,
-        "instrumentMode": "equity",
-        "riskPolicy": "none",
-        "tradeSizePct": DEFAULT_TRADE_SIZE_PCT,
-        "maxPositionPct": DEFAULT_MAX_POSITION_PCT,
-        "benchmark": benchmark,
-        "initialCash": equity,
-        "equity": equity,
-        "totalChange": 0.0,
-        "totalChangePct": 0.0,
-        "changeSinceLastSnapshot": 0.0,
-        "latestSnapshotTime": TEST_ACCOUNT_TRADE_TIME,
-    }
-
-
-def build_test_account_detail_payload() -> dict[str, object]:
-    rows = parse_test_investments()
-    equity = compute_test_account_equity(rows)
-    trades = [
-        {
-            "ticker": item["ticker"],
-            "side": "buy",
-            "qty": 1.0,
-            "price": item["amount"],
-            "fee": 0.0,
-            "tradeTime": TEST_ACCOUNT_TRADE_TIME,
-        }
-        for item in rows
-    ]
-
-    snapshots = [
-        {
-            "time": TEST_ACCOUNT_TRADE_TIME,
-            "cash": 0.0,
-            "marketValue": equity,
-            "equity": equity,
-            "realizedPnl": 0.0,
-            "unrealizedPnl": 0.0,
-        }
-    ]
-
-    return {
-        "account": build_test_account_summary(),
-        "latestBacktest": None,
-        "snapshots": snapshots,
-        "trades": trades,
-    }
-
-
 def resolve_backtest_account_name(account_name: str) -> str:
     name = account_name.strip()
     if name == TEST_ACCOUNT_NAME:
@@ -190,6 +130,16 @@ def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection
     return resolved
 
 
+from .accounts import build_account_summary
+from .db import fetch_account_row
+
+
+def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> dict[str, object]:
+    """Resolve ``account_name`` (handles test-account aliasing) and return its DB row."""
+    resolved_name = resolve_backtest_payload_account(account_name, conn)
+    return fetch_account_row(conn, resolved_name)
+
+
 def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:
     """Build the test_account summary using live equity from test_account_bt in the DB.
 
@@ -197,11 +147,7 @@ def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, objec
     ``build_account_summary`` path so equity and PnL are always computed from real
     trades rather than the static investments file.
     """
-    from .accounts import build_account_summary
-    from .db import fetch_account_row
-
-    resolved_name = resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
-    row = fetch_account_row(conn, resolved_name)
+    row = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
     summary = build_account_summary(conn, row)
     # Surface under the virtual "test_account" name the UI expects.
     summary["name"] = TEST_ACCOUNT_NAME

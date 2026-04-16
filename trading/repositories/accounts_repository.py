@@ -4,8 +4,9 @@ import sqlite3
 
 from trading.database.db_backend import get_backend
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> sqlite3.Row | None:
-    return conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
+    row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    return dict(row) if row is not None else None
 
 
 def insert_account(
@@ -119,15 +120,18 @@ def update_account_benchmark(conn: sqlite3.Connection, *, account_id: int, bench
     conn.commit()
 
 
-def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    return conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    return [dict(row) for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()]
 
 
-def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[sqlite3.Row]:
-    return conn.execute(
-        "SELECT * FROM accounts WHERE name != ? ORDER BY name",
-        (excluded_name,),
-    ).fetchall()
+def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[dict[str, object]]:
+    return [
+        dict(row)
+        for row in conn.execute(
+            "SELECT * FROM accounts WHERE name != ? ORDER BY name",
+            (excluded_name,),
+        ).fetchall()
+    ]
 
 
 def update_account_fields(

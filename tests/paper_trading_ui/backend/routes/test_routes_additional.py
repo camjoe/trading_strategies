@@ -68,9 +68,14 @@ class TestHealthAndAccountsRoutes:
         response = api_client.get("/api/accounts")
         assert response.status_code == 200
 
-        names = [item["name"] for item in response.json()["accounts"]]
+        accounts = response.json()["accounts"]
+        names = [item["name"] for item in accounts]
         assert "acct_listed" in names
         assert TEST_ACCOUNT_NAME in names
+        listed = next(item for item in accounts if item["name"] == "acct_listed")
+        assert "instrumentMode" in listed
+        assert "optionMinDte" not in listed
+        assert "rotationOverlayWatchlist" not in listed
 
     def test_account_detail_virtual_test_account_branch(self, api_client: TestClient) -> None:
         response = api_client.get(f"/api/accounts/{TEST_ACCOUNT_NAME}")
@@ -145,7 +150,7 @@ class TestAdminRoutes:
         def _raise_value_error(*_args, **_kwargs):
             raise ValueError("bad payload")
 
-        monkeypatch.setattr(admin_routes, "create_account", _raise_value_error)
+        monkeypatch.setattr(admin_routes, "create_account_with_rotation", _raise_value_error)
 
         response = api_client.post(
             "/api/admin/accounts/create",
@@ -162,9 +167,9 @@ class TestAdminRoutes:
 
     def test_admin_create_account_handles_duplicate_record(self, monkeypatch, api_client: TestClient) -> None:
         def _raise_duplicate(*_args, **_kwargs):
-            raise AccountAlreadyExistsError("already exists")
+            raise ValueError("Account create failed: already exists")
 
-        monkeypatch.setattr(admin_routes, "create_account", _raise_duplicate)
+        monkeypatch.setattr(admin_routes, "create_account_with_rotation", _raise_duplicate)
 
         response = api_client.post(
             "/api/admin/accounts/create",

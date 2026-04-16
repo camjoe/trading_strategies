@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from ..schemas import FeatureSignalsRequest
-from ..services.features import get_provider_status, get_signals
+from ..services import get_provider_status, get_signals
 
 router = APIRouter()
 

@@ -113,13 +113,13 @@ def positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
 
 def _build_account_stats_impl(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], AccountState],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], AccountState],
     fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
-    row_expect_int_fn: Callable[[sqlite3.Row, str], int],
-    row_expect_float_fn: Callable[[sqlite3.Row, str], float],
+    row_expect_int_fn: Callable[[dict[str, object], str], int],
+    row_expect_float_fn: Callable[[dict[str, object], str], float],
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
     account_id = row_expect_int_fn(account, "id")
     initial_cash = row_expect_float_fn(account, "initial_cash")
@@ -138,8 +138,8 @@ def _infer_overall_trend_impl(
     current_equity: float,
     lookback: int,
     *,
-    fetch_recent_equity_rows_fn: Callable[..., list[sqlite3.Row]],
-    row_float_fn: Callable[[sqlite3.Row, str], float | None],
+    fetch_recent_equity_rows_fn: Callable[..., list[dict[str, object]]],
+    row_float_fn: Callable[..., float | None],
 ) -> str:
     rows = fetch_recent_equity_rows_fn(
         conn,
@@ -172,7 +172,7 @@ def _infer_overall_trend_impl(
 
 def build_account_stats(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
     return _build_account_stats_impl(
         conn,
@@ -191,8 +191,8 @@ def infer_overall_trend(
     current_equity: float,
     lookback: int,
     *,
-    fetch_recent_equity_rows_fn: Callable[..., list[sqlite3.Row]] | None = None,
-    row_float_fn: Callable[[sqlite3.Row, str], float | None] | None = None,
+    fetch_recent_equity_rows_fn: Callable[..., list[dict[str, object]]] | None = None,
+    row_float_fn: Callable[..., float | None] | None = None,
 ) -> str:
     return _infer_overall_trend_impl(
         conn,
@@ -208,7 +208,7 @@ def infer_overall_trend(
 # Display helpers (private)
 # ---------------------------------------------------------------------------
 
-def _print_leaps_params(account: sqlite3.Row) -> None:
+def _print_leaps_params(account: dict[str, object]) -> None:
     print(
         "LEAPs Parameters: "
         f"strike_offset_pct={account['option_strike_offset_pct']} "
@@ -230,7 +230,7 @@ def _print_leaps_params(account: sqlite3.Row) -> None:
     )
 
 
-def _print_account_header(account: sqlite3.Row) -> None:
+def _print_account_header(account: dict[str, object]) -> None:
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
     print(f"Account Policy: {format_account_policy_text(account)}")
@@ -242,7 +242,7 @@ def _print_account_header(account: sqlite3.Row) -> None:
 
 
 def _print_performance_lines(
-    account: sqlite3.Row,
+    account: dict[str, object],
     cash: float,
     market_value: float,
     equity: float,
@@ -291,11 +291,11 @@ def _print_open_positions(
         print(f"- {ticker}: qty={qty:.4f}, avg_cost={avg:.2f}, last_price={px_display}")
 
 
-def _compare_account_header(account: sqlite3.Row) -> str:
+def _compare_account_header(account: dict[str, object]) -> str:
     return f"- {account['name']} | display_name={account['descriptive_name']}"
 
 
-def _compare_goal_metadata_line(account: sqlite3.Row) -> str | None:
+def _compare_goal_metadata_line(account: dict[str, object]) -> str | None:
     goal_text = format_goal_text(account)
     if goal_text == GOAL_NOT_SET_TEXT:
         return None
@@ -489,5 +489,5 @@ def take_account_snapshot(conn: sqlite3.Connection, account_name: str, *, snapsh
     snapshot_account(conn, account_name, snapshot_time=snapshot_time)
 
 
-def get_account_stats(conn: sqlite3.Connection, row: sqlite3.Row) -> tuple:
+def get_account_stats(conn: sqlite3.Connection, row: dict[str, object]) -> tuple:
     return build_account_stats(conn, row)

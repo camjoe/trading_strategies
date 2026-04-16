@@ -1,6 +1,7 @@
 import { find, findAll } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
+import { errorMessage, getJson, postJson } from "../lib/http";
+import { parseRunId } from "../lib/parse";
 import { debounce } from "../lib/timing";
 import {
   renderBacktestReport,
@@ -9,7 +10,7 @@ import {
   warningListHtml,
 } from "../components/backtesting";
 import type {
-  AccountSummary,
+  AccountListItem,
   BacktestReport,
   BacktestRunResult,
   BacktestRunSummary,
@@ -17,7 +18,7 @@ import type {
 } from "../types";
 
 export interface BacktestingFeature {
-  setAccounts: (accounts: AccountSummary[]) => void;
+  setAccounts: (accounts: AccountListItem[]) => void;
   loadBacktestRuns: () => Promise<void>;
   loadBacktestReport: (runId: number) => Promise<void>;
   wireActions: () => void;
@@ -66,16 +67,6 @@ interface WalkForwardPayload extends BacktestBasePayload {
   slippageBps: number;
   fee: number;
   runNamePrefix: string | null;
-}
-
-function parseRunId(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function renderDownMessage(message: string): string {
@@ -145,12 +136,12 @@ function validateDateInputs(start: string | null, lookbackMonths: number | null)
 }
 
 export function createBacktestingFeature(): BacktestingFeature {
-  let cachedAccounts: AccountSummary[] = [];
+  let cachedAccounts: AccountListItem[] = [];
 
   const isWalkForwardRun = (run: BacktestRunSummary): boolean =>
     Boolean(run.runName && /^wf(?:_|-)/i.test(run.runName));
 
-  function populateBacktestAccountSelects(accounts: AccountSummary[]): void {
+  function populateBacktestAccountSelects(accounts: AccountListItem[]): void {
     const accountOptions = accounts
       .map((a) => `<option value="${esc(a.name)}">${esc(a.displayName)} (${esc(a.name)})</option>`)
       .join("");
@@ -402,7 +393,7 @@ export function createBacktestingFeature(): BacktestingFeature {
     wirePreflight(runWalkForwardForm, WALK_FORWARD_WARNINGS_SELECTOR);
   }
 
-  function setAccounts(accounts: AccountSummary[]): void {
+  function setAccounts(accounts: AccountListItem[]): void {
     cachedAccounts = accounts;
     populateBacktestAccountSelects(cachedAccounts);
   }

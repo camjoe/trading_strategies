@@ -3,6 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scripts.documentation_ui.registry_utils import sort_registry_rows
+
+
+SOFTWARE_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/software.json"
+
 
 
 GROUP_ORDER = [
@@ -114,7 +119,5 @@ def build_registry(
             }
         )
 
-    rows.sort(key=lambda item: (int(item["_sort_group"]), item["name"].lower()))
-    for row in rows:
-        del row["_sort_group"]
+    sort_registry_rows(rows, lambda item: item["name"].lower())
     return rows

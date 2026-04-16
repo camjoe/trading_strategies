@@ -122,11 +122,6 @@ export function renderBacktestRunCard(run: BacktestRunSummary): string {
 }
 
 export function renderBacktestReport(report: BacktestReport): string {
-  const warningItems = String(report.warnings || "")
-    .split(" | ")
-    .map((v) => v.trim())
-    .filter((v) => v.length > 0);
-
   return `
     <div class="bt-result">
       <div><strong>Run ${report.run_id}</strong> ${esc(report.run_name ?? "(unnamed)")} | ${esc(report.account_name)} | ${esc(report.strategy)}</div>
@@ -142,7 +137,7 @@ export function renderBacktestReport(report: BacktestReport): string {
         avgTradeReturnPct: report.avg_trade_return_pct,
       })}
       ${renderEquityCurve(report.snapshots, { title: "Equity Curve" })}
-      <div class="bt-warning">${warningListHtml(warningItems)}</div>
+      <div class="bt-warning">${warningListHtml(report.warnings ?? [])}</div>
     </div>
   `;
 }

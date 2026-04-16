@@ -5,7 +5,44 @@ import json
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from scripts.documentation_ui.software.registry import build_registry, load_existing_state, parse_requirements
+from scripts.documentation_ui.software.registry import (
+    SOFTWARE_REGISTRY_REL,
+    build_registry,
+    load_existing_state,
+    parse_requirements,
+)
+
+
+def run_build(repo_root: Path) -> None:
+    """Build the software registry JSON using default paths."""
+    registry_path = repo_root / SOFTWARE_REGISTRY_REL
+    existing_payload: dict[str, object] = {}
+    if registry_path.exists():
+        try:
+            existing_payload = json.loads(registry_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass
+    parsed_requirements = parse_requirements(
+        repo_root / "requirements-base.txt",
+        repo_root / "requirements-dev.txt",
+    )
+    existing_state = load_existing_state(registry_path)
+    packages = build_registry(parsed_requirements, existing_state)
+    projects = existing_payload.get("projects", [])
+    if not isinstance(projects, list):
+        projects = []
+    languages_frameworks = existing_payload.get("languages_frameworks", [])
+    if not isinstance(languages_frameworks, list):
+        languages_frameworks = []
+    payload = {
+        "schema_version": 2,
+        "packages": packages,
+        "projects": projects,
+        "languages_frameworks": languages_frameworks,
+    }
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote software registry: {registry_path}")
+    print(f"Packages: {len(packages)}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -13,7 +50,7 @@ def parse_args() -> argparse.Namespace:
         description="Build paper_trading_ui/frontend/src/assets/software.json from requirements files.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
-    parser.add_argument("--registry", default="paper_trading_ui/frontend/src/assets/software.json")
+    parser.add_argument("--registry", default=SOFTWARE_REGISTRY_REL)
     parser.add_argument("--base", default="requirements-base.txt")
     parser.add_argument("--dev", default="requirements-dev.txt")
     return parser.parse_args()

@@ -12,20 +12,17 @@ import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
+from trading.interfaces.runtime.jobs.task_runs import CLI_MAIN_MODULE, DAILY_AUTO_TRADER_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts
 from trading.services.notifications_service import notify_webhook_best_effort
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-DEFAULT_TRADE_CAPS_CONFIG = "trading/config/account_trade_caps.json"
-
-# Environment variable used to opt runtime jobs into webhook notifications.
-DEFAULT_NOTIFICATION_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
+DEFAULT_TRADE_CAPS_CONFIG = REPO_ROOT / "trading" / "config" / "account_trade_caps.json"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
     log_path = logs_dir / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
-    timestamp = dt.datetime.now(dt.timezone.utc).astimezone().isoformat()
+    timestamp = ts()
     try:
         logs_dir.mkdir(parents=True, exist_ok=True)
         with log_path.open("a", encoding="utf-8") as handle:
@@ -83,10 +80,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-source", default="scheduled-daily")
     parser.add_argument(
         "--notify-webhook-url",
-        default=os.environ.get(DEFAULT_NOTIFICATION_WEBHOOK_ENV, ""),
+        default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
         help=(
             "Optional webhook URL for runtime notifications "
-            f"(default: ${DEFAULT_NOTIFICATION_WEBHOOK_ENV} if set)"
+            f"(default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"
         ),
     )
     parser.add_argument(
@@ -233,7 +230,7 @@ def run_auto_trader_group(
         return
     auto_trader_args = [
         "-m",
-        "trading.interfaces.runtime.jobs.daily_auto_trader",
+        DAILY_AUTO_TRADER_MODULE,
         "--accounts",
         ",".join(group_accounts),
         "--min-trades",
@@ -364,7 +361,7 @@ def main() -> int:
 
     tee_line(
         log_path,
-        f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: "
+        f"[{ts()}] RUN META: "
         f"source={args.run_source} force={bool(args.force_run)} "
         f"accounts={','.join(accounts)} caps={caps_summary}",
     )
@@ -389,18 +386,18 @@ def main() -> int:
             stream_command(
                 log_path,
                 f"Snapshot {account}",
-                ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
+                ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
                 repo_root,
             )
 
         stream_command(
             log_path,
             "Compare Strategies",
-            ["-m", "trading.interfaces.cli.main", "compare-strategies", "--lookback", "10"],
+            ["-m", CLI_MAIN_MODULE, "compare-strategies"],
             repo_root,
         )
 
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")
+        tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
         _maybe_send_notification(
             webhook_url=args.notify_webhook_url,
             notify_on_success=args.notify_on_success,
@@ -415,7 +412,7 @@ def main() -> int:
         )
         return 0
     except Exception as exc:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] ERROR: {exc}")
+        tee_line(log_path, f"[{ts()}] ERROR: {exc}")
         _maybe_send_notification(
             webhook_url=args.notify_webhook_url,
             notify_on_success=args.notify_on_success,

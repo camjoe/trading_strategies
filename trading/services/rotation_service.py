@@ -4,7 +4,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Callable, cast
 
-from trading.domain.returns import safe_return_pct as safe_return_pct_impl
+from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
     resolve_rotation_overlay_mode,
     resolve_rotation_overlay_watchlist,
@@ -32,7 +32,7 @@ from trading.features.social_feature_provider import (
     SOCIAL_TREND_EXIT_THRESHOLD,
     SOCIAL_TREND_SCORE,
 )
-from trading.utils.coercion import coerce_float
+from trading.utils.coercion import coerce_float, row_expect_int, row_float, row_int
 
 # Minimum completed live episodes required before the live component receives
 # its full configured weight in hybrid rotation scoring.
@@ -70,19 +70,6 @@ def parse_as_of_iso(as_of_iso: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
-def safe_return_pct(
-    starting_equity: object,
-    ending_equity: object,
-    *,
-    coerce_float_fn: Callable[[object], float | None],
-) -> float | None:
-    return safe_return_pct_impl(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float_fn,
-    )
-
-
 def _average(values: list[float]) -> float | None:
     if not values:
         return None
@@ -103,25 +90,17 @@ def _coerce_threshold(value: object, *, default: float) -> float:
     return float(parsed)
 
 
-def _account_value(account: sqlite3.Row, key: str) -> object | None:
-    if hasattr(account, "keys") and key in account.keys():
-        return account[key]
-    if isinstance(account, dict):
-        return account.get(key)
-    try:
-        return account[key]
-    except (KeyError, TypeError, IndexError):
-        return None
+def _account_value(account: dict[str, object], key: str) -> object | None:
+    return account.get(key)
 
 
 def classify_policy_regime(
     *,
     risk_on_score: object,
     defensive_tilt: object,
-    coerce_float_fn: Callable[[object], float | None],
 ) -> str | None:
-    score = coerce_float_fn(risk_on_score)
-    tilt = coerce_float_fn(defensive_tilt)
+    score = coerce_float(risk_on_score)
+    tilt = coerce_float(defensive_tilt)
     if score is None or tilt is None:
         return None
     if score >= POLICY_RISK_ON_BUY_THRESHOLD and tilt <= POLICY_MAX_DEFENSIVE_TILT:
@@ -133,14 +112,14 @@ def classify_policy_regime(
 
 def fetch_rotation_overlay_tickers(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
 ) -> list[str]:
     state = cast(
         object,
-        compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
+        compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id"))),
     )
     positions = cast(dict[str, float], getattr(state, "positions", {}))
     held_tickers = {ticker for ticker, qty in positions.items() if float(qty) > 0}
@@ -149,13 +128,11 @@ def fetch_rotation_overlay_tickers(
 
 def _classify_news_overlay_vote(
     bundle: ExternalFeatureBundle,
-    *,
-    coerce_float_fn: Callable[[object], float | None],
 ) -> int | None:
     if not bundle.available:
         return None
-    score = coerce_float_fn(bundle.get(NEWS_SENTIMENT_SCORE))
-    headline_count = coerce_float_fn(bundle.get(NEWS_HEADLINE_COUNT))
+    score = coerce_float(bundle.get(NEWS_SENTIMENT_SCORE))
+    headline_count = coerce_float(bundle.get(NEWS_HEADLINE_COUNT))
     if score is None or headline_count is None or headline_count < NEWS_MIN_HEADLINES_REQUIRED:
         return None
     if score >= NEWS_BUY_SENTIMENT_THRESHOLD:
@@ -167,14 +144,12 @@ def _classify_news_overlay_vote(
 
 def _classify_social_overlay_vote(
     bundle: ExternalFeatureBundle,
-    *,
-    coerce_float_fn: Callable[[object], float | None],
 ) -> int | None:
     if not bundle.available:
         return None
-    trend_score = coerce_float_fn(bundle.get(SOCIAL_TREND_SCORE))
-    mention_count = coerce_float_fn(bundle.get(SOCIAL_MENTION_COUNT))
-    reddit_sentiment = coerce_float_fn(bundle.get(SOCIAL_REDDIT_SENTIMENT))
+    trend_score = coerce_float(bundle.get(SOCIAL_TREND_SCORE))
+    mention_count = coerce_float(bundle.get(SOCIAL_MENTION_COUNT))
+    reddit_sentiment = coerce_float(bundle.get(SOCIAL_REDDIT_SENTIMENT))
     if trend_score is None or mention_count is None or reddit_sentiment is None:
         return None
     if trend_score >= SOCIAL_TREND_BUY_THRESHOLD and mention_count > 0 and reddit_sentiment > 0:
@@ -185,13 +160,12 @@ def _classify_social_overlay_vote(
 
 
 def select_rotation_overlay_direction(
-    account: sqlite3.Row,
+    account: dict[str, object],
     tickers: list[str],
     *,
     overlay_mode: str,
     fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None,
     fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None,
-    coerce_float_fn: Callable[[object], float | None] = coerce_float,
 ) -> str | None:
     if overlay_mode == "none" or not tickers:
         return None
@@ -203,14 +177,12 @@ def select_rotation_overlay_direction(
         if overlay_mode in {"news", "news_social"} and fetch_news_features_fn is not None:
             news_vote = _classify_news_overlay_vote(
                 fetch_news_features_fn(ticker),
-                coerce_float_fn=coerce_float_fn,
             )
             if news_vote is not None:
                 source_votes.append(news_vote)
         if overlay_mode in {"social", "news_social"} and fetch_social_features_fn is not None:
             social_vote = _classify_social_overlay_vote(
                 fetch_social_features_fn(ticker),
-                coerce_float_fn=coerce_float_fn,
             )
             if social_vote is not None:
                 source_votes.append(social_vote)
@@ -251,18 +223,16 @@ def apply_rotation_overlay_to_regime(regime_state: str, overlay_direction: str |
 
 
 def select_regime_strategy(
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
-    resolve_rotation_regime_strategy_fn: Callable[[sqlite3.Row, str], str | None],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
+    resolve_rotation_regime_strategy_fn: Callable[[dict[str, object], str], str | None],
     fetch_policy_features_fn: Callable[[str], ExternalFeatureBundle],
     conn: sqlite3.Connection | None = None,
     fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
-    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, sqlite3.Row], list[str]] | None = None,
-    resolve_rotation_overlay_mode_fn: Callable[[sqlite3.Row], str] = resolve_rotation_overlay_mode,
-    coerce_float_fn: Callable[[object], float | None] = coerce_float,
+    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, dict[str, object]], list[str]] | None = None,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
     if not schedule:
@@ -276,12 +246,11 @@ def select_regime_strategy(
     regime_state = classify_policy_regime(
         risk_on_score=bundle.get(POLICY_RISK_ON_SCORE),
         defensive_tilt=bundle.get(POLICY_DEFENSIVE_TILT),
-        coerce_float_fn=coerce_float_fn,
     )
     if regime_state is None:
         return active_strategy
 
-    overlay_mode = resolve_rotation_overlay_mode_fn(account)
+    overlay_mode = resolve_rotation_overlay_mode(account)
     if (
         overlay_mode != "none"
         and conn is not None
@@ -293,7 +262,6 @@ def select_regime_strategy(
             overlay_mode=overlay_mode,
             fetch_news_features_fn=fetch_news_features_fn,
             fetch_social_features_fn=fetch_social_features_fn,
-            coerce_float_fn=coerce_float_fn,
         )
         regime_state = apply_rotation_overlay_to_regime(regime_state, overlay_direction)
 
@@ -306,16 +274,16 @@ def select_regime_strategy(
 
 def compute_live_account_metrics(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
     fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
     compute_market_value_and_unrealized_fn: Callable[[dict[str, float], dict[str, float], dict[str, float]], tuple[float, float]],
 ) -> dict[str, float]:
     state = cast(
         object,
-        compute_account_state_fn(float(account["initial_cash"]), load_trades_fn(conn, int(account["id"]))),
+        compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id"))),
     )
     positions = cast(dict[str, float], getattr(state, "positions"))
     avg_cost = cast(dict[str, float], getattr(state, "avg_cost"))
@@ -330,15 +298,15 @@ def compute_live_account_metrics(
 
 def sync_rotation_episode(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     as_of_iso: str,
     *,
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
     fetch_open_rotation_episode_fn: Callable[..., sqlite3.Row | None],
     insert_rotation_episode_fn: Callable[..., None],
     close_rotation_episode_fn: Callable[..., None],
     fetch_snapshot_count_between_fn: Callable[..., int],
-    compute_live_account_metrics_fn: Callable[[sqlite3.Connection, sqlite3.Row], dict[str, float]],
+    compute_live_account_metrics_fn: Callable[[sqlite3.Connection, dict[str, object]], dict[str, float]],
 ) -> None:
     if not bool(int(cast(int | float | str | bytes | bytearray, account["rotation_enabled"] or 0))):
         return
@@ -348,13 +316,13 @@ def sync_rotation_episode(
         return
 
     metrics = compute_live_account_metrics_fn(conn, account)
-    open_episode = fetch_open_rotation_episode_fn(conn, account_id=int(account["id"]))
+    open_episode = fetch_open_rotation_episode_fn(conn, account_id=row_expect_int(account, "id"))
     episode_started_at = str(account["rotation_last_at"] or as_of_iso)
 
     if open_episode is None:
         insert_rotation_episode_fn(
             conn,
-            account_id=int(account["id"]),
+            account_id=row_expect_int(account, "id"),
             strategy_name=active_strategy,
             started_at=episode_started_at,
             starting_equity=float(metrics["equity"]),
@@ -367,7 +335,7 @@ def sync_rotation_episode(
 
     snapshot_count = fetch_snapshot_count_between_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         start_iso=str(open_episode["started_at"]),
         end_iso=as_of_iso,
     )
@@ -383,7 +351,7 @@ def sync_rotation_episode(
     )
     insert_rotation_episode_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         strategy_name=active_strategy,
         started_at=as_of_iso,
         starting_equity=float(metrics["equity"]),
@@ -393,27 +361,27 @@ def sync_rotation_episode(
 
 def select_optimal_strategy(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     as_of_iso: str,
     *,
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
     parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
-    resolve_optimality_mode_fn: Callable[[sqlite3.Row], str],
+    resolve_optimality_mode_fn: Callable[[dict[str, object]], str],
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
     if not schedule:
         return None
 
-    lookback_days = int(account["rotation_lookback_days"] or 180)
+    lookback_days = row_int(account, "rotation_lookback_days") or 180
     as_of_dt = parse_as_of_iso_fn(as_of_iso)
     end_day = as_of_dt.date().isoformat()
     start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
 
     returns = fetch_strategy_backtest_returns_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         strategy_names=schedule,
         start_day=start_day,
         end_day=end_day,
@@ -439,7 +407,7 @@ def select_optimal_strategy(
         if fetch_closed_rotation_episodes_fn is not None:
             closed_rows = fetch_closed_rotation_episodes_fn(
                 conn,
-                account_id=int(account["id"]),
+                account_id=row_expect_int(account, "id"),
                 strategy_names=schedule,
                 start_iso=f"{start_day}T00:00:00Z",
                 end_iso=as_of_iso,
@@ -449,7 +417,7 @@ def select_optimal_strategy(
                 ending_equity = row["ending_equity"]
                 if starting_equity is None or ending_equity is None:
                     continue
-                live_return = safe_return_pct(starting_equity, ending_equity, coerce_float_fn=coerce_float)
+                live_return = safe_return_pct(starting_equity, ending_equity)
                 if live_return is None:
                     continue
                 live_scores.setdefault(str(row["strategy_name"]), []).append(float(live_return))
@@ -487,18 +455,18 @@ def select_optimal_strategy(
 def rotate_account_if_due(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     now_iso: str,
     *,
-    is_rotation_due_fn: Callable[[sqlite3.Row], bool],
-    resolve_rotation_mode_fn: Callable[[sqlite3.Row], str],
-    select_optimal_strategy_fn: Callable[[sqlite3.Connection, sqlite3.Row, str], str | None],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
+    is_rotation_due_fn: Callable[[dict[str, object]], bool],
+    resolve_rotation_mode_fn: Callable[[dict[str, object]], str],
+    select_optimal_strategy_fn: Callable[[sqlite3.Connection, dict[str, object], str], str | None],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
     parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    next_rotation_state_fn: Callable[[sqlite3.Row, str], dict[str, object]],
+    next_rotation_state_fn: Callable[[dict[str, object], str], dict[str, object]],
     update_account_rotation_state_fn: Callable[..., None],
-    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
-) -> sqlite3.Row:
+    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]],
+) -> dict[str, object]:
     if not is_rotation_due_fn(account):
         return account
 
@@ -521,7 +489,7 @@ def rotate_account_if_due(
 
     update_account_rotation_state_fn(
         conn,
-        account_id=int(account["id"]),
+        account_id=row_expect_int(account, "id"),
         strategy=str(next_state["rotation_active_strategy"]),
         rotation_active_index=int(
             cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])

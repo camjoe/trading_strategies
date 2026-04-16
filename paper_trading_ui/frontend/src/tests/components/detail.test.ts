@@ -1,9 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AccountDetail } from "../../types";
 import { renderDetail } from "../../components/detail";
+import { resetAccountConfigOptions, setAccountConfigOptions } from "../../lib/account-config-options";
 
 describe("renderDetail", () => {
+  beforeEach(() => {
+    setAccountConfigOptions({
+      goalPeriods: ["monthly", "weekly", "quarterly", "yearly"],
+      riskPolicies: ["none", "fixed_stop", "take_profit", "stop_and_target"],
+      instrumentModes: ["equity", "leaps"],
+      optionTypes: ["call", "put", "both"],
+      rotationModes: ["time", "optimal", "regime"],
+      rotationOptimalityModes: ["previous_period_best", "average_return", "hybrid_weighted"],
+      rotationOverlayModes: ["none", "news", "social", "news_social"],
+      defaults: {
+        goalPeriod: "monthly",
+        riskPolicy: "none",
+        instrumentMode: "equity",
+        rotationMode: "time",
+        rotationOptimalityMode: "previous_period_best",
+        rotationOverlayMode: "none",
+      },
+    });
+  });
+
+  afterEach(() => {
+    resetAccountConfigOptions();
+  });
+
   it("renders latest backtest section when available", () => {
     const detail: AccountDetail = {
       account: {
@@ -25,6 +50,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: "2026-03-15T00:00:00Z",
         changeSinceLastSnapshot: 5,
         latestSnapshotTime: "2026-03-15T00:00:00Z",
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -62,7 +89,6 @@ describe("renderDetail", () => {
         endDate: "2026-02-01",
         totalReturnPct: 14,
         maxDrawdownPct: -4,
-        alphaPct: 5,
         sharpeRatio: 1.5,
         winRatePct: 58,
         profitFactor: 1.8,
@@ -159,6 +185,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -214,6 +242,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -270,6 +300,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,

@@ -4,6 +4,12 @@ from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
 
+def _parse_warnings(raw: object) -> list[str]:
+    if not raw:
+        return []
+    return [w.strip() for w in str(raw).split(" | ") if w.strip()]
+
+
 @dataclass
 class BacktestReportSummary:
     run_id: int
@@ -16,7 +22,7 @@ class BacktestReportSummary:
     slippage_bps: float
     fee_per_trade: float
     tickers_file: str
-    warnings: object
+    warnings: list[str]
     trade_count: int
     starting_equity: float
     ending_equity: float
@@ -42,7 +48,7 @@ class BacktestReportSummary:
             slippage_bps=float(value["slippage_bps"]),
             fee_per_trade=float(value["fee_per_trade"]),
             tickers_file=str(value["tickers_file"]),
-            warnings=value.get("warnings"),
+            warnings=_parse_warnings(value.get("warnings")),
             trade_count=int(value["trade_count"]),
             starting_equity=float(value["starting_equity"]),
             ending_equity=float(value["ending_equity"]),

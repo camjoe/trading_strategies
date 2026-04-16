@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import os
 import re
 import sys
 import time
@@ -14,33 +13,31 @@ from pathlib import Path
 from typing import Callable
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line
+from trading.interfaces.runtime.jobs.task_runs import (
+    day_tag,
+    is_env_truthy,
+    is_transient_error,
+    latest_log_contains_sentinel,
+    logs_dir_for_repo,
+    resolve_accounts,
+    retry_delay_seconds,
+    run_command,
+    tee_line,
+    ts,
+    write_artifact,
+    CLI_MAIN_MODULE,
+)
 from trading.services.accounts_service import load_all_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-BACKTEST_REFRESH_EXPORT_DIR = REPO_ROOT / "local" / "exports" / "scheduled_backtest_refresh"
 
 # Explicit opt-in env var so scheduled reruns remain operator-controlled.
 BACKTEST_REFRESH_ENABLED_ENV = "SCHEDULED_BACKTEST_REFRESH_ENABLED"
 
 # Successful scheduled refresh runs write this sentinel into the newest log.
 COMPLETE_SENTINEL = "COMPLETE: Scheduled backtest refresh succeeded."
-
-# Retry only on transient fetch/connectivity errors from market-data dependent backtests.
-TRANSIENT_ERROR_TOKENS = (
-    "temporarily unavailable",
-    "timed out",
-    "timeout",
-    "connection reset",
-    "connection aborted",
-    "connection error",
-    "temporary failure",
-    "try again",
-    "rate limit",
-    "too many requests",
-)
 
 RUN_ID_PATTERN = re.compile(r"run_id=(?P<run_id>\d+)")
 
@@ -112,28 +109,15 @@ def parse_args() -> argparse.Namespace:
 def is_run_enabled(args: argparse.Namespace) -> bool:
     if bool(args.enable_run):
         return True
-    return os.getenv(BACKTEST_REFRESH_ENABLED_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+    return is_env_truthy(BACKTEST_REFRESH_ENABLED_ENV)
 
 
-def _day_tag(now: dt.datetime) -> str:
-    return now.strftime("%Y%m%d")
-
-
-def already_completed_today(log_dir: Path, day_tag: str) -> bool:
+def already_completed_today(log_dir: Path, day_tag_str: str) -> bool:
     return latest_log_contains_sentinel(
         log_dir,
-        f"scheduled_backtest_refresh_{day_tag}_*.log",
+        f"scheduled_backtest_refresh_{day_tag_str}_*.log",
         COMPLETE_SENTINEL,
     )
-
-
-def is_transient_error(output: str) -> bool:
-    lowered = output.lower()
-    return any(token in lowered for token in TRANSIENT_ERROR_TOKENS)
-
-
-def retry_delay_seconds(base_delay_seconds: float, attempt_number: int) -> float:
-    return max(base_delay_seconds, 0.0) * (2 ** (attempt_number - 1))
 
 
 def build_run_name(*, run_name_prefix: str, day_tag: str, account: str) -> str:
@@ -148,7 +132,7 @@ def build_backtest_command(
 ) -> list[str]:
     command = [
         "-m",
-        "trading.interfaces.cli.main",
+        CLI_MAIN_MODULE,
         "backtest",
         "--account",
         account,
@@ -192,7 +176,7 @@ def run_backtest_refresh_with_retry(
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
     attempts = max(1, int(args.max_attempts))
-    started_at = dt.datetime.now(dt.timezone.utc).astimezone().isoformat()
+    started_at = ts()
 
     for attempt in range(1, attempts + 1):
         label = f"Backtest refresh {account} (attempt {attempt}/{attempts})"
@@ -210,7 +194,7 @@ def run_backtest_refresh_with_retry(
                 "attempts": attempt,
                 "run_id": run_id,
                 "started_at": started_at,
-                "finished_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
+                "finished_at": ts(),
                 "last_exit_code": exit_code,
             }
 
@@ -221,7 +205,7 @@ def run_backtest_refresh_with_retry(
             "attempts": attempt,
             "run_id": run_id,
             "started_at": started_at,
-            "finished_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
+            "finished_at": ts(),
             "last_exit_code": exit_code,
             "transient": transient,
         }
@@ -235,7 +219,7 @@ def run_backtest_refresh_with_retry(
         tee_line(
             log_path,
             (
-                f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RETRY: "
+                f"[{ts()}] RETRY: "
                 f"account={account} attempt={attempt} delay_seconds={delay_seconds:.2f}"
             ),
         )
@@ -247,27 +231,10 @@ def run_backtest_refresh_with_retry(
         "attempts": attempts,
         "run_id": None,
         "started_at": started_at,
-        "finished_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
+        "finished_at": ts(),
         "last_exit_code": 1,
         "transient": False,
     }
-
-
-def write_artifact(artifact_path: Path, payload: dict[str, object]) -> None:
-    artifact_path.parent.mkdir(parents=True, exist_ok=True)
-    artifact_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def _resolve_accounts(accounts_arg: str, all_accounts: list[str]) -> list[str]:
-    if accounts_arg.strip().lower() == "all":
-        return all_accounts
-
-    requested = [item.strip() for item in accounts_arg.split(",") if item.strip()]
-    known = set(all_accounts)
-    missing = [name for name in requested if name not in known]
-    if missing:
-        raise ValueError(f"Unknown account(s): {', '.join(missing)}")
-    return requested
 
 
 def main() -> int:
@@ -294,13 +261,13 @@ def main() -> int:
     export_dir.mkdir(parents=True, exist_ok=True)
 
     now = dt.datetime.now()
-    day_tag = _day_tag(now)
+    today = day_tag(now)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = logs_dir / f"scheduled_backtest_refresh_{day_tag}_{timestamp}.log"
+    log_path = logs_dir / f"scheduled_backtest_refresh_{today}_{timestamp}.log"
     artifact_path = export_dir / f"scheduled_backtest_refresh_{timestamp}.json"
 
     try:
-        accounts = _resolve_accounts(args.accounts, load_all_account_names())
+        accounts = resolve_accounts(args.accounts, load_all_account_names())
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -312,7 +279,7 @@ def main() -> int:
         "job": "scheduled_backtest_refresh",
         "run_source": args.run_source,
         "force_run": bool(args.force_run),
-        "day_tag": day_tag,
+        "day_tag": today,
         "accounts": accounts,
         "tickers_file": args.tickers_file,
         "universe_history_dir": args.universe_history_dir,
@@ -327,13 +294,13 @@ def main() -> int:
         "backoff_seconds": args.backoff_seconds,
         "log_path": str(log_path.relative_to(repo_root)),
         "artifact_path": str(artifact_path.relative_to(repo_root)),
-        "started_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
+        "started_at": ts(),
     }
-    tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
+    tee_line(log_path, f"[{ts()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
 
-    if not args.force_run and already_completed_today(logs_dir, day_tag):
+    if not args.force_run and already_completed_today(logs_dir, today):
         message = "Scheduled backtest refresh already completed today; skipping duplicate run."
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] SKIP: {message}")
+        tee_line(log_path, f"[{ts()}] SKIP: {message}")
         write_artifact(
             artifact_path,
             {
@@ -341,7 +308,7 @@ def main() -> int:
                 "status": "skipped",
                 "skip_reason": "already-completed-today",
                 "results": [],
-                "finished_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
+                "finished_at": ts(),
             },
         )
         print(message)
@@ -363,7 +330,7 @@ def main() -> int:
             tee_line(
                 log_path,
                 (
-                    f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] "
+                    f"[{ts()}] "
                     f"ERROR: Backtest refresh failed for account={account} "
                     f"attempts={result['attempts']} transient={result.get('transient', False)}"
                 ),
@@ -371,7 +338,7 @@ def main() -> int:
             break
 
     if not failed:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")
+        tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
 
     write_artifact(
         artifact_path,
@@ -379,7 +346,7 @@ def main() -> int:
             **run_meta,
             "status": "success" if not failed else "failed",
             "results": results,
-            "finished_at": dt.datetime.now(dt.timezone.utc).astimezone().isoformat(),
+            "finished_at": ts(),
         },
     )
     return 0 if not failed else 1

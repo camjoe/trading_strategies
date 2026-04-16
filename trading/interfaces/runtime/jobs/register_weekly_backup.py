@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from trading.interfaces.runtime.jobs.task_runs import logs_dir_for_repo
 
 WINDOWS_DAYS = {
     "monday": "MON",
@@ -120,7 +121,7 @@ def linux_register(args: argparse.Namespace, repo_root: Path) -> int:
     hour, minute = validate_time(args.time)
     marker = f"# {args.task_name}"
     python_exe = str(Path(args.python).resolve())
-    log_path = repo_root / "local" / "logs" / "weekly_db_backup_cron.log"
+    log_path = logs_dir_for_repo(repo_root) / "weekly_db_backup_cron.log"
     cron_line = (
         f"{minute} {hour} * * {CRON_DAYS[day_key]} "
         f"cd {repo_root} && {python_exe} -m {WEEKLY_BACKUP_MODULE} >> {log_path} 2>&1 {marker}"
