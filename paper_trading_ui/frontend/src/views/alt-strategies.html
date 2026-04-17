@@ -1,8 +1,14 @@
 <div id="tab-alt-strategies" class="tab-panel layout" hidden>
   <section class="card alt-strategies-card">
-    <div class="card-header">
-      <h2>Provider Status</h2>
-      <button id="alt-refresh-btn" type="button">Refresh</button>
+    <div class="card-header section-heading">
+      <div>
+        <p class="section-kicker">Sentiment</p>
+        <h2>Provider Status</h2>
+        <p class="section-copy">Check external signal providers at a glance before drilling into individual ticker outputs.</p>
+      </div>
+      <div class="section-actions">
+        <button id="alt-refresh-btn" type="button">Refresh</button>
+      </div>
     </div>
     <div id="alt-providers-grid" class="alt-providers-grid">
       <div class="empty">Loading…</div>
@@ -10,7 +16,13 @@
   </section>
 
   <section class="card alt-strategies-card">
-    <h2>Signal Outputs</h2>
+    <div class="section-heading">
+      <div>
+        <p class="section-kicker">Signals</p>
+        <h2>Signal Outputs</h2>
+        <p class="section-copy">Look up one ticker at a time and read the result in a simpler, more focused presentation.</p>
+      </div>
+    </div>
     <form id="alt-signals-form" class="bt-form">
       <div class="bt-row">
         <div class="bt-field">
