@@ -127,9 +127,7 @@ export function renderConfigSection(
           <h4>Account Configuration</h4>
           <p class="muted">Review the current account setup, then open the editor when you want to update parameters.</p>
         </div>
-        ${showActions ? `<button id="editParamsBtn" type="button">Edit Parameters</button>` : ""}
       </div>
-      ${renderConfigSummary(detail)}
       ${showActions ? `<div id="editParamsPanel" class="edit-params-panel" hidden>
       <div class="edit-params-section">
         <h5>Core</h5>
@@ -359,6 +357,7 @@ export function renderConfigSection(
         <div id="editParamsMsg"></div>
       </div>
     </div>` : `<div class="empty">Config editing is unavailable for this account.</div>`}
+      ${renderConfigSummary(detail)}
     </article>
   `;
 }

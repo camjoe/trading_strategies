@@ -1,9 +1,15 @@
 <div class="admin-section-page" data-admin-section-panel="jobs">
   <section class="card admin-card">
     <h2>Admin: Jobs &amp; Health</h2>
-    <p class="admin-note">Track scheduled runtime jobs and inspect the latest snapshot, refresh, and backup artifacts written under <code>local/</code>.</p>
-    <div class="admin-ops-controls">
-      <button id="adminOpsRefreshBtn" type="button">Refresh Runtime Status</button>
+    <div class="admin-note-row">
+      <p class="admin-note">Track scheduled runtime jobs and inspect the latest snapshot, refresh, and backup artifacts written under <code>local/</code>.</p>
+      <button
+        id="adminOpsRefreshBtn"
+        class="icon-button"
+        type="button"
+        aria-label="Refresh runtime status"
+        data-tooltip="Refresh runtime status"
+      >↻</button>
     </div>
     <div id="adminOpsMeta" class="admin-note">No operations snapshot loaded yet.</div>
     <div id="adminOpsOutput" class="admin-ops-output">

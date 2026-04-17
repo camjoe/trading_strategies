@@ -7,11 +7,10 @@ export function renderDetailHeader(
   detail: AccountDetail,
   options: {
     benchmarkSummary: string;
-    showActions: boolean;
     showAddTrade: boolean;
   },
 ): string {
-  const { benchmarkSummary, showActions, showAddTrade } = options;
+  const { benchmarkSummary, showAddTrade } = options;
   return `
     <div class="detail-head">
       <div>
@@ -24,16 +23,18 @@ export function renderDetailHeader(
         </p>
         ${benchmarkSummary}
       </div>
-      ${showActions || showAddTrade ? `<div class="detail-head-actions">
-        ${showAddTrade ? `<button id="addTradeBtn" type="button">+ Add Trade</button>` : ""}
-        ${showActions ? `<button id="openConfigBtn" type="button">Open Config</button>
-        <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>` : ""}
+      ${showAddTrade ? `<div class="detail-head-actions">
+        <button id="addTradeBtn" type="button">+ Add Trade</button>
       </div>` : ""}
     </div>
   `;
 }
 
-export function renderSectionTabs(activeSection: DetailSectionName): string {
+export function renderSectionTabs(
+  activeSection: DetailSectionName,
+  options: { showActions: boolean; accountName: string },
+): string {
+  const { showActions, accountName } = options;
   const sectionTabs: Array<{ id: DetailSectionName; label: string }> = [
     { id: "summary", label: "Summary" },
     { id: "analysis", label: "Analysis" },
@@ -59,6 +60,18 @@ export function renderSectionTabs(activeSection: DetailSectionName): string {
           `,
         )
         .join("")}
+      ${showActions ? `<span class="detail-section-tabs-spacer"></span>
+        <div class="detail-section-tab-actions">
+          <button id="openConfigBtn" class="icon-button" type="button" aria-label="Edit configuration" data-tooltip="Edit config">
+            <span class="button-icon" aria-hidden="true">✎</span>
+          </button>
+          <button id="snapshotOneBtn" class="icon-button" type="button" data-account="${esc(accountName)}" aria-label="Snapshot this account" data-tooltip="Snapshot account">
+            <svg class="button-icon-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.9a1.5 1.5 0 0 0 1.06-.44l.5-.5A1.5 1.5 0 0 1 11.02 4.5h1.96a1.5 1.5 0 0 1 1.06.44l.5.5A1.5 1.5 0 0 0 15.6 6h1.9A2.5 2.5 0 0 1 20 8.5v7A2.5 2.5 0 0 1 17.5 18h-11A2.5 2.5 0 0 1 4 15.5z"/>
+              <circle cx="12" cy="12" r="3.25"/>
+            </svg>
+          </button>
+        </div>` : ""}
     </div>
   `;
 }

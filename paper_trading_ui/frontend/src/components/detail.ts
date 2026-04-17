@@ -117,8 +117,8 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
     : "";
 
   return `
-    ${renderDetailHeader(detail, { benchmarkSummary, showActions, showAddTrade })}
-    ${renderSectionTabs(activeSection)}
+    ${renderDetailHeader(detail, { benchmarkSummary, showAddTrade })}
+    ${renderSectionTabs(activeSection, { showActions, accountName: detail.account.name })}
     ${renderAddTradePanel(showAddTrade)}
     ${renderSummarySection(activeSection, detail, { showBacktest, latestBacktest })}
     ${renderAnalysisSection(activeSection)}

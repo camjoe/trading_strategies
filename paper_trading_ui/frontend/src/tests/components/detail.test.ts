@@ -153,8 +153,10 @@ describe("renderDetail", () => {
     expect(html).toContain("Open Positions");
     expect(html).toContain("Change Since Snapshot");
     expect(html).toContain("<svg");
-    expect(html).toContain("Snapshot This Account");
-    expect(html).toContain("Open Config");
+    expect(html).toContain('id="snapshotOneBtn"');
+    expect(html).toContain('id="openConfigBtn"');
+    expect(html).toContain('data-tooltip="Edit config"');
+    expect(html).toContain('data-tooltip="Snapshot account"');
     expect(html).toContain('class="detail-section-tab active"');
     expect(html).toContain('data-detail-panel="summary"');
     expect(html).toContain('data-detail-panel="analysis" hidden');
@@ -345,7 +347,8 @@ describe("renderDetail", () => {
     expect(html).toContain("No trades yet");
     expect(html).toContain("Latest Snapshot");
     expect(html).toContain("Last Trade");
-    expect(html).toContain("Open Config");
+    expect(html).toContain('id="openConfigBtn"');
+    expect(html).toContain('data-tooltip="Edit config"');
     expect(html).toContain("Account Configuration");
     expect(html).toContain("Review the current account setup");
     // risk-policy select should render all four options, current one selected
@@ -432,6 +435,8 @@ describe("renderDetail", () => {
     expect(configHtml).toContain("Core Settings");
     expect(configHtml).toContain("Rotation Settings");
     expect(configHtml).toContain("Overlay Watchlist");
-    expect(configHtml).toContain("Edit Parameters");
+    expect(configHtml).not.toContain('id="editParamsBtn"');
+    expect(configHtml).toContain('id="openConfigBtn"');
+    expect(configHtml).toContain('id="snapshotOneBtn"');
   });
 });

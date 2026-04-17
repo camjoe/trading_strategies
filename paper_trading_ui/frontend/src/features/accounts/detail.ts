@@ -201,15 +201,16 @@ export function renderCurrentDetail(
   });
 
   bindClick<HTMLButtonElement>("#openConfigBtn", () => {
+    const existingPanel = find<HTMLDivElement>("#editParamsPanel");
+    const panelOpen = state.currentDetailSection === "config" && !!existingPanel && !existingPanel.hidden;
+    if (panelOpen) {
+      renderCurrentDetail(state, options, handlers);
+      return;
+    }
     state.currentDetailSection = "config";
     renderCurrentDetail(state, options, handlers);
     const panel = find<HTMLDivElement>("#editParamsPanel");
     if (panel) panel.hidden = false;
-  });
-
-  bindClick<HTMLButtonElement>("#editParamsBtn", () => {
-    const panel = find<HTMLDivElement>("#editParamsPanel");
-    if (panel) panel.hidden = !panel.hidden;
   });
 
   bindClick<HTMLButtonElement>("#editParamsCancelBtn", () => {
