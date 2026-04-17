@@ -32,6 +32,7 @@ def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
 
         assert "accounts" in names
         assert "trades" in names
+        assert "global_settings" in names
         assert "equity_snapshots" in names
         assert "backtest_runs" in names
         assert "backtest_trades" in names
@@ -81,6 +82,9 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         assert "rotation_overlay_watchlist" in account_columns
         assert "rotation_active_strategy" in account_columns
         assert "strategy_name" in run_columns
+        global_settings_columns = db._column_names(conn, "global_settings")
+        assert "runtime_max_trades_per_day" in global_settings_columns
+        assert "runtime_max_trades_per_minute" in global_settings_columns
 
         row = conn.execute(
             "SELECT name, descriptive_name, benchmark_ticker, rotation_overlay_watchlist FROM accounts WHERE name = 'acct_legacy'"

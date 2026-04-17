@@ -128,12 +128,13 @@ Both tuples are processed by `init_schema()`. Any new table requiring additive m
 |-------|---------|
 | `accounts` | Account profiles with strategy config, risk policy, and rotation settings |
 | `trades` | Live trade records linked to accounts |
+| `global_settings` | Singleton row for repo-wide platform policy such as runtime trade throttles |
 | `equity_snapshots` | Daily/periodic equity snapshots per account |
 | `backtest_runs` | Backtest run metadata |
 | `backtest_trades` | Individual trades within a backtest run |
 | `backtest_equity_snapshots` | Equity curve for a backtest run |
 
-Indexes: `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
+Indexes: `idx_trades_trade_time`, `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
 
 ---
 

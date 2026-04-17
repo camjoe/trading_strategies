@@ -14,6 +14,11 @@ from trading.repositories.snapshots_repository import (
     insert_snapshot_row,
 )
 from trading.repositories.trades_repository import fetch_trades_for_account, insert_trade
+from trading.repositories.trades_repository import count_trades_between
+from trading.repositories.global_settings_repository import (
+    fetch_global_settings_row,
+    upsert_runtime_throttle_settings,
+)
 from trading.repositories.rotation_repository import (
     close_rotation_episode,
     fetch_closed_rotation_episodes,
@@ -35,7 +40,10 @@ __all__ = [
     "fetch_snapshot_history_rows",
     "insert_snapshot_row",
     "fetch_trades_for_account",
+    "count_trades_between",
     "insert_trade",
+    "fetch_global_settings_row",
+    "upsert_runtime_throttle_settings",
     "fetch_open_rotation_episode",
     "insert_rotation_episode",
     "close_rotation_episode",

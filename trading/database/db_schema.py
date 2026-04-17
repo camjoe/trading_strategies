@@ -67,6 +67,23 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 """
 
+TRADES_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_trades_trade_time ON trades(trade_time);
+"""
+
+GLOBAL_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS global_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    runtime_max_trades_per_day INTEGER CHECK (
+        runtime_max_trades_per_day IS NULL OR runtime_max_trades_per_day >= 1
+    ),
+    runtime_max_trades_per_minute INTEGER CHECK (
+        runtime_max_trades_per_minute IS NULL OR runtime_max_trades_per_minute >= 1
+    ),
+    updated_at TEXT
+);
+"""
+
 EQUITY_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS equity_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -302,6 +319,8 @@ SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
         TRADES_TABLE_SQL,
+        TRADES_INDEXES_SQL,
+        GLOBAL_SETTINGS_TABLE_SQL,
         EQUITY_SNAPSHOTS_TABLE_SQL,
         BACKTEST_RUNS_TABLE_SQL,
         BACKTEST_TRADES_TABLE_SQL,
