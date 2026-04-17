@@ -3,11 +3,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from common.repo_paths import get_repo_root
+from common.project_paths import DB_CONFIG_PATH, PAPER_TRADING_DB_PATH, REPO_ROOT
 
-_REPO_ROOT = get_repo_root(__file__)
-_DEFAULT_DB_PATH = _REPO_ROOT / "local" / "paper_trading.db"
-_DEFAULT_CONFIG_PATH = _REPO_ROOT / "local" / "db_config.json"
+_DEFAULT_DB_PATH = PAPER_TRADING_DB_PATH
+_DEFAULT_CONFIG_PATH = DB_CONFIG_PATH
 
 
 def _config_path() -> Path:
@@ -29,7 +28,7 @@ def _path_from_file(config_path: Path) -> Path | None:
     candidate = Path(db_path_raw).expanduser()
     if candidate.is_absolute():
         return candidate.resolve()
-    return (_REPO_ROOT / candidate).resolve()
+    return (REPO_ROOT / candidate).resolve()
 
 
 def get_db_path() -> Path:

@@ -11,18 +11,23 @@ import json
 from pathlib import Path
 from typing import Protocol
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+from common.project_paths import (
+    ACCOUNT_PROFILES_DIR,
+    DEFAULT_ACCOUNT_PROFILE_PATH,
+    LEGACY_ACCOUNT_PROFILES_DIR,
+    LEGACY_ACCOUNT_PROFILES_PREFIX,
+    TRADE_UNIVERSE_PATH,
+)
 
 # Mirrors trading.database.db_common.DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE — same file.
-DEFAULT_ACCOUNT_PROFILES_FILE = str(_REPO_ROOT / "trading" / "config" / "account_profiles" / "default.json")
-DEFAULT_TICKERS_FILE = str(_REPO_ROOT / "trading" / "config" / "trade_universe.txt")
+DEFAULT_ACCOUNT_PROFILES_FILE = str(DEFAULT_ACCOUNT_PROFILE_PATH)
+DEFAULT_TICKERS_FILE = str(TRADE_UNIVERSE_PATH)
 
 
 def _profiles_dir_candidates() -> list[Path]:
-    trading_root = Path(__file__).resolve().parents[1]
     return [
-        trading_root / "config" / "account_profiles",
-        trading_root / "account_profiles",
+        ACCOUNT_PROFILES_DIR,
+        LEGACY_ACCOUNT_PROFILES_DIR,
     ]
 
 
@@ -41,11 +46,10 @@ def resolve_profile_file_path(file_path: str | Path) -> Path:
     if candidate.exists():
         return candidate
 
-    legacy_prefix = "trading/account_profiles/"
     normalized = candidate.as_posix()
-    if normalized.startswith(legacy_prefix):
-        suffix = normalized[len(legacy_prefix) :]
-        return _REPO_ROOT / "trading" / "config" / "account_profiles" / suffix
+    if normalized.startswith(LEGACY_ACCOUNT_PROFILES_PREFIX):
+        suffix = normalized[len(LEGACY_ACCOUNT_PROFILES_PREFIX) :]
+        return ACCOUNT_PROFILES_DIR / suffix
 
     return candidate
 

@@ -39,12 +39,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from common.project_paths import SCREENSHOTS_DIR
 from scripts.ui_config import FRONTEND_PORT, UI_HOST
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_URL = f"http://{UI_HOST}:{FRONTEND_PORT}"
-DEFAULT_OUTPUT_DIR = REPO_ROOT / "local" / "screenshots"
+DEFAULT_OUTPUT_DIR = SCREENSHOTS_DIR
 DEFAULT_VIEWPORT = (1440, 900)
 ANALYSIS_LOADING_TEXT = "Loading analysis"
 
