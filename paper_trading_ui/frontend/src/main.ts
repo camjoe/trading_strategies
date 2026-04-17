@@ -11,7 +11,7 @@ import { initDocsFeature } from "./features/docs";
 import { buildDocsTemplate } from "./lib/docs-renderer";
 import appLayoutTemplate from "./views/app-layout.html?raw";
 import navTemplate from "./views/nav.html?raw";
-import tradesTemplate from "./views/trades.html?raw";
+import logsTemplate from "./views/trades.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
@@ -39,7 +39,7 @@ function openTab(target: string): void {
 function renderShell(): void {
   app.innerHTML = appLayoutTemplate
     .replace("<!-- NAV_PARTIAL -->", navTemplate)
-    .replace("<!-- TRADES_TAB_PARTIAL -->", tradesTemplate)
+    .replace("<!-- LOGS_TAB_PARTIAL -->", logsTemplate)
     .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTemplate)
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", adminTemplate)
@@ -55,7 +55,12 @@ const accountsFeature = createAccountsFeature({
   },
   onOpenRunReport: (runId) => backtestingFeature.loadBacktestReport(runId),
 });
-const compareFeature = createCompareFeature();
+const compareFeature = createCompareFeature({
+  onOpenAccount: async (accountName) => {
+    openTab("accounts");
+    await accountsFeature.loadAccountDetail(accountName);
+  },
+});
 const adminFeature = createAdminFeature({
   onAccountsChanged: async () => {
     await accountsFeature.loadAccounts();

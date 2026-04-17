@@ -7,11 +7,12 @@ A separate scaffold for viewing paper trading accounts, snapshots, trades, and l
 Provide a local dashboard and API for paper-trading operations, including:
 
 - **Account visibility** — live summary cards and per-account detail (snapshots, trades, backtest metrics, and live benchmark overlays).
+- **Account workspace** — a focused one-account-at-a-time workspace with account switching/search, keeping trade history inside the selected account instead of a separate trade tab.
 - **Test Account tab** — dedicated view for the virtual `test_account`, with a manual trade entry form to inject buy/sell records directly into its backing DB account.
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
 - **Account parameter editing** — inline update of core, options, and rotation fields per managed account via the account detail panel, including `rotationOverlayWatchlist` for regime overlays. Not available on the Test Account view.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
-- **Snapshots and operational logs** — snapshot actions and log-file browsing.
+- **Snapshots and operational logs** — snapshot actions in the account workspace plus a dedicated Logs tab for operational log-file browsing.
 
 ## Environment Setup
 

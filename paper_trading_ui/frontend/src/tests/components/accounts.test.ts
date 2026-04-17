@@ -45,4 +45,23 @@ describe("accountCard", () => {
     expect(html).toContain("none");
     expect(html).toContain("row down");
   });
+
+  it("marks the selected account card as current", () => {
+    const account: AccountListItem = {
+      name: "acct1",
+      displayName: "Growth",
+      strategy: "Momentum",
+      instrumentMode: "equity",
+      benchmark: "SPY",
+      equity: 10500,
+      totalChange: 500,
+      totalChangePct: 5,
+      changeSinceLastSnapshot: 10,
+      latestSnapshotTime: "2026-03-15T00:00:00Z",
+    };
+
+    const html = accountCard(account, { selected: true });
+    expect(html).toContain('class="account-card active"');
+    expect(html).toContain('aria-current="true"');
+  });
 });

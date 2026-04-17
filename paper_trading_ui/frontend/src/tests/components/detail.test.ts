@@ -151,6 +151,9 @@ describe("renderDetail", () => {
     expect(html).toContain("<svg");
     expect(html).toContain("Snapshot This Account");
     expect(html).toContain("Edit Parameters");
+    expect(html).toContain('class="detail-section-tab active"');
+    expect(html).toContain('data-detail-panel="summary"');
+    expect(html).toContain('data-detail-panel="trades" hidden');
     expect(html).toContain("Rotation Settings");
     expect(html).toContain("editRotationModeSelect");
     expect(html).toContain("editRotationScheduleInput");

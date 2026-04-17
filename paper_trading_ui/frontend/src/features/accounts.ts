@@ -31,15 +31,106 @@ function bindClick<T extends Element>(selector: string, handler: (element: T) =>
 export function createAccountsFeature(options: AccountsFeatureOptions = {}): AccountsFeature {
   let cachedAccounts: AccountListItem[] = [];
   let currentDetail: AccountDetail | null = null;
+  let currentAccountName: string | null = null;
   let currentTradePage = 1;
   let currentAnalysis: AccountAnalysis | null = null;
+  let currentDetailSection: "summary" | "positions" | "trades" | "snapshots" = "summary";
+  let accountBrowserOpen = false;
   const tradePageSize = 20;
+
+  function getSelectedAccount(): AccountListItem | null {
+    if (!currentAccountName) {
+      return null;
+    }
+    return cachedAccounts.find((account) => account.name === currentAccountName) ?? null;
+  }
+
+  function updateAccountBrowserToggle(): void {
+    const button = find<HTMLButtonElement>("#toggleAccountBrowserBtn");
+    const panel = find<HTMLDivElement>("#accountBrowserPanel");
+    if (!button || !panel) {
+      return;
+    }
+
+    panel.hidden = !accountBrowserOpen;
+    button.textContent = accountBrowserOpen ? "Hide Account Browser" : "Browse Accounts";
+    button.setAttribute("aria-expanded", String(accountBrowserOpen));
+  }
+
+  function renderAccountBrowser(searchTerm: string = ""): void {
+    const target = find<HTMLDivElement>("#accountsGrid");
+    if (!target) return;
+
+    const normalized = searchTerm.trim().toLowerCase();
+    const visibleAccounts = cachedAccounts.filter((account) => {
+      if (!normalized) {
+        return true;
+      }
+      return [account.displayName, account.name, account.strategy, account.benchmark]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized);
+    });
+
+    if (!visibleAccounts.length) {
+      target.innerHTML = `<div class="empty">No accounts match that search.</div>`;
+      return;
+    }
+
+    target.innerHTML = visibleAccounts
+      .map((account) => accountCard(account, { selected: account.name === currentAccountName }))
+      .join("");
+
+    for (const btn of findAll<HTMLButtonElement>(".account-card")) {
+      btn.addEventListener("click", async () => {
+        const accountName = btn.dataset.account;
+        if (!accountName) return;
+        accountBrowserOpen = false;
+        updateAccountBrowserToggle();
+        await loadAccountDetail(accountName);
+      });
+    }
+  }
+
+  function populateAccountSelect(): void {
+    const select = find<HTMLSelectElement>("#accountSelect");
+    if (!select) return;
+
+    if (!cachedAccounts.length) {
+      select.innerHTML = `<option value="">No accounts</option>`;
+      return;
+    }
+
+    select.innerHTML = cachedAccounts
+      .map((account) => `<option value="${esc(account.name)}">${esc(account.displayName)} (${esc(account.name)})</option>`)
+      .join("");
+
+    if (currentAccountName) {
+      select.value = currentAccountName;
+    }
+  }
+
+  function renderWorkspaceMeta(): void {
+    const meta = find<HTMLParagraphElement>("#accountWorkspaceMeta");
+    if (!meta) return;
+
+    const account = getSelectedAccount();
+    if (!account) {
+      meta.textContent = cachedAccounts.length
+        ? "Select an account to focus the workspace."
+        : "No accounts found in the paper trading database.";
+      return;
+    }
+
+    meta.textContent = `${account.displayName} (${account.name}) - ${account.strategy} vs ${account.benchmark}.`;
+  }
 
   function renderCurrentDetail(): void {
     const target = find<HTMLDivElement>("#accountDetail");
     if (!target || !currentDetail) return;
 
     target.innerHTML = renderDetail(currentDetail, {
+      activeSection: currentDetailSection,
       tradePage: currentTradePage,
       tradePageSize,
       showAddTrade: currentDetail.account.name === TEST_ACCOUNT_NAME,
@@ -225,19 +316,42 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       const panel = find<HTMLElement>("#analysisPanel");
       if (panel) panel.innerHTML = renderAnalysisPanel(currentAnalysis);
     }
+
+    for (const button of findAll<HTMLButtonElement>(".detail-section-tab")) {
+      button.addEventListener("click", () => {
+        const section = button.dataset.detailSection;
+        if (
+          section !== "summary"
+          && section !== "positions"
+          && section !== "trades"
+          && section !== "snapshots"
+        ) {
+          return;
+        }
+        currentDetailSection = section;
+        renderCurrentDetail();
+      });
+    }
   }
 
   async function loadAccounts(): Promise<void> {
-    const target = find<HTMLDivElement>("#accountsGrid");
-    if (!target) return;
-
-    target.innerHTML = `<div class="empty">Loading accounts...</div>`;
+    const browserTarget = find<HTMLDivElement>("#accountsGrid");
+    if (browserTarget) {
+      browserTarget.innerHTML = `<div class="empty">Loading accounts...</div>`;
+    }
 
     let data: { accounts: AccountListItem[] };
     try {
       data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
     } catch (err) {
-      target.innerHTML = `<div class="error">Failed to load accounts: ${esc(errorMessage(err, "network error"))}. Is the backend running?</div>`;
+      const message = `<div class="error">Failed to load accounts: ${esc(errorMessage(err, "network error"))}. Is the backend running?</div>`;
+      if (browserTarget) {
+        browserTarget.innerHTML = message;
+      }
+      const meta = find<HTMLParagraphElement>("#accountWorkspaceMeta");
+      if (meta) {
+        meta.textContent = "Account workspace unavailable until the backend responds.";
+      }
       return;
     }
 
@@ -245,22 +359,35 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     options.onAccountsLoaded?.(cachedAccounts);
 
     if (!data.accounts.length) {
-      target.innerHTML = `<div class="empty">No accounts found in the paper trading database.</div>`;
+      renderAccountBrowser();
+      populateAccountSelect();
+      renderWorkspaceMeta();
       return;
     }
 
-    target.innerHTML = data.accounts.map(accountCard).join("");
+    if (!cachedAccounts.some((account) => account.name === currentAccountName)) {
+      currentAccountName = cachedAccounts[0]?.name ?? null;
+    }
 
-    for (const btn of findAll<HTMLButtonElement>(".account-card")) {
-      btn.addEventListener("click", async () => {
-        const accountName = btn.dataset.account;
-        if (!accountName) return;
-        await loadAccountDetail(accountName);
-      });
+    populateAccountSelect();
+    renderAccountBrowser(find<HTMLInputElement>("#accountSearchInput")?.value ?? "");
+    renderWorkspaceMeta();
+
+    if (currentAccountName) {
+      if (!currentDetail || currentDetail.account.name !== currentAccountName) {
+        await loadAccountDetail(currentAccountName);
+      } else {
+        renderCurrentDetail();
+      }
     }
   }
 
   async function loadAccountDetail(accountName: string): Promise<void> {
+    currentAccountName = accountName;
+    populateAccountSelect();
+    renderAccountBrowser(find<HTMLInputElement>("#accountSearchInput")?.value ?? "");
+    renderWorkspaceMeta();
+
     const target = find<HTMLDivElement>("#accountDetail");
     if (!target) return;
 
@@ -273,6 +400,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     }
     currentTradePage = 1;
     currentAnalysis = null;
+    currentDetailSection = "summary";
     renderCurrentDetail();
     void loadAccountAnalysis(accountName);
   }
@@ -300,10 +428,31 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
 
   function wireActions(): void {
     const snapshotAllBtn = find<HTMLButtonElement>("#snapshotAllBtn");
+    const accountSelect = find<HTMLSelectElement>("#accountSelect");
+    const accountSearchInput = find<HTMLInputElement>("#accountSearchInput");
+    const toggleAccountBrowserBtn = find<HTMLButtonElement>("#toggleAccountBrowserBtn");
 
     snapshotAllBtn?.addEventListener("click", () => {
       void snapshotAll();
     });
+
+    accountSelect?.addEventListener("change", () => {
+      if (!accountSelect.value) {
+        return;
+      }
+      void loadAccountDetail(accountSelect.value);
+    });
+
+    accountSearchInput?.addEventListener("input", () => {
+      renderAccountBrowser(accountSearchInput.value);
+    });
+
+    toggleAccountBrowserBtn?.addEventListener("click", () => {
+      accountBrowserOpen = !accountBrowserOpen;
+      updateAccountBrowserToggle();
+    });
+
+    updateAccountBrowserToggle();
   }
 
   return {
