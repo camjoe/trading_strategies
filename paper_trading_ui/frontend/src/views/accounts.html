@@ -1,14 +1,34 @@
 <div id="tab-accounts" class="tab-panel layout">
-  <section class="card accounts-card">
-    <h2>Accounts</h2>
-    <div id="accountsGrid" class="accounts-grid"></div>
-  </section>
-
-  <section class="card detail-card">
-    <div class="detail-card-head">
-      <h2>Account Detail</h2>
+  <section class="card account-workspace-card">
+    <div class="account-workspace-head">
+      <div>
+        <h2>Account Workspace</h2>
+        <p id="accountWorkspaceMeta" class="muted">Select an account to focus the workspace.</p>
+        <p class="muted account-workspace-help">Use the selector for quick switching or open the account browser when you want to scan the wider list.</p>
+      </div>
       <button id="snapshotAllBtn" type="button">Snapshot All</button>
     </div>
-    <div id="accountDetail" class="empty">Choose an account to inspect snapshots and trades.</div>
+
+    <div class="account-switcher">
+      <label class="bt-field">
+        <span>Current account</span>
+        <select id="accountSelect">
+          <option value="">Loading accounts...</option>
+        </select>
+      </label>
+      <label class="bt-field account-search-field">
+        <span>Search browser</span>
+        <input id="accountSearchInput" type="search" placeholder="Search name, strategy, benchmark..." />
+      </label>
+      <button id="toggleAccountBrowserBtn" type="button" aria-expanded="false" aria-controls="accountBrowserPanel">
+        Browse Accounts
+      </button>
+    </div>
+
+    <div id="accountBrowserPanel" class="account-browser-panel" hidden>
+      <div id="accountsGrid" class="accounts-grid account-browser-grid"></div>
+    </div>
+
+    <div id="accountDetail" class="empty">Choose an account to inspect positions, trades, snapshots, and analysis.</div>
   </section>
 </div>

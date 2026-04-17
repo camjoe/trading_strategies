@@ -13,6 +13,7 @@ from typing import Callable
 
 from common.repo_paths import get_repo_root
 from trading.services.accounts_service import load_all_account_names
+from trading.services.runtime_job_status import DAILY_SNAPSHOT_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.task_runs import (
     day_tag,
     is_env_truthy,
@@ -32,7 +33,7 @@ REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 SNAPSHOTS_EXPORT_DIR = REPO_ROOT / "local" / "exports" / "daily_snapshots"
 
-COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
+COMPLETE_SENTINEL = DAILY_SNAPSHOT_COMPLETE_SENTINEL
 DAILY_SNAPSHOT_ENABLED_ENV = "DAILY_SNAPSHOT_ENABLED"
 
 

@@ -8,10 +8,12 @@ from ..services import (
     attach_live_benchmark_summary,
     fetch_account_row,
     build_account_summary,
+    build_promotion_overview,
     create_account_with_rotation,
     db_conn,
     delete_account_and_dependents,
     list_csv_exports,
+    list_operations_overview,
     preview_csv_export,
 )
 from ..config import TEST_ACCOUNT_NAME
@@ -49,6 +51,30 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
 @router.get("/api/admin/exports/csv")
 def api_csv_exports() -> dict[str, object]:
     return list_csv_exports()
+
+
+@router.get("/api/admin/operations/overview")
+def api_operations_overview() -> dict[str, object]:
+    return list_operations_overview()
+
+
+@router.get("/api/admin/promotion/overview")
+def api_promotion_overview(
+    accountName: str = Query(..., min_length=1),
+    strategyName: str | None = Query(default=None),
+    limit: int = Query(default=5, ge=1, le=20),
+) -> dict[str, object]:
+    with db_conn() as conn:
+        try:
+            return build_promotion_overview(
+                conn,
+                account_name=accountName.strip(),
+                strategy_name=strategyName,
+                limit=limit,
+            )
+        except ValueError as error:
+            status_code = 404 if "not found" in str(error).lower() else 400
+            raise HTTPException(status_code=status_code, detail=str(error)) from error
 
 
 @router.get("/api/admin/exports/csv/preview")

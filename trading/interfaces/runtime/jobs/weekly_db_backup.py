@@ -9,11 +9,12 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.task_runs import ADMIN_MODULE, latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line, ts
+from trading.services.runtime_job_status import WEEKLY_DB_BACKUP_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
-COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
+COMPLETE_SENTINEL = WEEKLY_DB_BACKUP_COMPLETE_SENTINEL
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,0 +1,20 @@
+<div class="admin-section-page" data-admin-section-panel="promotions" hidden>
+  <section class="card admin-card">
+    <h2>Admin: Promotions</h2>
+    <p class="admin-note">Inspect computed promotion readiness and recent persisted review history for one managed account at a time.</p>
+    <div class="admin-promotion-controls">
+      <label class="bt-field">
+        <span>Account</span>
+        <select id="promotionAccountSelect">
+          <option value="">Select account</option>
+        </select>
+      </label>
+      <label class="bt-field">
+        <span>Strategy (optional)</span>
+        <input id="promotionStrategyInput" placeholder="Leave blank for the account default" />
+      </label>
+      <button id="promotionLoadBtn" type="button">Load Promotion Status</button>
+    </div>
+    <div id="promotionOverviewOutput" class="empty">Select an account to inspect promotion readiness.</div>
+  </section>
+</div>
