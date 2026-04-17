@@ -139,3 +139,8 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 - Account snapshot history and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL. Account-name and account-row access now use canonical trading service names directly (`fetch_account_rows_excluding`, `fetch_all_account_names`) — local wrapper aliases were removed in the boundary refactor.
 - Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.
 - Account existence and latest-snapshot lookups in backend DB/test-account services are routed through trading repository adapters.
+
+## Frontend Boundary Notes
+
+- Keep feature entrypoints thin: `src/features/accounts.ts` and `src/features/admin.ts` are wrapper surfaces, while feature-specific orchestration lives under `src/features/accounts/` and `src/features/admin/`.
+- Keep account-detail rendering split by concern under `src/components/account-detail/` so section rendering changes do not accumulate back into one oversized `components/detail.ts`.
