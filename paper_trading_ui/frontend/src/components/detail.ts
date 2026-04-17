@@ -120,7 +120,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
     ${renderDetailHeader(detail, { benchmarkSummary, showActions, showAddTrade })}
     ${renderSectionTabs(activeSection)}
     ${renderAddTradePanel(showAddTrade)}
-    ${renderSummarySection(activeSection, { showBacktest, latestBacktest })}
+    ${renderSummarySection(activeSection, detail, { showBacktest, latestBacktest })}
     ${renderAnalysisSection(activeSection)}
     ${renderPositionsSection(detail, activeSection)}
     ${renderTradesSection(tradeRows, {

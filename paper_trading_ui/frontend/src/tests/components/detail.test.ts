@@ -148,6 +148,10 @@ describe("renderDetail", () => {
     expect(html).toContain("Live Alpha");
     expect(html).toContain("Live vs SPY");
     expect(html).toContain("Live Equity Curve");
+    expect(html).toContain("Current Posture");
+    expect(html).toContain("Portfolio Snapshot");
+    expect(html).toContain("Open Positions");
+    expect(html).toContain("Change Since Snapshot");
     expect(html).toContain("<svg");
     expect(html).toContain("Snapshot This Account");
     expect(html).toContain("Open Config");
@@ -339,6 +343,8 @@ describe("renderDetail", () => {
     expect(html).toContain("No backtest run found for this account yet");
     expect(html).toContain("No snapshots yet");
     expect(html).toContain("No trades yet");
+    expect(html).toContain("Latest Snapshot");
+    expect(html).toContain("Last Trade");
     expect(html).toContain("Open Config");
     expect(html).toContain("Account Configuration");
     expect(html).toContain("Review the current account setup");

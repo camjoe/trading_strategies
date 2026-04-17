@@ -6,7 +6,7 @@ A separate scaffold for viewing paper trading accounts, snapshots, trades, and l
 
 Provide a local dashboard and API for paper-trading operations, including:
 
-- **Account visibility** — live summary cards and per-account detail (summary, analysis, positions, trades, snapshots, config, backtest metrics, and live benchmark overlays).
+- **Account visibility** — live summary cards and per-account detail (summary, analysis, positions, trades, snapshots, config, backtest metrics, and live benchmark overlays). The Summary section includes a compact posture/snapshot block for latest snapshot timing, snapshot deltas, cash, market value, and latest realized/unrealized P&L.
 - **Account workspace** — a focused one-account-at-a-time workspace with account switching/search, dedicated internal detail tabs, and trade history kept inside the selected account instead of a separate trade tab.
 - **Test Account tab** — dedicated view for the virtual `test_account`, with a manual trade entry form to inject buy/sell records directly into its backing DB account.
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
