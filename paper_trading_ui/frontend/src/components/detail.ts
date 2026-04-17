@@ -5,7 +5,7 @@ import type { AccountAnalysis, AccountDetail } from "../types";
 export interface DetailRenderOptions {
   tradePage?: number;
   tradePageSize?: number;
-  activeSection?: "summary" | "positions" | "trades" | "snapshots";
+  activeSection?: "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
   /** Show Edit Parameters, Snapshot buttons + edit panel. Default: true. */
   showActions?: boolean;
   /** Show the Add Trade button and panel. Should only be true for test_account. Default: false. */
@@ -49,6 +49,91 @@ function tradeTypeBadge(note: string | null): string {
 
 function metricValue(value: number | null | undefined, suffix = "", digits = 2): string {
   return value == null ? "—" : `${value.toFixed(digits)}${suffix}`;
+}
+
+function formatOptionalNumber(value: number | null | undefined, digits = 2): string {
+  return value == null ? "—" : value.toFixed(digits);
+}
+
+function formatOptionalList(values: string[] | null | undefined): string {
+  return values && values.length ? esc(values.join(", ")) : "—";
+}
+
+function configStat(label: string, value: string): string {
+  return `
+    <div class="analysis-stat">
+      <span class="label">${esc(label)}</span>
+      <span>${value}</span>
+    </div>
+  `;
+}
+
+function renderConfigSummary(detail: AccountDetail): string {
+  const account = detail.account;
+  return `
+    <div class="config-summary-stack">
+      <section class="config-summary-card">
+        <h5>Core Settings</h5>
+        <div class="analysis-summary">
+          ${configStat("Display Name", esc(account.displayName))}
+          ${configStat("Strategy", esc(account.strategy))}
+          ${configStat("Instrument Mode", esc(account.instrumentMode))}
+          ${configStat("Risk Policy", esc(account.riskPolicy))}
+          ${configStat("Learning", account.learningEnabled ? "On" : "Off")}
+          ${configStat("Trade Size %", formatOptionalNumber(account.tradeSizePct * 100, 1))}
+          ${configStat("Max Position %", formatOptionalNumber(account.maxPositionPct * 100, 1))}
+        </div>
+      </section>
+      <section class="config-summary-card">
+        <h5>Goals & Risk Guardrails</h5>
+        <div class="analysis-summary">
+          ${configStat("Goal Min Return %", formatOptionalNumber(account.goalMinReturnPct, 1))}
+          ${configStat("Goal Max Return %", formatOptionalNumber(account.goalMaxReturnPct, 1))}
+          ${configStat("Goal Period", esc(account.goalPeriod ?? "—"))}
+          ${configStat("Stop Loss %", formatOptionalNumber(account.stopLossPct, 2))}
+          ${configStat("Take Profit %", formatOptionalNumber(account.takeProfitPct, 2))}
+          ${configStat("Profit Take %", formatOptionalNumber(account.profitTakePct, 2))}
+          ${configStat("Max Loss %", formatOptionalNumber(account.maxLossPct, 2))}
+        </div>
+      </section>
+      <section class="config-summary-card">
+        <h5>Options Settings</h5>
+        <div class="analysis-summary">
+          ${configStat("Option Type", esc(account.optionType ?? "—"))}
+          ${configStat("Strike Offset %", formatOptionalNumber(account.optionStrikeOffsetPct, 2))}
+          ${configStat("Min DTE", formatOptionalNumber(account.optionMinDte, 0))}
+          ${configStat("Max DTE", formatOptionalNumber(account.optionMaxDte, 0))}
+          ${configStat("Target Delta Min", formatOptionalNumber(account.targetDeltaMin, 2))}
+          ${configStat("Target Delta Max", formatOptionalNumber(account.targetDeltaMax, 2))}
+          ${configStat("IV Rank Min", formatOptionalNumber(account.ivRankMin, 1))}
+          ${configStat("IV Rank Max", formatOptionalNumber(account.ivRankMax, 1))}
+          ${configStat("Max Premium / Trade", formatOptionalNumber(account.maxPremiumPerTrade, 2))}
+          ${configStat("Max Contracts / Trade", formatOptionalNumber(account.maxContractsPerTrade, 0))}
+        </div>
+      </section>
+      <section class="config-summary-card">
+        <h5>Rotation Settings</h5>
+        <div class="analysis-summary">
+          ${configStat("Rotation Enabled", account.rotationEnabled ? "On" : "Off")}
+          ${configStat("Rotation Mode", esc(account.rotationMode ?? "—"))}
+          ${configStat("Optimality Mode", esc(account.rotationOptimalityMode ?? "—"))}
+          ${configStat("Interval Days", formatOptionalNumber(account.rotationIntervalDays, 0))}
+          ${configStat("Interval Minutes", formatOptionalNumber(account.rotationIntervalMinutes, 0))}
+          ${configStat("Lookback Days", formatOptionalNumber(account.rotationLookbackDays, 0))}
+          ${configStat("Active Strategy", esc(account.rotationActiveStrategy ?? "—"))}
+          ${configStat("Overlay Mode", esc(account.rotationOverlayMode ?? "—"))}
+          ${configStat("Overlay Min Tickers", formatOptionalNumber(account.rotationOverlayMinTickers, 0))}
+          ${configStat("Overlay Confidence", formatOptionalNumber(account.rotationOverlayConfidenceThreshold, 2))}
+        </div>
+        <div class="config-summary-note">
+          <strong>Schedule:</strong> ${formatOptionalList(account.rotationSchedule)}
+        </div>
+        <div class="config-summary-note">
+          <strong>Overlay Watchlist:</strong> ${formatOptionalList(account.rotationOverlayWatchlist)}
+        </div>
+      </section>
+    </div>
+  `;
 }
 
 function renderEquitySparkline(
@@ -140,9 +225,11 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   const viewedEnd = totalTrades === 0 ? 0 : Math.min(tradePage * tradePageSize, totalTrades);
   const sectionTabs: Array<{ id: typeof activeSection; label: string }> = [
     { id: "summary", label: "Summary" },
+    { id: "analysis", label: "Analysis" },
     { id: "positions", label: "Positions" },
     { id: "trades", label: "Trades" },
     { id: "snapshots", label: "Snapshots" },
+    { id: "config", label: "Config" },
   ];
 
   const snapRows = detail.snapshots
@@ -231,7 +318,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       </div>
       ${showActions || showAddTrade ? `<div class="detail-head-actions">
         ${showAddTrade ? `<button id="addTradeBtn" type="button">+ Add Trade</button>` : ""}
-        ${showActions ? `<button id="editParamsBtn" type="button">Edit Parameters</button>
+        ${showActions ? `<button id="openConfigBtn" type="button">Open Config</button>
         <button id="snapshotOneBtn" type="button" data-account="${esc(detail.account.name)}">Snapshot This Account</button>` : ""}
       </div>` : ""}
     </div>
@@ -289,7 +376,80 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
       </div>
     </div>` : ""}
 
-    ${showActions ? `<div id="editParamsPanel" class="edit-params-panel" hidden>
+    <article class="detail-section-panel" data-detail-panel="summary" ${activeSection === "summary" ? "" : "hidden"}>
+      ${showBacktest ? `<div class="latest-backtest-section">
+        <h4>Latest Backtest</h4>
+        ${latestBacktest}
+      </div>` : ""}
+    </article>
+
+    <article class="detail-section-panel" data-detail-panel="analysis" ${activeSection === "analysis" ? "" : "hidden"}>
+      <div id="analysisPanel">
+        <h4>Performance Analysis</h4>
+        <div class="empty">Loading analysis…</div>
+      </div>
+    </article>
+
+    <article class="detail-section-panel" data-detail-panel="positions" ${activeSection === "positions" ? "" : "hidden"}>
+      <h4>Current Positions</h4>
+      <table>
+        <thead><tr><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Market Price</th><th>Market Value</th><th>Unrealized P&amp;L</th></tr></thead>
+        <tbody>${
+          detail.positions.length === 0
+            ? `<tr><td colspan="6">No open positions.</td></tr>`
+            : detail.positions
+                .map(
+                  (p) => `
+          <tr>
+            <td><strong>${esc(p.ticker)}</strong></td>
+            <td>${p.qty.toFixed(2)}</td>
+            <td>${currency.format(p.avgCost)}</td>
+            <td>${p.marketPrice > 0 ? currency.format(p.marketPrice) : "—"}</td>
+            <td>${p.marketPrice > 0 ? currency.format(p.marketValue) : "—"}</td>
+            <td class="${p.unrealizedPnl >= 0 ? "up" : "down"}">${p.marketPrice > 0 ? currency.format(p.unrealizedPnl) : "—"}</td>
+          </tr>
+        `,
+                )
+                .join("")
+        }</tbody>
+      </table>
+    </article>
+
+    <article class="detail-section-panel" data-detail-panel="trades" ${activeSection === "trades" ? "" : "hidden"}>
+      <h4>Recent Trades</h4>
+      <div class="table-pagination">
+        <button id="recentTradesPrevBtn" type="button" ${tradePage <= 1 ? "disabled" : ""}>Newer</button>
+        <span>${viewedStart} to ${viewedEnd} of ${totalTrades}</span>
+        <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
+      </div>
+      <table class="recent-trades-table">
+        <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+        <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
+      </table>
+    </article>
+
+    <article class="detail-section-panel" data-detail-panel="snapshots" ${activeSection === "snapshots" ? "" : "hidden"}>
+      <h4>Equity Snapshots</h4>
+      ${detail.liveBenchmarkOverlay
+        ? renderBenchmarkOverlaySparkline(detail.liveBenchmarkOverlay)
+        : ""}
+      ${renderEquitySparkline(detail.snapshots, { title: "Live Equity Curve" })}
+      <table>
+        <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
+        <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
+      </table>
+    </article>
+
+    <article class="detail-section-panel" data-detail-panel="config" ${activeSection === "config" ? "" : "hidden"}>
+      <div class="config-section-head">
+        <div>
+          <h4>Account Configuration</h4>
+          <p class="muted">Review the current account setup, then open the editor when you want to update parameters.</p>
+        </div>
+        ${showActions ? `<button id="editParamsBtn" type="button">Edit Parameters</button>` : ""}
+      </div>
+      ${renderConfigSummary(detail)}
+      ${showActions ? `<div id="editParamsPanel" class="edit-params-panel" hidden>
       <!-- Core parameters - always visible -->
       <div class="edit-params-section">
         <h5>Core</h5>
@@ -520,67 +680,7 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
         <button id="editParamsCancelBtn" type="button">Cancel</button>
         <div id="editParamsMsg"></div>
       </div>
-    </div>` : ""}
-
-    <article class="detail-section-panel" data-detail-panel="summary" ${activeSection === "summary" ? "" : "hidden"}>
-      <div id="analysisPanel">
-        <h4>Performance Analysis</h4>
-        <div class="empty">Loading analysis…</div>
-      </div>
-      ${showBacktest ? `<div class="latest-backtest-section">
-        <h4>Latest Backtest</h4>
-        ${latestBacktest}
-      </div>` : ""}
-    </article>
-
-    <article class="detail-section-panel" data-detail-panel="positions" ${activeSection === "positions" ? "" : "hidden"}>
-      <h4>Current Positions</h4>
-      <table>
-        <thead><tr><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Market Price</th><th>Market Value</th><th>Unrealized P&amp;L</th></tr></thead>
-        <tbody>${
-          detail.positions.length === 0
-            ? `<tr><td colspan="6">No open positions.</td></tr>`
-            : detail.positions
-                .map(
-                  (p) => `
-          <tr>
-            <td><strong>${esc(p.ticker)}</strong></td>
-            <td>${p.qty.toFixed(2)}</td>
-            <td>${currency.format(p.avgCost)}</td>
-            <td>${p.marketPrice > 0 ? currency.format(p.marketPrice) : "—"}</td>
-            <td>${p.marketPrice > 0 ? currency.format(p.marketValue) : "—"}</td>
-            <td class="${p.unrealizedPnl >= 0 ? "up" : "down"}">${p.marketPrice > 0 ? currency.format(p.unrealizedPnl) : "—"}</td>
-          </tr>
-        `,
-                )
-                .join("")
-        }</tbody>
-      </table>
-    </article>
-
-    <article class="detail-section-panel" data-detail-panel="trades" ${activeSection === "trades" ? "" : "hidden"}>
-      <h4>Recent Trades</h4>
-      <div class="table-pagination">
-        <button id="recentTradesPrevBtn" type="button" ${tradePage <= 1 ? "disabled" : ""}>Newer</button>
-        <span>${viewedStart} to ${viewedEnd} of ${totalTrades}</span>
-        <button id="recentTradesNextBtn" type="button" ${tradePage >= totalTradePages ? "disabled" : ""}>Older</button>
-      </div>
-      <table class="recent-trades-table">
-        <thead><tr><th>Time</th><th>Ticker</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-        <tbody>${tradeRows || `<tr><td colspan="7">No trades yet.</td></tr>`}</tbody>
-      </table>
-    </article>
-
-    <article class="detail-section-panel" data-detail-panel="snapshots" ${activeSection === "snapshots" ? "" : "hidden"}>
-      <h4>Equity Snapshots</h4>
-      ${detail.liveBenchmarkOverlay
-        ? renderBenchmarkOverlaySparkline(detail.liveBenchmarkOverlay)
-        : ""}
-      ${renderEquitySparkline(detail.snapshots, { title: "Live Equity Curve" })}
-      <table>
-        <thead><tr><th>Time</th><th>Equity</th><th>Cash</th><th>Market Value</th></tr></thead>
-        <tbody>${snapRows || `<tr><td colspan="4">No snapshots yet.</td></tr>`}</tbody>
-      </table>
+    </div>` : `<div class="empty">Config editing is unavailable for this account.</div>`}
     </article>
   `;
 }

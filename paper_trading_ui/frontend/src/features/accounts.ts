@@ -15,10 +15,12 @@ export interface AccountsFeatureOptions {
 export interface AccountsFeature {
   getAccounts: () => AccountListItem[];
   loadAccounts: () => Promise<void>;
-  loadAccountDetail: (accountName: string) => Promise<void>;
+  loadAccountDetail: (accountName: string, options?: { section?: DetailSection }) => Promise<void>;
   snapshotAll: () => Promise<void>;
   wireActions: () => void;
 }
+
+type DetailSection = "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
 
 function bindClick<T extends Element>(selector: string, handler: (element: T) => Promise<void> | void): void {
   const element = find<T>(selector);
@@ -34,7 +36,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
   let currentAccountName: string | null = null;
   let currentTradePage = 1;
   let currentAnalysis: AccountAnalysis | null = null;
-  let currentDetailSection: "summary" | "positions" | "trades" | "snapshots" = "summary";
+  let currentDetailSection: DetailSection = "summary";
   let accountBrowserOpen = false;
   const tradePageSize = 20;
 
@@ -140,7 +142,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
       const accountName = button.dataset.account;
       if (!accountName) return;
       await postJson(`/api/actions/snapshot/${encodeURIComponent(accountName)}`);
-      await loadAccountDetail(accountName);
+      await loadAccountDetail(accountName, { section: currentDetailSection });
       await loadAccounts();
     });
 
@@ -194,13 +196,20 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
           { ticker, side, qty, price, fee: Number.isFinite(fee) ? fee : 0 },
         );
         if (msgEl) { msgEl.className = ""; msgEl.textContent = "Trade added."; }
-        setTimeout(() => { void loadAccountDetail(accountName); }, 800);
+        setTimeout(() => { void loadAccountDetail(accountName, { section: currentDetailSection }); }, 800);
       } catch (err) {
         if (msgEl) {
           msgEl.className = "error";
           msgEl.textContent = errorMessage(err, "Failed to add trade.");
         }
       }
+    });
+
+    bindClick<HTMLButtonElement>("#openConfigBtn", () => {
+      currentDetailSection = "config";
+      renderCurrentDetail();
+      const panel = find<HTMLDivElement>("#editParamsPanel");
+      if (panel) panel.hidden = false;
     });
 
     bindClick<HTMLButtonElement>("#editParamsBtn", () => {
@@ -301,7 +310,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
           msgEl.textContent = "Saved.";
         }
         setTimeout(() => {
-          void loadAccountDetail(accountName);
+          void loadAccountDetail(accountName, { section: "config" });
         }, 800);
       } catch (err) {
         if (msgEl) {
@@ -322,9 +331,11 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
         const section = button.dataset.detailSection;
         if (
           section !== "summary"
+          && section !== "analysis"
           && section !== "positions"
           && section !== "trades"
           && section !== "snapshots"
+          && section !== "config"
         ) {
           return;
         }
@@ -382,7 +393,10 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     }
   }
 
-  async function loadAccountDetail(accountName: string): Promise<void> {
+  async function loadAccountDetail(
+    accountName: string,
+    options: { section?: DetailSection } = {},
+  ): Promise<void> {
     currentAccountName = accountName;
     populateAccountSelect();
     renderAccountBrowser(find<HTMLInputElement>("#accountSearchInput")?.value ?? "");
@@ -400,7 +414,7 @@ export function createAccountsFeature(options: AccountsFeatureOptions = {}): Acc
     }
     currentTradePage = 1;
     currentAnalysis = null;
-    currentDetailSection = "summary";
+    currentDetailSection = options.section ?? "summary";
     renderCurrentDetail();
     void loadAccountAnalysis(accountName);
   }
