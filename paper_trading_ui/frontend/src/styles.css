@@ -578,6 +578,45 @@ body {
   font-size: 0.9rem;
 }
 
+.admin-overview-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.admin-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.admin-section-tab {
+  background: var(--surface-action);
+  color: var(--ink-soft);
+  border: 1px solid var(--border-action);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.admin-section-tab.active,
+.admin-section-tab:hover,
+.admin-section-tab:focus-visible {
+  background: var(--surface-action-hover);
+  color: var(--accent);
+  border-color: var(--border-action-hover);
+  transform: none;
+  filter: none;
+}
+
+.admin-section-page {
+  display: contents;
+}
+
+.admin-section-page[hidden] {
+  display: none;
+}
+
 .admin-form {
   display: grid;
   gap: 0.75rem;
@@ -719,6 +758,180 @@ body {
   min-width: 720px;
 }
 
+.admin-ops-controls,
+.admin-promotion-controls {
+  display: grid;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
+.admin-ops-controls {
+  grid-template-columns: auto;
+}
+
+.admin-promotion-controls {
+  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;
+}
+
+.admin-ops-output,
+.promotion-output {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ops-status-grid,
+.ops-artifact-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ops-status-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.ops-artifact-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ops-status-card,
+.ops-artifact-panel,
+.promotion-history-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel-2);
+  padding: 0.85rem 0.9rem;
+}
+
+.ops-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.ops-card-meta,
+.promotion-review-meta {
+  color: var(--ink-soft);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.ops-card-copy {
+  margin: 0.55rem 0;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.ops-card-hint {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.65rem;
+}
+
+.ops-card-hint span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+.ops-card-hint code,
+.ops-card-meta code {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-pill.ok {
+  background: var(--success-bg);
+  color: var(--success-ink);
+  border: 1px solid var(--success-border);
+}
+
+.status-pill.warning {
+  background: var(--warning-bg, #fff4db);
+  color: var(--warning-ink, #8a5d00);
+  border: 1px solid var(--warning-border, #f1d48a);
+}
+
+.status-pill.missing {
+  background: var(--error-bg);
+  color: var(--error-ink);
+  border: 1px solid var(--error-border);
+}
+
+.ops-artifact-panel h3,
+.promotion-section h4 {
+  margin: 0 0 0.65rem;
+}
+
+.ops-artifact-list,
+.promotion-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ops-artifact-list li {
+  display: grid;
+  gap: 0.12rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.ops-artifact-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.promotion-summary-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.promotion-section {
+  margin-top: 0.35rem;
+}
+
+.promotion-history-stack,
+.promotion-events {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.promotion-event-row {
+  display: grid;
+  gap: 0.2rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line-subtle);
+  font-size: 0.85rem;
+}
+
+.promotion-event-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.promotion-event-note {
+  color: var(--ink-soft);
+}
+
 .danger-btn {
   background: var(--danger);
   color: var(--surface-white);
@@ -815,6 +1028,12 @@ body {
   .admin-csv-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-promotion-controls,
+  .ops-artifact-grid,
+  .promotion-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 600px) {
@@ -827,6 +1046,12 @@ body {
   }
 
   .admin-csv-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-promotion-controls,
+  .ops-artifact-grid,
+  .promotion-summary-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -30,6 +30,8 @@ from .backtests import (
 )
 from .db import db_conn, fetch_account_row
 from .exports import list_csv_exports, preview_csv_export
+from .operations import list_operations_overview
+from .promotion import build_promotion_overview
 from .test_account import (
     build_test_account_live_summary,
     fetch_resolved_account_row,
@@ -65,7 +67,9 @@ __all__ = [
     "fetch_managed_account_rows",
     "fetch_resolved_account_row",
     "fetch_snapshot_history_rows",
+    "build_promotion_overview",
     "list_csv_exports",
+    "list_operations_overview",
     "preview_csv_export",
     "resolve_backtest_payload_account",
     "take_snapshot",

@@ -1,10 +1,17 @@
+import { renderOperationsOverview, renderPromotionOverview } from "../components/admin-ops";
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
 import { applyAccountConfigOptionsToAdminForm, getAccountConfigOptions } from "../lib/account-config-options";
 import { errorMessage, getJson, postJson } from "../lib/http";
 import { numOrUndefined, intOrUndefined, strOrUndefined } from "../lib/form-parse";
 import { TEST_ACCOUNT_NAME } from "../lib/constants";
-import type { AccountListItem, AccountSummary, AdminCreateAccountPayload } from "../types";
+import type {
+  AccountListItem,
+  AccountSummary,
+  AdminCreateAccountPayload,
+  OperationsOverviewResponse,
+  PromotionOverviewResponse,
+} from "../types";
 
 interface DeleteResponse {
   status: string;
@@ -56,6 +63,13 @@ export interface AdminFeature {
   loadDeleteAccounts: () => Promise<void>;
 }
 
+type AdminSection = "jobs" | "accounts" | "test-account" | "promotions" | "artifacts";
+
+function setHtml(target: HTMLElement, className: string, html: string): void {
+  target.className = className;
+  target.innerHTML = html;
+}
+
 function setOutput(
   target: HTMLElement,
   state: "empty" | "error" | "success",
@@ -85,6 +99,7 @@ function csvListOrUndefined(value: FormDataEntryValue | null): string[] | undefi
 
 export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeature {
   let cachedCsvExports: CsvExportBatch[] = [];
+  let activeAdminSection: AdminSection = "jobs";
 
   function syncInstrumentDetails(form?: HTMLFormElement | null): void {
     const instrumentMode = form?.elements.namedItem("instrumentMode") as HTMLSelectElement | null;
@@ -101,6 +116,18 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     if (!rotationEnabled || !rotationDetails) return;
 
     rotationDetails.open = rotationEnabled.checked;
+  }
+
+  function setActiveAdminSection(section: AdminSection): void {
+    activeAdminSection = section;
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-admin-section-target]"));
+    const panels = Array.from(document.querySelectorAll<HTMLElement>("[data-admin-section-panel]"));
+    for (const button of buttons) {
+      button.classList.toggle("active", button.dataset.adminSectionTarget === section);
+    }
+    for (const panel of panels) {
+      panel.hidden = panel.dataset.adminSectionPanel !== section;
+    }
   }
 
   function _selectedCsvBatch(): CsvExportBatch | undefined {
@@ -231,7 +258,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       exportSelect.innerHTML = `<option value="">No export batches found</option>`;
       fileSelect.innerHTML = `<option value="">No CSV files found</option>`;
       output.innerHTML = `<div class="empty">No exports available in local/exports yet.</div>`;
-      meta.textContent = "Run python scripts/data_ops/export_db_csv.py or python scripts/data_ops/export_db_csv_zip.py first.";
+      meta.textContent = "Run python scripts/data_ops/export_db_csv.py or python scripts/data_ops/export_db_csv_zip.py to generate db_csv_* database table snapshots first.";
       return;
     }
 
@@ -267,15 +294,79 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
   }
 
   async function loadDeleteAccounts(): Promise<void> {
-    const select = find<HTMLSelectElement>("#deleteAccountSelect");
-    if (!select) return;
+    const deleteSelect = find<HTMLSelectElement>("#deleteAccountSelect");
+    const promotionSelect = find<HTMLSelectElement>("#promotionAccountSelect");
+    if (!deleteSelect && !promotionSelect) return;
 
     const data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
-    const optionsHtml = data.accounts
-      .filter((a) => a.name !== TEST_ACCOUNT_NAME)
+    const managedAccounts = data.accounts.filter((a) => a.name !== TEST_ACCOUNT_NAME);
+    const optionsHtml = managedAccounts
       .map((a) => `<option value="${esc(a.name)}">${esc(a.name)} (${esc(a.strategy)})</option>`)
       .join("");
-    select.innerHTML = `<option value="">Select account</option>${optionsHtml}`;
+
+    if (deleteSelect) {
+      deleteSelect.innerHTML = `<option value="">Select account</option>${optionsHtml}`;
+    }
+
+    if (promotionSelect) {
+      const priorValue = promotionSelect.value;
+      promotionSelect.innerHTML = `<option value="">Select account</option>${optionsHtml}`;
+      const nextValue = managedAccounts.some((account) => account.name === priorValue) ? priorValue : managedAccounts[0]?.name ?? "";
+      promotionSelect.value = nextValue;
+      if (nextValue) {
+        await loadPromotionOverview();
+      } else {
+        const output = find<HTMLDivElement>("#promotionOverviewOutput");
+        if (output) {
+          setOutput(output, "empty", "Create a managed account first to inspect promotion readiness.");
+        }
+      }
+    }
+  }
+
+  async function loadOperationsOverview(): Promise<void> {
+    const output = find<HTMLDivElement>("#adminOpsOutput");
+    const meta = find<HTMLDivElement>("#adminOpsMeta");
+    if (!output || !meta) return;
+
+    meta.textContent = "Loading runtime status...";
+    try {
+      const data = await getJson<OperationsOverviewResponse>("/api/admin/operations/overview");
+      setHtml(output, "admin-ops-output", renderOperationsOverview(data));
+      meta.textContent =
+        `${data.jobs.length} jobs tracked · ` +
+        `${data.scheduledRefreshArtifacts.length} refresh artifacts · ` +
+        `${data.dailySnapshotArtifacts.length} snapshot artifacts · ` +
+        `${data.databaseBackups.length} DB backups.`;
+    } catch (error) {
+      setOutput(output, "error", errorMessage(error, "Failed to load operations overview."));
+      meta.textContent = "Operations overview unavailable.";
+    }
+  }
+
+  async function loadPromotionOverview(): Promise<void> {
+    const accountSelect = find<HTMLSelectElement>("#promotionAccountSelect");
+    const strategyInput = find<HTMLInputElement>("#promotionStrategyInput");
+    const output = find<HTMLDivElement>("#promotionOverviewOutput");
+    if (!accountSelect || !output) return;
+
+    if (!accountSelect.value) {
+      setOutput(output, "empty", "Select an account to inspect promotion readiness.");
+      return;
+    }
+
+    setOutput(output, "empty", "Loading promotion status...");
+    try {
+      const query = new URLSearchParams({ accountName: accountSelect.value, limit: "5" });
+      const strategyName = strategyInput?.value.trim() ?? "";
+      if (strategyName) {
+        query.set("strategyName", strategyName);
+      }
+      const data = await getJson<PromotionOverviewResponse>(`/api/admin/promotion/overview?${query.toString()}`);
+      setHtml(output, "promotion-output", renderPromotionOverview(data));
+    } catch (error) {
+      setOutput(output, "error", errorMessage(error, "Failed to load promotion readiness."));
+    }
   }
 
   async function onDeleteSubmit(event: Event): Promise<void> {
@@ -315,6 +406,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
         true,
       );
       await loadDeleteAccounts();
+      await loadOperationsOverview();
       await options.onAccountsChanged?.();
     } catch (error) {
       setOutput(output, "error", error instanceof Error ? error.message : "Delete failed.");
@@ -405,6 +497,7 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       syncInstrumentDetails(form);
       syncRotationDetails(form);
       await loadDeleteAccounts();
+      await loadOperationsOverview();
       await options.onAccountsChanged?.();
     } catch (error) {
       setOutput(output, "error", error instanceof Error ? error.message : "Create failed.");
@@ -419,6 +512,11 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
     const exportSelect = find<HTMLSelectElement>("#csvExportSelect");
     const loadPreviewBtn = find<HTMLButtonElement>("#csvPreviewLoadBtn");
     const refreshBtn = find<HTMLButtonElement>("#csvRefreshBtn");
+    const opsRefreshBtn = find<HTMLButtonElement>("#adminOpsRefreshBtn");
+    const promotionLoadBtn = find<HTMLButtonElement>("#promotionLoadBtn");
+    const promotionAccountSelect = find<HTMLSelectElement>("#promotionAccountSelect");
+    const promotionStrategyInput = find<HTMLInputElement>("#promotionStrategyInput");
+    const adminSectionButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-admin-section-target]"));
 
     deleteForm?.addEventListener("submit", (event) => {
       void onDeleteSubmit(event);
@@ -447,15 +545,44 @@ export function createAdminFeature(options: AdminFeatureOptions = {}): AdminFeat
       void loadCsvExports();
     });
 
+    opsRefreshBtn?.addEventListener("click", () => {
+      void loadOperationsOverview();
+    });
+
+    promotionLoadBtn?.addEventListener("click", () => {
+      void loadPromotionOverview();
+    });
+
+    promotionAccountSelect?.addEventListener("change", () => {
+      void loadPromotionOverview();
+    });
+
+    promotionStrategyInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void loadPromotionOverview();
+      }
+    });
+
+    for (const button of adminSectionButtons) {
+      button.addEventListener("click", () => {
+        const section = button.dataset.adminSectionTarget as AdminSection | undefined;
+        if (!section) return;
+        setActiveAdminSection(section);
+      });
+    }
+
     const testTradeForm = find<HTMLFormElement>("#test-account-trade-form");
     testTradeForm?.addEventListener("submit", (event) => {
       void onTestTradeSubmit(event);
     });
 
+    setActiveAdminSection(activeAdminSection);
     syncInstrumentDetails(createForm);
     syncRotationDetails(createForm);
     applyAccountConfigOptionsToAdminForm();
     void loadCsvExports();
+    void loadOperationsOverview();
   }
 
   return {
