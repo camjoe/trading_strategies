@@ -123,7 +123,7 @@ export function createAdminAccountsController(
       await dependencies.loadOperationsOverview();
       await options.onAccountsChanged?.();
     } catch (error) {
-      setOutput(output, "error", error instanceof Error ? error.message : "Delete failed.");
+      setOutput(output, "error", errorMessage(error, "Delete failed."));
     }
   }
 
@@ -214,7 +214,7 @@ export function createAdminAccountsController(
       await dependencies.loadOperationsOverview();
       await options.onAccountsChanged?.();
     } catch (error) {
-      setOutput(output, "error", error instanceof Error ? error.message : "Create failed.");
+      setOutput(output, "error", errorMessage(error, "Create failed."));
     }
   }
 
