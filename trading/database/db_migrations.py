@@ -166,3 +166,62 @@ ORDER_FILL_MIGRATIONS = (
         ),
     ),
 )
+
+GLOBAL_SETTINGS_MIGRATIONS = (
+    ColumnMigration(
+        "evaluation_backtest_trade_count_for_full_confidence",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_trade_count_for_full_confidence INTEGER NOT NULL DEFAULT 50",
+    ),
+    ColumnMigration(
+        "evaluation_backtest_snapshot_count_for_full_confidence",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 60",
+    ),
+    ColumnMigration(
+        "evaluation_paper_live_snapshot_count_for_full_confidence",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_paper_live_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 30",
+    ),
+    ColumnMigration(
+        "evaluation_backtest_trade_confidence_weight",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_trade_confidence_weight REAL NOT NULL DEFAULT 0.7",
+    ),
+    ColumnMigration(
+        "evaluation_backtest_snapshot_confidence_weight",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_snapshot_confidence_weight REAL NOT NULL DEFAULT 0.3",
+    ),
+    ColumnMigration(
+        "evaluation_backtest_evidence_weight",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_evidence_weight REAL NOT NULL DEFAULT 0.6",
+    ),
+    ColumnMigration(
+        "evaluation_paper_live_evidence_weight",
+        "ALTER TABLE global_settings ADD COLUMN evaluation_paper_live_evidence_weight REAL NOT NULL DEFAULT 0.4",
+    ),
+    ColumnMigration(
+        "promotion_min_research_backtest_trade_count",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_trade_count INTEGER NOT NULL DEFAULT 10",
+    ),
+    ColumnMigration(
+        "promotion_min_research_backtest_snapshot_count",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_snapshot_count INTEGER NOT NULL DEFAULT 20",
+    ),
+    ColumnMigration(
+        "promotion_min_research_backtest_return_pct",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_return_pct REAL NOT NULL DEFAULT 0.0",
+    ),
+    ColumnMigration(
+        "promotion_min_research_max_drawdown_pct",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_max_drawdown_pct REAL NOT NULL DEFAULT -25.0",
+    ),
+    ColumnMigration(
+        "promotion_min_research_walk_forward_average_return_pct",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_walk_forward_average_return_pct REAL NOT NULL DEFAULT 0.0",
+    ),
+    ColumnMigration(
+        "promotion_min_live_paper_snapshot_count",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_live_paper_snapshot_count INTEGER NOT NULL DEFAULT 10",
+    ),
+    ColumnMigration(
+        "promotion_min_live_overall_confidence",
+        "ALTER TABLE global_settings ADD COLUMN promotion_min_live_overall_confidence REAL NOT NULL DEFAULT 0.6",
+    ),
+)

@@ -5,6 +5,7 @@ from trading.database.db_migrations import (
     ACCOUNT_MIGRATIONS,
     BACKTEST_RUN_MIGRATIONS,
     ColumnMigration,
+    GLOBAL_SETTINGS_MIGRATIONS,
     ORDER_FILL_MIGRATIONS,
 )
 from trading.database.db_schema import SCHEMA_SQL
@@ -39,4 +40,6 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "accounts", migration)
     for migration in ORDER_FILL_MIGRATIONS:
         _ensure_column(conn, "order_fills", migration)
+    for migration in GLOBAL_SETTINGS_MIGRATIONS:
+        _ensure_column(conn, "global_settings", migration)
     conn.commit()

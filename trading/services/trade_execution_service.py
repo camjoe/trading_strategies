@@ -4,6 +4,7 @@ import random
 import sqlite3
 from typing import Callable, Mapping, Protocol, cast
 
+from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.utils.coercion import row_expect_int, row_float, row_int
 
 
@@ -168,6 +169,7 @@ def record_prepared_trade(
     record_trade_fn: Callable[..., None],
     utc_now_iso_fn: Callable[[], str],
     build_trade_note_fn: Callable[..., str],
+    trade_time_iso: str | None = None,
 ) -> None:
     side, ticker, qty, trade_price, delta_est, iv_est = selection
     record_trade_fn(
@@ -178,7 +180,7 @@ def record_prepared_trade(
         qty=qty,
         price=trade_price,
         fee=fee,
-        trade_time=utc_now_iso_fn(),
+        trade_time=trade_time_iso or utc_now_iso_fn(),
         note=build_trade_note_fn(
             learning_enabled,
             forced_sell,
@@ -361,6 +363,7 @@ def run_for_account(
     resolve_forced_sell_ticker_fn: Callable[..., str | None],
     prepare_trade_selection_fn: Callable[..., tuple[str, str, int, float, float | None, float | None] | None],
     record_prepared_trade_fn: Callable[..., None],
+    enforce_runtime_trade_throttles_fn: Callable[..., None],
 ) -> int:
     account = get_account_fn(conn, account_name)
     now_iso = utc_now_iso_fn()
@@ -403,18 +406,27 @@ def run_for_account(
         if selection is None:
             continue
 
-        record_prepared_trade_fn(
-            conn,
-            account_name,
-            account,
-            learning_enabled,
-            risk_policy,
-            instrument_mode,
-            active_strategy,
-            fee,
-            selection,
-            forced_sell,
-        )
+        trade_time_iso = utc_now_iso_fn()
+        try:
+            enforce_runtime_trade_throttles_fn(
+                conn,
+                trade_time_iso=trade_time_iso,
+            )
+            record_prepared_trade_fn(
+                conn,
+                account_name,
+                account,
+                learning_enabled,
+                risk_policy,
+                instrument_mode,
+                active_strategy,
+                fee,
+                selection,
+                forced_sell,
+                trade_time_iso=trade_time_iso,
+            )
+        except RuntimeTradeThrottleExceededError:
+            break
         executed += 1
 
     return executed

@@ -36,7 +36,9 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
 3. Default: `local/paper_trading.db`
 
-All paths use `pathlib` — never hardcode slash direction.
+If `db_path` in the config file is relative, it is resolved from the repository
+root rather than from the config file's directory. All paths use `pathlib` —
+never hardcode slash direction.
 
 ---
 
@@ -53,6 +55,8 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "accounts", migration)
     for migration in BACKTEST_RUN_MIGRATIONS:             # 3. Apply backtest_runs migrations
         _ensure_column(conn, "backtest_runs", migration)
+    for migration in GLOBAL_SETTINGS_MIGRATIONS:          # 5. Apply singleton global-settings migrations
+        _ensure_column(conn, "global_settings", migration)
     conn.commit()
 ```
 
@@ -89,8 +93,9 @@ def _ensure_column(conn, table_name, migration):
 ## Migration Tuples
 
 ```
-ACCOUNT_MIGRATIONS     → applied to the `accounts` table
-BACKTEST_RUN_MIGRATIONS → applied to the `backtest_runs` table
+ACCOUNT_MIGRATIONS       → applied to the `accounts` table
+BACKTEST_RUN_MIGRATIONS  → applied to the `backtest_runs` table
+GLOBAL_SETTINGS_MIGRATIONS → applied to the `global_settings` table
 ```
 
 Both tuples are processed by `init_schema()`. Any new table requiring additive migrations must also be registered in `init_schema()`.
@@ -128,12 +133,13 @@ Both tuples are processed by `init_schema()`. Any new table requiring additive m
 |-------|---------|
 | `accounts` | Account profiles with strategy config, risk policy, and rotation settings |
 | `trades` | Live trade records linked to accounts |
+| `global_settings` | Singleton row for repo-wide platform policy such as runtime throttles, evaluation confidence, and promotion thresholds |
 | `equity_snapshots` | Daily/periodic equity snapshots per account |
 | `backtest_runs` | Backtest run metadata |
 | `backtest_trades` | Individual trades within a backtest run |
 | `backtest_equity_snapshots` | Equity curve for a backtest run |
 
-Indexes: `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
+Indexes: `idx_trades_trade_time`, `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
 
 ---
 

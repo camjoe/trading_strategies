@@ -23,6 +23,9 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
 **DB path resolution:** `TRADING_DB_PATH` env var → `db_path` in `local/db_config.json` → `local/paper_trading.db`
 
+When `db_path` in `local/db_config.json` is relative, it is resolved from the
+repository root.
+
 **Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `common/market_data_config.example.json` for the config format.
 
 ## Commands

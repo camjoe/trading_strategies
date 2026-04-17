@@ -54,6 +54,7 @@ from trading.services.rotation_service import (
     sync_rotation_episode as sync_rotation_episode_impl,
 )
 from trading.services.reporting_service import compute_market_value_and_unrealized, fetch_latest_prices
+from trading.services.runtime_throttle_service import enforce_runtime_trade_throttles
 from trading.services.trade_execution_service import (
     build_leaps_candidates as build_leaps_candidates_impl,
     prepare_buy_trade as prepare_buy_trade_impl,
@@ -348,6 +349,7 @@ def _record_runtime_trade(
     fee: float,
     selection,
     forced_sell: str | None,
+    trade_time_iso: str | None = None,
 ) -> None:
     broker = get_broker_for_account(account)
     try:
@@ -404,6 +406,7 @@ def _record_runtime_trade(
             record_trade_fn=_broker_aware_record_trade,
             utc_now_iso_fn=utc_now_iso,
             build_trade_note_fn=auto_trader_policy.build_trade_note,
+            trade_time_iso=trade_time_iso,
         )
     finally:
         broker.disconnect()
@@ -436,6 +439,7 @@ def run_for_account(
         resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
         prepare_trade_selection_fn=_prepare_runtime_trade_selection,
         record_prepared_trade_fn=_record_runtime_trade,
+        enforce_runtime_trade_throttles_fn=enforce_runtime_trade_throttles,
     )
 
 

@@ -67,6 +67,59 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 """
 
+TRADES_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_trades_trade_time ON trades(trade_time);
+"""
+
+GLOBAL_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS global_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    runtime_max_trades_per_day INTEGER CHECK (
+        runtime_max_trades_per_day IS NULL OR runtime_max_trades_per_day >= 1
+    ),
+    runtime_max_trades_per_minute INTEGER CHECK (
+        runtime_max_trades_per_minute IS NULL OR runtime_max_trades_per_minute >= 1
+    ),
+    evaluation_backtest_trade_count_for_full_confidence INTEGER NOT NULL DEFAULT 50 CHECK (
+        evaluation_backtest_trade_count_for_full_confidence >= 1
+    ),
+    evaluation_backtest_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 60 CHECK (
+        evaluation_backtest_snapshot_count_for_full_confidence >= 1
+    ),
+    evaluation_paper_live_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 30 CHECK (
+        evaluation_paper_live_snapshot_count_for_full_confidence >= 1
+    ),
+    evaluation_backtest_trade_confidence_weight REAL NOT NULL DEFAULT 0.7 CHECK (
+        evaluation_backtest_trade_confidence_weight >= 0 AND evaluation_backtest_trade_confidence_weight <= 1
+    ),
+    evaluation_backtest_snapshot_confidence_weight REAL NOT NULL DEFAULT 0.3 CHECK (
+        evaluation_backtest_snapshot_confidence_weight >= 0 AND evaluation_backtest_snapshot_confidence_weight <= 1
+    ),
+    evaluation_backtest_evidence_weight REAL NOT NULL DEFAULT 0.6 CHECK (
+        evaluation_backtest_evidence_weight >= 0 AND evaluation_backtest_evidence_weight <= 1
+    ),
+    evaluation_paper_live_evidence_weight REAL NOT NULL DEFAULT 0.4 CHECK (
+        evaluation_paper_live_evidence_weight >= 0 AND evaluation_paper_live_evidence_weight <= 1
+    ),
+    promotion_min_research_backtest_trade_count INTEGER NOT NULL DEFAULT 10 CHECK (
+        promotion_min_research_backtest_trade_count >= 1
+    ),
+    promotion_min_research_backtest_snapshot_count INTEGER NOT NULL DEFAULT 20 CHECK (
+        promotion_min_research_backtest_snapshot_count >= 1
+    ),
+    promotion_min_research_backtest_return_pct REAL NOT NULL DEFAULT 0.0,
+    promotion_min_research_max_drawdown_pct REAL NOT NULL DEFAULT -25.0,
+    promotion_min_research_walk_forward_average_return_pct REAL NOT NULL DEFAULT 0.0,
+    promotion_min_live_paper_snapshot_count INTEGER NOT NULL DEFAULT 10 CHECK (
+        promotion_min_live_paper_snapshot_count >= 1
+    ),
+    promotion_min_live_overall_confidence REAL NOT NULL DEFAULT 0.6 CHECK (
+        promotion_min_live_overall_confidence >= 0 AND promotion_min_live_overall_confidence <= 1
+    ),
+    updated_at TEXT
+);
+"""
+
 EQUITY_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS equity_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -302,6 +355,8 @@ SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
         TRADES_TABLE_SQL,
+        TRADES_INDEXES_SQL,
+        GLOBAL_SETTINGS_TABLE_SQL,
         EQUITY_SNAPSHOTS_TABLE_SQL,
         BACKTEST_RUNS_TABLE_SQL,
         BACKTEST_TRADES_TABLE_SQL,

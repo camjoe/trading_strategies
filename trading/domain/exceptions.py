@@ -9,3 +9,7 @@ from __future__ import annotations
 
 class AccountAlreadyExistsError(Exception):
     """Raised by ``create_account`` when the account name is already taken."""
+
+
+class RuntimeTradeThrottleExceededError(Exception):
+    """Raised when a persisted global runtime trade throttle blocks another auto-trade."""
