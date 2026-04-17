@@ -4,12 +4,12 @@ import datetime as dt
 from pathlib import Path
 
 from ..config import EXPORTS_DIR, LOGS_DIR, ROOT_DIR
-from trading.interfaces.runtime.jobs.daily_paper_trading import COMPLETE_SENTINEL as DAILY_PAPER_TRADING_SENTINEL
-from trading.interfaces.runtime.jobs.daily_snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
-from trading.interfaces.runtime.jobs.scheduled_backtest_refresh import (
-    COMPLETE_SENTINEL as SCHEDULED_BACKTEST_REFRESH_SENTINEL,
+from trading.services.runtime_job_status import (
+    DAILY_PAPER_TRADING_COMPLETE_SENTINEL as DAILY_PAPER_TRADING_SENTINEL,
+    DAILY_SNAPSHOT_COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL,
+    SCHEDULED_BACKTEST_REFRESH_COMPLETE_SENTINEL as SCHEDULED_BACKTEST_REFRESH_SENTINEL,
+    WEEKLY_DB_BACKUP_COMPLETE_SENTINEL as WEEKLY_DB_BACKUP_SENTINEL,
 )
-from trading.interfaces.runtime.jobs.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_DB_BACKUP_SENTINEL
 
 
 def _log_has_sentinel(path: Path, sentinel: str) -> bool:

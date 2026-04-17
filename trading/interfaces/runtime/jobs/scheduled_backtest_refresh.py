@@ -29,6 +29,7 @@ from trading.interfaces.runtime.jobs.task_runs import (
 )
 from trading.services.accounts_service import load_all_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.runtime_job_status import SCHEDULED_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -37,7 +38,7 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 BACKTEST_REFRESH_ENABLED_ENV = "SCHEDULED_BACKTEST_REFRESH_ENABLED"
 
 # Successful scheduled refresh runs write this sentinel into the newest log.
-COMPLETE_SENTINEL = "COMPLETE: Scheduled backtest refresh succeeded."
+COMPLETE_SENTINEL = SCHEDULED_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 RUN_ID_PATTERN = re.compile(r"run_id=(?P<run_id>\d+)")
 
