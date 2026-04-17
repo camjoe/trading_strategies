@@ -34,6 +34,7 @@ router = APIRouter()
 
 @router.get("/api/accounts/config/options")
 def api_account_config_options() -> dict[str, object]:
+    """Return ordered option values and defaults for the account configuration editor."""
     return get_account_config_options()
 
 
