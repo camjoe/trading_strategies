@@ -1,6 +1,31 @@
 from __future__ import annotations
 
+import math
 import sqlite3
+
+# Evaluation confidence weights must remain normalized so blended confidence
+# calculations continue to behave like weighted averages.
+EXPECTED_WEIGHT_SUM = 1.0
+
+# Allow a tiny tolerance for float input while still rejecting materially
+# invalid persisted settings such as 0.8 + 0.8.
+WEIGHT_SUM_TOLERANCE = 1e-9
+
+
+def _validate_weight_sum(
+    *,
+    first_name: str,
+    first_value: float,
+    second_name: str,
+    second_value: float,
+) -> None:
+    total = first_value + second_value
+    if math.isclose(total, EXPECTED_WEIGHT_SUM, rel_tol=0.0, abs_tol=WEIGHT_SUM_TOLERANCE):
+        return
+    raise ValueError(
+        f"{first_name} + {second_name} must equal {EXPECTED_WEIGHT_SUM:.1f}; "
+        f"got {total:.6f}."
+    )
 
 
 def fetch_global_settings_row(conn: sqlite3.Connection) -> sqlite3.Row | None:
@@ -55,6 +80,18 @@ def upsert_evaluation_confidence_settings(
     paper_live_evidence_weight: float,
     updated_at: str,
 ) -> None:
+    _validate_weight_sum(
+        first_name="backtest_trade_confidence_weight",
+        first_value=backtest_trade_confidence_weight,
+        second_name="backtest_snapshot_confidence_weight",
+        second_value=backtest_snapshot_confidence_weight,
+    )
+    _validate_weight_sum(
+        first_name="backtest_evidence_weight",
+        first_value=backtest_evidence_weight,
+        second_name="paper_live_evidence_weight",
+        second_value=paper_live_evidence_weight,
+    )
     conn.execute(
         """
         INSERT INTO global_settings (

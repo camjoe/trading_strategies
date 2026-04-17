@@ -36,7 +36,9 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
 3. Default: `local/paper_trading.db`
 
-All paths use `pathlib` — never hardcode slash direction.
+If `db_path` in the config file is relative, it is resolved from the repository
+root rather than from the config file's directory. All paths use `pathlib` —
+never hardcode slash direction.
 
 ---
 

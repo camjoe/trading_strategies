@@ -42,7 +42,9 @@ Reference orchestration (`scripts/documentation_ui/`):
 
 Modular check scripts (`scripts/checks/`):
 
-- `readme_check.py`: standalone README consistency runner.
+- `readme_check.py`: standalone README consistency runner. Ignores vendored or local
+  virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
+  pollute repository documentation audits.
 - `mypy_check.py`: standalone mypy runner with default backend/trading targets.
 - `pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + mypy + pytest, optional frontend).
@@ -116,4 +118,3 @@ python -m scripts.checks.readme_check
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.checks.readme_check --enforce-style --enforce-staleness
 ```
-
