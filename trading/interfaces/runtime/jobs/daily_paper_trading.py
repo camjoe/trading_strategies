@@ -12,20 +12,18 @@ import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line
+from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, write_artifact
 from trading.services.notifications_service import notify_webhook_best_effort
+from trading.services.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
-DEFAULT_TRADE_CAPS_CONFIG = "trading/config/account_trade_caps.json"
-
-# Environment variable used to opt runtime jobs into webhook notifications.
-DEFAULT_NOTIFICATION_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
+DEFAULT_TRADE_CAPS_CONFIG = REPO_ROOT / "trading" / "config" / "account_trade_caps.json"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
     log_path = logs_dir / f"daily_paper_trading_startup_{dt.date.today().strftime('%Y%m%d')}.log"
-    timestamp = dt.datetime.now(dt.timezone.utc).astimezone().isoformat()
+    timestamp = ts()
     try:
         logs_dir.mkdir(parents=True, exist_ok=True)
         with log_path.open("a", encoding="utf-8") as handle:
@@ -42,7 +40,7 @@ except Exception as exc:
     raise
 
 
-COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
+COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,10 +81,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-source", default="scheduled-daily")
     parser.add_argument(
         "--notify-webhook-url",
-        default=os.environ.get(DEFAULT_NOTIFICATION_WEBHOOK_ENV, ""),
+        default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
         help=(
             "Optional webhook URL for runtime notifications "
-            f"(default: ${DEFAULT_NOTIFICATION_WEBHOOK_ENV} if set)"
+            f"(default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"
         ),
     )
     parser.add_argument(
@@ -233,7 +231,7 @@ def run_auto_trader_group(
         return
     auto_trader_args = [
         "-m",
-        "trading.interfaces.runtime.jobs.daily_auto_trader",
+        RUN_AUTO_TRADES_MODULE,
         "--accounts",
         ",".join(group_accounts),
         "--min-trades",
@@ -283,6 +281,7 @@ def main() -> int:
 
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = logs_dir / f"daily_paper_trading_{timestamp}.log"
+    artifact_path = repo_root / "local" / "exports" / "daily_paper_trading" / f"daily_paper_trading_{timestamp}.json"
     _startup_log(f"RUN log_path={log_path}", logs_dir)
 
     all_accounts = load_all_account_names()
@@ -364,10 +363,23 @@ def main() -> int:
 
     tee_line(
         log_path,
-        f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] RUN META: "
+        f"[{ts()}] RUN META: "
         f"source={args.run_source} force={bool(args.force_run)} "
         f"accounts={','.join(accounts)} caps={caps_summary}",
     )
+    run_meta = {
+        "job": "daily_paper_trading",
+        "run_source": args.run_source,
+        "force_run": bool(args.force_run),
+        "accounts": accounts,
+        "account_count": len(accounts),
+        "caps_summary": caps_summary,
+        "excluded_accounts": excluded_accounts,
+        "log_path": str(log_path.relative_to(repo_root)),
+        "artifact_path": str(artifact_path.relative_to(repo_root)),
+        "started_at": ts(),
+    }
+    completed_steps: list[dict[str, object]] = []
 
     try:
         grouped_accounts = group_accounts_by_caps(accounts, account_trade_caps)
@@ -384,23 +396,42 @@ def main() -> int:
                 args.fee,
                 args.seed,
             )
+            completed_steps.append(
+                {
+                    "step": "auto_trader",
+                    "accounts": group_accounts,
+                    "min_trades": min_trades,
+                    "max_trades": max_trades,
+                }
+            )
 
         for account in accounts:
             stream_command(
                 log_path,
                 f"Snapshot {account}",
-                ["-m", "trading.interfaces.cli.main", "snapshot", "--account", account],
+                ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
                 repo_root,
             )
+            completed_steps.append({"step": "snapshot", "account": account})
 
         stream_command(
             log_path,
             "Compare Strategies",
-            ["-m", "trading.interfaces.cli.main", "compare-strategies", "--lookback", "10"],
+            ["-m", CLI_MAIN_MODULE, "compare-strategies"],
             repo_root,
         )
+        completed_steps.append({"step": "compare_strategies"})
 
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] {COMPLETE_SENTINEL}")
+        tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
+        write_artifact(
+            artifact_path,
+            {
+                **run_meta,
+                "status": "success",
+                "completed_steps": completed_steps,
+                "finished_at": ts(),
+            },
+        )
         _maybe_send_notification(
             webhook_url=args.notify_webhook_url,
             notify_on_success=args.notify_on_success,
@@ -415,7 +446,17 @@ def main() -> int:
         )
         return 0
     except Exception as exc:
-        tee_line(log_path, f"[{dt.datetime.now(dt.timezone.utc).astimezone().isoformat()}] ERROR: {exc}")
+        tee_line(log_path, f"[{ts()}] ERROR: {exc}")
+        write_artifact(
+            artifact_path,
+            {
+                **run_meta,
+                "status": "failed",
+                "completed_steps": completed_steps,
+                "error": str(exc),
+                "finished_at": ts(),
+            },
+        )
         _maybe_send_notification(
             webhook_url=args.notify_webhook_url,
             notify_on_success=args.notify_on_success,

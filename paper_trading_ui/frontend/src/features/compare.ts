@@ -3,6 +3,10 @@ import { currency, esc, pct } from "../lib/format";
 import { getJson } from "../lib/http";
 import type { AccountComparisonRow } from "../types";
 
+export interface CompareFeatureOptions {
+  onOpenAccount?: (accountName: string) => Promise<void> | void;
+}
+
 export interface CompareFeature {
   wireActions: () => void;
   loadComparison: () => Promise<void>;
@@ -19,8 +23,12 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
       const bt = row.latestBacktest;
       return `
         <tr>
-          <td>${row.displayName}</td>
-          <td>${row.name}</td>
+          <td>
+            <button type="button" class="compare-open-account-btn" data-account="${esc(row.name)}">
+              ${esc(row.displayName)}
+            </button>
+          </td>
+          <td><code>${esc(row.name)}</code></td>
           <td>${row.strategy}</td>
           <td>${row.benchmark}</td>
           <td>${currency.format(row.initialCash)}</td>
@@ -30,7 +38,6 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
           <td>${row.liveBenchmarkReturnPct === null ? "n/a" : pct(row.liveBenchmarkReturnPct)}</td>
           <td>${row.liveAlphaPct === null ? "n/a" : pct(row.liveAlphaPct)}</td>
           <td>${bt ? pct(bt.totalReturnPct) : "n/a"}</td>
-          <td>${bt && bt.alphaPct !== null ? pct(bt.alphaPct) : "n/a"}</td>
           <td>${bt ? pct(bt.maxDrawdownPct) : "n/a"}</td>
           <td>${bt && bt.sharpeRatio !== null && bt.sharpeRatio !== undefined ? bt.sharpeRatio.toFixed(2) : "n/a"}</td>
           <td>${bt && bt.winRatePct !== null && bt.winRatePct !== undefined ? pct(bt.winRatePct) : "n/a"}</td>
@@ -57,7 +64,6 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
             <th>Benchmark Return</th>
             <th>Live Alpha</th>
             <th>Latest Backtest Return</th>
-            <th>Latest Alpha</th>
             <th>Latest Max DD</th>
             <th>Latest Sharpe</th>
             <th>Latest Win Rate</th>
@@ -81,7 +87,7 @@ function populateStrategyFilter(rows: AccountComparisonRow[]): void {
     strategies.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
 }
 
-export function createCompareFeature(): CompareFeature {
+export function createCompareFeature(options: CompareFeatureOptions = {}): CompareFeature {
   let allRows: AccountComparisonRow[] = [];
 
   function applyFilter(): void {
@@ -122,6 +128,16 @@ export function createCompareFeature(): CompareFeature {
 
     find<HTMLSelectElement>("#compare-strategy-filter")?.addEventListener("change", () => {
       applyFilter();
+    });
+
+    find<HTMLDivElement>("#compareTable")?.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest<HTMLButtonElement>(".compare-open-account-btn");
+      const accountName = button?.dataset.account;
+      if (!accountName) {
+        return;
+      }
+      void options.onOpenAccount?.(accountName);
     });
   }
 

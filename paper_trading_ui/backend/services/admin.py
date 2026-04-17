@@ -4,35 +4,31 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from trading.models import RotationConfig
-from trading.services.accounts_service import update_account_fields_by_id
-from trading.services.admin_service import delete_accounts
+from trading.services.accounts_service import (
+    AccountAlreadyExistsError,
+    create_account,
+)
+from trading.services.profiles_service import apply_rotation_fields
+from trading.services.admin_service import build_managed_account_delete_counts, delete_accounts
 
-from .db import db_conn, fetch_account_row
-
-
-def clean_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-    text = value.strip()
-    return text or None
+from ..account_contract import AdminCreateAccountCommand
+from .db import db_conn
 
 
-def update_account_rotation_settings(
-    conn: sqlite3.Connection,
-    account_name: str,
-    rotation: RotationConfig,
-) -> None:
-    account = fetch_account_row(conn, account_name)
-    db_values = rotation.to_db_dict()
-    updates = [f"{key} = ?" for key in db_values]
-    params = list(db_values.values())
-    update_account_fields_by_id(
-        conn,
-        account_id=int(account["id"]),
-        updates=updates,
-        params=params,
-    )
+def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateAccountCommand) -> None:
+    """Create account and apply rotation profile, translating domain errors to ValueError."""
+    try:
+        create_account(
+            conn,
+            name=command.name,
+            strategy=command.strategy,
+            initial_cash=command.initial_cash,
+            benchmark_ticker=command.benchmark_ticker,
+            config=command.config,
+        )
+    except (ValueError, AccountAlreadyExistsError) as error:
+        raise ValueError(str(error)) from error
+    apply_rotation_fields(conn, command.name, command.rotation_profile)
 
 
 def delete_account_and_dependents(account_name: str) -> dict[str, int]:
@@ -49,11 +45,4 @@ def delete_account_and_dependents(account_name: str) -> dict[str, int]:
             raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from error
         raise
 
-    return {
-        "accounts": int(deleted["accounts"]),
-        "trades": int(deleted["trades"]),
-        "equitySnapshots": int(deleted["equity_snapshots"]),
-        "backtestRuns": int(deleted["backtest_runs"]),
-        "backtestTrades": int(deleted["backtest_trades"]),
-        "backtestEquitySnapshots": int(deleted["backtest_equity_snapshots"]),
-    }
+    return build_managed_account_delete_counts(deleted)

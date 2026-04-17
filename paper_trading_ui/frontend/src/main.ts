@@ -2,6 +2,7 @@ import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
+import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
 import { createCompareFeature } from "./features/compare";
@@ -10,7 +11,13 @@ import { initDocsFeature } from "./features/docs";
 import { buildDocsTemplate } from "./lib/docs-renderer";
 import appLayoutTemplate from "./views/app-layout.html?raw";
 import navTemplate from "./views/nav.html?raw";
-import tradesTemplate from "./views/trades.html?raw";
+import logsTemplate from "./views/trades.html?raw";
+import adminArtifactsTemplate from "./views/admin/artifacts.html?raw";
+import adminAccountsTemplate from "./views/admin/accounts.html?raw";
+import adminJobsTemplate from "./views/admin/jobs.html?raw";
+import adminOverviewTemplate from "./views/admin/overview.html?raw";
+import adminPromotionsTemplate from "./views/admin/promotions.html?raw";
+import adminTestAccountTemplate from "./views/admin/test-account.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
@@ -36,12 +43,19 @@ function openTab(target: string): void {
 }
 
 function renderShell(): void {
+  const resolvedAdminTemplate = adminTemplate
+    .replace("<!-- ADMIN_OVERVIEW_PARTIAL -->", adminOverviewTemplate)
+    .replace("<!-- ADMIN_JOBS_PARTIAL -->", adminJobsTemplate)
+    .replace("<!-- ADMIN_ACCOUNTS_PARTIAL -->", adminAccountsTemplate)
+    .replace("<!-- ADMIN_TEST_ACCOUNT_PARTIAL -->", adminTestAccountTemplate)
+    .replace("<!-- ADMIN_PROMOTIONS_PARTIAL -->", adminPromotionsTemplate)
+    .replace("<!-- ADMIN_ARTIFACTS_PARTIAL -->", adminArtifactsTemplate);
   app.innerHTML = appLayoutTemplate
     .replace("<!-- NAV_PARTIAL -->", navTemplate)
-    .replace("<!-- TRADES_TAB_PARTIAL -->", tradesTemplate)
+    .replace("<!-- LOGS_TAB_PARTIAL -->", logsTemplate)
     .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTemplate)
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
-    .replace("<!-- ADMIN_TAB_PARTIAL -->", adminTemplate)
+    .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
     .replace("<!-- DOCS_TAB_PARTIAL -->", buildDocsTemplate());
@@ -54,7 +68,12 @@ const accountsFeature = createAccountsFeature({
   },
   onOpenRunReport: (runId) => backtestingFeature.loadBacktestReport(runId),
 });
-const compareFeature = createCompareFeature();
+const compareFeature = createCompareFeature({
+  onOpenAccount: async (accountName) => {
+    openTab("accounts");
+    await accountsFeature.loadAccountDetail(accountName);
+  },
+});
 const adminFeature = createAdminFeature({
   onAccountsChanged: async () => {
     await accountsFeature.loadAccounts();
@@ -67,6 +86,8 @@ const altStrategiesFeature = createAltStrategiesFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
+  await loadAccountConfigOptions();
+  applyAccountConfigOptionsToAdminForm();
   initTabs();
   initDocsFeature(openTab);
   accountsFeature.wireActions();

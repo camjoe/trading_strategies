@@ -8,7 +8,7 @@ Audience: Developers, DB Migration Steward bot, Code Review bot
 
 ## Overview
 
-This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in a single file via a `ColumnMigration` dataclass and is applied automatically at startup.
+This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `trading/database/` via a `ColumnMigration` dataclass and is applied automatically at startup.
 
 ---
 
@@ -16,7 +16,11 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 
 | File | Role |
 |------|------|
-| `trading/database/db.py` | Schema DDL, `ColumnMigration` dataclass, migration tuples, `init_schema()` |
+| `trading/database/db.py` | Stable public facade for DB schema/migration helpers |
+| `trading/database/db_common.py` | Shared DB path/type aliases and seeded overlay-watchlist defaults |
+| `trading/database/db_schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
+| `trading/database/db_migrations.py` | `ColumnMigration` dataclass and migration tuples |
+| `trading/database/db_init.py` | `ensure_db()`, `init_schema()`, and column-guard helpers |
 | `trading/database/db_backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `trading/database/db_config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
 | `trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
@@ -32,13 +36,17 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
 3. Default: `local/paper_trading.db`
 
-All paths use `pathlib` — never hardcode slash direction.
+If `db_path` in the config file is relative, it is resolved from the repository
+root rather than from the config file's directory. All paths use `pathlib` —
+never hardcode slash direction.
 
 ---
 
 ## Schema Initialization: `init_schema()`
 
-Called from `ensure_db()` on every connection:
+Called from `ensure_db()` on every connection. The public import path remains
+`trading.database.db`, while the implementation currently lives in
+`trading/database/db_init.py`:
 
 ```python
 def init_schema(conn: DBConnection) -> None:
@@ -47,6 +55,8 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "accounts", migration)
     for migration in BACKTEST_RUN_MIGRATIONS:             # 3. Apply backtest_runs migrations
         _ensure_column(conn, "backtest_runs", migration)
+    for migration in GLOBAL_SETTINGS_MIGRATIONS:          # 5. Apply singleton global-settings migrations
+        _ensure_column(conn, "global_settings", migration)
     conn.commit()
 ```
 
@@ -83,8 +93,9 @@ def _ensure_column(conn, table_name, migration):
 ## Migration Tuples
 
 ```
-ACCOUNT_MIGRATIONS     → applied to the `accounts` table
-BACKTEST_RUN_MIGRATIONS → applied to the `backtest_runs` table
+ACCOUNT_MIGRATIONS       → applied to the `accounts` table
+BACKTEST_RUN_MIGRATIONS  → applied to the `backtest_runs` table
+GLOBAL_SETTINGS_MIGRATIONS → applied to the `global_settings` table
 ```
 
 Both tuples are processed by `init_schema()`. Any new table requiring additive migrations must also be registered in `init_schema()`.
@@ -122,12 +133,13 @@ Both tuples are processed by `init_schema()`. Any new table requiring additive m
 |-------|---------|
 | `accounts` | Account profiles with strategy config, risk policy, and rotation settings |
 | `trades` | Live trade records linked to accounts |
+| `global_settings` | Singleton row for repo-wide platform policy such as runtime throttles, evaluation confidence, and promotion thresholds |
 | `equity_snapshots` | Daily/periodic equity snapshots per account |
 | `backtest_runs` | Backtest run metadata |
 | `backtest_trades` | Individual trades within a backtest run |
 | `backtest_equity_snapshots` | Equity curve for a backtest run |
 
-Indexes: `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
+Indexes: `idx_trades_trade_time`, `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
 
 ---
 
@@ -141,7 +153,7 @@ Backup logic lives in `trading/interfaces/runtime/data_ops/admin.py`:
 backup_database(destination=None) -> Path
 ```
 
-- Default destination: `local/backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`
+- Default destination: `local/db_backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`
 - Custom destination: pass a directory path (file name auto-generated) or a full `.db` path.
 - Uses `shutil.copy2` — preserves metadata.
 
@@ -181,7 +193,7 @@ Do not mix trading DB backup logic with project_manager DB backups.
 
 If a new table is needed:
 
-1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `db.py`.
+1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `db_schema.py`.
 2. Add it to `SCHEMA_SQL`.
 3. If it will need future column migrations, create a new migration tuple (e.g. `NEW_TABLE_MIGRATIONS`) and register it in `init_schema()`.
 4. Add any performance indexes as `CREATE INDEX IF NOT EXISTS` in a companion `*_INDEXES_SQL` string.

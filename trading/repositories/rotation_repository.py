@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.database.db_common import in_placeholders
+
 
 def update_account_rotation_state(
     conn: sqlite3.Connection,
@@ -123,7 +125,7 @@ def fetch_closed_rotation_episodes(
 ) -> list[sqlite3.Row]:
     if not strategy_names:
         return []
-    placeholders = ", ".join("?" for _ in strategy_names)
+    placeholders = in_placeholders(strategy_names)
     return conn.execute(
         f"""
         SELECT *

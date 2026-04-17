@@ -20,16 +20,10 @@ Keep new scripts in the narrowest folder that matches their purpose so runtime o
 Repository workflow scripts (`scripts/`):
 
 - `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
+- `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
 
 Documentation page workflows:
-
-Financial & Market Knowledge (`scripts/documentation_ui/finance/`):
-
-- `build_registry.py`: rebuilds `docs/reference/finance.json` from Finance + UI docs while preserving per-term visibility (`both`, `glossary`, `ui`).
-- `sync_glossary.py`: syncs Finance definitions from canonical values in `docs/reference/finance.json`.
-- `sync_ui_docs.py`: syncs the Financial & Market Knowledge tables in the UI docs page from canonical values in `docs/reference/finance.json`.
-- `check.py`: standalone sync check that validates Finance/UI docs match the canonical term registry.
 
 Software (`scripts/documentation_ui/software/`):
 
@@ -40,7 +34,7 @@ Software (`scripts/documentation_ui/software/`):
 
 API Reference (`scripts/documentation_ui/api/`):
 
-- `build_registry.py`: rebuilds `docs/reference/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
+- `build_registry.py`: rebuilds `paper_trading_ui/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
 Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Software and API reference checks together.
@@ -48,7 +42,9 @@ Reference orchestration (`scripts/documentation_ui/`):
 
 Modular check scripts (`scripts/checks/`):
 
-- `readme_check.py`: standalone README consistency runner.
+- `readme_check.py`: standalone README consistency runner. Ignores vendored or local
+  virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
+  pollute repository documentation audits.
 - `mypy_check.py`: standalone mypy runner with default backend/trading targets.
 - `pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + mypy + pytest, optional frontend).
@@ -56,22 +52,26 @@ Modular check scripts (`scripts/checks/`):
 
 Data operation scripts (`scripts/data_ops/`):
 
-- `backup_db.py`: retention-oriented backup helper writing to `local/db_backups/`.
-- `export_db_csv.py`: table export to timestamped CSV directory.
-- `export_db_csv_zip.py`: CSV export with ZIP packaging.
+- `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
+- `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
+- `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
 
 **Execution:**
 
 ```sh
-# Backup database
+# Canonical operator-facing entrypoints
+python -m trading.interfaces.runtime.data_ops.admin backup-db
+python -m trading.interfaces.runtime.data_ops.csv_export
+
+# Convenience wrappers
 python -m scripts.data_ops.backup_db
-
-# Export selected tables to CSV
 python -m scripts.data_ops.export_db_csv --tables accounts,trades
-
-# Export all tables and create ZIP archive
 python -m scripts.data_ops.export_db_csv_zip
 ```
+
+Treat `trading/interfaces/runtime/data_ops/` as the canonical home for backup,
+export, and delete flows. The `scripts.data_ops.*` modules exist as convenience
+entrypoints, not as the primary ownership location.
 
 What should not go here:
 
@@ -118,5 +118,3 @@ python -m scripts.checks.readme_check
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.checks.readme_check --enforce-style --enforce-staleness
 ```
-
-

@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import replace
-from typing import Mapping, cast
 
-from common.coercion import coerce_float, row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
 from common.time import utc_now_iso
 from trading.backtesting.domain.metrics import max_drawdown_pct
 from trading.backtesting.repositories.report_repository import (
@@ -18,6 +17,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_walk_forward_group_runs,
 )
 from trading.domain.evaluation_confidence import (
+    EvaluationConfidenceSettings,
     compute_backtest_confidence,
     compute_blended_score,
     compute_overall_confidence,
@@ -45,6 +45,7 @@ from trading.repositories.snapshots_repository import (
     fetch_snapshot_count_between,
     fetch_snapshot_count_for_account,
 )
+from trading.services.runtime_settings_service import fetch_evaluation_confidence_settings
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -71,30 +72,22 @@ PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
-def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    return safe_return_pct(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float,
-    )
-
-
-def _resolve_requested_strategy(account: sqlite3.Row, strategy_name: str | None) -> str:
+def _resolve_requested_strategy(account: dict[str, object], strategy_name: str | None) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
         if normalized:
             return normalized
-    return resolve_active_strategy(cast(Mapping[str, object], account))
+    return resolve_active_strategy(account)
 
 
-def _build_basic_scope(account: sqlite3.Row, requested_strategy: str) -> EvaluationBasicScope:
+def _build_basic_scope(account: dict[str, object], requested_strategy: str) -> EvaluationBasicScope:
     return EvaluationBasicScope(
         account_id=row_expect_int(account, "id"),
         account_name=row_expect_str(account, "name"),
         descriptive_name=row_str(account, "descriptive_name"),
         requested_strategy=requested_strategy,
         base_strategy=row_expect_str(account, "strategy"),
-        active_strategy=resolve_active_strategy(cast(Mapping[str, object], account)),
+        active_strategy=resolve_active_strategy(account),
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=row_str(account, "instrument_mode"),
         rotation_enabled=bool(row_int(account, "rotation_enabled")),
@@ -139,13 +132,13 @@ def _build_backtest_evidence(
         snapshot_count=len(snapshots),
         starting_equity=starting_equity,
         ending_equity=ending_equity,
-        total_return_pct=_safe_return_pct(starting_equity, ending_equity),
+        total_return_pct=safe_return_pct(starting_equity, ending_equity),
         max_drawdown_pct=max_drawdown_pct(equity_curve),
         warnings=row_str(run, "warnings"),
     )
 
 
-def _evidence_mode(account: sqlite3.Row) -> str:
+def _evidence_mode(account: dict[str, object]) -> str:
     return LIVE_EVIDENCE_MODE if bool(row_int(account, "live_trading_enabled")) else PAPER_EVIDENCE_MODE
 
 
@@ -154,7 +147,7 @@ def _latest_rotation_episode_evidence(
     *,
     account_id: int,
     requested_strategy: str,
-    latest_snapshot: sqlite3.Row | None,
+    latest_snapshot: dict[str, object] | None,
 ) -> EvaluationPaperLiveEvidence:
     open_episode = fetch_open_rotation_episode(conn, account_id=account_id)
     if (
@@ -180,7 +173,7 @@ def _latest_rotation_episode_evidence(
             snapshot_count=snapshot_count,
             starting_equity=starting_equity,
             latest_equity=latest_equity,
-            return_pct=_safe_return_pct(starting_equity, latest_equity),
+            return_pct=safe_return_pct(starting_equity, latest_equity),
             cash=row_float(latest_snapshot, "cash"),
             market_value=row_float(latest_snapshot, "market_value"),
             realized_pnl=row_float(latest_snapshot, "realized_pnl"),
@@ -208,7 +201,7 @@ def _latest_rotation_episode_evidence(
         snapshot_count=row_int(closed_episode, "snapshot_count"),
         starting_equity=starting_equity,
         latest_equity=ending_equity,
-        return_pct=_safe_return_pct(starting_equity, ending_equity),
+        return_pct=safe_return_pct(starting_equity, ending_equity),
         realized_pnl=row_float(closed_episode, "ending_realized_pnl"),
         rotation_episode_id=row_int(closed_episode, "id"),
         episode_started_at=row_str(closed_episode, "started_at"),
@@ -220,7 +213,7 @@ def _latest_rotation_episode_evidence(
 def _build_paper_live_evidence(
     conn: sqlite3.Connection,
     *,
-    account: sqlite3.Row,
+    account: dict[str, object],
     requested_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = row_expect_int(account, "id")
@@ -247,7 +240,7 @@ def _build_paper_live_evidence(
         snapshot_count=fetch_snapshot_count_for_account(conn, account_id=account_id),
         starting_equity=row_float(account, "initial_cash"),
         latest_equity=latest_equity,
-        return_pct=_safe_return_pct(row_float(account, "initial_cash"), latest_equity),
+        return_pct=safe_return_pct(row_float(account, "initial_cash"), latest_equity),
         cash=row_float(latest_snapshot, "cash"),
         market_value=row_float(latest_snapshot, "market_value"),
         realized_pnl=row_float(latest_snapshot, "realized_pnl"),
@@ -288,13 +281,16 @@ def _build_confidence(
     *,
     backtest: EvaluationBacktestEvidence,
     paper_live: EvaluationPaperLiveEvidence,
+    settings: EvaluationConfidenceSettings,
 ) -> EvaluationConfidence:
     backtest_confidence = compute_backtest_confidence(
         trade_count=backtest.trade_count,
         snapshot_count=backtest.snapshot_count,
+        settings=settings,
     )
     paper_live_confidence = compute_paper_live_confidence(
         snapshot_count=paper_live.snapshot_count,
+        settings=settings,
     )
     return EvaluationConfidence(
         backtest_confidence=backtest_confidence,
@@ -302,12 +298,14 @@ def _build_confidence(
         overall_confidence=compute_overall_confidence(
             backtest_confidence=backtest_confidence,
             paper_live_confidence=paper_live_confidence,
+            settings=settings,
         ),
         blended_score=compute_blended_score(
             backtest_score=backtest.total_return_pct,
             paper_live_score=paper_live.return_pct,
             backtest_confidence=backtest_confidence,
             paper_live_confidence=paper_live_confidence,
+            settings=settings,
         ),
     )
 
@@ -330,7 +328,7 @@ def _build_diagnostics(
 
 def fetch_strategy_evaluation_for_account_row(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
     strategy_name: str | None = None,
 ) -> StrategyEvaluationArtifact:
@@ -352,9 +350,11 @@ def fetch_strategy_evaluation_for_account_row(
         account_id=account_id,
         requested_strategy=requested_strategy,
     )
+    confidence_settings = fetch_evaluation_confidence_settings(conn)
     confidence = _build_confidence(
         backtest=backtest,
         paper_live=paper_live,
+        settings=confidence_settings,
     )
     diagnostics = _build_diagnostics(
         backtest=backtest,

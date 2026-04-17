@@ -50,7 +50,7 @@ class WalkForwardRunRequest(BacktestBaseRequest):
 
 
 class BacktestPreflightRequest(BacktestBaseRequest):
-    pass
+    """Preflight-check request — identical shape to the base request."""
 
 
 class TestInvestmentRow(TypedDict):

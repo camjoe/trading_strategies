@@ -6,12 +6,14 @@ A separate scaffold for viewing paper trading accounts, snapshots, trades, and l
 
 Provide a local dashboard and API for paper-trading operations, including:
 
-- **Account visibility** — live summary cards and per-account detail (snapshots, trades, backtest metrics, and live benchmark overlays).
+- **Account visibility** — live summary cards and per-account detail (summary, analysis, positions, trades, snapshots, config, backtest metrics, and live benchmark overlays). The Summary section includes a compact posture/snapshot block for latest snapshot timing, snapshot deltas, cash, market value, and latest realized/unrealized P&L.
+- **Account workspace** — a focused one-account-at-a-time workspace with account switching/search, dedicated internal detail tabs, and trade history kept inside the selected account instead of a separate trade tab.
 - **Test Account tab** — dedicated view for the virtual `test_account`, with a manual trade entry form to inject buy/sell records directly into its backing DB account.
 - **Alt Strategies tab** — health status of the three alt-strategy feature providers (Policy, News, Social) and on-demand signal lookup for any ticker. Each signal result includes a feature breakdown table, per-feature descriptions, and a plain-English interpretation of the current feature values.
-- **Account parameter editing** — inline update of core, options, and rotation fields per managed account via the account detail panel, including `rotationOverlayWatchlist` for regime overlays. Not available on the Test Account view.
+- **Account parameter editing** — a dedicated Config section for reviewing and updating core, options, and rotation fields per managed account, including `rotationOverlayWatchlist` for regime overlays. Not available on the Test Account view.
 - **Compare view** — side-by-side performance table for all accounts with strategy-filter dropdown, live benchmark return, and live alpha columns.
-- **Snapshots and operational logs** — snapshot actions and log-file browsing.
+- **Snapshots and operational logs** — snapshot actions stay in the account workspace, while operational logs now live under **Admin > Artifacts & Logs**.
+- **Admin operations visibility** — runtime job health plus recent scheduled refresh, daily snapshot, database-backup, promotion-review visibility, CSV database exports, and operational log browsing all live inside the Admin tab, grouped into focused Admin sub-sections instead of extra top-level tabs.
 
 ## Environment Setup
 
@@ -74,6 +76,8 @@ npm run dev
 - `POST /api/admin/accounts/create` — create a managed account. Body: `AdminCreateAccountRequest`. If `rotationOverlayWatchlist` is omitted, the new account starts with the default tickers seeded from `trading/config/trade_universe.txt`.
 - The seeded default is persisted in the DB schema/defaults. Updating `trading/config/trade_universe.txt` later does not automatically refresh already-migrated databases; use an explicit DB update or migration if you want new accounts to inherit the revised list.
 - `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
+- `GET /api/admin/operations/overview` — summarize scheduled job health and recent refresh/snapshot/backup artifacts discovered under `local/`.
+- `GET /api/admin/promotion/overview?accountName=...&strategyName=&limit=5` — show the current computed promotion assessment plus recent persisted review history for one managed account.
 
 ### Trades
 
@@ -129,8 +133,14 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 
 - Route modules under `paper_trading_ui/backend/routes/` should stay thin and delegate DB mutations to backend service helpers.
 - Backend service modules now live under `paper_trading_ui/backend/services/`.
+- Admin account creation is handled by `create_account_with_rotation()` in `paper_trading_ui/backend/services/admin.py`. This function absorbs `AccountAlreadyExistsError` from the trading domain and re-raises it as `ValueError`; HTTP-layer translation (400 vs 409 etc.) stays in the route handler, not the service.
 - Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `paper_trading_ui/backend/services/admin.py`.
 - New UI/backend code should use canonical runtime data-ops modules (`trading.interfaces.runtime.data_ops.*`).
-- Account snapshot history, account-name listing, and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL.
+- Account snapshot history and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL. Account-name and account-row access now use canonical trading service names directly (`fetch_account_rows_excluding`, `fetch_all_account_names`) — local wrapper aliases were removed in the boundary refactor.
 - Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.
 - Account existence and latest-snapshot lookups in backend DB/test-account services are routed through trading repository adapters.
+
+## Frontend Boundary Notes
+
+- Keep feature entrypoints thin: `src/features/accounts.ts` and `src/features/admin.ts` are wrapper surfaces, while feature-specific orchestration lives under `src/features/accounts/` and `src/features/admin/`.
+- Keep account-detail rendering split by concern under `src/components/account-detail/` so section rendering changes do not accumulate back into one oversized `components/detail.ts`.

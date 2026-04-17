@@ -5,12 +5,8 @@ from fastapi import HTTPException
 
 from common.time import utc_now_iso
 from paper_trading_ui.backend.services import admin as services_admin
-
-
-def test_clean_text() -> None:
-    assert services_admin.clean_text(None) is None
-    assert services_admin.clean_text("   ") is None
-    assert services_admin.clean_text("  hello  ") == "hello"
+from paper_trading_ui.backend.services.admin import create_account_with_rotation
+from trading.domain import AccountAlreadyExistsError
 
 
 def test_delete_account_and_dependents_not_found_raises(conn) -> None:
@@ -113,3 +109,27 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_test_ac
     assert conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
     assert conn.execute("SELECT COUNT(*) AS n FROM walk_forward_groups WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
     assert conn.execute("SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE run_id = ?", (run_id,)).fetchone()["n"] == 0
+
+
+def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -> None:
+    from paper_trading_ui.backend.account_contract import AdminCreateAccountCommand
+
+    command = AdminCreateAccountCommand(
+        name="acct_dup",
+        strategy="trend",
+        initial_cash=1000.0,
+        benchmark_ticker="SPY",
+        config_values={},
+        rotation_profile={},
+    )
+
+    def _raise_duplicate(*_args, **_kwargs) -> None:
+        raise AccountAlreadyExistsError("already exists")
+
+    monkeypatch.setattr(
+        "paper_trading_ui.backend.services.admin.create_account",
+        _raise_duplicate,
+    )
+
+    with pytest.raises(ValueError, match="already exists"):
+        create_account_with_rotation(conn, command)

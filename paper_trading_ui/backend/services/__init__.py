@@ -2,29 +2,26 @@ from __future__ import annotations
 
 from .accounts import (
     attach_live_benchmark_summary,
+    build_account_list_payload,
     build_account_summary,
     build_account_summary_and_positions,
-    build_backtest_run_summary,
     build_comparison_account_payload,
     build_live_benchmark_overlay,
     build_snapshot_payload,
     build_trade_payload,
     display_account_name,
-    display_strategy,
-    fetch_account_names,
-    fetch_account_snapshot_rows,
     fetch_account_trades,
     fetch_recent_backtest_run_summaries,
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
+    fetch_snapshot_history_rows,
     take_snapshot,
     update_account_params,
 )
 from .admin import (
-    clean_text,
+    create_account_with_rotation,
     delete_account_and_dependents,
-    update_account_rotation_settings,
 )
 from .backtests import (
     build_backtest_config_from_preflight_request,
@@ -33,51 +30,48 @@ from .backtests import (
 )
 from .db import db_conn, fetch_account_row
 from .exports import list_csv_exports, preview_csv_export
+from .operations import list_operations_overview
+from .promotion import build_promotion_overview
 from .test_account import (
-    build_test_account_detail_payload,
     build_test_account_live_summary,
-    build_test_account_summary,
+    fetch_resolved_account_row,
     resolve_backtest_payload_account,
 )
 
-from .trades import add_manual_trade
 from .features import get_provider_status, get_signals
 
 __all__ = [
-    "add_manual_trade",
     "attach_live_benchmark_summary",
     "get_provider_status",
     "get_signals",
+    "build_account_list_payload",
     "build_account_summary",
     "build_account_summary_and_positions",
     "build_backtest_config_from_preflight_request",
     "build_backtest_config_from_run_request",
-    "build_backtest_run_summary",
     "build_comparison_account_payload",
     "build_live_benchmark_overlay",
     "build_snapshot_payload",
-    "build_test_account_detail_payload",
     "build_test_account_live_summary",
-    "build_test_account_summary",
     "build_trade_payload",
     "build_walk_forward_config_from_request",
-    "clean_text",
     "db_conn",
+    "create_account_with_rotation",
     "delete_account_and_dependents",
     "display_account_name",
-    "display_strategy",
-    "fetch_account_names",
-    "fetch_account_snapshot_rows",
     "fetch_account_trades",
     "fetch_recent_backtest_run_summaries",
     "fetch_account_row",
     "fetch_latest_backtest_metrics",
     "fetch_latest_backtest_summary",
     "fetch_managed_account_rows",
+    "fetch_resolved_account_row",
+    "fetch_snapshot_history_rows",
+    "build_promotion_overview",
     "list_csv_exports",
+    "list_operations_overview",
     "preview_csv_export",
     "resolve_backtest_payload_account",
     "take_snapshot",
     "update_account_params",
-    "update_account_rotation_settings",
 ]

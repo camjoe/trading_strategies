@@ -23,6 +23,9 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
 **DB path resolution:** `TRADING_DB_PATH` env var → `db_path` in `local/db_config.json` → `local/paper_trading.db`
 
+When `db_path` in `local/db_config.json` is relative, it is resolved from the
+repository root.
+
 **Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `common/market_data_config.example.json` for the config format.
 
 ## Commands
@@ -37,22 +40,26 @@ python -m trading.interfaces.cli.main snapshot --account momentum_5k
 python -m trading.interfaces.cli.main compare-strategies --lookback 10
 python -m trading.interfaces.cli.main promotion-status --account momentum_5k
 python -m trading.interfaces.cli.main promotion-request-review --account momentum_5k --requested-by operator
-python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
 ```
 
 Backup and export:
 
 ```sh
+python -m trading.interfaces.runtime.data_ops.admin backup-db
+python -m trading.interfaces.runtime.data_ops.csv_export
 python -m scripts.data_ops.backup_db
 python -m scripts.data_ops.export_db_csv
-python -m trading.interfaces.runtime.data_ops.admin backup-db
 ```
 
 Canonical admin/export modules live in `trading/interfaces/runtime/data_ops/`.
+The `scripts.data_ops.*` commands are convenience wrappers around those
+canonical runtime data-op modules and should not be treated as the ownership
+source.
 
 ## Script Boundaries
 
-- `trading/interfaces/runtime/jobs/`: production-like trading runtime tasks and schedulers.
+- `trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
 - `trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
 - `trading/database/`: database infrastructure (schema init, backend, config, coercion).
@@ -61,12 +68,14 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 
 ### Runtime Script Catalog
 
+- `run_auto_trades.py`: executes per-account simulated trade batches directly; `daily_paper_trading.py` shells out to this script for grouped account runs, but operators can also run it standalone.
 - `daily_paper_trading.py`: orchestrates scheduled daily paper-trading run.
 - `check_daily_trader_health.py`: verifies recency/health of daily trading runs.
 - `daily_snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
-- `scheduled_backtest_refresh.py`: scheduled recurring backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/scheduled_backtest_refresh/`.
+- `daily_backtest_refresh.py`: scheduled daily backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/daily_backtest_refresh/`.
 - `weekly_db_backup.py`: scheduled weekly backup execution.
-- `register_weekly_backup.py`: schedule registration helper for weekly backups.
+- `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, daily backtest refresh, health checks, snapshots, and weekly backups.
+- Helper modules that are not scheduled jobs keep verb-based names such as `register_`, `scheduler_`, and `task_`; cadence-prefixed naming is reserved for the jobs themselves.
 - `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts, a `default` fallback, and an `excluded` list of account names that are automatically skipped when running with `--accounts all`.
 
 ## Auto-Trading
@@ -79,14 +88,14 @@ Trade universe files live under `trading/config/`. The default is `trade_univers
 | `trading/config/trade_universe_test_account.txt` | Smaller universe for test accounts (~21 tickers) |
 | `trading/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
-Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.daily_auto_trader --help` for all options.
+Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.run_auto_trades --help` for all options.
 
 ```sh
 # Default universe
-python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
 
 # S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.daily_auto_trader --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
+python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
 ```
 
 ### Rotation overlays
@@ -100,29 +109,38 @@ Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `socia
 
 ## Scheduler Operations
 
-Runtime jobs in `trading/interfaces/runtime/jobs/` all accept `--help` for the full flag reference. Common manual invocations:
+The direct job scripts are the source of truth. Keep operations simple: run the job you want directly, and use `manage_job_schedules.py` only when you need to install or remove scheduler entries.
 
 ```sh
 # Daily paper trading
-python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
+./venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
 
 # Daily snapshot
-python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
+./venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
 
-# Scheduled backtest refresh
-python -m trading.interfaces.runtime.jobs.scheduled_backtest_refresh --accounts all --enable-run
+# Daily backtest refresh
+./venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
-python -m trading.interfaces.runtime.jobs.weekly_db_backup
+./venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
 
 # Health check
-python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
+./venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
 
-# Register weekly backup on scheduler (Windows Task Scheduler / Linux cron)
-python -m trading.interfaces.runtime.jobs.register_weekly_backup --day-of-week Sunday --time 02:00
+# Register runtime jobs on scheduler with the active venv interpreter
+./venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+  --daily-paper-trading-time 13:10 \
+  --daily-paper-trading-fallback-time 15:45 \
+  --health-check-time 16:15 \
+  --daily-snapshot-time 16:30 \
+  --daily-backtest-refresh-time 17:00 \
+  --weekly-db-backup-day-of-week Sunday \
+  --weekly-db-backup-time 02:00
 ```
 
-Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`.
+`manage_job_schedules.py` remains a thin job-schedule entrypoint, while `scheduler_installer.py` handles the platform-specific cron and Task Scheduler installation details underneath. `manage_job_schedules.py` uses the interpreter you pass via `--python` (default: the current `sys.executable`), writes Task Scheduler entries on Windows and cron entries on Linux, and avoids relying on a host-level `python` shim. Snapshot and daily backtest refresh entries can be installed before they are operator-enabled; they only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh`) or the corresponding environment variable is set.
+
+Windows Task Scheduler task names default to `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`, `Trading\DailyBacktestRefresh`, `Trading\DailyTraderHealthCheck`, and `Trading\WeeklyDbBackup`.
 
 ## Promotion Review Workflow
 
@@ -147,7 +165,7 @@ Review requests freeze the current evaluation evidence into a durable record and
 ## Backtesting Notes
 
 - `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
-- Scheduled recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/scheduled_backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/scheduled_backtest_refresh/`.
+- Daily recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/daily_backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes
 
@@ -182,7 +200,7 @@ CLI defaults use `trading/config/account_profiles/default.json`.
 
 ## Boundary Snapshot
 
-- The CLI entry point is `trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `trading/interfaces/runtime/jobs/daily_auto_trader.py` (`python -m trading.interfaces.runtime.jobs.daily_auto_trader`). There are no top-level facade modules in `trading/`.
+- The CLI entry point is `trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `trading/interfaces/runtime/jobs/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.run_auto_trades`). There are no top-level facade modules in `trading/`.
 - SQL access is owned by repository modules under `trading/repositories/`.
 - Orchestration and composition are owned by service modules under `trading/services/`.
 - Policy logic is owned by domain modules under `trading/domain/`.

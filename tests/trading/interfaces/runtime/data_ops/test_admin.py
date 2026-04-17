@@ -134,7 +134,7 @@ class TestBackupDatabase:
 
         assert backup.exists()
         assert backup.name.startswith("paper_trading_20260327_080910")
-        assert backup.parent.name == "backups"
+        assert backup.parent.name == "db_backups"
 
     def test_backup_database_accepts_explicit_file_destination(
         self, configured_backend: SQLiteBackend, tmp_path: Path

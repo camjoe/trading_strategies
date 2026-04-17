@@ -12,12 +12,11 @@ from pathlib import Path
 from typing import TypedDict
 
 from common.repo_paths import get_repo_root
+from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV, logs_dir_for_repo
 from trading.services.notifications_service import notify_webhook_best_effort
+from trading.services.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL as COMPLETE_SENTINEL
 
-COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-
-# Environment variable used to opt runtime jobs into webhook notifications.
-DEFAULT_NOTIFICATION_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
+DAILY_PAPER_TRADING_EXECUTION_LOG_PATTERN = "daily_paper_trading_[0-9]*_[0-9]*.log"
 
 
 class HealthPayload(TypedDict):
@@ -53,10 +52,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--notify-webhook-url",
-        default=os.environ.get(DEFAULT_NOTIFICATION_WEBHOOK_ENV, ""),
+        default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
         help=(
             "Optional webhook URL for runtime notifications "
-            f"(default: ${DEFAULT_NOTIFICATION_WEBHOOK_ENV} if set)"
+            f"(default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"
         ),
     )
     parser.add_argument(
@@ -127,9 +126,13 @@ def main() -> int:
         return 2
 
     repo_root = Path(args.repo_root).expanduser().resolve()
-    log_dir = repo_root / "local" / "logs"
+    log_dir = logs_dir_for_repo(repo_root)
 
-    logs = sorted(log_dir.glob("daily_paper_trading_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+    logs = sorted(
+        log_dir.glob(DAILY_PAPER_TRADING_EXECUTION_LOG_PATTERN),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     if not logs:
         payload = _make_payload(
             status="fail",

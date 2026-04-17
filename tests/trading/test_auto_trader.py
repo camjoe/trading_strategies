@@ -3,7 +3,10 @@ import sys
 
 import pytest
 
-from trading.interfaces.runtime.jobs import daily_auto_trader as auto_trader
+from common.time import utc_now_iso
+from trading.domain.exceptions import RuntimeTradeThrottleExceededError
+from trading.interfaces.runtime.jobs import run_auto_trades as auto_trader
+from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
 import trading.services.auto_trader_runtime_service as runtime_service
 import trading.services.trade_execution_service as trade_execution_service
 
@@ -52,7 +55,7 @@ class TestInputLoadingAndPrimitiveHelpers:
                 "--accounts",
                 "acct1,acct2",
                 "--tickers-file",
-                "trading/config/trade_universe.txt",
+                str(auto_trader.DEFAULT_TICKERS_FILE),
                 "--min-trades",
                 "2",
                 "--max-trades",
@@ -288,6 +291,90 @@ class TestTradeLoopOrchestration:
 
         assert executed == 0
         assert calls == []
+
+    def test_run_for_account_stops_cleanly_when_global_runtime_day_cap_is_hit(self, monkeypatch, conn):
+        account = _base_account(learning_enabled=1, id=11)
+        state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
+        upsert_runtime_throttle_settings(
+            conn,
+            runtime_max_trades_per_day=1,
+            runtime_max_trades_per_minute=None,
+            updated_at=utc_now_iso(),
+        )
+        conn.execute(
+            """
+            INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (11, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-03-14T00:00:00Z", "existing"),
+        )
+        conn.commit()
+
+        monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
+        monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 2)
+        monkeypatch.setattr(runtime_service.auto_trader_policy, "choose_side", lambda *_args, **_kwargs: "buy")
+        monkeypatch.setattr(
+            runtime_service,
+            "prepare_buy_trade_impl",
+            lambda *_args, **_kwargs: ("AAPL", 1, 101.0, None, None),
+        )
+        monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-14T00:00:30Z")
+
+        calls = []
+        monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "record_trade", lambda conn, **kwargs: calls.append(kwargs))
+
+        executed = auto_trader.run_for_account(
+            conn=conn,
+            account_name="acct",
+            universe=["AAPL"],
+            prices={"AAPL": 101.0},
+            iv_rank_proxy={},
+            min_trades=2,
+            max_trades=2,
+            fee=0.0,
+        )
+
+        assert executed == 0
+        assert calls == []
+
+    def test_run_for_account_breaks_only_on_runtime_throttle_exception(self, monkeypatch):
+        account = _base_account(learning_enabled=1, id=42)
+        state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
+
+        monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
+        monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
+        monkeypatch.setattr(runtime_service.auto_trader_policy, "choose_side", lambda *_args, **_kwargs: "buy")
+        monkeypatch.setattr(
+            runtime_service,
+            "prepare_buy_trade_impl",
+            lambda *_args, **_kwargs: ("AAPL", 2, 101.0, None, None),
+        )
+        monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
+
+        monkeypatch.setattr(
+            runtime_service,
+            "enforce_runtime_trade_throttles",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeTradeThrottleExceededError("cap hit")),
+        )
+
+        executed = auto_trader.run_for_account(
+            conn=object(),
+            account_name="acct",
+            universe=["AAPL"],
+            prices={"AAPL": 101.0},
+            iv_rank_proxy={},
+            min_trades=1,
+            max_trades=1,
+            fee=0.0,
+        )
+
+        assert executed == 0
 
 
 class TestRotationAwareTradeLoop:

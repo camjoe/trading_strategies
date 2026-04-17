@@ -1,5 +1,8 @@
 import { find, findAll } from "../lib/dom";
 
+const EXPAND_ALL_ICON = "⊞";
+const COLLAPSE_ALL_ICON = "⊟";
+
 type DocsSectionLink = {
   groupLabel: string;
   sectionId: string;
@@ -81,8 +84,10 @@ function initDocsAccordion(): void {
       }
 
       const allExpanded = sections.length > 0 && sections.every((section) => section.classList.contains("expanded"));
-      cardToggleAllBtn.textContent = allExpanded ? "Collapse all" : "Expand all";
-      cardToggleAllBtn.setAttribute("aria-label", allExpanded ? "Collapse all sections" : "Expand all sections");
+      const label = allExpanded ? "Collapse all" : "Expand all";
+      cardToggleAllBtn.textContent = allExpanded ? COLLAPSE_ALL_ICON : EXPAND_ALL_ICON;
+      cardToggleAllBtn.setAttribute("aria-label", label);
+      cardToggleAllBtn.setAttribute("data-tooltip", label);
     };
 
     sections.forEach((section) => {

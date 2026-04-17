@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from trading.interfaces.cli import main as paper_trading
+from trading.interfaces.cli.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 
@@ -131,7 +132,7 @@ def test_main_unknown_command_errors_and_closes_connection(monkeypatch):
 
 def test_common_account_config_kwargs_create_sets_learning_enabled():
     args = _configure_args(command="create-account", learning_enabled=True)
-    kwargs = paper_trading._common_account_config_kwargs(args, include_learning_disabled=False)
+    kwargs = common_account_config_kwargs(args, include_learning_disabled=False)
     assert kwargs.learning_enabled is True
 
 
@@ -408,21 +409,21 @@ class TestLearningFlagResolution:
     def test_resolve_learning_enabled_configure_mode_enabled(self):
         args = _configure_args(learning_enabled=True, learning_disabled=False)
 
-        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+        resolved = resolve_learning_enabled(args, include_learning_disabled=True)
 
         assert resolved is True
 
     def test_resolve_learning_enabled_configure_mode_disabled(self):
         args = _configure_args(learning_enabled=False, learning_disabled=True)
 
-        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+        resolved = resolve_learning_enabled(args, include_learning_disabled=True)
 
         assert resolved is False
 
     def test_resolve_learning_enabled_configure_mode_none(self):
         args = _configure_args(learning_enabled=False, learning_disabled=False)
 
-        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+        resolved = resolve_learning_enabled(args, include_learning_disabled=True)
 
         assert resolved is None
 

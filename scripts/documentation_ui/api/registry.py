@@ -4,10 +4,16 @@ import ast
 import json
 from pathlib import Path
 
+from scripts.documentation_ui.registry_utils import sort_registry_rows
 
+
+ROUTES_DIR = "paper_trading_ui/backend/routes"
+API_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/api.json"
 
 GROUP_ORDER = [
     "Accounts & Snapshots Endpoints",
+    "Analysis Endpoints",
+    "Trading & Signals Endpoints",
     "Admin Endpoints",
     "Logs Endpoints",
     "Backtesting Endpoints",
@@ -16,7 +22,10 @@ GROUP_ORDER = [
 GROUP_BY_MODULE = {
     "accounts": "Accounts & Snapshots Endpoints",
     "actions": "Accounts & Snapshots Endpoints",
+    "analysis": "Analysis Endpoints",
+    "features": "Trading & Signals Endpoints",
     "health": "Accounts & Snapshots Endpoints",
+    "trades": "Trading & Signals Endpoints",
     "admin": "Admin Endpoints",
     "logs": "Logs Endpoints",
     "backtests": "Backtesting Endpoints",
@@ -44,6 +53,13 @@ def _parse_route_decorator(decorator: ast.AST) -> tuple[str, str] | None:
     return None
 
 
+def _parse_route_description(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    docstring = ast.get_docstring(node, clean=True)
+    if not docstring:
+        return ""
+    return " ".join(docstring.split())
+
+
 def parse_routes(routes_dir: Path) -> dict[str, dict[str, str]]:
     rows: dict[str, dict[str, str]] = {}
     for path in sorted(routes_dir.glob("*.py")):
@@ -66,6 +82,7 @@ def parse_routes(routes_dir: Path) -> dict[str, dict[str, str]]:
                     "handler": node.name,
                     "module": module,
                     "group": GROUP_BY_MODULE.get(module, "Accounts & Snapshots Endpoints"),
+                    "description": _parse_route_description(node),
                 }
     return rows
 
@@ -100,7 +117,7 @@ def build_registry(
         route = parsed_routes[key]
         existing = existing_state.get(key, {})
         group = existing.get("group") or route["group"]
-        description = existing.get("description") or ""
+        description = existing.get("description") or route.get("description", "")
         group_rank = GROUP_ORDER.index(group) if group in GROUP_ORDER else len(GROUP_ORDER)
         rows.append(
             {
@@ -113,7 +130,5 @@ def build_registry(
                 "_sort_group": str(group_rank),
             }
         )
-    rows.sort(key=lambda item: (int(item["_sort_group"]), item["path"], item["method"]))
-    for row in rows:
-        del row["_sort_group"]
+    sort_registry_rows(rows, lambda item: (item["path"], item["method"]))
     return rows

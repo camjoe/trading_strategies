@@ -27,6 +27,7 @@ def discover_readmes(repo_root: Path) -> list[Path]:
     ignored_parts = {
         ".git",
         ".venv",
+        "venv",
         "node_modules",
         "db_backups",
         "__pycache__",

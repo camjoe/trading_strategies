@@ -20,7 +20,7 @@ def _resolve_walk_forward_group(
     group_id: int | None,
     account_name: str | None,
     strategy_name: str | None,
-) -> sqlite3.Row:
+) -> dict[str, object]:
     if group_id is not None:
         group = fetch_walk_forward_group_by_id(conn, group_id=group_id)
         if group is None:

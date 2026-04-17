@@ -15,7 +15,7 @@ def run_mypy(
     repo_root: Path,
     python_exe: str,
     targets: list[str] | None = None,
-    python_version: str = "3.12",
+    python_version: str = "3.14",
     ignore_missing_imports: bool = True,
     follow_imports_skip: bool = True,
 ) -> None:
@@ -52,7 +52,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--python-version",
-        default="3.12",
+        default="3.14",
         help="Python version passed to mypy.",
     )
     parser.add_argument(

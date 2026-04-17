@@ -30,6 +30,7 @@ from trading.repositories.promotion_repository import (
     update_promotion_review_record,
 )
 from trading.services.evaluation_service import fetch_strategy_evaluation
+from trading.services.runtime_settings_service import fetch_promotion_policy_settings
 
 YES_TEXT = "yes"
 NO_TEXT = "no"
@@ -68,7 +69,10 @@ def _fetch_current_promotion_snapshot(
         account_name=account_name,
         strategy_name=strategy_name,
     )
-    return artifact, assess_promotion_readiness(artifact)
+    return artifact, assess_promotion_readiness(
+        artifact,
+        settings=fetch_promotion_policy_settings(conn),
+    )
 
 
 def fetch_current_promotion_assessment(

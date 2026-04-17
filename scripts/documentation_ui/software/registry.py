@@ -3,6 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scripts.documentation_ui.registry_utils import sort_registry_rows
+
+
+SOFTWARE_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/software.json"
+
 
 
 GROUP_ORDER = [
@@ -15,18 +20,35 @@ GROUP_ORDER = [
 
 GROUP_BY_PACKAGE = {
     "fastapi": "Backend & Validation",
+    "ib_async": "Data & Market Access",
     "httpx": "Developer Tooling",
     "hypothesis": "Developer Tooling",
     "matplotlib": "Visualization",
+    "newsapi-python": "Data & Market Access",
     "numpy": "Analysis & Modeling",
     "pandas": "Analysis & Modeling",
+    "playwright": "Developer Tooling",
+    "praw": "Data & Market Access",
     "pydantic": "Backend & Validation",
     "pytest": "Developer Tooling",
     "pytest-cov": "Developer Tooling",
     "pytest-mock": "Developer Tooling",
+    "pytest-xdist": "Developer Tooling",
     "python-dotenv": "Backend & Validation",
+    "pytrends": "Data & Market Access",
     "uvicorn": "Backend & Validation",
+    "vadersentiment": "Analysis & Modeling",
     "yfinance": "Data & Market Access",
+}
+
+PURPOSE_BY_PACKAGE = {
+    "ib_async": "Async Interactive Brokers client used for broker connectivity, live account queries, and order execution flows.",
+    "newsapi-python": "News API client used by alternative strategy features to fetch news inputs for sentiment-style signals.",
+    "playwright": "Browser automation library used for UI smoke checks and end-to-end interaction coverage.",
+    "praw": "Reddit API client used by alternative strategy features to fetch social discussion inputs.",
+    "pytest-xdist": "Parallel test execution plugin used to speed up larger local and CI pytest runs.",
+    "pytrends": "Google Trends client used by alternative strategy features to pull search-interest signals.",
+    "vadersentiment": "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features.",
 }
 
 
@@ -100,8 +122,11 @@ def build_registry(
     for key in sorted(parsed_requirements, key=str.lower):
         package = parsed_requirements[key]
         existing = existing_state.get(key, {})
-        group = existing.get("group") or GROUP_BY_PACKAGE.get(key, "Backend & Validation")
-        purpose = existing.get("purpose") or ""
+        default_group = GROUP_BY_PACKAGE.get(key, "Backend & Validation")
+        group = existing.get("group") or default_group
+        if group == "Backend & Validation" and default_group != "Backend & Validation":
+            group = default_group
+        purpose = existing.get("purpose") or PURPOSE_BY_PACKAGE.get(key, "")
         group_rank = GROUP_ORDER.index(group) if group in GROUP_ORDER else len(GROUP_ORDER)
         rows.append(
             {
@@ -114,7 +139,5 @@ def build_registry(
             }
         )
 
-    rows.sort(key=lambda item: (int(item["_sort_group"]), item["name"].lower()))
-    for row in rows:
-        del row["_sort_group"]
+    sort_registry_rows(rows, lambda item: item["name"].lower())
     return rows

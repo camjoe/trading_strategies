@@ -1,9 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AccountDetail } from "../../types";
 import { renderDetail } from "../../components/detail";
+import { resetAccountConfigOptions, setAccountConfigOptions } from "../../lib/account-config-options";
 
 describe("renderDetail", () => {
+  beforeEach(() => {
+    setAccountConfigOptions({
+      goalPeriods: ["monthly", "weekly", "quarterly", "yearly"],
+      riskPolicies: ["none", "fixed_stop", "take_profit", "stop_and_target"],
+      instrumentModes: ["equity", "leaps"],
+      optionTypes: ["call", "put", "both"],
+      rotationModes: ["time", "optimal", "regime"],
+      rotationOptimalityModes: ["previous_period_best", "average_return", "hybrid_weighted"],
+      rotationOverlayModes: ["none", "news", "social", "news_social"],
+      defaults: {
+        goalPeriod: "monthly",
+        riskPolicy: "none",
+        instrumentMode: "equity",
+        rotationMode: "time",
+        rotationOptimalityMode: "previous_period_best",
+        rotationOverlayMode: "none",
+      },
+    });
+  });
+
+  afterEach(() => {
+    resetAccountConfigOptions();
+  });
+
   it("renders latest backtest section when available", () => {
     const detail: AccountDetail = {
       account: {
@@ -25,6 +50,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: "2026-03-15T00:00:00Z",
         changeSinceLastSnapshot: 5,
         latestSnapshotTime: "2026-03-15T00:00:00Z",
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -62,7 +89,6 @@ describe("renderDetail", () => {
         endDate: "2026-02-01",
         totalReturnPct: 14,
         maxDrawdownPct: -4,
-        alphaPct: 5,
         sharpeRatio: 1.5,
         winRatePct: 58,
         profitFactor: 1.8,
@@ -122,9 +148,20 @@ describe("renderDetail", () => {
     expect(html).toContain("Live Alpha");
     expect(html).toContain("Live vs SPY");
     expect(html).toContain("Live Equity Curve");
+    expect(html).toContain("Current Posture");
+    expect(html).toContain("Portfolio Snapshot");
+    expect(html).toContain("Open Positions");
+    expect(html).toContain("Change Since Snapshot");
     expect(html).toContain("<svg");
-    expect(html).toContain("Snapshot This Account");
-    expect(html).toContain("Edit Parameters");
+    expect(html).toContain('id="snapshotOneBtn"');
+    expect(html).toContain('id="openConfigBtn"');
+    expect(html).toContain('data-tooltip="Edit config"');
+    expect(html).toContain('data-tooltip="Snapshot account"');
+    expect(html).toContain('class="detail-section-tab active"');
+    expect(html).toContain('data-detail-panel="summary"');
+    expect(html).toContain('data-detail-panel="analysis" hidden');
+    expect(html).toContain('data-detail-panel="trades" hidden');
+    expect(html).toContain('data-detail-panel="config" hidden');
     expect(html).toContain("Rotation Settings");
     expect(html).toContain("editRotationModeSelect");
     expect(html).toContain("editRotationScheduleInput");
@@ -159,6 +196,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -214,6 +253,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -270,6 +311,8 @@ describe("renderDetail", () => {
         liveBenchmarkEndTime: null,
         changeSinceLastSnapshot: null,
         latestSnapshotTime: null,
+        tradeSizePct: 0.1,
+        maxPositionPct: 0.2,
         stopLossPct: null,
         takeProfitPct: null,
         goalMinReturnPct: null,
@@ -302,11 +345,98 @@ describe("renderDetail", () => {
     expect(html).toContain("No backtest run found for this account yet");
     expect(html).toContain("No snapshots yet");
     expect(html).toContain("No trades yet");
-    expect(html).toContain("Edit Parameters");
+    expect(html).toContain("Latest Snapshot");
+    expect(html).toContain("Last Trade");
+    expect(html).toContain('id="openConfigBtn"');
+    expect(html).toContain('data-tooltip="Edit config"');
+    expect(html).toContain("Account Configuration");
+    expect(html).toContain("Review the current account setup");
     // risk-policy select should render all four options, current one selected
     expect(html).toContain(`value="none" selected`);
     expect(html).toContain(`value="fixed_stop"`);
     expect(html).toContain(`value="take_profit"`);
     expect(html).toContain(`value="stop_and_target"`);
+  });
+
+  it("renders analysis and config as first-class sections", () => {
+    const detail: AccountDetail = {
+      account: {
+        name: "acct3",
+        displayName: "Acct Three",
+        strategy: "Rotation",
+        instrumentMode: "leaps",
+        riskPolicy: "stop_and_target",
+        benchmark: "IWM",
+        initialCash: 5000,
+        equity: 5400,
+        settlementCash: 600,
+        totalChange: 400,
+        totalChangePct: 8,
+        liveBenchmarkReturnPct: 5,
+        liveAlphaPct: 3,
+        liveBenchmarkEquity: 5250,
+        liveBenchmarkStartTime: "2026-03-01T00:00:00Z",
+        liveBenchmarkEndTime: "2026-03-15T00:00:00Z",
+        changeSinceLastSnapshot: 15,
+        latestSnapshotTime: "2026-03-15T00:00:00Z",
+        tradeSizePct: 0.12,
+        maxPositionPct: 0.25,
+        stopLossPct: 4,
+        takeProfitPct: 12,
+        goalMinReturnPct: 2,
+        goalMaxReturnPct: 9,
+        goalPeriod: "monthly",
+        learningEnabled: true,
+        optionStrikeOffsetPct: 0.05,
+        optionMinDte: 20,
+        optionMaxDte: 45,
+        optionType: "call",
+        targetDeltaMin: 0.2,
+        targetDeltaMax: 0.35,
+        maxPremiumPerTrade: 250,
+        maxContractsPerTrade: 3,
+        ivRankMin: 25,
+        ivRankMax: 65,
+        rollDteThreshold: 7,
+        profitTakePct: 20,
+        maxLossPct: 10,
+        rotationEnabled: true,
+        rotationMode: "regime",
+        rotationOptimalityMode: "hybrid_weighted",
+        rotationIntervalDays: 5,
+        rotationIntervalMinutes: null,
+        rotationLookbackDays: 63,
+        rotationSchedule: ["trend", "mean_reversion"],
+        rotationRegimeStrategyRiskOn: "trend",
+        rotationRegimeStrategyNeutral: "carry",
+        rotationRegimeStrategyRiskOff: "mean_reversion",
+        rotationOverlayMode: "news_social",
+        rotationOverlayMinTickers: 3,
+        rotationOverlayConfidenceThreshold: 0.55,
+        rotationOverlayWatchlist: ["AAPL", "MSFT"],
+        rotationActiveIndex: 1,
+        rotationLastAt: "2026-03-15T00:00:00Z",
+        rotationActiveStrategy: "trend",
+      },
+      latestBacktest: null,
+      latestBacktestMetrics: null,
+      liveBenchmarkOverlay: null,
+      snapshots: [],
+      trades: [],
+      positions: [],
+    };
+
+    const analysisHtml = renderDetail(detail, { activeSection: "analysis" });
+    expect(analysisHtml).toContain('data-detail-panel="analysis"');
+    expect(analysisHtml).toContain("Loading analysis");
+
+    const configHtml = renderDetail(detail, { activeSection: "config" });
+    expect(configHtml).toContain('data-detail-panel="config"');
+    expect(configHtml).toContain("Core Settings");
+    expect(configHtml).toContain("Rotation Settings");
+    expect(configHtml).toContain("Overlay Watchlist");
+    expect(configHtml).not.toContain('id="editParamsBtn"');
+    expect(configHtml).toContain('id="openConfigBtn"');
+    expect(configHtml).toContain('id="snapshotOneBtn"');
   });
 });

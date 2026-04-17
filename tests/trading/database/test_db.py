@@ -32,6 +32,7 @@ def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
 
         assert "accounts" in names
         assert "trades" in names
+        assert "global_settings" in names
         assert "equity_snapshots" in names
         assert "backtest_runs" in names
         assert "backtest_trades" in names
@@ -81,6 +82,11 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         assert "rotation_overlay_watchlist" in account_columns
         assert "rotation_active_strategy" in account_columns
         assert "strategy_name" in run_columns
+        global_settings_columns = db._column_names(conn, "global_settings")
+        assert "runtime_max_trades_per_day" in global_settings_columns
+        assert "runtime_max_trades_per_minute" in global_settings_columns
+        assert "evaluation_backtest_trade_count_for_full_confidence" in global_settings_columns
+        assert "promotion_min_live_overall_confidence" in global_settings_columns
 
         row = conn.execute(
             "SELECT name, descriptive_name, benchmark_ticker, rotation_overlay_watchlist FROM accounts WHERE name = 'acct_legacy'"
@@ -89,6 +95,49 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         assert row["descriptive_name"] == "acct_legacy"
         assert row["benchmark_ticker"] == "SPY"
         assert row["rotation_overlay_watchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+    finally:
+        conn.close()
+
+
+def test_init_schema_migrates_legacy_global_settings_columns(sqlite_backend: SQLiteBackend) -> None:
+    conn = sqlite_backend.open_connection()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE global_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                runtime_max_trades_per_day INTEGER,
+                runtime_max_trades_per_minute INTEGER,
+                updated_at TEXT
+            );
+
+            INSERT INTO global_settings (id, runtime_max_trades_per_day, runtime_max_trades_per_minute, updated_at)
+            VALUES (1, 5, 2, '2026-01-01T00:00:00Z');
+            """
+        )
+
+        db.init_schema(conn)
+
+        columns = db._column_names(conn, "global_settings")
+        assert "evaluation_backtest_trade_confidence_weight" in columns
+        assert "promotion_min_research_backtest_trade_count" in columns
+
+        row = conn.execute(
+            """
+            SELECT
+                evaluation_backtest_trade_count_for_full_confidence,
+                evaluation_paper_live_evidence_weight,
+                promotion_min_research_backtest_trade_count,
+                promotion_min_live_overall_confidence
+            FROM global_settings
+            WHERE id = 1
+            """
+        ).fetchone()
+        assert row is not None
+        assert int(row["evaluation_backtest_trade_count_for_full_confidence"]) == 50
+        assert float(row["evaluation_paper_live_evidence_weight"]) == pytest.approx(0.4)
+        assert int(row["promotion_min_research_backtest_trade_count"]) == 10
+        assert float(row["promotion_min_live_overall_confidence"]) == pytest.approx(0.6)
     finally:
         conn.close()
 

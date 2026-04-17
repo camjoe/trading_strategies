@@ -6,26 +6,26 @@ Requires the UI to already be running (launch_ui.py).
 Usage examples
 --------------
 # Test Account tab (default)
-python scripts/screenshot_ui.py
+python -m scripts.screenshot_ui
 
 # Specific tab
-python scripts/screenshot_ui.py --tab accounts
-python scripts/screenshot_ui.py --tab backtesting
-python scripts/screenshot_ui.py --tab compare
-python scripts/screenshot_ui.py --tab trades
-python scripts/screenshot_ui.py --tab admin
+python -m scripts.screenshot_ui --tab accounts
+python -m scripts.screenshot_ui --tab backtesting
+python -m scripts.screenshot_ui --tab compare
+python -m scripts.screenshot_ui --tab trades
+python -m scripts.screenshot_ui --tab admin
 
 # Open an account detail on the Accounts tab
-python scripts/screenshot_ui.py --tab accounts --account my_account
+python -m scripts.screenshot_ui --tab accounts --account my_account
 
 # Wait for the Performance Analysis to finish loading (test-account tab)
-python scripts/screenshot_ui.py --tab test-account --wait-analysis
+python -m scripts.screenshot_ui --tab test-account --wait-analysis
 
 # Custom output path
-python scripts/screenshot_ui.py --output local/screenshots/my_shot.png
+python -m scripts.screenshot_ui --output local/screenshots/my_shot.png
 
 # Custom URL (if frontend runs on a different port)
-python scripts/screenshot_ui.py --url http://127.0.0.1:5174
+python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
@@ -39,10 +39,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_URL = "http://127.0.0.1:5173"
-DEFAULT_OUTPUT_DIR = REPO_ROOT / "local" / "screenshots"
+from common.project_paths import SCREENSHOTS_DIR
+from scripts.ui_config import FRONTEND_PORT, UI_HOST
+
+
+DEFAULT_URL = f"http://{UI_HOST}:{FRONTEND_PORT}"
+DEFAULT_OUTPUT_DIR = SCREENSHOTS_DIR
 DEFAULT_VIEWPORT = (1440, 900)
 ANALYSIS_LOADING_TEXT = "Loading analysis"
 
@@ -88,7 +93,7 @@ def capture(
             for b in btns:
                 print(f"   {b.get_attribute('data-tab')}", file=sys.stderr)
             browser.close()
-            sys.exit(1)
+            raise ValueError(f"Tab '{tab}' not found")
 
         print(f"→ Clicking tab: {tab}")
         tab_btn.click()

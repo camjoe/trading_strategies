@@ -46,14 +46,14 @@ python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
 
 Recurring refreshes for persisted account backtests are handled by:
 
-- `python -m trading.interfaces.runtime.jobs.scheduled_backtest_refresh`
+- `python -m trading.interfaces.runtime.jobs.daily_backtest_refresh`
 
 Key behavior:
 
-- explicit opt-in via `--enable-run` or `SCHEDULED_BACKTEST_REFRESH_ENABLED=1`
+- explicit opt-in via `--enable-run` or `DAILY_BACKTEST_REFRESH_ENABLED=1`
 - duplicate same-day run guard unless `--force-run` is supplied
 - transient retry handling for market-data failures
-- machine-readable JSON artifacts under `local/exports/scheduled_backtest_refresh/`
+- machine-readable JSON artifacts under `local/exports/daily_backtest_refresh/`
 
 ## Strategy Notes
 

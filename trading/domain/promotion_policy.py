@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from trading.domain.evaluation_models import StrategyEvaluationArtifact
 from trading.domain.promotion_models import (
     PROMOTION_STAGE_CANDIDATE,
@@ -34,6 +36,17 @@ MIN_LIVE_PAPER_SNAPSHOT_COUNT = 10
 
 # Promotion review requires moderate blended confidence from the evaluation artifact.
 MIN_LIVE_OVERALL_CONFIDENCE = 0.60
+
+
+@dataclass(frozen=True)
+class PromotionPolicySettings:
+    min_research_backtest_trade_count: int = MIN_RESEARCH_BACKTEST_TRADE_COUNT
+    min_research_backtest_snapshot_count: int = MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT
+    min_research_backtest_return_pct: float = MIN_RESEARCH_BACKTEST_RETURN_PCT
+    min_research_max_drawdown_pct: float = MIN_RESEARCH_MAX_DRAWDOWN_PCT
+    min_research_walk_forward_average_return_pct: float = MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT
+    min_live_paper_snapshot_count: int = MIN_LIVE_PAPER_SNAPSHOT_COUNT
+    min_live_overall_confidence: float = MIN_LIVE_OVERALL_CONFIDENCE
 
 RESEARCH_EVIDENCE_REQUIRED = "Backtest evidence is required for promotion assessment."
 GROUPED_WALK_FORWARD_REQUIRED = "Grouped walk-forward evidence is required for research validation."
@@ -73,7 +86,11 @@ def _append_threshold_blocker(
         blockers.append(message)
 
 
-def _research_blockers(artifact: StrategyEvaluationArtifact) -> list[str]:
+def _research_blockers(
+    artifact: StrategyEvaluationArtifact,
+    *,
+    settings: PromotionPolicySettings,
+) -> list[str]:
     blockers: list[str] = []
     backtest = artifact.backtest
     walk_forward = artifact.walk_forward
@@ -87,51 +104,55 @@ def _research_blockers(artifact: StrategyEvaluationArtifact) -> list[str]:
     _append_threshold_blocker(
         blockers,
         value=backtest.trade_count,
-        minimum=MIN_RESEARCH_BACKTEST_TRADE_COUNT,
+        minimum=settings.min_research_backtest_trade_count,
         message=(
             "Backtest trade count must be at least "
-            f"{MIN_RESEARCH_BACKTEST_TRADE_COUNT} for research validation."
+            f"{settings.min_research_backtest_trade_count} for research validation."
         ),
     )
     _append_threshold_blocker(
         blockers,
         value=backtest.snapshot_count,
-        minimum=MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT,
+        minimum=settings.min_research_backtest_snapshot_count,
         message=(
             "Backtest snapshot count must be at least "
-            f"{MIN_RESEARCH_BACKTEST_SNAPSHOT_COUNT} for research validation."
+            f"{settings.min_research_backtest_snapshot_count} for research validation."
         ),
     )
     _append_threshold_blocker(
         blockers,
         value=backtest.total_return_pct,
-        minimum=MIN_RESEARCH_BACKTEST_RETURN_PCT,
+        minimum=settings.min_research_backtest_return_pct,
         message=(
             "Backtest return must be at least "
-            f"{MIN_RESEARCH_BACKTEST_RETURN_PCT:.2f}% for research validation."
+            f"{settings.min_research_backtest_return_pct:.2f}% for research validation."
         ),
     )
     if (
         backtest.max_drawdown_pct is None
-        or backtest.max_drawdown_pct < MIN_RESEARCH_MAX_DRAWDOWN_PCT
+        or backtest.max_drawdown_pct < settings.min_research_max_drawdown_pct
     ):
         blockers.append(
             "Backtest max drawdown must be no worse than "
-            f"{MIN_RESEARCH_MAX_DRAWDOWN_PCT:.2f}% for research validation."
+            f"{settings.min_research_max_drawdown_pct:.2f}% for research validation."
         )
     _append_threshold_blocker(
         blockers,
         value=walk_forward.average_return_pct,
-        minimum=MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT,
+        minimum=settings.min_research_walk_forward_average_return_pct,
         message=(
             "Walk-forward average return must be at least "
-            f"{MIN_RESEARCH_WALK_FORWARD_AVERAGE_RETURN_PCT:.2f}% for research validation."
+            f"{settings.min_research_walk_forward_average_return_pct:.2f}% for research validation."
         ),
     )
     return blockers
 
 
-def _live_readiness_blockers(artifact: StrategyEvaluationArtifact) -> list[str]:
+def _live_readiness_blockers(
+    artifact: StrategyEvaluationArtifact,
+    *,
+    settings: PromotionPolicySettings,
+) -> list[str]:
     blockers: list[str] = []
     paper_live = artifact.paper_live
     if not paper_live.available:
@@ -145,19 +166,19 @@ def _live_readiness_blockers(artifact: StrategyEvaluationArtifact) -> list[str]:
         _append_threshold_blocker(
             blockers,
             value=paper_live.snapshot_count,
-            minimum=MIN_LIVE_PAPER_SNAPSHOT_COUNT,
+            minimum=settings.min_live_paper_snapshot_count,
             message=(
                 "Paper snapshot count must be at least "
-                f"{MIN_LIVE_PAPER_SNAPSHOT_COUNT} before manual promotion review."
+                f"{settings.min_live_paper_snapshot_count} before manual promotion review."
             ),
         )
     _append_threshold_blocker(
         blockers,
         value=artifact.confidence.overall_confidence,
-        minimum=MIN_LIVE_OVERALL_CONFIDENCE,
+        minimum=settings.min_live_overall_confidence,
         message=(
             "Overall confidence must be at least "
-            f"{MIN_LIVE_OVERALL_CONFIDENCE:.2f} before manual promotion review."
+            f"{settings.min_live_overall_confidence:.2f} before manual promotion review."
         ),
     )
     if artifact.diagnostics.data_gaps:
@@ -177,7 +198,11 @@ def _warnings(artifact: StrategyEvaluationArtifact) -> list[str]:
     return warnings
 
 
-def assess_promotion_readiness(artifact: StrategyEvaluationArtifact) -> PromotionAssessment:
+def assess_promotion_readiness(
+    artifact: StrategyEvaluationArtifact,
+    settings: PromotionPolicySettings | None = None,
+) -> PromotionAssessment:
+    resolved = settings or PromotionPolicySettings()
     warnings = _warnings(artifact)
     if artifact.basic.live_trading_enabled:
         return PromotionAssessment(
@@ -195,7 +220,7 @@ def assess_promotion_readiness(artifact: StrategyEvaluationArtifact) -> Promotio
             next_action=LIVE_ACTIVE_NEXT_ACTION,
         )
 
-    research_blockers = _research_blockers(artifact)
+    research_blockers = _research_blockers(artifact, settings=resolved)
     if research_blockers:
         return PromotionAssessment(
             account_name=artifact.basic.account_name,
@@ -212,7 +237,7 @@ def assess_promotion_readiness(artifact: StrategyEvaluationArtifact) -> Promotio
             next_action=RESEARCH_NEXT_ACTION,
         )
 
-    live_blockers = _live_readiness_blockers(artifact)
+    live_blockers = _live_readiness_blockers(artifact, settings=resolved)
     if not live_blockers:
         return PromotionAssessment(
             account_name=artifact.basic.account_name,

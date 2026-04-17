@@ -15,6 +15,18 @@ def fetch_trades_for_account(conn: sqlite3.Connection, *, account_id: int) -> li
     ).fetchall()
 
 
+def count_trades_between(conn: sqlite3.Connection, start_iso: str, end_iso: str) -> int:
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS trade_count
+        FROM trades
+        WHERE trade_time >= ? AND trade_time <= ?
+        """,
+        (start_iso, end_iso),
+    ).fetchone()
+    return 0 if row is None else int(row["trade_count"])
+
+
 def insert_trade(
     conn: sqlite3.Connection,
     *,

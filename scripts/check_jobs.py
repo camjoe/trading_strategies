@@ -14,13 +14,19 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-LOGS_DIR = REPO_ROOT / "local" / "logs"
+from common.repo_paths import get_repo_root
+from trading.interfaces.runtime.jobs.daily_backtest_refresh import COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL
+from trading.interfaces.runtime.jobs.daily_paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
+from trading.interfaces.runtime.jobs.daily_snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
+from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
+from trading.interfaces.runtime.jobs.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
 
-DAILY_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-WEEKLY_SENTINEL = "COMPLETE: Weekly database backup succeeded."
+REPO_ROOT = get_repo_root(__file__)
+LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
 DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily_paper_trading"
+DAILY_SNAPSHOT_SCRIPT = "trading.interfaces.runtime.jobs.daily_snapshot"
+DAILY_BACKTEST_REFRESH_SCRIPT = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
 WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.weekly_db_backup"
 
 
@@ -28,15 +34,11 @@ WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.weekly_db_backup"
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _read_log(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-
-
 def _log_has_sentinel(path: Path, sentinel: str) -> bool:
-    return sentinel in _read_log(path)
+    try:
+        return sentinel in path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
 
 
 def _log_mtime(path: Path) -> dt.datetime:
@@ -56,10 +58,15 @@ def _days_ago(d: dt.date) -> str:
 # Daily trading job
 # ---------------------------------------------------------------------------
 
-def _check_daily() -> dict:
-    """Return status dict for the daily paper-trading job."""
+def _check_daily_job(
+    *,
+    job: str,
+    pattern: str,
+    sentinel: str,
+    run_cmd: list[str],
+) -> dict:
+    """Return status dict for a daily job."""
     today = dt.date.today()
-    pattern = "daily_paper_trading_[0-9]*.log"
     logs = sorted(LOGS_DIR.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
 
     today_str = today.strftime("%Y%m%d")
@@ -68,7 +75,7 @@ def _check_daily() -> dict:
     for log in logs:
         if today_str in log.name:
             today_log = log
-            today_complete = _log_has_sentinel(log, DAILY_SENTINEL)
+            today_complete = _log_has_sentinel(log, sentinel)
             break
 
     last_success: dt.date | None = None
@@ -80,14 +87,44 @@ def _check_daily() -> dict:
             break
 
     return {
-        "job": "Daily Paper Trading",
+        "job": job,
         "today_ran": today_log is not None,
         "today_complete": today_complete,
         "today_log": today_log,
         "last_success": last_success,
         "last_success_log": last_success_log,
-        "run_cmd": [sys.executable, "-m", DAILY_SCRIPT],
+        "run_cmd": run_cmd,
     }
+
+
+def _check_daily() -> dict:
+    """Return status dict for the daily paper-trading job."""
+    return _check_daily_job(
+        job="Daily Paper Trading",
+        pattern="daily_paper_trading_[0-9]*_[0-9]*.log",
+        sentinel=DAILY_SENTINEL,
+        run_cmd=[sys.executable, "-m", DAILY_SCRIPT],
+    )
+
+
+def _check_daily_snapshot() -> dict:
+    """Return status dict for the daily snapshot job."""
+    return _check_daily_job(
+        job="Daily Snapshot",
+        pattern="daily_snapshot_[0-9]*_[0-9]*.log",
+        sentinel=DAILY_SNAPSHOT_SENTINEL,
+        run_cmd=[sys.executable, "-m", DAILY_SNAPSHOT_SCRIPT, "--enable-run"],
+    )
+
+
+def _check_daily_backtest_refresh() -> dict:
+    """Return status dict for the daily backtest refresh job."""
+    return _check_daily_job(
+        job="Daily Backtest Refresh",
+        pattern="daily_backtest_refresh_[0-9]*_[0-9]*.log",
+        sentinel=DAILY_BACKTEST_REFRESH_SENTINEL,
+        run_cmd=[sys.executable, "-m", DAILY_BACKTEST_REFRESH_SCRIPT, "--accounts", "all", "--enable-run"],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -236,19 +273,34 @@ def main() -> int:
     print(f"  Automation Job Status — {today}")
     print(f"{'=' * 50}")
 
-    daily = _check_daily()
+    daily_jobs = [
+        _check_daily(),
+        _check_daily_snapshot(),
+        _check_daily_backtest_refresh(),
+    ]
     weekly = _check_weekly()
 
-    daily_ok = _print_daily(daily)
+    daily_ok = True
+    for daily in daily_jobs:
+        daily_ok = _print_daily(daily) and daily_ok
     weekly_ok = _print_weekly(weekly)
 
     print(f"\n{'─' * 50}\n")
 
     if args.run_missing:
-        if not daily_ok:
-            _trigger(daily["run_cmd"], daily["job"])
+        for daily in daily_jobs:
+            if not daily["today_complete"]:
+                _trigger(daily["run_cmd"], daily["job"])
         if not weekly_ok:
             _trigger(weekly["run_cmd"], weekly["job"])
+        daily_ok = all(
+            (
+                _check_daily()["today_complete"],
+                _check_daily_snapshot()["today_complete"],
+                _check_daily_backtest_refresh()["today_complete"],
+            )
+        )
+        weekly_ok = _check_weekly()["this_week_complete"]
     else:
         if not daily_ok or not weekly_ok:
             print("  Tip: pass --run-missing to trigger any outstanding jobs.\n")

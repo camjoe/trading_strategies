@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from paper_trading_ui.backend.services import test_account as services_test_account
-from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME, TEST_BACKTEST_ACCOUNT_NAME
+from paper_trading_ui.backend.config import TEST_ACCOUNT_DISPLAY_NAME, TEST_ACCOUNT_NAME, TEST_BACKTEST_ACCOUNT_NAME
 
 
-def test_test_account_parsing_and_payloads(monkeypatch, tmp_path) -> None:
+def test_test_account_parsing_helpers(monkeypatch, tmp_path) -> None:
     investments_file = tmp_path / "test_investments.txt"
     investments_file.write_text(
         "\n".join(
@@ -23,17 +23,6 @@ def test_test_account_parsing_and_payloads(monkeypatch, tmp_path) -> None:
     assert rows == [{"ticker": "AAPL", "amount": 1500.0}, {"ticker": "MSFT", "amount": 0.0}]
     assert services_test_account.compute_test_account_equity(rows) == 1500.0
     assert services_test_account.parse_test_account_benchmark() == "QQQ"
-
-    summary = services_test_account.build_test_account_summary()
-    assert summary["name"] == TEST_ACCOUNT_NAME
-    assert summary["benchmark"] == "QQQ"
-    assert summary["equity"] == 1500.0
-
-    detail = services_test_account.build_test_account_detail_payload()
-    assert detail["latestBacktest"] is None
-    assert len(detail["trades"]) == 2
-    assert detail["snapshots"][0]["equity"] == 1500.0
-
 
 def test_resolve_backtest_account_name_and_payload_resolver(conn, monkeypatch) -> None:
     assert services_test_account.resolve_backtest_account_name(TEST_ACCOUNT_NAME) == TEST_BACKTEST_ACCOUNT_NAME
@@ -65,3 +54,15 @@ def test_ensure_test_backtest_account_creates_shadow_account_with_min_cash(conn,
     assert row["name"] == TEST_BACKTEST_ACCOUNT_NAME
     assert float(row["initial_cash"]) == 1.0
     assert row["benchmark_ticker"] == "QQQ"
+
+
+def test_build_test_account_live_summary_uses_db_backed_shadow_account(conn, monkeypatch) -> None:
+    monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 1500.0)
+    monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "QQQ")
+
+    summary = services_test_account.build_test_account_live_summary(conn)
+
+    assert summary["name"] == TEST_ACCOUNT_NAME
+    assert summary["displayName"] == TEST_ACCOUNT_DISPLAY_NAME
+    assert summary["benchmark"] == "QQQ"
+    assert summary["equity"] == 1500.0

@@ -29,7 +29,7 @@ def conn(tmp_path: Path):
         set_backend(original)
 
 
-def _make_account(conn: sqlite3.Connection, name: str, initial_cash: float = 1000.0) -> sqlite3.Row:
+def _make_account(conn: sqlite3.Connection, name: str, initial_cash: float = 1000.0) -> dict[str, object]:
     if initial_cash > 0:
         create_account(conn, name, "trend", initial_cash, "SPY")
     else:
@@ -41,7 +41,8 @@ def _make_account(conn: sqlite3.Connection, name: str, initial_cash: float = 100
             (name, "trend", 0.0, utc_now_iso(), "SPY"),
         )
         conn.commit()
-    return conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    return dict(row)
 
 
 def _buy(conn: sqlite3.Connection, account_id: int, ticker: str, qty: float, price: float) -> None:
