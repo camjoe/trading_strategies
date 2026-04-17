@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, DAILY_AUTO_TRADER_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, write_artifact
+from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, write_artifact
 from trading.services.notifications_service import notify_webhook_best_effort
 from trading.services.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
@@ -231,7 +231,7 @@ def run_auto_trader_group(
         return
     auto_trader_args = [
         "-m",
-        DAILY_AUTO_TRADER_MODULE,
+        RUN_AUTO_TRADES_MODULE,
         "--accounts",
         ",".join(group_accounts),
         "--min-trades",
