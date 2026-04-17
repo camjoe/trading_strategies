@@ -85,7 +85,7 @@ See [trading/README.md](trading/README.md) for paper trading commands, account p
 Run the backend and frontend together with the launch script:
 
 ```sh
-python scripts/launch_ui.py
+python -m scripts.launch_ui
 ```
 
 Or start each service separately (required when using the Python debugger — see below):

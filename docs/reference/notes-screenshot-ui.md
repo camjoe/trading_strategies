@@ -10,9 +10,9 @@ assistants to verify UI state without a live browser session.
 
 1. **The UI must be running** before you take a screenshot:
    ```sh
-   # From repo root, with venv active
-   python scripts/launch_ui.py
-   ```
+    # From repo root, with venv active
+    python -m scripts.launch_ui
+    ```
    Default addresses: frontend `http://127.0.0.1:5173`, backend `http://127.0.0.1:8000`.
 
 2. **Dependencies** — Playwright and Chromium must be installed:
@@ -48,16 +48,16 @@ All commands assume the venv is active and you are in the repo root.
 
 ```sh
 # Test Account tab (default)
-python scripts/screenshot_ui.py
+python -m scripts.screenshot_ui
 
 # Any other tab
-python scripts/screenshot_ui.py --tab accounts
-python scripts/screenshot_ui.py --tab compare
-python scripts/screenshot_ui.py --tab backtesting
-python scripts/screenshot_ui.py --tab trades
-python scripts/screenshot_ui.py --tab alt-strategies
-python scripts/screenshot_ui.py --tab admin
-python scripts/screenshot_ui.py --tab docs
+python -m scripts.screenshot_ui --tab accounts
+python -m scripts.screenshot_ui --tab compare
+python -m scripts.screenshot_ui --tab backtesting
+python -m scripts.screenshot_ui --tab trades
+python -m scripts.screenshot_ui --tab alt-strategies
+python -m scripts.screenshot_ui --tab admin
+python -m scripts.screenshot_ui --tab docs
 ```
 
 Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
@@ -94,19 +94,19 @@ backtesting
 
 ```sh
 # Test Account — wait for Performance Analysis before capturing
-python scripts/screenshot_ui.py --tab test-account --wait-analysis
+python -m scripts.screenshot_ui --tab test-account --wait-analysis
 
 # Open a specific account detail
-python scripts/screenshot_ui.py --tab accounts --account my_account_bt
+python -m scripts.screenshot_ui --tab accounts --account my_account_bt
 
 # Debug: see exactly what the browser is doing
-python scripts/screenshot_ui.py --tab test-account --headed --wait-analysis
+python -m scripts.screenshot_ui --tab test-account --headed --wait-analysis
 
 # Save to a specific path
-python scripts/screenshot_ui.py --output local/screenshots/before_fix.png
+python -m scripts.screenshot_ui --output local/screenshots/before_fix.png
 
 # Narrow viewport to test responsive layout
-python scripts/screenshot_ui.py --width 768 --height 1024
+python -m scripts.screenshot_ui --width 768 --height 1024
 ```
 
 ---
@@ -119,7 +119,7 @@ To visually verify a UI change, run the script from within the session:
 # Example: capture the test account page and inspect the screenshot
 import subprocess, sys
 result = subprocess.run(
-    [sys.executable, "scripts/screenshot_ui.py",
+    [sys.executable, "-m", "scripts.screenshot_ui",
      "--tab", "test-account", "--wait-analysis"],
     capture_output=True, text=True
 )

@@ -11,6 +11,9 @@ import sys
 import time
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from scripts.ui_config import BACKEND_PORT, FRONTEND_PORT, UI_HOST
 
 
