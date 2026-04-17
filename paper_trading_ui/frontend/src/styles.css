@@ -612,8 +612,8 @@ body {
 .admin-note {
   margin: 0 0 0.75rem;
   color: var(--ink-soft);
-  font-size: 0.94rem;
-  line-height: 1.55;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .admin-note-row {
@@ -799,6 +799,10 @@ body {
   grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto auto;
   align-items: end;
   margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--surface-subtle);
 }
 
 .admin-csv-controls .bt-field {
@@ -842,6 +846,10 @@ body {
 
 .admin-promotion-controls {
   grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--surface-subtle);
 }
 
 .admin-ops-output,
@@ -1043,9 +1051,9 @@ body {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
-  padding: 0.85rem 1rem;
+  padding: 0.95rem 1rem;
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--surface-subtle);
 }
 
@@ -1334,24 +1342,30 @@ summary:focus-visible {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.05rem;
 }
 
 .section-kicker {
-  margin: 0 0 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.56rem;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .section-copy {
-  margin: 0.45rem 0 0;
-  max-width: 72ch;
+  margin: 0.35rem 0 0;
+  max-width: 58ch;
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.6;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .section-actions {
@@ -1399,6 +1413,10 @@ h3 {
   gap: 0.85rem;
   align-items: end;
   margin-bottom: 1.1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--surface-subtle);
 }
 
 .account-search-field {
@@ -1476,10 +1494,10 @@ h3 {
 
 .empty {
   color: var(--ink-soft);
-  padding: 1rem 1.1rem;
-  border: 1px dashed var(--border-subtle);
+  padding: 0.95rem 1rem;
+  border: 1px dashed var(--border-action-hover);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffffa0, #f7faffd6);
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
 }
 
 .detail-head {
@@ -1712,7 +1730,7 @@ td {
   gap: 0.75rem;
   grid-template-columns: 1.4fr 2fr auto;
   margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 0.95rem 1rem;
   border: 1px solid var(--border-subtle);
   border-radius: 18px;
   background: var(--surface-subtle);
@@ -1742,17 +1760,17 @@ td {
 }
 
 .bt-field > span {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--ink-soft);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .bt-advanced {
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  background: var(--surface-subtle);
+  background: #fffdf8;
 }
 
 .bt-advanced summary {
@@ -1794,8 +1812,9 @@ td {
 
 .bt-quick-buttons button {
   padding: 0.45rem 0.7rem;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   background: linear-gradient(120deg, var(--btn-neutral-start), var(--btn-neutral-end));
+  box-shadow: none;
 }
 
 .bt-row {

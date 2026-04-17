@@ -1,7 +1,7 @@
 <div class="admin-section-page" data-admin-section-panel="artifacts" hidden>
   <section class="card admin-card">
-    <h2>Admin: Artifacts &amp; Logs</h2>
-    <p class="admin-note">Use this file-oriented workspace for operational logs and generated export artifacts. The CSV batches below are database table snapshots written under <code>local/exports/db_csv_*</code> by the export scripts, so you can inspect persisted rows without opening SQLite directly.</p>
+    <h2>Exports</h2>
+    <p class="admin-note">Browse CSV snapshots from <code>local/exports/db_csv_*</code>.</p>
 
     <div class="admin-csv-controls">
       <label class="bt-field">
@@ -47,8 +47,8 @@
   </section>
 
   <section class="card admin-card">
-    <h2>Admin: Operational Logs</h2>
-    <p class="admin-note">Browse the latest runtime logs from <code>local/logs</code>. Jobs &amp; Health shows summary status; this viewer is for inspecting the raw lines behind those checks.</p>
+    <h2>Logs</h2>
+    <p class="admin-note">Inspect runtime logs from <code>local/logs</code>.</p>
     <div class="log-controls">
       <select id="logFileSelect"></select>
       <input id="logFilterInput" placeholder="Filter text" />
