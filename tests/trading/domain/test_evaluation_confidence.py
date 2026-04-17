@@ -1,6 +1,7 @@
 import pytest
 
 from trading.domain.evaluation_confidence import (
+    EvaluationConfidenceSettings,
     compute_backtest_confidence,
     compute_blended_score,
     compute_overall_confidence,
@@ -52,3 +53,18 @@ def test_compute_blended_score_biases_toward_higher_confidence_evidence() -> Non
     )
 
     assert score == pytest.approx(9.142857142857142)
+
+
+def test_compute_backtest_confidence_uses_injected_settings() -> None:
+    confidence = compute_backtest_confidence(
+        trade_count=25,
+        snapshot_count=30,
+        settings=EvaluationConfidenceSettings(
+            backtest_trade_count_for_full_confidence=100,
+            backtest_snapshot_count_for_full_confidence=100,
+            backtest_trade_confidence_weight=0.5,
+            backtest_snapshot_confidence_weight=0.5,
+        ),
+    )
+
+    assert confidence == pytest.approx(0.275)

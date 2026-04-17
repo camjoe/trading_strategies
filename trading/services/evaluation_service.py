@@ -17,6 +17,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_walk_forward_group_runs,
 )
 from trading.domain.evaluation_confidence import (
+    EvaluationConfidenceSettings,
     compute_backtest_confidence,
     compute_blended_score,
     compute_overall_confidence,
@@ -44,6 +45,7 @@ from trading.repositories.snapshots_repository import (
     fetch_snapshot_count_between,
     fetch_snapshot_count_for_account,
 )
+from trading.services.runtime_settings_service import fetch_evaluation_confidence_settings
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -279,13 +281,16 @@ def _build_confidence(
     *,
     backtest: EvaluationBacktestEvidence,
     paper_live: EvaluationPaperLiveEvidence,
+    settings: EvaluationConfidenceSettings,
 ) -> EvaluationConfidence:
     backtest_confidence = compute_backtest_confidence(
         trade_count=backtest.trade_count,
         snapshot_count=backtest.snapshot_count,
+        settings=settings,
     )
     paper_live_confidence = compute_paper_live_confidence(
         snapshot_count=paper_live.snapshot_count,
+        settings=settings,
     )
     return EvaluationConfidence(
         backtest_confidence=backtest_confidence,
@@ -293,12 +298,14 @@ def _build_confidence(
         overall_confidence=compute_overall_confidence(
             backtest_confidence=backtest_confidence,
             paper_live_confidence=paper_live_confidence,
+            settings=settings,
         ),
         blended_score=compute_blended_score(
             backtest_score=backtest.total_return_pct,
             paper_live_score=paper_live.return_pct,
             backtest_confidence=backtest_confidence,
             paper_live_confidence=paper_live_confidence,
+            settings=settings,
         ),
     )
 
@@ -343,9 +350,11 @@ def fetch_strategy_evaluation_for_account_row(
         account_id=account_id,
         requested_strategy=requested_strategy,
     )
+    confidence_settings = fetch_evaluation_confidence_settings(conn)
     confidence = _build_confidence(
         backtest=backtest,
         paper_live=paper_live,
+        settings=confidence_settings,
     )
     diagnostics = _build_diagnostics(
         backtest=backtest,

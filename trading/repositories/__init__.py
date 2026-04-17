@@ -17,6 +17,8 @@ from trading.repositories.trades_repository import fetch_trades_for_account, ins
 from trading.repositories.trades_repository import count_trades_between
 from trading.repositories.global_settings_repository import (
     fetch_global_settings_row,
+    upsert_evaluation_confidence_settings,
+    upsert_promotion_policy_settings,
     upsert_runtime_throttle_settings,
 )
 from trading.repositories.rotation_repository import (
@@ -43,6 +45,8 @@ __all__ = [
     "count_trades_between",
     "insert_trade",
     "fetch_global_settings_row",
+    "upsert_evaluation_confidence_settings",
+    "upsert_promotion_policy_settings",
     "upsert_runtime_throttle_settings",
     "fetch_open_rotation_episode",
     "insert_rotation_episode",

@@ -8,7 +8,7 @@ from trading.domain.evaluation_models import (
     EvaluationWalkForwardEvidence,
     StrategyEvaluationArtifact,
 )
-from trading.domain.promotion_policy import assess_promotion_readiness
+from trading.domain.promotion_policy import PromotionPolicySettings, assess_promotion_readiness
 
 
 def _artifact(
@@ -132,3 +132,28 @@ def test_assess_promotion_readiness_marks_live_accounts_as_live_active() -> None
     assert assessment.ready_for_live is False
     assert assessment.blockers == []
     assert any("already enabled" in warning for warning in assessment.warnings)
+
+
+def test_assess_promotion_readiness_uses_injected_policy_settings() -> None:
+    assessment = assess_promotion_readiness(
+        _artifact(
+            paper_available=True,
+            paper_snapshot_count=12,
+            overall_confidence=0.72,
+            data_gaps=[],
+        ),
+        settings=PromotionPolicySettings(
+            min_research_backtest_trade_count=10,
+            min_research_backtest_snapshot_count=20,
+            min_research_backtest_return_pct=0.0,
+            min_research_max_drawdown_pct=-25.0,
+            min_research_walk_forward_average_return_pct=0.0,
+            min_live_paper_snapshot_count=20,
+            min_live_overall_confidence=0.8,
+        ),
+    )
+
+    assert assessment.stage == "paper_observing"
+    assert assessment.status == "observing"
+    assert any("Paper snapshot count must be at least 20" in blocker for blocker in assessment.blockers)
+    assert any("Overall confidence must be at least 0.80" in blocker for blocker in assessment.blockers)

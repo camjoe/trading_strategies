@@ -19,6 +19,7 @@ from trading.database.db_migrations import (
     BACKTEST_RUN_MIGRATIONS,
     ORDER_FILL_MIGRATIONS,
     ColumnMigration,
+    GLOBAL_SETTINGS_MIGRATIONS,
 )
 from trading.database.db_schema import ACCOUNTS_TABLE_SQL, SCHEMA_SQL
 
@@ -33,6 +34,7 @@ __all__ = [
     "DEFAULT_ROTATION_OVERLAY_WATCHLIST",
     "DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE",
     "DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON",
+    "GLOBAL_SETTINGS_MIGRATIONS",
     "ORDER_FILL_MIGRATIONS",
     "SCHEMA_SQL",
     "_column_names",
