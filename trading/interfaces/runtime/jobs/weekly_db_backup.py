@@ -8,7 +8,7 @@ import datetime as dt
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import ADMIN_MODULE, latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line, ts
+from trading.interfaces.runtime.jobs.job_helpers import ADMIN_MODULE, latest_log_contains_sentinel, logs_dir_for_repo, run_command, tee_line, ts
 from trading.services.runtime_job_status import WEEKLY_DB_BACKUP_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)

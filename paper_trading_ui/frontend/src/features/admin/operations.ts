@@ -23,7 +23,7 @@ export function createAdminOperationsController(): AdminOperationsController {
       setHtml(output, "admin-ops-output", renderOperationsOverview(data));
       meta.textContent =
         `${data.jobs.length} jobs tracked · ` +
-        `${data.scheduledRefreshArtifacts.length} refresh artifacts · ` +
+        `${data.dailyBacktestRefreshArtifacts.length} refresh artifacts · ` +
         `${data.dailySnapshotArtifacts.length} snapshot artifacts · ` +
         `${data.databaseBackups.length} DB backups.`;
     } catch (error) {

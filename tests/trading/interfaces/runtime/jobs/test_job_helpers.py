@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from trading.interfaces.runtime.jobs.task_runs import (
+from trading.interfaces.runtime.jobs.job_helpers import (
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     run_command,

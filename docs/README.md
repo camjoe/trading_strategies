@@ -5,13 +5,13 @@ Navigation index for docs and README files across the repository.
 ## Start Here
 
 1. `../README.md` for the repository overview.
-2. `../trading/README.md` for paper trading commands and scheduler operations.
-3. Scheduler details are in `../trading/README.md` under "Scheduler Operations".
+2. `../trading/README.md` for paper trading commands, direct runtime job scripts, and scheduler operations.
+3. Scheduler details are in `../trading/README.md` under "Scheduler Operations"; `manage_job_schedules.py` is the single job-schedule entrypoint, while the direct job scripts remain the runtime source of truth.
 
 **Execution Note:**
-All trading scripts must be run as Python modules from the repository root, e.g.,
+All trading scripts should be run as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
 ```sh
-python -m trading.interfaces.cli.main
+./venv/bin/python -m trading.interfaces.cli.main
 ```
 
 ## Docs Folder Files

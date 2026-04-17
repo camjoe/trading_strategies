@@ -59,7 +59,7 @@ source.
 
 ## Script Boundaries
 
-- `trading/interfaces/runtime/jobs/`: production-like trading runtime tasks and schedulers.
+- `trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
 - `trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
 - `trading/database/`: database infrastructure (schema init, backend, config, coercion).
@@ -68,12 +68,14 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 
 ### Runtime Script Catalog
 
+- `daily_auto_trader.py`: executes per-account simulated trade batches directly; `daily_paper_trading.py` shells out to this script for grouped account runs, but operators can also run it standalone.
 - `daily_paper_trading.py`: orchestrates scheduled daily paper-trading run.
 - `check_daily_trader_health.py`: verifies recency/health of daily trading runs.
 - `daily_snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
-- `scheduled_backtest_refresh.py`: scheduled recurring backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/scheduled_backtest_refresh/`.
+- `daily_backtest_refresh.py`: scheduled daily backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/daily_backtest_refresh/`.
 - `weekly_db_backup.py`: scheduled weekly backup execution.
-- `register_weekly_backup.py`: schedule registration helper for weekly backups.
+- `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, daily backtest refresh, health checks, snapshots, and weekly backups.
+- Helper modules that are not scheduled jobs keep verb-based names such as `register_`, `scheduler_`, and `task_`; cadence-prefixed naming is reserved for the jobs themselves.
 - `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts, a `default` fallback, and an `excluded` list of account names that are automatically skipped when running with `--accounts all`.
 
 ## Auto-Trading
@@ -107,29 +109,38 @@ Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `socia
 
 ## Scheduler Operations
 
-Runtime jobs in `trading/interfaces/runtime/jobs/` all accept `--help` for the full flag reference. Common manual invocations:
+The direct job scripts are the source of truth. Keep operations simple: run the job you want directly, and use `manage_job_schedules.py` only when you need to install or remove scheduler entries.
 
 ```sh
 # Daily paper trading
-python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
+./venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
 
 # Daily snapshot
-python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
+./venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
 
-# Scheduled backtest refresh
-python -m trading.interfaces.runtime.jobs.scheduled_backtest_refresh --accounts all --enable-run
+# Daily backtest refresh
+./venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
-python -m trading.interfaces.runtime.jobs.weekly_db_backup
+./venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
 
 # Health check
-python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
+./venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
 
-# Register weekly backup on scheduler (Windows Task Scheduler / Linux cron)
-python -m trading.interfaces.runtime.jobs.register_weekly_backup --day-of-week Sunday --time 02:00
+# Register runtime jobs on scheduler with the active venv interpreter
+./venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+  --daily-paper-trading-time 13:10 \
+  --daily-paper-trading-fallback-time 15:45 \
+  --health-check-time 16:15 \
+  --daily-snapshot-time 16:30 \
+  --daily-backtest-refresh-time 17:00 \
+  --weekly-db-backup-day-of-week Sunday \
+  --weekly-db-backup-time 02:00
 ```
 
-Windows Task Scheduler task names: `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`.
+`manage_job_schedules.py` remains a thin job-schedule entrypoint, while `scheduler_installer.py` handles the platform-specific cron and Task Scheduler installation details underneath. `manage_job_schedules.py` uses the interpreter you pass via `--python` (default: the current `sys.executable`), writes Task Scheduler entries on Windows and cron entries on Linux, and avoids relying on a host-level `python` shim. Snapshot and daily backtest refresh entries can be installed before they are operator-enabled; they only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh`) or the corresponding environment variable is set.
+
+Windows Task Scheduler task names default to `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`, `Trading\DailyBacktestRefresh`, `Trading\DailyTraderHealthCheck`, and `Trading\WeeklyDbBackup`.
 
 ## Promotion Review Workflow
 
@@ -154,7 +165,7 @@ Review requests freeze the current evaluation evidence into a durable record and
 ## Backtesting Notes
 
 - `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
-- Scheduled recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/scheduled_backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/scheduled_backtest_refresh/`.
+- Daily recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/daily_backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes
 

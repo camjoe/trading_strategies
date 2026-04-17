@@ -153,7 +153,7 @@ Backup logic lives in `trading/interfaces/runtime/data_ops/admin.py`:
 backup_database(destination=None) -> Path
 ```
 
-- Default destination: `local/backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`
+- Default destination: `local/db_backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`
 - Custom destination: pass a directory path (file name auto-generated) or a full `.db` path.
 - Uses `shutil.copy2` — preserves metadata.
 

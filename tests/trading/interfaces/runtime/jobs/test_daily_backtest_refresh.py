@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def _load():
-    return importlib.import_module("trading.interfaces.runtime.jobs.scheduled_backtest_refresh")
+    return importlib.import_module("trading.interfaces.runtime.jobs.daily_backtest_refresh")
 
 
 def _args(**overrides):
@@ -25,7 +25,7 @@ def _args(**overrides):
         "lookback_months": 6,
         "slippage_bps": 5.0,
         "fee": 0.0,
-        "run_name_prefix": "scheduled_refresh",
+        "run_name_prefix": "daily_backtest_refresh",
         "allow_approximate_leaps": False,
         "repo_root": ".",
     }
@@ -36,7 +36,7 @@ def _args(**overrides):
 def test_already_completed_today_detects_sentinel(tmp_path: Path):
     module = _load()
     day_tag = "20260414"
-    log = tmp_path / f"scheduled_backtest_refresh_{day_tag}_010101.log"
+    log = tmp_path / f"daily_backtest_refresh_{day_tag}_010101.log"
     log.write_text(f"anything\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
     assert module.already_completed_today(tmp_path, day_tag) is True
@@ -172,7 +172,7 @@ def test_main_uses_module_level_repo_paths(monkeypatch, tmp_path: Path):
 
     assert module.main() == 0
 
-    artifacts = list((tmp_path / "local" / "exports" / "scheduled_backtest_refresh").glob("scheduled_backtest_refresh_*.json"))
+    artifacts = list((tmp_path / "local" / "exports" / "daily_backtest_refresh").glob("daily_backtest_refresh_*.json"))
     assert len(artifacts) == 1
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert Path(payload["log_path"]).parts[0] == "local"

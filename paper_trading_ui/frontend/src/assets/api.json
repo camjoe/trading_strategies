@@ -157,6 +157,22 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/operations/overview",
+      "handler": "api_operations_overview",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return current runtime job health, recent artifacts, and backup visibility."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/promotion/overview",
+      "handler": "api_promotion_overview",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return promotion readiness plus persisted review history for one account."
+    },
+    {
+      "method": "GET",
       "path": "/api/logs/files",
       "handler": "api_log_files",
       "module": "logs",

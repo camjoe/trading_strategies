@@ -12,9 +12,11 @@ from pathlib import Path
 from typing import TypedDict
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import RUNTIME_ALERT_WEBHOOK_ENV, logs_dir_for_repo
+from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV, logs_dir_for_repo
 from trading.services.notifications_service import notify_webhook_best_effort
 from trading.services.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL as COMPLETE_SENTINEL
+
+DAILY_PAPER_TRADING_EXECUTION_LOG_PATTERN = "daily_paper_trading_[0-9]*_[0-9]*.log"
 
 
 class HealthPayload(TypedDict):
@@ -126,7 +128,11 @@ def main() -> int:
     repo_root = Path(args.repo_root).expanduser().resolve()
     log_dir = logs_dir_for_repo(repo_root)
 
-    logs = sorted(log_dir.glob("daily_paper_trading_*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+    logs = sorted(
+        log_dir.glob(DAILY_PAPER_TRADING_EXECUTION_LOG_PATTERN),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     if not logs:
         payload = _make_payload(
             status="fail",

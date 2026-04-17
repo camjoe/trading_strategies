@@ -55,6 +55,7 @@ def api_csv_exports() -> dict[str, object]:
 
 @router.get("/api/admin/operations/overview")
 def api_operations_overview() -> dict[str, object]:
+    """Return current runtime job health, recent artifacts, and backup visibility."""
     return list_operations_overview()
 
 
@@ -64,6 +65,7 @@ def api_promotion_overview(
     strategyName: str | None = Query(default=None),
     limit: int = Query(default=5, ge=1, le=20),
 ) -> dict[str, object]:
+    """Return promotion readiness plus persisted review history for one account."""
     with db_conn() as conn:
         try:
             return build_promotion_overview(

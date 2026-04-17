@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run scheduled backtest refreshes with idempotency, retry, and artifact output."""
+"""Run daily backtest refreshes with idempotency, retry, and artifact output."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from common.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.task_runs import (
+from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
     is_env_truthy,
     is_transient_error,
@@ -29,29 +29,29 @@ from trading.interfaces.runtime.jobs.task_runs import (
 )
 from trading.services.accounts_service import load_all_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
-from trading.services.runtime_job_status import SCHEDULED_BACKTEST_REFRESH_COMPLETE_SENTINEL
+from trading.services.runtime_job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
-# Explicit opt-in env var so scheduled reruns remain operator-controlled.
-BACKTEST_REFRESH_ENABLED_ENV = "SCHEDULED_BACKTEST_REFRESH_ENABLED"
+# Explicit opt-in env var so daily reruns remain operator-controlled.
+BACKTEST_REFRESH_ENABLED_ENV = "DAILY_BACKTEST_REFRESH_ENABLED"
 
-# Successful scheduled refresh runs write this sentinel into the newest log.
-COMPLETE_SENTINEL = SCHEDULED_BACKTEST_REFRESH_COMPLETE_SENTINEL
+# Successful daily refresh runs write this sentinel into the newest log.
+COMPLETE_SENTINEL = DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 RUN_ID_PATTERN = re.compile(r"run_id=(?P<run_id>\d+)")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run scheduled backtest refreshes for existing accounts.")
+    parser = argparse.ArgumentParser(description="Run daily backtest refreshes for existing accounts.")
     parser.add_argument(
         "--accounts",
         default="all",
         help="Comma-separated account names, or 'all' for every account in DB (default: all)",
     )
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
-    parser.add_argument("--run-source", default="scheduled-backtest-refresh")
+    parser.add_argument("--run-source", default="daily-backtest-refresh")
     parser.add_argument(
         "--enable-run",
         action="store_true",
@@ -91,8 +91,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fee", type=float, default=0.0, help="Fixed fee per trade")
     parser.add_argument(
         "--run-name-prefix",
-        default="scheduled_refresh",
-        help="Prefix for generated backtest run names (default: scheduled_refresh)",
+        default="daily_backtest_refresh",
+        help="Prefix for generated backtest run names (default: daily_backtest_refresh)",
     )
     parser.add_argument(
         "--allow-approximate-leaps",
@@ -116,7 +116,7 @@ def is_run_enabled(args: argparse.Namespace) -> bool:
 def already_completed_today(log_dir: Path, day_tag_str: str) -> bool:
     return latest_log_contains_sentinel(
         log_dir,
-        f"scheduled_backtest_refresh_{day_tag_str}_*.log",
+        f"daily_backtest_refresh_{day_tag_str}_*.log",
         COMPLETE_SENTINEL,
     )
 
@@ -249,7 +249,7 @@ def main() -> int:
 
     if not is_run_enabled(args):
         print(
-            "Scheduled backtest refresh is disabled. "
+            "Daily backtest refresh is disabled. "
             f"Use --enable-run or set {BACKTEST_REFRESH_ENABLED_ENV}=1 to execute.",
             file=sys.stderr,
         )
@@ -257,15 +257,15 @@ def main() -> int:
 
     repo_root = Path(args.repo_root).expanduser().resolve()
     logs_dir = logs_dir_for_repo(repo_root)
-    export_dir = repo_root / "local" / "exports" / "scheduled_backtest_refresh"
+    export_dir = repo_root / "local" / "exports" / "daily_backtest_refresh"
     logs_dir.mkdir(parents=True, exist_ok=True)
     export_dir.mkdir(parents=True, exist_ok=True)
 
     now = dt.datetime.now()
     today = day_tag(now)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = logs_dir / f"scheduled_backtest_refresh_{today}_{timestamp}.log"
-    artifact_path = export_dir / f"scheduled_backtest_refresh_{timestamp}.json"
+    log_path = logs_dir / f"daily_backtest_refresh_{today}_{timestamp}.log"
+    artifact_path = export_dir / f"daily_backtest_refresh_{timestamp}.json"
 
     try:
         accounts = resolve_accounts(args.accounts, load_all_account_names())
@@ -277,7 +277,7 @@ def main() -> int:
         return 1
 
     run_meta = {
-        "job": "scheduled_backtest_refresh",
+        "job": "daily_backtest_refresh",
         "run_source": args.run_source,
         "force_run": bool(args.force_run),
         "day_tag": today,
@@ -300,7 +300,7 @@ def main() -> int:
     tee_line(log_path, f"[{ts()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
 
     if not args.force_run and already_completed_today(logs_dir, today):
-        message = "Scheduled backtest refresh already completed today; skipping duplicate run."
+        message = "Daily backtest refresh already completed today; skipping duplicate run."
         tee_line(log_path, f"[{ts()}] SKIP: {message}")
         write_artifact(
             artifact_path,

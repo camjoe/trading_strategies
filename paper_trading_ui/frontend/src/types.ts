@@ -93,7 +93,7 @@ export interface OperationArtifact {
 
 export interface OperationsOverviewResponse {
   jobs: OperationJobStatus[];
-  scheduledRefreshArtifacts: OperationArtifact[];
+  dailyBacktestRefreshArtifacts: OperationArtifact[];
   dailySnapshotArtifacts: OperationArtifact[];
   databaseBackups: OperationArtifact[];
 }

@@ -14,7 +14,7 @@ from typing import Callable
 from common.repo_paths import get_repo_root
 from trading.services.accounts_service import load_all_account_names
 from trading.services.runtime_job_status import DAILY_SNAPSHOT_COMPLETE_SENTINEL
-from trading.interfaces.runtime.jobs.task_runs import (
+from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
     is_env_truthy,
     is_transient_error,

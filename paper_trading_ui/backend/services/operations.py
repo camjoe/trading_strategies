@@ -3,12 +3,26 @@ from __future__ import annotations
 import datetime as dt
 from pathlib import Path
 
-from ..config import EXPORTS_DIR, LOGS_DIR, ROOT_DIR
+from common.project_paths import DB_BACKUPS_DIR
+from ..config import EXPORTS_DIR, LOGS_DIR
 from trading.services.runtime_job_status import (
+    DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL,
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL as DAILY_PAPER_TRADING_SENTINEL,
     DAILY_SNAPSHOT_COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL,
-    SCHEDULED_BACKTEST_REFRESH_COMPLETE_SENTINEL as SCHEDULED_BACKTEST_REFRESH_SENTINEL,
     WEEKLY_DB_BACKUP_COMPLETE_SENTINEL as WEEKLY_DB_BACKUP_SENTINEL,
+)
+
+DAILY_PAPER_TRADING_RUN_HINT = (
+    "./venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual"
+)
+DAILY_SNAPSHOT_RUN_HINT = (
+    "./venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --enable-run"
+)
+DAILY_BACKTEST_REFRESH_RUN_HINT = (
+    "./venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run"
+)
+WEEKLY_DB_BACKUP_RUN_HINT = (
+    "./venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup"
 )
 
 
@@ -93,11 +107,11 @@ def list_operations_overview() -> dict[str, object]:
                 key="daily_paper_trading",
                 label="Daily Paper Trading",
                 cadence="daily",
-                pattern="daily_paper_trading_[0-9]*.log",
+                pattern="daily_paper_trading_[0-9]*_[0-9]*.log",
                 current_tag=today_tag,
                 window_label=today.isoformat(),
                 sentinel=DAILY_PAPER_TRADING_SENTINEL,
-                run_hint="python3 -m trading.interfaces.runtime.jobs.daily_paper_trading",
+                run_hint=DAILY_PAPER_TRADING_RUN_HINT,
             ),
             _build_job_status(
                 key="daily_snapshot",
@@ -107,17 +121,17 @@ def list_operations_overview() -> dict[str, object]:
                 current_tag=today_tag,
                 window_label=today.isoformat(),
                 sentinel=DAILY_SNAPSHOT_SENTINEL,
-                run_hint="python3 -m trading.interfaces.runtime.jobs.daily_snapshot --enable-run",
+                run_hint=DAILY_SNAPSHOT_RUN_HINT,
             ),
             _build_job_status(
-                key="scheduled_backtest_refresh",
-                label="Scheduled Backtest Refresh",
+                key="daily_backtest_refresh",
+                label="Daily Backtest Refresh",
                 cadence="daily",
-                pattern="scheduled_backtest_refresh_*.log",
+                pattern="daily_backtest_refresh_*.log",
                 current_tag=today_tag,
                 window_label=today.isoformat(),
-                sentinel=SCHEDULED_BACKTEST_REFRESH_SENTINEL,
-                run_hint="python3 -m trading.interfaces.runtime.jobs.scheduled_backtest_refresh --enable-run",
+                sentinel=DAILY_BACKTEST_REFRESH_SENTINEL,
+                run_hint=DAILY_BACKTEST_REFRESH_RUN_HINT,
             ),
             _build_job_status(
                 key="weekly_db_backup",
@@ -127,11 +141,11 @@ def list_operations_overview() -> dict[str, object]:
                 current_tag=week_tag,
                 window_label=week_tag,
                 sentinel=WEEKLY_DB_BACKUP_SENTINEL,
-                run_hint="python3 -m trading.interfaces.runtime.jobs.weekly_db_backup",
+                run_hint=WEEKLY_DB_BACKUP_RUN_HINT,
             ),
         ],
-        "scheduledRefreshArtifacts": _list_artifacts(
-            EXPORTS_DIR / "scheduled_backtest_refresh",
+        "dailyBacktestRefreshArtifacts": _list_artifacts(
+            EXPORTS_DIR / "daily_backtest_refresh",
             suffixes=(".json",),
         ),
         "dailySnapshotArtifacts": _list_artifacts(
@@ -139,7 +153,7 @@ def list_operations_overview() -> dict[str, object]:
             suffixes=(".json",),
         ),
         "databaseBackups": _list_artifacts(
-            ROOT_DIR / "local" / "db_backups",
+            DB_BACKUPS_DIR,
             suffixes=(".db", ".sqlite", ".sqlite3"),
         ),
     }

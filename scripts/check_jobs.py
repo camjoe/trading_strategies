@@ -16,7 +16,7 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.daily_paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
-from trading.interfaces.runtime.jobs.task_runs import logs_dir_for_repo
+from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
 from trading.interfaces.runtime.jobs.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)

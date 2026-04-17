@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, cast
 
+from common.project_paths import DB_BACKUPS_DIR
 from trading.database.db import ensure_db
 from trading.database.db_backend import SQLiteBackend, get_backend
 from trading.repositories.accounts_repository import fetch_account_listing_rows
@@ -40,7 +41,7 @@ def backup_database(destination: str | None = None) -> Path:
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if destination is None:
-        backups_dir = source.parent / "backups"
+        backups_dir = DB_BACKUPS_DIR
         backups_dir.mkdir(parents=True, exist_ok=True)
         target = backups_dir / f"{source.stem}_{stamp}.db"
     else:

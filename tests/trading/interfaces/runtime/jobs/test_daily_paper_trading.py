@@ -284,6 +284,11 @@ class TestMainFlow:
         code = module.main()
         assert code == 0
         assert stream_calls  # stream_command was called
+        artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+        assert len(artifacts) == 1
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        assert payload["status"] == "success"
+        assert payload["completed_steps"]
 
     def test_unknown_account_returns_1(
         self, monkeypatch, tmp_path: Path, capsys
@@ -469,3 +474,8 @@ class TestMainFlow:
         assert code == 1
         assert len(sent) == 1
         assert sent[0]["status"] == "fail"
+        artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+        assert len(artifacts) == 1
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        assert payload["status"] == "failed"
+        assert payload["error"] == "step failed"
