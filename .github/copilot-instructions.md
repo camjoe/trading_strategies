@@ -52,91 +52,81 @@
 - After the command finishes, report which agents were added, updated, or skipped.
 - Run this after pulling submodule updates to get the latest global agents.
 
-# Manager Shortcut
-
-- If a user message starts with `manage` (ignoring leading/trailing whitespace and case), invoke the `Trading Manager` agent.
-- Accepted forms: `manage`, `manage tasks`, `manage bots`, `manage: <focus>` (where focus is `assess tasks`, `delegate`, `bot status`, or `recommend improvements`).
-- When no focus is specified, default to reading `tools/project_manager/data/project_db.json`, summarizing open tasks, and presenting a delegation plan.
-- Always confirm with the user before invoking any delegated bot.
-
 # Bot Routing Shortcut
 
 - If a user message starts with `select bot:` then treat it as a routing request before normal execution.
 - Parse the text after `select bot:` as the task description.
 - If no task text is provided (for example the user only types `select bot:`), ask a short follow-up question for the target task/scope.
 - Normalize matching by lowercasing the task text and stripping punctuation before heuristic checks.
-- Run a quick bot-selection check and return:
-	1. the recommended bot name,
+- Run a quick skill/agent routing check and return:
+	1. the recommended skill or agent name,
 	2. one-sentence reason,
-	3. whether to proceed with that bot now.
-- If the user confirms, invoke the selected specialized bot and continue.
+	3. whether to proceed with that surface now.
+- Default to a skill when a direct reusable skill covers the task well enough.
+- Use an agent only when repo-specific execution value is clearly needed.
 
 Selection heuristics:
 
-- `Code Review`: reviewing changed files for regressions, architecture violations, missing tests, dependency issues — before committing or merging.
-- `Deep Code Review`: whole-area, high-depth read-only audits for simplification, stale code, superseded features, schema relevance, and consolidation across mature code areas.
-- `Docs Sync`: updating README files, architecture notes, reference docs, API documentation, and inline docstrings after code changes — when docs may have drifted from behavior.
-- `Frontend Code Cleanup`: frontend-only cleanup/refactor/readability in `paper_trading_ui/frontend`.
-- `Python Code Cleanup`: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
-- `Python Test Expansion`: adding/improving tests and coverage depth.
-- `Python Statistical Modeling`: trading/finance statistical modeling and time-series analysis.
-- `Backtesting Analyst`: implementing or interpreting backtesting flows, walk-forward analysis, leaderboard/report behavior, and evaluation hygiene.
-- `Trading Runtime Investigator`: scheduler jobs, snapshots, health checks, account lifecycle operations, and operator/runtime debugging.
-- `UI API Steward`: `paper_trading_ui` backend/frontend route, schema, payload, and contract alignment.
-- `Broker Live Safety Steward`: broker adapters, broker factory routing, reconciliation, and live-trading safety guardrails.
-- `Project Structure Steward`: architecture boundaries, module ownership, dependency direction.
-- `Finance and Strategy Domain Bot`: explaining financial terminology, classifying trading strategies, interpreting signals, advising on equity mechanics and market microstructure — no implementation work.
-- `DB Migration Steward`: validating schema changes and migration safety for the trading SQLite database; auditing `ColumnMigration` additions in `trading/database/db.py`, enforcing additive-only migration rules, checking column guards, and reviewing backup hygiene before destructive DB operations.
-- `Docs Sync Bot`: keeping README files, architecture notes, reference docs, and API documentation in sync after code changes; detecting documentation drift, flagging stale sections, and writing targeted updates.
+- `Architecture Review` skill: reviewing module boundaries, ownership, dependency direction, and placement.
+- `Code Review` skill: reviewing changed files for regressions, architecture violations, missing tests, and dependency issues.
+- `Deep Code Review` skill: whole-area, high-depth read-only audits for simplification, stale code, superseded features, schema relevance, and consolidation.
+- `Docs Sync` skill: updating README files, architecture notes, reference docs, API documentation, and inline docstrings after code changes.
+- `Frontend Cleanup` skill: frontend-only cleanup/refactor/readability in `paper_trading_ui/frontend`.
+- `Python Cleanup` skill: Python cleanup/refactor/readability without behavior change, including mixed Python + frontend scope.
+- `Python Test Expansion` skill: adding/improving tests and coverage depth.
+- `Python Statistical Modeling` skill: trading/finance statistical modeling and time-series analysis.
+- `Finance and Strategy` skill: explaining financial terminology, classifying trading strategies, interpreting signals, and advising on equity mechanics and market microstructure.
+- `Backtesting Analyst` agent: implementing or interpreting this repo's backtesting flows, walk-forward analysis, leaderboard/report behavior, and evaluation hygiene.
+- `Trading Runtime Investigator` agent: repo-specific scheduler jobs, snapshots, health checks, account lifecycle operations, and operator/runtime debugging.
+- `UI API Steward` agent: repo-specific `paper_trading_ui` backend/frontend route, schema, payload, and contract alignment.
+- `Broker Live Safety Steward` agent: repo-specific broker adapters, broker factory routing, reconciliation, and live-trading safety guardrails.
+- `DB Migration Steward` agent: repo-specific schema changes and migration safety for the trading SQLite database.
 
 Suggested keyword cues for fast matching:
 
+- `Architecture Review`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
 - `Code Review`: `review`, `code review`, `pre-commit`, `audit`, `regression`, `missing tests`, `dependency violation`, `arch violation`, `before commit`, `before merge`.
 - `Deep Code Review`: `deep code review`, `broad audit`, `whole area review`, `stale code`, `superseded code`, `simplify system`, `reduce code`, `redundant code`, `unused columns`, `unused tables`, `consolidation review`, `modernization audit`.
 - `Docs Sync`: `docs sync`, `documentation sync`, `stale readme`, `readme update`, `api docs`, `doc drift`, `update docs`, `docs out of sync`, `documentation drift`, `sync docs`, `keep docs`, `docs after change`.
-- `Frontend Code Cleanup`: `frontend`, `react`, `component`, `tsx`, `ui cleanup`, `vite`.
-- `Python Code Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
+- `Frontend Cleanup`: `frontend`, `react`, `component`, `tsx`, `ui cleanup`, `vite`.
+- `Python Cleanup`: `refactor`, `cleanup`, `python`, `readability`, `modularize`, `backend + frontend`, `cross-stack`, `api contract`, `end-to-end cleanup`.
 - `Python Test Expansion`: `tests`, `coverage`, `pytest`, `edge case`, `regression test`.
 - `Python Statistical Modeling`: `alpha`, `factor`, `timeseries`, `walk-forward`, `backtest`, `signal`.
+- `Finance and Strategy`: `terminology`, `strategy classification`, `equity mechanics`, `signal interpretation`, `market microstructure`, `order types`, `short selling`, `dividends`, `corporate actions`, `momentum`, `mean-reversion`, `arbitrage`, `carry`, `event-driven`.
 - `Backtesting Analyst`: `backtest implementation`, `walk-forward report`, `leaderboard`, `evaluation flow`, `chronology`, `leakage`, `compare strategies`.
 - `Trading Runtime Investigator`: `runtime`, `scheduler`, `job`, `snapshot`, `health check`, `daily trader`, `backup job`, `account ops`.
 - `UI API Steward`: `api contract`, `schema drift`, `route payload`, `frontend backend`, `request schema`, `response shape`, `paper trading ui`.
 - `Broker Live Safety Steward`: `broker`, `ib`, `interactive brokers`, `live trading`, `reconciliation`, `broker factory`, `broker config`.
-- `Project Structure Steward`: `architecture`, `module boundaries`, `dependency direction`, `ownership`, `layering`.
-- `Finance and Strategy Domain Bot`: `terminology`, `strategy classification`, `equity mechanics`, `signal interpretation`, `market microstructure`, `order types`, `short selling`, `dividends`, `corporate actions`, `momentum`, `mean-reversion`, `arbitrage`, `carry`, `event-driven`.
 - `DB Migration Steward`: `migration`, `schema change`, `column migration`, `alter table`, `db schema`, `database migration`, `ColumnMigration`, `backup hygiene`, `destructive db`, `init_schema`, `sqlite migration`, `add column`.
-- `Docs Sync Bot`: `stale docs`, `docs drift`, `readme out of date`, `sync docs`, `keep docs fresh`, `documentation out of sync`, `update readme`, `docs stale`, `missing documentation`.
 
-1. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without writing code, choose `Finance and Strategy Domain Bot`.
-2. If the task is about broad, read-only modernization review, simplification, stale code, redundant code, schema relevance, or superseded feature detection across `trading/`, `paper_trading_ui/`, or another large area, choose `Deep Code Review`.
-3. If the task is about reviewing, auditing, or checking code before commit/merge, choose `Code Review`.
-4. If the task explicitly includes both frontend and Python/backend scope, choose `Python Code Cleanup` (it handles cross-stack routing internally).
-5. If the task mentions tests/coverage as the primary objective, choose `Python Test Expansion`.
-6. If the task is about implementing or interpreting existing backtesting or walk-forward flows, choose `Backtesting Analyst`.
-7. If the task is about modeling/research/alpha design as the primary objective, choose `Python Statistical Modeling`.
-8. If the task is about scheduler jobs, runtime operations, snapshots, health checks, or account operational flows, choose `Trading Runtime Investigator`.
-9. If the task is about backend/frontend route or schema contracts in `paper_trading_ui`, choose `UI API Steward`.
-10. If the task is about broker adapters, broker factory logic, reconciliation, or live-trading safety, choose `Broker Live Safety Steward`.
-11. If the task is architecture/module-boundary focused, choose `Project Structure Steward`.
-12. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
-13. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose `Docs Sync Bot`.
-14. Otherwise choose the most specific single-domain cleanup bot (`Frontend Code Cleanup` or `Python Code Cleanup`).
-
-If multiple bots seem valid, default to `Python Code Cleanup` and state why.
+1. If the task is architecture/module-boundary focused, choose the `Architecture Review` skill.
+2. If the task is about reviewing, auditing, or checking code before commit/merge, choose the `Code Review` skill.
+3. If the task is about broad, read-only modernization review, simplification, stale code, redundant code, or schema relevance, choose the `Deep Code Review` skill.
+4. If the task is about stale or out-of-sync documentation, README drift, or keeping docs aligned with code, choose the `Docs Sync` skill.
+5. If the task is frontend-only cleanup, choose the `Frontend Cleanup` skill.
+6. If the task explicitly includes both frontend and Python/backend scope, choose the `Python Cleanup` skill unless a repo-specific UI contract agent is clearly required.
+7. If the task mentions tests/coverage as the primary objective, choose the `Python Test Expansion` skill.
+8. If the task is about explaining or classifying a financial concept, strategy, signal, or equity mechanic without repo-specific workflow changes, choose the `Finance and Strategy` skill.
+9. If the task is about modeling/research/alpha design as the primary objective, choose the `Python Statistical Modeling` skill unless repo-specific evaluation/report behavior demands `Backtesting Analyst`.
+10. If the task is about implementing or interpreting this repo's existing backtesting or walk-forward flows, choose `Backtesting Analyst`.
+11. If the task is about scheduler jobs, runtime operations, snapshots, health checks, or account operational flows, choose `Trading Runtime Investigator`.
+12. If the task is about backend/frontend route or schema contracts in `paper_trading_ui`, choose `UI API Steward`.
+13. If the task is about broker adapters, broker factory logic, reconciliation, or live-trading safety, choose `Broker Live Safety Steward`.
+14. If the task is about schema changes, database migrations, `ColumnMigration`, `ALTER TABLE`, `init_schema`, or backup hygiene for the trading DB, choose `DB Migration Steward`.
+15. Otherwise default to the most specific matching skill, not an agent.
 
 # Code Review Shortcut
 
-- If a user message starts with `code review` (ignoring leading/trailing whitespace and case), invoke the `Code Review Bot` agent.
+- If a user message starts with `code review` (ignoring leading/trailing whitespace and case), follow the review workflow defined by `skills/portable/code-review.skill.md`.
 - Accepted forms:
   - `code review` — review all staged + unstaged changes against HEAD
   - `code review: <branch>` — review the diff between the current branch and the given base branch
   - `code review: <file-or-folder>` — review a specific file or folder
-- The bot reads changed files, runs linters/type-checkers, and reports findings by severity (🔴 HIGH, 🟡 MEDIUM, 🔵 LOW).
-- It does not modify any files; it only audits and reports.
+- The review follows the reusable skill guidance: audit changed files, surface supported findings, and avoid implementing fixes inline.
 
 # Deep Code Review Shortcut
 
-- If a user message starts with `deep code review` (ignoring leading/trailing whitespace and case), execute the deep review workflow defined in `.github/agents/deep-code-review.agent.md`.
+- If a user message starts with `deep code review` (ignoring leading/trailing whitespace and case), execute the deep review workflow defined in `skills/portable/deep-code-review.skill.md`.
 - Accepted forms:
   - `deep code review` — review `trading/` and `paper_trading_ui/` together
   - `deep code review: trading` — review `trading/`
@@ -147,13 +137,13 @@ If multiple bots seem valid, default to `Python Code Cleanup` and state why.
 
 # Docs Sync Shortcut
 
-- If a user message starts with `sync docs` or `docs sync` (ignoring leading/trailing whitespace and case), invoke the `Docs Sync Bot` agent.
+- If a user message starts with `sync docs` or `docs sync` (ignoring leading/trailing whitespace and case), follow the docs-sync workflow defined in `skills/portable/docs-sync.skill.md`.
 - Accepted forms:
   - `sync docs` — audit all recently changed areas for documentation drift and apply targeted updates
   - `sync docs: <file-or-folder>` — restrict the sync to a specific file or module
   - `docs sync` — equivalent alias for `sync docs`
-- The bot detects stale README files, outdated architecture notes, drifted API docs, and missing inline docstrings; it writes targeted updates without changing behavior.
-- It runs `python -m scripts.checks.readme_check` after edits to validate freshness.
+- The workflow detects stale README files, outdated architecture notes, drifted API docs, and missing inline docstrings; it writes targeted updates without changing behavior.
+- It should run `python -m scripts.checks.readme_check` after edits to validate freshness.
 
 # Run Checks Shortcut
 
@@ -202,54 +192,50 @@ Current shortcut catalog to show:
 	- Action: runs `python tools/project_manager/scripts/sync_agents.py` to copy updated global agents from the submodule into `.github/agents/`.
 	- Example: `sync agents`
 
-3. Trigger: `manage` / `manage tasks` / `manage: <focus>`
-	- Action: invokes the Trading Manager agent — reads project_manager tasks, classifies them, presents a delegation plan, and recommends bot fleet improvements.
-	- Example: `manage tasks` or `manage: recommend improvements`
-
-4. Trigger: `select bot:`
-	- Action: routes the task to the most appropriate specialized bot, shows recommendation/reason, and asks whether to proceed.
+3. Trigger: `select bot:`
+	- Action: routes the task to the most appropriate skill or repo-specific agent, shows recommendation/reason, and asks whether to proceed.
 	- Example: `select bot: expand tests for trading reporting edge cases`
 
-5. Trigger: `help`
+4. Trigger: `help`
 	- Action: prints this shortcut catalog.
 	- Example: `help`
 
-6. Trigger: `commit message git`
+5. Trigger: `commit message git`
 	- Action: returns commit subject options based on current uncommitted git changes (staged + unstaged), without project-manager context.
 	- Example: `commit message git`
 
-7. Trigger: `commit message task`
+6. Trigger: `commit message task`
 	- Action: runs the project-manager commit-context workflow and returns task-aligned commit subject options.
 	- Example: `commit message task`
 
-8. Trigger: `run checks`
+7. Trigger: `run checks`
 	- Action: runs `python -m scripts.run_checks --profile quick` and reports test/audit outcomes.
 	- Example: `run checks`
 
-9. Trigger: `update documentation`
+8. Trigger: `update documentation`
 	- Action: runs `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` and reports documentation findings.
 	- Example: `update documentation`
 
-10. Trigger: `run reference doc checks`
+9. Trigger: `run reference doc checks`
 	- Action: runs `python -m scripts.reference_docs.check` and reports Financial & Market, Software, and API reference sync status together.
 	- Example: `run reference doc checks`
 
-11. Trigger: `sync reference docs`
+10. Trigger: `sync reference docs`
 	- Action: synchronizes Finance, Software, and API markdown and UI surfaces from the canonical registries.
 	- Example: `sync reference docs`
 
-12. Trigger: `run all checks`
+11. Trigger: `run all checks`
 	- Action: runs `python -m scripts.run_checks --profile ci` for docs checks, audits, and test suites.
 	- Example: `run all checks`
 
-13. Trigger: `code review` / `code review: <branch-or-file>`
-	- Action: invokes the Code Review Bot — audits staged/unstaged changes or a branch diff for architecture violations, missing tests, regressions, and dependency issues. Reports findings by severity without modifying files.
+12. Trigger: `code review` / `code review: <branch-or-file>`
+	- Action: follows the reusable code-review skill workflow to audit staged/unstaged changes or a branch diff for architecture violations, missing tests, regressions, and dependency issues.
 	- Example: `code review` or `code review: main`
 
-14. Trigger: `deep code review` / `deep code review: <area>`
-	- Action: runs the deep review workflow for whole-area simplification, stale-code detection, superseded-feature checks, schema relevance review, and architecture cleanup opportunities across `trading/`, `paper_trading_ui/`, or a specified scope.
+13. Trigger: `deep code review` / `deep code review: <area>`
+	- Action: follows the reusable deep-code-review skill workflow for whole-area simplification, stale-code detection, superseded-feature checks, schema relevance review, and architecture cleanup opportunities across `trading/`, `paper_trading_ui/`, or a specified scope.
 	- Example: `deep code review` or `deep code review: trading`
 
-15. Trigger: `sync docs` / `docs sync`
-	- Action: invokes the Docs Sync Bot — detects documentation drift after code changes, updates stale README files, architecture notes, reference docs, and API documentation to match current behavior.
+14. Trigger: `sync docs` / `docs sync`
+	- Action: follows the reusable docs-sync skill workflow to detect documentation drift after code changes and update stale README files, architecture notes, reference docs, and API documentation.
 	- Example: `sync docs` or `docs sync`
