@@ -109,9 +109,7 @@ body {
   color: var(--ink);
   font-family: "Inter", "IBM Plex Sans", "Segoe UI", sans-serif;
   line-height: 1.5;
-  background: radial-gradient(circle at 18% 10%, var(--bg-glow-warm) 0, var(--bg-glow-warm-0) 30%),
-    radial-gradient(circle at 85% 85%, var(--bg-glow-cool) 0, var(--bg-glow-cool-0) 35%),
-    linear-gradient(155deg, var(--bg-1), var(--bg-2));
+  background: var(--bg-1);
 }
 
 .topbar {
@@ -169,10 +167,13 @@ body {
   gap: 0;
   align-items: flex-end;
   width: min(100%, 1440px);
-  margin: 0 auto;
-  padding: 0 1.25rem;
+  margin: 0.15rem auto 0;
+  padding: 0 1rem;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--border-nav);
+  border-bottom-color: var(--line);
+  border-radius: 0;
+  background: #eef3fa;
 }
 
 .tab-nav-spacer {
@@ -334,7 +335,7 @@ body {
 
 .tab-btn.active {
   color: var(--accent);
-  background: transparent;
+  background: #e1e9f7;
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
@@ -383,7 +384,7 @@ body {
 .app-shell {
   width: min(100%, 1440px);
   margin: 0 auto;
-  padding: 1.25rem 1.25rem 2.5rem;
+  padding: 0 0 2.5rem;
 }
 
 .docs-grid {
@@ -1184,19 +1185,19 @@ summary:focus-visible {
 
 .layout {
   display: grid;
-  gap: 1.25rem;
+  gap: 0;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   padding: 0;
 }
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--card-border);
-  box-shadow: var(--shadow);
-  border-radius: 24px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
   padding: 1.35rem;
   animation: rise 260ms ease-out;
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
 }
 
 .account-workspace-card {
@@ -2032,10 +2033,14 @@ td {
 
 @media (max-width: 600px) {
   .topbar-inner,
-  .tab-nav,
-  .app-shell {
+  .tab-nav {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .app-shell {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .topbar {
@@ -2053,7 +2058,7 @@ td {
   }
 
   .card {
-    border-radius: 20px;
+    border-radius: 0;
     padding: 1.1rem;
   }
 }
