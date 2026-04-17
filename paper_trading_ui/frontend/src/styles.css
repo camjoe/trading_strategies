@@ -13,11 +13,11 @@
   --bg-glow-cool-0: #9dd7d700;
   --topbar-bg: #ffffff;
   --panel: #ffffff;
-  --panel-2: #fffaf2;
+  --panel-2: #f6faff;
   --panel-border: #d8e3ef;
   --surface-white: #ffffff;
   --surface-menu: #fffffffa;
-  --surface-subtle: #fff8ef;
+  --surface-subtle: #f4f8fd;
   --surface-action: #f5f7fb;
   --surface-action-hover: #e8effa;
 
@@ -1770,7 +1770,7 @@ td {
 .bt-advanced {
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  background: #fffdf8;
+  background: var(--surface-subtle);
 }
 
 .bt-advanced summary {
