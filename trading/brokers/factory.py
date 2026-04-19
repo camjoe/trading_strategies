@@ -18,10 +18,13 @@ import sqlite3
 from trading.brokers.base import BrokerConnection
 from trading.brokers.paper_adapter import PaperBrokerAdapter
 from trading.brokers.ib_client import IbAsyncClient, IbApiClient
+from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
 
 # Broker type identifiers stored in accounts.broker_type column.
 _BROKER_TYPE_PAPER = "paper"
 _BROKER_TYPE_INTERACTIVE_BROKERS = "interactive_brokers"
+_BROKER_TYPE_INTERACTIVE_BROKERS_WEB = "interactive_brokers_web"
 
 # Named backend constants for IB_CLIENT_BACKEND.
 _IB_BACKEND_ASYNC = "ib_async"
@@ -75,6 +78,14 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
         port = int(account["broker_port"] or _IB_DEFAULT_PORT)
         client_id = int(account["broker_client_id"] or _IB_DEFAULT_CLIENT_ID)
         adapter = InteractiveBrokersAdapter(client=client, host=host, port=port, client_id=client_id)
+        adapter.connect()
+        return adapter
+
+    if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS_WEB:
+        _require_live_trading_enabled(account)
+        settings = load_ib_web_api_settings()
+        client = InteractiveBrokersWebClient(settings=settings)
+        adapter = InteractiveBrokersWebAdapter(client=client)
         adapter.connect()
         return adapter
 

@@ -10,16 +10,24 @@ Covers:
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
 from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
 from trading.brokers.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.ib_client import IBClientProtocol, IbApiClient
+from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from trading.brokers.ib_web_client import (
+    IbWebApiSettings,
+    InteractiveBrokersWebClient,
+    load_ib_web_api_settings,
+)
 from trading.brokers.paper_adapter import PaperBrokerAdapter
 from trading.database.db import init_schema
 
@@ -219,6 +227,30 @@ class TestGetBrokerForAccount:
         finally:
             factory_module.IB_CLIENT_BACKEND = original
 
+    def test_ib_web_without_live_trading_enabled_raises(self):
+        account = _make_account(broker_type="interactive_brokers_web", live_trading_enabled=0)
+        with pytest.raises(LiveTradingNotEnabledError, match="live_trading_enabled"):
+            get_broker_for_account(account)
+
+    def test_ib_web_with_live_trading_enabled_connects(self):
+        account = _make_account(broker_type="interactive_brokers_web")
+        mock_client = MagicMock()
+        with (
+            patch("trading.brokers.factory._require_live_trading_enabled"),
+            patch(
+                "trading.brokers.factory.load_ib_web_api_settings",
+                return_value=IbWebApiSettings(
+                    base_url="https://example.test/v1/api",
+                    account_id="U1234567",
+                    headers={},
+                ),
+            ),
+            patch("trading.brokers.factory.InteractiveBrokersWebClient", return_value=mock_client),
+        ):
+            broker = get_broker_for_account(account)
+        assert isinstance(broker, InteractiveBrokersWebAdapter)
+        mock_client.connect.assert_called_once_with()
+
 
 # ---------------------------------------------------------------------------
 # InteractiveBrokersAdapter (mocked IBClientProtocol)
@@ -367,6 +399,213 @@ class TestInteractiveBrokersAdapter:
         assert result[0].ticker == "AAPL"
         assert result[0].status == OrderStatus.SUBMITTED
         assert len(result[0].fills) == 1
+
+
+class TestLoadIbWebApiSettings:
+    def test_loads_from_env(self, monkeypatch):
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", "U1234567")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_BASE_URL", "https://example.test/v1/api")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_HEADERS_JSON", json.dumps({"Authorization": "Bearer secret"}))
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_VERIFY_SSL", "false")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_TIMEOUT_SECONDS", "7.5")
+
+        settings = load_ib_web_api_settings()
+
+        assert settings.account_id == "U1234567"
+        assert settings.base_url == "https://example.test/v1/api"
+        assert settings.headers["Authorization"] == "Bearer secret"
+        assert settings.verify_ssl is False
+        assert settings.timeout_seconds == 7.5
+
+    def test_loads_from_file_and_applies_session_cookie(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "ibkr_web_api_config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "account_id": "U7654321",
+                    "base_url": "https://example.test/v1/api",
+                    "session_token": "abc123",
+                    "verify_ssl": True,
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_CONFIG", str(config_path))
+        monkeypatch.delenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", raising=False)
+
+        settings = load_ib_web_api_settings()
+
+        assert settings.account_id == "U7654321"
+        assert settings.headers["Cookie"] == "api=abc123"
+
+    def test_missing_account_id_raises(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "ibkr_web_api_config.json"
+        config_path.write_text("{}", encoding="utf-8")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_CONFIG", str(config_path))
+        monkeypatch.delenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", raising=False)
+
+        with pytest.raises(ValueError, match="account_id"):
+            load_ib_web_api_settings()
+
+
+class TestInteractiveBrokersWebClient:
+    def test_validate_session_checks_account_visibility(self):
+        calls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            if request.url.path == "/iserver/auth/status":
+                return httpx.Response(200, json={"authenticated": True, "connected": True})
+            if request.url.path == "/portfolio/accounts":
+                return httpx.Response(200, json=[{"accountId": "U1234567"}])
+            if request.url.path == "/iserver/accounts":
+                return httpx.Response(200, json={"accounts": ["U1234567"]})
+            raise AssertionError(f"Unexpected path {request.url.path}")
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        client.connect()
+
+        assert client.is_connected() is True
+        assert calls == ["/iserver/auth/status", "/portfolio/accounts", "/iserver/accounts"]
+
+    def test_fetch_marketdata_snapshot_retries_after_preflight(self):
+        responses = [
+            httpx.Response(200, json=[{"conid": 265598, "conidEx": "265598"}]),
+            httpx.Response(200, json=[{"conid": 265598, "31": "168.42", "84": "168.41", "86": "168.43"}]),
+        ]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        rows = client.fetch_marketdata_snapshot(["265598"])
+
+        assert rows[0]["31"] == "168.42"
+
+    def test_submit_order_confirms_reply_message(self):
+        responses = [
+            httpx.Response(200, json=[{"id": "reply-1", "message": ["Confirm me"]}]),
+            httpx.Response(200, json={"order_id": "42", "order_status": "Submitted"}),
+        ]
+        seen: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(f"{request.method} {request.url.path}")
+            return responses.pop(0)
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        response = client.submit_order({"conid": 265598, "side": "BUY", "orderType": "MKT", "tif": "DAY", "quantity": 1})
+
+        assert response["order_id"] == "42"
+        assert seen == [
+            "POST /iserver/account/U1234567/orders",
+            "POST /iserver/reply/reply-1",
+        ]
+
+
+class TestInteractiveBrokersWebAdapter:
+    def _make_client(self) -> MagicMock:
+        client = MagicMock()
+        client.is_connected.return_value = True
+        return client
+
+    def test_place_order_submits_web_order(self):
+        client = self._make_client()
+        client.resolve_conid.return_value = "265598"
+        client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.place_order(_make_order(order_type=OrderType.MARKET))
+
+        assert result.broker_order_id == "123"
+        assert result.status == OrderStatus.SUBMITTED
+        client.submit_order.assert_called_once()
+
+    def test_get_account_info_maps_ledger_and_summary(self):
+        client = self._make_client()
+        client.fetch_ledger.return_value = {
+            "BASE": {
+                "cashbalance": 50000.0,
+                "stockmarketvalue": 12000.0,
+                "netliquidationvalue": 62000.0,
+            }
+        }
+        client.fetch_summary.return_value = {
+            "buyingpower": {"amount": 100000.0},
+            "netliquidation": {"amount": 62000.0},
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_account_info()
+
+        assert result == {
+            "TotalCashValue": 50000.0,
+            "BuyingPower": 100000.0,
+            "GrossPositionValue": 12000.0,
+            "NetLiquidation": 62000.0,
+        }
+
+    def test_get_quotes_maps_snapshot_fields(self):
+        client = self._make_client()
+        client.resolve_conid.side_effect = ["265598", "8314"]
+        client.fetch_marketdata_snapshot.return_value = [
+            {"conid": 265598, "31": "168.42", "84": "168.41", "86": "168.43"},
+            {"conid": 8314, "31": "189.60", "84": "189.56", "86": "189.61"},
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_quotes(["AAPL", "IBM"])
+
+        assert result == {
+            "AAPL": {"bid": 168.41, "ask": 168.43, "last": 168.42},
+            "IBM": {"bid": 189.56, "ask": 189.61, "last": 189.6},
+        }
+
+    def test_get_open_trades_creates_synthetic_fill(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {
+                "orderId": 55,
+                "ticker": "AAPL",
+                "side": "BUY",
+                "totalSize": 10,
+                "filledQuantity": 10,
+                "avgPrice": "151.25",
+                "status": "Filled",
+                "lastExecutionTime": "231211180049",
+            }
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_open_trades()
+
+        assert len(result) == 1
+        assert result[0].status == OrderStatus.FILLED
+        assert result[0].fills[0].exec_id == "web-55-10.0-231211180049"
 
 
 # ---------------------------------------------------------------------------

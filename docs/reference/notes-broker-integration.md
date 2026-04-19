@@ -18,11 +18,16 @@ trading/brokers/factory.py          ← resolves BrokerConnection for an account
         │
         ├── PaperBrokerAdapter       ← default; immediate fills, zero commission
         │
-        └── InteractiveBrokersAdapter
+        ├── InteractiveBrokersAdapter
                 │
                 └── IBClientProtocol (injected)
                         ├── IbAsyncClient   ← wraps ib_async (default, recommended)
                         └── IbApiClient     ← wraps IBKR native ibapi (stub)
+        │
+        └── InteractiveBrokersWebAdapter
+                │
+                └── InteractiveBrokersWebClient
+                        └── IBKR Client Portal / Campus Web API
 ```
 
 ### Key files
@@ -33,6 +38,8 @@ trading/brokers/factory.py          ← resolves BrokerConnection for an account
 | `trading/brokers/paper_adapter.py` | Simulated immediate-fill paper broker |
 | `trading/brokers/ib_adapter.py` | Interactive Brokers live adapter |
 | `trading/brokers/ib_client.py` | `IBClientProtocol` + `IbAsyncClient` + `IbApiClient` stub |
+| `trading/brokers/ib_web_adapter.py` | Interactive Brokers Web API live adapter |
+| `trading/brokers/ib_web_client.py` | Web API config loader + HTTP client |
 | `trading/brokers/factory.py` | Routes accounts → correct `BrokerConnection` |
 | `trading/repositories/broker_orders_repository.py` | DB persistence for orders and fills |
 | `trading/services/auto_trader_runtime_service.py` | Wires broker into trade execution loop |
@@ -45,7 +52,7 @@ Broker settings live on the `accounts` table:
 
 | Column | Type | Default | Purpose |
 |--------|------|---------|---------|
-| `broker_type` | TEXT | `'paper'` | `'paper'` or `'interactive_brokers'` |
+| `broker_type` | TEXT | `'paper'` | `'paper'`, `'interactive_brokers'`, or `'interactive_brokers_web'` |
 | `broker_host` | TEXT | NULL | TWS/Gateway host (IB only) |
 | `broker_port` | INTEGER | NULL | TWS/Gateway port (IB only) |
 | `broker_client_id` | INTEGER | NULL | IB client ID (IB only) |
@@ -96,6 +103,52 @@ TWS/Gateway setup:
 2. Edit → Global Config → API → Settings
 3. Enable "Enable ActiveX and Socket Clients"
 4. Set the trusted IP (127.0.0.1 for local)
+
+---
+
+## IBKR Web API configuration
+
+The Web API adapter is selected when `broker_type = 'interactive_brokers_web'`.
+Unlike the socket/TWS adapter, it does **not** store live account identifiers or
+session headers on the account row.
+
+Sensitive values are loaded from env vars or an ignored local config file:
+
+- `TRADING_IBKR_WEB_API_ACCOUNT_ID`
+- `TRADING_IBKR_WEB_API_BASE_URL` (defaults to `https://api.ibkr.com/v1/api`)
+- `TRADING_IBKR_WEB_API_SESSION_TOKEN`
+- `TRADING_IBKR_WEB_API_HEADERS_JSON`
+- `TRADING_IBKR_WEB_API_VERIFY_SSL`
+- `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS`
+- `TRADING_IBKR_WEB_API_CONFIG` (optional path override; default `local/ibkr_web_api_config.json`)
+
+Example ignored local file:
+
+```json
+{
+  "account_id": "U1234567",
+  "base_url": "https://api.ibkr.com/v1/api",
+  "headers": {
+    "Cookie": "api=replace-me-locally"
+  },
+  "verify_ssl": true,
+  "timeout_seconds": 10
+}
+```
+
+Privacy rule:
+
+- Keep real account IDs, names, cookies, and tokens in env vars or `local/`.
+- Do not add them to account rows, tracked JSON fixtures, or shared docs.
+
+Current Web API method coverage:
+
+- Session validation via `/iserver/auth/status`, `/portfolio/accounts`, and `/iserver/accounts`
+- Account values via `/portfolio/{accountId}/ledger` and `/portfolio/{accountId}/summary`
+- Position reads via `/portfolio/{accountId}/positions/0`
+- Quote snapshots via `/iserver/marketdata/snapshot`
+- Orders via `/iserver/account/{accountId}/orders`, `/iserver/reply/{messageId}`, and `/iserver/account/{accountId}/order/{orderId}`
+- Open-order reconciliation via `/iserver/account/orders`
 
 ---
 
