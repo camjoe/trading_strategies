@@ -119,39 +119,72 @@ Primary IBKR Web API docs:
 - IBKR Campus Web API landing page:
   `https://ibkrcampus.com/campus/ibkr-api-page/webapi-doc/`
 
-Useful base URLs from the docs:
-
-- Client Portal Gateway (local): `https://localhost:5000/v1/api`
-- OAuth / remote Web API: `https://api.ibkr.com/v1/api`
-
 Sensitive values are loaded from env vars or an ignored local config file:
 
 - `TRADING_IBKR_WEB_API_ACCOUNT_ID`
-- `TRADING_IBKR_WEB_API_BASE_URL` (defaults to `https://api.ibkr.com/v1/api`)
+- `TRADING_IBKR_WEB_API_BASE_URL` (defaults to `https://localhost:5000/v1/api`)
 - `TRADING_IBKR_WEB_API_SESSION_TOKEN`
 - `TRADING_IBKR_WEB_API_HEADERS_JSON`
 - `TRADING_IBKR_WEB_API_VERIFY_SSL`
 - `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS`
-- `TRADING_IBKR_WEB_API_CONFIG` (optional path override; default `local/ibkr_web_api_config.json`)
+- `TRADING_IBKR_WEB_API_CONFIG`
 
-Example ignored local file:
+Recommended private setup for this repo:
+
+- Keep real account IDs, names, cookies, and tokens in env vars or in a private
+  config file **outside the repository**.
+- Do not add them to account rows, tracked JSON fixtures, or shared docs.
+- Create the file **outside the repo** and point
+  `TRADING_IBKR_WEB_API_CONFIG` at it yourself with the required keys shown below.
+
+Env-to-local-JSON mapping:
+
+| Environment variable | Local JSON key | Notes |
+|---|---|---|
+| `TRADING_IBKR_WEB_API_ACCOUNT_ID` | `account_id` | Required account identifier |
+| `TRADING_IBKR_WEB_API_BASE_URL` | `base_url` | Optional base URL override; repo default is local gateway |
+| `TRADING_IBKR_WEB_API_SESSION_TOKEN` | `session_token` | Converted to `Cookie: api=...` if `headers` does not already provide `Cookie` |
+| `TRADING_IBKR_WEB_API_HEADERS_JSON` | `headers` | Env form is a JSON-encoded object; file form is a plain JSON object |
+| `TRADING_IBKR_WEB_API_VERIFY_SSL` | `verify_ssl` | Boolean; local gateway usually wants `false` unless you installed a trusted local cert |
+| `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS` | `timeout_seconds` | Positive number |
+| `TRADING_IBKR_WEB_API_CONFIG` | — | Points to the config file path itself; not a key inside the file |
+
+Recommended external config workflow:
+
+1. Create a private directory outside the repository, for example:
+   - Linux: `~/.config/trading_strategies/`
+   - macOS: `~/.config/trading_strategies/`
+2. Create `ibkr_web_api_config.json` in that directory.
+3. Restrict permissions so only your user can read it:
+
+```bash
+mkdir -p ~/.config/trading_strategies
+chmod 700 ~/.config/trading_strategies
+touch ~/.config/trading_strategies/ibkr_web_api_config.json
+chmod 600 ~/.config/trading_strategies/ibkr_web_api_config.json
+```
+
+4. Put your private IBKR values in that file.
+5. Export `TRADING_IBKR_WEB_API_CONFIG` to point at the external path before
+   running trading code:
+
+```bash
+export TRADING_IBKR_WEB_API_CONFIG="$HOME/.config/trading_strategies/ibkr_web_api_config.json"
+```
+
+Recommended external file contents:
 
 ```json
 {
   "account_id": "U1234567",
-  "base_url": "https://api.ibkr.com/v1/api",
+  "base_url": "https://localhost:5000/v1/api",
   "headers": {
     "Cookie": "api=replace-me-locally"
   },
-  "verify_ssl": true,
+  "verify_ssl": false,
   "timeout_seconds": 10
 }
 ```
-
-Privacy rule:
-
-- Keep real account IDs, names, cookies, and tokens in env vars or `local/`.
-- Do not add them to account rows, tracked JSON fixtures, or shared docs.
 
 Current Web API method coverage:
 
@@ -161,17 +194,6 @@ Current Web API method coverage:
 - Quote snapshots via `/iserver/marketdata/snapshot`
 - Orders via `/iserver/account/{accountId}/orders`, `/iserver/reply/{messageId}`, and `/iserver/account/{accountId}/order/{orderId}`
 - Open-order reconciliation via `/iserver/account/orders`
-
-Current pacing guard coverage in code:
-
-- Global Client Portal limit: 10 requests per second
-- `GET /portfolio/accounts`: 1 request per 5 seconds
-- `GET /portfolio/subaccounts`: 1 request per 5 seconds
-- `GET /iserver/account/orders`: 1 request per 5 seconds
-- `GET /iserver/account/pnl/partitioned`: 1 request per 5 seconds
-- `GET /iserver/account/trades`: 1 request per 5 seconds
-- `GET /sso/validate`: 1 request per minute
-- `GET /tickle`: 1 request per second
 
 Documented Client Portal pacing limits from
 `https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/`:

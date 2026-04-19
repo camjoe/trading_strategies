@@ -22,8 +22,8 @@ import httpx
 from common.project_paths import LOCAL_DIR
 from trading.utils.coercion import coerce_bool, coerce_float, coerce_str
 
-# Default Campus / Client Portal Web API base URL.
-_DEFAULT_WEB_API_BASE_URL = "https://api.ibkr.com/v1/api"
+# Default local Client Portal Gateway base URL.
+_DEFAULT_WEB_API_BASE_URL = "https://localhost:5000/v1/api"
 
 # Default timeout for individual Web API requests in seconds.
 _DEFAULT_TIMEOUT_SECONDS = 10.0
@@ -65,7 +65,7 @@ class IbWebApiSettings:
     base_url: str
     account_id: str
     headers: dict[str, str]
-    verify_ssl: bool = True
+    verify_ssl: bool = False
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS
 
 
@@ -191,7 +191,7 @@ def load_ib_web_api_settings() -> IbWebApiSettings:
     if session_token and "Cookie" not in headers:
         headers["Cookie"] = f"api={session_token}"
 
-    verify_ssl = True
+    verify_ssl = base_url != _DEFAULT_WEB_API_BASE_URL
     if verify_ssl_raw is not None:
         coerced_verify = coerce_bool(verify_ssl_raw)
         if coerced_verify is None:

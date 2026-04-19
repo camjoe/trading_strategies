@@ -439,6 +439,24 @@ class TestLoadIbWebApiSettings:
         assert settings.account_id == "U7654321"
         assert settings.headers["Cookie"] == "api=abc123"
 
+    def test_defaults_to_local_gateway_when_base_url_not_provided(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "ibkr_web_api_config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "account_id": "U7654321",
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_CONFIG", str(config_path))
+        monkeypatch.delenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", raising=False)
+
+        settings = load_ib_web_api_settings()
+
+        assert settings.base_url == "https://localhost:5000/v1/api"
+        assert settings.verify_ssl is False
+
     def test_missing_account_id_raises(self, tmp_path, monkeypatch):
         config_path = tmp_path / "ibkr_web_api_config.json"
         config_path.write_text("{}", encoding="utf-8")
