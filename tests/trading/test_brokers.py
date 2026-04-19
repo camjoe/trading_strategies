@@ -24,6 +24,7 @@ from trading.brokers.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.ib_client import IBClientProtocol, IbApiClient
 from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import (
+    IbWebApiPacingLimiter,
     IbWebApiSettings,
     InteractiveBrokersWebClient,
     load_ib_web_api_settings,
@@ -449,6 +450,48 @@ class TestLoadIbWebApiSettings:
 
 
 class TestInteractiveBrokersWebClient:
+    def test_pacing_limiter_enforces_portfolio_accounts_spacing(self):
+        class _Clock:
+            def __init__(self) -> None:
+                self.now = 100.0
+                self.sleeps: list[float] = []
+
+            def monotonic(self) -> float:
+                return self.now
+
+            def sleep(self, seconds: float) -> None:
+                self.sleeps.append(seconds)
+                self.now += seconds
+
+        clock = _Clock()
+        limiter = IbWebApiPacingLimiter(time_fn=clock.monotonic, sleep_fn=clock.sleep)
+
+        limiter.wait_for_slot("GET", "/portfolio/accounts")
+        limiter.wait_for_slot("GET", "/portfolio/accounts")
+
+        assert clock.sleeps == [5.0]
+
+    def test_pacing_limiter_enforces_global_limit(self):
+        class _Clock:
+            def __init__(self) -> None:
+                self.now = 0.0
+                self.sleeps: list[float] = []
+
+            def monotonic(self) -> float:
+                return self.now
+
+            def sleep(self, seconds: float) -> None:
+                self.sleeps.append(seconds)
+                self.now += seconds
+
+        clock = _Clock()
+        limiter = IbWebApiPacingLimiter(time_fn=clock.monotonic, sleep_fn=clock.sleep)
+
+        for index in range(11):
+            limiter.wait_for_slot("GET", f"/custom/{index}")
+
+        assert clock.sleeps == [1.0]
+
     def test_validate_session_checks_account_visibility(self):
         calls: list[str] = []
 
@@ -525,6 +568,23 @@ class TestInteractiveBrokersWebClient:
             "POST /iserver/account/U1234567/orders",
             "POST /iserver/reply/reply-1",
         ]
+
+    def test_request_json_raises_pacing_specific_error_for_429(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(429, text="Too Many Requests", request=request)
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+            pacing_limiter=IbWebApiPacingLimiter(),
+        )
+
+        with pytest.raises(RuntimeError, match="pacing limit exceeded"):
+            client.fetch_auth_status()
 
 
 class TestInteractiveBrokersWebAdapter:

@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping
+import threading
+import time
+from collections import deque
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -28,6 +31,12 @@ _DEFAULT_TIMEOUT_SECONDS = 10.0
 # Default ignored local config file for operator-managed Web API settings.
 _DEFAULT_WEB_API_CONFIG_PATH = LOCAL_DIR / "ibkr_web_api_config.json"
 
+# IBKR's documented global Client Portal pacing limit is 10 requests per second.
+_GLOBAL_REQUEST_LIMIT = 10
+
+# The global pacing window is one second.
+_GLOBAL_REQUEST_WINDOW_SECONDS = 1.0
+
 # Session reply confirmations are interactive notices; cap automated confirms.
 _MAX_ORDER_REPLY_CONFIRMATIONS = 5
 
@@ -36,6 +45,17 @@ _MARKETDATA_SNAPSHOT_FIELDS = "31,84,86"
 
 # The first page of the portfolio positions endpoint.
 _POSITIONS_PAGE = 0
+
+# Endpoint-specific minimum spacing from the IBKR Client Portal pacing table.
+_ENDPOINT_MIN_INTERVAL_SECONDS: dict[tuple[str, str], float] = {
+    ("GET", "/portfolio/accounts"): 5.0,
+    ("GET", "/portfolio/subaccounts"): 5.0,
+    ("GET", "/iserver/account/orders"): 5.0,
+    ("GET", "/iserver/account/pnl/partitioned"): 5.0,
+    ("GET", "/iserver/account/trades"): 5.0,
+    ("GET", "/sso/validate"): 60.0,
+    ("GET", "/tickle"): 1.0,
+}
 
 
 @dataclass(frozen=True)
@@ -47,6 +67,59 @@ class IbWebApiSettings:
     headers: dict[str, str]
     verify_ssl: bool = True
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS
+
+
+class IbWebApiPacingLimiter:
+    """Process-local pacing guard for IBKR Client Portal API limits."""
+
+    def __init__(
+        self,
+        *,
+        time_fn: Callable[[], float] | None = None,
+        sleep_fn: Callable[[float], None] | None = None,
+    ) -> None:
+        self._time_fn = time_fn or time.monotonic
+        self._sleep_fn = sleep_fn or time.sleep
+        self._lock = threading.Lock()
+        self._recent_request_times: deque[float] = deque()
+        self._endpoint_last_request_times: dict[tuple[str, str], float] = {}
+
+    def wait_for_slot(self, method: str, path: str) -> None:
+        endpoint_key = (method.strip().upper(), path)
+        while True:
+            wait_seconds = 0.0
+            with self._lock:
+                now = float(self._time_fn())
+                self._evict_global_window(now)
+
+                if len(self._recent_request_times) >= _GLOBAL_REQUEST_LIMIT:
+                    oldest = self._recent_request_times[0]
+                    wait_seconds = max(
+                        wait_seconds,
+                        oldest + _GLOBAL_REQUEST_WINDOW_SECONDS - now,
+                    )
+
+                min_interval = _ENDPOINT_MIN_INTERVAL_SECONDS.get(endpoint_key)
+                if min_interval is not None:
+                    last_request_at = self._endpoint_last_request_times.get(endpoint_key)
+                    if last_request_at is not None:
+                        wait_seconds = max(wait_seconds, last_request_at + min_interval - now)
+
+                if wait_seconds <= 0:
+                    self._recent_request_times.append(now)
+                    if min_interval is not None:
+                        self._endpoint_last_request_times[endpoint_key] = now
+                    return
+
+            self._sleep_fn(wait_seconds)
+
+    def _evict_global_window(self, now: float) -> None:
+        cutoff = now - _GLOBAL_REQUEST_WINDOW_SECONDS
+        while self._recent_request_times and self._recent_request_times[0] <= cutoff:
+            self._recent_request_times.popleft()
+
+
+_DEFAULT_IB_WEB_API_PACING_LIMITER = IbWebApiPacingLimiter()
 
 
 def _config_path() -> Path:
@@ -148,6 +221,7 @@ class InteractiveBrokersWebClient:
         self,
         settings: IbWebApiSettings,
         http_client: httpx.Client | None = None,
+        pacing_limiter: IbWebApiPacingLimiter | None = None,
     ) -> None:
         self._settings = settings
         self._client = http_client or httpx.Client(
@@ -157,6 +231,7 @@ class InteractiveBrokersWebClient:
             verify=settings.verify_ssl,
         )
         self._owns_client = http_client is None
+        self._pacing_limiter = pacing_limiter or _DEFAULT_IB_WEB_API_PACING_LIMITER
         self._connected = False
         self._conid_cache: dict[str, str] = {}
 
@@ -346,11 +421,17 @@ class InteractiveBrokersWebClient:
         return payload
 
     def _request_json(self, method: str, path: str, **kwargs: Any) -> Any:
+        self._pacing_limiter.wait_for_slot(method, path)
         response = self._client.request(method, path, **kwargs)
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             detail = response.text.strip()
+            if response.status_code == 429:
+                raise RuntimeError(
+                    f"IBKR Web API pacing limit exceeded for {method} {path}: "
+                    f"{response.status_code} {detail}"
+                ) from exc
             raise RuntimeError(
                 f"IBKR Web API request failed for {method} {path}: "
                 f"{response.status_code} {detail}"

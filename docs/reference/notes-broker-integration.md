@@ -112,6 +112,18 @@ The Web API adapter is selected when `broker_type = 'interactive_brokers_web'`.
 Unlike the socket/TWS adapter, it does **not** store live account identifiers or
 session headers on the account row.
 
+Primary IBKR Web API docs:
+
+- Client Portal / Web API overview and endpoint guide:
+  `https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/`
+- IBKR Campus Web API landing page:
+  `https://ibkrcampus.com/campus/ibkr-api-page/webapi-doc/`
+
+Useful base URLs from the docs:
+
+- Client Portal Gateway (local): `https://localhost:5000/v1/api`
+- OAuth / remote Web API: `https://api.ibkr.com/v1/api`
+
 Sensitive values are loaded from env vars or an ignored local config file:
 
 - `TRADING_IBKR_WEB_API_ACCOUNT_ID`
@@ -149,6 +161,60 @@ Current Web API method coverage:
 - Quote snapshots via `/iserver/marketdata/snapshot`
 - Orders via `/iserver/account/{accountId}/orders`, `/iserver/reply/{messageId}`, and `/iserver/account/{accountId}/order/{orderId}`
 - Open-order reconciliation via `/iserver/account/orders`
+
+Current pacing guard coverage in code:
+
+- Global Client Portal limit: 10 requests per second
+- `GET /portfolio/accounts`: 1 request per 5 seconds
+- `GET /portfolio/subaccounts`: 1 request per 5 seconds
+- `GET /iserver/account/orders`: 1 request per 5 seconds
+- `GET /iserver/account/pnl/partitioned`: 1 request per 5 seconds
+- `GET /iserver/account/trades`: 1 request per 5 seconds
+- `GET /sso/validate`: 1 request per minute
+- `GET /tickle`: 1 request per second
+
+Documented Client Portal pacing limits from
+`https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/`:
+
+- Global limit: **10 total requests per second**
+- `GET /fyi/unreadnumber`: **1 request per second**
+- `GET /fyi/settings`: **1 request per second**
+- `POST /fyi/settings/{typecode}`: **1 request per second**
+- `GET /fyi/disclaimer/{typecode}`: **1 request per second**
+- `PUT /fyi/disclaimer/{typecode}`: **1 request per second**
+- `GET /fyi/deliveryoptions`: **1 request per second**
+- `PUT /fyi/deliveryoptions/email`: **1 request per second**
+- `POST /fyi/deliveryoptions/device`: **1 request per second**
+- `DELETE /fyi/deliveryoptions/{deviceId}`: **1 request per second**
+- `GET /fyi/notifications`: **1 request per second**
+- `GET /fyi/notifications/more`: **1 request per second**
+- `PUT /fyi/notifications/{notificationId}`: **1 request per second**
+- `GET /iserver/account/orders`: **1 request per 5 seconds**
+- `GET /iserver/account/pnl/partitioned`: **1 request per 5 seconds**
+- `GET /iserver/account/trades`: **1 request per 5 seconds**
+- `GET /iserver/marketdata/history`: **5 concurrent requests**
+- `GET /iserver/marketdata/snapshot`: **10 requests per second**
+- `GET /iserver/scanner/params`: **1 request per 15 minutes**
+- `POST /iserver/scanner/run`: **1 request per second**
+- `POST /pa/performance`: **1 request per 15 minutes**
+- `POST /pa/summary`: **1 request per 15 minutes**
+- `POST /pa/transactions`: **1 request per 15 minutes**
+- `GET /portfolio/accounts`: **1 request per 5 seconds**
+- `GET /portfolio/subaccounts`: **1 request per 5 seconds**
+- `GET /sso/validate`: **1 request per minute**
+- `GET /tickle`: **1 request per second**
+
+Other operational notes from the docs worth preserving:
+
+- A session can remain authenticated for up to 24 hours, but resets at midnight
+  for the relevant IBKR region.
+- Sessions time out after about 6 minutes without requests; `/tickle` should be
+  called regularly to keep the session alive.
+- IBKR recommends calling `/tickle` about once per minute for keepalive.
+- `GET /iserver/auth/status` is the primary endpoint for checking brokerage
+  session state.
+- Client Portal Gateway defaults to localhost port `5000`, but the port is
+  configurable in `conf.yaml`.
 
 ---
 
