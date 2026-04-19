@@ -127,6 +127,8 @@ Sensitive values are loaded from env vars or an ignored local config file:
 - `TRADING_IBKR_WEB_API_HEADERS_JSON`
 - `TRADING_IBKR_WEB_API_VERIFY_SSL`
 - `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS`
+- `TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED`
+- `TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS`
 - `TRADING_IBKR_WEB_API_CONFIG`
 
 Recommended private setup for this repo:
@@ -147,6 +149,8 @@ Env-to-local-JSON mapping:
 | `TRADING_IBKR_WEB_API_HEADERS_JSON` | `headers` | Env form is a JSON-encoded object; file form is a plain JSON object |
 | `TRADING_IBKR_WEB_API_VERIFY_SSL` | `verify_ssl` | Boolean; local gateway usually wants `false` unless you installed a trusted local cert |
 | `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS` | `timeout_seconds` | Positive number |
+| `TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED` | `keepalive_enabled` | Boolean; enables background `/tickle` keepalive while connected |
+| `TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS` | `keepalive_interval_seconds` | Positive number; docs recommend about 60 seconds |
 | `TRADING_IBKR_WEB_API_CONFIG` | — | Points to the config file path itself; not a key inside the file |
 
 Recommended external config workflow:
@@ -182,7 +186,9 @@ Recommended external file contents:
     "Cookie": "api=replace-me-locally"
   },
   "verify_ssl": false,
-  "timeout_seconds": 10
+  "timeout_seconds": 10,
+  "keepalive_enabled": true,
+  "keepalive_interval_seconds": 60
 }
 ```
 
@@ -233,6 +239,8 @@ Other operational notes from the docs worth preserving:
 - Sessions time out after about 6 minutes without requests; `/tickle` should be
   called regularly to keep the session alive.
 - IBKR recommends calling `/tickle` about once per minute for keepalive.
+- This repo's Web API client can run a background keepalive thread while
+  connected; it is enabled by default with a 60-second interval.
 - `GET /iserver/auth/status` is the primary endpoint for checking brokerage
   session state.
 - Client Portal Gateway defaults to localhost port `5000`, but the port is

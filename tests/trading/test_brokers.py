@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -456,6 +457,18 @@ class TestLoadIbWebApiSettings:
 
         assert settings.base_url == "https://localhost:5000/v1/api"
         assert settings.verify_ssl is False
+        assert settings.keepalive_enabled is True
+        assert settings.keepalive_interval_seconds == 60.0
+
+    def test_loads_keepalive_settings_from_env(self, monkeypatch):
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", "U1234567")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED", "false")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS", "90")
+
+        settings = load_ib_web_api_settings()
+
+        assert settings.keepalive_enabled is False
+        assert settings.keepalive_interval_seconds == 90.0
 
     def test_missing_account_id_raises(self, tmp_path, monkeypatch):
         config_path = tmp_path / "ibkr_web_api_config.json"
@@ -603,6 +616,38 @@ class TestInteractiveBrokersWebClient:
 
         with pytest.raises(RuntimeError, match="pacing limit exceeded"):
             client.fetch_auth_status()
+
+    def test_connect_starts_keepalive_and_tickle_runs(self):
+        tickled = threading.Event()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/iserver/auth/status":
+                return httpx.Response(200, json={"authenticated": True, "connected": True})
+            if request.url.path == "/portfolio/accounts":
+                return httpx.Response(200, json=[{"accountId": "U1234567"}])
+            if request.url.path == "/iserver/accounts":
+                return httpx.Response(200, json={"accounts": ["U1234567"]})
+            if request.url.path == "/tickle":
+                tickled.set()
+                return httpx.Response(200, json={"session": "ok"})
+            raise AssertionError(f"Unexpected path {request.url.path}")
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+                keepalive_enabled=True,
+                keepalive_interval_seconds=0.01,
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        try:
+            client.connect()
+            assert tickled.wait(0.5)
+        finally:
+            client.disconnect()
 
 
 class TestInteractiveBrokersWebAdapter:

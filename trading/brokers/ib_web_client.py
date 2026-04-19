@@ -67,6 +67,8 @@ class IbWebApiSettings:
     headers: dict[str, str]
     verify_ssl: bool = False
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS
+    keepalive_enabled: bool = True
+    keepalive_interval_seconds: float = 60.0
 
 
 class IbWebApiPacingLimiter:
@@ -177,6 +179,16 @@ def load_ib_web_api_settings() -> IbWebApiSettings:
     session_token_raw = _config_value("TRADING_IBKR_WEB_API_SESSION_TOKEN", payload, "session_token")
     verify_ssl_raw = _config_value("TRADING_IBKR_WEB_API_VERIFY_SSL", payload, "verify_ssl")
     timeout_raw = _config_value("TRADING_IBKR_WEB_API_TIMEOUT_SECONDS", payload, "timeout_seconds")
+    keepalive_enabled_raw = _config_value(
+        "TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED",
+        payload,
+        "keepalive_enabled",
+    )
+    keepalive_interval_raw = _config_value(
+        "TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS",
+        payload,
+        "keepalive_interval_seconds",
+    )
 
     base_url = str(base_url_raw or _DEFAULT_WEB_API_BASE_URL).strip().rstrip("/")
     account_id = str(account_id_raw or "").strip()
@@ -205,12 +217,28 @@ def load_ib_web_api_settings() -> IbWebApiSettings:
             raise ValueError("IBKR Web API timeout_seconds must be a positive number.")
         timeout_seconds = float(coerced_timeout)
 
+    keepalive_enabled = True
+    if keepalive_enabled_raw is not None:
+        coerced_keepalive_enabled = coerce_bool(keepalive_enabled_raw)
+        if coerced_keepalive_enabled is None:
+            raise ValueError("IBKR Web API keepalive_enabled must be a boolean value.")
+        keepalive_enabled = bool(coerced_keepalive_enabled)
+
+    keepalive_interval_seconds = 60.0
+    if keepalive_interval_raw is not None:
+        coerced_keepalive_interval = coerce_float(keepalive_interval_raw)
+        if coerced_keepalive_interval is None or coerced_keepalive_interval <= 0:
+            raise ValueError("IBKR Web API keepalive_interval_seconds must be a positive number.")
+        keepalive_interval_seconds = float(coerced_keepalive_interval)
+
     return IbWebApiSettings(
         base_url=base_url,
         account_id=account_id,
         headers=headers,
         verify_ssl=verify_ssl,
         timeout_seconds=timeout_seconds,
+        keepalive_enabled=keepalive_enabled,
+        keepalive_interval_seconds=keepalive_interval_seconds,
     )
 
 
@@ -234,12 +262,18 @@ class InteractiveBrokersWebClient:
         self._pacing_limiter = pacing_limiter or _DEFAULT_IB_WEB_API_PACING_LIMITER
         self._connected = False
         self._conid_cache: dict[str, str] = {}
+        self._keepalive_stop_event = threading.Event()
+        self._keepalive_thread: threading.Thread | None = None
+        self._background_error: RuntimeError | None = None
 
     def connect(self) -> None:
         self.validate_session()
         self._connected = True
+        self._background_error = None
+        self._start_keepalive_if_enabled()
 
     def disconnect(self) -> None:
+        self._stop_keepalive()
         if self._owns_client:
             self._client.close()
         self._connected = False
@@ -298,6 +332,12 @@ class InteractiveBrokersWebClient:
         if isinstance(payload, list):
             return [str(value) for value in payload if str(value).strip()]
         return []
+
+    def tickle(self) -> dict[str, object]:
+        payload = self._request_json("GET", "/tickle")
+        if not isinstance(payload, dict):
+            raise RuntimeError("IBKR Web API tickle response must be an object.")
+        return payload
 
     def fetch_ledger(self) -> dict[str, object]:
         payload = self._request_json("GET", f"/portfolio/{self._settings.account_id}/ledger")
@@ -421,6 +461,7 @@ class InteractiveBrokersWebClient:
         return payload
 
     def _request_json(self, method: str, path: str, **kwargs: Any) -> Any:
+        self._raise_if_background_error()
         self._pacing_limiter.wait_for_slot(method, path)
         response = self._client.request(method, path, **kwargs)
         try:
@@ -439,6 +480,43 @@ class InteractiveBrokersWebClient:
         if not response.content:
             return {}
         return response.json()
+
+    def _start_keepalive_if_enabled(self) -> None:
+        if not self._settings.keepalive_enabled:
+            return
+        if self._keepalive_thread is not None and self._keepalive_thread.is_alive():
+            return
+        self._keepalive_stop_event.clear()
+        self._keepalive_thread = threading.Thread(
+            target=self._run_keepalive_loop,
+            name="ibkr-web-keepalive",
+            daemon=True,
+        )
+        self._keepalive_thread.start()
+
+    def _stop_keepalive(self) -> None:
+        self._keepalive_stop_event.set()
+        thread = self._keepalive_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=1.0)
+        self._keepalive_thread = None
+
+    def _run_keepalive_loop(self) -> None:
+        while not self._keepalive_stop_event.wait(self._settings.keepalive_interval_seconds):
+            if not self._connected:
+                return
+            try:
+                self.tickle()
+            except RuntimeError as exc:
+                self._background_error = RuntimeError(
+                    f"IBKR Web API keepalive failed: {exc}"
+                )
+                self._connected = False
+                return
+
+    def _raise_if_background_error(self) -> None:
+        if self._background_error is not None:
+            raise self._background_error
 
 
 def _truthy_flag(value: object | None) -> bool:
