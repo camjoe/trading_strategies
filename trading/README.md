@@ -12,7 +12,7 @@ The `trading/` module handles:
 
 - Account lifecycle (create, configure, benchmark, profiles)
 - Trade simulation and position tracking
-- Live broker integration (Interactive Brokers via TWS/IB Gateway; paper broker by default)
+- Live broker integration (Interactive Brokers via the Client Portal / Web API as the current path, with legacy TWS/IB Gateway support retained; paper broker by default)
 - Snapshot history and reporting
 - Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
@@ -97,6 +97,18 @@ python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k
 # S&P 500 broad universe
 python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
 ```
+
+For live broker accounts, each account run now reuses a single broker
+connection for the full trade loop. This lets session-backed adapters such as
+the IBKR Web API client keep their connection alive across multiple trades in
+one autoscript run.
+
+Auto-trader order submission is now also gated to regular U.S. equity market
+hours. When the market is closed, autonomous trade runs skip broker order
+placement instead of submitting paper or live orders outside the session. The
+guard includes major full-day NYSE holidays plus scheduled 1:00 PM Eastern
+early closes for the day after Thanksgiving, eligible July 3 sessions, and
+eligible Christmas Eve sessions.
 
 ### Rotation overlays
 

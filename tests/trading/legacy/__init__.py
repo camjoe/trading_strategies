@@ -1,0 +1,1 @@
+"""Legacy broker test coverage."""
