@@ -8,7 +8,8 @@ from trading.backtesting.backtest import (
     walk_forward_report,
     run_walk_forward_backtest,
 )
-from trading.database.db import DB_PATH, ensure_db
+from trading.database.db import ensure_db
+from trading.database.db_config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
@@ -64,7 +65,7 @@ def main() -> None:
             parser,
             deps=_handler_deps(),
             module_file=__file__,
-            db_path=DB_PATH,
+            db_path=get_db_path(),
         )
     finally:
         conn.close()
