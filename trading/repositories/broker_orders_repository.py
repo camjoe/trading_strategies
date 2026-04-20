@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.database.db_common import in_placeholders
+from trading.database.sql_helpers import in_placeholders
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 
 

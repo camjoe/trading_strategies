@@ -9,10 +9,10 @@ from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from paper_trading_ui.backend.routes import admin as admin_routes
 from paper_trading_ui.backend.routes import backtests as backtests_routes
 from paper_trading_ui.backend.routes import logs as logs_routes
-from trading.services.accounts_service import create_account
 from trading.domain import AccountAlreadyExistsError
-from trading.database import db
+from trading.database.db_init import ensure_db
 from trading.models import AccountConfig
+from trading.services.accounts_service import create_account
 
 
 def _create_test_account(
@@ -49,7 +49,7 @@ def _create_backtest_run_for_account(conn, account_name: str, run_name: str = "r
 
 
 def _seed_account(account_name: str) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(conn, account_name)
     finally:
@@ -99,7 +99,7 @@ class TestActionsRoutes:
         response = api_client.post("/api/actions/snapshot/acct_snapshot")
         assert response.status_code == 200
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             account = conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_snapshot",)).fetchone()
             assert account is not None
@@ -113,7 +113,7 @@ class TestActionsRoutes:
         assert int(count) == 1
 
     def test_snapshot_all_endpoint_includes_virtual_name(self, api_client: TestClient) -> None:
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             _create_test_account(conn, "acct_all_a")
             _create_test_account(conn, "acct_all_b")
@@ -213,7 +213,7 @@ class TestAdminRoutes:
 
 class TestBacktestsRoutes:
     def test_backtest_runs_endpoint_returns_rows(self, api_client: TestClient) -> None:
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             _create_test_account(conn, "acct_runs")
             _create_backtest_run_for_account(conn, "acct_runs", run_name="run-abc")

@@ -1,1 +1,1 @@
-"""DB infrastructure: backend selection, schema init, config, and coercion helpers."""
+"""Trading database infrastructure modules."""
