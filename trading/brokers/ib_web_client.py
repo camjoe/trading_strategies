@@ -397,6 +397,22 @@ class InteractiveBrokersWebClient:
                 return [item for item in orders if isinstance(item, dict)]
         raise RuntimeError("IBKR Web API account orders response must contain an orders list.")
 
+    def fetch_order_status(self, order_id: str) -> dict[str, object]:
+        payload = self._request_json("GET", f"/iserver/account/order/status/{order_id}")
+        if not isinstance(payload, dict):
+            raise RuntimeError("IBKR Web API order status response must be an object.")
+        return payload
+
+    def fetch_trades(self, *, days: int = 1) -> list[dict[str, object]]:
+        payload = self._request_json(
+            "GET",
+            "/iserver/account/trades",
+            params={"days": str(days)},
+        )
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+        raise RuntimeError("IBKR Web API trades response must be a list.")
+
     def resolve_conid(self, symbol: str) -> str:
         return self.resolve_contract(symbol).conid
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from collections.abc import Mapping
 from typing import TextIO
 
@@ -41,6 +42,16 @@ _CANCELLABLE_PAPER_ORDER_STATUSES = frozenset(
         OrderStatus.PARTIALLY_FILLED,
     }
 )
+
+# Poll live orders a small number of times so a newly submitted paper order has a
+# chance to appear without violating IBKR's 1 request / 5 seconds pacing limit.
+_ORDER_VISIBILITY_POLL_ATTEMPTS = 2
+
+# IBKR documents GET /iserver/account/orders at 1 request every 5 seconds.
+_ORDER_VISIBILITY_POLL_DELAY_SECONDS = 5.0
+
+# Recent-trade verification only needs the current trading day during smoke tests.
+_TRADE_LOOKBACK_DAYS = 1
 
 
 def parse_args() -> argparse.Namespace:
@@ -143,6 +154,122 @@ def _find_order_status(rows: list[dict[str, object]], broker_order_id: str) -> s
     return None
 
 
+def _extract_status_text(payload: Mapping[str, object]) -> str | None:
+    for key in ("order_status", "status", "order_status_description"):
+        value = str(payload.get(key) or "").strip()
+        if value:
+            return value
+    return None
+
+
+def _find_order_row(rows: list[dict[str, object]], broker_order_id: str) -> dict[str, object] | None:
+    for row in rows:
+        order_id = str(row.get("orderId") or row.get("order_id") or "").strip()
+        if order_id == broker_order_id:
+            return row
+    return None
+
+
+def _normalize_status_text(value: str | None) -> str:
+    return str(value or "").strip().replace("_", "").replace(" ", "").lower()
+
+
+def _is_cancellable_lifecycle_status(
+    submitted_status: OrderStatus,
+    *,
+    status_text: str | None,
+    order_row_status: str | None,
+) -> bool:
+    if submitted_status in _CANCELLABLE_PAPER_ORDER_STATUSES:
+        return True
+    normalized = _normalize_status_text(status_text) or _normalize_status_text(order_row_status)
+    return normalized in {
+        "pending",
+        "pendingsubmit",
+        "presubmitted",
+        "submitted",
+        "accepted",
+        "apipending",
+        "partiallyfilled",
+    }
+
+
+def _find_matching_trade(
+    rows: list[dict[str, object]],
+    *,
+    symbol: str,
+    side: str,
+    qty: float,
+) -> dict[str, object] | None:
+    normalized_symbol = symbol.strip().upper()
+    normalized_side = side.strip().upper()
+    for row in rows:
+        trade_symbol = str(row.get("symbol") or row.get("ticker") or "").strip().upper()
+        trade_side = str(row.get("side") or "").strip().upper()
+        trade_qty = coerce_float(row.get("size"))
+        if trade_symbol != normalized_symbol:
+            continue
+        if trade_side not in {normalized_side, normalized_side[:1]}:
+            continue
+        if trade_qty != qty:
+            continue
+        return row
+    return None
+
+
+def _probe_order_lifecycle(
+    *,
+    client: InteractiveBrokersWebClient,
+    broker_order_id: str,
+    symbol: str,
+    side: str,
+    qty: float,
+    out: TextIO,
+) -> tuple[str | None, str | None]:
+    status_payload = client.fetch_order_status(broker_order_id)
+    status_text = _extract_status_text(status_payload)
+    if status_text is not None:
+        print(f"✓ Order-status lookup returned {status_text}", file=out)
+
+    order_row_status: str | None = None
+    order_row: dict[str, object] | None = None
+    for attempt in range(_ORDER_VISIBILITY_POLL_ATTEMPTS):
+        order_row = _find_order_row(client.fetch_orders(), broker_order_id)
+        if order_row is not None:
+            order_row_status = str(order_row.get("status") or order_row.get("order_status") or "").strip() or None
+            print(
+                f"✓ Live-orders lookup returned status {_status_label(order_row_status)}",
+                file=out,
+            )
+            break
+        if attempt + 1 < _ORDER_VISIBILITY_POLL_ATTEMPTS:
+            time.sleep(_ORDER_VISIBILITY_POLL_DELAY_SECONDS)
+
+    if order_row is None:
+        print(
+            "✓ Live-orders lookup returned no row after follow-up polling; "
+            "the order may still be pending, outside market hours, or not yet visible there.",
+            file=out,
+        )
+
+    matching_trade = _find_matching_trade(
+        client.fetch_trades(days=_TRADE_LOOKBACK_DAYS),
+        symbol=symbol,
+        side=side,
+        qty=qty,
+    )
+    if matching_trade is not None:
+        print(
+            "✓ Recent-trades lookup found a matching symbol/side/qty execution "
+            f"at {matching_trade.get('trade_time') or matching_trade.get('trade_time_r') or '<unknown time>'}",
+            file=out,
+        )
+    else:
+        print("✓ Recent-trades lookup found no matching execution yet.", file=out)
+
+    return status_text, order_row_status
+
+
 def run_smoke_test(
     client: InteractiveBrokersWebClient,
     *,
@@ -211,43 +338,34 @@ def run_paper_order_check(
         f"(id {submitted.broker_order_id}, status {_status_label(submitted.status)})",
         file=out,
     )
-
-    open_trade = next(
-        (
-            trade
-            for trade in adapter.get_open_trades()
-            if trade.broker_order_id == submitted.broker_order_id
-        ),
-        None,
+    status_text, order_row_status = _probe_order_lifecycle(
+        client=client,
+        broker_order_id=submitted.broker_order_id,
+        symbol=normalized_symbol,
+        side=side,
+        qty=qty,
+        out=out,
     )
-    if open_trade is not None:
-        print(
-            f"✓ Open-order lookup returned status {_status_label(open_trade.status)}",
-            file=out,
-        )
-    else:
-        print(
-            "✓ Open-order lookup returned no open row; the order may already be closed or not yet visible.",
-            file=out,
-        )
 
     if not cancel_order:
         print("✓ Left the paper test order open because --skip-paper-order-cancel was set.", file=out)
         return
-    if submitted.status not in _CANCELLABLE_PAPER_ORDER_STATUSES:
+    if not _is_cancellable_lifecycle_status(
+        submitted.status,
+        status_text=status_text,
+        order_row_status=order_row_status,
+    ):
         print(
-            f"✓ Skipped cancel because broker status is {_status_label(submitted.status)}.",
+            "✓ Skipped cancel because broker lifecycle status is "
+            f"{_status_label(status_text or order_row_status or submitted.status)}.",
             file=out,
         )
-        return
-    if open_trade is None:
-        print("✓ Skipped cancel because the order is no longer reported as open.", file=out)
         return
 
     adapter.cancel_order(submitted.broker_order_id)
     print(f"✓ Cancel request submitted for order {submitted.broker_order_id}", file=out)
 
-    status_after_cancel = _find_order_status(client.fetch_orders(), submitted.broker_order_id)
+    status_after_cancel = _extract_status_text(client.fetch_order_status(submitted.broker_order_id))
     if status_after_cancel is not None:
         print(f"  Broker-reported post-cancel status: {status_after_cancel}", file=out)
 

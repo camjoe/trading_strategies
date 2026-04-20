@@ -214,7 +214,8 @@ What it does:
 - Fetches ledger, summary, and positions through the existing client.
 - Prints sanitized pass/fail output only; it does not place orders.
 - When explicitly requested, it can also place a small paper-only limit order,
-  confirm it appears in open orders, and request cancellation.
+  check order status, poll live orders, inspect recent trades, and request
+  cancellation by order id when the lifecycle state is still cancellable.
 
 Recommended workflow:
 
@@ -230,6 +231,8 @@ Paper-order check notes:
 - Use a clearly non-marketable limit price so the test order stays cancellable.
 - The optional order check is gated behind `--paper-order-check`; the default
   smoke test remains read-only.
+- Outside market hours, IBKR may leave the order in `PreSubmitted`; that still
+  proves the submit path worked even if no fill occurs.
 
 Current Web API method coverage:
 

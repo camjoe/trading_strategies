@@ -617,6 +617,43 @@ class TestInteractiveBrokersWebClient:
             }
         ]
 
+    def test_fetch_order_status_returns_object(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/iserver/account/order/status/42"
+            return httpx.Response(200, json={"order_id": "42", "order_status": "PreSubmitted"})
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        payload = client.fetch_order_status("42")
+
+        assert payload["order_status"] == "PreSubmitted"
+
+    def test_fetch_trades_returns_list(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/iserver/account/trades"
+            assert request.url.params["days"] == "1"
+            return httpx.Response(200, json=[{"symbol": "AAPL", "side": "BUY", "size": 1}])
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        rows = client.fetch_trades()
+
+        assert rows == [{"symbol": "AAPL", "side": "BUY", "size": 1}]
+
     def test_request_json_raises_pacing_specific_error_for_429(self):
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(429, text="Too Many Requests", request=request)

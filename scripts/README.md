@@ -22,7 +22,7 @@ Repository workflow scripts (`scripts/`):
 - `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
 - `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
-- `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test with a default read-only path and an explicit optional paper-order lifecycle check.
+- `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test with a default read-only path and an explicit optional paper-order lifecycle check that verifies status/orders/trades before optional cancellation.
 
 Documentation page workflows:
 

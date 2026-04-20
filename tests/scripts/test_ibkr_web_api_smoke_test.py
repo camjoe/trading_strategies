@@ -113,28 +113,30 @@ def test_run_paper_order_check_submits_and_cancels() -> None:
             order.status = OrderStatus.SUBMITTED
             return order
 
-        def get_open_trades(self) -> list[BrokerOrder]:
-            return [
-                BrokerOrder(
-                    account_id=0,
-                    ticker="AAPL",
-                    side="buy",
-                    qty=1.0,
-                    price=1.0,
-                    broker_order_id="12345",
-                    status=OrderStatus.SUBMITTED,
-                )
-            ]
-
         def cancel_order(self, broker_order_id: str) -> None:
             cancelled.append(broker_order_id)
 
     class _FakeClient:
         def fetch_orders(self) -> list[dict[str, object]]:
-            return [{"orderId": "12345", "status": "Cancelled"}]
+            return [{"orderId": "12345", "status": "PreSubmitted"}]
+
+        def fetch_trades(self, *, days: int = 1) -> list[dict[str, object]]:
+            assert days == 1
+            return []
+
+    client = _FakeClient()
+    status_calls = {"count": 0}
+
+    def _fetch_order_status(order_id: str) -> dict[str, object]:
+        status_calls["count"] += 1
+        if status_calls["count"] == 1:
+            return {"order_id": "12345", "order_status": "PreSubmitted"}
+        return {"order_id": "12345", "order_status": "Cancelled"}
+
+    client.fetch_order_status = _fetch_order_status  # type: ignore[method-assign]
 
     ibkr_web_api_smoke_test.run_paper_order_check(
-        client=_FakeClient(),  # type: ignore[arg-type]
+        client=client,  # type: ignore[arg-type]
         adapter=_FakeAdapter(),  # type: ignore[arg-type]
         out=out,
         symbol="AAPL",
@@ -147,8 +149,61 @@ def test_run_paper_order_check_submits_and_cancels() -> None:
     output = out.getvalue()
     assert cancelled == ["12345"]
     assert "Paper order submitted" in output
-    assert "Open-order lookup returned status submitted" in output
+    assert "Order-status lookup returned PreSubmitted" in output
+    assert "Live-orders lookup returned status PreSubmitted" in output
+    assert "Recent-trades lookup found no matching execution yet." in output
     assert "Broker-reported post-cancel status: Cancelled" in output
+
+
+def test_run_paper_order_check_cancels_even_without_live_order_row(monkeypatch) -> None:
+    out = StringIO()
+    cancelled: list[str] = []
+
+    class _FakeAdapter:
+        def place_order(self, order: BrokerOrder) -> BrokerOrder:
+            order.broker_order_id = "12345"
+            order.status = OrderStatus.PENDING
+            return order
+
+        def cancel_order(self, broker_order_id: str) -> None:
+            cancelled.append(broker_order_id)
+
+    class _FakeClient:
+        def __init__(self) -> None:
+            self.order_status_calls = 0
+            self.fetch_orders_calls = 0
+
+        def fetch_order_status(self, order_id: str) -> dict[str, object]:
+            self.order_status_calls += 1
+            if self.order_status_calls == 1:
+                return {"order_id": order_id, "order_status": "PreSubmitted"}
+            return {"order_id": order_id, "order_status": "PendingCancel"}
+
+        def fetch_orders(self) -> list[dict[str, object]]:
+            self.fetch_orders_calls += 1
+            return []
+
+        def fetch_trades(self, *, days: int = 1) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(ibkr_web_api_smoke_test.time, "sleep", lambda _: None)
+    client = _FakeClient()
+    ibkr_web_api_smoke_test.run_paper_order_check(
+        client=client,  # type: ignore[arg-type]
+        adapter=_FakeAdapter(),  # type: ignore[arg-type]
+        out=out,
+        symbol="AAPL",
+        qty=1.0,
+        limit_price=1.0,
+        side="buy",
+        cancel_order=True,
+    )
+
+    output = out.getvalue()
+    assert cancelled == ["12345"]
+    assert client.fetch_orders_calls == ibkr_web_api_smoke_test._ORDER_VISIBILITY_POLL_ATTEMPTS
+    assert "Live-orders lookup returned no row after follow-up polling" in output
+    assert "Broker-reported post-cancel status: PendingCancel" in output
 
 
 def test_main_runs_optional_paper_order_check(monkeypatch, capsys) -> None:
