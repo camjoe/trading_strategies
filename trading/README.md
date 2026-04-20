@@ -103,6 +103,13 @@ connection for the full trade loop. This lets session-backed adapters such as
 the IBKR Web API client keep their connection alive across multiple trades in
 one autoscript run.
 
+Auto-trader order submission is now also gated to regular U.S. equity market
+hours. When the market is closed, autonomous trade runs skip broker order
+placement instead of submitting paper or live orders outside the session. The
+guard includes major full-day NYSE holidays plus scheduled 1:00 PM Eastern
+early closes for the day after Thanksgiving, eligible July 3 sessions, and
+eligible Christmas Eve sessions.
+
 ### Rotation overlays
 
 Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `social`, or `news_social`) to let alternative-data signals nudge the base policy regime.

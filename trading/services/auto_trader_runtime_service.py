@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Callable, cast
 
+from common.market_hours import is_regular_us_equity_market_open_at_utc_iso
 from common.time import utc_now_iso
 from trading.models.broker_order import BrokerOrder, OrderStatus
 from trading.brokers.base import BrokerConnection
@@ -420,6 +421,10 @@ def _record_runtime_trade(
             broker.disconnect()
 
 
+def _is_runtime_submission_window_open(now_iso: str) -> bool:
+    return is_regular_us_equity_market_open_at_utc_iso(now_iso)
+
+
 def run_for_account(
     conn: sqlite3.Connection,
     account_name: str,
@@ -430,6 +435,9 @@ def run_for_account(
     max_trades: int,
     fee: float,
 ) -> int:
+    now_iso = utc_now_iso()
+    if not _is_runtime_submission_window_open(now_iso):
+        return 0
     # Open one broker connection for the entire account trade loop so that
     # keepalive (e.g. IBKR Web API /tickle) remains effective across all
     # trades in the run.  Broker settings (broker_type, live_trading_enabled)
@@ -458,6 +466,7 @@ def run_for_account(
                 *args, **kwargs, _injected_broker=broker
             ),
             enforce_runtime_trade_throttles_fn=enforce_runtime_trade_throttles,
+            is_submission_window_open_fn=_is_runtime_submission_window_open,
         )
     finally:
         broker.disconnect()

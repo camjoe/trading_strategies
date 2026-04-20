@@ -364,9 +364,12 @@ def run_for_account(
     prepare_trade_selection_fn: Callable[..., tuple[str, str, int, float, float | None, float | None] | None],
     record_prepared_trade_fn: Callable[..., None],
     enforce_runtime_trade_throttles_fn: Callable[..., None],
+    is_submission_window_open_fn: Callable[[str], bool],
 ) -> int:
     account = get_account_fn(conn, account_name)
     now_iso = utc_now_iso_fn()
+    if not is_submission_window_open_fn(now_iso):
+        return 0
     account = rotate_account_if_due_fn(conn, account_name, account, now_iso)
     active_strategy = resolve_active_strategy_fn(account)
     learning_enabled = bool(
@@ -379,6 +382,8 @@ def run_for_account(
     target = random.randint(min_trades, max_trades)
     executed = 0
     for _ in range(target):
+        if not is_submission_window_open_fn(utc_now_iso_fn()):
+            break
         state = refresh_account_state_fn(conn, account)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
         forced_sell = resolve_forced_sell_ticker_fn(

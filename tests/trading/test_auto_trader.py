@@ -199,11 +199,40 @@ class TestCliMainFlow:
 # ---------------------------------------------------------------------------
 
 class TestTradeLoopOrchestration:
+    def test_run_for_account_skips_when_market_closed(self, monkeypatch):
+        account = _base_account(id=42)
+        broker_factory_called = {"value": False}
+
+        monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-15T15:00:00Z")
+        monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: False)
+
+        def _unexpected_broker(_account):
+            broker_factory_called["value"] = True
+            raise AssertionError("broker factory should not run when market is closed")
+
+        monkeypatch.setattr(runtime_service, "get_broker_for_account", _unexpected_broker)
+
+        executed = auto_trader.run_for_account(
+            conn=object(),
+            account_name="acct",
+            universe=["AAPL"],
+            prices={"AAPL": 101.0},
+            iv_rank_proxy={},
+            min_trades=1,
+            max_trades=1,
+            fee=0.0,
+        )
+
+        assert executed == 0
+        assert broker_factory_called["value"] is False
+
     def test_run_for_account_executes_buy_and_records_trade(self, monkeypatch):
         account = _base_account(learning_enabled=1, id=42)
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)  # target trades = 1
@@ -238,6 +267,7 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={"AAPL": 3.0}, avg_cost={"AAPL": 100.0})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
@@ -270,6 +300,7 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
@@ -311,6 +342,7 @@ class TestTradeLoopOrchestration:
         conn.commit()
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 2)
@@ -346,6 +378,7 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
@@ -402,6 +435,7 @@ class TestRotationAwareTradeLoop:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: initial_account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "rotate_runtime_account_if_due_impl", lambda _conn, _name, _acct, _now, _deps: rotated_account)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
@@ -475,6 +509,7 @@ class TestBrokerConnectionLifecycle:
     def _patch_buy_scenario(monkeypatch, account, state, n_trades):
         """Common monkeypatches for a simple multi-buy scenario with n_trades target."""
         monkeypatch.setattr(runtime_service, "get_account", lambda _c, _n: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _c, _i: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_a, **_k: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: n_trades)
@@ -535,6 +570,7 @@ class TestBrokerConnectionLifecycle:
         state = SimpleNamespace(cash=5000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _c, _n: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _c, _i: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_a, **_k: state)
         monkeypatch.setattr(
