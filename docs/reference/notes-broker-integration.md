@@ -192,6 +192,27 @@ Recommended external file contents:
 }
 ```
 
+Read-only smoke test command:
+
+```bash
+python -m scripts.ibkr_web_api_smoke_test
+```
+
+What it does:
+
+- Loads private config via the existing Web API settings loader.
+- Validates the authenticated brokerage session and configured account visibility.
+- Fetches ledger, summary, and positions through the existing client.
+- Prints sanitized pass/fail output only; it does not place orders.
+
+Recommended workflow:
+
+1. Start the local Client Portal Gateway.
+2. Authenticate it in the browser.
+3. Export `TRADING_IBKR_WEB_API_CONFIG` to your external config path.
+4. Run `python -m scripts.ibkr_web_api_smoke_test`.
+5. If you share results back here, redact anything beyond the script's summary output.
+
 Current Web API method coverage:
 
 - Session validation via `/iserver/auth/status`, `/portfolio/accounts`, and `/iserver/accounts`
