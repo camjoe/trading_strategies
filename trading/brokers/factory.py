@@ -34,9 +34,10 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
     Defaults to :class:`PaperBrokerAdapter` when ``broker_type`` is absent or
     set to ``'paper'``.
 
-    For live brokers (e.g. ``'interactive_brokers'``), the account row must
-    have ``live_trading_enabled = 1`` or a :class:`LiveTradingNotEnabledError`
-    is raised.  This guard prevents accidental live order submission.
+    For live brokers (current: ``'interactive_brokers_web'``; legacy:
+    ``'interactive_brokers'``), the account row must have
+    ``live_trading_enabled = 1`` or a :class:`LiveTradingNotEnabledError`
+    is raised. This guard prevents accidental live order submission.
 
     .. warning::
         ``live_trading_enabled`` must be set manually via a direct DB update.
@@ -72,7 +73,8 @@ def _require_live_trading_enabled(account: sqlite3.Row) -> None:
     The ``live_trading_enabled`` column defaults to 0 and must be explicitly
     set to 1 via a direct DB update before live orders can be submitted.
 
-    This is a hard runtime gate — even if the broker_type is 'interactive_brokers',
+    This is a hard runtime gate — even if the broker_type is
+    ``'interactive_brokers_web'`` or legacy ``'interactive_brokers'``,
     orders will never reach the wire without this flag.
     """
     try:
