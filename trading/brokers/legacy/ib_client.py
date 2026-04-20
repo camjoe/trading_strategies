@@ -1,4 +1,12 @@
-"""IB client abstraction — decouples InteractiveBrokersAdapter from any specific library.
+"""Legacy IB socket client abstraction.
+
+This module exists for the older TWS / IB Gateway socket-based integration used
+by ``trading.brokers.legacy.ib_adapter``. The current active IBKR integration
+path in this repository is the Client Portal / Web API implementation in
+``trading.brokers.ib_web_client``.
+
+The code remains in place so the socket-based path can be revisited later
+without rebuilding it from scratch, but it should be treated as legacy support.
 
 Two concrete clients are provided:
 
@@ -9,7 +17,7 @@ Two concrete clients are provided:
                     Documented stub; implement when you prefer zero third-party dependencies.
 
 The factory decides which client to inject.  To switch backends, change
-``IB_CLIENT_BACKEND`` in ``trading/brokers/factory.py`` — no other code needs to change.
+``IB_CLIENT_BACKEND`` in ``trading/brokers/legacy/factory.py`` — no other code needs to change.
 
 Protocol contract
 -----------------
@@ -83,7 +91,7 @@ class IBClientProtocol(Protocol):
 
 
 class IbAsyncClient:
-    """IBClientProtocol implementation backed by ``ib_async``.
+    """Legacy IBClientProtocol implementation backed by ``ib_async``.
 
     ``ib_async`` is the actively maintained community fork of ``ib_insync``
     (https://github.com/ib-api-reloaded/ib_async).  Install with:
@@ -144,7 +152,7 @@ class IbAsyncClient:
 
 
 class IbApiClient:
-    """IBClientProtocol implementation backed by IBKR's official ``ibapi`` package.
+    """Legacy IBClientProtocol implementation backed by IBKR's official ``ibapi`` package.
 
     This is a documented stub for teams that prefer zero third-party dependencies
     and are willing to work with ibapi's callback-based architecture directly.

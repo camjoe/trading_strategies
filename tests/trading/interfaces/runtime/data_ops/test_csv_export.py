@@ -117,6 +117,7 @@ class TestBatchExport:
         self, sqlite_db_file: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(csv_export, "datetime", FixedDateTime)
+        monkeypatch.setenv("TRADING_DB_PATH", str(tmp_path / "missing.db"))
         original = get_backend()
         set_backend(SQLiteBackend(sqlite_db_file))
         try:
@@ -127,6 +128,7 @@ class TestBatchExport:
         finally:
             set_backend(original)
 
+        assert result.db_path == sqlite_db_file.resolve()
         assert len(result.tables) == 1
         assert result.tables[0].row_count == 2
 

@@ -2,14 +2,15 @@
 
 Called by the runtime service layer.  New broker types are registered here.
 
-IB backend selection
---------------------
-Set ``IB_CLIENT_BACKEND`` to switch between client implementations:
+Current IBKR path
+-----------------
+The active local-gateway integration is ``interactive_brokers_web`` via the
+Client Portal / Web API.
 
-  ``_IB_BACKEND_ASYNC``   — IbAsyncClient (default, uses ib_async library)
-  ``_IB_BACKEND_NATIVE``  — IbApiClient   (stub; implement IbApiClient before using)
-
-No other code needs to change when switching backends.
+Legacy IB path
+--------------
+``interactive_brokers`` remains wired as a legacy socket/TWS alternative. It is
+kept available, but it is not the primary IBKR path for current development.
 """
 from __future__ import annotations
 
@@ -17,18 +18,14 @@ import sqlite3
 
 from trading.brokers.base import BrokerConnection
 from trading.brokers.paper_adapter import PaperBrokerAdapter
-from trading.brokers.ib_client import IbAsyncClient, IbApiClient
+from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
+from trading.brokers.legacy.factory import build_legacy_ib_broker
 
 # Broker type identifiers stored in accounts.broker_type column.
 _BROKER_TYPE_PAPER = "paper"
 _BROKER_TYPE_INTERACTIVE_BROKERS = "interactive_brokers"
-
-# Named backend constants for IB_CLIENT_BACKEND.
-_IB_BACKEND_ASYNC = "ib_async"
-_IB_BACKEND_NATIVE = "ibapi"
-
-# Switch this to _IB_BACKEND_NATIVE to use the native IBKR API client instead.
-IB_CLIENT_BACKEND: str = _IB_BACKEND_ASYNC
+_BROKER_TYPE_INTERACTIVE_BROKERS_WEB = "interactive_brokers_web"
 
 
 def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
@@ -37,9 +34,10 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
     Defaults to :class:`PaperBrokerAdapter` when ``broker_type`` is absent or
     set to ``'paper'``.
 
-    For live brokers (e.g. ``'interactive_brokers'``), the account row must
-    have ``live_trading_enabled = 1`` or a :class:`LiveTradingNotEnabledError`
-    is raised.  This guard prevents accidental live order submission.
+    For live brokers (current: ``'interactive_brokers_web'``; legacy:
+    ``'interactive_brokers'``), the account row must have
+    ``live_trading_enabled = 1`` or a :class:`LiveTradingNotEnabledError`
+    is raised. This guard prevents accidental live order submission.
 
     .. warning::
         ``live_trading_enabled`` must be set manually via a direct DB update.
@@ -53,28 +51,16 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
     broker_type = str(raw or _BROKER_TYPE_PAPER).strip().lower()
 
     if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS:
+        # Legacy socket/TWS IBKR path retained for possible future reuse.
         _require_live_trading_enabled(account)
-        from trading.brokers.ib_adapter import (
-            InteractiveBrokersAdapter,
-            _IB_DEFAULT_HOST,
-            _IB_DEFAULT_PORT,
-            _IB_DEFAULT_CLIENT_ID,
-        )
+        return build_legacy_ib_broker(account)
 
-        if IB_CLIENT_BACKEND == _IB_BACKEND_NATIVE:
-            client = IbApiClient()
-        elif IB_CLIENT_BACKEND == _IB_BACKEND_ASYNC:
-            client = IbAsyncClient()
-        else:
-            raise ValueError(
-                f"Unknown IB_CLIENT_BACKEND value {IB_CLIENT_BACKEND!r}. "
-                f"Expected {_IB_BACKEND_ASYNC!r} or {_IB_BACKEND_NATIVE!r}."
-            )
-
-        host = str(account["broker_host"] or _IB_DEFAULT_HOST)
-        port = int(account["broker_port"] or _IB_DEFAULT_PORT)
-        client_id = int(account["broker_client_id"] or _IB_DEFAULT_CLIENT_ID)
-        adapter = InteractiveBrokersAdapter(client=client, host=host, port=port, client_id=client_id)
+    if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS_WEB:
+        # Current IBKR integration path: Client Portal / Web API.
+        _require_live_trading_enabled(account)
+        settings = load_ib_web_api_settings()
+        client = InteractiveBrokersWebClient(settings=settings)
+        adapter = InteractiveBrokersWebAdapter(client=client)
         adapter.connect()
         return adapter
 
@@ -87,7 +73,8 @@ def _require_live_trading_enabled(account: sqlite3.Row) -> None:
     The ``live_trading_enabled`` column defaults to 0 and must be explicitly
     set to 1 via a direct DB update before live orders can be submitted.
 
-    This is a hard runtime gate — even if the broker_type is 'interactive_brokers',
+    This is a hard runtime gate — even if the broker_type is
+    ``'interactive_brokers_web'`` or legacy ``'interactive_brokers'``,
     orders will never reach the wire without this flag.
     """
     try:

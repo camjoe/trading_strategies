@@ -107,7 +107,13 @@ def export_tables_to_csv(
     output_base_dir: Path,
     db_path: Path | None = None,
 ) -> ExportBatchResult:
-    resolved_db_path = (db_path or get_db_path()).resolve()
+    backend = SQLiteBackend(db_path.resolve()) if db_path is not None else get_backend()
+    if db_path is not None:
+        resolved_db_path = db_path.resolve()
+    elif isinstance(backend, SQLiteBackend):
+        resolved_db_path = backend.db_path.resolve()
+    else:
+        resolved_db_path = get_db_path().resolve()
     if not resolved_db_path.exists():
         raise FileNotFoundError(f"Database file not found: {resolved_db_path}")
 
@@ -115,10 +121,7 @@ def export_tables_to_csv(
     export_dir = output_base_dir.resolve() / f"db_csv_{stamp}"
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    if db_path is None:
-        conn = get_backend().open_connection()
-    else:
-        conn = SQLiteBackend(resolved_db_path).open_connection()
+    conn = backend.open_connection()
     try:
         results: list[TableExportResult] = []
         for table in tables:

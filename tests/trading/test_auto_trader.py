@@ -199,11 +199,40 @@ class TestCliMainFlow:
 # ---------------------------------------------------------------------------
 
 class TestTradeLoopOrchestration:
+    def test_run_for_account_skips_when_market_closed(self, monkeypatch):
+        account = _base_account(id=42)
+        broker_factory_called = {"value": False}
+
+        monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-15T15:00:00Z")
+        monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: False)
+
+        def _unexpected_broker(_account):
+            broker_factory_called["value"] = True
+            raise AssertionError("broker factory should not run when market is closed")
+
+        monkeypatch.setattr(runtime_service, "get_broker_for_account", _unexpected_broker)
+
+        executed = auto_trader.run_for_account(
+            conn=object(),
+            account_name="acct",
+            universe=["AAPL"],
+            prices={"AAPL": 101.0},
+            iv_rank_proxy={},
+            min_trades=1,
+            max_trades=1,
+            fee=0.0,
+        )
+
+        assert executed == 0
+        assert broker_factory_called["value"] is False
+
     def test_run_for_account_executes_buy_and_records_trade(self, monkeypatch):
         account = _base_account(learning_enabled=1, id=42)
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)  # target trades = 1
@@ -238,6 +267,7 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={"AAPL": 3.0}, avg_cost={"AAPL": 100.0})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
@@ -270,6 +300,7 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
@@ -311,6 +342,7 @@ class TestTradeLoopOrchestration:
         conn.commit()
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 2)
@@ -346,6 +378,7 @@ class TestTradeLoopOrchestration:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
@@ -402,6 +435,7 @@ class TestRotationAwareTradeLoop:
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: initial_account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "rotate_runtime_account_if_due_impl", lambda _conn, _name, _acct, _now, _deps: rotated_account)
         monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
@@ -432,3 +466,178 @@ class TestRotationAwareTradeLoop:
         assert executed == 1
         assert calls[0]["side"] == "buy"
         assert "strategy=mean_reversion" in calls[0]["note"]
+
+
+# ---------------------------------------------------------------------------
+# Broker Connection Lifecycle
+# ---------------------------------------------------------------------------
+
+class TestBrokerConnectionLifecycle:
+    """Verify run_for_account opens exactly one broker per account run and disconnects once.
+
+    The fix for the IBKR Web API keepalive gap: broker.disconnect() tears down
+    the background /tickle keepalive thread.  Creating and destroying a broker
+    around each individual trade (the old behaviour) defeated keepalive for every
+    multi-trade run.  These tests lock in the one-broker-per-account-run contract.
+    """
+
+    # ------------------------------------------------------------------
+    # Shared helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_mock_broker(create_log, disconnect_log):
+        """Return a mock BrokerConnection whose lifecycle calls are recorded."""
+        from trading.models.broker_order import OrderStatus
+
+        class _MockBroker:
+            def place_order(self, order):
+                order.broker_order_id = "mock-id"
+                order.status = OrderStatus.FILLED
+                order.filled_qty = order.qty
+                order.avg_fill_price = order.price
+                order.fills = []
+                return order
+
+            def disconnect(self):
+                disconnect_log.append(1)
+
+        create_log.append(1)
+        return _MockBroker()
+
+    @staticmethod
+    def _patch_buy_scenario(monkeypatch, account, state, n_trades):
+        """Common monkeypatches for a simple multi-buy scenario with n_trades target."""
+        monkeypatch.setattr(runtime_service, "get_account", lambda _c, _n: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+        monkeypatch.setattr(runtime_service, "load_trades", lambda _c, _i: [])
+        monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_a, **_k: state)
+        monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: n_trades)
+        monkeypatch.setattr(
+            runtime_service.auto_trader_policy, "choose_side", lambda *_a, **_k: "buy"
+        )
+        monkeypatch.setattr(
+            runtime_service,
+            "prepare_buy_trade_impl",
+            lambda *_a, **_k: ("AAPL", 1, 100.0, None, None),
+        )
+        monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
+        monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "record_trade", lambda *_a, **_k: None)
+
+    # ------------------------------------------------------------------
+    # Tests
+    # ------------------------------------------------------------------
+
+    def test_multi_trade_run_creates_one_broker_and_disconnects_once(self, monkeypatch):
+        """Three trades in one account run must share one broker, not open three."""
+        account = _base_account(id=99)
+        state = SimpleNamespace(cash=5000.0, positions={}, avg_cost={})
+        self._patch_buy_scenario(monkeypatch, account, state, n_trades=3)
+
+        create_calls = []
+        disconnect_calls = []
+
+        monkeypatch.setattr(
+            runtime_service,
+            "get_broker_for_account",
+            lambda _acct: self._make_mock_broker(create_calls, disconnect_calls),
+        )
+
+        executed = auto_trader.run_for_account(
+            conn=object(),
+            account_name="acct",
+            universe=["AAPL"],
+            prices={"AAPL": 100.0},
+            iv_rank_proxy={},
+            min_trades=3,
+            max_trades=3,
+            fee=0.0,
+        )
+
+        assert executed == 3, "all three trades should have executed"
+        assert len(create_calls) == 1, (
+            "broker must be created exactly once per account run, not once per trade"
+        )
+        assert len(disconnect_calls) == 1, (
+            "broker must be disconnected exactly once at the end of the account run"
+        )
+
+    def test_broker_disconnects_once_even_when_no_trades_execute(self, monkeypatch):
+        """Broker lifecycle is still cleaned up even if every trade selection is None."""
+        account = _base_account(id=55)
+        state = SimpleNamespace(cash=5000.0, positions={}, avg_cost={})
+
+        monkeypatch.setattr(runtime_service, "get_account", lambda _c, _n: account)
+        monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+        monkeypatch.setattr(runtime_service, "load_trades", lambda _c, _i: [])
+        monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_a, **_k: state)
+        monkeypatch.setattr(
+            runtime_service, "prepare_trade_selection_impl", lambda *_a, **_k: None
+        )
+        monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-03-14T00:00:00Z")
+        monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 2)
+
+        create_calls = []
+        disconnect_calls = []
+
+        monkeypatch.setattr(
+            runtime_service,
+            "get_broker_for_account",
+            lambda _acct: self._make_mock_broker(create_calls, disconnect_calls),
+        )
+
+        executed = auto_trader.run_for_account(
+            conn=object(),
+            account_name="acct",
+            universe=["AAPL"],
+            prices={"AAPL": 100.0},
+            iv_rank_proxy={},
+            min_trades=2,
+            max_trades=2,
+            fee=0.0,
+        )
+
+        assert executed == 0
+        assert len(create_calls) == 1, "broker must still be created once"
+        assert len(disconnect_calls) == 1, "broker must be disconnected even when no trades ran"
+
+    def test_standalone_record_runtime_trade_creates_and_disconnects_own_broker(
+        self, monkeypatch
+    ):
+        """_record_runtime_trade without an injected broker creates and disconnects its own.
+
+        This preserves standalone usability of the helper for callers that do not
+        go through run_for_account (e.g. direct test or reconciliation helpers).
+        """
+        account = _base_account(id=77)
+
+        create_calls = []
+        disconnect_calls = []
+
+        monkeypatch.setattr(
+            runtime_service,
+            "get_broker_for_account",
+            lambda _acct: self._make_mock_broker(create_calls, disconnect_calls),
+        )
+        monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
+        monkeypatch.setattr(runtime_service, "record_trade", lambda *_a, **_k: None)
+
+        selection = ("buy", "AAPL", 1, 100.0, None, None)
+        runtime_service._record_runtime_trade(
+            object(),     # conn
+            "acct",      # account_name
+            account,      # account
+            False,        # learning_enabled
+            "none",      # risk_policy
+            "equity",    # instrument_mode
+            "trend",     # active_strategy
+            0.0,          # fee
+            selection,    # selection
+            None,         # forced_sell
+        )
+
+        assert len(create_calls) == 1, "standalone call must create its own broker"
+        assert len(disconnect_calls) == 1, "standalone call must disconnect its own broker"
