@@ -8,7 +8,7 @@ from trading.backtesting.backtest import (
     walk_forward_report,
     run_walk_forward_backtest,
 )
-from trading.database.db import ensure_db
+from trading.database.db_init import ensure_db
 from trading.database.db_config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command

@@ -4,7 +4,7 @@ import random
 from common.market_data import get_provider
 from common.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
-from trading.database.db import ensure_db
+from trading.database.db_init import ensure_db
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
 from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
 from trading.services.auto_trader_service import (

@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from trading.database import db
-from trading.interfaces.runtime.data_ops import admin
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database.db_init import ensure_db
+from trading.interfaces.runtime.data_ops import admin
 
 
 class FixedDateTime:
@@ -27,7 +27,7 @@ def configured_backend(tmp_path: Path):
 
 
 def _seed_admin_dataset() -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         conn.executescript(
             """
@@ -127,7 +127,7 @@ class TestBackupDatabase:
     def test_backup_database_writes_timestamped_file_in_default_dir(
         self, configured_backend: SQLiteBackend, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        db.ensure_db().close()
+        ensure_db().close()
         monkeypatch.setattr(admin, "datetime", FixedDateTime)
 
         backup = admin.backup_database()
@@ -139,7 +139,7 @@ class TestBackupDatabase:
     def test_backup_database_accepts_explicit_file_destination(
         self, configured_backend: SQLiteBackend, tmp_path: Path
     ) -> None:
-        db.ensure_db().close()
+        ensure_db().close()
         destination = tmp_path / "custom" / "manual_backup.db"
 
         backup = admin.backup_database(str(destination))
@@ -152,7 +152,7 @@ class TestDeleteAccounts:
     def test_delete_accounts_dry_run_reports_counts_without_deleting(self, configured_backend: SQLiteBackend) -> None:
         _seed_admin_dataset()
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             counts = admin.delete_accounts(
                 conn,
@@ -176,7 +176,7 @@ class TestDeleteAccounts:
             "promotion_review_events": 1,
         }
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             remaining = conn.execute("SELECT COUNT(*) AS n FROM accounts").fetchone()
             assert remaining is not None
@@ -187,7 +187,7 @@ class TestDeleteAccounts:
     def test_delete_accounts_removes_target_and_related_records_only(self, configured_backend: SQLiteBackend) -> None:
         _seed_admin_dataset()
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             counts = admin.delete_accounts(
                 conn,
@@ -203,7 +203,7 @@ class TestDeleteAccounts:
         assert counts["backtest_runs"] == 1
         assert counts["promotion_reviews"] == 1
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             remaining_accounts = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
             assert [str(row["name"]) for row in remaining_accounts] == ["acct_b"]
@@ -232,7 +232,7 @@ class TestDeleteAccounts:
     def test_delete_accounts_raises_for_missing_named_account(self, configured_backend: SQLiteBackend) -> None:
         _seed_admin_dataset()
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             with pytest.raises(ValueError, match="Accounts not found: missing"):
                 admin.delete_accounts(
@@ -247,9 +247,9 @@ class TestDeleteAccounts:
     def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(
         self, configured_backend: SQLiteBackend
     ) -> None:
-        db.ensure_db().close()
+        ensure_db().close()
 
-        conn = db.ensure_db()
+        conn = ensure_db()
         try:
             counts = admin.delete_accounts(
                 conn,

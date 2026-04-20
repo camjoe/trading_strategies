@@ -28,7 +28,7 @@ from trading.brokers.ib_web_client import (
     load_ib_web_api_settings,
 )
 from trading.brokers.paper_adapter import PaperBrokerAdapter
-from trading.database.db import init_schema
+from trading.database.db_init import init_schema
 
 
 # ---------------------------------------------------------------------------

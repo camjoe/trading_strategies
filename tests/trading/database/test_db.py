@@ -2,8 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from trading.database import db
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database.db_init import _column_names, _ensure_column, ensure_db, init_schema
+from trading.database.db_migrations import (
+    ACCOUNT_MIGRATIONS,
+    BACKTEST_RUN_MIGRATIONS,
+    DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,
+)
 
 
 @pytest.fixture
@@ -23,7 +28,7 @@ def sqlite_backend(backend_file: Path):
 
 
 def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         table_rows = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name ASC"
@@ -72,17 +77,17 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
             """
         )
 
-        db.init_schema(conn)
+        init_schema(conn)
 
-        account_columns = db._column_names(conn, "accounts")
-        run_columns = db._column_names(conn, "backtest_runs")
+        account_columns = _column_names(conn, "accounts")
+        run_columns = _column_names(conn, "backtest_runs")
 
         assert "benchmark_ticker" in account_columns
         assert "descriptive_name" in account_columns
         assert "rotation_overlay_watchlist" in account_columns
         assert "rotation_active_strategy" in account_columns
         assert "strategy_name" in run_columns
-        global_settings_columns = db._column_names(conn, "global_settings")
+        global_settings_columns = _column_names(conn, "global_settings")
         assert "runtime_max_trades_per_day" in global_settings_columns
         assert "runtime_max_trades_per_minute" in global_settings_columns
         assert "evaluation_backtest_trade_count_for_full_confidence" in global_settings_columns
@@ -94,7 +99,7 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         assert row is not None
         assert row["descriptive_name"] == "acct_legacy"
         assert row["benchmark_ticker"] == "SPY"
-        assert row["rotation_overlay_watchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+        assert row["rotation_overlay_watchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
     finally:
         conn.close()
 
@@ -116,9 +121,9 @@ def test_init_schema_migrates_legacy_global_settings_columns(sqlite_backend: SQL
             """
         )
 
-        db.init_schema(conn)
+        init_schema(conn)
 
-        columns = db._column_names(conn, "global_settings")
+        columns = _column_names(conn, "global_settings")
         assert "evaluation_backtest_trade_confidence_weight" in columns
         assert "promotion_min_research_backtest_trade_count" in columns
 
@@ -160,9 +165,9 @@ def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBac
         )
 
         migration = next(
-            item for item in db.ACCOUNT_MIGRATIONS if item.column_name == "descriptive_name"
+            item for item in ACCOUNT_MIGRATIONS if item.column_name == "descriptive_name"
         )
-        db._ensure_column(conn, "accounts", migration)
+        _ensure_column(conn, "accounts", migration)
 
         row = conn.execute("SELECT descriptive_name FROM accounts WHERE name = 'acct_post'").fetchone()
         assert row is not None
@@ -190,15 +195,15 @@ def test_overlay_watchlist_migration_backfills_existing_accounts(sqlite_backend:
         )
 
         migration = next(
-            item for item in db.ACCOUNT_MIGRATIONS if item.column_name == "rotation_overlay_watchlist"
+            item for item in ACCOUNT_MIGRATIONS if item.column_name == "rotation_overlay_watchlist"
         )
-        db._ensure_column(conn, "accounts", migration)
+        _ensure_column(conn, "accounts", migration)
 
         row = conn.execute(
             "SELECT rotation_overlay_watchlist FROM accounts WHERE name = 'acct_watchlist'"
         ).fetchone()
         assert row is not None
-        assert row["rotation_overlay_watchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+        assert row["rotation_overlay_watchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
     finally:
         conn.close()
 
@@ -220,10 +225,10 @@ def test_ensure_column_is_noop_when_column_exists(sqlite_backend: SQLiteBackend)
             """
         )
 
-        migration = db.BACKTEST_RUN_MIGRATIONS[0]
-        db._ensure_column(conn, "backtest_runs", migration)
+        migration = BACKTEST_RUN_MIGRATIONS[0]
+        _ensure_column(conn, "backtest_runs", migration)
 
-        columns = db._column_names(conn, "backtest_runs")
+        columns = _column_names(conn, "backtest_runs")
         assert "strategy_name" in columns
     finally:
         conn.close()
