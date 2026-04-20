@@ -25,6 +25,7 @@ from trading.brokers.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.ib_client import IBClientProtocol, IbApiClient
 from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import (
+    IbWebApiContract,
     IbWebApiPacingLimiter,
     IbWebApiSettings,
     InteractiveBrokersWebClient,
@@ -575,12 +576,15 @@ class TestInteractiveBrokersWebClient:
     def test_submit_order_confirms_reply_message(self):
         responses = [
             httpx.Response(200, json=[{"id": "reply-1", "message": ["Confirm me"]}]),
-            httpx.Response(200, json={"order_id": "42", "order_status": "Submitted"}),
+            httpx.Response(200, json=[{"order_id": "42", "order_status": "Submitted"}]),
         ]
         seen: list[str] = []
+        payloads: list[object] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
             seen.append(f"{request.method} {request.url.path}")
+            if request.url.path == "/iserver/account/U1234567/orders":
+                payloads.append(json.loads(request.content.decode("utf-8")))
             return responses.pop(0)
 
         client = InteractiveBrokersWebClient(
@@ -598,6 +602,19 @@ class TestInteractiveBrokersWebClient:
         assert seen == [
             "POST /iserver/account/U1234567/orders",
             "POST /iserver/reply/reply-1",
+        ]
+        assert payloads == [
+            {
+                "orders": [
+                    {
+                        "conid": 265598,
+                        "side": "BUY",
+                        "orderType": "MKT",
+                        "tif": "DAY",
+                        "quantity": 1,
+                    }
+                ]
+            }
         ]
 
     def test_request_json_raises_pacing_specific_error_for_429(self):
@@ -658,7 +675,16 @@ class TestInteractiveBrokersWebAdapter:
 
     def test_place_order_submits_web_order(self):
         client = self._make_client()
-        client.resolve_conid.return_value = "265598"
+        client.account_id = "U1234567"
+        client.resolve_contract.return_value = IbWebApiContract(
+            conid="265598",
+            ticker="AAPL",
+            sec_type="STK",
+            listing_exchange="NASDAQ",
+        )
+        client.fetch_trade_accounts.return_value = {
+            "acctProps": {"U1234567": {"allowCustomerTime": False}}
+        }
         client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
         adapter = InteractiveBrokersWebAdapter(client=client)
 
@@ -667,6 +693,38 @@ class TestInteractiveBrokersWebAdapter:
         assert result.broker_order_id == "123"
         assert result.status == OrderStatus.SUBMITTED
         client.submit_order.assert_called_once()
+        submitted_payload = client.submit_order.call_args.args[0]
+        assert submitted_payload["acctId"] == "U1234567"
+        assert submitted_payload["conid"] == 265598
+        assert submitted_payload["secType"] == "265598:STK"
+        assert submitted_payload["listingExchange"] == "NASDAQ"
+        assert submitted_payload["ticker"] == "AAPL"
+        assert submitted_payload["orderType"] == "MKT"
+        assert submitted_payload["side"] == "BUY"
+        assert submitted_payload["quantity"] == 10.0
+        assert "cOID" in submitted_payload
+        assert "manualOrderTime" not in submitted_payload
+
+    def test_place_order_includes_manual_order_time_when_required(self):
+        client = self._make_client()
+        client.account_id = "U1234567"
+        client.resolve_contract.return_value = IbWebApiContract(
+            conid="265598",
+            ticker="AAPL",
+            sec_type="STK",
+            listing_exchange="NASDAQ",
+        )
+        client.fetch_trade_accounts.return_value = {
+            "acctProps": {"U1234567": {"allowCustomerTime": True}}
+        }
+        client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        adapter.place_order(_make_order(order_type=OrderType.LIMIT, price=150.0))
+
+        submitted_payload = client.submit_order.call_args.args[0]
+        assert submitted_payload["price"] == 150.0
+        assert isinstance(submitted_payload["manualOrderTime"], int)
 
     def test_get_account_info_maps_ledger_and_summary(self):
         client = self._make_client()

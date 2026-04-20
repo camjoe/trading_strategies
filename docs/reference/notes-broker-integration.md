@@ -198,12 +198,23 @@ Read-only smoke test command:
 python -m scripts.ibkr_web_api_smoke_test
 ```
 
+Optional paper-order lifecycle check:
+
+```bash
+python -m scripts.ibkr_web_api_smoke_test \
+  --paper-order-check \
+  --paper-order-symbol AAPL \
+  --paper-order-limit-price 1.00
+```
+
 What it does:
 
 - Loads private config via the existing Web API settings loader.
 - Validates the authenticated brokerage session and configured account visibility.
 - Fetches ledger, summary, and positions through the existing client.
 - Prints sanitized pass/fail output only; it does not place orders.
+- When explicitly requested, it can also place a small paper-only limit order,
+  confirm it appears in open orders, and request cancellation.
 
 Recommended workflow:
 
@@ -212,6 +223,13 @@ Recommended workflow:
 3. Export `TRADING_IBKR_WEB_API_CONFIG` to your external config path.
 4. Run `python -m scripts.ibkr_web_api_smoke_test`.
 5. If you share results back here, redact anything beyond the script's summary output.
+
+Paper-order check notes:
+
+- Use a **paper account only**.
+- Use a clearly non-marketable limit price so the test order stays cancellable.
+- The optional order check is gated behind `--paper-order-check`; the default
+  smoke test remains read-only.
 
 Current Web API method coverage:
 

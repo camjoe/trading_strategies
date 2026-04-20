@@ -71,6 +71,16 @@ class IbWebApiSettings:
     keepalive_interval_seconds: float = 60.0
 
 
+@dataclass(frozen=True)
+class IbWebApiContract:
+    """Resolved IBKR contract details required for order placement."""
+
+    conid: str
+    ticker: str
+    sec_type: str
+    listing_exchange: str
+
+
 class IbWebApiPacingLimiter:
     """Process-local pacing guard for IBKR Client Portal API limits."""
 
@@ -262,9 +272,14 @@ class InteractiveBrokersWebClient:
         self._pacing_limiter = pacing_limiter or _DEFAULT_IB_WEB_API_PACING_LIMITER
         self._connected = False
         self._conid_cache: dict[str, str] = {}
+        self._contract_cache: dict[str, IbWebApiContract] = {}
         self._keepalive_stop_event = threading.Event()
         self._keepalive_thread: threading.Thread | None = None
         self._background_error: RuntimeError | None = None
+
+    @property
+    def account_id(self) -> str:
+        return self._settings.account_id
 
     def connect(self) -> None:
         self.validate_session()
@@ -333,6 +348,12 @@ class InteractiveBrokersWebClient:
             return [str(value) for value in payload if str(value).strip()]
         return []
 
+    def fetch_trade_accounts(self) -> dict[str, object]:
+        payload = self._request_json("GET", "/iserver/accounts")
+        if not isinstance(payload, dict):
+            raise RuntimeError("IBKR Web API trading accounts response must be an object.")
+        return payload
+
     def tickle(self) -> dict[str, object]:
         payload = self._request_json("GET", "/tickle")
         if not isinstance(payload, dict):
@@ -377,17 +398,20 @@ class InteractiveBrokersWebClient:
         raise RuntimeError("IBKR Web API account orders response must contain an orders list.")
 
     def resolve_conid(self, symbol: str) -> str:
+        return self.resolve_contract(symbol).conid
+
+    def resolve_contract(self, symbol: str) -> IbWebApiContract:
         normalized = symbol.strip().upper()
         if not normalized:
             raise ValueError("Ticker symbol is required for IBKR Web API conid lookup.")
-        cached = self._conid_cache.get(normalized)
+        cached = self._contract_cache.get(normalized)
         if cached:
             return cached
 
         payload = self._request_json(
             "GET",
             "/iserver/secdef/search",
-            params={"symbol": normalized, "secType": "STK", "name": "true"},
+            params={"symbol": normalized, "secType": "STK"},
         )
         if not isinstance(payload, list):
             raise RuntimeError("IBKR Web API contract search response must be a list.")
@@ -403,14 +427,12 @@ class InteractiveBrokersWebClient:
                 fallback_conid = conid
             resolved_symbol = (coerce_str(item.get("symbol")) or coerce_str(item.get("ticker")) or "").upper()
             if resolved_symbol == normalized:
-                self._conid_cache[normalized] = conid
-                return conid
+                return self._load_contract_details(normalized, conid)
 
         if fallback_conid is None:
             raise RuntimeError(f"IBKR Web API could not resolve a contract id for ticker {normalized!r}.")
 
-        self._conid_cache[normalized] = fallback_conid
-        return fallback_conid
+        return self._load_contract_details(normalized, fallback_conid)
 
     def fetch_marketdata_snapshot(self, conids: list[str]) -> list[dict[str, object]]:
         csv = ",".join(conids)
@@ -433,7 +455,7 @@ class InteractiveBrokersWebClient:
         payload = self._request_json(
             "POST",
             f"/iserver/account/{self._settings.account_id}/orders",
-            json=[ticket],
+            json={"orders": [ticket]},
         )
         confirmations = 0
         while _is_order_reply_message(payload):
@@ -447,9 +469,38 @@ class InteractiveBrokersWebClient:
             if confirmations > _MAX_ORDER_REPLY_CONFIRMATIONS:
                 raise RuntimeError("IBKR Web API order reply confirmation loop exceeded safety limit.")
 
+        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+            payload = payload[0]
+        if isinstance(payload, dict) and "error" in payload:
+            raise RuntimeError(str(payload["error"]))
         if not isinstance(payload, dict) or "order_id" not in payload:
             raise RuntimeError("IBKR Web API order submission did not return an acknowledgement.")
         return payload
+
+    def _load_contract_details(self, symbol: str, conid: str) -> IbWebApiContract:
+        payload = self._request_json("GET", "/trsrv/secdef", params={"conids": conid})
+        if not isinstance(payload, dict):
+            raise RuntimeError("IBKR Web API security definition response must be an object.")
+        rows = payload.get("secdef")
+        if not isinstance(rows, list):
+            raise RuntimeError("IBKR Web API security definition response must contain a secdef list.")
+
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            if coerce_str(item.get("conid")) != conid:
+                continue
+            contract = IbWebApiContract(
+                conid=conid,
+                ticker=(coerce_str(item.get("ticker")) or symbol).upper(),
+                sec_type=(coerce_str(item.get("assetClass")) or "STK").upper(),
+                listing_exchange=coerce_str(item.get("listingExchange")) or "SMART",
+            )
+            self._conid_cache[symbol] = conid
+            self._contract_cache[symbol] = contract
+            return contract
+
+        raise RuntimeError(f"IBKR Web API could not load security details for conid {conid}.")
 
     def cancel_order(self, order_id: str) -> dict[str, object]:
         payload = self._request_json(

@@ -10,7 +10,7 @@ It performs a read-only smoke test:
 - summary fetch
 - positions fetch
 
-No orders are placed.
+Optionally, it can also run a paper-order lifecycle check behind explicit flags.
 """
 from __future__ import annotations
 
@@ -21,13 +21,66 @@ from typing import TextIO
 
 import httpx
 
+from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
+from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType, TimeInForce
 from trading.utils.coercion import coerce_float
+
+# Default quantity for the optional paper-order smoke check.
+_DEFAULT_PAPER_ORDER_QTY = 1.0
+
+# Default side for the optional paper-order smoke check.
+_DEFAULT_PAPER_ORDER_SIDE = "buy"
+
+# Only these statuses should trigger a follow-up cancel request in the paper-order check.
+_CANCELLABLE_PAPER_ORDER_STATUSES = frozenset(
+    {
+        OrderStatus.PENDING,
+        OrderStatus.SUBMITTED,
+        OrderStatus.ACCEPTED,
+        OrderStatus.PARTIALLY_FILLED,
+    }
+)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run a read-only IBKR Web API smoke test against the local Client Portal Gateway.",
+    )
+    parser.add_argument(
+        "--paper-order-check",
+        action="store_true",
+        help="Also run a paper-order lifecycle check with an explicit test limit order.",
+    )
+    parser.add_argument(
+        "--paper-order-symbol",
+        default="",
+        metavar="SYMBOL",
+        help="Ticker symbol for the optional paper-order check.",
+    )
+    parser.add_argument(
+        "--paper-order-qty",
+        type=float,
+        default=_DEFAULT_PAPER_ORDER_QTY,
+        help=f"Quantity for the optional paper-order check (default: {_DEFAULT_PAPER_ORDER_QTY:g}).",
+    )
+    parser.add_argument(
+        "--paper-order-limit-price",
+        type=float,
+        default=None,
+        metavar="PRICE",
+        help="Limit price for the optional paper-order check. Use a clearly non-marketable value.",
+    )
+    parser.add_argument(
+        "--paper-order-side",
+        choices=("buy", "sell"),
+        default=_DEFAULT_PAPER_ORDER_SIDE,
+        help=f"Side for the optional paper-order check (default: {_DEFAULT_PAPER_ORDER_SIDE}).",
+    )
+    parser.add_argument(
+        "--skip-paper-order-cancel",
+        action="store_true",
+        help="Leave the paper test order open instead of requesting cancellation.",
     )
     return parser.parse_args()
 
@@ -60,6 +113,34 @@ def _extract_amount(payload: Mapping[str, object], key: str) -> str | None:
 def _print_metric(out: TextIO, label: str, value: str | None) -> None:
     if value is not None:
         print(f"  {label}: {value}", file=out)
+
+
+def _status_label(value: OrderStatus | str | None) -> str:
+    if isinstance(value, OrderStatus):
+        return value.value
+    text = str(value or "").strip()
+    return text or "<unknown>"
+
+
+def _validate_paper_order_args(args: argparse.Namespace) -> None:
+    if not args.paper_order_check:
+        return
+    if not str(args.paper_order_symbol).strip():
+        raise ValueError("--paper-order-symbol is required when --paper-order-check is set.")
+    if args.paper_order_qty is None or float(args.paper_order_qty) <= 0:
+        raise ValueError("--paper-order-qty must be a positive number.")
+    if args.paper_order_limit_price is None or float(args.paper_order_limit_price) <= 0:
+        raise ValueError(
+            "--paper-order-limit-price must be a positive number when --paper-order-check is set."
+        )
+
+
+def _find_order_status(rows: list[dict[str, object]], broker_order_id: str) -> str | None:
+    for row in rows:
+        order_id = str(row.get("orderId") or row.get("order_id") or "").strip()
+        if order_id == broker_order_id:
+            return str(row.get("status") or row.get("order_status") or "").strip() or None
+    return None
 
 
 def run_smoke_test(
@@ -95,8 +176,85 @@ def run_smoke_test(
     print(f"✓ Positions loaded ({len(positions)} row(s))", file=out)
 
 
+def run_paper_order_check(
+    *,
+    client: InteractiveBrokersWebClient,
+    adapter: InteractiveBrokersWebAdapter,
+    out: TextIO,
+    symbol: str,
+    qty: float,
+    limit_price: float,
+    side: str,
+    cancel_order: bool,
+) -> None:
+    normalized_symbol = symbol.strip().upper()
+    if not normalized_symbol:
+        raise ValueError("Paper-order smoke test requires a ticker symbol.")
+
+    submitted = adapter.place_order(
+        BrokerOrder(
+            account_id=0,
+            ticker=normalized_symbol,
+            side=side,
+            qty=qty,
+            price=limit_price,
+            order_type=OrderType.LIMIT,
+            time_in_force=TimeInForce.DAY,
+        )
+    )
+    if not submitted.broker_order_id:
+        raise RuntimeError("Paper-order smoke test did not receive a broker order id.")
+
+    print(
+        "✓ Paper order submitted: "
+        f"{side.upper()} {qty:g} {normalized_symbol} @ {limit_price:.2f} "
+        f"(id {submitted.broker_order_id}, status {_status_label(submitted.status)})",
+        file=out,
+    )
+
+    open_trade = next(
+        (
+            trade
+            for trade in adapter.get_open_trades()
+            if trade.broker_order_id == submitted.broker_order_id
+        ),
+        None,
+    )
+    if open_trade is not None:
+        print(
+            f"✓ Open-order lookup returned status {_status_label(open_trade.status)}",
+            file=out,
+        )
+    else:
+        print(
+            "✓ Open-order lookup returned no open row; the order may already be closed or not yet visible.",
+            file=out,
+        )
+
+    if not cancel_order:
+        print("✓ Left the paper test order open because --skip-paper-order-cancel was set.", file=out)
+        return
+    if submitted.status not in _CANCELLABLE_PAPER_ORDER_STATUSES:
+        print(
+            f"✓ Skipped cancel because broker status is {_status_label(submitted.status)}.",
+            file=out,
+        )
+        return
+    if open_trade is None:
+        print("✓ Skipped cancel because the order is no longer reported as open.", file=out)
+        return
+
+    adapter.cancel_order(submitted.broker_order_id)
+    print(f"✓ Cancel request submitted for order {submitted.broker_order_id}", file=out)
+
+    status_after_cancel = _find_order_status(client.fetch_orders(), submitted.broker_order_id)
+    if status_after_cancel is not None:
+        print(f"  Broker-reported post-cancel status: {status_after_cancel}", file=out)
+
+
 def main() -> int:
-    parse_args()
+    args = parse_args()
+    _validate_paper_order_args(args)
     settings = None
     client = None
 
@@ -104,6 +262,17 @@ def main() -> int:
         settings = load_ib_web_api_settings()
         client = InteractiveBrokersWebClient(settings)
         run_smoke_test(client, account_id=settings.account_id, out=sys.stdout)
+        if args.paper_order_check:
+            run_paper_order_check(
+                client=client,
+                adapter=InteractiveBrokersWebAdapter(client),
+                out=sys.stdout,
+                symbol=args.paper_order_symbol,
+                qty=float(args.paper_order_qty),
+                limit_price=float(args.paper_order_limit_price),
+                side=str(args.paper_order_side).strip().lower(),
+                cancel_order=not bool(args.skip_paper_order_cancel),
+            )
     except (RuntimeError, ValueError, httpx.HTTPError) as exc:
         message = str(exc)
         if settings is not None:

@@ -6,6 +6,8 @@ config via ``load_ib_web_api_settings`` — they are not stored in the app DB.
 """
 from __future__ import annotations
 
+import time
+
 from common.time import utc_now_iso
 from trading.brokers.base import BrokerConnection, BrokerOrder, OrderFill, OrderStatus, OrderType
 from trading.brokers.ib_web_client import InteractiveBrokersWebClient
@@ -17,6 +19,9 @@ _ACCOUNT_INFO_FIELDS = (
     "GrossPositionValue",
     "NetLiquidation",
 )
+
+# IBKR requires a unique customer order id for each order within a 24-hour span.
+_WEB_ORDER_ID_PREFIX = "ts-web"
 
 
 class InteractiveBrokersWebAdapter(BrokerConnection):
@@ -33,14 +38,22 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
 
     def place_order(self, order: BrokerOrder) -> BrokerOrder:
         self._require_connected()
-        conid = self._client.resolve_conid(order.ticker)
+        contract = self._client.resolve_contract(order.ticker)
+        trading_accounts = self._client.fetch_trade_accounts()
         payload: dict[str, object] = {
-            "conid": int(conid),
+            "acctId": self._client.account_id,
+            "conid": int(contract.conid),
+            "secType": f"{contract.conid}:{contract.sec_type}",
+            "cOID": _build_customer_order_id(order),
+            "listingExchange": contract.listing_exchange,
             "side": order.side.upper(),
             "orderType": "MKT" if order.order_type == OrderType.MARKET else "LMT",
+            "ticker": contract.ticker,
             "tif": order.time_in_force.value.upper(),
             "quantity": order.qty,
         }
+        if _requires_manual_order_time(trading_accounts, self._client.account_id):
+            payload["manualOrderTime"] = int(time.time())
         if order.order_type == OrderType.LIMIT:
             payload["price"] = order.price
 
@@ -221,3 +234,24 @@ def _summary_amount(summary: dict[str, object], key: str) -> float | None:
     if not isinstance(entry, dict):
         return None
     return _coerce_number(entry.get("amount") or entry.get("value"))
+
+
+def _requires_manual_order_time(accounts_payload: dict[str, object], account_id: str) -> bool:
+    acct_props = accounts_payload.get("acctProps")
+    if not isinstance(acct_props, dict):
+        return False
+    account_props = acct_props.get(account_id)
+    if not isinstance(account_props, dict):
+        return False
+    return _coerce_bool_flag(account_props.get("allowCustomerTime"))
+
+
+def _build_customer_order_id(order: BrokerOrder) -> str:
+    symbol = order.ticker.strip().upper() or "UNKNOWN"
+    side = order.side.strip().upper() or "UNKNOWN"
+    return f"{_WEB_ORDER_ID_PREFIX}-{symbol}-{side}-{time.time_ns()}"
+
+
+def _coerce_bool_flag(value: object | None) -> bool:
+    text = str(value or "").strip().lower()
+    return text in {"1", "true", "yes"}
