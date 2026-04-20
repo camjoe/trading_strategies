@@ -11,6 +11,7 @@ import time
 from common.time import utc_now_iso
 from trading.brokers.base import BrokerConnection, BrokerOrder, OrderFill, OrderStatus, OrderType
 from trading.brokers.ib_web_client import InteractiveBrokersWebClient
+from trading.utils.coercion import coerce_bool, coerce_float
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (
@@ -205,10 +206,10 @@ def _map_ib_web_status(status: str) -> OrderStatus:
 def _coerce_number(value: object | None) -> float | None:
     if value is None:
         return None
-    text = str(value).strip().replace(",", "")
-    if not text:
+    normalized = str(value).strip().replace(",", "")
+    if not normalized:
         return None
-    return float(text)
+    return coerce_float(normalized)
 
 
 def _normalize_fill_time(value: object | None) -> str:
@@ -253,5 +254,11 @@ def _build_customer_order_id(order: BrokerOrder) -> str:
 
 
 def _coerce_bool_flag(value: object | None) -> bool:
-    text = str(value or "").strip().lower()
-    return text in {"1", "true", "yes"}
+    text = str(value or "").strip()
+    if not text:
+        return False
+    try:
+        parsed = coerce_bool(text)
+    except ValueError:
+        return False
+    return bool(parsed) if parsed is not None else False

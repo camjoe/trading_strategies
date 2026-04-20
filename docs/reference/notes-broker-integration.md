@@ -6,6 +6,12 @@ The broker layer provides a uniform interface over paper and live broker connect
 All order submission, fill tracking, and account data flows through this abstraction —
 the rest of the trading engine never touches a broker SDK directly.
 
+**Current/default IBKR path:** `interactive_brokers_web` via the Client Portal /
+Web API.
+
+**Legacy alternative retained in-repo:** `interactive_brokers` via the older
+socket/TWS flow.
+
 ---
 
 ## Architecture
@@ -18,13 +24,13 @@ trading/brokers/factory.py          ← resolves BrokerConnection for an account
         │
         ├── PaperBrokerAdapter       ← default; immediate fills, zero commission
         │
-        ├── InteractiveBrokersAdapter
+        ├── InteractiveBrokersAdapter        ← legacy socket/TWS path
                 │
                 └── IBClientProtocol (injected)
-                        ├── IbAsyncClient   ← wraps ib_async (default, recommended)
-                        └── IbApiClient     ← wraps IBKR native ibapi (stub)
+                        ├── IbAsyncClient   ← wraps ib_async (legacy support)
+                        └── IbApiClient     ← wraps IBKR native ibapi (legacy stub)
         │
-        └── InteractiveBrokersWebAdapter
+        └── InteractiveBrokersWebAdapter    ← current/default local gateway path
                 │
                 └── InteractiveBrokersWebClient
                         └── IBKR Client Portal / Campus Web API
@@ -36,8 +42,8 @@ trading/brokers/factory.py          ← resolves BrokerConnection for an account
 |------|---------|
 | `trading/brokers/base.py` | `BrokerConnection` ABC, `BrokerOrder`, `OrderFill`, `OrderStatus` |
 | `trading/brokers/paper_adapter.py` | Simulated immediate-fill paper broker |
-| `trading/brokers/ib_adapter.py` | Interactive Brokers live adapter |
-| `trading/brokers/ib_client.py` | `IBClientProtocol` + `IbAsyncClient` + `IbApiClient` stub |
+| `trading/brokers/legacy/ib_adapter.py` | Legacy Interactive Brokers socket/TWS live adapter |
+| `trading/brokers/legacy/ib_client.py` | Legacy socket/TWS client abstraction (`IBClientProtocol`, `IbAsyncClient`, `IbApiClient` stub) |
 | `trading/brokers/ib_web_adapter.py` | Interactive Brokers Web API live adapter |
 | `trading/brokers/ib_web_client.py` | Web API config loader + HTTP client |
 | `trading/brokers/factory.py` | Routes accounts → correct `BrokerConnection` |
@@ -52,10 +58,10 @@ Broker settings live on the `accounts` table:
 
 | Column | Type | Default | Purpose |
 |--------|------|---------|---------|
-| `broker_type` | TEXT | `'paper'` | `'paper'`, `'interactive_brokers'`, or `'interactive_brokers_web'` |
-| `broker_host` | TEXT | NULL | TWS/Gateway host (IB only) |
-| `broker_port` | INTEGER | NULL | TWS/Gateway port (IB only) |
-| `broker_client_id` | INTEGER | NULL | IB client ID (IB only) |
+| `broker_type` | TEXT | `'paper'` | `'paper'`, `'interactive_brokers'` (legacy), or `'interactive_brokers_web'` |
+| `broker_host` | TEXT | NULL | TWS/Gateway host for the legacy socket/TWS path |
+| `broker_port` | INTEGER | NULL | TWS/Gateway port for the legacy socket/TWS path |
+| `broker_client_id` | INTEGER | NULL | IB client ID for the legacy socket/TWS path |
 | `live_trading_enabled` | INTEGER | `0` | **Safety gate** — see below |
 
 ---
@@ -89,7 +95,7 @@ This must be done manually — bots must never set this flag.
 
 ---
 
-## IB connection defaults
+## Legacy socket/TWS connection defaults
 
 | Environment | Port |
 |-------------|------|
@@ -108,7 +114,8 @@ TWS/Gateway setup:
 
 ## IBKR Web API configuration
 
-The Web API adapter is selected when `broker_type = 'interactive_brokers_web'`.
+The Web API adapter is the current/default IBKR path and is selected when
+`broker_type = 'interactive_brokers_web'`.
 Unlike the socket/TWS adapter, it does **not** store live account identifiers or
 session headers on the account row.
 
@@ -295,11 +302,11 @@ Other operational notes from the docs worth preserving:
 
 ## Switching IB backends
 
-The `InteractiveBrokersAdapter` is backend-agnostic.  Change one variable in
-`factory.py` to switch:
+The `InteractiveBrokersAdapter` is backend-agnostic. Change one variable in
+`trading/brokers/legacy/factory.py` to switch:
 
 ```python
-# trading/brokers/factory.py
+# trading/brokers/legacy/factory.py
 IB_CLIENT_BACKEND: str = "ib_async"   # default — uses ib_async library
 IB_CLIENT_BACKEND: str = "ibapi"      # uses IBKR native ibapi (implement IbApiClient first)
 ```
@@ -309,7 +316,7 @@ IB_CLIENT_BACKEND: str = "ibapi"      # uses IBKR native ibapi (implement IbApiC
 Near-identical API to `ib_insync`, actively maintained.  Install: `pip install ib_async`.
 
 **`ibapi` (stub):**  IBKR's official Python API.  Callback-based architecture
-(EWrapper + EClient).  Implement `IbApiClient` in `trading/brokers/ib_client.py`
+(EWrapper + EClient).  Implement `IbApiClient` in `trading/brokers/legacy/ib_client.py`
 following the skeleton in its docstring.  Install: `pip install ibapi`.
 
 ---
