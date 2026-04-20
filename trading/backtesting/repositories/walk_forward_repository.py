@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_int, row_expect_str
+from trading.utils.coercion import row_expect_int, row_expect_str
 from common.time import utc_now_iso
 
 

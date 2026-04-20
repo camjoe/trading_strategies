@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Callable
 
-from common.coercion import coerce_float
+from trading.utils.coercion import coerce_float
 
 
 def safe_return_pct(

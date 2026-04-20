@@ -5,7 +5,7 @@ from datetime import date
 
 import pandas as pd
 
-from common.coercion import coerce_float
+from trading.utils.coercion import coerce_float
 from common.market_data import get_provider
 
 

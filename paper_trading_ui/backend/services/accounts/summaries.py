@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from common.coercion import coerce_float, coerce_int, row_expect_int, row_float, row_int
+from trading.utils.coercion import coerce_float, coerce_int, row_expect_int, row_float, row_int
 from trading.services.accounts_service import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
