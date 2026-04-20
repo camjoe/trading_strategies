@@ -1,5 +1,6 @@
+from typing import Any
+
 from trading.database.db_backend import get_backend
-from trading.database.db_common import DBConnection
 from trading.database.db_migrations import (
     ACCOUNT_BROKER_MIGRATIONS,
     ACCOUNT_MIGRATIONS,
@@ -9,6 +10,9 @@ from trading.database.db_migrations import (
     ORDER_FILL_MIGRATIONS,
 )
 from trading.database.db_schema import SCHEMA_SQL
+
+# Type alias — the concrete type depends on the active DatabaseBackend.
+DBConnection = Any
 
 
 def ensure_db() -> DBConnection:

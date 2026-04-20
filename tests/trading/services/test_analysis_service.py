@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from trading.database import db
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database.db_init import ensure_db
 from trading.services.accounts_service import create_account
 from trading.services.analysis_service import fetch_account_analysis
 
@@ -21,7 +21,7 @@ from trading.services.analysis_service import fetch_account_analysis
 def conn(tmp_path: Path):
     original = get_backend()
     set_backend(SQLiteBackend(tmp_path / "paper_trading.db"))
-    connection = db.ensure_db()
+    connection = ensure_db()
     try:
         yield connection
     finally:

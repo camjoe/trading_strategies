@@ -12,13 +12,13 @@ from fastapi.testclient import TestClient
 import pytest
 
 from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
-from trading.database import db
+from trading.database.db_init import ensure_db
 from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 
 
 def _seed_account(name: str, strategy: str = "trend_v1", risk_policy: str = "none") -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         create_account(
             conn,

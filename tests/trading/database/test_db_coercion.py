@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from trading.database import db_coercion
+from trading.utils import coercion
 
 
 @pytest.fixture
@@ -30,12 +30,12 @@ def sample_row() -> sqlite3.Row:
     ],
 )
 def test_coerce_str_converts_supported_values(raw: object, expected: str) -> None:
-    assert db_coercion.coerce_str(raw) == expected
+    assert coercion.coerce_str(raw) == expected
 
 
 def test_expect_str_rejects_none_with_field_name() -> None:
     with pytest.raises(ValueError, match="ticker cannot be null"):
-        db_coercion.expect_str(None, "ticker")
+        coercion.expect_str(None, "ticker")
 
 
 @pytest.mark.parametrize(
@@ -47,12 +47,12 @@ def test_expect_str_rejects_none_with_field_name() -> None:
     ],
 )
 def test_coerce_float_accepts_numeric_like_values(raw: object, expected: float) -> None:
-    assert db_coercion.coerce_float(raw) == expected
+    assert coercion.coerce_float(raw) == expected
 
 
 def test_coerce_float_rejects_non_convertible_type() -> None:
     with pytest.raises(ValueError, match="Expected float-convertible value, got list"):
-        db_coercion.coerce_float([1, 2])
+        coercion.coerce_float([1, 2])
 
 
 @pytest.mark.parametrize(
@@ -66,36 +66,36 @@ def test_coerce_float_rejects_non_convertible_type() -> None:
     ],
 )
 def test_coerce_bool_accepts_common_representations(raw: object, expected: bool) -> None:
-    assert db_coercion.coerce_bool(raw) is expected
+    assert coercion.coerce_bool(raw) is expected
 
 
 def test_coerce_bool_rejects_unrecognized_string() -> None:
     with pytest.raises(ValueError, match="Invalid boolean value"):
-        db_coercion.coerce_bool("maybe")
+        coercion.coerce_bool("maybe")
 
 
 def test_expect_int_rejects_none_with_field_name() -> None:
     with pytest.raises(ValueError, match="count cannot be null"):
-        db_coercion.expect_int(None, "count")
+        coercion.expect_int(None, "count")
 
 
 def test_row_helpers_coerce_and_expect(sample_row: sqlite3.Row) -> None:
-    assert db_coercion.row_str(sample_row, "txt") == "abc"
-    assert db_coercion.row_expect_str(sample_row, "txt") == "abc"
-    assert db_coercion.row_float(sample_row, "num_txt") == 1.25
-    assert db_coercion.row_expect_float(sample_row, "num_txt") == 1.25
-    assert db_coercion.row_int(sample_row, "int_txt") == 7
-    assert db_coercion.row_expect_int(sample_row, "int_txt") == 7
+    assert coercion.row_str(sample_row, "txt") == "abc"
+    assert coercion.row_expect_str(sample_row, "txt") == "abc"
+    assert coercion.row_float(sample_row, "num_txt") == 1.25
+    assert coercion.row_expect_float(sample_row, "num_txt") == 1.25
+    assert coercion.row_int(sample_row, "int_txt") == 7
+    assert coercion.row_expect_int(sample_row, "int_txt") == 7
 
 
 def test_row_expect_helpers_reject_null_values(sample_row: sqlite3.Row) -> None:
     with pytest.raises(ValueError, match="missing cannot be null"):
-        db_coercion.row_expect_str(sample_row, "missing")
+        coercion.row_expect_str(sample_row, "missing")
 
 
 def test_to_float_obj_delegates_to_expect_float() -> None:
-    assert db_coercion.to_float_obj("2.5") == 2.5
+    assert coercion.to_float_obj("2.5") == 2.5
 
 
 def test_to_int_obj_delegates_to_expect_int() -> None:
-    assert db_coercion.to_int_obj("3") == 3
+    assert coercion.to_int_obj("3") == 3

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from common.coercion import row_float, row_int
+from trading.utils.coercion import row_float, row_int
 from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.domain.promotion_policy import PromotionPolicySettings
 from trading.repositories.global_settings_repository import fetch_global_settings_row

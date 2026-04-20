@@ -1,28 +1,27 @@
-"""Stable boundary adapter for database coercion utilities.
+"""Stable boundary adapter for coercion utilities.
 
-Architecture: deliberate bounded-context adapter — domain and service code
-imports coercion helpers from here rather than directly from
-trading.database.db_coercion, keeping the database implementation detail
-behind a stable interface. Do not remove without updating all callers.
+Domain and service code imports coercion helpers from here rather than
+depending on the canonical implementation module directly.
 """
 
 from __future__ import annotations
 
 import sqlite3
 
-from trading.database.db_coercion import (
+from common.coercion import (
     coerce_bool as _coerce_bool,
     coerce_float as _coerce_float,
     coerce_int as _coerce_int,
     coerce_str as _coerce_str,
+    expect_float as _expect_float,
+    expect_int as _expect_int,
+    expect_str as _expect_str,
     row_expect_float as _row_expect_float,
     row_expect_int as _row_expect_int,
     row_expect_str as _row_expect_str,
     row_float as _row_float,
     row_int as _row_int,
     row_str as _row_str,
-    to_float_obj as _to_float_obj,
-    to_int_obj as _to_int_obj,
 )
 
 
@@ -40,6 +39,18 @@ def coerce_int(value: object | None) -> int | None:
 
 def coerce_bool(value: object | None) -> bool | None:
     return _coerce_bool(value)
+
+
+def expect_str(value: object | None, field_name: str = "value") -> str:
+    return _expect_str(value, field_name)
+
+
+def expect_float(value: object | None, field_name: str = "value") -> float:
+    return _expect_float(value, field_name)
+
+
+def expect_int(value: object | None, field_name: str = "value") -> int:
+    return _expect_int(value, field_name)
 
 
 def row_str(row: sqlite3.Row, key: str) -> str | None:
@@ -67,8 +78,8 @@ def row_expect_int(row: sqlite3.Row, key: str) -> int:
 
 
 def to_float_obj(value: object) -> object:
-    return _to_float_obj(value)
+    return _expect_float(value)
 
 
 def to_int_obj(value: object) -> object:
-    return _to_int_obj(value)
+    return _expect_int(value)

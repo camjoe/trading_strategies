@@ -3,8 +3,9 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 import pytest
 
-from trading.database import db
 from common.time import utc_now_iso
+from trading.database.db_init import ensure_db
+from trading.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST
 from trading.services.accounts_service import create_account
 from trading.models import AccountConfig
 
@@ -21,7 +22,7 @@ def _create_test_account(
 
 
 def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(
             conn,
@@ -53,7 +54,7 @@ def test_backtest_preflight_returns_financial_warnings(api_client: TestClient) -
 
 
 def test_backtest_preflight_rejects_start_and_lookback_conflict(api_client: TestClient) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(conn, "acct_api_conflict")
     finally:
@@ -74,7 +75,7 @@ def test_backtest_preflight_rejects_start_and_lookback_conflict(api_client: Test
 
 
 def test_account_detail_exposes_latest_backtest_summary(api_client: TestClient) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(conn, "acct_api_latest", initial_cash=10000.0)
         acct = conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_api_latest",)).fetchone()
@@ -124,7 +125,7 @@ def test_account_detail_exposes_latest_backtest_summary(api_client: TestClient) 
 
 
 def test_latest_backtest_endpoint_returns_none_when_missing(api_client: TestClient) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(conn, "acct_api_empty", initial_cash=10000.0)
     finally:
@@ -217,11 +218,11 @@ def test_admin_create_account_uses_seeded_watchlist_when_omitted(api_client: Tes
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["account"]["name"] == "acct_admin_seeded_watchlist"
-    assert payload["account"]["rotationOverlayWatchlist"] == db.DEFAULT_ROTATION_OVERLAY_WATCHLIST
+    assert payload["account"]["rotationOverlayWatchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST
 
 
 def test_admin_delete_account_endpoint(api_client: TestClient) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(conn, "acct_admin_delete", strategy="trend")
     finally:
@@ -239,7 +240,7 @@ def test_admin_delete_account_endpoint(api_client: TestClient) -> None:
 
 
 def test_accounts_compare_endpoint(api_client: TestClient) -> None:
-    conn = db.ensure_db()
+    conn = ensure_db()
     try:
         _create_test_account(conn, "acct_cmp_a", strategy="trend")
         _create_test_account(conn, "acct_cmp_b", strategy="mean_reversion")
