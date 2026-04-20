@@ -78,6 +78,18 @@ def test_main_redacts_account_id_on_failure(monkeypatch, capsys) -> None:
 
     monkeypatch.setattr(ibkr_web_api_smoke_test, "load_ib_web_api_settings", lambda: settings)
     monkeypatch.setattr(ibkr_web_api_smoke_test, "InteractiveBrokersWebClient", _FailingClient)
+    monkeypatch.setattr(
+        ibkr_web_api_smoke_test,
+        "parse_args",
+        lambda: argparse.Namespace(
+            paper_order_check=False,
+            paper_order_symbol="",
+            paper_order_qty=1.0,
+            paper_order_limit_price=None,
+            paper_order_side="buy",
+            skip_paper_order_cancel=False,
+        ),
+    )
 
     result = ibkr_web_api_smoke_test.main()
 
