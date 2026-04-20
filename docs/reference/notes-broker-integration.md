@@ -262,6 +262,9 @@ Other operational notes from the docs worth preserving:
 - IBKR recommends calling `/tickle` about once per minute for keepalive.
 - This repo's Web API client can run a background keepalive thread while
   connected; it is enabled by default with a 60-second interval.
+- The auto-trader runtime now reuses one broker connection per account trade
+  loop, so IBKR Web API keepalive remains active across multi-trade account runs
+  instead of reconnecting around every individual order.
 - `GET /iserver/auth/status` is the primary endpoint for checking brokerage
   session state.
 - Client Portal Gateway defaults to localhost port `5000`, but the port is

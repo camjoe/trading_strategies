@@ -5,6 +5,7 @@ from typing import Callable, cast
 
 from common.time import utc_now_iso
 from trading.models.broker_order import BrokerOrder, OrderStatus
+from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
 from trading.services.accounts_service import get_account
 from trading.domain.accounting import compute_account_state
@@ -350,8 +351,14 @@ def _record_runtime_trade(
     selection,
     forced_sell: str | None,
     trade_time_iso: str | None = None,
+    *,
+    _injected_broker: BrokerConnection | None = None,
 ) -> None:
-    broker = get_broker_for_account(account)
+    # When a broker is injected by the caller (e.g. run_for_account) we reuse
+    # that shared connection and let the caller own the disconnect lifecycle.
+    # When called standalone the function creates and disconnects its own broker.
+    _owns_broker = _injected_broker is None
+    broker = _injected_broker if _injected_broker is not None else get_broker_for_account(account)
     try:
         def _broker_aware_record_trade(
             conn: sqlite3.Connection,
@@ -409,7 +416,8 @@ def _record_runtime_trade(
             trade_time_iso=trade_time_iso,
         )
     finally:
-        broker.disconnect()
+        if _owns_broker:
+            broker.disconnect()
 
 
 def run_for_account(
@@ -422,25 +430,37 @@ def run_for_account(
     max_trades: int,
     fee: float,
 ) -> int:
-    return run_for_account_impl(
-        conn,
-        account_name,
-        universe,
-        prices,
-        iv_rank_proxy,
-        min_trades,
-        max_trades,
-        fee,
-        get_account_fn=get_account,
-        utc_now_iso_fn=utc_now_iso,
-        rotate_account_if_due_fn=_rotate_runtime_account,
-        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
-        refresh_account_state_fn=_refresh_runtime_account_state,
-        resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
-        prepare_trade_selection_fn=_prepare_runtime_trade_selection,
-        record_prepared_trade_fn=_record_runtime_trade,
-        enforce_runtime_trade_throttles_fn=enforce_runtime_trade_throttles,
-    )
+    # Open one broker connection for the entire account trade loop so that
+    # keepalive (e.g. IBKR Web API /tickle) remains effective across all
+    # trades in the run.  Broker settings (broker_type, live_trading_enabled)
+    # are stable within a single run — rotation updates strategy, not broker
+    # config — so it is safe to resolve the broker from the initial account row.
+    bootstrap_account = get_account(conn, account_name)
+    broker = get_broker_for_account(bootstrap_account)
+    try:
+        return run_for_account_impl(
+            conn,
+            account_name,
+            universe,
+            prices,
+            iv_rank_proxy,
+            min_trades,
+            max_trades,
+            fee,
+            get_account_fn=get_account,
+            utc_now_iso_fn=utc_now_iso,
+            rotate_account_if_due_fn=_rotate_runtime_account,
+            resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+            refresh_account_state_fn=_refresh_runtime_account_state,
+            resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
+            prepare_trade_selection_fn=_prepare_runtime_trade_selection,
+            record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
+                *args, **kwargs, _injected_broker=broker
+            ),
+            enforce_runtime_trade_throttles_fn=enforce_runtime_trade_throttles,
+        )
+    finally:
+        broker.disconnect()
 
 
 def reconcile_open_ib_orders(

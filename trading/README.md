@@ -98,6 +98,11 @@ python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k
 python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
 ```
 
+For live broker accounts, each account run now reuses a single broker
+connection for the full trade loop. This lets session-backed adapters such as
+the IBKR Web API client keep their connection alive across multiple trades in
+one autoscript run.
+
 ### Rotation overlays
 
 Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `social`, or `news_social`) to let alternative-data signals nudge the base policy regime.
