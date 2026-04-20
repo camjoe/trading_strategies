@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import argparse
 
+DISPLAY_NAME_HELP = "Display name shown in operator summaries and reports"
+EXPLORATION_MODE_HELP = "heuristic exploration mode for this account"
+LEAPS_PROFIT_TAKE_HELP = "LEAPs/options profit-take percent"
+LEAPS_MAX_LOSS_HELP = "LEAPs/options maximum tolerated loss percent"
+
 
 def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False) -> None:
     """Add shared account option/risk arguments to a sub-parser."""
-    p.add_argument("--display-name", default=None, help="Human-friendly account name")
+    p.add_argument("--display-name", default=None, help=DISPLAY_NAME_HELP)
     p.add_argument("--goal-min-return-pct", type=float, default=None, help="Goal minimum return percent")
     p.add_argument("--goal-max-return-pct", type=float, default=None, help="Goal maximum return percent")
     p.add_argument(
@@ -16,13 +21,17 @@ def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False)
     p.add_argument(
         "--learning-enabled",
         action="store_true",
-        help="Turn on learning mode for this account" if configure_mode else "Enable learning mode for this account",
+        help=(
+            f"Turn on {EXPLORATION_MODE_HELP}"
+            if configure_mode
+            else f"Enable {EXPLORATION_MODE_HELP}"
+        ),
     )
     if configure_mode:
         p.add_argument(
             "--learning-disabled",
             action="store_true",
-            help="Turn off learning mode for this account",
+            help=f"Turn off {EXPLORATION_MODE_HELP}",
         )
     p.add_argument(
         "--risk-policy",
@@ -32,6 +41,18 @@ def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False)
     )
     p.add_argument("--stop-loss-pct", type=float, default=None, help="Stop-loss percent")
     p.add_argument("--take-profit-pct", type=float, default=None, help="Take-profit percent")
+    p.add_argument(
+        "--trade-size-pct",
+        type=float,
+        default=None if configure_mode else 10.0,
+        help="Target portfolio allocation percent for each new buy",
+    )
+    p.add_argument(
+        "--max-position-pct",
+        type=float,
+        default=None if configure_mode else 20.0,
+        help="Maximum portfolio allocation percent allowed for a single position",
+    )
     p.add_argument(
         "--instrument-mode",
         default=None if configure_mode else "equity",
@@ -59,5 +80,5 @@ def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False)
     p.add_argument("--iv-rank-min", type=float, default=None, help="Minimum IV rank threshold (0-100)")
     p.add_argument("--iv-rank-max", type=float, default=None, help="Maximum IV rank threshold (0-100)")
     p.add_argument("--roll-dte-threshold", type=int, default=None, help="Roll position when DTE <= threshold")
-    p.add_argument("--profit-take-pct", type=float, default=None, help="Profit target percent")
-    p.add_argument("--max-loss-pct", type=float, default=None, help="Maximum tolerated loss percent")
+    p.add_argument("--profit-take-pct", type=float, default=None, help=LEAPS_PROFIT_TAKE_HELP)
+    p.add_argument("--max-loss-pct", type=float, default=None, help=LEAPS_MAX_LOSS_HELP)

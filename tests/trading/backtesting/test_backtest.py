@@ -198,6 +198,29 @@ class TestBacktestRunFlow:
         assert summary["trade_count"] >= 0
         assert isinstance(summary["total_return_pct"], float)
 
+    def test_run_backtest_uses_account_trade_size_pct(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _create_bt_account(conn, "acct_bt_size_small", trade_size_pct=5.0, max_position_pct=10.0)
+        _create_bt_account(conn, "acct_bt_size_large", trade_size_pct=15.0, max_position_pct=30.0)
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 105.0])
+
+        small = run_backtest(conn, _backtest_config("acct_bt_size_small", run_name="small"))
+        large = run_backtest(conn, _backtest_config("acct_bt_size_large", run_name="large"))
+
+        small_qty = float(
+            conn.execute(
+                "SELECT qty FROM backtest_trades WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
+                (small.run_id,),
+            ).fetchone()["qty"]
+        )
+        large_qty = float(
+            conn.execute(
+                "SELECT qty FROM backtest_trades WHERE run_id = ? AND side = 'buy' ORDER BY id ASC LIMIT 1",
+                (large.run_id,),
+            ).fetchone()["qty"]
+        )
+
+        assert small_qty < large_qty
+
     def test_backtest_report_summary_returns_model(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         _create_bt_account(conn, "acct_report_model")
         _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
@@ -513,6 +536,8 @@ class TestBacktestLeaderboardAndBatch:
         assert "max_drawdown_pct" in leaderboard[0]
         assert "benchmark_return_pct" in leaderboard[0]
         assert "alpha_pct" in leaderboard[0]
+        assert "sharpe_ratio" in leaderboard[0]
+        assert "profit_factor" in leaderboard[0]
 
         filtered = backtest_leaderboard(conn, limit=10, strategy="mean")
         assert len(filtered) == 1
@@ -557,6 +582,12 @@ class TestBacktestLeaderboardAndBatch:
                 alpha_pct=0.5,
                 max_drawdown_pct=-1.0,
                 warnings=[],
+                sharpe_ratio=0.7,
+                sortino_ratio=0.9,
+                calmar_ratio=0.5,
+                win_rate_pct=50.0,
+                profit_factor=1.1,
+                avg_trade_return_pct=0.8,
             ),
             "acct_b": BacktestResult(
                 run_id=2,
@@ -571,6 +602,12 @@ class TestBacktestLeaderboardAndBatch:
                 alpha_pct=7.5,
                 max_drawdown_pct=-2.0,
                 warnings=[],
+                sharpe_ratio=1.3,
+                sortino_ratio=1.8,
+                calmar_ratio=0.9,
+                win_rate_pct=62.5,
+                profit_factor=1.9,
+                avg_trade_return_pct=2.2,
             ),
         }
 
@@ -603,6 +640,15 @@ class TestBacktestLeaderboardAndBatch:
 
 
 class TestBacktestValidationAndFailurePaths:
+    def test_run_backtest_rejects_unknown_account_strategy(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+        _create_bt_account(conn, "acct_invalid_strategy")
+        conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mystery_strategy", "acct_invalid_strategy"))
+        conn.commit()
+        _patch_market_data(monkeypatch, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+
+        with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
+            run_backtest(conn, _backtest_config("acct_invalid_strategy"))
+
     def test_run_backtest_rejects_too_short_close_history(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         _create_bt_account(conn, "acct_short")
 
@@ -653,6 +699,10 @@ class TestBacktestValidationAndFailurePaths:
     def test_backtest_leaderboard_rejects_non_positive_limit(self, conn) -> None:
         with pytest.raises(ValueError, match="limit must be > 0"):
             backtest_leaderboard(conn, limit=0)
+
+    def test_backtest_leaderboard_rejects_unknown_strategy_filter(self, conn) -> None:
+        with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
+            backtest_leaderboard(conn, limit=5, strategy="mystery_strategy")
 
     def test_backtest_leaderboard_gracefully_handles_benchmark_fetch_error(
         self,

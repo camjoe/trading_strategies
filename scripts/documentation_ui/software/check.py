@@ -1,11 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
-from scripts.documentation_ui.io_utils.io import load_json
 from scripts.documentation_ui.software.registry import (
+    SOFTWARE_REGISTRY_REL,
     normalize_package_name,
     parse_requirements,
 )
@@ -13,14 +14,14 @@ from scripts.documentation_ui.software.registry import (
 
 def run_software_reference_check(
     repo_root: Path,
-    registry_rel_path: str = "paper_trading_ui/frontend/src/assets/software.json",
+    registry_rel_path: str = SOFTWARE_REGISTRY_REL,
 ) -> int:
     registry_path = repo_root / registry_rel_path
     if not registry_path.exists():
         print(f"ERROR: registry not found: {registry_path}")
         return 2
 
-    existing = load_json(registry_path)
+    existing = json.loads(registry_path.read_text(encoding="utf-8"))
     existing_packages = existing.get("packages", [])
     registry_by_name = {
         str(item.get("name")).split("[", 1)[0].lower(): item
@@ -64,7 +65,7 @@ def run_software_reference_check(
     print("\nFAIL: software registry drift detected.")
     if missing_from_registry:
         print(f"- Packages in requirements but missing from registry: {', '.join(missing_from_registry)}")
-        print("  Run: python -m scripts.reference_docs.sync_all")
+        print("  Run: python -m scripts.documentation_ui.sync")
     if drift_issues:
         print("- Drift issues:")
         for issue in drift_issues[:20]:

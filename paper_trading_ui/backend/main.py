@@ -17,13 +17,14 @@ from .routes import (
 )
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
+ALLOW_ALL_CORS = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=ALLOW_ALL_CORS,
+    allow_headers=ALLOW_ALL_CORS,
 )
 
 app.include_router(health_router)

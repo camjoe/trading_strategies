@@ -708,7 +708,23 @@ def available_strategy_ids() -> list[str]:
     return sorted(STRATEGY_REGISTRY.keys())
 
 
-def _resolve_by_keyword(name: str) -> StrategySpec:
+def _invalid_strategy_error(strategy_name: str) -> ValueError:
+    available = ", ".join(available_strategy_ids())
+    return ValueError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
+
+
+def _resolve_exact_or_alias(name: str) -> StrategySpec | None:
+    if name in STRATEGY_REGISTRY:
+        return STRATEGY_REGISTRY[name]
+
+    for spec in STRATEGY_REGISTRY.values():
+        if name in spec.aliases:
+            return spec
+
+    return None
+
+
+def _resolve_by_keyword(name: str) -> StrategySpec | None:
     if any(token in name for token in ("bollinger", "bbands")):
         return STRATEGY_REGISTRY["bollinger_mean_reversion"]
     if "breakout" in name or "donchian" in name:
@@ -737,20 +753,29 @@ def _resolve_by_keyword(name: str) -> StrategySpec:
         return STRATEGY_REGISTRY["mean_reversion"]
     if "trend" in name or "momentum" in name:
         return STRATEGY_REGISTRY["trend"]
-    return STRATEGY_REGISTRY["trend"]
+    return None
 
 
 def resolve_strategy(strategy_name: str) -> StrategySpec:
     """Resolve a strategy label to a registry-backed strategy specification."""
     name = strategy_name.strip().lower()
-    if name in STRATEGY_REGISTRY:
-        return STRATEGY_REGISTRY[name]
+    if not name:
+        raise _invalid_strategy_error(strategy_name)
 
-    for spec in STRATEGY_REGISTRY.values():
-        if name in spec.aliases:
-            return spec
+    exact_match = _resolve_exact_or_alias(name)
+    if exact_match is not None:
+        return exact_match
 
-    return _resolve_by_keyword(name)
+    keyword_match = _resolve_by_keyword(name)
+    if keyword_match is not None:
+        return keyword_match
+
+    raise _invalid_strategy_error(strategy_name)
+
+
+def validate_strategy_name(strategy_name: str) -> str:
+    """Validate an operator-provided strategy label and return its canonical strategy id."""
+    return resolve_strategy(strategy_name).strategy_id
 
 
 def resolve_signal(

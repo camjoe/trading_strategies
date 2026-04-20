@@ -15,14 +15,18 @@ def handle_init(conn, args, parser, *, deps: dict[str, Any], module_file: str, d
 
 
 def handle_create_account(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
-    deps["create_account"](
-        conn,
-        args.name,
-        args.strategy,
-        args.initial_cash,
-        args.benchmark,
-        config=common_account_config_kwargs(args, include_learning_disabled=False),
-    )
+    try:
+        deps["create_account"](
+            conn,
+            args.name,
+            args.strategy,
+            args.initial_cash,
+            args.benchmark,
+            config=common_account_config_kwargs(args, include_learning_disabled=False),
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
     print(
         f"Created account '{args.name}' for strategy '{args.strategy}' "
         f"with benchmark '{args.benchmark.upper()}'."
@@ -46,22 +50,30 @@ def handle_configure_account(conn, args, parser, *, deps: dict[str, Any], module
 
 def handle_apply_account_profiles(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
     profiles = deps["load_account_profiles"](args.file)
-    created, updated, skipped = deps["apply_account_profiles"](
-        conn,
-        profiles,
-        create_missing=not args.no_create_missing,
-    )
+    try:
+        created, updated, skipped = deps["apply_account_profiles"](
+            conn,
+            profiles,
+            create_missing=not args.no_create_missing,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
     _print_profiles_result("Applied account profiles: ", created, updated, skipped)
 
 
 def handle_apply_account_preset(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
     preset_file = get_builtin_profile_preset_path(args.preset)
     profiles = deps["load_account_profiles"](str(preset_file))
-    created, updated, skipped = deps["apply_account_profiles"](
-        conn,
-        profiles,
-        create_missing=not args.no_create_missing,
-    )
+    try:
+        created, updated, skipped = deps["apply_account_profiles"](
+            conn,
+            profiles,
+            create_missing=not args.no_create_missing,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
     _print_profiles_result(f"Applied preset '{args.preset}': ", created, updated, skipped)
 
 

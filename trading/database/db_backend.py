@@ -8,9 +8,6 @@ from typing import Any
 from trading.database.db_config import get_db_path
 
 
-class DuplicateRecordError(Exception):
-    """Raised when an INSERT violates a uniqueness constraint."""
-
 class DatabaseBackend(ABC):
     """Abstract interface for database backends.
 

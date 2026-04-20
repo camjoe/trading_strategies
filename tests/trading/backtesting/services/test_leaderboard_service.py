@@ -59,6 +59,14 @@ def test_leaderboard_service_returns_sorted_entries(monkeypatch: pytest.MonkeyPa
         "fetch_equity_rows",
         lambda *_args, **_kwargs: [_Row(equity=1000.0), _Row(equity=1100.0)],
     )
+    monkeypatch.setattr(
+        leaderboard_service,
+        "fetch_trade_rows",
+        lambda *_args, **_kwargs: [
+            _Row(ticker="AAPL", side="buy", qty=1.0, price=100.0, fee=0.0),
+            _Row(ticker="AAPL", side="sell", qty=1.0, price=110.0, fee=0.0),
+        ],
+    )
 
     entries = leaderboard_service.fetch_backtest_leaderboard_entries(
         conn=object(),
@@ -71,6 +79,7 @@ def test_leaderboard_service_returns_sorted_entries(monkeypatch: pytest.MonkeyPa
     assert len(entries) == 2
     assert entries[0][0].run_id == 2
     assert entries[1][0].run_id == 1
+    assert entries[0][0].win_rate_pct == pytest.approx(100.0)
 
 
 def test_leaderboard_service_skips_rows_with_invalid_equity(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -93,6 +102,7 @@ def test_leaderboard_service_skips_rows_with_invalid_equity(monkeypatch: pytest.
 
     monkeypatch.setattr(leaderboard_service, "fetch_leaderboard_rows", lambda *_args, **_kwargs: bad_rows)
     monkeypatch.setattr(leaderboard_service, "fetch_equity_rows", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(leaderboard_service, "fetch_trade_rows", lambda *_args, **_kwargs: [])
 
     entries = leaderboard_service.fetch_backtest_leaderboard_entries(
         conn=object(),

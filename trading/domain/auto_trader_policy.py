@@ -9,8 +9,13 @@ from trading.models import AccountState
 # Order sizing
 # ---------------------------------------------------------------------------
 
-# Maximum quantity for a single randomized buy or sell order
+# Maximum quantity for a single randomized sell order
 MAX_ORDER_QTY = 5
+
+# Default account-level buy sizing controls. Percent fields in this repository
+# are stored as 0-100 values, not 0-1 fractions.
+DEFAULT_TRADE_SIZE_PCT = 10.0
+DEFAULT_MAX_POSITION_PCT = 20.0
 
 # ---------------------------------------------------------------------------
 # Delta estimation (monotonic strike-offset → delta mapping)
@@ -77,11 +82,53 @@ class AccountConfig(Protocol):
     def __getitem__(self, key: str) -> Any: ...
 
 
-def choose_buy_qty(cash: float, price: float, fee: float) -> int:
-    max_qty = int((cash - fee) // price)
-    if max_qty < 1:
+def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:
+    if value is None:
+        return default
+    pct = float(value)
+    if pct <= 0 or pct > 100:
+        raise ValueError(f"{field_name} must be greater than 0 and <= 100.")
+    return pct
+
+
+def choose_buy_qty(
+    cash: float,
+    price: float,
+    fee: float,
+    *,
+    trade_size_pct: float | None = None,
+    max_position_pct: float | None = None,
+    current_position_value: float = 0.0,
+    portfolio_equity: float | None = None,
+) -> int:
+    if price <= 0:
         return 0
-    return random.randint(1, min(MAX_ORDER_QTY, max_qty))
+
+    resolved_trade_size_pct = _resolve_sizing_pct(
+        trade_size_pct,
+        default=DEFAULT_TRADE_SIZE_PCT,
+        field_name="trade_size_pct",
+    )
+    resolved_max_position_pct = _resolve_sizing_pct(
+        max_position_pct,
+        default=DEFAULT_MAX_POSITION_PCT,
+        field_name="max_position_pct",
+    )
+    if resolved_trade_size_pct > resolved_max_position_pct:
+        raise ValueError("trade_size_pct cannot be greater than max_position_pct.")
+
+    effective_equity = float(portfolio_equity) if portfolio_equity is not None else float(cash)
+    if effective_equity <= 0 or cash <= fee:
+        return 0
+
+    trade_budget = effective_equity * (resolved_trade_size_pct / 100.0)
+    position_cap = effective_equity * (resolved_max_position_pct / 100.0)
+    remaining_position_budget = max(0.0, position_cap - max(0.0, float(current_position_value)))
+    spendable_budget = min(max(0.0, cash - fee), trade_budget, remaining_position_budget)
+    if spendable_budget < price:
+        return 0
+
+    return int(spendable_budget // price)
 
 
 def choose_sell_qty(position_qty: float) -> int:
@@ -260,7 +307,9 @@ def build_trade_note(
     iv_est: float | None,
     strategy_name: str | None,
 ) -> str:
-    note_parts = ["auto-daily-learn" if learning_enabled else "auto-daily"]
+    note_parts = ["auto-daily"]
+    if learning_enabled:
+        note_parts.append("selection=heuristic-exploration")
     if forced_sell is not None:
         note_parts.append(f"risk={risk_policy}")
     if instrument_mode == "leaps":

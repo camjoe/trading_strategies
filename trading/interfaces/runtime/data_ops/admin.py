@@ -6,9 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, cast
 
+from common.project_paths import DB_BACKUPS_DIR
 from trading.database.db import ensure_db
 from trading.database.db_backend import SQLiteBackend, get_backend
-from trading.services.admin_service import delete_accounts
+from trading.repositories.accounts_repository import fetch_account_listing_rows
+from trading.services.admin_service import delete_accounts, iter_delete_count_items
 
 
 def _sqlite_db_path() -> Path:
@@ -39,7 +41,7 @@ def backup_database(destination: str | None = None) -> Path:
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if destination is None:
-        backups_dir = source.parent / "backups"
+        backups_dir = DB_BACKUPS_DIR
         backups_dir.mkdir(parents=True, exist_ok=True)
         target = backups_dir / f"{source.stem}_{stamp}.db"
     else:
@@ -57,12 +59,8 @@ def backup_database(destination: str | None = None) -> Path:
 
 def _print_delete_summary(action: str, counts: dict[str, int]) -> None:
     print(f"{action} summary")
-    print(f"  accounts: {counts['accounts']}")
-    print(f"  trades: {counts['trades']}")
-    print(f"  equity_snapshots: {counts['equity_snapshots']}")
-    print(f"  backtest_runs: {counts['backtest_runs']}")
-    print(f"  backtest_trades: {counts['backtest_trades']}")
-    print(f"  backtest_equity_snapshots: {counts['backtest_equity_snapshots']}")
+    for key, value in iter_delete_count_items(counts):
+        print(f"  {key}: {value}")
 
 
 def _cmd_backup_db(args: argparse.Namespace) -> int:
@@ -74,7 +72,7 @@ def _cmd_backup_db(args: argparse.Namespace) -> int:
 def _cmd_list_accounts(_args: argparse.Namespace) -> int:
     conn = ensure_db()
     try:
-        rows = conn.execute("SELECT id, name, strategy, initial_cash, benchmark_ticker FROM accounts ORDER BY name ASC").fetchall()
+        rows = fetch_account_listing_rows(conn)
     finally:
         conn.close()
 
@@ -121,7 +119,7 @@ def _cmd_delete_accounts(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Database admin tools for trading/database/paper_trading.db",
+        description="Database admin tools (DB path: local/paper_trading.db by default; configurable via TRADING_DB_PATH)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

@@ -4,6 +4,9 @@ import random
 import sqlite3
 from typing import Callable, Mapping, Protocol, cast
 
+from trading.domain.exceptions import RuntimeTradeThrottleExceededError
+from trading.utils.coercion import row_expect_int, row_float, row_int
+
 
 class AccountStateLike(Protocol):
     positions: Mapping[str, float]
@@ -13,18 +16,94 @@ class TradePreparationStateLike(AccountStateLike, Protocol):
     cash: float
 
 
+def _account_value(account: dict[str, object], key: str) -> object | None:
+    try:
+        return account[key]
+    except (KeyError, IndexError):
+        return None
+
+
+def _position_mark_price(
+    ticker: str,
+    *,
+    prices: dict[str, float],
+    avg_cost: Mapping[str, float],
+    instrument_mode: str,
+    trade_price: float | None = None,
+) -> float:
+    if instrument_mode == "leaps":
+        if trade_price is not None:
+            return float(trade_price)
+        return float(avg_cost.get(ticker, 0.0))
+
+    market_price = prices.get(ticker)
+    if market_price is not None and market_price > 0:
+        return float(market_price)
+    return float(avg_cost.get(ticker, 0.0))
+
+
+def _estimate_portfolio_equity(
+    state: TradePreparationStateLike,
+    *,
+    prices: dict[str, float],
+    instrument_mode: str,
+    trade_ticker: str | None = None,
+    trade_price: float | None = None,
+) -> float:
+    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
+    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    equity = float(state.cash)
+    for held_ticker, qty in positions.items():
+        if qty <= 0:
+            continue
+        mark_price = _position_mark_price(
+            held_ticker,
+            prices=prices,
+            avg_cost=avg_cost,
+            instrument_mode=instrument_mode,
+            trade_price=trade_price if held_ticker == trade_ticker else None,
+        )
+        if mark_price <= 0:
+            continue
+        equity += float(qty) * mark_price
+    return equity
+
+
+def _current_position_value(
+    state: TradePreparationStateLike,
+    ticker: str,
+    *,
+    prices: dict[str, float],
+    instrument_mode: str,
+    trade_price: float,
+) -> float:
+    positions = cast(Mapping[str, float], getattr(state, "positions", {}))
+    qty = float(positions.get(ticker, 0.0))
+    if qty <= 0:
+        return 0.0
+    avg_cost = cast(Mapping[str, float], getattr(state, "avg_cost", {}))
+    mark_price = _position_mark_price(
+        ticker,
+        prices=prices,
+        avg_cost=avg_cost,
+        instrument_mode=instrument_mode,
+        trade_price=trade_price,
+    )
+    return qty * mark_price
+
+
 def refresh_account_state(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     *,
-    compute_account_state_fn: Callable[[float, list[sqlite3.Row]], object],
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[sqlite3.Row]],
+    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
+    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
 ):
-    return compute_account_state_fn(account["initial_cash"], load_trades_fn(conn, account["id"]))
+    return compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id")))
 
 
 def prepare_trade_selection(
-    account: sqlite3.Row,
+    account: dict[str, object],
     active_strategy: str | None,
     state,
     can_sell: list[str],
@@ -78,7 +157,7 @@ def prepare_trade_selection(
 def record_prepared_trade(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     learning_enabled: bool,
     risk_policy: str,
     instrument_mode: str,
@@ -90,6 +169,7 @@ def record_prepared_trade(
     record_trade_fn: Callable[..., None],
     utc_now_iso_fn: Callable[[], str],
     build_trade_note_fn: Callable[..., str],
+    trade_time_iso: str | None = None,
 ) -> None:
     side, ticker, qty, trade_price, delta_est, iv_est = selection
     record_trade_fn(
@@ -100,7 +180,7 @@ def record_prepared_trade(
         qty=qty,
         price=trade_price,
         fee=fee,
-        trade_time=utc_now_iso_fn(),
+        trade_time=trade_time_iso or utc_now_iso_fn(),
         note=build_trade_note_fn(
             learning_enabled,
             forced_sell,
@@ -116,12 +196,12 @@ def record_prepared_trade(
 
 
 def build_leaps_candidates(
-    account: sqlite3.Row,
+    account: dict[str, object],
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
     *,
-    option_candidate_allowed_fn: Callable[[sqlite3.Row, str, float, dict[str, float]], tuple[bool, float, float]],
+    option_candidate_allowed_fn: Callable[[dict[str, object], str, float, dict[str, float]], tuple[bool, float, float]],
 ) -> list[tuple[str, float, float]]:
     candidates: list[tuple[str, float, float]] = []
     for ticker in universe:
@@ -142,7 +222,7 @@ def build_leaps_candidates(
 
 
 def prepare_buy_trade(
-    account: sqlite3.Row,
+    account: dict[str, object],
     instrument_mode: str,
     universe: list[str],
     prices: dict[str, float],
@@ -151,10 +231,10 @@ def prepare_buy_trade(
     learning_enabled: bool,
     fee: float,
     *,
-    build_leaps_candidates_fn: Callable[[sqlite3.Row, list[str], dict[str, float], dict[str, float]], list[tuple[str, float, float]]],
+    build_leaps_candidates_fn: Callable[[dict[str, object], list[str], dict[str, float], dict[str, float]], list[tuple[str, float, float]]],
     estimate_option_premium_fn: Callable[[float, float, int | None, int | None], float],
-    choose_buy_qty_fn: Callable[[float, float, float], int],
-    apply_leaps_buy_qty_limits_fn: Callable[[int, float, sqlite3.Row], int],
+    choose_buy_qty_fn: Callable[..., int],
+    apply_leaps_buy_qty_limits_fn: Callable[[int, float, dict[str, object]], int],
     choose_buy_ticker_fn: Callable[[list[str], dict[str, float], object, bool], str],
 ) -> tuple[str, int, float, float | None, float | None] | None:
     if instrument_mode == "leaps":
@@ -170,10 +250,30 @@ def prepare_buy_trade(
         option_price = estimate_option_premium_fn(
             float(price),
             delta_est,
-            int(account["option_min_dte"]) if account["option_min_dte"] is not None else None,
-            int(account["option_max_dte"]) if account["option_max_dte"] is not None else None,
+            row_int(account, "option_min_dte"),
+            row_int(account, "option_max_dte"),
         )
-        qty = choose_buy_qty_fn(state.cash, option_price, fee)
+        qty = choose_buy_qty_fn(
+            state.cash,
+            option_price,
+            fee,
+            trade_size_pct=_account_value(account, "trade_size_pct"),
+            max_position_pct=_account_value(account, "max_position_pct"),
+            current_position_value=_current_position_value(
+                state,
+                ticker,
+                prices=prices,
+                instrument_mode=instrument_mode,
+                trade_price=float(option_price),
+            ),
+            portfolio_equity=_estimate_portfolio_equity(
+                state,
+                prices=prices,
+                instrument_mode=instrument_mode,
+                trade_ticker=ticker,
+                trade_price=float(option_price),
+            ),
+        )
         if qty <= 0:
             return None
 
@@ -188,7 +288,27 @@ def prepare_buy_trade(
     if price is None or price <= 0:
         return None
 
-    qty = choose_buy_qty_fn(state.cash, float(price), fee)
+    qty = choose_buy_qty_fn(
+        state.cash,
+        float(price),
+        fee,
+        trade_size_pct=_account_value(account, "trade_size_pct"),
+        max_position_pct=_account_value(account, "max_position_pct"),
+        current_position_value=_current_position_value(
+            state,
+            ticker,
+            prices=prices,
+            instrument_mode=instrument_mode,
+            trade_price=float(price),
+        ),
+        portfolio_equity=_estimate_portfolio_equity(
+            state,
+            prices=prices,
+            instrument_mode=instrument_mode,
+            trade_ticker=ticker,
+            trade_price=float(price),
+        ),
+    )
     if qty <= 0:
         return None
 
@@ -235,17 +355,21 @@ def run_for_account(
     max_trades: int,
     fee: float,
     *,
-    get_account_fn: Callable[[sqlite3.Connection, str], sqlite3.Row],
+    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]],
     utc_now_iso_fn: Callable[[], str],
-    rotate_account_if_due_fn: Callable[[sqlite3.Connection, str, sqlite3.Row, str], sqlite3.Row],
-    resolve_active_strategy_fn: Callable[[sqlite3.Row], str],
-    refresh_account_state_fn: Callable[[sqlite3.Connection, sqlite3.Row], AccountStateLike],
+    rotate_account_if_due_fn: Callable[[sqlite3.Connection, str, dict[str, object], str], dict[str, object]],
+    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
+    refresh_account_state_fn: Callable[[sqlite3.Connection, dict[str, object]], AccountStateLike],
     resolve_forced_sell_ticker_fn: Callable[..., str | None],
     prepare_trade_selection_fn: Callable[..., tuple[str, str, int, float, float | None, float | None] | None],
     record_prepared_trade_fn: Callable[..., None],
+    enforce_runtime_trade_throttles_fn: Callable[..., None],
+    is_submission_window_open_fn: Callable[[str], bool],
 ) -> int:
     account = get_account_fn(conn, account_name)
     now_iso = utc_now_iso_fn()
+    if not is_submission_window_open_fn(now_iso):
+        return 0
     account = rotate_account_if_due_fn(conn, account_name, account, now_iso)
     active_strategy = resolve_active_strategy_fn(account)
     learning_enabled = bool(
@@ -258,6 +382,8 @@ def run_for_account(
     target = random.randint(min_trades, max_trades)
     executed = 0
     for _ in range(target):
+        if not is_submission_window_open_fn(utc_now_iso_fn()):
+            break
         state = refresh_account_state_fn(conn, account)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
         forced_sell = resolve_forced_sell_ticker_fn(
@@ -285,18 +411,27 @@ def run_for_account(
         if selection is None:
             continue
 
-        record_prepared_trade_fn(
-            conn,
-            account_name,
-            account,
-            learning_enabled,
-            risk_policy,
-            instrument_mode,
-            active_strategy,
-            fee,
-            selection,
-            forced_sell,
-        )
+        trade_time_iso = utc_now_iso_fn()
+        try:
+            enforce_runtime_trade_throttles_fn(
+                conn,
+                trade_time_iso=trade_time_iso,
+            )
+            record_prepared_trade_fn(
+                conn,
+                account_name,
+                account,
+                learning_enabled,
+                risk_policy,
+                instrument_mode,
+                active_strategy,
+                fee,
+                selection,
+                forced_sell,
+                trade_time_iso=trade_time_iso,
+            )
+        except RuntimeTradeThrottleExceededError:
+            break
         executed += 1
 
     return executed

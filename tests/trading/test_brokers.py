@@ -2,24 +2,31 @@
 
 Covers:
   - PaperBrokerAdapter — immediate fill behaviour
-  - InteractiveBrokersAdapter — IBClientProtocol interactions (mocked)
-  - get_broker_for_account factory routing and live_trading_enabled guard
-  - _map_ib_status status mapping
-  - reconcile_open_ib_orders fill-reconciliation loop
+  - get_broker_for_account factory routing for paper and Web API paths
+  - InteractiveBrokersWebClient / InteractiveBrokersWebAdapter behaviour
+  - reconcile_open_ib_orders fill-reconciliation loop for the active broker path
   - Live trading safety: live_trading_enabled = 1 must never be set in tests
 """
 from __future__ import annotations
 
+import json
 import sqlite3
-from types import SimpleNamespace
+import threading
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
-from trading.brokers.base import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
+from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
 from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
-from trading.brokers.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
-from trading.brokers.ib_client import IBClientProtocol, IbApiClient
+from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from trading.brokers.ib_web_client import (
+    IbWebApiContract,
+    IbWebApiPacingLimiter,
+    IbWebApiSettings,
+    InteractiveBrokersWebClient,
+    load_ib_web_api_settings,
+)
 from trading.brokers.paper_adapter import PaperBrokerAdapter
 from trading.database.db import init_schema
 
@@ -49,19 +56,6 @@ def _make_order(**kwargs) -> BrokerOrder:
     defaults = dict(account_id=1, ticker="AAPL", side="buy", qty=10.0, price=150.0)
     defaults.update(kwargs)
     return BrokerOrder(**defaults)
-
-
-def _mock_ib_client() -> MagicMock:
-    """Return a MagicMock that satisfies IBClientProtocol (including factory methods)."""
-    client = MagicMock()
-    client.is_connected.return_value = True
-    return client
-
-
-def _adapter_with_mock_client() -> tuple[InteractiveBrokersAdapter, MagicMock]:
-    client = _mock_ib_client()
-    adapter = InteractiveBrokersAdapter(client=client, host="127.0.0.1", port=7497, client_id=1)
-    return adapter, client
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +103,9 @@ class TestPaperBrokerAdapter:
         with pytest.raises(NotImplementedError):
             PaperBrokerAdapter().cancel_order("paper-abc")
 
+    def test_get_open_trades_returns_empty_list(self):
+        assert PaperBrokerAdapter().get_open_trades() == []
+
     def test_get_positions_raises(self):
         with pytest.raises(NotImplementedError):
             PaperBrokerAdapter().get_positions()
@@ -136,286 +133,451 @@ class TestGetBrokerForAccount:
         broker = get_broker_for_account(_make_account(broker_type=None))
         assert isinstance(broker, PaperBrokerAdapter)
 
-    def test_ib_without_live_trading_enabled_raises(self):
-        account = _make_account(broker_type="interactive_brokers", live_trading_enabled=0)
+    def test_ib_web_without_live_trading_enabled_raises(self):
+        account = _make_account(broker_type="interactive_brokers_web", live_trading_enabled=0)
         with pytest.raises(LiveTradingNotEnabledError, match="live_trading_enabled"):
             get_broker_for_account(account)
 
-    def test_ib_error_message_mentions_manual_requirement(self):
-        account = _make_account(broker_type="interactive_brokers", live_trading_enabled=0)
-        with pytest.raises(LiveTradingNotEnabledError, match="manually"):
-            get_broker_for_account(account)
-
-    def test_ib_with_live_trading_enabled_connects(self):
-        account = _make_account(
-            broker_type="interactive_brokers",
-            broker_host="127.0.0.1",
-            broker_port=7497,
-            broker_client_id=1,
-        )
-        mock_client = _mock_ib_client()
+    def test_ib_web_with_live_trading_enabled_connects(self):
+        account = _make_account(broker_type="interactive_brokers_web")
+        mock_client = MagicMock()
         with (
             patch("trading.brokers.factory._require_live_trading_enabled"),
-            patch("trading.brokers.factory.IbAsyncClient", return_value=mock_client),
+            patch(
+                "trading.brokers.factory.load_ib_web_api_settings",
+                return_value=IbWebApiSettings(
+                    base_url="https://example.test/v1/api",
+                    account_id="U1234567",
+                    headers={},
+                ),
+            ),
+            patch("trading.brokers.factory.InteractiveBrokersWebClient", return_value=mock_client),
         ):
             broker = get_broker_for_account(account)
-        assert isinstance(broker, InteractiveBrokersAdapter)
-        mock_client.connect.assert_called_once_with("127.0.0.1", 7497, client_id=1)
+        assert isinstance(broker, InteractiveBrokersWebAdapter)
+        mock_client.connect.assert_called_once_with()
 
-    def test_live_trading_enabled_missing_key_treated_as_disabled(self):
-        account = {"id": 1, "name": "old-account", "broker_type": "interactive_brokers"}
-        with pytest.raises(LiveTradingNotEnabledError):
-            get_broker_for_account(account)
 
-    def test_live_trading_enabled_string_one_is_accepted(self):
-        """String "1" (from SQLite row) is accepted — guard should not raise."""
-        account = _make_account(
-            broker_type="interactive_brokers",
-            live_trading_enabled="1",
-            broker_host="127.0.0.1",
-            broker_port=7497,
-            broker_client_id=1,
+class TestLoadIbWebApiSettings:
+    def test_loads_from_env(self, monkeypatch):
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", "U1234567")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_BASE_URL", "https://example.test/v1/api")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_HEADERS_JSON", json.dumps({"Authorization": "Bearer secret"}))
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_VERIFY_SSL", "false")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_TIMEOUT_SECONDS", "7.5")
+
+        settings = load_ib_web_api_settings()
+
+        assert settings.account_id == "U1234567"
+        assert settings.base_url == "https://example.test/v1/api"
+        assert settings.headers["Authorization"] == "Bearer secret"
+        assert settings.verify_ssl is False
+        assert settings.timeout_seconds == 7.5
+
+    def test_loads_from_file_and_applies_session_cookie(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "ibkr_web_api_config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "account_id": "U7654321",
+                    "base_url": "https://example.test/v1/api",
+                    "session_token": "abc123",
+                    "verify_ssl": True,
+                }
+            ),
+            encoding="utf-8",
         )
-        mock_client = _mock_ib_client()
-        with patch("trading.brokers.factory.IbAsyncClient", return_value=mock_client):
-            broker = get_broker_for_account(account)
-        assert isinstance(broker, InteractiveBrokersAdapter)
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_CONFIG", str(config_path))
+        monkeypatch.delenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", raising=False)
 
-    def test_ibapi_backend_uses_ib_api_client(self):
-        import trading.brokers.factory as factory_module
+        settings = load_ib_web_api_settings()
 
-        account = _make_account(
-            broker_type="interactive_brokers",
-            broker_host="127.0.0.1",
-            broker_port=7497,
-            broker_client_id=1,
+        assert settings.account_id == "U7654321"
+        assert settings.headers["Cookie"] == "api=abc123"
+
+    def test_defaults_to_local_gateway_when_base_url_not_provided(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "ibkr_web_api_config.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "account_id": "U7654321",
+                }
+            ),
+            encoding="utf-8",
         )
-        mock_client = _mock_ib_client()
-        original = factory_module.IB_CLIENT_BACKEND
-        try:
-            factory_module.IB_CLIENT_BACKEND = "ibapi"
-            with (
-                patch("trading.brokers.factory._require_live_trading_enabled"),
-                patch("trading.brokers.factory.IbApiClient", return_value=mock_client),
-            ):
-                broker = get_broker_for_account(account)
-            assert isinstance(broker, InteractiveBrokersAdapter)
-        finally:
-            factory_module.IB_CLIENT_BACKEND = original
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_CONFIG", str(config_path))
+        monkeypatch.delenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", raising=False)
 
-    def test_unknown_ib_backend_raises_value_error(self):
-        import trading.brokers.factory as factory_module
+        settings = load_ib_web_api_settings()
 
-        account = _make_account(broker_type="interactive_brokers")
-        original = factory_module.IB_CLIENT_BACKEND
-        try:
-            factory_module.IB_CLIENT_BACKEND = "not_a_real_backend"
-            with patch("trading.brokers.factory._require_live_trading_enabled"):
-                with pytest.raises(ValueError, match="Unknown IB_CLIENT_BACKEND"):
-                    get_broker_for_account(account)
-        finally:
-            factory_module.IB_CLIENT_BACKEND = original
+        assert settings.base_url == "https://localhost:5000/v1/api"
+        assert settings.verify_ssl is False
+        assert settings.keepalive_enabled is True
+        assert settings.keepalive_interval_seconds == 60.0
 
+    def test_loads_keepalive_settings_from_env(self, monkeypatch):
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", "U1234567")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED", "false")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS", "90")
 
-# ---------------------------------------------------------------------------
-# InteractiveBrokersAdapter (mocked IBClientProtocol)
-# ---------------------------------------------------------------------------
+        settings = load_ib_web_api_settings()
+
+        assert settings.keepalive_enabled is False
+        assert settings.keepalive_interval_seconds == 90.0
+
+    def test_missing_account_id_raises(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "ibkr_web_api_config.json"
+        config_path.write_text("{}", encoding="utf-8")
+        monkeypatch.setenv("TRADING_IBKR_WEB_API_CONFIG", str(config_path))
+        monkeypatch.delenv("TRADING_IBKR_WEB_API_ACCOUNT_ID", raising=False)
+
+        with pytest.raises(ValueError, match="account_id"):
+            load_ib_web_api_settings()
 
 
-class TestInteractiveBrokersAdapter:
-    # connect / disconnect
+class TestInteractiveBrokersWebClient:
+    def test_pacing_limiter_enforces_portfolio_accounts_spacing(self):
+        class _Clock:
+            def __init__(self) -> None:
+                self.now = 100.0
+                self.sleeps: list[float] = []
 
-    def test_connect_delegates_to_client(self):
-        adapter, client = _adapter_with_mock_client()
-        adapter.connect()
-        client.connect.assert_called_once_with("127.0.0.1", 7497, client_id=1)
+            def monotonic(self) -> float:
+                return self.now
 
-    def test_disconnect_calls_client_disconnect_when_connected(self):
-        adapter, client = _adapter_with_mock_client()
-        adapter.disconnect()
-        client.disconnect.assert_called_once()
+            def sleep(self, seconds: float) -> None:
+                self.sleeps.append(seconds)
+                self.now += seconds
 
-    def test_disconnect_skips_when_not_connected(self):
-        adapter, client = _adapter_with_mock_client()
-        client.is_connected.return_value = False
-        adapter.disconnect()
-        client.disconnect.assert_not_called()
+        clock = _Clock()
+        limiter = IbWebApiPacingLimiter(time_fn=clock.monotonic, sleep_fn=clock.sleep)
 
-    def test_require_connected_raises_when_disconnected(self):
-        adapter, client = _adapter_with_mock_client()
-        client.is_connected.return_value = False
-        with pytest.raises(RuntimeError, match="not connected"):
-            adapter._require_connected()
+        limiter.wait_for_slot("GET", "/portfolio/accounts")
+        limiter.wait_for_slot("GET", "/portfolio/accounts")
 
-    # place_order
+        assert clock.sleeps == [5.0]
 
-    def test_place_order_returns_submitted_status(self):
-        adapter, client = _adapter_with_mock_client()
-        mock_trade = MagicMock()
-        mock_trade.order.orderId = 42
-        client.place_order.return_value = mock_trade
+    def test_pacing_limiter_enforces_global_limit(self):
+        class _Clock:
+            def __init__(self) -> None:
+                self.now = 0.0
+                self.sleeps: list[float] = []
 
-        result = adapter.place_order(_make_order())
+            def monotonic(self) -> float:
+                return self.now
 
-        assert result.status == OrderStatus.SUBMITTED
-        assert result.broker_order_id == "42"
-        assert result.submitted_at is not None
+            def sleep(self, seconds: float) -> None:
+                self.sleeps.append(seconds)
+                self.now += seconds
 
-    def test_place_order_market_sends_mkt_type(self):
-        adapter, client = _adapter_with_mock_client()
-        mock_trade = MagicMock()
-        mock_trade.order.orderId = 1
-        client.place_order.return_value = mock_trade
+        clock = _Clock()
+        limiter = IbWebApiPacingLimiter(time_fn=clock.monotonic, sleep_fn=clock.sleep)
 
-        adapter.place_order(_make_order(order_type=OrderType.MARKET))
+        for index in range(11):
+            limiter.wait_for_slot("GET", f"/custom/{index}")
 
-        call_kwargs = client.make_order.call_args.kwargs
-        assert call_kwargs["orderType"] == "MKT"
+        assert clock.sleeps == [1.0]
 
-    def test_place_order_limit_sends_lmt_type_and_price(self):
-        adapter, client = _adapter_with_mock_client()
-        mock_trade = MagicMock()
-        mock_trade.order.orderId = 2
-        client.place_order.return_value = mock_trade
+    def test_validate_session_checks_account_visibility(self):
+        calls: list[str] = []
 
-        adapter.place_order(_make_order(order_type=OrderType.LIMIT, price=148.0))
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            if request.url.path == "/iserver/auth/status":
+                return httpx.Response(200, json={"authenticated": True, "connected": True})
+            if request.url.path == "/portfolio/accounts":
+                return httpx.Response(200, json=[{"accountId": "U1234567"}])
+            if request.url.path == "/iserver/accounts":
+                return httpx.Response(200, json={"accounts": ["U1234567"]})
+            raise AssertionError(f"Unexpected path {request.url.path}")
 
-        call_kwargs = client.make_order.call_args.kwargs
-        assert call_kwargs["orderType"] == "LMT"
-        assert call_kwargs["lmtPrice"] == 148.0
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
 
-    # cancel_order
+        client.connect()
 
-    def test_cancel_order_calls_client_cancel(self):
-        adapter, client = _adapter_with_mock_client()
-        mock_trade = MagicMock()
-        mock_trade.order.orderId = 99
-        client.trades.return_value = [mock_trade]
+        assert client.is_connected() is True
+        assert calls == ["/iserver/auth/status", "/portfolio/accounts", "/iserver/accounts"]
 
-        adapter.cancel_order("99")
-        client.cancel_order.assert_called_once_with(mock_trade.order)
-
-    def test_cancel_order_raises_when_not_found(self):
-        adapter, client = _adapter_with_mock_client()
-        client.trades.return_value = []
-        with pytest.raises(ValueError, match="No open IB order"):
-            adapter.cancel_order("999")
-
-    # get_positions
-
-    def test_get_positions_returns_symbol_qty_dict(self):
-        adapter, client = _adapter_with_mock_client()
-        pos1 = SimpleNamespace(contract=SimpleNamespace(symbol="AAPL"), position=10.0)
-        pos2 = SimpleNamespace(contract=SimpleNamespace(symbol="MSFT"), position=5.0)
-        client.positions.return_value = [pos1, pos2]
-
-        assert adapter.get_positions() == {"AAPL": 10.0, "MSFT": 5.0}
-
-    # get_account_info
-
-    def test_get_account_info_filters_to_known_usd_tags(self):
-        adapter, client = _adapter_with_mock_client()
-        summary = [
-            SimpleNamespace(tag="TotalCashValue", value="50000.0", currency="USD"),
-            SimpleNamespace(tag="BuyingPower", value="100000.0", currency="USD"),
-            SimpleNamespace(tag="SomeOtherTag", value="999.0", currency="USD"),
-            SimpleNamespace(tag="TotalCashValue", value="45000.0", currency="EUR"),
+    def test_fetch_marketdata_snapshot_retries_after_preflight(self):
+        responses = [
+            httpx.Response(200, json=[{"conid": 265598, "conidEx": "265598"}]),
+            httpx.Response(200, json=[{"conid": 265598, "31": "168.42", "84": "168.41", "86": "168.43"}]),
         ]
-        client.account_summary.return_value = summary
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return responses.pop(0)
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        rows = client.fetch_marketdata_snapshot(["265598"])
+
+        assert rows[0]["31"] == "168.42"
+
+    def test_submit_order_confirms_reply_message(self):
+        responses = [
+            httpx.Response(200, json=[{"id": "reply-1", "message": ["Confirm me"]}]),
+            httpx.Response(200, json=[{"order_id": "42", "order_status": "Submitted"}]),
+        ]
+        seen: list[str] = []
+        payloads: list[object] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(f"{request.method} {request.url.path}")
+            if request.url.path == "/iserver/account/U1234567/orders":
+                payloads.append(json.loads(request.content.decode("utf-8")))
+            return responses.pop(0)
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        response = client.submit_order({"conid": 265598, "side": "BUY", "orderType": "MKT", "tif": "DAY", "quantity": 1})
+
+        assert response["order_id"] == "42"
+        assert seen == [
+            "POST /iserver/account/U1234567/orders",
+            "POST /iserver/reply/reply-1",
+        ]
+        assert payloads == [
+            {
+                "orders": [
+                    {
+                        "conid": 265598,
+                        "side": "BUY",
+                        "orderType": "MKT",
+                        "tif": "DAY",
+                        "quantity": 1,
+                    }
+                ]
+            }
+        ]
+
+    def test_fetch_order_status_returns_object(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/iserver/account/order/status/42"
+            return httpx.Response(200, json={"order_id": "42", "order_status": "PreSubmitted"})
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        payload = client.fetch_order_status("42")
+
+        assert payload["order_status"] == "PreSubmitted"
+
+    def test_fetch_trades_returns_list(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/iserver/account/trades"
+            assert request.url.params["days"] == "1"
+            return httpx.Response(200, json=[{"symbol": "AAPL", "side": "BUY", "size": 1}])
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        rows = client.fetch_trades()
+
+        assert rows == [{"symbol": "AAPL", "side": "BUY", "size": 1}]
+
+    def test_request_json_raises_pacing_specific_error_for_429(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(429, text="Too Many Requests", request=request)
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+            pacing_limiter=IbWebApiPacingLimiter(),
+        )
+
+        with pytest.raises(RuntimeError, match="pacing limit exceeded"):
+            client.fetch_auth_status()
+
+    def test_connect_starts_keepalive_and_tickle_runs(self):
+        tickled = threading.Event()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/iserver/auth/status":
+                return httpx.Response(200, json={"authenticated": True, "connected": True})
+            if request.url.path == "/portfolio/accounts":
+                return httpx.Response(200, json=[{"accountId": "U1234567"}])
+            if request.url.path == "/iserver/accounts":
+                return httpx.Response(200, json={"accounts": ["U1234567"]})
+            if request.url.path == "/tickle":
+                tickled.set()
+                return httpx.Response(200, json={"session": "ok"})
+            raise AssertionError(f"Unexpected path {request.url.path}")
+
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(
+                base_url="https://example.test",
+                account_id="U1234567",
+                headers={},
+                keepalive_enabled=True,
+                keepalive_interval_seconds=0.01,
+            ),
+            http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
+        )
+
+        try:
+            client.connect()
+            assert tickled.wait(0.5)
+        finally:
+            client.disconnect()
+
+
+class TestInteractiveBrokersWebAdapter:
+    def _make_client(self) -> MagicMock:
+        client = MagicMock()
+        client.is_connected.return_value = True
+        return client
+
+    def test_place_order_submits_web_order(self):
+        client = self._make_client()
+        client.account_id = "U1234567"
+        client.resolve_contract.return_value = IbWebApiContract(
+            conid="265598",
+            ticker="AAPL",
+            sec_type="STK",
+            listing_exchange="NASDAQ",
+        )
+        client.fetch_trade_accounts.return_value = {
+            "acctProps": {"U1234567": {"allowCustomerTime": False}}
+        }
+        client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.place_order(_make_order(order_type=OrderType.MARKET))
+
+        assert result.broker_order_id == "123"
+        assert result.status == OrderStatus.SUBMITTED
+        client.submit_order.assert_called_once()
+        submitted_payload = client.submit_order.call_args.args[0]
+        assert submitted_payload["acctId"] == "U1234567"
+        assert submitted_payload["conid"] == 265598
+        assert submitted_payload["secType"] == "265598:STK"
+        assert submitted_payload["listingExchange"] == "NASDAQ"
+        assert submitted_payload["ticker"] == "AAPL"
+        assert submitted_payload["orderType"] == "MKT"
+        assert submitted_payload["side"] == "BUY"
+        assert submitted_payload["quantity"] == 10.0
+        assert "cOID" in submitted_payload
+        assert "manualOrderTime" not in submitted_payload
+
+    def test_place_order_includes_manual_order_time_when_required(self):
+        client = self._make_client()
+        client.account_id = "U1234567"
+        client.resolve_contract.return_value = IbWebApiContract(
+            conid="265598",
+            ticker="AAPL",
+            sec_type="STK",
+            listing_exchange="NASDAQ",
+        )
+        client.fetch_trade_accounts.return_value = {
+            "acctProps": {"U1234567": {"allowCustomerTime": True}}
+        }
+        client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        adapter.place_order(_make_order(order_type=OrderType.LIMIT, price=150.0))
+
+        submitted_payload = client.submit_order.call_args.args[0]
+        assert submitted_payload["price"] == 150.0
+        assert isinstance(submitted_payload["manualOrderTime"], int)
+
+    def test_get_account_info_maps_ledger_and_summary(self):
+        client = self._make_client()
+        client.fetch_ledger.return_value = {
+            "BASE": {
+                "cashbalance": 50000.0,
+                "stockmarketvalue": 12000.0,
+                "netliquidationvalue": 62000.0,
+            }
+        }
+        client.fetch_summary.return_value = {
+            "buyingpower": {"amount": 100000.0},
+            "netliquidation": {"amount": 62000.0},
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
 
         result = adapter.get_account_info()
-        assert result["TotalCashValue"] == 50000.0
-        assert result["BuyingPower"] == 100000.0
-        assert "SomeOtherTag" not in result
 
-    # get_quotes
+        assert result == {
+            "TotalCashValue": 50000.0,
+            "BuyingPower": 100000.0,
+            "GrossPositionValue": 12000.0,
+            "NetLiquidation": 62000.0,
+        }
 
-    def test_get_quotes_returns_bid_ask_last(self):
-        adapter, client = _adapter_with_mock_client()
-        mock_ticker = SimpleNamespace(
-            contract=SimpleNamespace(symbol="AAPL"),
-            bid=149.0, ask=150.0, last=149.5,
-        )
-        client.req_tickers.return_value = [mock_ticker]
-        client.qualify_contracts.return_value = None
+    def test_get_quotes_maps_snapshot_fields(self):
+        client = self._make_client()
+        client.resolve_conid.side_effect = ["265598", "8314"]
+        client.fetch_marketdata_snapshot.return_value = [
+            {"conid": 265598, "31": "168.42", "84": "168.41", "86": "168.43"},
+            {"conid": 8314, "31": "189.60", "84": "189.56", "86": "189.61"},
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
 
-        result = adapter.get_quotes(["AAPL"])
-        assert result == {"AAPL": {"bid": 149.0, "ask": 150.0, "last": 149.5}}
+        result = adapter.get_quotes(["AAPL", "IBM"])
 
-    # get_open_trades
+        assert result == {
+            "AAPL": {"bid": 168.41, "ask": 168.43, "last": 168.42},
+            "IBM": {"bid": 189.56, "ask": 189.61, "last": 189.6},
+        }
 
-    def test_get_open_trades_maps_to_broker_orders(self):
-        adapter, client = _adapter_with_mock_client()
-        mock_fill = SimpleNamespace(
-            execution=SimpleNamespace(shares=10.0, avgPrice=150.0, time="2026-01-01T10:00:00"),
-            commissionReport=SimpleNamespace(commission=1.0),
-        )
-        mock_trade = SimpleNamespace(
-            order=SimpleNamespace(orderId=55, action="BUY", totalQuantity=10.0, lmtPrice=0.0),
-            orderStatus=SimpleNamespace(status="Submitted", filled=0.0, avgFillPrice=0.0),
-            contract=SimpleNamespace(symbol="AAPL"),
-            fills=[mock_fill],
-        )
-        client.trades.return_value = [mock_trade]
+    def test_get_open_trades_creates_synthetic_fill(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {
+                "orderId": 55,
+                "ticker": "AAPL",
+                "side": "BUY",
+                "totalSize": 10,
+                "filledQuantity": 10,
+                "avgPrice": "151.25",
+                "status": "Filled",
+                "lastExecutionTime": "231211180049",
+            }
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
 
         result = adapter.get_open_trades()
+
         assert len(result) == 1
-        assert result[0].broker_order_id == "55"
-        assert result[0].ticker == "AAPL"
-        assert result[0].status == OrderStatus.SUBMITTED
-        assert len(result[0].fills) == 1
-
-
-# ---------------------------------------------------------------------------
-# IbApiClient stub
-# ---------------------------------------------------------------------------
-
-
-class TestIbApiClient:
-    def test_all_methods_raise_not_implemented(self):
-        client = IbApiClient()
-        with pytest.raises(NotImplementedError):
-            client.connect("127.0.0.1", 7497, client_id=1)
-        with pytest.raises(NotImplementedError):
-            client.disconnect()
-        with pytest.raises(NotImplementedError):
-            client.is_connected()
-        with pytest.raises(NotImplementedError):
-            client.trades()
-
-    def test_make_stock_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            IbApiClient().make_stock("AAPL")
-
-    def test_make_order_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            IbApiClient().make_order(action="BUY", totalQuantity=10, orderType="MKT")
-
-    def test_isinstance_check_passes_with_all_stubs(self):
-        """IbApiClient must satisfy IBClientProtocol at runtime."""
-        assert isinstance(IbApiClient(), IBClientProtocol)
-
-
-# ---------------------------------------------------------------------------
-# _map_ib_status
-# ---------------------------------------------------------------------------
-
-
-class TestMapIbStatus:
-    @pytest.mark.parametrize("ib_status,expected", [
-        ("Filled", OrderStatus.FILLED),
-        ("PartiallyFilled", OrderStatus.PARTIALLY_FILLED),
-        ("Submitted", OrderStatus.SUBMITTED),
-        ("PreSubmitted", OrderStatus.SUBMITTED),
-        ("Cancelled", OrderStatus.CANCELLED),
-        ("ApiCancelled", OrderStatus.CANCELLED),
-        ("PendingSubmit", OrderStatus.PENDING),
-        ("Inactive", OrderStatus.REJECTED),
-        ("UnknownStatus", OrderStatus.SUBMITTED),  # default
-    ])
-    def test_maps_correctly(self, ib_status, expected):
-        assert _map_ib_status(ib_status) == expected
-
+        assert result[0].status == OrderStatus.FILLED
+        assert result[0].fills[0].exec_id == "web-55-10.0-231211180049"
 
 # ---------------------------------------------------------------------------
 # Live trading safety invariants
@@ -430,12 +592,6 @@ class TestLiveTradingSafety:
         for flag in (0, None):
             broker = get_broker_for_account(_make_account(broker_type="paper", live_trading_enabled=flag))
             assert isinstance(broker, PaperBrokerAdapter)
-
-    def test_ib_adapter_blocked_when_flag_is_zero(self):
-        for flag in (0, "0", None, False):
-            account = _make_account(broker_type="interactive_brokers", live_trading_enabled=flag)
-            with pytest.raises(LiveTradingNotEnabledError):
-                get_broker_for_account(account)
 
     def test_live_trading_not_enabled_error_is_runtime_error(self):
         """LiveTradingNotEnabledError must not be accidentally caught by broad except clauses."""
@@ -474,7 +630,7 @@ def _insert_open_broker_order(conn, broker_order_id: str, account_id: int = 1) -
 
 
 class TestReconcileOpenIbOrders:
-    """reconcile_open_ib_orders polls IB for fills on open SUBMITTED orders."""
+    """reconcile_open_ib_orders polls the current broker path for fill updates."""
 
     def test_non_ib_broker_returns_zero(self):
         from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
@@ -493,7 +649,7 @@ class TestReconcileOpenIbOrders:
         _insert_account_row(conn)
         _insert_open_broker_order(conn, broker_order_id="42")
 
-        account = _make_account(broker_type="interactive_brokers", id=1)
+        account = _make_account(broker_type="interactive_brokers_web", id=1)
         fill = OrderFill(filled_qty=10.0, fill_price=151.0, fill_time="2024-01-02T10:00:00", commission=0.5, exec_id="exec-001")
         filled_order = BrokerOrder(
             account_id=1, ticker="AAPL", side="buy", qty=10.0, price=150.0,
@@ -502,10 +658,7 @@ class TestReconcileOpenIbOrders:
             fills=[fill],
         )
 
-        class _FakeIbAdapter(InteractiveBrokersAdapter):
-            def __init__(self):
-                pass
-
+        class _FakeBroker:
             def get_open_trades(self):
                 return [filled_order]
 
@@ -514,7 +667,7 @@ class TestReconcileOpenIbOrders:
 
         recorded = []
         with (
-            patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeIbAdapter()),
+            patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeBroker()),
             patch("trading.services.auto_trader_runtime_service.record_trade", lambda conn, **kw: recorded.append(kw)),
         ):
             count = reconcile_open_ib_orders(conn, "test-account", account, fee=1.0)
@@ -532,7 +685,7 @@ class TestReconcileOpenIbOrders:
         _insert_account_row(conn)
         _insert_open_broker_order(conn, broker_order_id="99")
 
-        account = _make_account(broker_type="interactive_brokers", id=1)
+        account = _make_account(broker_type="interactive_brokers_web", id=1)
         fill = OrderFill(filled_qty=10.0, fill_price=152.0, fill_time="2024-01-02T10:00:00", commission=0.0, exec_id="exec-dup")
         partial_order = BrokerOrder(
             account_id=1, ticker="AAPL", side="buy", qty=10.0, price=150.0,
@@ -541,17 +694,14 @@ class TestReconcileOpenIbOrders:
             fills=[fill],
         )
 
-        class _FakeIbAdapter(InteractiveBrokersAdapter):
-            def __init__(self):
-                pass
-
+        class _FakeBroker:
             def get_open_trades(self):
                 return [partial_order]
 
             def disconnect(self):
                 pass
 
-        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeIbAdapter()):
+        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeBroker()):
             reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
             reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
 
@@ -566,24 +716,20 @@ class TestReconcileOpenIbOrders:
         _insert_account_row(conn)
         # No open broker orders inserted
 
-        account = _make_account(broker_type="interactive_brokers", id=1)
+        account = _make_account(broker_type="interactive_brokers_web", id=1)
 
-        # Subclass so isinstance(broker, InteractiveBrokersAdapter) passes.
-        class _FakeAdapter(InteractiveBrokersAdapter):
-            def __init__(self):
-                pass  # skip super().__init__
-
+        class _FakeBroker:
             def get_open_trades(self):
                 return []
 
             def disconnect(self):
-                _FakeAdapter._disconnect_calls += 1
+                _FakeBroker._disconnect_calls += 1
 
             _disconnect_calls = 0
 
-        fake_adapter = _FakeAdapter()
-        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=fake_adapter):
+        fake_broker = _FakeBroker()
+        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=fake_broker):
             result = reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
 
         assert result == 0
-        assert _FakeAdapter._disconnect_calls == 1
+        assert _FakeBroker._disconnect_calls == 1

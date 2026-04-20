@@ -284,6 +284,11 @@ class TestMainFlow:
         code = module.main()
         assert code == 0
         assert stream_calls  # stream_command was called
+        artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+        assert len(artifacts) == 1
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        assert payload["status"] == "success"
+        assert payload["completed_steps"]
 
     def test_unknown_account_returns_1(
         self, monkeypatch, tmp_path: Path, capsys
@@ -357,3 +362,120 @@ class TestMainFlow:
         ])
         code = module.main()
         assert code == 1
+
+    def test_success_notification_requires_flag(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        sent: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["acct_a"],
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.stream_command",
+            lambda *args, **kwargs: None,
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.notify_webhook_best_effort",
+            lambda **kwargs: sent.append(kwargs) or True,
+        )
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "daily_paper_trading",
+                "--repo-root",
+                str(tmp_path),
+                "--accounts",
+                "acct_a",
+                "--notify-webhook-url",
+                "https://example.test/webhook",
+            ],
+        )
+        code = module.main()
+
+        assert code == 0
+        assert sent == []
+
+    def test_success_notification_sent_when_enabled(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        sent: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["acct_a"],
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.stream_command",
+            lambda *args, **kwargs: None,
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.notify_webhook_best_effort",
+            lambda **kwargs: sent.append(kwargs) or True,
+        )
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "daily_paper_trading",
+                "--repo-root",
+                str(tmp_path),
+                "--accounts",
+                "acct_a",
+                "--notify-webhook-url",
+                "https://example.test/webhook",
+                "--notify-on-success",
+            ],
+        )
+        code = module.main()
+
+        assert code == 0
+        assert len(sent) == 1
+        assert sent[0]["status"] == "ok"
+        assert sent[0]["event"] == "daily-paper-trading"
+
+    def test_failure_notification_sent_when_run_fails(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        module = _load()
+        sent: list[dict[str, object]] = []
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.load_all_account_names",
+            lambda: ["acct_a"],
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.stream_command",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("step failed")),
+        )
+        monkeypatch.setattr(
+            "trading.interfaces.runtime.jobs.daily_paper_trading.notify_webhook_best_effort",
+            lambda **kwargs: sent.append(kwargs) or True,
+        )
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "daily_paper_trading",
+                "--repo-root",
+                str(tmp_path),
+                "--accounts",
+                "acct_a",
+                "--notify-webhook-url",
+                "https://example.test/webhook",
+            ],
+        )
+        code = module.main()
+
+        assert code == 1
+        assert len(sent) == 1
+        assert sent[0]["status"] == "fail"
+        artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+        assert len(artifacts) == 1
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        assert payload["status"] == "failed"
+        assert payload["error"] == "step failed"

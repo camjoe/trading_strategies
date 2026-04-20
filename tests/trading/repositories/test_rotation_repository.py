@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 from trading.services.accounts_service import create_account
-from trading.repositories.rotation_repository import update_account_rotation_state
+from trading.repositories.rotation_repository import (
+    close_rotation_episode,
+    fetch_closed_rotation_episodes,
+    fetch_open_rotation_episode,
+    insert_rotation_episode,
+    update_account_rotation_state,
+)
 
 
 def _account_id(conn, name: str = "rot_acct") -> int:
@@ -62,3 +68,42 @@ class TestUpdateAccountRotationState:
         row = conn.execute("SELECT * FROM accounts WHERE id = ?", (acct_id,)).fetchone()
         assert row["strategy"] == "gamma"
         assert int(row["rotation_active_index"]) == 2
+
+
+class TestRotationEpisodes:
+    def test_insert_fetch_and_close_rotation_episode(self, conn) -> None:
+        acct_id = _account_id(conn, "rot_episode")
+        insert_rotation_episode(
+            conn,
+            account_id=acct_id,
+            strategy_name="trend",
+            started_at="2026-03-01T00:00:00Z",
+            starting_equity=1000.0,
+            starting_realized_pnl=10.0,
+        )
+
+        open_row = fetch_open_rotation_episode(conn, account_id=acct_id)
+        assert open_row is not None
+        assert open_row["strategy_name"] == "trend"
+
+        close_rotation_episode(
+            conn,
+            episode_id=int(open_row["id"]),
+            ended_at="2026-03-10T00:00:00Z",
+            ending_equity=1120.0,
+            ending_realized_pnl=25.0,
+            realized_pnl_delta=15.0,
+            snapshot_count=3,
+        )
+
+        closed_rows = fetch_closed_rotation_episodes(
+            conn,
+            account_id=acct_id,
+            strategy_names=["trend"],
+            start_iso="2026-03-01T00:00:00Z",
+            end_iso="2026-03-31T00:00:00Z",
+        )
+        assert len(closed_rows) == 1
+        assert closed_rows[0]["ending_equity"] == 1120.0
+        assert closed_rows[0]["realized_pnl_delta"] == 15.0
+        assert int(closed_rows[0]["snapshot_count"]) == 3

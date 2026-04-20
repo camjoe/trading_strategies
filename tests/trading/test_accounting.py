@@ -1,7 +1,9 @@
 import pytest
 
 import trading.services.accounting_service as accounting_service
+from common.time import utc_now_iso
 from trading.domain.accounting import compute_account_state
+from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
 from trading.services.accounting_service import load_trades, record_trade
 from trading.services.accounts_service import create_account, get_account
 
@@ -288,6 +290,43 @@ class TestRecordTradeAndLoadTrades:
         assert row is not None
         assert row["side"] == "buy"
         assert row["ticker"] == "MSFT"
+
+    def test_global_runtime_trade_settings_do_not_block_manual_recording(self, conn) -> None:
+        create_account(conn, "acct_global_settings_manual", "Trend", 1000.0, "SPY")
+        upsert_runtime_throttle_settings(
+            conn,
+            runtime_max_trades_per_day=1,
+            runtime_max_trades_per_minute=1,
+            updated_at=utc_now_iso(),
+        )
+
+        record_trade(
+            conn,
+            account_name="acct_global_settings_manual",
+            side="buy",
+            ticker="AAPL",
+            qty=1,
+            price=10,
+            fee=0,
+            trade_time="2026-01-01T00:00:00Z",
+            note="manual",
+        )
+        record_trade(
+            conn,
+            account_name="acct_global_settings_manual",
+            side="buy",
+            ticker="MSFT",
+            qty=1,
+            price=10,
+            fee=0,
+            trade_time="2026-01-01T00:00:01Z",
+            note="manual",
+        )
+
+        account = get_account(conn, "acct_global_settings_manual")
+        rows = conn.execute("SELECT COUNT(*) AS trade_count FROM trades WHERE account_id = ?", (account["id"],)).fetchone()
+        assert rows is not None
+        assert int(rows["trade_count"]) == 2
 
 
     def test_load_trades_orders_by_trade_time_then_id(self, conn) -> None:

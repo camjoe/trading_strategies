@@ -1,6 +1,6 @@
 import { find } from "../lib/dom";
 import { esc } from "../lib/format";
-import { getJson, postJson } from "../lib/http";
+import { errorMessage, getJson, postJson } from "../lib/http";
 import { renderProviderCards, renderSignalRows } from "../components/alt-strategies";
 import type { ProviderStatus, ProviderStatusResponse, SignalsResponse } from "../types";
 
@@ -53,7 +53,7 @@ export function createAltStrategiesFeature(): AltStrategiesFeature {
       grid.innerHTML = renderProviderCards(data.providers);
       updateHealthBadge(computeHealthState(data.providers));
     } catch (err) {
-      grid.innerHTML = `<div class="error">${esc(err instanceof Error ? err.message : "Failed to load provider status.")}</div>`;
+      grid.innerHTML = `<div class="error">${esc(errorMessage(err, "Failed to load provider status."))}</div>`;
     } finally {
       isLoadingStatus = false;
     }
@@ -98,7 +98,7 @@ export function createAltStrategiesFeature(): AltStrategiesFeature {
     } catch (err) {
       if (resultEl) {
         resultEl.className = "error";
-        resultEl.textContent = err instanceof Error ? err.message : "Failed to load signals.";
+        resultEl.textContent = errorMessage(err, "Failed to load signals.");
       }
     }
   }

@@ -2,20 +2,27 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from common.coercion import row_expect_int
+
+from ..account_options import get_account_config_options
+from ..account_contract import build_account_params_update_command
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
 from ..services import (
+    attach_live_benchmark_summary,
+    build_account_list_payload,
     fetch_account_row,
     build_account_summary,
     build_account_summary_and_positions,
     build_comparison_account_payload,
-    fetch_account_snapshot_rows,
+    build_live_benchmark_overlay,
     db_conn,
     fetch_account_trades,
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     fetch_managed_account_rows,
-    resolve_backtest_payload_account,
+    fetch_resolved_account_row,
+    fetch_snapshot_history_rows,
     build_snapshot_payload,
     build_test_account_live_summary,
     build_trade_payload,
@@ -25,12 +32,18 @@ from ..services import (
 router = APIRouter()
 
 
+@router.get("/api/accounts/config/options")
+def api_account_config_options() -> dict[str, object]:
+    """Return ordered option values and defaults for the account configuration editor."""
+    return get_account_config_options()
+
+
 @router.get("/api/accounts")
 def api_accounts() -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
         rows = fetch_managed_account_rows(conn)
-        accounts = [build_account_summary(conn, row) for row in rows]
-        accounts.append(build_test_account_live_summary(conn))
+        accounts = [build_account_list_payload(build_account_summary(conn, row)) for row in rows]
+        accounts.append(build_account_list_payload(build_test_account_live_summary(conn)))
         accounts.sort(key=lambda item: str(item["name"]))
         return {"accounts": accounts}
 
@@ -41,10 +54,16 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
         comparison: list[dict[str, object]] = []
         for row in fetch_managed_account_rows(conn):
             summary = build_account_summary(conn, row)
+            snapshots = fetch_snapshot_history_rows(conn, row_expect_int(row, "id"), limit=100)
+            attach_live_benchmark_summary(summary, build_live_benchmark_overlay(summary, snapshots))
             latest_backtest = fetch_latest_backtest_metrics(conn, str(row["name"]))
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
 
-        comparison.append(build_comparison_account_payload(build_test_account_live_summary(conn), None))
+        test_summary = build_test_account_live_summary(conn)
+        test_account = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
+        test_snapshots = fetch_snapshot_history_rows(conn, row_expect_int(test_account, "id"), limit=100)
+        attach_live_benchmark_summary(test_summary, build_live_benchmark_overlay(test_summary, test_snapshots))
+        comparison.append(build_comparison_account_payload(test_summary, None))
         comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 
@@ -52,22 +71,26 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
 @router.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
     with db_conn() as conn:
-        resolved_name = resolve_backtest_payload_account(account_name, conn)
-        account = fetch_account_row(conn, resolved_name)
+        account = fetch_resolved_account_row(conn, account_name)
         summary, positions = build_account_summary_and_positions(conn, account)
 
         if account_name == TEST_ACCOUNT_NAME:
             summary["name"] = TEST_ACCOUNT_NAME
             summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
 
-        snapshots = fetch_account_snapshot_rows(conn, int(account["id"]), limit=100)
-        trades = fetch_account_trades(conn, int(account["id"]))
-        latest_backtest = fetch_latest_backtest_summary(conn, resolved_name)
+        snapshots = fetch_snapshot_history_rows(conn, row_expect_int(account, "id"), limit=100)
+        overlay = build_live_benchmark_overlay(summary, snapshots)
+        attach_live_benchmark_summary(summary, overlay)
+        trades = fetch_account_trades(conn, row_expect_int(account, "id"))
+        latest_backtest = fetch_latest_backtest_summary(conn, str(account["name"]))
+        latest_backtest_metrics = fetch_latest_backtest_metrics(conn, str(account["name"]))
 
         return {
             "account": summary,
             "positions": positions,
             "latestBacktest": latest_backtest,
+            "latestBacktestMetrics": latest_backtest_metrics,
+            "liveBenchmarkOverlay": overlay,
             "snapshots": [build_snapshot_payload(snapshot) for snapshot in snapshots],
             "trades": [build_trade_payload(trade) for trade in trades[-100:]],
         }
@@ -84,36 +107,14 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
     """
     with db_conn() as conn:
         account = fetch_account_row(conn, account_name)
+        command = build_account_params_update_command(body)
         try:
             update_account_params(
                 conn,
-                int(account["id"]),
+                row_expect_int(account, "id"),
                 account_name,
-                strategy=body.strategy,
-                risk_policy=body.riskPolicy,
-                descriptive_name=body.descriptiveName,
-                stop_loss_pct=body.stopLossPct,
-                take_profit_pct=body.takeProfitPct,
-                instrument_mode=body.instrumentMode,
-                goal_min_return_pct=body.goalMinReturnPct,
-                goal_max_return_pct=body.goalMaxReturnPct,
-                goal_period=body.goalPeriod,
-                learning_enabled=body.learningEnabled,
-                option_strike_offset_pct=body.optionStrikeOffsetPct,
-                option_min_dte=body.optionMinDte,
-                option_max_dte=body.optionMaxDte,
-                option_type=body.optionType,
-                target_delta_min=body.targetDeltaMin,
-                target_delta_max=body.targetDeltaMax,
-                max_premium_per_trade=body.maxPremiumPerTrade,
-                max_contracts_per_trade=body.maxContractsPerTrade,
-                iv_rank_min=body.ivRankMin,
-                iv_rank_max=body.ivRankMax,
-                roll_dte_threshold=body.rollDteThreshold,
-                profit_take_pct=body.profitTakePct,
-                max_loss_pct=body.maxLossPct,
+                command=command,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"status": "ok"}
-

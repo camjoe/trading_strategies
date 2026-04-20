@@ -4,8 +4,9 @@ import sqlite3
 
 from trading.database.db_backend import get_backend
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> sqlite3.Row | None:
-    return conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
+    row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+    return dict(row) if row is not None else None
 
 
 def insert_account(
@@ -24,6 +25,8 @@ def insert_account(
     risk_policy: str,
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
+    trade_size_pct: float | None,
+    max_position_pct: float | None,
     instrument_mode: str,
     option_strike_offset_pct: float | None,
     option_min_dte: int | None,
@@ -55,6 +58,8 @@ def insert_account(
             risk_policy,
             stop_loss_pct,
             take_profit_pct,
+            trade_size_pct,
+            max_position_pct,
             instrument_mode,
             option_strike_offset_pct,
             option_min_dte,
@@ -70,7 +75,7 @@ def insert_account(
             profit_take_pct,
             max_loss_pct
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             name,
@@ -86,6 +91,8 @@ def insert_account(
             risk_policy,
             stop_loss_pct,
             take_profit_pct,
+            trade_size_pct,
+            max_position_pct,
             instrument_mode,
             option_strike_offset_pct,
             option_min_dte,
@@ -113,15 +120,18 @@ def update_account_benchmark(conn: sqlite3.Connection, *, account_id: int, bench
     conn.commit()
 
 
-def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    return conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    return [dict(row) for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()]
 
 
-def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[sqlite3.Row]:
-    return conn.execute(
-        "SELECT * FROM accounts WHERE name != ? ORDER BY name",
-        (excluded_name,),
-    ).fetchall()
+def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[dict[str, object]]:
+    return [
+        dict(row)
+        for row in conn.execute(
+            "SELECT * FROM accounts WHERE name != ? ORDER BY name",
+            (excluded_name,),
+        ).fetchall()
+    ]
 
 
 def update_account_fields(

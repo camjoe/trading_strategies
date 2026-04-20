@@ -19,6 +19,8 @@ from typing import Any
 
 import pandas as pd
 
+from trading.backtesting.services.report_service import resolve_signal
+
 _LOG = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -290,8 +292,6 @@ def get_signals(ticker: str) -> list[dict[str, Any]]:
     feature-data direction only — suitable as contextual, not actionable,
     signals.
     """
-    from trading.backtesting.domain.strategy_signals import resolve_signal
-
     empty_history = pd.Series([], dtype=float)
     signals: list[dict[str, Any]] = []
 

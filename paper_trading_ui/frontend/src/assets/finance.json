@@ -177,16 +177,46 @@
       "definition": "Percentage of trades that are profitable."
     },
     {
+      "term": "Win Rate",
+      "group": "Performance and Risk",
+      "use": "both",
+      "definition": "Percentage of trades that finish profitable. In the UI this is the same idea as hit rate, surfaced from persisted backtest metrics."
+    },
+    {
       "term": "Max Drawdown",
       "group": "Performance and Risk",
-      "use": "glossary",
+      "use": "both",
       "definition": "Largest peak-to-trough decline in portfolio value."
     },
     {
       "term": "Sharpe Ratio",
       "group": "Performance and Risk",
-      "use": "glossary",
+      "use": "both",
       "definition": "Risk-adjusted return: mean excess return divided by standard deviation. Higher is better."
+    },
+    {
+      "term": "Sortino Ratio",
+      "group": "Performance and Risk",
+      "use": "both",
+      "definition": "Risk-adjusted return similar to Sharpe, but only penalizes downside volatility. Higher is better when you care more about harmful swings than upside variation."
+    },
+    {
+      "term": "Calmar Ratio",
+      "group": "Performance and Risk",
+      "use": "both",
+      "definition": "Return relative to maximum drawdown. Useful for judging whether returns were earned efficiently compared with the worst peak-to-trough decline."
+    },
+    {
+      "term": "Profit Factor",
+      "group": "Performance and Risk",
+      "use": "both",
+      "definition": "Gross profits divided by gross losses across trades. Above 1.0 means profits exceeded losses overall."
+    },
+    {
+      "term": "Average Trade Return",
+      "group": "Performance and Risk",
+      "use": "both",
+      "definition": "Average percentage return per trade across the measured run. Useful as a rough quality check alongside drawdown and win rate."
     },
     {
       "term": "Turnover",

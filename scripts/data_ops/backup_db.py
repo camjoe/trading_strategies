@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 from common.repo_paths import get_repo_root
+from trading.interfaces.runtime.data_ops.admin import backup_database
 
 # ---------------------------------------------------------------------------
 # CONFIG — edit this block to reconfigure without touching any logic below
@@ -37,8 +38,6 @@ BACKUP_DIR: Path = REPO_ROOT / "local" / "db_backups"
 # Rolling window: how many recent copies to keep (monthly archives are on top of this).
 KEEP_RECENT: int = 30
 # ---------------------------------------------------------------------------
-
-from trading.interfaces.runtime.data_ops.admin import backup_database  # noqa: E402
 
 
 _STEM_PREFIX = "paper_trading_"

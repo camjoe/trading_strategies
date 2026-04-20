@@ -3,16 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.backtesting.repositories.history_repository import fetch_strategy_backtest_rows
-from common.coercion import coerce_float
-from trading.backtesting.trading_bridge import safe_return_pct as safe_return_pct_impl
-
-
-def _safe_return_pct(starting_equity: object, ending_equity: object) -> float | None:
-    return safe_return_pct_impl(
-        starting_equity,
-        ending_equity,
-        coerce_float_fn=coerce_float,
-    )
+from trading.backtesting.trading_bridge import safe_return_pct
 
 
 def fetch_strategy_backtest_returns(
@@ -39,7 +30,7 @@ def fetch_strategy_backtest_returns(
         if not strategy_name:
             continue
 
-        ret = _safe_return_pct(row["starting_equity"], row["ending_equity"])
+        ret = safe_return_pct(row["starting_equity"], row["ending_equity"])
         if ret is None:
             continue
 

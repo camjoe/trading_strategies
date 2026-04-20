@@ -1,46 +1,34 @@
 {
   "schema_version": 2,
-  "projects": [
-    {
-      "name": "trading/",
-      "description": "Core trading engine for paper trading accounts, trade recording, position management, accounting, automation, reporting, and backtesting."
-    },
-    {
-      "name": "trends/",
-      "description": "Trend analysis module for fetching market data, computing technical indicators, and producing trend signals."
-    },
-    {
-      "name": "paper_trading_ui/",
-      "description": "Web interface for paper trading and backtesting with a FastAPI backend and TypeScript + Vite frontend."
-    },
-    {
-      "name": "common/",
-      "description": "Shared cross-project utilities including market data providers, ticker loading, repo paths, and time helpers."
-    }
-  ],
-  "languages_frameworks": [
-    {
-      "name": "Python",
-      "usage": "Core language for all trading logic, backtesting, data analysis, and the API backend."
-    },
-    {
-      "name": "TypeScript",
-      "usage": "Frontend UI (paper_trading_ui/frontend/) \u2014 provides type-safe client-side code."
-    },
-    {
-      "name": "SQL (SQLite)",
-      "usage": "Persistent storage for accounts, trades, equity snapshots, and backtest results."
-    },
-    {
-      "name": "FastAPI",
-      "usage": "REST API framework for the paper_trading_ui backend."
-    },
-    {
-      "name": "Vite",
-      "usage": "Frontend build tool and dev server for the TypeScript UI."
-    }
-  ],
   "packages": [
+    {
+      "name": "ib_async",
+      "version": "==1.0.3",
+      "scope": "runtime",
+      "group": "Data & Market Access",
+      "purpose": "Async Interactive Brokers client used for broker connectivity, live account queries, and order execution flows."
+    },
+    {
+      "name": "newsapi-python",
+      "version": "==0.2.7",
+      "scope": "runtime",
+      "group": "Data & Market Access",
+      "purpose": "News API client used by alternative strategy features to fetch news inputs for sentiment-style signals."
+    },
+    {
+      "name": "praw",
+      "version": "==7.8.1",
+      "scope": "runtime",
+      "group": "Data & Market Access",
+      "purpose": "Reddit API client used by alternative strategy features to fetch social discussion inputs."
+    },
+    {
+      "name": "pytrends",
+      "version": "==4.9.2",
+      "scope": "runtime",
+      "group": "Data & Market Access",
+      "purpose": "Google Trends client used by alternative strategy features to pull search-interest signals."
+    },
     {
       "name": "yfinance",
       "version": "==1.2.0",
@@ -61,6 +49,13 @@
       "scope": "runtime",
       "group": "Analysis & Modeling",
       "purpose": "Core tabular and time-series data handling across trading, trends, and reporting flows."
+    },
+    {
+      "name": "vaderSentiment",
+      "version": "==3.3.2",
+      "scope": "runtime",
+      "group": "Analysis & Modeling",
+      "purpose": "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features."
     },
     {
       "name": "matplotlib",
@@ -112,6 +107,13 @@
       "purpose": "Property-based testing library for broader edge-case coverage."
     },
     {
+      "name": "playwright",
+      "version": ">=1.50.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Browser automation library used for UI smoke checks and end-to-end interaction coverage."
+    },
+    {
       "name": "pytest",
       "version": "==8.3.5",
       "scope": "development",
@@ -131,6 +133,53 @@
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "pytest integration for mocking and patch-based test setup."
+    },
+    {
+      "name": "pytest-xdist",
+      "version": ">=3.0.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Parallel test execution plugin used to speed up larger local and CI pytest runs."
+    }
+  ],
+  "projects": [
+    {
+      "name": "trading/",
+      "description": "Core trading engine for paper trading accounts, trade recording, position management, accounting, automation, reporting, and backtesting."
+    },
+    {
+      "name": "trends/",
+      "description": "Trend analysis module for fetching market data, computing technical indicators, and producing trend signals."
+    },
+    {
+      "name": "paper_trading_ui/",
+      "description": "Web interface for paper trading and backtesting with a FastAPI backend and TypeScript + Vite frontend."
+    },
+    {
+      "name": "common/",
+      "description": "Shared cross-project utilities including market data providers, ticker loading, repo paths, and time helpers."
+    }
+  ],
+  "languages_frameworks": [
+    {
+      "name": "Python",
+      "usage": "Core language for all trading logic, backtesting, data analysis, and the API backend."
+    },
+    {
+      "name": "TypeScript",
+      "usage": "Frontend UI (paper_trading_ui/frontend/) \u2014 provides type-safe client-side code."
+    },
+    {
+      "name": "SQL (SQLite)",
+      "usage": "Persistent storage for accounts, trades, equity snapshots, and backtest results."
+    },
+    {
+      "name": "FastAPI",
+      "usage": "REST API framework for the paper_trading_ui backend."
+    },
+    {
+      "name": "Vite",
+      "usage": "Frontend build tool and dev server for the TypeScript UI."
     }
   ]
 }

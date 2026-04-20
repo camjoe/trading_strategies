@@ -18,6 +18,8 @@ Purpose: save the current-state map and integration path for sentiment, topic, a
 **Account/strategy configuration:**
 - `trading/accounts.py` — creates accounts with strategy name stored in DB.
 - `trading/config/account_profiles/default.json` — templates with strategies "Momentum", "Mean Reversion".
+- `trading/database/db.py` — seeds `accounts.rotation_overlay_watchlist` from `trading/config/trade_universe.txt` for new schemas and backfills existing accounts when the column is added. That seed is stored in the DB schema/defaults at migration time; changing `trade_universe.txt` later requires an explicit DB update or migration if you want the new list to propagate.
+- `trading/services/rotation_service.py` — account-level regime overlays evaluate the union of current holdings plus `rotation_overlay_watchlist`, so news/social coverage is not limited to already-open positions.
 
 **Backtesting loop:**
 - Loads price history for all tickers (start–end range).
@@ -69,7 +71,7 @@ The following items from the original "missing pieces" list are now implemented 
 - **Search trends (Google Trends)** — `SocialFeatureProvider` fetches 30-day ticker interest via `pytrends`. Feeds `social_trend_score` feature. Signal: `social_trend_rotation` strategy.
 - **Macro/political proxy** — `PolicyFeatureProvider` uses TLT/GLD/XLU/UUP vs SPY trailing returns to derive a `policy_risk_on_score` and `policy_defensive_tilt`. Signal: `policy_regime` strategy. Note: this is an ETF-proxy approach, not a direct FRED/VIX or event-calendar integration.
 
-**Architecture for all three:** every provider subclasses `trading.features.base.ExternalFeatureProvider`, which handles TTL-based per-ticker caching and graceful degradation (returns `ExternalFeatureBundle(available=False)` on any error). Signal functions in `strategy_signals.py` import only feature-name constants and check `bundle.available` before using values. See `.github/BOT_ARCHITECTURE_CONVENTIONS.md §External Data Strategies` for the enforced rules.
+**Architecture for all three:** every provider subclasses `trading.features.base.ExternalFeatureProvider`, which handles TTL-based per-ticker caching and graceful degradation (returns `ExternalFeatureBundle(available=False)` on any error). Signal functions in `strategy_signals.py` import only feature-name constants and check `bundle.available` before using values. For regime-rotation overlays, `select_regime_strategy()` applies these providers across the union of live holdings and each account's `rotation_overlay_watchlist`, which defaults to the canonical tickers in `trading/config/trade_universe.txt`. That default is persisted in the DB schema/defaults, so operators must run an explicit DB update or migration if they change the source universe and want the new default to propagate. See `.github/BOT_ARCHITECTURE_CONVENTIONS.md §External Data Strategies` for the enforced rules.
 
 **Still not implemented (original list items remaining):**
 - Macro/political event calendars (FRED, paid event databases)

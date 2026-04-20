@@ -51,3 +51,7 @@ export async function postJson<T>(path: string, payload?: unknown): Promise<T> {
   const text = await res.text();
   return (text ? (JSON.parse(text) as T) : ({} as T));
 }
+
+export function errorMessage(error: unknown, fallback = "Unknown error"): string {
+  return error instanceof Error ? error.message : fallback;
+}

@@ -79,3 +79,20 @@ def test_readme_consistency_ignores_code_fence_headings(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert "Style issues: 0" in result.stdout
+
+
+def test_readme_consistency_ignores_virtualenv_readmes(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text(
+        "# Repo\n\n## Project Overview\n\n## Directory Structure\n\n## Quick Start\n\n## Testing\n\n## Documentation Index\n",
+        encoding="utf-8",
+    )
+    venv_readme = repo / "venv" / "lib" / "python3.12" / "site-packages" / "pkg" / "README.md"
+    venv_readme.parent.mkdir(parents=True)
+    venv_readme.write_text("not a heading\n", encoding="utf-8")
+
+    result = _run_check(repo, "--enforce-style")
+
+    assert result.returncode == 0
+    assert "README files scanned: 1" in result.stdout

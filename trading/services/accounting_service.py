@@ -11,8 +11,8 @@ from trading.domain.accounting import (
 from trading.repositories.trades_repository import fetch_trades_for_account, insert_trade
 
 
-def load_trades(conn: sqlite3.Connection, account_id: int) -> list[sqlite3.Row]:
-    return fetch_trades_for_account(conn, account_id=account_id)
+def load_trades(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
+    return [dict(row) for row in fetch_trades_for_account(conn, account_id=account_id)]
 
 
 def _account_state_from_db(conn: sqlite3.Connection, account_id: int, initial_cash: float):

@@ -5,8 +5,16 @@ from typing import Callable
 
 import pandas as pd
 
-from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
-from trading.backtesting.repositories.leaderboard_repository import fetch_equity_rows, fetch_leaderboard_rows
+from trading.backtesting.domain.metrics import (
+    benchmark_return_pct,
+    max_drawdown_pct,
+    summarize_backtest_performance,
+)
+from trading.backtesting.repositories.leaderboard_repository import (
+    fetch_equity_rows,
+    fetch_leaderboard_rows,
+    fetch_trade_rows,
+)
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 
@@ -41,6 +49,11 @@ def fetch_backtest_leaderboard_entries(
         equity_rows = fetch_equity_rows(conn, row_expect_int(row, "run_id"))
         curve = [row_float(item, "equity") for item in equity_rows]
         max_drawdown = max_drawdown_pct([value for value in curve if value is not None])
+        trade_rows = fetch_trade_rows(conn, row_expect_int(row, "run_id"))
+        performance = summarize_backtest_performance(
+            [value for value in curve if value is not None],
+            trade_rows,
+        )
 
         total_return_pct = ((end_equity / start_equity) - 1.0) * 100.0
 
@@ -76,6 +89,12 @@ def fetch_backtest_leaderboard_entries(
             max_drawdown_pct=float(max_drawdown),
             benchmark_return_pct=benchmark_ret,
             alpha_pct=alpha_pct,
+            sharpe_ratio=performance.sharpe_ratio,
+            sortino_ratio=performance.sortino_ratio,
+            calmar_ratio=performance.calmar_ratio,
+            win_rate_pct=performance.win_rate_pct,
+            profit_factor=performance.profit_factor,
+            avg_trade_return_pct=performance.avg_trade_return_pct,
         )
         entries.append((entry, float(start_equity)))
 

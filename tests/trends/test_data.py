@@ -4,7 +4,11 @@ import pytest
 from trends.data import fetch_data
 
 
-def test_fetch_data_flattens_multiindex_with_ticker_level(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fetch_data_flattens_multiindex_with_ticker_level(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     index = pd.date_range("2026-01-01", periods=3)
     columns = pd.MultiIndex.from_product(
         [["Close", "Volume"], ["AAPL"]],
@@ -29,7 +33,11 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(monkeypatch: pytest.Mo
     assert not isinstance(out.columns, pd.MultiIndex)
 
 
-def test_fetch_data_raises_for_empty_download(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fetch_data_raises_for_empty_download(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     monkeypatch.setattr("common.market_data.yf.download", lambda *args, **kwargs: pd.DataFrame())
 
     with pytest.raises(ValueError, match="No data returned"):

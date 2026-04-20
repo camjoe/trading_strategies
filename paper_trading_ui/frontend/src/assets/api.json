@@ -33,7 +33,7 @@
       "handler": "api_accounts",
       "module": "accounts",
       "group": "Accounts & Snapshots Endpoints",
-      "description": "List account summaries including equity, benchmark, PnL deltas, and latest snapshot timing."
+      "description": "List account summaries including equity, benchmark, PnL deltas, latest snapshot timing, and live benchmark summary fields when available."
     },
     {
       "method": "GET",
@@ -41,7 +41,15 @@
       "handler": "api_accounts_compare",
       "module": "accounts",
       "group": "Accounts & Snapshots Endpoints",
-      "description": "Return all accounts with live equity stats and latest backtest metrics for side-by-side comparison."
+      "description": "Return all accounts with live equity stats, live benchmark return/alpha summaries, and latest backtest metrics for side-by-side comparison."
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounts/config/options",
+      "handler": "api_account_config_options",
+      "module": "accounts",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": "Return ordered option values and defaults for the account configuration editor."
     },
     {
       "method": "GET",
@@ -49,7 +57,15 @@
       "handler": "api_account_detail",
       "module": "accounts",
       "group": "Accounts & Snapshots Endpoints",
-      "description": "Get one account detail, latest backtest summary, recent snapshots, and recent trades."
+      "description": "Get one account detail including positions, latest backtest summary, recent snapshots, recent trades, and liveBenchmarkOverlay data."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/accounts/{account_name}/params",
+      "handler": "api_update_account_params",
+      "module": "accounts",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": "Partially update mutable account config, options, goals, and rotation settings."
     },
     {
       "method": "POST",
@@ -74,6 +90,38 @@
       "module": "health",
       "group": "Accounts & Snapshots Endpoints",
       "description": "Simple health check. Returns {\"status\":\"ok\"} when backend is up."
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounts/{account_name}/analysis",
+      "handler": "api_account_analysis",
+      "module": "analysis",
+      "group": "Analysis Endpoints",
+      "description": "Return account analysis including account return, benchmark return, alpha, PnL splits, top winners/losers, and improvement notes."
+    },
+    {
+      "method": "POST",
+      "path": "/api/accounts/{account_name}/trades",
+      "handler": "api_add_trade",
+      "module": "trades",
+      "group": "Trading & Signals Endpoints",
+      "description": "Insert a manual trade for the virtual test account after ticker validation and account-rule checks."
+    },
+    {
+      "method": "POST",
+      "path": "/api/features/signals",
+      "handler": "api_feature_signals",
+      "module": "features",
+      "group": "Trading & Signals Endpoints",
+      "description": "Run the feature-driven signal helpers for a ticker and return provider-specific signal/context payloads."
+    },
+    {
+      "method": "GET",
+      "path": "/api/features/status",
+      "handler": "api_feature_status",
+      "module": "features",
+      "group": "Trading & Signals Endpoints",
+      "description": "Return health/status details for the UI alt-strategy feature providers."
     },
     {
       "method": "POST",
@@ -106,6 +154,22 @@
       "module": "admin",
       "group": "Admin Endpoints",
       "description": "Preview rows from a selected CSV export file with a configurable row limit."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/operations/overview",
+      "handler": "api_operations_overview",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return current runtime job health, recent artifacts, and backup visibility."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/promotion/overview",
+      "handler": "api_promotion_overview",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return promotion readiness plus persisted review history for one account."
     },
     {
       "method": "GET",
@@ -145,7 +209,7 @@
       "handler": "api_run_backtest",
       "module": "backtests",
       "group": "Backtesting Endpoints",
-      "description": "Run a single backtest window and persist the result payload."
+      "description": "Run a single backtest window and return persisted result metrics including Sharpe, Sortino, Calmar, win rate, profit factor, and average trade return."
     },
     {
       "method": "GET",

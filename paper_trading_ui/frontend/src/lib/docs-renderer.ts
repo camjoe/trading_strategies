@@ -142,7 +142,7 @@ function buildFinanceCard(): string {
   return `  <section class="card ref-card">
     <div class="ref-card-head">
       <h2>Financial &amp; Market Knowledge</h2>
-      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">⊞</button>
     </div>
 
 ${sections}
@@ -209,7 +209,7 @@ function buildSoftwareCard(): string {
   return `  <section class="card ref-card">
     <div class="ref-card-head">
       <h2>Software</h2>
-      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">⊞</button>
     </div>
 
     <div class="ref-section">
@@ -242,45 +242,61 @@ ${buildPackagesSection(packages)}
 
 const API_GROUP_ORDER = [
   "Accounts & Snapshots Endpoints",
+  "Analysis Endpoints",
+  "Trading & Signals Endpoints",
   "Admin Endpoints",
   "Logs Endpoints",
   "Backtesting Endpoints",
 ];
 
 // Static content: request body model tables (not yet extracted to JSON).
+const ACCOUNTS_REQUEST_BODY_CONTENT = `
+      <p class="ref-subsection-label">PATCH /api/accounts/{account_name}/params (AccountParamsRequest)</p>
+      <p class="muted">
+        Canonical editable-field definitions live in
+        <code>paper_trading_ui/backend/schemas.py</code> (<code>AccountParamsRequest</code>)
+        , <code>paper_trading_ui/backend/account_contract.py</code>, and
+        <code>GET /api/accounts/config/options</code>. The UI groups
+        those fields into the sections below instead of restating the full field-by-field
+        wire contract here.
+      </p>
+      <table class="ref-table">
+        <thead><tr><th>Field Group</th><th>Coverage</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Core policy</td><td>Identity, risk policy, sizing, instrument mode, learning flag</td><td>Only supplied non-null fields are applied.</td></tr>
+          <tr><td>Goals</td><td>Operator-facing return targets and goal period</td><td>Lets the UI update account goals without recreating the account.</td></tr>
+          <tr><td>Options / LEAPs</td><td>Selection filters, DTE bounds, delta and IV gates, premium and loss controls</td><td>Used for LEAPs/options-aware account policies.</td></tr>
+          <tr><td>Rotation</td><td>Schedule, regime mapping, overlay thresholds, active state</td><td>Supports both scheduled rotation and regime-overlay controls.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">Important response fields on account endpoints</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Where it appears</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>liveBenchmarkReturnPct</td><td>GET /api/accounts/compare</td><td>Benchmark return over the same persisted live snapshot period when enough history exists.</td></tr>
+          <tr><td>liveAlphaPct</td><td>GET /api/accounts/compare</td><td>Live account return minus benchmark return over the aligned snapshot period.</td></tr>
+          <tr><td>liveBenchmarkOverlay</td><td>GET /api/accounts/{account_name}</td><td>Time-aligned benchmark overlay payload with benchmark ticker, summary stats, and chart-ready points.</td></tr>
+          <tr><td>latestBacktestMetrics</td><td>GET /api/accounts/{account_name}, GET /api/accounts/compare</td><td>Compact backtest metric bundle used by the UI for ratio and quality summaries.</td></tr>
+        </tbody>
+      </table>`;
+
 const ADMIN_REQUEST_BODY_CONTENT = `
       <p class="ref-subsection-label">POST /api/admin/accounts/create (AdminCreateAccountRequest)</p>
+      <p class="muted">
+        Canonical create-field definitions live in
+        <code>paper_trading_ui/backend/schemas.py</code> (<code>AdminCreateAccountRequest</code>)
+        , <code>paper_trading_ui/backend/account_contract.py</code>, and
+        <code>GET /api/accounts/config/options</code>. This summary
+        focuses on grouped intent rather than repeating the full contract.
+      </p>
       <table class="ref-table">
-        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Field Group</th><th>Coverage</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td>name</td><td>string (required)</td><td>Unique account identifier.</td></tr>
-          <tr><td>strategy</td><td>string (required)</td><td>Strategy key (e.g. trend, mean_reversion, ma_crossover).</td></tr>
-          <tr><td>initialCash</td><td>float (required, &gt; 0)</td><td>Starting cash balance.</td></tr>
-          <tr><td>benchmarkTicker</td><td>string, default SPY</td><td>Benchmark for alpha calculations.</td></tr>
-          <tr><td>descriptiveName</td><td>string | null</td><td>Optional human-readable display name.</td></tr>
-          <tr><td>goalPeriod</td><td>string, default monthly</td><td>One of: monthly, weekly, quarterly, yearly.</td></tr>
-          <tr><td>goalMinReturnPct / goalMaxReturnPct</td><td>float | null</td><td>Optional return range targets for the goal period.</td></tr>
-          <tr><td>learningEnabled</td><td>bool, default false</td><td>Enable adaptive learning mode.</td></tr>
-          <tr><td>riskPolicy</td><td>string, default none</td><td>One of: none, fixed_stop, take_profit, stop_and_target.</td></tr>
-          <tr><td>stopLossPct / takeProfitPct / profitTakePct / maxLossPct</td><td>float | null</td><td>Risk control thresholds (used depending on riskPolicy).</td></tr>
-          <tr><td>instrumentMode</td><td>string, default equity</td><td>One of: equity, leaps.</td></tr>
-          <tr><td>optionType</td><td>string | null</td><td>One of: call, put, both (only relevant for leaps mode).</td></tr>
-          <tr><td>optionStrikeOffsetPct</td><td>float | null</td><td>Strike offset as percentage from current price.</td></tr>
-          <tr><td>optionMinDte / optionMaxDte</td><td>int | null</td><td>DTE range for options selection.</td></tr>
-          <tr><td>targetDeltaMin / targetDeltaMax</td><td>float | null, 0\u20131</td><td>Delta range for target options.</td></tr>
-          <tr><td>ivRankMin / ivRankMax</td><td>float | null, 0\u2013100</td><td>IV rank filter range.</td></tr>
-          <tr><td>maxPremiumPerTrade</td><td>float | null</td><td>Cap on premium paid per options trade.</td></tr>
-          <tr><td>maxContractsPerTrade</td><td>int | null</td><td>Max contract count per trade.</td></tr>
-          <tr><td>rollDteThreshold</td><td>int | null</td><td>DTE at which to roll an existing options position.</td></tr>
-          <tr><td>rotationEnabled</td><td>bool, default false</td><td>Enable strategy rotation for this account.</td></tr>
-          <tr><td>rotationMode</td><td>string, default time</td><td>One of: time, optimal.</td></tr>
-          <tr><td>rotationOptimalityMode</td><td>string, default previous_period_best</td><td>One of: previous_period_best, average_return.</td></tr>
-          <tr><td>rotationIntervalDays</td><td>int | null</td><td>Days between time-based rotations.</td></tr>
-          <tr><td>rotationLookbackDays</td><td>int | null</td><td>Lookback window (days) for optimal-mode evaluation.</td></tr>
-          <tr><td>rotationSchedule</td><td>string[] | null</td><td>Ordered list of strategy keys to rotate through.</td></tr>
-          <tr><td>rotationActiveIndex</td><td>int, default 0</td><td>Current position in the rotation schedule.</td></tr>
-          <tr><td>rotationActiveStrategy</td><td>string | null</td><td>Explicitly set active strategy (overrides index lookup).</td></tr>
-          <tr><td>rotationLastAt</td><td>string | null</td><td>ISO datetime of last rotation event.</td></tr>
+          <tr><td>Identity</td><td>name, strategy, initialCash, benchmarkTicker, descriptiveName</td><td>Core account identity and display fields.</td></tr>
+          <tr><td>Policy and goals</td><td>Risk policy, sizing, learning, return goals</td><td>Mirrors the editable account-config surface used by the detail UI.</td></tr>
+          <tr><td>Options / LEAPs</td><td>Option selection bounds, delta and IV filters, premium and loss controls</td><td>Relevant when the account uses LEAPs-aware execution.</td></tr>
+          <tr><td>Rotation</td><td>Enablement, cadence, schedule, regime mapping, overlays, active state</td><td>Uses the same canonical rotation-profile mapping as account updates.</td></tr>
         </tbody>
       </table>
 
@@ -290,6 +306,27 @@ const ADMIN_REQUEST_BODY_CONTENT = `
         <tbody>
           <tr><td>accountName</td><td>string (required)</td><td>Name of the account to delete.</td></tr>
           <tr><td>confirm</td><td>bool, default false</td><td>Must be true or the request is rejected with 400.</td></tr>
+        </tbody>
+      </table>`;
+
+const TRADING_SIGNALS_REQUEST_BODY_CONTENT = `
+      <p class="ref-subsection-label">POST /api/accounts/{account_name}/trades (ManualTradeRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>ticker</td><td>string (required)</td><td>Ticker is normalized to uppercase and validated against recent market data.</td></tr>
+          <tr><td>side</td><td>"buy" | "sell"</td><td>Manual trades are only permitted on the virtual test account.</td></tr>
+          <tr><td>qty</td><td>float (&gt; 0)</td><td>Position quantity.</td></tr>
+          <tr><td>price</td><td>float (&gt; 0)</td><td>Manual execution price.</td></tr>
+          <tr><td>fee</td><td>float, default 0.0</td><td>Optional execution fee.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="ref-subsection-label">POST /api/features/signals (FeatureSignalsRequest)</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>ticker</td><td>string (required)</td><td>Runs the UI signal helpers for the requested ticker and returns provider-specific reasoning/context.</td></tr>
         </tbody>
       </table>`;
 
@@ -342,6 +379,20 @@ const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
           <tr><td>allowApproximateLeaps</td><td>bool, default false</td><td>Allow LEAP approximation fallback.</td></tr>
         </tbody>
       </table>
+
+      <p class="ref-subsection-label">Key backtest result metrics used in the UI</p>
+      <table class="ref-table">
+        <thead><tr><th>Field</th><th>Meaning</th><th>Where the UI uses it</th></tr></thead>
+        <tbody>
+          <tr><td>sharpeRatio</td><td>Risk-adjusted return using total volatility.</td><td>Backtest run results, latest backtest summary, and compare table.</td></tr>
+          <tr><td>sortinoRatio</td><td>Risk-adjusted return using downside volatility only.</td><td>Backtest result views and persisted report payloads.</td></tr>
+          <tr><td>calmarRatio</td><td>Return relative to max drawdown.</td><td>Backtest result views and persisted report payloads.</td></tr>
+          <tr><td>winRatePct</td><td>Percent of profitable trades.</td><td>Latest backtest cards and compare table.</td></tr>
+          <tr><td>profitFactor</td><td>Gross profits divided by gross losses.</td><td>Latest backtest cards and compare table.</td></tr>
+          <tr><td>avgTradeReturnPct</td><td>Average return per trade.</td><td>Persisted report payloads and detailed backtest summaries.</td></tr>
+          <tr><td>benchmarkReturnPct / alphaPct</td><td>Benchmark-relative context for the same backtest window.</td><td>Backtest result summary and account comparison views.</td></tr>
+        </tbody>
+      </table>
     </div>`;
 
 function buildApiSection(title: string, endpoints: ApiEndpoint[], extra: string): string {
@@ -389,7 +440,14 @@ function buildApiCard(): string {
 
   const endpointSections = orderedGroups
     .map((group) => {
-      const extra = group === "Admin Endpoints" ? ADMIN_REQUEST_BODY_CONTENT : "";
+      const extra =
+        group === "Accounts & Snapshots Endpoints"
+          ? ACCOUNTS_REQUEST_BODY_CONTENT
+          : group === "Trading & Signals Endpoints"
+            ? TRADING_SIGNALS_REQUEST_BODY_CONTENT
+            : group === "Admin Endpoints"
+              ? ADMIN_REQUEST_BODY_CONTENT
+              : "";
       return buildApiSection(group, grouped[group], extra);
     })
     .join("\n\n");
@@ -397,7 +455,7 @@ function buildApiCard(): string {
   return `  <section class="card ref-card">
     <div class="ref-card-head">
       <h2>API Reference</h2>
-      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all>Expand all</button>
+      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">⊞</button>
     </div>
 
     <div class="ref-section">

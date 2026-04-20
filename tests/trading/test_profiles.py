@@ -105,7 +105,7 @@ class TestApplyAccountProfiles:
 
     def test_create_uses_defaults(self, conn):
         """Minimal profile should receive sensible defaults for required fields."""
-        profiles = [{"name": "minimal", "initial_cash": 1000}]
+        profiles = [{"name": "minimal", "initial_cash": 1000, "strategy": "trend"}]
         created, _, _ = apply_account_profiles(conn, profiles, create_missing=True)
         assert created == 1
         account = get_account(conn, "minimal")
@@ -115,7 +115,11 @@ class TestApplyAccountProfiles:
         assert int(account["learning_enabled"]) == 0
 
     def test_update_benchmark(self, conn):
-        apply_account_profiles(conn, [{"name": "upd", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "upd", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
         _, updated, _ = apply_account_profiles(
             conn, [{"name": "upd", "benchmark_ticker": "QQQ"}], create_missing=False
         )
@@ -123,15 +127,23 @@ class TestApplyAccountProfiles:
         assert get_account(conn, "upd")["benchmark_ticker"] == "QQQ"
 
     def test_update_strategy(self, conn):
-        apply_account_profiles(conn, [{"name": "s_acct", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "s_acct", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
         _, updated, _ = apply_account_profiles(
-            conn, [{"name": "s_acct", "strategy": "ValuePlay"}], create_missing=False
+            conn, [{"name": "s_acct", "strategy": "breakout"}], create_missing=False
         )
         assert updated == 1
-        assert get_account(conn, "s_acct")["strategy"] == "ValuePlay"
+        assert get_account(conn, "s_acct")["strategy"] == "breakout"
 
     def test_update_configure_fields(self, conn):
-        apply_account_profiles(conn, [{"name": "cfg", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "cfg", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
         _, updated, _ = apply_account_profiles(
             conn, [{"name": "cfg", "risk_policy": "fixed_stop", "stop_loss_pct": 5.0}], create_missing=False
         )
@@ -142,7 +154,11 @@ class TestApplyAccountProfiles:
 
     def test_no_op_skipped(self, conn):
         """Existing account with no recognized configurable keys -> skipped."""
-        apply_account_profiles(conn, [{"name": "noop", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "noop", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
         _, updated, skipped = apply_account_profiles(
             conn, [{"name": "noop", "initial_cash": 9999}], create_missing=False
         )
@@ -181,7 +197,11 @@ class TestApplyRotationFields:
         assert account["rotation_active_strategy"] == "mean_reversion"
 
     def test_existing_account(self, conn):
-        apply_account_profiles(conn, [{"name": "rot_upd", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "rot_upd", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
 
         created, updated, skipped = apply_account_profiles(
             conn,
@@ -205,7 +225,11 @@ class TestApplyRotationFields:
         assert account["rotation_active_strategy"] == "breakout"
 
     def test_optimal_fields(self, conn):
-        apply_account_profiles(conn, [{"name": "rot_opt", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "rot_opt", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
 
         created, updated, skipped = apply_account_profiles(
             conn,
@@ -233,12 +257,24 @@ class TestApplyRotationFields:
         with pytest.raises(ValueError, match="rotation_interval_days"):
             apply_account_profiles(
                 conn,
-                [{"name": "bad_rot", "initial_cash": 1000, "rotation_enabled": True, "rotation_interval_days": 0}],
+                [
+                    {
+                        "name": "bad_rot",
+                        "initial_cash": 1000,
+                        "strategy": "trend",
+                        "rotation_enabled": True,
+                        "rotation_interval_days": 0,
+                    }
+                ],
                 create_missing=True,
             )
 
     def test_rejects_active_strategy_not_in_schedule(self, conn):
-        apply_account_profiles(conn, [{"name": "bad_rot2", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "bad_rot2", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
         with pytest.raises(ValueError, match="rotation_active_strategy"):
             apply_account_profiles(
                 conn,
@@ -256,7 +292,14 @@ class TestApplyRotationFields:
         with pytest.raises(ValueError, match="rotation_mode"):
             apply_account_profiles(
                 conn,
-                [{"name": "bad_rot_mode", "initial_cash": 1000, "rotation_mode": "regime"}],
+                [
+                    {
+                        "name": "bad_rot_mode",
+                        "initial_cash": 1000,
+                        "strategy": "trend",
+                        "rotation_mode": "orbital",
+                    }
+                ],
                 create_missing=True,
             )
 
@@ -268,6 +311,7 @@ class TestApplyRotationFields:
                     {
                         "name": "bad_rot_opt",
                         "initial_cash": 1000,
+                        "strategy": "trend",
                         "rotation_optimality_mode": "median_return",
                     }
                 ],
@@ -278,7 +322,14 @@ class TestApplyRotationFields:
         with pytest.raises(ValueError, match="rotation_lookback_days"):
             apply_account_profiles(
                 conn,
-                [{"name": "bad_rot_lookback", "initial_cash": 1000, "rotation_lookback_days": 0}],
+                [
+                    {
+                        "name": "bad_rot_lookback",
+                        "initial_cash": 1000,
+                        "strategy": "trend",
+                        "rotation_lookback_days": 0,
+                    }
+                ],
                 create_missing=True,
             )
 
@@ -286,12 +337,23 @@ class TestApplyRotationFields:
         with pytest.raises(ValueError, match="rotation_active_index"):
             apply_account_profiles(
                 conn,
-                [{"name": "bad_rot_index", "initial_cash": 1000, "rotation_active_index": -1}],
+                [
+                    {
+                        "name": "bad_rot_index",
+                        "initial_cash": 1000,
+                        "strategy": "trend",
+                        "rotation_active_index": -1,
+                    }
+                ],
                 create_missing=True,
             )
 
     def test_index_normalized_to_schedule_length(self, conn):
-        apply_account_profiles(conn, [{"name": "rot_mod", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "rot_mod", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
 
         created, updated, skipped = apply_account_profiles(
             conn,
@@ -311,7 +373,11 @@ class TestApplyRotationFields:
         assert account["rotation_active_strategy"] == "breakout"
 
     def test_only_active_strategy_updates_field(self, conn):
-        apply_account_profiles(conn, [{"name": "rot_noop", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "rot_noop", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
 
         created, updated, skipped = apply_account_profiles(
             conn,
@@ -324,7 +390,11 @@ class TestApplyRotationFields:
         assert account["rotation_active_strategy"] == "trend"
 
     def test_only_mode_updates_mode(self, conn):
-        apply_account_profiles(conn, [{"name": "rot_mode_only", "initial_cash": 1000}], create_missing=True)
+        apply_account_profiles(
+            conn,
+            [{"name": "rot_mode_only", "initial_cash": 1000, "strategy": "trend"}],
+            create_missing=True,
+        )
 
         created, updated, skipped = apply_account_profiles(
             conn,

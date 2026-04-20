@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_str
+from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
@@ -165,7 +165,7 @@ def _generate_improvement_notes(
 
 def fetch_account_analysis(
     conn: sqlite3.Connection,
-    account_row: sqlite3.Row,
+    account_row: dict[str, object],
 ) -> dict[str, object]:
     """Return a full performance analysis dict for an account.
 
@@ -176,7 +176,7 @@ def fetch_account_analysis(
     percentage denominator falls back to ``state.total_deposited`` — the
     cumulative cash injected via settlement-ticker (``CASH``) buy trades.
     """
-    account_id = int(account_row["id"])
+    account_id = row_expect_int(account_row, "id")
     initial_cash = row_expect_float(account_row, "initial_cash")
     benchmark_ticker = row_expect_str(account_row, "benchmark_ticker")
     created_at = row_expect_str(account_row, "created_at")
@@ -217,6 +217,7 @@ def fetch_account_analysis(
     return {
         "accountReturnPct": account_return,
         "benchmarkReturnPct": bench_return,
+        "benchmarkTicker": benchmark_ticker,
         "alphaPct": alpha,
         "realizedPnl": state.realized_pnl,
         "unrealizedPnl": unrealized,

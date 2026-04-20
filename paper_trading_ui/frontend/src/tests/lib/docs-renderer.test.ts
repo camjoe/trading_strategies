@@ -40,6 +40,14 @@ describe("buildDocsTemplate", () => {
     expect(html).toContain("walk-forward, out-of-sample");
   });
 
+  it("includes recently added performance terms used by the UI", () => {
+    expect(html).toContain("Sharpe Ratio");
+    expect(html).toContain("Sortino Ratio");
+    expect(html).toContain("Calmar Ratio");
+    expect(html).toContain("Profit Factor");
+    expect(html).toContain("Win Rate");
+  });
+
   it("escapes HTML special characters in term definitions", () => {
     // Definitions containing & should be escaped to &amp; — the esc() helper
     // is exercised on all term/definition values pulled from the JSON asset.
@@ -91,6 +99,11 @@ describe("buildDocsTemplate", () => {
     expect(html).toContain("Backtesting Endpoints");
   });
 
+  it("renders analysis and trading signal endpoint groups", () => {
+    expect(html).toContain("Analysis Endpoints");
+    expect(html).toContain("Trading &amp; Signals Endpoints");
+  });
+
   it("renders admin endpoint group with request body tables", () => {
     expect(html).toContain("Admin Endpoints");
     // ADMIN_REQUEST_BODY_CONTENT contains 'AdminCreateAccountRequest'
@@ -102,6 +115,9 @@ describe("buildDocsTemplate", () => {
     expect(html).toContain("BacktestRunRequest");
     expect(html).toContain("BacktestPreflightRequest");
     expect(html).toContain("WalkForwardRunRequest");
+    expect(html).toContain("sharpeRatio");
+    expect(html).toContain("sortinoRatio");
+    expect(html).toContain("profitFactor");
   });
 
   it("renders endpoint rows with method + path columns", () => {
@@ -112,6 +128,15 @@ describe("buildDocsTemplate", () => {
   it("includes Accounts &amp; Snapshots Endpoints group", () => {
     expect(html).toContain("Accounts");
     expect(html).toContain("Snapshots");
+  });
+
+  it("includes newer account and signal routes", () => {
+    expect(html).toContain("/api/accounts/{account_name}/params");
+    expect(html).toContain("/api/accounts/{account_name}/analysis");
+    expect(html).toContain("/api/accounts/{account_name}/trades");
+    expect(html).toContain("/api/features/status");
+    expect(html).toContain("/api/features/signals");
+    expect(html).toContain("liveBenchmarkOverlay");
   });
 
   // ---------------------------------------------------------------------------

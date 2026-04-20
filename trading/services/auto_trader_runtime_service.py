@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Callable, Mapping, cast
+from typing import Callable, cast
 
+from common.market_hours import is_regular_us_equity_market_open_at_utc_iso
 from common.time import utc_now_iso
-from trading.brokers.base import BrokerOrder, OrderStatus
+from trading.models.broker_order import BrokerOrder, OrderStatus
+from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
 from trading.services.accounts_service import get_account
 from trading.domain.accounting import compute_account_state
@@ -15,10 +17,22 @@ from trading.repositories.broker_orders_repository import (
     insert_order_fill,
     update_broker_order_status,
 )
+from trading.utils.coercion import row_expect_int
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
+from trading.features.base import ExternalFeatureBundle
+from trading.features.news_feature_provider import NewsFeatureProvider
+from trading.features.policy_feature_provider import PolicyFeatureProvider
+from trading.features.social_feature_provider import SocialFeatureProvider
 from trading.repositories.rotation_repository import update_account_rotation_state
+from trading.repositories.rotation_repository import (
+    close_rotation_episode,
+    fetch_closed_rotation_episodes,
+    fetch_open_rotation_episode,
+    insert_rotation_episode,
+)
+from trading.repositories.snapshots_repository import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
     next_rotation_state,
@@ -28,16 +42,21 @@ from trading.domain.rotation import (
     resolve_rotation_mode,
 )
 from trading.services.auto_trader_service import (
-    parse_runtime_as_of_iso as parse_runtime_as_of_iso_impl,
     rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
     RotationDeps,
 )
 from trading.services.rotation_service import (
+    compute_live_account_metrics as compute_live_account_metrics_impl,
+    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
     parse_as_of_iso as parse_as_of_iso_impl,
     rotate_account_if_due as rotate_account_if_due_impl,
+    select_regime_strategy as select_regime_strategy_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
+    sync_rotation_episode as sync_rotation_episode_impl,
 )
+from trading.services.reporting_service import compute_market_value_and_unrealized, fetch_latest_prices
+from trading.services.runtime_throttle_service import enforce_runtime_trade_throttles
 from trading.services.trade_execution_service import (
     build_leaps_candidates as build_leaps_candidates_impl,
     prepare_buy_trade as prepare_buy_trade_impl,
@@ -49,16 +68,57 @@ from trading.services.trade_execution_service import (
 )
 
 
-def _parse_runtime_as_of_iso(as_of_iso: str):
-    return parse_runtime_as_of_iso_impl(
-        as_of_iso,
-        parse_as_of_iso_fn=parse_as_of_iso_impl,
-    )
+_policy_rotation_provider: PolicyFeatureProvider | None = None
+_news_rotation_provider: NewsFeatureProvider | None = None
+_social_rotation_provider: SocialFeatureProvider | None = None
+
+
+def _get_policy_rotation_provider() -> PolicyFeatureProvider:
+    global _policy_rotation_provider
+    if _policy_rotation_provider is None:
+        _policy_rotation_provider = PolicyFeatureProvider()
+    return _policy_rotation_provider
+
+
+def _get_news_rotation_provider() -> NewsFeatureProvider:
+    global _news_rotation_provider
+    if _news_rotation_provider is None:
+        _news_rotation_provider = NewsFeatureProvider()
+    return _news_rotation_provider
+
+
+def _get_social_rotation_provider() -> SocialFeatureProvider:
+    global _social_rotation_provider
+    if _social_rotation_provider is None:
+        _social_rotation_provider = SocialFeatureProvider()
+    return _social_rotation_provider
+
+
+def _fetch_policy_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_policy_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="etf-proxies")
+
+
+def _fetch_news_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_news_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="rss+vader")
+
+
+def _fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
+    try:
+        return _get_social_rotation_provider().get_features(ticker)
+    except Exception:
+        return ExternalFeatureBundle.unavailable(source="reddit+gtrends")
+
 
 
 def _select_runtime_rotation_strategy(
     conn: sqlite3.Connection,
-    account: sqlite3.Row,
+    account: dict[str, object],
     as_of_iso: str,
 ) -> str | None:
     return select_account_rotation_strategy_impl(
@@ -66,34 +126,91 @@ def _select_runtime_rotation_strategy(
         account,
         as_of_iso,
         select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
+        select_regime_strategy_impl_fn=select_regime_strategy_impl,
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=_parse_runtime_as_of_iso,
+        parse_as_of_iso_fn=parse_as_of_iso_impl,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
-        resolve_optimality_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_optimality_mode),
+        fetch_policy_features_fn=_fetch_policy_rotation_bundle,
+        fetch_news_features_fn=_fetch_news_rotation_bundle,
+        fetch_social_features_fn=_fetch_social_rotation_bundle,
+        fetch_rotation_overlay_tickers_fn=_fetch_runtime_rotation_overlay_tickers,
+        resolve_rotation_mode_fn=cast(Callable[[dict[str, object]], str], resolve_rotation_mode),
+        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+        resolve_optimality_mode_fn=cast(Callable[[dict[str, object]], str], resolve_optimality_mode),
+        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
+    )
+
+
+def _fetch_runtime_rotation_overlay_tickers(
+    conn: sqlite3.Connection,
+    account: dict[str, object],
+) -> list[str]:
+    return fetch_rotation_overlay_tickers_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
+    )
+
+
+def _compute_runtime_live_account_metrics(
+    conn: sqlite3.Connection,
+    account: dict[str, object],
+) -> dict[str, float]:
+    return compute_live_account_metrics_impl(
+        conn,
+        account,
+        load_trades_fn=load_trades,
+        compute_account_state_fn=compute_account_state,
+        fetch_latest_prices_fn=fetch_latest_prices,
+        compute_market_value_and_unrealized_fn=compute_market_value_and_unrealized,
+    )
+
+
+def _sync_runtime_rotation_episode(
+    conn: sqlite3.Connection,
+    account: dict[str, object],
+    now_iso: str,
+) -> None:
+    if not hasattr(conn, "execute"):
+        return
+    sync_rotation_episode_impl(
+        conn,
+        account,
+        now_iso,
+        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+        fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
+        insert_rotation_episode_fn=insert_rotation_episode,
+        close_rotation_episode_fn=close_rotation_episode,
+        fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
+        compute_live_account_metrics_fn=_compute_runtime_live_account_metrics,
     )
 
 
 def _rotate_runtime_account(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     now_iso: str,
-) -> sqlite3.Row:
+) -> dict[str, object]:
+    _sync_runtime_rotation_episode(conn, account, now_iso)
     deps = RotationDeps(
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
-        is_rotation_due_fn=lambda row: is_rotation_due(cast(Mapping[str, object], row), as_of_iso=now_iso),
-        resolve_rotation_mode_fn=cast(Callable[[sqlite3.Row], str], resolve_rotation_mode),
+        is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
+        resolve_rotation_mode_fn=cast(Callable[[dict[str, object]], str], resolve_rotation_mode),
         select_optimal_strategy_fn=_select_runtime_rotation_strategy,
-        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
+        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        next_rotation_state_fn=lambda row, as_of: next_rotation_state(cast(Mapping[str, object], row), as_of_iso=as_of),
+        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
-    return rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
+    rotated = rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
+    _sync_runtime_rotation_episode(conn, rotated, now_iso)
+    return rotated
 
 
-def _refresh_runtime_account_state(conn: sqlite3.Connection, account: sqlite3.Row):
+def _refresh_runtime_account_state(conn: sqlite3.Connection, account: dict[str, object]):
     return refresh_account_state_impl(
         conn,
         account,
@@ -103,7 +220,7 @@ def _refresh_runtime_account_state(conn: sqlite3.Connection, account: sqlite3.Ro
 
 
 def _build_runtime_leaps_candidates(
-    account: sqlite3.Row,
+    account: dict[str, object],
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
@@ -124,7 +241,7 @@ def _build_runtime_leaps_candidates(
 
 
 def _prepare_runtime_buy_trade(
-    account: sqlite3.Row,
+    account: dict[str, object],
     instrument_mode: str,
     universe: list[str],
     prices: dict[str, float],
@@ -191,7 +308,7 @@ def _resolve_strategy_style(strategy_name: str | None) -> str | None:
 
 
 def _prepare_runtime_trade_selection(
-    account: sqlite3.Row,
+    account: dict[str, object],
     active_strategy: str | None,
     state,
     can_sell: list[str],
@@ -226,7 +343,7 @@ def _prepare_runtime_trade_selection(
 def _record_runtime_trade(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     learning_enabled: bool,
     risk_policy: str,
     instrument_mode: str,
@@ -234,8 +351,15 @@ def _record_runtime_trade(
     fee: float,
     selection,
     forced_sell: str | None,
+    trade_time_iso: str | None = None,
+    *,
+    _injected_broker: BrokerConnection | None = None,
 ) -> None:
-    broker = get_broker_for_account(account)
+    # When a broker is injected by the caller (e.g. run_for_account) we reuse
+    # that shared connection and let the caller own the disconnect lifecycle.
+    # When called standalone the function creates and disconnects its own broker.
+    _owns_broker = _injected_broker is None
+    broker = _injected_broker if _injected_broker is not None else get_broker_for_account(account)
     try:
         def _broker_aware_record_trade(
             conn: sqlite3.Connection,
@@ -250,7 +374,7 @@ def _record_runtime_trade(
             note: str | None,
         ) -> None:
             order = BrokerOrder(
-                account_id=int(account["id"]),
+                account_id=row_expect_int(account, "id"),
                 ticker=ticker,
                 side=side,
                 qty=qty,
@@ -290,9 +414,15 @@ def _record_runtime_trade(
             record_trade_fn=_broker_aware_record_trade,
             utc_now_iso_fn=utc_now_iso,
             build_trade_note_fn=auto_trader_policy.build_trade_note,
+            trade_time_iso=trade_time_iso,
         )
     finally:
-        broker.disconnect()
+        if _owns_broker:
+            broker.disconnect()
+
+
+def _is_runtime_submission_window_open(now_iso: str) -> bool:
+    return is_regular_us_equity_market_open_at_utc_iso(now_iso)
 
 
 def run_for_account(
@@ -305,33 +435,50 @@ def run_for_account(
     max_trades: int,
     fee: float,
 ) -> int:
-    return run_for_account_impl(
-        conn,
-        account_name,
-        universe,
-        prices,
-        iv_rank_proxy,
-        min_trades,
-        max_trades,
-        fee,
-        get_account_fn=get_account,
-        utc_now_iso_fn=utc_now_iso,
-        rotate_account_if_due_fn=_rotate_runtime_account,
-        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
-        refresh_account_state_fn=_refresh_runtime_account_state,
-        resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
-        prepare_trade_selection_fn=_prepare_runtime_trade_selection,
-        record_prepared_trade_fn=_record_runtime_trade,
-    )
+    now_iso = utc_now_iso()
+    if not _is_runtime_submission_window_open(now_iso):
+        return 0
+    # Open one broker connection for the entire account trade loop so that
+    # keepalive (e.g. IBKR Web API /tickle) remains effective across all
+    # trades in the run.  Broker settings (broker_type, live_trading_enabled)
+    # are stable within a single run — rotation updates strategy, not broker
+    # config — so it is safe to resolve the broker from the initial account row.
+    bootstrap_account = get_account(conn, account_name)
+    broker = get_broker_for_account(bootstrap_account)
+    try:
+        return run_for_account_impl(
+            conn,
+            account_name,
+            universe,
+            prices,
+            iv_rank_proxy,
+            min_trades,
+            max_trades,
+            fee,
+            get_account_fn=get_account,
+            utc_now_iso_fn=utc_now_iso,
+            rotate_account_if_due_fn=_rotate_runtime_account,
+            resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+            refresh_account_state_fn=_refresh_runtime_account_state,
+            resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
+            prepare_trade_selection_fn=_prepare_runtime_trade_selection,
+            record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
+                *args, **kwargs, _injected_broker=broker
+            ),
+            enforce_runtime_trade_throttles_fn=enforce_runtime_trade_throttles,
+            is_submission_window_open_fn=_is_runtime_submission_window_open,
+        )
+    finally:
+        broker.disconnect()
 
 
 def reconcile_open_ib_orders(
     conn: sqlite3.Connection,
     account_name: str,
-    account: sqlite3.Row,
+    account: dict[str, object],
     fee: float,
 ) -> int:
-    """Poll IB for fill updates on all open (non-terminal) broker orders.
+    """Poll the account broker for fill updates on all open persisted broker orders.
 
     For each order that has transitioned to FILLED since it was last persisted,
     this function:
@@ -342,16 +489,13 @@ def reconcile_open_ib_orders(
     Returns the number of orders that were newly FILLED in this call.
 
     This should be called periodically (e.g. once per trading loop iteration)
-    for accounts with ``broker_type = 'interactive_brokers'``.  It is a no-op
-    for paper accounts since paper orders are synchronously filled.
+    for accounts with broker-managed open orders. It is a no-op for paper
+    accounts since paper orders are synchronously filled and report no open
+    trades through the broker interface.
     """
-    from trading.brokers.ib_adapter import InteractiveBrokersAdapter
-
     broker = get_broker_for_account(account)
-    if not isinstance(broker, InteractiveBrokersAdapter):
-        return 0
 
-    open_rows = fetch_open_broker_orders(conn, account_id=int(account["id"]))
+    open_rows = fetch_open_broker_orders(conn, account_id=row_expect_int(account, "id"))
     if not open_rows:
         broker.disconnect()
         return 0

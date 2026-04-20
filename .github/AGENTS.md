@@ -1,132 +1,94 @@
 # Workspace Bot Standard
 
-Purpose: define how bots operate in this repository without unnecessary process overhead.
+Purpose: define the repo's skill-first task surfaces and the smaller set of repo-specific agents that remain necessary.
 
-## Agent Architecture
+## Core model
 
-Agents in this project follow a two-tier model:
+This repository uses two layers:
 
-### Global agents (`<name>.global.agent.md`)
-Project-agnostic. Canonical source lives in `tools/project_manager/agents/` (the submodule).
-Synced to `.github/agents/` via `python tools/project_manager/scripts/sync_agents.py`.
-These agents carry no project-specific domain language and work with any project that uses
-the project_manager submodule.
+### 1. Portable skills (`skills/portable/*.skill.md`)
 
-### Project-specific agents (`<name>.agent.md`)
-Domain knowledge baked in. Live only in `.github/agents/`. Not synced to the submodule.
+These are the **primary reusable task surface**.
 
-### Agent inventory
+Use a skill directly by default when the task is generic enough to be expressed without repo-specific commands, paths, or safety rules.
 
-| File | Type | Purpose |
-|------|------|---------|
-| `code-review.global.agent.md` | 🌐 Global | Pre-commit audit: architecture, regressions, missing tests, dependency violations |
-| `docs-sync.global.agent.md` | 🌐 Global | Keep README files, architecture notes, reference docs, and API docs in sync after code changes |
-| `frontend-code-cleanup.global.agent.md` | 🌐 Global | Simplify TypeScript frontend code |
-| `project-structure-steward.global.agent.md` | 🌐 Global | Enforce module boundaries and architecture |
-| `python-code-cleanup.global.agent.md` | 🌐 Global | Refactor Python code for readability |
-| `python-test-expansion.global.agent.md` | 🌐 Global | Add and strengthen Python tests |
-| `task-runner.global.agent.md` | 🌐 Global | Task→branch→implement→commit→PR workflow |
-| `python-stat-modeling.agent.md` | 🏠 Project | Trading/finance statistical modeling |
-| `trading-manager.agent.md` | 🏠 Project | Trading-domain orchestration |
-| `finance-strategy.agent.md` | 🏠 Project | Financial terminology, strategy classification, signal interpretation, equity mechanics |
-| `db-migration-steward.agent.md` | 🏠 Project | Schema migration safety, ColumnMigration audits, backup hygiene |
+### 2. Repo-specific agents (`.github/agents/*.agent.md`)
 
-To sync global agents after pulling a submodule update:
-```
+These exist only when the skill alone is not enough.
+
+Keep an agent only if it adds one or more of:
+
+- exact repo paths or command entrypoints
+- project-only safety rules
+- domain or workflow constraints too specific for the reusable skill
+- project_manager or operational workflow integration
+
+## Current skill inventory
+
+| Skill | Purpose |
+|---|---|
+| `architecture-review.skill.md` | Layering, dependency direction, and structure review |
+| `code-review.skill.md` | Diff-based code review and regression audit |
+| `deep-code-review.skill.md` | Whole-area simplification, stale-code, and redundancy review |
+| `docs-sync.skill.md` | Documentation drift detection and targeted sync |
+| `frontend-cleanup.skill.md` | Frontend-only readability and maintainability cleanup |
+| `python-cleanup.skill.md` | Python-first cleanup and refactor work |
+| `python-stat-modeling.skill.md` | Time-series and finance/statistical modeling workflows |
+| `finance-strategy.skill.md` | Financial terminology, strategy classification, and market mechanics |
+| `test-expansion.skill.md` | Coverage growth and regression-test expansion |
+| `ui-api-contract.skill.md` | Frontend/backend contract stewardship |
+
+## Current agent inventory
+
+| Agent | Why it still exists |
+|---|---|
+| `task-runner.global.agent.md` | Repo-specific task workflow: project_manager task pickup, branch creation, commit, push, and PR |
+| `backtesting-analyst.agent.md` | Repo-specific backtesting and walk-forward flows tied to project paths, reports, and UI surfaces |
+| `broker-live-safety.agent.md` | Repo-specific broker safety constraints and live-trading guardrails |
+| `db-migration-steward.agent.md` | Repo-specific SQLite migration safety and backup hygiene |
+| `trading-runtime.agent.md` | Repo-specific runtime jobs, scheduler flows, and operator-facing runtime behavior |
+| `ui-api-steward.agent.md` | Repo-specific `paper_trading_ui` route/schema/frontend contract behavior |
+
+To sync the one active global agent after pulling a submodule update:
+
+```bash
 python tools/project_manager/scripts/sync_agents.py
 ```
 
-## Important Clarification
+## Routing guide
 
-Specialized bots are still present and usable in `.github/agents/`:
+Use a **skill** unless the task falls into one of the repo-specific agent cases below.
 
-- `frontend-code-cleanup.global.agent.md`: simplify frontend code while preserving behavior and type safety.
-- `docs-sync.global.agent.md`: keep README files, architecture notes, reference docs, and API docs in sync after code changes; detects drift, flags stale docs, writes targeted updates.
-- `project-structure-steward.global.agent.md`: enforce module boundaries, dependency direction, and architecture consistency.
-- `python-code-cleanup.global.agent.md`: refactor Python code for readability/maintainability without behavior changes; also handles mixed Python + frontend cleanup where cross-stack interface contracts need to stay stable.
-- `python-stat-modeling.agent.md`: build and evaluate trading-focused statistical modeling workflows.
-- `python-test-expansion.global.agent.md`: add and strengthen tests, edge cases, and regression coverage.
-- `task-runner.global.agent.md`: pick up a task from the project_manager DB, implement it on a feature branch, commit, push, and open a PR.
-- `trading-manager.agent.md`: orchestrate bots for trading-domain tasks.
-- `code-review.global.agent.md`: audit changed files before commit or merge for architecture violations, regressions, missing tests, and dependency-direction issues.
-- `finance-strategy.agent.md`: explain financial terminology, classify trading strategies, interpret market signals, and advise on equity mechanics and market microstructure.
-- `db-migration-steward.agent.md`: validate schema changes and migration safety for the trading SQLite database; audit ColumnMigration additions, enforce additive-only rules, and ensure backup hygiene before destructive DB operations.
+| Task shape | Preferred surface | Why |
+|---|---|---|
+| Architecture, layering, dependency direction | `skills/portable/architecture-review.skill.md` | Reusable review pattern; no dedicated repo agent needed |
+| Pre-commit or pre-merge audit | `skills/portable/code-review.skill.md` | Generic review capability is portable |
+| Whole-area simplification or stale-code audit | `skills/portable/deep-code-review.skill.md` | Generic review capability is portable |
+| README/reference/API drift | `skills/portable/docs-sync.skill.md` | Generic doc-sync capability is portable |
+| Frontend-only cleanup | `skills/portable/frontend-cleanup.skill.md` | Generic frontend cleanup capability is portable |
+| Generic Python cleanup | `skills/portable/python-cleanup.skill.md` | Generic Python cleanup capability is portable |
+| Generic test additions | `skills/portable/test-expansion.skill.md` | Generic test-expansion capability is portable |
+| Financial concept explanation | `skills/portable/finance-strategy.skill.md` | Generic domain explanation capability is portable |
+| Modeling, alpha research, feature engineering | `skills/portable/python-stat-modeling.skill.md` | Generic modeling capability is portable |
+| Cross-stack route/schema/UI contract work | `skills/portable/ui-api-contract.skill.md` | Start with the generic skill, move to the agent only if repo-specific UI behavior matters |
+| Repo-specific `paper_trading_ui` contract/debug work | `ui-api-steward.agent.md` | Encodes exact repo paths, commands, and UI behavior |
+| Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` | Encodes exact runtime entrypoints and operator flows |
+| Broker adapters or live-trading safety | `broker-live-safety.agent.md` | Encodes hard repo-specific broker safety rules |
+| Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` | Encodes repo-specific evaluation/reporting surfaces |
+| Schema migration safety | `db-migration-steward.agent.md` | Encodes repo-specific SQLite migration rules |
+| project_manager task pickup through branch/PR | `task-runner.global.agent.md` | Encodes repo-specific workflow integration |
 
-This file provides shared baseline rules; it does not replace or remove those agents.
+## Overlap rules
 
+1. If a skill and an agent overlap, use the **skill** unless the agent adds repo-specific execution value.
+2. `ui-api-steward.agent.md` remains because `paper_trading_ui` contract work depends on exact repo paths, services, commands, and payload semantics.
+3. `backtesting-analyst.agent.md` remains because the repo's backtesting and reporting flows are more specific than the general modeling skill.
+4. `task-runner.global.agent.md` remains because it integrates with this repo's project_manager workflow rather than representing a generic coding capability.
 
-## Canonical References
+## Canonical references
 
-- Docs-impact and validation policy: `.github/DOCS_PRECOMMIT_POLICY.md`
-- Script behavior and command flags: `scripts/README.md`
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- Bot dependency/naming conventions: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- Style approach and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
-- Database migration system (hand-rolled SQLite, ColumnMigration pattern, backup flows): `docs/architecture/notes-db-migration-system.md`
-
-## Core Operating Rules
-
-1. Preserve behavior unless explicitly asked to change it.
-2. Keep changes focused and avoid unrelated churn.
-3. Follow architecture conventions in `.github/BOT_ARCHITECTURE_CONVENTIONS.md`.
-4. Keep docs synchronized with behavior changes.
-
-## Conventions Ownership
-
-1. `.github/BOT_ARCHITECTURE_CONVENTIONS.md` owns:
-   - dependency direction
-   - package/module ownership
-   - naming conventions
-   - abstraction/API consistency
-   - cross-platform safety
-2. `.github/BOT_STYLE_GUIDE.md` owns:
-   - single balanced style approach
-   - Python/frontend/docs styling expectations
-   - style-only rewrite policy
-
-## Safe Command Allowlist (For Fewer Approval Clicks)
-
-Use this list for workspace-level "always allow" command approvals:
-
-- `python -m scripts.run_checks --profile quick`
-- `python -m scripts.run_checks --profile quick --with-frontend`
-- `python -m scripts.run_checks --profile ci`
-- `python -m scripts.run_checks --profile ci --skip-frontend`
-- `python -m scripts.checks.readme_check`
-- `python -m scripts.checks.readme_check --max-age-days 90`
-- `python -m pytest`
-- `python -m mypy paper_trading_ui/backend trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip`
-- `npm run lint` (from `paper_trading_ui/frontend`)
-- `npm run typecheck` (from `paper_trading_ui/frontend`)
-- `npm run test:coverage` (from `paper_trading_ui/frontend`)
-- `python tools/project_manager/scripts/db_write.py list-items`
-- `python tools/project_manager/scripts/db_write.py list-bots`
-- `py tools/project_manager/scripts/commit_context`
-
-Note: approval prompts are controlled by your VS Code/Copilot environment; this file documents the intended allowlist.
-
-## Per-Bot Command Policies
-
-Each bot has an explicit `## Permitted Shell Commands` section in its `.agent.md` file.
-This table summarises the policy at a glance:
-
-| Bot | Shell commands | Git access |
-|-----|---------------|------------|
-| Code Review (`*.global`) | `pytest`, `mypy`, `ruff check`; `npm run lint`, `npm run typecheck`, `npx vitest run`; `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`, `show`) |
-| Docs Sync (`*.global`) | `scripts.checks.readme_check`, `scripts.run_checks --profile quick`; `scripts.reference_docs.check` (if available) | ❌ None |
-| Frontend Code Cleanup (`*.global`) | `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npx vitest run` | ❌ None |
-| Python Code Cleanup (`*.global`) | `pytest`, `mypy`, `ruff check`, `scripts.run_checks --profile quick`; npm commands for mixed-scope | ❌ None |
-| Python Test Expansion (`*.global`) | `pytest`, `mypy`, `scripts.run_checks --profile quick` | ❌ None |
-| Project Structure Steward (`*.global`) | `pytest`, `mypy`, `scripts.run_checks --profile quick\|ci` | ✅ Read-only (`diff`, `log`, `status`, `show`) |
-| Task Runner (`*.global`) | `db_write.py`, `scripts.run_checks --profile quick`, `gh pr create` | ✅ Read+Write (`checkout -b`, `commit`, `push`; never `merge`/`rebase`/`reset`) |
-| Python Statistical Modeling | `pytest`, `mypy`, `python -m trading.*`, `scripts.run_checks --profile quick` | ❌ None |
-| Trading Manager | `db_write.py`, `scripts/commit_context`, `scripts.run_checks --profile quick` | ✅ Read-only (`diff`, `log`, `status`) |
-| Finance and Strategy Domain Bot | `scripts.run_checks --profile quick` (read-only health check only) | ❌ None |
-| DB Migration Steward | `pytest` (db/migration/schema tests), `mypy trading/database/`, `scripts.run_checks --profile quick` | ❌ None |
-
-**Git access tiers:**
-- ❌ **None** — do not run any git commands
-- ✅ **Read-only** — `git diff`, `git log`, `git status`, `git show` only; never `commit`, `push`, `merge`, `rebase`, `reset`, or `checkout`
-
-When new bots are added, define their tier in the bot's `.agent.md` and update this table.
-
+- Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
+- Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
+- Script behavior and command flags: `tools/project_manager/scripts/README.md`
+- Skill authoring and localization guidance: `skills/README.md`

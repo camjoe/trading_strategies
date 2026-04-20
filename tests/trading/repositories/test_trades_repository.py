@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from trading.services.accounts_service import create_account
 from trading.repositories.trades_repository import (
+    count_trades_between,
     fetch_trades_for_account,
     insert_trade,
 )
@@ -115,3 +116,36 @@ class TestFetchTradesForAccount:
         rows = fetch_trades_for_account(conn, account_id=acct_id)
         assert rows[0]["ticker"] == "EARLIER"
         assert rows[1]["ticker"] == "LATER"
+
+
+class TestCountTradesBetween:
+    def test_counts_only_rows_inside_window(self, conn) -> None:
+        acct_id = _account_id(conn)
+        insert_trade(
+            conn,
+            account_id=acct_id,
+            ticker="AAPL",
+            side="buy",
+            qty=1.0,
+            price=100.0,
+            fee=0.0,
+            trade_time="2026-01-01T00:00:00Z",
+            note=None,
+        )
+        insert_trade(
+            conn,
+            account_id=acct_id,
+            ticker="MSFT",
+            side="buy",
+            qty=1.0,
+            price=100.0,
+            fee=0.0,
+            trade_time="2026-01-01T00:01:00Z",
+            note=None,
+        )
+
+        assert count_trades_between(
+            conn,
+            "2026-01-01T00:00:30Z",
+            "2026-01-01T00:01:30Z",
+        ) == 1

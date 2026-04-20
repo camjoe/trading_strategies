@@ -75,6 +75,14 @@ def test_handle_create_account_calls_create_account_dep() -> None:
     assert positional[3] == 10000.0
 
 
+def test_handle_create_account_routes_invalid_strategy_to_parser_error() -> None:
+    deps = {"create_account": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("Unknown strategy 'mystery'"))}
+    args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery'"):
+        handle_create_account(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_configure_account_calls_configure_account_dep() -> None:
     calls: list = []
     deps = {"configure_account": lambda *a, **kw: calls.append(kw)}
@@ -106,6 +114,19 @@ def test_handle_apply_account_profiles_delegates_load_and_apply() -> None:
     assert loaded == ["profiles.yaml"]
 
 
+def test_handle_apply_account_profiles_routes_validation_error_to_parser_error() -> None:
+    deps = {
+        "load_account_profiles": lambda _f: [{"name": "acct"}],
+        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        ),
+    }
+    args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_apply_account_profiles(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
 def test_handle_apply_account_preset_resolves_preset_path_and_loads(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -127,6 +148,29 @@ def test_handle_apply_account_preset_resolves_preset_path_and_loads(
     handle_apply_account_preset(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
     assert loaded == [str(preset_path)]
+
+
+def test_handle_apply_account_preset_routes_validation_error_to_parser_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    preset_path = tmp_path / "starter.yaml"
+    preset_path.write_text("", encoding="utf-8")
+    monkeypatch.setattr(
+        "trading.interfaces.cli.handlers.accounts_handlers.get_builtin_profile_preset_path",
+        lambda _preset: preset_path,
+    )
+
+    deps = {
+        "load_account_profiles": lambda _f: [{"name": "acct"}],
+        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(
+            ValueError("Unknown strategy 'mystery_strategy'")
+        ),
+    }
+    args = types.SimpleNamespace(preset="starter", no_create_missing=True)
+
+    with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
+        handle_apply_account_preset(object(), args, _parser(), deps=deps, module_file="", db_path="")
 
 
 def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:

@@ -12,7 +12,8 @@ from fastapi import APIRouter, HTTPException
 
 from ..config import TEST_ACCOUNT_NAME
 from ..schemas import ManualTradeRequest
-from ..services import add_manual_trade, db_conn, resolve_backtest_payload_account
+from ..services import db_conn, resolve_backtest_payload_account
+from trading.services.accounting_service import record_trade
 
 router = APIRouter()
 
@@ -55,7 +56,7 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
     with db_conn() as conn:
         resolved_name = resolve_backtest_payload_account(account_name, conn)
         try:
-            add_manual_trade(
+            record_trade(
                 conn,
                 account_name=resolved_name,
                 ticker=ticker,
@@ -64,6 +65,7 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
                 price=body.price,
                 fee=body.fee,
                 trade_time=utc_now_iso(),
+                note=None,
             )
         except ValueError as exc:
             # record_trade raises ValueError for both "not found" and business-rule

@@ -1,0 +1,32 @@
+<div class="admin-section-page" data-admin-section-panel="promotions" hidden>
+  <section class="card admin-card">
+    <h2>Promotions</h2>
+    <p class="admin-note">Promotion readiness and recent review history.</p>
+    <div class="admin-promotion-controls">
+      <label class="bt-field">
+        <span>Account</span>
+        <select id="promotionAccountSelect">
+          <option value="">Select account</option>
+        </select>
+      </label>
+      <label class="bt-field">
+        <span>Strategy (optional)</span>
+        <input id="promotionStrategyInput" placeholder="Leave blank for the account default" />
+      </label>
+      <button
+        id="promotionLoadBtn"
+        class="icon-button"
+        type="button"
+        aria-label="Load promotion status"
+        data-tooltip="Load promotion status"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="button-icon-svg" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 5v14" />
+          <path d="M19 12H9" />
+          <path d="m14 7 5 5-5 5" />
+        </svg>
+      </button>
+    </div>
+    <div id="promotionOverviewOutput" class="empty">Select an account to inspect promotion readiness.</div>
+  </section>
+</div>

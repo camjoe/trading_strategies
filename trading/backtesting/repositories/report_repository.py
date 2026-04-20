@@ -49,6 +49,29 @@ def fetch_latest_backtest_run_id_for_account(conn: sqlite3.Connection, *, accoun
     return int(row["id"])
 
 
+def fetch_latest_backtest_run_id_for_account_strategy(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    strategy_name: str,
+) -> int | None:
+    row = conn.execute(
+        """
+        SELECT r.id
+        FROM backtest_runs r
+        JOIN accounts a ON a.id = r.account_id
+        WHERE r.account_id = ?
+          AND LOWER(COALESCE(r.strategy_name, a.strategy)) = LOWER(?)
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT 1
+        """,
+        (int(account_id), strategy_name),
+    ).fetchone()
+    if row is None:
+        return None
+    return int(row["id"])
+
+
 def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row | None:
     return conn.execute(
         """

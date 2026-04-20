@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from trading.interfaces.cli import main as paper_trading
+from trading.interfaces.cli.handlers.shared import common_account_config_kwargs, resolve_learning_enabled
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 
@@ -131,7 +132,7 @@ def test_main_unknown_command_errors_and_closes_connection(monkeypatch):
 
 def test_common_account_config_kwargs_create_sets_learning_enabled():
     args = _configure_args(command="create-account", learning_enabled=True)
-    kwargs = paper_trading._common_account_config_kwargs(args, include_learning_disabled=False)
+    kwargs = common_account_config_kwargs(args, include_learning_disabled=False)
     assert kwargs.learning_enabled is True
 
 
@@ -200,6 +201,12 @@ def test_main_backtest_dispatches_and_prints_summary(monkeypatch, capsys):
         max_drawdown_pct = -2.0
         benchmark_return_pct = 3.0
         alpha_pct = 1.5
+        sharpe_ratio = None
+        sortino_ratio = None
+        calmar_ratio = None
+        win_rate_pct = None
+        profit_factor = None
+        avg_trade_return_pct = None
         warnings = ["daily bars only"]
 
     def fake_run_backtest(conn, cfg):
@@ -402,21 +409,21 @@ class TestLearningFlagResolution:
     def test_resolve_learning_enabled_configure_mode_enabled(self):
         args = _configure_args(learning_enabled=True, learning_disabled=False)
 
-        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+        resolved = resolve_learning_enabled(args, include_learning_disabled=True)
 
         assert resolved is True
 
     def test_resolve_learning_enabled_configure_mode_disabled(self):
         args = _configure_args(learning_enabled=False, learning_disabled=True)
 
-        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+        resolved = resolve_learning_enabled(args, include_learning_disabled=True)
 
         assert resolved is False
 
     def test_resolve_learning_enabled_configure_mode_none(self):
         args = _configure_args(learning_enabled=False, learning_disabled=False)
 
-        resolved = paper_trading._resolve_learning_enabled(args, include_learning_disabled=True)
+        resolved = resolve_learning_enabled(args, include_learning_disabled=True)
 
         assert resolved is None
 
@@ -547,6 +554,12 @@ class TestHandlerOutputsAndEdgeCases:
             max_drawdown_pct = -1.0
             benchmark_return_pct = None
             alpha_pct = None
+            sharpe_ratio = None
+            sortino_ratio = None
+            calmar_ratio = None
+            win_rate_pct = None
+            profit_factor = None
+            avg_trade_return_pct = None
             warnings = []
 
         monkeypatch.setattr(paper_trading, "build_parser", lambda: _FakeParser(args))
@@ -606,7 +619,10 @@ class TestHandlerOutputsAndEdgeCases:
 
         out = capsys.readouterr().out
         assert "run_id,run_name,account_name,strategy" in out
-        assert "10,,acct1,trend_v1,2026-01-01,2026-01-31,10050.00,0.5000,-0.4000,,,1,2026-03-20T00:00:00Z" in out
+        assert (
+            "10,,acct1,trend_v1,2026-01-01,2026-01-31,10050.00,0.5000,-0.4000,,,,,,,,,1,2026-03-20T00:00:00Z"
+            in out
+        )
         assert fake_conn.closed is True
 
     def test_main_backtest_report_without_warnings_omits_notes_line(self, monkeypatch, capsys):

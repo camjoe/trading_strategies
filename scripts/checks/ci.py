@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+from pathlib import Path
 
 from common.repo_paths import get_repo_root
 
@@ -43,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _run_ruff(repo_root, python_exe: str) -> None:
+def _run_ruff(repo_root: Path, python_exe: str) -> None:
     run_step(
         "Python quality: ruff",
         [
@@ -61,7 +62,7 @@ def _run_ruff(repo_root, python_exe: str) -> None:
     )
 
 
-def _run_frontend_ci(repo_root) -> None:
+def _run_frontend_ci(repo_root: Path) -> None:
     npm_exe = resolve_npm_exe()
     frontend_dir = repo_root / "paper_trading_ui" / "frontend"
     run_step("Frontend: npm ci", [npm_exe, "ci"], frontend_dir)
@@ -71,7 +72,7 @@ def _run_frontend_ci(repo_root) -> None:
 
 
 def run_ci(
-    repo_root,
+    repo_root: Path,
     python_exe: str,
     skip_python: bool = False,
     skip_frontend: bool = False,

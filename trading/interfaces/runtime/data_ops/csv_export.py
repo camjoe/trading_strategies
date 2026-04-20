@@ -4,7 +4,7 @@ import csv
 import shutil
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -107,18 +107,21 @@ def export_tables_to_csv(
     output_base_dir: Path,
     db_path: Path | None = None,
 ) -> ExportBatchResult:
-    resolved_db_path = (db_path or get_db_path()).resolve()
+    backend = SQLiteBackend(db_path.resolve()) if db_path is not None else get_backend()
+    if db_path is not None:
+        resolved_db_path = db_path.resolve()
+    elif isinstance(backend, SQLiteBackend):
+        resolved_db_path = backend.db_path.resolve()
+    else:
+        resolved_db_path = get_db_path().resolve()
     if not resolved_db_path.exists():
         raise FileNotFoundError(f"Database file not found: {resolved_db_path}")
 
-    stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     export_dir = output_base_dir.resolve() / f"db_csv_{stamp}"
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    if db_path is None:
-        conn = get_backend().open_connection()
-    else:
-        conn = SQLiteBackend(resolved_db_path).open_connection()
+    conn = backend.open_connection()
     try:
         results: list[TableExportResult] = []
         for table in tables:
@@ -135,7 +138,7 @@ def export_tables_to_csv(
     return ExportBatchResult(
         db_path=resolved_db_path,
         output_dir=export_dir,
-        started_at_utc=datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        started_at_utc=datetime.now(timezone.utc).isoformat(timespec="seconds") + "Z",
         tables=tuple(results),
     )
 
