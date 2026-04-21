@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from trading.utils.coercion import row_expect_int
+from common.coercion import row_expect_int
 
 from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command

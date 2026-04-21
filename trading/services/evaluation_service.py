@@ -3,9 +3,9 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import replace
 
-from trading.models import AccountRecord
-from trading.utils.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
+from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
 from common.time import utc_now_iso
+from trading.models import AccountRecord
 from trading.backtesting.domain.metrics import max_drawdown_pct
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,

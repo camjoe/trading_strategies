@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 
-from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from common.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 
 
 @dataclass(frozen=True)

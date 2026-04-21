@@ -6,7 +6,7 @@ from typing import Callable, Mapping, Protocol, cast
 
 from trading.models import AccountRecord
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.utils.coercion import row_expect_int, row_float, row_int
+from common.coercion import row_expect_int, row_float, row_int
 
 
 class AccountStateLike(Protocol):

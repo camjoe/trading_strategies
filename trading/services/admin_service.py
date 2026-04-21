@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 import sqlite3
 
-from trading.utils.coercion import coerce_int, row_expect_int
+from common.coercion import coerce_int, row_expect_int
 from trading.repositories.admin_repository import (
     count_rows,
     delete_accounts_by_ids,

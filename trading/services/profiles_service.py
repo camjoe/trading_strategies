@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.coercion import coerce_float
 from trading.backtesting.domain.strategy_signals import validate_strategy_name
 from trading.services.accounts_service import configure_account, create_account, get_account, set_benchmark
-from trading.utils.coercion import coerce_float
 from trading.models.account_config import AccountConfig
 from trading.models.rotation_config import RotationConfig
 from trading.services.profile_source import AccountProfileSource, JsonAccountProfileSource

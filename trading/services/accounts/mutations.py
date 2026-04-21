@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
+from common.coercion import expect_float, expect_int
 from common.time import utc_now_iso
 from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError
@@ -30,7 +31,6 @@ from trading.services.accounts.config import (
     validate_position_sizing,
     validate_position_sizing_from_inputs,
 )
-from trading.utils.coercion import expect_float, expect_int
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:

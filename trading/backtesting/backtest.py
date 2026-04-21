@@ -4,14 +4,13 @@ import sqlite3
 from datetime import date
 from typing import Callable, cast
 
-from common.market_data import get_feature_provider
-from trading.models import AccountRecord
-
-from trading.utils.coercion import (
+from common.coercion import (
     row_expect_float,
     row_expect_int,
     row_expect_str,
 )
+from common.market_data import get_feature_provider
+from trading.models import AccountRecord
 from trading.domain.auto_trader_policy import choose_buy_qty
 from trading.backtesting.trading_bridge import (
     get_account,

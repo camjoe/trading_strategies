@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from trading.utils import coercion
+import common.coercion as coercion
 
 
 @pytest.fixture
@@ -63,6 +63,16 @@ def test_coerce_float_rejects_non_convertible_type() -> None:
         ("true", True),
         (" YES ", True),
         ("off", False),
+        (True, True),
+        (False, False),
+        ("yes", True),
+        ("on", True),
+        ("1", True),
+        ("false", False),
+        ("no", False),
+        ("0", False),
+        ("TRUE", True),
+        ("YES", True),
     ],
 )
 def test_coerce_bool_accepts_common_representations(raw: object, expected: bool) -> None:
@@ -91,4 +101,3 @@ def test_row_helpers_coerce_and_expect(sample_row: sqlite3.Row) -> None:
 def test_row_expect_helpers_reject_null_values(sample_row: sqlite3.Row) -> None:
     with pytest.raises(ValueError, match="missing cannot be null"):
         coercion.row_expect_str(sample_row, "missing")
-

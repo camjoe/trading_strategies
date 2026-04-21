@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Callable, cast
 
+from common.coercion import row_expect_int
 from common.market_hours import is_regular_us_equity_market_open_at_utc_iso
 from common.time import utc_now_iso
 from trading.models import AccountRecord
@@ -18,7 +19,6 @@ from trading.repositories.broker_orders_repository import (
     insert_order_fill,
     update_broker_order_status,
 )
-from trading.utils.coercion import row_expect_int
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy

@@ -4,6 +4,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Callable, cast
 
+from common.coercion import coerce_float, row_expect_int, row_float, row_int
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
     resolve_rotation_overlay_mode,
@@ -33,7 +34,6 @@ from trading.features.social_feature_provider import (
     SOCIAL_TREND_SCORE,
 )
 from trading.models import AccountRecord
-from trading.utils.coercion import coerce_float, row_expect_int, row_float, row_int
 
 # Minimum completed live episodes required before the live component receives
 # its full configured weight in hybrid rotation scoring.

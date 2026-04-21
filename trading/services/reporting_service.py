@@ -4,10 +4,10 @@ import sqlite3
 from datetime import date
 from typing import Callable
 
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
 from common.market_data import get_provider
 from common.time import utc_now_iso
 from trading.domain.evaluation_models import StrategyEvaluationArtifact
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountRecord, AccountState
 from trading.repositories import (

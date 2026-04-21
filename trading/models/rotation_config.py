@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from common.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 from trading.domain.rotation import (
     OPTIMALITY_MODES,
     ROTATION_MODES,

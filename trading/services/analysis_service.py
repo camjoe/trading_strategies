@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str
+from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
