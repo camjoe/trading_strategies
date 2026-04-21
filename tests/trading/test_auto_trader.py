@@ -9,30 +9,19 @@ from trading.interfaces.runtime.jobs import run_auto_trades as auto_trader
 from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
 import trading.services.auto_trader_runtime_service as runtime_service
 import trading.services.trade_execution_service as trade_execution_service
+from tests.support import make_account_record
 
 
 def _base_account(**overrides):
-    base = {
+    values: dict[str, object] = {
         "option_strike_offset_pct": 5.0,
-        "target_delta_min": None,
-        "target_delta_max": None,
-        "iv_rank_min": None,
-        "iv_rank_max": None,
-        "max_contracts_per_trade": None,
-        "max_premium_per_trade": None,
         "option_min_dte": 120,
         "option_max_dte": 365,
         "option_type": "call",
-        "learning_enabled": 0,
-        "risk_policy": "none",
-        "stop_loss_pct": None,
-        "take_profit_pct": None,
-        "instrument_mode": "equity",
         "initial_cash": 5000.0,
         "id": 1,
         "strategy": "trend",
         "rotation_enabled": 0,
-        "rotation_interval_days": None,
         "rotation_schedule": None,
         "rotation_active_index": 0,
         "rotation_last_at": None,
@@ -41,8 +30,8 @@ def _base_account(**overrides):
         "rotation_optimality_mode": "previous_period_best",
         "rotation_lookback_days": 180,
     }
-    base.update(overrides)
-    return base
+    values.update(overrides)
+    return make_account_record(**values)
 
 
 class TestInputLoadingAndPrimitiveHelpers:

@@ -405,7 +405,7 @@ def fetch_promotion_review_history(
         raise ValueError(f"Account '{account_name}' not found.")
     review_rows = fetch_promotion_reviews_for_account(
         conn,
-        account_id=int(account["id"]),
+        account_id=account.id,
         strategy_name=_normalize_optional_text(strategy_name),
         limit=limit,
     )

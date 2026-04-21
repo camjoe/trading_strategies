@@ -1,114 +1,62 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 import sqlite3
+from dataclasses import astuple
 
 from trading.database.db_backend import get_backend
+from trading.database.sql_helpers import in_placeholders
+from trading.models import AccountInsert, AccountRecord
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
+_ACCOUNT_INSERT_COLUMNS = (
+    "name",
+    "account_kind",
+    "strategy",
+    "initial_cash",
+    "created_at",
+    "benchmark_ticker",
+    "descriptive_name",
+    "goal_min_return_pct",
+    "goal_max_return_pct",
+    "goal_period",
+    "learning_enabled",
+    "risk_policy",
+    "stop_loss_pct",
+    "take_profit_pct",
+    "trade_size_pct",
+    "max_position_pct",
+    "instrument_mode",
+    "option_strike_offset_pct",
+    "option_min_dte",
+    "option_max_dte",
+    "option_type",
+    "target_delta_min",
+    "target_delta_max",
+    "max_premium_per_trade",
+    "max_contracts_per_trade",
+    "iv_rank_min",
+    "iv_rank_max",
+    "roll_dte_threshold",
+    "profit_take_pct",
+    "max_loss_pct",
+)
+_ACCOUNT_INSERT_SQL = (
+    f"INSERT INTO accounts ({', '.join(_ACCOUNT_INSERT_COLUMNS)}) "
+    f"VALUES ({', '.join('?' for _ in _ACCOUNT_INSERT_COLUMNS)})"
+)
+
+
+def _account_record_from_row(row: sqlite3.Row) -> AccountRecord:
+    return AccountRecord.from_mapping(dict(row))
+
+
+def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
-    return dict(row) if row is not None else None
+    return _account_record_from_row(row) if row is not None else None
 
 
-def insert_account(
-    conn: sqlite3.Connection,
-    *,
-    name: str,
-    strategy: str,
-    initial_cash: float,
-    created_at: str,
-    benchmark_ticker: str,
-    descriptive_name: str,
-    goal_min_return_pct: float | None,
-    goal_max_return_pct: float | None,
-    goal_period: str,
-    learning_enabled: int,
-    risk_policy: str,
-    stop_loss_pct: float | None,
-    take_profit_pct: float | None,
-    trade_size_pct: float | None,
-    max_position_pct: float | None,
-    instrument_mode: str,
-    option_strike_offset_pct: float | None,
-    option_min_dte: int | None,
-    option_max_dte: int | None,
-    option_type: str | None,
-    target_delta_min: float | None,
-    target_delta_max: float | None,
-    max_premium_per_trade: float | None,
-    max_contracts_per_trade: int | None,
-    iv_rank_min: float | None,
-    iv_rank_max: float | None,
-    roll_dte_threshold: int | None,
-    profit_take_pct: float | None,
-    max_loss_pct: float | None,
-) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (
-            name,
-            strategy,
-            initial_cash,
-            created_at,
-            benchmark_ticker,
-            descriptive_name,
-            goal_min_return_pct,
-            goal_max_return_pct,
-            goal_period,
-            learning_enabled,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-            trade_size_pct,
-            max_position_pct,
-            instrument_mode,
-            option_strike_offset_pct,
-            option_min_dte,
-            option_max_dte,
-            option_type,
-            target_delta_min,
-            target_delta_max,
-            max_premium_per_trade,
-            max_contracts_per_trade,
-            iv_rank_min,
-            iv_rank_max,
-            roll_dte_threshold,
-            profit_take_pct,
-            max_loss_pct
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            name,
-            strategy,
-            initial_cash,
-            created_at,
-            benchmark_ticker,
-            descriptive_name,
-            goal_min_return_pct,
-            goal_max_return_pct,
-            goal_period,
-            learning_enabled,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-            trade_size_pct,
-            max_position_pct,
-            instrument_mode,
-            option_strike_offset_pct,
-            option_min_dte,
-            option_max_dte,
-            option_type,
-            target_delta_min,
-            target_delta_max,
-            max_premium_per_trade,
-            max_contracts_per_trade,
-            iv_rank_min,
-            iv_rank_max,
-            roll_dte_threshold,
-            profit_take_pct,
-            max_loss_pct,
-        ),
-    )
+def insert_account(conn: sqlite3.Connection, account: AccountInsert) -> None:
+    conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
     conn.commit()
 
 
@@ -120,18 +68,33 @@ def update_account_benchmark(conn: sqlite3.Connection, *, account_id: int, bench
     conn.commit()
 
 
-def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
-    return [dict(row) for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()]
-
-
-def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[dict[str, object]]:
+def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
     return [
-        dict(row)
-        for row in conn.execute(
-            "SELECT * FROM accounts WHERE name != ? ORDER BY name",
-            (excluded_name,),
-        ).fetchall()
+        _account_record_from_row(row)
+        for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
     ]
+
+
+def fetch_account_rows(
+    conn: sqlite3.Connection,
+    *,
+    account_kinds: Collection[str] | None = None,
+) -> list[AccountRecord]:
+    if account_kinds is None:
+        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        return [_account_record_from_row(row) for row in rows]
+
+    normalized_kinds = tuple(sorted({str(kind) for kind in account_kinds}))
+    if not normalized_kinds:
+        return []
+
+    rows = conn.execute(
+        "SELECT * FROM accounts "
+        f"WHERE COALESCE(account_kind, 'managed') IN ({in_placeholders(normalized_kinds)}) "
+        "ORDER BY name",
+        normalized_kinds,
+    ).fetchall()
+    return [_account_record_from_row(row) for row in rows]
 
 
 def update_account_fields(

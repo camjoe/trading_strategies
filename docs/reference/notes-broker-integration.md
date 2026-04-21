@@ -58,11 +58,28 @@ Broker settings live on the `accounts` table:
 
 | Column | Type | Default | Purpose |
 |--------|------|---------|---------|
+| `account_kind` | TEXT | `'managed'` | Account role / visibility: `'managed'`, `'local'`, or `'test_shadow'` |
 | `broker_type` | TEXT | `'paper'` | `'paper'`, `'interactive_brokers'` (legacy), or `'interactive_brokers_web'` |
 | `broker_host` | TEXT | NULL | TWS/Gateway host for the legacy socket/TWS path |
 | `broker_port` | INTEGER | NULL | TWS/Gateway port for the legacy socket/TWS path |
 | `broker_client_id` | INTEGER | NULL | IB client ID for the legacy socket/TWS path |
 | `live_trading_enabled` | INTEGER | `0` | **Safety gate** — see below |
+
+---
+
+## `account_kind` vs `broker_type`
+
+These two fields answer different questions:
+
+- `account_kind` says **what role the account plays in this repo**.
+  - `managed`: normal paper-trading UI account managed through the app.
+  - `local`: locally created strategy-testing account that should still remain visible in normal account lists.
+  - `test_shadow`: internal backing row for the virtual `test_account`; hidden from normal account lists.
+- `broker_type` says **which execution backend the account uses**.
+  - Today that is `paper`, `interactive_brokers` (legacy), or `interactive_brokers_web`.
+  - If an Alpaca integration is added later, Alpaca would become a new `broker_type`, not a new `account_kind`.
+
+In other words: IBKR vs Alpaca is a broker concern; managed vs local vs test-shadow is an account-role concern.
 
 ---
 

@@ -5,7 +5,7 @@ They have no domain dependencies and are usable by any layer.
 """
 from __future__ import annotations
 
-import sqlite3
+from collections.abc import Mapping
 
 
 def coerce_str(value: object | None) -> str | None:
@@ -69,25 +69,25 @@ def expect_int(value: object | None, field_name: str = "value") -> int:
     return converted
 
 
-def row_str(row: sqlite3.Row, key: str) -> str | None:
+def row_str(row: Mapping[str, object], key: str) -> str | None:
     return coerce_str(row[key])
 
 
-def row_expect_str(row: sqlite3.Row, key: str) -> str:
+def row_expect_str(row: Mapping[str, object], key: str) -> str:
     return expect_str(row[key], key)
 
 
-def row_float(row: sqlite3.Row, key: str) -> float | None:
+def row_float(row: Mapping[str, object], key: str) -> float | None:
     return coerce_float(row[key])
 
 
-def row_expect_float(row: sqlite3.Row, key: str) -> float:
+def row_expect_float(row: Mapping[str, object], key: str) -> float:
     return expect_float(row[key], key)
 
 
-def row_int(row: sqlite3.Row, key: str) -> int | None:
+def row_int(row: Mapping[str, object], key: str) -> int | None:
     return coerce_int(row[key])
 
 
-def row_expect_int(row: sqlite3.Row, key: str) -> int:
+def row_expect_int(row: Mapping[str, object], key: str) -> int:
     return expect_int(row[key], key)

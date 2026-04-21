@@ -35,11 +35,11 @@ def _resolve_walk_forward_group(
         raise ValueError(f"Account '{account_name}' not found.")
 
     if strategy_name is None:
-        group = fetch_latest_walk_forward_group_for_account(conn, account_id=int(account["id"]))
+        group = fetch_latest_walk_forward_group_for_account(conn, account_id=account.id)
     else:
         group = fetch_latest_walk_forward_group_for_account_strategy(
             conn,
-            account_id=int(account["id"]),
+            account_id=account.id,
             strategy_name=strategy_name,
         )
     if group is None:

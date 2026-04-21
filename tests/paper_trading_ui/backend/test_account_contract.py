@@ -12,6 +12,7 @@ def test_build_admin_create_account_command_maps_account_config_and_rotation_fie
         name="  acct_admin  ",
         strategy="  trend  ",
         initialCash=5000.0,
+        accountKind=" local ",
         descriptiveName="  Growth Account  ",
         optionType="  call  ",
         rotationEnabled=True,
@@ -28,6 +29,7 @@ def test_build_admin_create_account_command_maps_account_config_and_rotation_fie
     assert command.name == "acct_admin"
     assert command.strategy == "trend"
     assert command.benchmark_ticker == "SPY"
+    assert command.config.account_kind == " local "
     assert command.config.descriptive_name == "Growth Account"
     assert command.config.option_type == "call"
     assert command.rotation_profile["rotation_enabled"] is True
@@ -38,6 +40,7 @@ def test_build_admin_create_account_command_maps_account_config_and_rotation_fie
 def test_build_account_params_update_command_omits_absent_fields_and_keeps_falsey_values() -> None:
     body = AccountParamsRequest(
         strategy="  mean_reversion  ",
+        accountKind=" local ",
         descriptiveName="   ",
         learningEnabled=False,
         optionType="   ",
@@ -48,6 +51,7 @@ def test_build_account_params_update_command_omits_absent_fields_and_keeps_false
     command = build_account_params_update_command(body)
 
     assert command.strategy == "mean_reversion"
+    assert command.config.account_kind == " local "
     assert command.config_values["descriptive_name"] is None
     assert command.config.learning_enabled is False
     assert command.config.option_type is None

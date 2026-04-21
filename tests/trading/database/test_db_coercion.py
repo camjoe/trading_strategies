@@ -92,10 +92,3 @@ def test_row_expect_helpers_reject_null_values(sample_row: sqlite3.Row) -> None:
     with pytest.raises(ValueError, match="missing cannot be null"):
         coercion.row_expect_str(sample_row, "missing")
 
-
-def test_to_float_obj_delegates_to_expect_float() -> None:
-    assert coercion.to_float_obj("2.5") == 2.5
-
-
-def test_to_int_obj_delegates_to_expect_int() -> None:
-    assert coercion.to_int_obj("3") == 3

@@ -29,6 +29,7 @@ from trading.brokers.ib_web_client import (
 )
 from trading.brokers.paper_adapter import PaperBrokerAdapter
 from trading.database.db_init import init_schema
+from tests.support import make_account_record
 
 
 # ---------------------------------------------------------------------------
@@ -37,19 +38,8 @@ from trading.database.db_init import init_schema
 
 
 def _make_account(**kwargs):
-    """Return a dict-like account row. live_trading_enabled defaults to 0."""
-    defaults = {
-        "id": 1,
-        "name": "test-account",
-        "broker_type": "paper",
-        "broker_host": None,
-        "broker_port": None,
-        "broker_client_id": None,
-        # SAFETY: must always be 0 in tests. Never override to 1.
-        "live_trading_enabled": 0,
-    }
-    defaults.update(kwargs)
-    return defaults
+    """Return an AccountRecord. live_trading_enabled defaults to 0."""
+    return make_account_record(**kwargs)
 
 
 def _make_order(**kwargs) -> BrokerOrder:

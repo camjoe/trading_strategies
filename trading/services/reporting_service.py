@@ -9,7 +9,7 @@ from common.time import utc_now_iso
 from trading.domain.evaluation_models import StrategyEvaluationArtifact
 from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
 from trading.domain.accounting import compute_account_state
-from trading.models import AccountState
+from trading.models import AccountRecord, AccountState
 from trading.repositories import (
     fetch_account_listing_rows,
     fetch_recent_equity_rows,
@@ -113,13 +113,13 @@ def positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
 
 def _build_account_stats_impl(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
     *,
     load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
     compute_account_state_fn: Callable[[float, list[dict[str, object]]], AccountState],
     fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
-    row_expect_int_fn: Callable[[dict[str, object], str], int],
-    row_expect_float_fn: Callable[[dict[str, object], str], float],
+    row_expect_int_fn: Callable[[AccountRecord, str], int],
+    row_expect_float_fn: Callable[[AccountRecord, str], float],
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
     account_id = row_expect_int_fn(account, "id")
     initial_cash = row_expect_float_fn(account, "initial_cash")
@@ -172,7 +172,7 @@ def _infer_overall_trend_impl(
 
 def build_account_stats(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
     return _build_account_stats_impl(
         conn,
@@ -208,7 +208,7 @@ def infer_overall_trend(
 # Display helpers (private)
 # ---------------------------------------------------------------------------
 
-def _print_leaps_params(account: dict[str, object]) -> None:
+def _print_leaps_params(account: AccountRecord) -> None:
     print(
         "LEAPs Parameters: "
         f"strike_offset_pct={account['option_strike_offset_pct']} "
@@ -230,7 +230,7 @@ def _print_leaps_params(account: dict[str, object]) -> None:
     )
 
 
-def _print_account_header(account: dict[str, object]) -> None:
+def _print_account_header(account: AccountRecord) -> None:
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
     print(f"Account Policy: {format_account_policy_text(account)}")
@@ -242,7 +242,7 @@ def _print_account_header(account: dict[str, object]) -> None:
 
 
 def _print_performance_lines(
-    account: dict[str, object],
+    account: AccountRecord,
     cash: float,
     market_value: float,
     equity: float,
@@ -291,11 +291,11 @@ def _print_open_positions(
         print(f"- {ticker}: qty={qty:.4f}, avg_cost={avg:.2f}, last_price={px_display}")
 
 
-def _compare_account_header(account: dict[str, object]) -> str:
+def _compare_account_header(account: AccountRecord) -> str:
     return f"- {account['name']} | display_name={account['descriptive_name']}"
 
 
-def _compare_goal_metadata_line(account: dict[str, object]) -> str | None:
+def _compare_goal_metadata_line(account: AccountRecord) -> str | None:
     goal_text = format_goal_text(account)
     if goal_text == GOAL_NOT_SET_TEXT:
         return None
@@ -412,12 +412,12 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
     for account in accounts:
         state, _prices, _market_value, _unrealized, equity = build_account_stats(conn, account)
         evaluation = fetch_strategy_evaluation_for_account_row(conn, account)
-        initial_cash = row_expect_float(account, "initial_cash")
+        initial_cash = account.initial_cash
         if not initial_cash:
             continue
-        benchmark_ticker = row_expect_str(account, "benchmark_ticker")
-        created_at = row_expect_str(account, "created_at")
-        account_id = row_expect_int(account, "id")
+        benchmark_ticker = account.benchmark_ticker
+        created_at = account.created_at
+        account_id = account.id
         strategy_return_pct_value = strategy_return_pct(equity, initial_cash)
         bench_equity, bench_return_pct = benchmark_stats(
             benchmark_ticker, initial_cash, created_at
@@ -445,7 +445,7 @@ def snapshot_account(conn: sqlite3.Connection, account_name: str, snapshot_time:
     stats, _ = account_report(conn, account_name)
     insert_snapshot_row(
         conn,
-        account_id=account["id"],
+        account_id=account.id,
         snapshot_time=snapshot_time or utc_now_iso(),
         cash=stats["cash"],
         market_value=stats["market_value"],
@@ -460,7 +460,7 @@ def show_snapshots(conn: sqlite3.Connection, account_name: str, limit: int) -> N
     account = get_account(conn, account_name)
     rows = fetch_snapshot_history_rows(
         conn,
-        account_id=account["id"],
+        account_id=account.id,
         limit=int(limit),
     )
 
@@ -489,5 +489,5 @@ def take_account_snapshot(conn: sqlite3.Connection, account_name: str, *, snapsh
     snapshot_account(conn, account_name, snapshot_time=snapshot_time)
 
 
-def get_account_stats(conn: sqlite3.Connection, row: dict[str, object]) -> tuple:
+def get_account_stats(conn: sqlite3.Connection, row: AccountRecord) -> tuple:
     return build_account_stats(conn, row)

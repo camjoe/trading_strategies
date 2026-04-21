@@ -1,5 +1,6 @@
 from trading.repositories.accounts_repository import (
     fetch_account_by_name,
+    fetch_account_rows,
     fetch_account_listing_rows,
     fetch_all_account_names,
     fetch_all_account_names_from_conn,
@@ -31,6 +32,7 @@ from trading.repositories.rotation_repository import (
 
 __all__ = [
     "fetch_account_by_name",
+    "fetch_account_rows",
     "fetch_account_listing_rows",
     "fetch_all_account_names",
     "fetch_all_account_names_from_conn",

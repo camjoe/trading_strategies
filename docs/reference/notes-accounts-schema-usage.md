@@ -34,6 +34,7 @@ most likely follow-up targets for later simplification passes.
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
 | `name` | `accounts/mutations.py`, admin create route | repository lookup, CLI/UI routing, reporting, promotion, runtime account selection | **core active** | Primary account identity; effectively immutable after create |
+| `account_kind` | `accounts/mutations.py`, UI admin create/params routes, `paper_trading_ui/backend/services/test_account.py` | UI account visibility filtering, shadow-account hiding, operator account-role semantics | **config / display oriented** | Classifies account role (`managed`, `local`, `test_shadow`) independently from broker backend |
 | `strategy` | `accounts/mutations.py`, `profiles_service.py`, UI params route | runtime strategy resolution, backtesting, reporting, promotion, rotation fallback | **core active** | Central behavioral field |
 | `initial_cash` | `accounts/mutations.py`, admin create route, profiles | reporting, backtesting, runtime/account-state math, rotation overlay ticker derivation | **core active** | Core accounting input |
 | `created_at` | `accounts/mutations.py` | reporting, benchmark comparison timing, UI summaries | **core active** | Historical metadata with live reporting value |
@@ -107,7 +108,7 @@ most likely follow-up targets for later simplification passes.
 
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
-| `broker_type` | migration default; intended manual/operator DB updates | `trading/brokers/factory.py` broker selection | **manual / safety-critical** | Narrow surface, but real runtime behavior |
+| `broker_type` | migration default; intended manual/operator DB updates | `trading/brokers/factory.py` broker selection | **manual / safety-critical** | Execution-backend selector (`paper`, IBKR today, future live brokers such as Alpaca later); orthogonal to `account_kind` |
 | `broker_host` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
 | `broker_port` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
 | `broker_client_id` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |

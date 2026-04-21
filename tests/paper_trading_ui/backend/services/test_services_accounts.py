@@ -16,6 +16,16 @@ from paper_trading_ui.backend.config import (
     TEST_BACKTEST_ACCOUNT_NAME,
 )
 from trading.models.account_state import AccountState
+from tests.support import make_account_record
+
+
+def _account_record(**overrides: object):
+    values: dict[str, object] = {
+        "name": "acct_default",
+        "descriptive_name": "Default Account",
+    }
+    values.update(overrides)
+    return make_account_record(**values)
 
 
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
@@ -32,38 +42,15 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
 
     summary = services_accounts.build_account_summary(
         conn=None,
-        row={
-            "id": 1,
-            "name": "acct_a",
-            "descriptive_name": "Account A",
-            "strategy": "trend",
-            "instrument_mode": "equity",
-            "risk_policy": "none",
-            "benchmark_ticker": "SPY",
-            "initial_cash": 1000.0,
-            "stop_loss_pct": None,
-            "take_profit_pct": None,
-            "goal_min_return_pct": None,
-            "goal_max_return_pct": None,
-            "goal_period": None,
-            "learning_enabled": None,
-            "option_strike_offset_pct": None,
-            "option_min_dte": None,
-            "option_max_dte": None,
-            "option_type": None,
-            "target_delta_min": None,
-            "target_delta_max": None,
-            "max_premium_per_trade": None,
-            "max_contracts_per_trade": None,
-            "iv_rank_min": None,
-            "iv_rank_max": None,
-            "roll_dte_threshold": None,
-            "profit_take_pct": None,
-            "max_loss_pct": None,
-        },
+        row=_account_record(
+            name="acct_a",
+            descriptive_name="Account A",
+        ),
     )
 
     assert summary["equity"] == 1200.0
+    assert summary["accountKind"] == "managed"
+    assert summary["brokerType"] == "paper"
     assert summary["totalChange"] == 200.0
     assert summary["totalChangePct"] == pytest.approx(20.0)
     assert summary["changeSinceLastSnapshot"] == 100.0
@@ -145,14 +132,34 @@ def test_build_backtest_run_summary_uses_display_transforms() -> None:
     assert payload["feePerTrade"] == 1.25
 
 
-def test_fetch_managed_account_rows_excludes_shadow_account(conn, create_test_account) -> None:
+def test_fetch_visible_account_rows_excludes_shadow_account(conn, create_test_account) -> None:
     create_test_account("acct_one")
-    create_test_account(TEST_BACKTEST_ACCOUNT_NAME)
+    create_test_account("acct_local", account_kind="local")
+    create_test_account(TEST_BACKTEST_ACCOUNT_NAME, account_kind="test_shadow")
     create_test_account("acct_two")
 
-    rows = services_accounts.fetch_managed_account_rows(conn)
+    rows = services_accounts.fetch_visible_account_rows(conn)
     names = [str(row["name"]) for row in rows]
-    assert names == ["acct_one", "acct_two"]
+    assert names == ["acct_local", "acct_one", "acct_two"]
+
+
+def test_build_account_list_payload_includes_account_kind() -> None:
+    payload = account_summaries.build_account_list_payload(
+        {
+            "name": "acct_one",
+            "displayName": "Account One",
+            "accountKind": "local",
+            "strategy": "trend",
+            "instrumentMode": "equity",
+            "benchmark": "SPY",
+            "equity": 1000.0,
+            "totalChange": 0.0,
+            "totalChangePct": 0.0,
+            "changeSinceLastSnapshot": None,
+            "latestSnapshotTime": None,
+        }
+    )
+    assert payload["accountKind"] == "local"
 
 
 def test_fetch_latest_backtest_summary_none_and_present(conn, create_test_account) -> None:
@@ -327,35 +334,10 @@ class TestBuildAccountSummaryShape:
             "fetch_latest_snapshot_row",
             lambda _conn, _account_id: None,
         )
-        row = {
-            "id": 1,
-            "name": "acct_shape",
-            "descriptive_name": "Shape Account",
-            "strategy": "trend",
-            "instrument_mode": "equity",
-            "risk_policy": "none",
-            "benchmark_ticker": "SPY",
-            "initial_cash": 1000.0,
-            "stop_loss_pct": None,
-            "take_profit_pct": None,
-            "goal_min_return_pct": None,
-            "goal_max_return_pct": None,
-            "goal_period": None,
-            "learning_enabled": None,
-            "option_strike_offset_pct": None,
-            "option_min_dte": None,
-            "option_max_dte": None,
-            "option_type": None,
-            "target_delta_min": None,
-            "target_delta_max": None,
-            "max_premium_per_trade": None,
-            "max_contracts_per_trade": None,
-            "iv_rank_min": None,
-            "iv_rank_max": None,
-            "roll_dte_threshold": None,
-            "profit_take_pct": None,
-            "max_loss_pct": None,
-        }
+        row = _account_record(
+            name="acct_shape",
+            descriptive_name="Shape Account",
+        )
         summary = services_accounts.build_account_summary(conn=None, row=row)
         for key in ("name", "equity", "initialCash", "totalChange",
                     "totalChangePct", "changeSinceLastSnapshot", "strategy"):
@@ -372,52 +354,27 @@ class TestBuildAccountSummaryShape:
             "fetch_latest_snapshot_row",
             lambda _conn, _account_id: None,
         )
-        row = {
-            "id": 1,
-            "name": "acct_rotation",
-            "descriptive_name": "Rotation Account",
-            "strategy": "trend",
-            "instrument_mode": "equity",
-            "risk_policy": "none",
-            "benchmark_ticker": "SPY",
-            "initial_cash": 1000.0,
-            "stop_loss_pct": None,
-            "take_profit_pct": None,
-            "goal_min_return_pct": None,
-            "goal_max_return_pct": None,
-            "goal_period": None,
-            "learning_enabled": None,
-            "option_strike_offset_pct": None,
-            "option_min_dte": None,
-            "option_max_dte": None,
-            "option_type": None,
-            "target_delta_min": None,
-            "target_delta_max": None,
-            "max_premium_per_trade": None,
-            "max_contracts_per_trade": None,
-            "iv_rank_min": None,
-            "iv_rank_max": None,
-            "roll_dte_threshold": None,
-            "profit_take_pct": None,
-            "max_loss_pct": None,
-            "rotation_enabled": 1,
-            "rotation_mode": "optimal",
-            "rotation_optimality_mode": "average_return",
-            "rotation_interval_days": 7,
-            "rotation_interval_minutes": 240,
-            "rotation_lookback_days": 30,
-            "rotation_schedule": '["trend","ma_crossover","mean_reversion"]',
-            "rotation_regime_strategy_risk_on": "trend",
-            "rotation_regime_strategy_neutral": "ma_crossover",
-            "rotation_regime_strategy_risk_off": "mean_reversion",
-            "rotation_overlay_mode": "news_social",
-            "rotation_overlay_min_tickers": 3,
-            "rotation_overlay_confidence_threshold": 0.65,
-            "rotation_overlay_watchlist": '["AAPL","MSFT","NVDA"]',
-            "rotation_active_index": 1,
-            "rotation_active_strategy": "ma_crossover",
-            "rotation_last_at": "2026-03-20T00:00:00Z",
-        }
+        row = _account_record(
+            name="acct_rotation",
+            descriptive_name="Rotation Account",
+            rotation_enabled=1,
+            rotation_mode="optimal",
+            rotation_optimality_mode="average_return",
+            rotation_interval_days=7,
+            rotation_interval_minutes=240,
+            rotation_lookback_days=30,
+            rotation_schedule='["trend","ma_crossover","mean_reversion"]',
+            rotation_regime_strategy_risk_on="trend",
+            rotation_regime_strategy_neutral="ma_crossover",
+            rotation_regime_strategy_risk_off="mean_reversion",
+            rotation_overlay_mode="news_social",
+            rotation_overlay_min_tickers=3,
+            rotation_overlay_confidence_threshold=0.65,
+            rotation_overlay_watchlist='["AAPL","MSFT","NVDA"]',
+            rotation_active_index=1,
+            rotation_active_strategy="ma_crossover",
+            rotation_last_at="2026-03-20T00:00:00Z",
+        )
 
         summary = services_accounts.build_account_summary(conn=None, row=row)
         assert summary["rotationEnabled"] is True
@@ -450,25 +407,11 @@ class TestBuildAccountSummaryShape:
             "fetch_latest_snapshot_row",
             lambda _conn, _account_id: None,
         )
-        row = {
-            "id": 2,
-            "name": "deposit_acct",
-            "descriptive_name": "Deposit",
-            "strategy": "trend",
-            "instrument_mode": "equity",
-            "risk_policy": "none",
-            "benchmark_ticker": "SPY",
-            "initial_cash": 0.0,
-            "stop_loss_pct": None, "take_profit_pct": None,
-            "goal_min_return_pct": None, "goal_max_return_pct": None,
-            "goal_period": None, "learning_enabled": None,
-            "option_strike_offset_pct": None, "option_min_dte": None,
-            "option_max_dte": None, "option_type": None,
-            "target_delta_min": None, "target_delta_max": None,
-            "max_premium_per_trade": None, "max_contracts_per_trade": None,
-            "iv_rank_min": None, "iv_rank_max": None,
-            "roll_dte_threshold": None, "profit_take_pct": None,
-            "max_loss_pct": None,
-        }
+        row = _account_record(
+            id=2,
+            name="deposit_acct",
+            descriptive_name="Deposit",
+            initial_cash=0.0,
+        )
         summary = services_accounts.build_account_summary(conn=None, row=row)
         assert summary["totalChangePct"] == pytest.approx(0.0)

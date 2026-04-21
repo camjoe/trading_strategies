@@ -28,7 +28,7 @@ from .data_access import (
     build_snapshot_payload,
     build_trade_payload,
     fetch_account_trades,
-    fetch_managed_account_rows,
+    fetch_visible_account_rows,
     fetch_snapshot_history_rows,
     take_snapshot,
 )
@@ -54,7 +54,7 @@ __all__ = [
     "fetch_account_trades",
     "fetch_latest_backtest_metrics",
     "fetch_latest_backtest_summary",
-    "fetch_managed_account_rows",
+    "fetch_visible_account_rows",
     "fetch_recent_backtest_run_summaries",
     "fetch_snapshot_history_rows",
     "take_snapshot",

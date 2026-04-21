@@ -62,9 +62,9 @@ npm run dev
 
 ### Accounts
 
-- `GET /api/accounts` — list all managed accounts plus the virtual test account.
+- `GET /api/accounts` — list visible accounts (`managed` and `local`) plus the virtual test account. The persisted shadow row that backs `test_account` is hidden via `account_kind = 'test_shadow'`.
 - `GET /api/accounts/compare` — comparison payload for all accounts (used by the Compare tab). Includes live benchmark summary fields such as `liveBenchmarkReturnPct` and `liveAlphaPct` when enough snapshots exist.
-- `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest, latest backtest metrics, and `liveBenchmarkOverlay`. Account summaries include rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
+- `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest, latest backtest metrics, and `liveBenchmarkOverlay`. Account summaries include `accountKind`, `brokerType`, and rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
 - `PATCH /api/accounts/{account_name}/params` — update mutable account config and rotation fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
 
 ### Analysis
@@ -73,7 +73,7 @@ npm run dev
 
 ### Admin
 
-- `POST /api/admin/accounts/create` — create a managed account. Body: `AdminCreateAccountRequest`. If `rotationOverlayWatchlist` is omitted, the new account starts with the default tickers seeded from `trading/config/trade_universe.txt`.
+- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with the default tickers seeded from `trading/config/trade_universe.txt`.
 - The seeded default is persisted in the DB schema/defaults. Updating `trading/config/trade_universe.txt` later does not automatically refresh already-migrated databases; use an explicit DB update or migration if you want new accounts to inherit the revised list.
 - `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
 - `GET /api/admin/operations/overview` — summarize scheduled job health and recent refresh/snapshot/backup artifacts discovered under `local/`.
@@ -120,12 +120,12 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
-| `AdminCreateAccountRequest` | Account creation payload with core fields plus rotation settings. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the account-level default seeded from `trading/config/trade_universe.txt`; that seeded default lives in the DB schema/defaults and requires an explicit DB update or migration to change for already-migrated databases. | `POST /api/admin/accounts/create` |
+| `AdminCreateAccountRequest` | Account creation payload with core fields plus `accountKind` and rotation settings. `accountKind` defaults to `managed`; use `local` for local strategy-testing accounts. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the account-level default seeded from `trading/config/trade_universe.txt`; that seeded default lives in the DB schema/defaults and requires an explicit DB update or migration to change for already-migrated databases. | `POST /api/admin/accounts/create` |
 | `AdminDeleteAccountRequest` | `accountName`, `confirm` | `POST /api/admin/accounts/delete` |
 | `BacktestRunRequest` | `account`, date/window selection, optional universe-history inputs, slippage/fee, optional `runName`, and `allowApproximateLeaps` | `POST /api/backtests/run` |
 | `BacktestPreflightRequest` | Same account/date/universe inputs as a run request, without execution fields | `POST /api/backtests/preflight` |
 | `WalkForwardRunRequest` | Backtest request fields plus `testMonths`, `stepMonths`, slippage/fee, and optional `runNamePrefix` | `POST /api/backtests/walk-forward` |
-| `AccountParamsRequest` | Optional mutable account fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `profitTakePct`, `maxLossPct`. **Rotation:** `rotationEnabled`, `rotationMode`, `rotationOptimalityMode`, `rotationIntervalDays`, `rotationIntervalMinutes`, `rotationLookbackDays`, `rotationSchedule`, `rotationRegimeStrategyRiskOn`, `rotationRegimeStrategyNeutral`, `rotationRegimeStrategyRiskOff`, `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, `rotationOverlayWatchlist`, `rotationActiveIndex`, `rotationLastAt`, `rotationActiveStrategy`. | `PATCH /api/accounts/{name}/params` |
+| `AccountParamsRequest` | Optional mutable account fields — only supplied (non-`null`) fields are applied. **Core:** `strategy`, `accountKind`, `descriptiveName`, `riskPolicy`, `stopLossPct`, `takeProfitPct`, `instrumentMode`, `learningEnabled`. **Goals:** `goalMinReturnPct`, `goalMaxReturnPct`, `goalPeriod`. **Options:** `optionType`, `optionMinDte`, `optionMaxDte`, `optionStrikeOffsetPct`, `targetDeltaMin`, `targetDeltaMax`, `ivRankMin`, `ivRankMax`, `maxPremiumPerTrade`, `maxContractsPerTrade`, `rollDteThreshold`, `profitTakePct`, `maxLossPct`. **Rotation:** `rotationEnabled`, `rotationMode`, `rotationOptimalityMode`, `rotationIntervalDays`, `rotationIntervalMinutes`, `rotationLookbackDays`, `rotationSchedule`, `rotationRegimeStrategyRiskOn`, `rotationRegimeStrategyNeutral`, `rotationRegimeStrategyRiskOff`, `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, `rotationOverlayWatchlist`, `rotationActiveIndex`, `rotationLastAt`, `rotationActiveStrategy`. | `PATCH /api/accounts/{name}/params` |
 | `ManualTradeRequest` | `ticker`, `side` (`"buy"`\|`"sell"`), `qty` (>0), `price` (>0), `fee` (≥0, default 0) | `POST /api/accounts/{name}/trades` |
 | `FeatureSignalsRequest` | `ticker` | `POST /api/features/signals` |
 
@@ -136,7 +136,7 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 - Admin account creation is handled by `create_account_with_rotation()` in `paper_trading_ui/backend/services/admin.py`. This function absorbs `AccountAlreadyExistsError` from the trading domain and re-raises it as `ValueError`; HTTP-layer translation (400 vs 409 etc.) stays in the route handler, not the service.
 - Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `paper_trading_ui/backend/services/admin.py`.
 - New UI/backend code should use canonical runtime data-ops modules (`trading.interfaces.runtime.data_ops.*`).
-- Account snapshot history and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL. Account-name and account-row access now use canonical trading service names directly (`fetch_account_rows_excluding`, `fetch_all_account_names`) — local wrapper aliases were removed in the boundary refactor.
+- Account snapshot history and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL. Account-name and account-row access now use canonical trading service names directly (`fetch_accounts`, `fetch_all_account_names`) — local wrapper aliases were removed in the boundary refactor.
 - Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.
 - Account existence and latest-snapshot lookups in backend DB/test-account services are routed through trading repository adapters.
 

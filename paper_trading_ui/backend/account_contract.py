@@ -40,6 +40,7 @@ class AccountParamsUpdateCommand:
 
 
 ACCOUNT_CONFIG_API_FIELDS = (
+    ApiFieldMapping("accountKind", "account_kind"),
     ApiFieldMapping("descriptiveName", "descriptive_name"),
     ApiFieldMapping("goalMinReturnPct", "goal_min_return_pct"),
     ApiFieldMapping("goalMaxReturnPct", "goal_max_return_pct"),

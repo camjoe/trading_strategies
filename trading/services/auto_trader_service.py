@@ -9,6 +9,7 @@ import pandas as pd
 
 from common.constants import ANNUALIZATION_FACTOR
 from trading.domain.rotation import resolve_rotation_regime_strategy
+from trading.models import AccountRecord
 
 def build_iv_rank_proxy(
     universe: list[str],
@@ -53,7 +54,7 @@ def parse_runtime_as_of_iso(
 
 def select_account_rotation_strategy(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
     as_of_iso: str,
     *,
     select_optimal_strategy_impl_fn: Callable[..., str | None],
@@ -62,12 +63,12 @@ def select_account_rotation_strategy(
     parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
     fetch_policy_features_fn: Callable[[str], object] | None,
-    resolve_rotation_mode_fn: Callable[[dict[str, object]], str],
-    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
-    resolve_optimality_mode_fn: Callable[[dict[str, object]], str],
+    resolve_rotation_mode_fn: Callable[[AccountRecord], str],
+    resolve_active_strategy_fn: Callable[[AccountRecord], str],
+    resolve_optimality_mode_fn: Callable[[AccountRecord], str],
     fetch_news_features_fn: Callable[[str], object] | None = None,
     fetch_social_features_fn: Callable[[str], object] | None = None,
-    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, dict[str, object]], list[str]] | None = None,
+    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, AccountRecord], list[str]] | None = None,
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     if resolve_rotation_mode_fn(account) == "regime":
@@ -99,24 +100,24 @@ def select_account_rotation_strategy(
 
 @dataclass
 class RotationDeps:
-    rotate_account_if_due_impl_fn: Callable[..., dict[str, object]]
-    is_rotation_due_fn: Callable[[dict[str, object]], bool]
-    resolve_rotation_mode_fn: Callable[[dict[str, object]], str]
-    select_optimal_strategy_fn: Callable[[sqlite3.Connection, dict[str, object], str], str | None]
-    resolve_active_strategy_fn: Callable[[dict[str, object]], str]
+    rotate_account_if_due_impl_fn: Callable[..., AccountRecord]
+    is_rotation_due_fn: Callable[[AccountRecord], bool]
+    resolve_rotation_mode_fn: Callable[[AccountRecord], str]
+    select_optimal_strategy_fn: Callable[[sqlite3.Connection, AccountRecord, str], str | None]
+    resolve_active_strategy_fn: Callable[[AccountRecord], str]
     parse_rotation_schedule_fn: Callable[[object | None], list[str]]
-    next_rotation_state_fn: Callable[[dict[str, object], str], dict[str, object]]
+    next_rotation_state_fn: Callable[[AccountRecord, str], dict[str, object]]
     update_account_rotation_state_fn: Callable[..., None]
-    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]]
+    get_account_fn: Callable[[sqlite3.Connection, str], AccountRecord]
 
 
 def rotate_runtime_account_if_due(
     conn: sqlite3.Connection,
     account_name: str,
-    account: dict[str, object],
+    account: AccountRecord,
     now_iso: str,
     deps: RotationDeps,
-) -> dict[str, object]:
+) -> AccountRecord:
     return deps.rotate_account_if_due_impl_fn(
         conn,
         account_name,

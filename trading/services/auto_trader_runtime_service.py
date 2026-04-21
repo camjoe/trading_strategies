@@ -5,6 +5,7 @@ from typing import Callable, cast
 
 from common.market_hours import is_regular_us_equity_market_open_at_utc_iso
 from common.time import utc_now_iso
+from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderStatus
 from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
@@ -67,7 +68,6 @@ from trading.services.trade_execution_service import (
     run_for_account as run_for_account_impl,
 )
 
-
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
 _social_rotation_provider: SocialFeatureProvider | None = None
@@ -118,7 +118,7 @@ def _fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
 
 def _select_runtime_rotation_strategy(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
     as_of_iso: str,
 ) -> str | None:
     return select_account_rotation_strategy_impl(
@@ -134,16 +134,16 @@ def _select_runtime_rotation_strategy(
         fetch_news_features_fn=_fetch_news_rotation_bundle,
         fetch_social_features_fn=_fetch_social_rotation_bundle,
         fetch_rotation_overlay_tickers_fn=_fetch_runtime_rotation_overlay_tickers,
-        resolve_rotation_mode_fn=cast(Callable[[dict[str, object]], str], resolve_rotation_mode),
-        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
-        resolve_optimality_mode_fn=cast(Callable[[dict[str, object]], str], resolve_optimality_mode),
+        resolve_rotation_mode_fn=resolve_rotation_mode,
+        resolve_active_strategy_fn=resolve_active_strategy,
+        resolve_optimality_mode_fn=resolve_optimality_mode,
         fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
     )
 
 
 def _fetch_runtime_rotation_overlay_tickers(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
 ) -> list[str]:
     return fetch_rotation_overlay_tickers_impl(
         conn,
@@ -155,7 +155,7 @@ def _fetch_runtime_rotation_overlay_tickers(
 
 def _compute_runtime_live_account_metrics(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
 ) -> dict[str, float]:
     return compute_live_account_metrics_impl(
         conn,
@@ -169,7 +169,7 @@ def _compute_runtime_live_account_metrics(
 
 def _sync_runtime_rotation_episode(
     conn: sqlite3.Connection,
-    account: dict[str, object],
+    account: AccountRecord,
     now_iso: str,
 ) -> None:
     if not hasattr(conn, "execute"):
@@ -178,7 +178,7 @@ def _sync_runtime_rotation_episode(
         conn,
         account,
         now_iso,
-        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+        resolve_active_strategy_fn=resolve_active_strategy,
         fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
         insert_rotation_episode_fn=insert_rotation_episode,
         close_rotation_episode_fn=close_rotation_episode,
@@ -190,16 +190,16 @@ def _sync_runtime_rotation_episode(
 def _rotate_runtime_account(
     conn: sqlite3.Connection,
     account_name: str,
-    account: dict[str, object],
+    account: AccountRecord,
     now_iso: str,
-) -> dict[str, object]:
+) -> AccountRecord:
     _sync_runtime_rotation_episode(conn, account, now_iso)
     deps = RotationDeps(
         rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
-        resolve_rotation_mode_fn=cast(Callable[[dict[str, object]], str], resolve_rotation_mode),
+        resolve_rotation_mode_fn=resolve_rotation_mode,
         select_optimal_strategy_fn=_select_runtime_rotation_strategy,
-        resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+        resolve_active_strategy_fn=resolve_active_strategy,
         parse_rotation_schedule_fn=parse_rotation_schedule,
         next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
         update_account_rotation_state_fn=update_account_rotation_state,
@@ -210,7 +210,7 @@ def _rotate_runtime_account(
     return rotated
 
 
-def _refresh_runtime_account_state(conn: sqlite3.Connection, account: dict[str, object]):
+def _refresh_runtime_account_state(conn: sqlite3.Connection, account: AccountRecord):
     return refresh_account_state_impl(
         conn,
         account,
@@ -220,7 +220,7 @@ def _refresh_runtime_account_state(conn: sqlite3.Connection, account: dict[str, 
 
 
 def _build_runtime_leaps_candidates(
-    account: dict[str, object],
+    account: AccountRecord,
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
@@ -241,7 +241,7 @@ def _build_runtime_leaps_candidates(
 
 
 def _prepare_runtime_buy_trade(
-    account: dict[str, object],
+    account: AccountRecord,
     instrument_mode: str,
     universe: list[str],
     prices: dict[str, float],
@@ -308,7 +308,7 @@ def _resolve_strategy_style(strategy_name: str | None) -> str | None:
 
 
 def _prepare_runtime_trade_selection(
-    account: dict[str, object],
+    account: AccountRecord,
     active_strategy: str | None,
     state,
     can_sell: list[str],
@@ -343,7 +343,7 @@ def _prepare_runtime_trade_selection(
 def _record_runtime_trade(
     conn: sqlite3.Connection,
     account_name: str,
-    account: dict[str, object],
+    account: AccountRecord,
     learning_enabled: bool,
     risk_policy: str,
     instrument_mode: str,
@@ -458,7 +458,7 @@ def run_for_account(
             get_account_fn=get_account,
             utc_now_iso_fn=utc_now_iso,
             rotate_account_if_due_fn=_rotate_runtime_account,
-            resolve_active_strategy_fn=cast(Callable[[dict[str, object]], str], resolve_active_strategy),
+            resolve_active_strategy_fn=resolve_active_strategy,
             refresh_account_state_fn=_refresh_runtime_account_state,
             resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
             prepare_trade_selection_fn=_prepare_runtime_trade_selection,
@@ -475,7 +475,7 @@ def run_for_account(
 def reconcile_open_ib_orders(
     conn: sqlite3.Connection,
     account_name: str,
-    account: dict[str, object],
+    account: AccountRecord,
     fee: float,
 ) -> int:
     """Poll the account broker for fill updates on all open persisted broker orders.

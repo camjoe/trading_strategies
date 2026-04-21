@@ -3,12 +3,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from trading.domain.rotation import parse_rotation_schedule
-
 import trading.services.rotation_service as rotation_service
+from tests.support import make_account_record
 
 
 def _account(**overrides):
-    account = {
+    values: dict[str, object] = {
         "id": 7,
         "rotation_schedule": '["trend","mean_reversion"]',
         "rotation_lookback_days": 30,
@@ -19,8 +19,8 @@ def _account(**overrides):
         "rotation_active_index": 0,
         "initial_cash": 1000.0,
     }
-    account.update(overrides)
-    return account
+    values.update(overrides)
+    return make_account_record(**values)
 
 
 def test_select_optimal_strategy_hybrid_weighted_prefers_better_live_signal() -> None:

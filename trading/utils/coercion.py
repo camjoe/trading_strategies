@@ -6,7 +6,7 @@ depending on the canonical implementation module directly.
 
 from __future__ import annotations
 
-import sqlite3
+from collections.abc import Mapping
 
 from common.coercion import (
     coerce_bool as _coerce_bool,
@@ -53,33 +53,25 @@ def expect_int(value: object | None, field_name: str = "value") -> int:
     return _expect_int(value, field_name)
 
 
-def row_str(row: sqlite3.Row, key: str) -> str | None:
+def row_str(row: Mapping[str, object], key: str) -> str | None:
     return _row_str(row, key)
 
 
-def row_expect_str(row: sqlite3.Row, key: str) -> str:
+def row_expect_str(row: Mapping[str, object], key: str) -> str:
     return _row_expect_str(row, key)
 
 
-def row_float(row: sqlite3.Row, key: str) -> float | None:
+def row_float(row: Mapping[str, object], key: str) -> float | None:
     return _row_float(row, key)
 
 
-def row_expect_float(row: sqlite3.Row, key: str) -> float:
+def row_expect_float(row: Mapping[str, object], key: str) -> float:
     return _row_expect_float(row, key)
 
 
-def row_int(row: sqlite3.Row, key: str) -> int | None:
+def row_int(row: Mapping[str, object], key: str) -> int | None:
     return _row_int(row, key)
 
 
-def row_expect_int(row: sqlite3.Row, key: str) -> int:
+def row_expect_int(row: Mapping[str, object], key: str) -> int:
     return _row_expect_int(row, key)
-
-
-def to_float_obj(value: object) -> object:
-    return _expect_float(value)
-
-
-def to_int_obj(value: object) -> object:
-    return _expect_int(value)
