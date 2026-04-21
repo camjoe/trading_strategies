@@ -14,8 +14,10 @@ from trading.repositories.accounts_repository import (
     update_account_fields,
 )
 from trading.services.accounts.config import (
+    ACCOUNT_KIND_MANAGED,
     append_numeric_updates,
     append_update,
+    normalize_account_kind,
     normalize_instrument_mode,
     normalize_lower,
     normalize_lower_obj,
@@ -68,6 +70,7 @@ def create_account(
     if not display:
         display = name
 
+    account_kind = normalize_account_kind(cfg.account_kind or ACCOUNT_KIND_MANAGED)
     risk = normalize_risk_policy(cfg.risk_policy or "none")
     mode = normalize_instrument_mode(cfg.instrument_mode or "equity")
     trade_size_pct = cfg.trade_size_pct if cfg.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
@@ -87,6 +90,7 @@ def create_account(
         insert_account(
             conn,
             name=name,
+            account_kind=account_kind,
             strategy=strategy,
             initial_cash=float(initial_cash),
             created_at=utc_now_iso(),
@@ -145,6 +149,9 @@ def configure_account(
             raise ValueError("descriptive_name cannot be empty.")
         updates.append("descriptive_name = ?")
         params.append(display)
+
+    if cfg.account_kind is not None:
+        append_update(updates, params, "account_kind", normalize_account_kind(cfg.account_kind))
 
     append_update(updates, params, "goal_period", cfg.goal_period, normalize_lower_obj)
     append_update(updates, params, "goal_min_return_pct", cfg.goal_min_return_pct, to_float_obj)

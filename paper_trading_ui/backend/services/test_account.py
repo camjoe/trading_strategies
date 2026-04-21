@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 
 from trading.services.accounts_service import create_account
+from trading.services.accounts_service import configure_account
+from trading.services.accounts_service import ACCOUNT_KIND_TEST_SHADOW
 from trading.models import AccountConfig
 from trading.services.accounts_service import fetch_account_by_name
 
@@ -102,6 +104,12 @@ def resolve_backtest_account_name(account_name: str) -> str:
 def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
     existing = fetch_account_by_name(conn, TEST_BACKTEST_ACCOUNT_NAME)
     if existing is not None:
+        if str(existing.get("account_kind") or "") != ACCOUNT_KIND_TEST_SHADOW:
+            configure_account(
+                conn,
+                TEST_BACKTEST_ACCOUNT_NAME,
+                AccountConfig(account_kind=ACCOUNT_KIND_TEST_SHADOW),
+            )
         return
 
     initial_cash = compute_test_account_equity()
@@ -115,6 +123,7 @@ def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
         initial_cash=initial_cash,
         benchmark_ticker=parse_test_account_benchmark(),
         config=AccountConfig(
+            account_kind=ACCOUNT_KIND_TEST_SHADOW,
             descriptive_name="TEST Account (Backtest Shadow)",
             risk_policy="none",
             instrument_mode="equity",

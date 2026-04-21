@@ -20,11 +20,12 @@ that callers never need to reach into domain or config sub-packages directly:
 
 from __future__ import annotations
 
+from collections.abc import Collection
 import sqlite3
 
 from trading.repositories.accounts_repository import (
     fetch_account_by_name as _repo_fetch_account_by_name,
-    fetch_account_rows_excluding_name,
+    fetch_account_rows as _repo_fetch_account_rows,
     fetch_all_account_names as _repo_fetch_all_account_names,
     fetch_all_account_names_from_conn,
 )
@@ -61,6 +62,10 @@ from trading.domain.rotation import (  # noqa: F401
     ROTATION_OVERLAY_MODES,
 )
 from trading.services.accounts.config import (  # noqa: F401
+    ACCOUNT_KINDS,
+    ACCOUNT_KIND_LOCAL,
+    ACCOUNT_KIND_MANAGED,
+    ACCOUNT_KIND_TEST_SHADOW,
     INSTRUMENT_MODES,
     OPTION_TYPES,
     RISK_POLICIES,
@@ -75,8 +80,12 @@ def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
     return fetch_all_account_names_from_conn(conn)
 
 
-def fetch_account_rows_excluding(conn: sqlite3.Connection, *, excluded_name: str) -> list[dict[str, object]]:
-    return fetch_account_rows_excluding_name(conn, excluded_name=excluded_name)
+def fetch_accounts(
+    conn: sqlite3.Connection,
+    *,
+    account_kinds: Collection[str] | None = None,
+) -> list[dict[str, object]]:
+    return _repo_fetch_account_rows(conn, account_kinds=account_kinds)
 
 
 def fetch_latest_snapshot_row(conn: sqlite3.Connection, account_id: int) -> dict[str, object] | None:

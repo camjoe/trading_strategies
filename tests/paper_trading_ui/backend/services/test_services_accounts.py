@@ -35,6 +35,8 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
         row={
             "id": 1,
             "name": "acct_a",
+            "account_kind": "managed",
+            "broker_type": "paper",
             "descriptive_name": "Account A",
             "strategy": "trend",
             "instrument_mode": "equity",
@@ -64,6 +66,8 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     )
 
     assert summary["equity"] == 1200.0
+    assert summary["accountKind"] == "managed"
+    assert summary["brokerType"] == "paper"
     assert summary["totalChange"] == 200.0
     assert summary["totalChangePct"] == pytest.approx(20.0)
     assert summary["changeSinceLastSnapshot"] == 100.0
@@ -145,14 +149,34 @@ def test_build_backtest_run_summary_uses_display_transforms() -> None:
     assert payload["feePerTrade"] == 1.25
 
 
-def test_fetch_managed_account_rows_excludes_shadow_account(conn, create_test_account) -> None:
+def test_fetch_visible_account_rows_excludes_shadow_account(conn, create_test_account) -> None:
     create_test_account("acct_one")
-    create_test_account(TEST_BACKTEST_ACCOUNT_NAME)
+    create_test_account("acct_local", account_kind="local")
+    create_test_account(TEST_BACKTEST_ACCOUNT_NAME, account_kind="test_shadow")
     create_test_account("acct_two")
 
-    rows = services_accounts.fetch_managed_account_rows(conn)
+    rows = services_accounts.fetch_visible_account_rows(conn)
     names = [str(row["name"]) for row in rows]
-    assert names == ["acct_one", "acct_two"]
+    assert names == ["acct_local", "acct_one", "acct_two"]
+
+
+def test_build_account_list_payload_includes_account_kind() -> None:
+    payload = account_summaries.build_account_list_payload(
+        {
+            "name": "acct_one",
+            "displayName": "Account One",
+            "accountKind": "local",
+            "strategy": "trend",
+            "instrumentMode": "equity",
+            "benchmark": "SPY",
+            "equity": 1000.0,
+            "totalChange": 0.0,
+            "totalChangePct": 0.0,
+            "changeSinceLastSnapshot": None,
+            "latestSnapshotTime": None,
+        }
+    )
+    assert payload["accountKind"] == "local"
 
 
 def test_fetch_latest_backtest_summary_none_and_present(conn, create_test_account) -> None:

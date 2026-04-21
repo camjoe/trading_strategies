@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from trading.services.accounts_service import (
+    ACCOUNT_KINDS,
     INSTRUMENT_MODES,
     OPTIMALITY_MODES,
     OPTION_TYPES,
@@ -12,6 +13,7 @@ from trading.services.accounts_service import (
 GOAL_PERIODS = ("monthly", "weekly", "quarterly", "yearly")
 
 _RISK_POLICY_ORDER = ("none", "fixed_stop", "take_profit", "stop_and_target")
+_ACCOUNT_KIND_ORDER = ("managed", "local", "test_shadow")
 _INSTRUMENT_MODE_ORDER = ("equity", "leaps")
 _OPTION_TYPE_ORDER = ("call", "put", "both")
 _ROTATION_MODE_ORDER = ("time", "optimal", "regime")
@@ -20,6 +22,7 @@ _ROTATION_OVERLAY_ORDER = ("none", "news", "social", "news_social")
 
 # Guard against silent drift: every known value must appear in the order tuple.
 assert frozenset(_RISK_POLICY_ORDER) == RISK_POLICIES, f"_RISK_POLICY_ORDER out of sync: {RISK_POLICIES}"
+assert frozenset(_ACCOUNT_KIND_ORDER) == ACCOUNT_KINDS, f"_ACCOUNT_KIND_ORDER out of sync: {ACCOUNT_KINDS}"
 assert frozenset(_INSTRUMENT_MODE_ORDER) == INSTRUMENT_MODES, f"_INSTRUMENT_MODE_ORDER out of sync: {INSTRUMENT_MODES}"
 assert frozenset(_OPTION_TYPE_ORDER) == OPTION_TYPES, f"_OPTION_TYPE_ORDER out of sync: {OPTION_TYPES}"
 assert frozenset(_ROTATION_MODE_ORDER) == ROTATION_MODES, f"_ROTATION_MODE_ORDER out of sync: {ROTATION_MODES}"
@@ -37,6 +40,7 @@ def get_account_config_options() -> dict[str, object]:
     return {
         "goalPeriods": list(GOAL_PERIODS),
         "riskPolicies": _ordered_values(_RISK_POLICY_ORDER, RISK_POLICIES),
+        "accountKinds": _ordered_values(_ACCOUNT_KIND_ORDER, ACCOUNT_KINDS),
         "instrumentModes": _ordered_values(_INSTRUMENT_MODE_ORDER, INSTRUMENT_MODES),
         "optionTypes": _ordered_values(_OPTION_TYPE_ORDER, OPTION_TYPES),
         "rotationModes": _ordered_values(_ROTATION_MODE_ORDER, ROTATION_MODES),
@@ -45,6 +49,7 @@ def get_account_config_options() -> dict[str, object]:
         "defaults": {
             "goalPeriod": GOAL_PERIODS[0],
             "riskPolicy": _RISK_POLICY_ORDER[0],
+            "accountKind": _ACCOUNT_KIND_ORDER[0],
             "instrumentMode": _INSTRUMENT_MODE_ORDER[0],
             "rotationMode": _ROTATION_MODE_ORDER[0],
             "rotationOptimalityMode": _ROTATION_OPTIMALITY_ORDER[0],

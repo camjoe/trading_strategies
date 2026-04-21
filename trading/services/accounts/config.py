@@ -15,7 +15,15 @@ RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
 OPTION_TYPES = {"call", "put", "both"}
 
+# Account kind classifies an account's lifecycle/visibility role independently
+# from broker_type, which selects the execution backend.
+ACCOUNT_KIND_MANAGED = "managed"
+ACCOUNT_KIND_LOCAL = "local"
+ACCOUNT_KIND_TEST_SHADOW = "test_shadow"
+ACCOUNT_KINDS = {ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL, ACCOUNT_KIND_TEST_SHADOW}
+
 _ENUM_FIELDS = {
+    "account_kind": ACCOUNT_KINDS,
     "risk_policy": RISK_POLICIES,
     "instrument_mode": INSTRUMENT_MODES,
     "option_type": OPTION_TYPES,
@@ -44,6 +52,10 @@ def validate_enum_value(value: str, field_name: str) -> str:
 
 def normalize_risk_policy(risk_policy: str) -> str:
     return validate_enum_value(risk_policy, "risk_policy")
+
+
+def normalize_account_kind(account_kind: str) -> str:
+    return validate_enum_value(account_kind, "account_kind")
 
 
 def normalize_instrument_mode(instrument_mode: str) -> str:

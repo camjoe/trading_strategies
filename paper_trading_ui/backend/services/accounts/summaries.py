@@ -43,6 +43,7 @@ def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
     return {
         "name": summary["name"],
         "displayName": summary["displayName"],
+        "accountKind": summary["accountKind"],
         "strategy": summary["strategy"],
         "instrumentMode": summary["instrumentMode"],
         "benchmark": summary["benchmark"],
@@ -116,6 +117,8 @@ def _build_summary_from_stats(
         "displayName": row["descriptive_name"],
         "strategy": row["strategy"],
         "instrumentMode": row["instrument_mode"],
+        "accountKind": str(row.get("account_kind") or "managed"),
+        "brokerType": str(row.get("broker_type") or "paper"),
         "riskPolicy": row["risk_policy"],
         "benchmark": row["benchmark_ticker"],
         "initialCash": initial_cash,

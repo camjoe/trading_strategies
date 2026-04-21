@@ -63,6 +63,7 @@ class AdminCreateAccountRequest(BaseModel):
     strategy: str
     initialCash: float = Field(gt=0)
     benchmarkTicker: str = "SPY"
+    accountKind: str = "managed"
     descriptiveName: str | None = None
     goalMinReturnPct: float | None = None
     goalMaxReturnPct: float | None = None
@@ -113,6 +114,7 @@ class AdminDeleteAccountRequest(BaseModel):
 
 class AccountParamsRequest(BaseModel):
     strategy: str | None = None
+    accountKind: str | None = None
     descriptiveName: str | None = None
     riskPolicy: str | None = None
     stopLossPct: float | None = None

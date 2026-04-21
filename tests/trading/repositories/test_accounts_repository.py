@@ -4,8 +4,8 @@ import pytest
 
 from trading.repositories.accounts_repository import (
     fetch_account_by_name,
+    fetch_account_rows,
     fetch_account_listing_rows,
-    fetch_account_rows_excluding_name,
     fetch_all_account_names_from_conn,
     insert_account,
     update_account_benchmark,
@@ -17,6 +17,7 @@ def _insert(conn, name: str, strategy: str = "Trend") -> None:
     insert_account(
         conn,
         name=name,
+        account_kind="managed",
         strategy=strategy,
         initial_cash=1000.0,
         created_at="2026-01-01T00:00:00",
@@ -64,6 +65,7 @@ class TestInsertAccount:
         insert_account(
             conn,
             name="full_acct",
+            account_kind="local",
             strategy="Momentum",
             initial_cash=5000.0,
             created_at="2026-03-01T10:00:00",
@@ -96,6 +98,7 @@ class TestInsertAccount:
         row = fetch_account_by_name(conn, "full_acct")
         assert row is not None
         assert row["strategy"] == "Momentum"
+        assert row["account_kind"] == "local"
         assert float(row["initial_cash"]) == pytest.approx(5000.0)
         assert row["benchmark_ticker"] == "QQQ"
         assert float(row["goal_min_return_pct"]) == pytest.approx(1.5)
@@ -128,22 +131,128 @@ class TestFetchAccountListingRows:
         assert fetch_account_listing_rows(conn) == []
 
 
-class TestFetchAccountRowsExcludingName:
-    def test_excludes_named_account(self, conn) -> None:
+class TestFetchAccountRows:
+    def test_returns_all_accounts_when_account_kinds_omitted(self, conn) -> None:
         _insert(conn, "keep_me")
-        _insert(conn, "exclude_me")
-        rows = fetch_account_rows_excluding_name(conn, excluded_name="exclude_me")
+        insert_account(
+            conn,
+            name="shadow_acct",
+            account_kind="test_shadow",
+            strategy="Trend",
+            initial_cash=1000.0,
+            created_at="2026-01-01T00:00:00",
+            benchmark_ticker="SPY",
+            descriptive_name="shadow_acct",
+            goal_min_return_pct=None,
+            goal_max_return_pct=None,
+            goal_period="monthly",
+            learning_enabled=0,
+            risk_policy="none",
+            stop_loss_pct=None,
+            take_profit_pct=None,
+            trade_size_pct=10.0,
+            max_position_pct=20.0,
+            instrument_mode="equity",
+            option_strike_offset_pct=None,
+            option_min_dte=None,
+            option_max_dte=None,
+            option_type=None,
+            target_delta_min=None,
+            target_delta_max=None,
+            max_premium_per_trade=None,
+            max_contracts_per_trade=None,
+            iv_rank_min=None,
+            iv_rank_max=None,
+            roll_dte_threshold=None,
+            profit_take_pct=None,
+            max_loss_pct=None,
+        )
+        names = [r["name"] for r in fetch_account_rows(conn)]
+        assert names == ["keep_me", "shadow_acct"]
+
+    def test_filters_to_included_kinds(self, conn) -> None:
+        _insert(conn, "keep_me")
+        insert_account(
+            conn,
+            name="shadow_acct",
+            account_kind="test_shadow",
+            strategy="Trend",
+            initial_cash=1000.0,
+            created_at="2026-01-01T00:00:00",
+            benchmark_ticker="SPY",
+            descriptive_name="shadow_acct",
+            goal_min_return_pct=None,
+            goal_max_return_pct=None,
+            goal_period="monthly",
+            learning_enabled=0,
+            risk_policy="none",
+            stop_loss_pct=None,
+            take_profit_pct=None,
+            trade_size_pct=10.0,
+            max_position_pct=20.0,
+            instrument_mode="equity",
+            option_strike_offset_pct=None,
+            option_min_dte=None,
+            option_max_dte=None,
+            option_type=None,
+            target_delta_min=None,
+            target_delta_max=None,
+            max_premium_per_trade=None,
+            max_contracts_per_trade=None,
+            iv_rank_min=None,
+            iv_rank_max=None,
+            roll_dte_threshold=None,
+            profit_take_pct=None,
+            max_loss_pct=None,
+        )
+        rows = fetch_account_rows(conn, account_kinds=("managed",))
         names = [r["name"] for r in rows]
-        assert "exclude_me" not in names
+        assert "shadow_acct" not in names
         assert "keep_me" in names
 
     def test_ordered_by_name(self, conn) -> None:
         _insert(conn, "bravo")
         _insert(conn, "alpha")
-        _insert(conn, "skip_me")
-        rows = fetch_account_rows_excluding_name(conn, excluded_name="skip_me")
+        insert_account(
+            conn,
+            name="skip_me",
+            account_kind="test_shadow",
+            strategy="Trend",
+            initial_cash=1000.0,
+            created_at="2026-01-01T00:00:00",
+            benchmark_ticker="SPY",
+            descriptive_name="skip_me",
+            goal_min_return_pct=None,
+            goal_max_return_pct=None,
+            goal_period="monthly",
+            learning_enabled=0,
+            risk_policy="none",
+            stop_loss_pct=None,
+            take_profit_pct=None,
+            trade_size_pct=10.0,
+            max_position_pct=20.0,
+            instrument_mode="equity",
+            option_strike_offset_pct=None,
+            option_min_dte=None,
+            option_max_dte=None,
+            option_type=None,
+            target_delta_min=None,
+            target_delta_max=None,
+            max_premium_per_trade=None,
+            max_contracts_per_trade=None,
+            iv_rank_min=None,
+            iv_rank_max=None,
+            roll_dte_threshold=None,
+            profit_take_pct=None,
+            max_loss_pct=None,
+        )
+        rows = fetch_account_rows(conn, account_kinds=("managed",))
         names = [r["name"] for r in rows]
         assert names == ["alpha", "bravo"]
+
+    def test_empty_included_kinds_returns_empty_list(self, conn) -> None:
+        _insert(conn, "alpha")
+        assert fetch_account_rows(conn, account_kinds=()) == []
 
 
 class TestUpdateAccountFields:

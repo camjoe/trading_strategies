@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 import sqlite3
 
 from trading.database.db_backend import get_backend
+from trading.database.sql_helpers import in_placeholders
 
 def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
@@ -13,6 +15,7 @@ def insert_account(
     conn: sqlite3.Connection,
     *,
     name: str,
+    account_kind: str,
     strategy: str,
     initial_cash: float,
     created_at: str,
@@ -46,6 +49,7 @@ def insert_account(
         """
         INSERT INTO accounts (
             name,
+            account_kind,
             strategy,
             initial_cash,
             created_at,
@@ -75,10 +79,11 @@ def insert_account(
             profit_take_pct,
             max_loss_pct
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             name,
+            account_kind,
             strategy,
             initial_cash,
             created_at,
@@ -124,14 +129,26 @@ def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[dict[str, objec
     return [dict(row) for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()]
 
 
-def fetch_account_rows_excluding_name(conn: sqlite3.Connection, *, excluded_name: str) -> list[dict[str, object]]:
-    return [
-        dict(row)
-        for row in conn.execute(
-            "SELECT * FROM accounts WHERE name != ? ORDER BY name",
-            (excluded_name,),
-        ).fetchall()
-    ]
+def fetch_account_rows(
+    conn: sqlite3.Connection,
+    *,
+    account_kinds: Collection[str] | None = None,
+) -> list[dict[str, object]]:
+    if account_kinds is None:
+        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        return [dict(row) for row in rows]
+
+    normalized_kinds = tuple(sorted({str(kind) for kind in account_kinds}))
+    if not normalized_kinds:
+        return []
+
+    rows = conn.execute(
+        "SELECT * FROM accounts "
+        f"WHERE COALESCE(account_kind, 'managed') IN ({in_placeholders(normalized_kinds)}) "
+        "ORDER BY name",
+        normalized_kinds,
+    ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def update_account_fields(

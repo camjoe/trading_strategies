@@ -3,17 +3,20 @@ from __future__ import annotations
 import sqlite3
 
 from trading.services.accounts_service import (
-    fetch_account_rows_excluding_name,
+    ACCOUNT_KIND_LOCAL,
+    ACCOUNT_KIND_MANAGED,
+    fetch_accounts,
     fetch_snapshot_history_rows as _fetch_snapshot_history_rows,
 )
 from trading.services.accounting_service import load_trades
 from trading.services.reporting_service import snapshot_account
 
-from ...config import TEST_BACKTEST_ACCOUNT_NAME
+
+VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 
-def fetch_managed_account_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
-    return fetch_account_rows_excluding_name(conn, excluded_name=TEST_BACKTEST_ACCOUNT_NAME)
+def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    return fetch_accounts(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
 
 
 def build_snapshot_payload(snapshot: dict[str, object]) -> dict[str, object]:
