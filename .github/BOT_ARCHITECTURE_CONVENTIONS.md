@@ -121,6 +121,10 @@ General Python:
 1. files/functions/variables: `snake_case`
 2. classes/dataclasses: `PascalCase`
 3. constants: `UPPER_SNAKE_CASE`
+4. model suffixes should reflect lifecycle role:
+   - `*Config`: caller-facing, partial, optional input used for create/update flows
+   - `*Insert`: repository-ready create payload with required/defaulted/normalized fields
+   - `*Record`: persisted read model materialized from database rows
 
 Repository naming:
 

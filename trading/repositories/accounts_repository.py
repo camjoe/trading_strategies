@@ -2,10 +2,48 @@ from __future__ import annotations
 
 from collections.abc import Collection
 import sqlite3
+from dataclasses import astuple
 
 from trading.database.db_backend import get_backend
 from trading.database.sql_helpers import in_placeholders
-from trading.models import AccountRecord
+from trading.models import AccountInsert, AccountRecord
+
+_ACCOUNT_INSERT_COLUMNS = (
+    "name",
+    "account_kind",
+    "strategy",
+    "initial_cash",
+    "created_at",
+    "benchmark_ticker",
+    "descriptive_name",
+    "goal_min_return_pct",
+    "goal_max_return_pct",
+    "goal_period",
+    "learning_enabled",
+    "risk_policy",
+    "stop_loss_pct",
+    "take_profit_pct",
+    "trade_size_pct",
+    "max_position_pct",
+    "instrument_mode",
+    "option_strike_offset_pct",
+    "option_min_dte",
+    "option_max_dte",
+    "option_type",
+    "target_delta_min",
+    "target_delta_max",
+    "max_premium_per_trade",
+    "max_contracts_per_trade",
+    "iv_rank_min",
+    "iv_rank_max",
+    "roll_dte_threshold",
+    "profit_take_pct",
+    "max_loss_pct",
+)
+_ACCOUNT_INSERT_SQL = (
+    f"INSERT INTO accounts ({', '.join(_ACCOUNT_INSERT_COLUMNS)}) "
+    f"VALUES ({', '.join('?' for _ in _ACCOUNT_INSERT_COLUMNS)})"
+)
 
 
 def _account_record_from_row(row: sqlite3.Row) -> AccountRecord:
@@ -17,109 +55,8 @@ def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> AccountRecord 
     return _account_record_from_row(row) if row is not None else None
 
 
-def insert_account(
-    conn: sqlite3.Connection,
-    *,
-    name: str,
-    account_kind: str,
-    strategy: str,
-    initial_cash: float,
-    created_at: str,
-    benchmark_ticker: str,
-    descriptive_name: str,
-    goal_min_return_pct: float | None,
-    goal_max_return_pct: float | None,
-    goal_period: str,
-    learning_enabled: int,
-    risk_policy: str,
-    stop_loss_pct: float | None,
-    take_profit_pct: float | None,
-    trade_size_pct: float | None,
-    max_position_pct: float | None,
-    instrument_mode: str,
-    option_strike_offset_pct: float | None,
-    option_min_dte: int | None,
-    option_max_dte: int | None,
-    option_type: str | None,
-    target_delta_min: float | None,
-    target_delta_max: float | None,
-    max_premium_per_trade: float | None,
-    max_contracts_per_trade: int | None,
-    iv_rank_min: float | None,
-    iv_rank_max: float | None,
-    roll_dte_threshold: int | None,
-    profit_take_pct: float | None,
-    max_loss_pct: float | None,
-) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (
-            name,
-            account_kind,
-            strategy,
-            initial_cash,
-            created_at,
-            benchmark_ticker,
-            descriptive_name,
-            goal_min_return_pct,
-            goal_max_return_pct,
-            goal_period,
-            learning_enabled,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-            trade_size_pct,
-            max_position_pct,
-            instrument_mode,
-            option_strike_offset_pct,
-            option_min_dte,
-            option_max_dte,
-            option_type,
-            target_delta_min,
-            target_delta_max,
-            max_premium_per_trade,
-            max_contracts_per_trade,
-            iv_rank_min,
-            iv_rank_max,
-            roll_dte_threshold,
-            profit_take_pct,
-            max_loss_pct
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            name,
-            account_kind,
-            strategy,
-            initial_cash,
-            created_at,
-            benchmark_ticker,
-            descriptive_name,
-            goal_min_return_pct,
-            goal_max_return_pct,
-            goal_period,
-            learning_enabled,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-            trade_size_pct,
-            max_position_pct,
-            instrument_mode,
-            option_strike_offset_pct,
-            option_min_dte,
-            option_max_dte,
-            option_type,
-            target_delta_min,
-            target_delta_max,
-            max_premium_per_trade,
-            max_contracts_per_trade,
-            iv_rank_min,
-            iv_rank_max,
-            roll_dte_threshold,
-            profit_take_pct,
-            max_loss_pct,
-        ),
-    )
+def insert_account(conn: sqlite3.Connection, account: AccountInsert) -> None:
+    conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
     conn.commit()
 
 

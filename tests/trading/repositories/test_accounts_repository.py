@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from trading.models import AccountInsert
 from trading.repositories.accounts_repository import (
     fetch_account_by_name,
     fetch_account_rows,
@@ -13,40 +14,45 @@ from trading.repositories.accounts_repository import (
 )
 
 
+def _make_account_insert(**overrides: object) -> AccountInsert:
+    values: dict[str, object] = {
+        "name": "acct_a",
+        "account_kind": "managed",
+        "strategy": "Trend",
+        "initial_cash": 1000.0,
+        "created_at": "2026-01-01T00:00:00",
+        "benchmark_ticker": "SPY",
+        "descriptive_name": "acct_a",
+        "goal_min_return_pct": None,
+        "goal_max_return_pct": None,
+        "goal_period": "monthly",
+        "learning_enabled": 0,
+        "risk_policy": "none",
+        "stop_loss_pct": None,
+        "take_profit_pct": None,
+        "trade_size_pct": 10.0,
+        "max_position_pct": 20.0,
+        "instrument_mode": "equity",
+        "option_strike_offset_pct": None,
+        "option_min_dte": None,
+        "option_max_dte": None,
+        "option_type": None,
+        "target_delta_min": None,
+        "target_delta_max": None,
+        "max_premium_per_trade": None,
+        "max_contracts_per_trade": None,
+        "iv_rank_min": None,
+        "iv_rank_max": None,
+        "roll_dte_threshold": None,
+        "profit_take_pct": None,
+        "max_loss_pct": None,
+    }
+    values.update(overrides)
+    return AccountInsert(**values)
+
+
 def _insert(conn, name: str, strategy: str = "Trend") -> None:
-    insert_account(
-        conn,
-        name=name,
-        account_kind="managed",
-        strategy=strategy,
-        initial_cash=1000.0,
-        created_at="2026-01-01T00:00:00",
-        benchmark_ticker="SPY",
-        descriptive_name=name,
-        goal_min_return_pct=None,
-        goal_max_return_pct=None,
-        goal_period="monthly",
-        learning_enabled=0,
-        risk_policy="none",
-        stop_loss_pct=None,
-        take_profit_pct=None,
-        trade_size_pct=10.0,
-        max_position_pct=20.0,
-        instrument_mode="equity",
-        option_strike_offset_pct=None,
-        option_min_dte=None,
-        option_max_dte=None,
-        option_type=None,
-        target_delta_min=None,
-        target_delta_max=None,
-        max_premium_per_trade=None,
-        max_contracts_per_trade=None,
-        iv_rank_min=None,
-        iv_rank_max=None,
-        roll_dte_threshold=None,
-        profit_take_pct=None,
-        max_loss_pct=None,
-    )
+    insert_account(conn, _make_account_insert(name=name, descriptive_name=name, strategy=strategy))
 
 
 class TestFetchAccountByName:
@@ -64,36 +70,38 @@ class TestInsertAccount:
     def test_round_trip_stores_all_fields(self, conn) -> None:
         insert_account(
             conn,
-            name="full_acct",
-            account_kind="local",
-            strategy="Momentum",
-            initial_cash=5000.0,
-            created_at="2026-03-01T10:00:00",
-            benchmark_ticker="QQQ",
-            descriptive_name="Full Account",
-            goal_min_return_pct=1.5,
-            goal_max_return_pct=3.0,
-            goal_period="weekly",
-            learning_enabled=1,
-            risk_policy="fixed_stop",
-            stop_loss_pct=5.0,
-            take_profit_pct=10.0,
-            trade_size_pct=12.5,
-            max_position_pct=25.0,
-            instrument_mode="leaps",
-            option_strike_offset_pct=2.0,
-            option_min_dte=90,
-            option_max_dte=180,
-            option_type="call",
-            target_delta_min=0.25,
-            target_delta_max=0.45,
-            max_premium_per_trade=300.0,
-            max_contracts_per_trade=2,
-            iv_rank_min=20.0,
-            iv_rank_max=70.0,
-            roll_dte_threshold=30,
-            profit_take_pct=25.0,
-            max_loss_pct=15.0,
+            _make_account_insert(
+                name="full_acct",
+                account_kind="local",
+                strategy="Momentum",
+                initial_cash=5000.0,
+                created_at="2026-03-01T10:00:00",
+                benchmark_ticker="QQQ",
+                descriptive_name="Full Account",
+                goal_min_return_pct=1.5,
+                goal_max_return_pct=3.0,
+                goal_period="weekly",
+                learning_enabled=1,
+                risk_policy="fixed_stop",
+                stop_loss_pct=5.0,
+                take_profit_pct=10.0,
+                trade_size_pct=12.5,
+                max_position_pct=25.0,
+                instrument_mode="leaps",
+                option_strike_offset_pct=2.0,
+                option_min_dte=90,
+                option_max_dte=180,
+                option_type="call",
+                target_delta_min=0.25,
+                target_delta_max=0.45,
+                max_premium_per_trade=300.0,
+                max_contracts_per_trade=2,
+                iv_rank_min=20.0,
+                iv_rank_max=70.0,
+                roll_dte_threshold=30,
+                profit_take_pct=25.0,
+                max_loss_pct=15.0,
+            ),
         )
         row = fetch_account_by_name(conn, "full_acct")
         assert row is not None
@@ -134,77 +142,13 @@ class TestFetchAccountListingRows:
 class TestFetchAccountRows:
     def test_returns_all_accounts_when_account_kinds_omitted(self, conn) -> None:
         _insert(conn, "keep_me")
-        insert_account(
-            conn,
-            name="shadow_acct",
-            account_kind="test_shadow",
-            strategy="Trend",
-            initial_cash=1000.0,
-            created_at="2026-01-01T00:00:00",
-            benchmark_ticker="SPY",
-            descriptive_name="shadow_acct",
-            goal_min_return_pct=None,
-            goal_max_return_pct=None,
-            goal_period="monthly",
-            learning_enabled=0,
-            risk_policy="none",
-            stop_loss_pct=None,
-            take_profit_pct=None,
-            trade_size_pct=10.0,
-            max_position_pct=20.0,
-            instrument_mode="equity",
-            option_strike_offset_pct=None,
-            option_min_dte=None,
-            option_max_dte=None,
-            option_type=None,
-            target_delta_min=None,
-            target_delta_max=None,
-            max_premium_per_trade=None,
-            max_contracts_per_trade=None,
-            iv_rank_min=None,
-            iv_rank_max=None,
-            roll_dte_threshold=None,
-            profit_take_pct=None,
-            max_loss_pct=None,
-        )
+        insert_account(conn, _make_account_insert(name="shadow_acct", descriptive_name="shadow_acct", account_kind="test_shadow"))
         names = [r["name"] for r in fetch_account_rows(conn)]
         assert names == ["keep_me", "shadow_acct"]
 
     def test_filters_to_included_kinds(self, conn) -> None:
         _insert(conn, "keep_me")
-        insert_account(
-            conn,
-            name="shadow_acct",
-            account_kind="test_shadow",
-            strategy="Trend",
-            initial_cash=1000.0,
-            created_at="2026-01-01T00:00:00",
-            benchmark_ticker="SPY",
-            descriptive_name="shadow_acct",
-            goal_min_return_pct=None,
-            goal_max_return_pct=None,
-            goal_period="monthly",
-            learning_enabled=0,
-            risk_policy="none",
-            stop_loss_pct=None,
-            take_profit_pct=None,
-            trade_size_pct=10.0,
-            max_position_pct=20.0,
-            instrument_mode="equity",
-            option_strike_offset_pct=None,
-            option_min_dte=None,
-            option_max_dte=None,
-            option_type=None,
-            target_delta_min=None,
-            target_delta_max=None,
-            max_premium_per_trade=None,
-            max_contracts_per_trade=None,
-            iv_rank_min=None,
-            iv_rank_max=None,
-            roll_dte_threshold=None,
-            profit_take_pct=None,
-            max_loss_pct=None,
-        )
+        insert_account(conn, _make_account_insert(name="shadow_acct", descriptive_name="shadow_acct", account_kind="test_shadow"))
         rows = fetch_account_rows(conn, account_kinds=("managed",))
         names = [r["name"] for r in rows]
         assert "shadow_acct" not in names
@@ -213,39 +157,7 @@ class TestFetchAccountRows:
     def test_ordered_by_name(self, conn) -> None:
         _insert(conn, "bravo")
         _insert(conn, "alpha")
-        insert_account(
-            conn,
-            name="skip_me",
-            account_kind="test_shadow",
-            strategy="Trend",
-            initial_cash=1000.0,
-            created_at="2026-01-01T00:00:00",
-            benchmark_ticker="SPY",
-            descriptive_name="skip_me",
-            goal_min_return_pct=None,
-            goal_max_return_pct=None,
-            goal_period="monthly",
-            learning_enabled=0,
-            risk_policy="none",
-            stop_loss_pct=None,
-            take_profit_pct=None,
-            trade_size_pct=10.0,
-            max_position_pct=20.0,
-            instrument_mode="equity",
-            option_strike_offset_pct=None,
-            option_min_dte=None,
-            option_max_dte=None,
-            option_type=None,
-            target_delta_min=None,
-            target_delta_max=None,
-            max_premium_per_trade=None,
-            max_contracts_per_trade=None,
-            iv_rank_min=None,
-            iv_rank_max=None,
-            roll_dte_threshold=None,
-            profit_take_pct=None,
-            max_loss_pct=None,
-        )
+        insert_account(conn, _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="test_shadow"))
         rows = fetch_account_rows(conn, account_kinds=("managed",))
         names = [r["name"] for r in rows]
         assert names == ["alpha", "bravo"]

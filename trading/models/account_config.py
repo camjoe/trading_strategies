@@ -8,7 +8,7 @@ from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce
 
 @dataclass(frozen=True)
 class AccountConfig:
-    """Configurable fields shared by create_account and configure_account."""
+    """Caller-facing partial input shared by create_account and configure_account."""
 
     account_kind: str | None = None
     descriptive_name: str | None = None
