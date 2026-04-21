@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models import AccountRecord
 from trading.services.accounts_service import (
     ACCOUNT_KIND_LOCAL,
     ACCOUNT_KIND_MANAGED,
@@ -15,7 +16,7 @@ from trading.services.reporting_service import snapshot_account
 VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 
-def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
+def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
     return fetch_accounts(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
 
 

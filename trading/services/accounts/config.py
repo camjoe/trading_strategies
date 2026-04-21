@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from trading.models import AccountRecord
 from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.utils.coercion import (
     coerce_float,
@@ -131,7 +132,7 @@ def validate_option_settings(
 
 def resolve_sizing_value(
     value: float | None,
-    row: dict[str, object],
+    row: AccountRecord,
     column: str,
     default: float,
 ) -> float:
@@ -163,7 +164,7 @@ def validate_position_sizing(
 
 
 def validate_position_sizing_from_inputs(
-    account: dict[str, object],
+    account: AccountRecord,
     trade_size_pct: float | None,
     max_position_pct: float | None,
 ) -> tuple[float, float]:
@@ -205,20 +206,20 @@ def append_numeric_updates(
         append_update(updates, params, column, value, transform)
 
 
-def resolved_float(value: float | None, row: dict[str, object], column: str) -> float | None:
+def resolved_float(value: float | None, row: AccountRecord, column: str) -> float | None:
     if value is not None:
         return value
     return row_float(row, column)
 
 
-def resolved_int(value: int | None, row: dict[str, object], column: str) -> int | None:
+def resolved_int(value: int | None, row: AccountRecord, column: str) -> int | None:
     if value is not None:
         return value
     return row_int(row, column)
 
 
 def validate_goal_range_from_inputs(
-    account: dict[str, object],
+    account: AccountRecord,
     goal_min_return_pct: float | None,
     goal_max_return_pct: float | None,
 ) -> None:
@@ -229,7 +230,7 @@ def validate_goal_range_from_inputs(
 
 
 def validate_option_settings_from_inputs(
-    account: dict[str, object],
+    account: AccountRecord,
     option_type: str | None,
     target_delta_min: float | None,
     target_delta_max: float | None,

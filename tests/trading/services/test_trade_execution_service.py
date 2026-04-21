@@ -2,10 +2,11 @@ from types import SimpleNamespace
 
 import trading.domain.auto_trader_policy as auto_trader_policy
 import trading.services.trade_execution_service as trade_execution_service
+from tests.support import make_account_record
 
 
 def _base_account(**overrides):
-    base = {
+    base: dict[str, object] = {
         "option_strike_offset_pct": 5.0,
         "target_delta_min": None,
         "target_delta_max": None,
@@ -26,7 +27,7 @@ def _base_account(**overrides):
         "strategy": "trend",
     }
     base.update(overrides)
-    return base
+    return make_account_record(**base)
 
 
 def test_build_leaps_candidates_filters() -> None:

@@ -5,6 +5,7 @@ from datetime import date
 from typing import Callable, cast
 
 from common.market_data import get_feature_provider
+from trading.models import AccountRecord
 
 from trading.utils.coercion import (
     row_expect_float,
@@ -53,7 +54,6 @@ from trading.backtesting.services import (
     run_backtest as run_backtest_impl,
 )
 
-
 def build_walk_forward_windows(
     start_date: date,
     end_date: date,
@@ -63,7 +63,7 @@ def build_walk_forward_windows(
     return build_walk_forward_windows_impl(start_date, end_date, test_months, step_months)
 
 
-def _warnings_for_config(account: sqlite3.Row, allow_approximate_leaps: bool) -> list[str]:
+def _warnings_for_config(account: AccountRecord, allow_approximate_leaps: bool) -> list[str]:
     return build_backtest_warnings(account, allow_approximate_leaps=allow_approximate_leaps)
 
 

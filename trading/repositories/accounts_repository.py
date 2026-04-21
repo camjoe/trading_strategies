@@ -5,10 +5,16 @@ import sqlite3
 
 from trading.database.db_backend import get_backend
 from trading.database.sql_helpers import in_placeholders
+from trading.models import AccountRecord
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
+
+def _account_record_from_row(row: sqlite3.Row) -> AccountRecord:
+    return AccountRecord.from_mapping(dict(row))
+
+
+def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
-    return dict(row) if row is not None else None
+    return _account_record_from_row(row) if row is not None else None
 
 
 def insert_account(
@@ -125,18 +131,21 @@ def update_account_benchmark(conn: sqlite3.Connection, *, account_id: int, bench
     conn.commit()
 
 
-def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[dict[str, object]]:
-    return [dict(row) for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()]
+def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
+    return [
+        _account_record_from_row(row)
+        for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+    ]
 
 
 def fetch_account_rows(
     conn: sqlite3.Connection,
     *,
     account_kinds: Collection[str] | None = None,
-) -> list[dict[str, object]]:
+) -> list[AccountRecord]:
     if account_kinds is None:
         rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
-        return [dict(row) for row in rows]
+        return [_account_record_from_row(row) for row in rows]
 
     normalized_kinds = tuple(sorted({str(kind) for kind in account_kinds}))
     if not normalized_kinds:
@@ -148,7 +157,7 @@ def fetch_account_rows(
         "ORDER BY name",
         normalized_kinds,
     ).fetchall()
-    return [dict(row) for row in rows]
+    return [_account_record_from_row(row) for row in rows]
 
 
 def update_account_fields(

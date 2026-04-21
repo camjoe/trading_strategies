@@ -70,7 +70,7 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
 
     update_account_fields(
         conn,
-        account_id=account["id"],
+        account_id=account.id,
         updates=updates,
         params=params,
     )
@@ -143,7 +143,7 @@ def apply_account_profiles(
             account = get_account(conn, name)
             update_account_fields(
                 conn,
-                account_id=account["id"],
+                account_id=account.id,
                 updates=["strategy = ?"],
                 params=[strategy],
             )

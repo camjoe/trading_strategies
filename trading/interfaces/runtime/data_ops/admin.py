@@ -82,8 +82,8 @@ def _cmd_list_accounts(_args: argparse.Namespace) -> int:
 
     for row in rows:
         print(
-            f"[{row['id']}] {row['name']} | strategy={row['strategy']} | "
-            f"initial_cash={float(row['initial_cash']):.2f} | benchmark={row['benchmark_ticker']}"
+            f"[{row.id}] {row.name} | strategy={row.strategy} | "
+            f"initial_cash={row.initial_cash:.2f} | benchmark={row.benchmark_ticker}"
         )
     return 0
 

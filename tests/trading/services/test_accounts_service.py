@@ -10,21 +10,7 @@ from trading.services.accounts_service import (
     format_account_policy_text,
     format_goal_text,
 )
-
-
-def _goal_row(
-    *,
-    goal_min: float | None = None,
-    goal_max: float | None = None,
-    goal_period: str = "monthly",
-) -> dict[str, object]:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.execute(
-        "CREATE TABLE t (goal_min_return_pct REAL, goal_max_return_pct REAL, goal_period TEXT)"
-    )
-    conn.execute("INSERT INTO t VALUES (?, ?, ?)", [goal_min, goal_max, goal_period])
-    return dict(conn.execute("SELECT * FROM t").fetchone())
+from tests.support import make_account_record
 
 
 def _account_row(
@@ -46,30 +32,26 @@ def _account_row(
     created_at: str = "2026-01-01T00:00:00",
     rotation_enabled: int = 0,
     rotation_active_strategy: str | None = None,
-) -> dict[str, object]:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.execute(
-        """CREATE TABLE t (
-            id INTEGER, name TEXT, descriptive_name TEXT, strategy TEXT,
-            initial_cash REAL, benchmark_ticker TEXT,
-            goal_min_return_pct REAL, goal_max_return_pct REAL, goal_period TEXT,
-            learning_enabled INTEGER, risk_policy TEXT, trade_size_pct REAL, max_position_pct REAL,
-            instrument_mode TEXT, created_at TEXT,
-            rotation_enabled INTEGER, rotation_active_strategy TEXT
-        )"""
+):
+    return make_account_record(
+        id=id,
+        name=name,
+        descriptive_name=descriptive_name,
+        strategy=strategy,
+        initial_cash=initial_cash,
+        created_at=created_at,
+        benchmark_ticker=benchmark_ticker,
+        goal_min_return_pct=goal_min_return_pct,
+        goal_max_return_pct=goal_max_return_pct,
+        goal_period=goal_period,
+        learning_enabled=learning_enabled,
+        risk_policy=risk_policy,
+        trade_size_pct=trade_size_pct,
+        max_position_pct=max_position_pct,
+        instrument_mode=instrument_mode,
+        rotation_enabled=rotation_enabled,
+        rotation_active_strategy=rotation_active_strategy,
     )
-    conn.execute(
-        "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-            id, name, descriptive_name, strategy, initial_cash, benchmark_ticker,
-            goal_min_return_pct, goal_max_return_pct, goal_period,
-            learning_enabled, risk_policy, trade_size_pct, max_position_pct, instrument_mode, created_at,
-            rotation_enabled, rotation_active_strategy,
-        ],
-    )
-    return dict(conn.execute("SELECT * FROM t").fetchone())
-
 
 class TestFormatGoalText:
     @pytest.mark.parametrize(
@@ -88,7 +70,11 @@ class TestFormatGoalText:
         goal_period: str,
         expected: str,
     ) -> None:
-        row = _goal_row(goal_min=goal_min, goal_max=goal_max, goal_period=goal_period)
+        row = _account_row(
+            goal_min_return_pct=goal_min,
+            goal_max_return_pct=goal_max,
+            goal_period=goal_period,
+        )
         assert format_goal_text(row) == expected
 
 

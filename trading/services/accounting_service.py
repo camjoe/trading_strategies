@@ -33,11 +33,11 @@ def record_trade(
 ) -> None:
     account = get_account(conn, account_name)
     side, ticker = _normalize_order_input(side, ticker)
-    existing_state = _account_state_from_db(conn, account["id"], account["initial_cash"])
+    existing_state = _account_state_from_db(conn, account.id, account.initial_cash)
     _ensure_sufficient_cash_for_buy(side, qty, price, fee, existing_state.cash)
     insert_trade(
         conn,
-        account_id=int(account["id"]),
+        account_id=account.id,
         ticker=ticker,
         side=side,
         qty=float(qty),

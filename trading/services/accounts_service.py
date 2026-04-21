@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Collection
 import sqlite3
 
+from trading.models import AccountRecord
 from trading.repositories.accounts_repository import (
     fetch_account_by_name as _repo_fetch_account_by_name,
     fetch_account_rows as _repo_fetch_account_rows,
@@ -72,7 +73,7 @@ from trading.services.accounts.config import (  # noqa: F401
 )
 
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> dict[str, object] | None:
+def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
     return _repo_fetch_account_by_name(conn, name)
 
 
@@ -84,7 +85,7 @@ def fetch_accounts(
     conn: sqlite3.Connection,
     *,
     account_kinds: Collection[str] | None = None,
-) -> list[dict[str, object]]:
+) -> list[AccountRecord]:
     return _repo_fetch_account_rows(conn, account_kinds=account_kinds)
 
 

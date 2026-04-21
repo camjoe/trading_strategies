@@ -6,7 +6,7 @@ from collections.abc import Callable
 from common.time import utc_now_iso
 from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.models.account_config import AccountConfig
+from trading.models import AccountConfig, AccountRecord
 from trading.repositories.accounts_repository import (
     fetch_account_by_name as repo_fetch_account_by_name,
     insert_account,
@@ -30,10 +30,10 @@ from trading.services.accounts.config import (
     validate_position_sizing,
     validate_position_sizing_from_inputs,
 )
-from trading.utils.coercion import to_float_obj, to_int_obj
+from trading.utils.coercion import expect_float, expect_int
 
 
-def get_account(conn: sqlite3.Connection, name: str) -> dict[str, object]:
+def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
     row = repo_fetch_account_by_name(conn, name)
     if row is None:
         raise ValueError(f"Account '{name}' not found.")
@@ -128,7 +128,7 @@ def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker:
     account = get_account(conn, account_name)
     update_account_benchmark(
         conn,
-        account_id=account["id"],
+        account_id=account.id,
         benchmark_ticker=benchmark_ticker.upper().strip(),
     )
 
@@ -154,9 +154,9 @@ def configure_account(
         append_update(updates, params, "account_kind", normalize_account_kind(cfg.account_kind))
 
     append_update(updates, params, "goal_period", cfg.goal_period, normalize_lower_obj)
-    append_update(updates, params, "goal_min_return_pct", cfg.goal_min_return_pct, to_float_obj)
-    append_update(updates, params, "goal_max_return_pct", cfg.goal_max_return_pct, to_float_obj)
-    append_update(updates, params, "learning_enabled", cfg.learning_enabled, to_int_obj)
+    append_update(updates, params, "goal_min_return_pct", cfg.goal_min_return_pct, expect_float)
+    append_update(updates, params, "goal_max_return_pct", cfg.goal_max_return_pct, expect_float)
+    append_update(updates, params, "learning_enabled", cfg.learning_enabled, expect_int)
 
     if cfg.risk_policy is not None:
         append_update(updates, params, "risk_policy", normalize_risk_policy(cfg.risk_policy))
@@ -168,22 +168,22 @@ def configure_account(
         append_update(updates, params, "option_type", normalize_option_type(cfg.option_type))
 
     numeric_fields: list[tuple[str, object | None, Callable[[object], object]]] = [
-        ("stop_loss_pct", cfg.stop_loss_pct, to_float_obj),
-        ("take_profit_pct", cfg.take_profit_pct, to_float_obj),
-        ("trade_size_pct", cfg.trade_size_pct, to_float_obj),
-        ("max_position_pct", cfg.max_position_pct, to_float_obj),
-        ("option_strike_offset_pct", cfg.option_strike_offset_pct, to_float_obj),
-        ("option_min_dte", cfg.option_min_dte, to_int_obj),
-        ("option_max_dte", cfg.option_max_dte, to_int_obj),
-        ("target_delta_min", cfg.target_delta_min, to_float_obj),
-        ("target_delta_max", cfg.target_delta_max, to_float_obj),
-        ("max_premium_per_trade", cfg.max_premium_per_trade, to_float_obj),
-        ("max_contracts_per_trade", cfg.max_contracts_per_trade, to_int_obj),
-        ("iv_rank_min", cfg.iv_rank_min, to_float_obj),
-        ("iv_rank_max", cfg.iv_rank_max, to_float_obj),
-        ("roll_dte_threshold", cfg.roll_dte_threshold, to_int_obj),
-        ("profit_take_pct", cfg.profit_take_pct, to_float_obj),
-        ("max_loss_pct", cfg.max_loss_pct, to_float_obj),
+        ("stop_loss_pct", cfg.stop_loss_pct, expect_float),
+        ("take_profit_pct", cfg.take_profit_pct, expect_float),
+        ("trade_size_pct", cfg.trade_size_pct, expect_float),
+        ("max_position_pct", cfg.max_position_pct, expect_float),
+        ("option_strike_offset_pct", cfg.option_strike_offset_pct, expect_float),
+        ("option_min_dte", cfg.option_min_dte, expect_int),
+        ("option_max_dte", cfg.option_max_dte, expect_int),
+        ("target_delta_min", cfg.target_delta_min, expect_float),
+        ("target_delta_max", cfg.target_delta_max, expect_float),
+        ("max_premium_per_trade", cfg.max_premium_per_trade, expect_float),
+        ("max_contracts_per_trade", cfg.max_contracts_per_trade, expect_int),
+        ("iv_rank_min", cfg.iv_rank_min, expect_float),
+        ("iv_rank_max", cfg.iv_rank_max, expect_float),
+        ("roll_dte_threshold", cfg.roll_dte_threshold, expect_int),
+        ("profit_take_pct", cfg.profit_take_pct, expect_float),
+        ("max_loss_pct", cfg.max_loss_pct, expect_float),
     ]
     append_numeric_updates(updates, params, numeric_fields)
     validate_goal_range_from_inputs(account, cfg.goal_min_return_pct, cfg.goal_max_return_pct)
@@ -204,7 +204,7 @@ def configure_account(
 
     update_account_fields(
         conn,
-        account_id=account["id"],
+        account_id=account.id,
         updates=updates,
         params=params,
     )
