@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from common.coercion import row_expect_int
-
 from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
@@ -111,7 +109,6 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
         try:
             update_account_params(
                 conn,
-                row_expect_int(account, "id"),
                 account_name,
                 command=command,
             )

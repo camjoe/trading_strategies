@@ -6,8 +6,8 @@ from trading.models import AccountRecord
 from trading.services.accounts_service import (
     ACCOUNT_KIND_LOCAL,
     ACCOUNT_KIND_MANAGED,
-    fetch_accounts,
-    fetch_snapshot_history_rows as _fetch_snapshot_history_rows,
+    list_account_records,
+    list_account_snapshots as _list_account_snapshots,
 )
 from trading.services.accounting_service import load_trades
 from trading.services.reporting_service import snapshot_account
@@ -17,7 +17,7 @@ VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 
 def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
-    return fetch_accounts(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
+    return list_account_records(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
 
 
 def build_snapshot_payload(snapshot: dict[str, object]) -> dict[str, object]:
@@ -52,4 +52,4 @@ def take_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time:
 
 
 def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[dict[str, object]]:
-    return _fetch_snapshot_history_rows(conn, account_id, limit=limit)
+    return _list_account_snapshots(conn, account_id, limit=limit)

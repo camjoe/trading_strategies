@@ -18,11 +18,20 @@ from trading.services.accounts.mutations import (
     create_account,
     create_managed_account,
     get_account,
+    set_account_strategy,
     set_benchmark,
-    update_account_fields_by_id,
+)
+from trading.services.accounts.queries import (
+    find_account,
+    get_latest_account_snapshot,
+    list_account_names,
+    list_account_records,
+    list_account_snapshots,
+    load_all_account_names,
 )
 
 __all__ = [
+    "find_account",
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",
     "build_account_listing_lines",
@@ -32,7 +41,12 @@ __all__ = [
     "format_account_policy_text",
     "format_goal_text",
     "get_account",
+    "get_latest_account_snapshot",
     "list_accounts",
+    "list_account_names",
+    "list_account_records",
+    "list_account_snapshots",
+    "load_all_account_names",
+    "set_account_strategy",
     "set_benchmark",
-    "update_account_fields_by_id",
 ]

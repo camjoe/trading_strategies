@@ -8,7 +8,7 @@ from trading.services.accounts_service import create_account
 from trading.services.accounts_service import configure_account
 from trading.services.accounts_service import ACCOUNT_KIND_TEST_SHADOW
 from trading.models import AccountConfig, AccountRecord
-from trading.services.accounts_service import fetch_account_by_name
+from trading.services.accounts_service import find_account
 
 from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
@@ -102,7 +102,7 @@ def resolve_backtest_account_name(account_name: str) -> str:
 
 
 def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
-    existing = fetch_account_by_name(conn, TEST_BACKTEST_ACCOUNT_NAME)
+    existing = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
     if existing is not None:
         if str(existing.get("account_kind") or "") != ACCOUNT_KIND_TEST_SHADOW:
             configure_account(

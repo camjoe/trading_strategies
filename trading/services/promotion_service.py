@@ -19,7 +19,6 @@ from trading.domain.promotion_models import (
     PromotionReviewRecord,
 )
 from trading.domain.promotion_policy import assess_promotion_readiness
-from trading.repositories.accounts_repository import fetch_account_by_name
 from trading.repositories.promotion_repository import (
     fetch_open_promotion_review,
     fetch_promotion_review_by_id,
@@ -29,6 +28,7 @@ from trading.repositories.promotion_repository import (
     insert_promotion_review_event,
     update_promotion_review_record,
 )
+from trading.services.accounts_service import get_account
 from trading.services.evaluation_service import fetch_strategy_evaluation
 from trading.services.runtime_settings_service import fetch_promotion_policy_settings
 
@@ -400,9 +400,7 @@ def fetch_promotion_review_history(
 ) -> list[PromotionReviewHistoryEntry]:
     if limit <= 0:
         raise ValueError("Promotion review history limit must be positive.")
-    account = fetch_account_by_name(conn, account_name)
-    if account is None:
-        raise ValueError(f"Account '{account_name}' not found.")
+    account = get_account(conn, account_name)
     review_rows = fetch_promotion_reviews_for_account(
         conn,
         account_id=account.id,

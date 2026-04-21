@@ -36,7 +36,6 @@ from trading.domain.evaluation_models import (
 )
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
-from trading.repositories.accounts_repository import fetch_account_by_name
 from trading.repositories.rotation_repository import (
     fetch_latest_closed_rotation_episode,
     fetch_open_rotation_episode,
@@ -46,6 +45,7 @@ from trading.repositories.snapshots_repository import (
     fetch_snapshot_count_between,
     fetch_snapshot_count_for_account,
 )
+from trading.services.accounts_service import get_account
 from trading.services.runtime_settings_service import fetch_evaluation_confidence_settings
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
@@ -381,9 +381,7 @@ def fetch_strategy_evaluation(
     account_name: str,
     strategy_name: str | None = None,
 ) -> StrategyEvaluationArtifact:
-    account = fetch_account_by_name(conn, account_name)
-    if account is None:
-        raise ValueError(f"Account '{account_name}' not found.")
+    account = get_account(conn, account_name)
     return fetch_strategy_evaluation_for_account_row(
         conn,
         account,

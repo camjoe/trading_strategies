@@ -8,7 +8,10 @@ from fastapi import HTTPException
 
 from trading.models import AccountRecord
 from trading.database.db_init import ensure_db
-from trading.services.accounts_service import fetch_account_by_name, fetch_latest_snapshot_row  # noqa: F401
+from trading.services.accounts_service import (
+    get_account,
+    get_latest_account_snapshot as fetch_latest_snapshot_row,
+)
 
 
 @contextmanager
@@ -21,8 +24,7 @@ def db_conn() -> Iterator[sqlite3.Connection]:
 
 
 def fetch_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
-    row = fetch_account_by_name(conn, account_name)
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.")
-    return row
-
+    try:
+        return get_account(conn, account_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from exc

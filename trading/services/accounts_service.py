@@ -19,21 +19,6 @@ that callers never need to reach into domain or config sub-packages directly:
 """
 
 from __future__ import annotations
-
-from collections.abc import Collection
-import sqlite3
-
-from trading.models import AccountRecord
-from trading.repositories.accounts_repository import (
-    fetch_account_by_name as _repo_fetch_account_by_name,
-    fetch_account_rows as _repo_fetch_account_rows,
-    fetch_all_account_names as _repo_fetch_all_account_names,
-    fetch_all_account_names_from_conn,
-)
-from trading.repositories.snapshots_repository import (
-    fetch_latest_snapshot_row as _repo_fetch_latest_snapshot_row,
-    fetch_snapshot_history_rows as _repo_fetch_snapshot_history_rows,
-)
 from trading.services.accounts.listing import (  # noqa: F401
     GOAL_NOT_SET_TEXT,
     build_account_listing_lines,
@@ -45,8 +30,16 @@ from trading.services.accounts.mutations import (  # noqa: F401
     configure_account,
     create_account,
     get_account,
+    set_account_strategy,
     set_benchmark,
-    update_account_fields_by_id,
+)
+from trading.services.accounts.queries import (  # noqa: F401
+    find_account,
+    get_latest_account_snapshot,
+    list_account_names,
+    list_account_records,
+    list_account_snapshots,
+    load_all_account_names,
 )
 
 # Re-exported for callers that should not reach into domain directly.
@@ -71,31 +64,3 @@ from trading.services.accounts.config import (  # noqa: F401
     OPTION_TYPES,
     RISK_POLICIES,
 )
-
-
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    return _repo_fetch_account_by_name(conn, name)
-
-
-def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
-    return fetch_all_account_names_from_conn(conn)
-
-
-def fetch_accounts(
-    conn: sqlite3.Connection,
-    *,
-    account_kinds: Collection[str] | None = None,
-) -> list[AccountRecord]:
-    return _repo_fetch_account_rows(conn, account_kinds=account_kinds)
-
-
-def fetch_latest_snapshot_row(conn: sqlite3.Connection, account_id: int) -> dict[str, object] | None:
-    return _repo_fetch_latest_snapshot_row(conn, account_id=account_id)
-
-
-def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[dict[str, object]]:
-    return _repo_fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
-
-
-def load_all_account_names() -> list[str]:
-    return _repo_fetch_all_account_names()
