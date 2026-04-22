@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from ..services import db_conn, fetch_resolved_account_row
-from trading.services.analysis_service import fetch_account_analysis
+from trading.services.analysis import fetch_account_analysis
 
 router = APIRouter()
 

@@ -1,4 +1,4 @@
-"""Tests for trading.services.analysis_service.fetch_account_analysis."""
+"""Tests for trading.services.analysis.fetch_account_analysis."""
 from __future__ import annotations
 
 import sqlite3
@@ -10,7 +10,7 @@ import pytest
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.database.db_init import ensure_db
 from trading.services.accounts import create_account
-from trading.services.analysis_service import fetch_account_analysis
+from trading.services.analysis import fetch_account_analysis
 
 
 # ---------------------------------------------------------------------------
@@ -65,23 +65,23 @@ class TestReturnPct:
         # Actually initial_cash=1000 means cash starts at 1000; buying 1 share at 100 leaves 900 cash
         # market_value at 110 = 110, equity = 1010 → return = 1%
         _buy(conn, row["id"], "AAPL", 1.0, 100.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={"AAPL": 110.0}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={"AAPL": 110.0}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert result["accountReturnPct"] == pytest.approx(1.0)
 
     def test_negative_return(self, conn: sqlite3.Connection) -> None:
         row = _make_account(conn, "acct", initial_cash=1000.0)
         _buy(conn, row["id"], "AAPL", 1.0, 100.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={"AAPL": 90.0}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={"AAPL": 90.0}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert result["accountReturnPct"] == pytest.approx(-1.0)
 
     def test_no_trades_flat_return(self, conn: sqlite3.Connection) -> None:
         row = _make_account(conn, "acct", initial_cash=1000.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert result["accountReturnPct"] == pytest.approx(0.0)
 
@@ -91,15 +91,15 @@ class TestAlpha:
         row = _make_account(conn, "acct", initial_cash=1000.0)
         _buy(conn, row["id"], "AAPL", 1.0, 100.0)
         # strategy return = 1% (price 100→110), benchmark = 5%
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={"AAPL": 110.0}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(1050.0, 5.0)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={"AAPL": 110.0}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(1050.0, 5.0)):
             result = fetch_account_analysis(conn, row)
         assert result["alphaPct"] == pytest.approx(1.0 - 5.0)
 
     def test_alpha_none_when_benchmark_unavailable(self, conn: sqlite3.Connection) -> None:
         row = _make_account(conn, "acct", initial_cash=1000.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert result["alphaPct"] is None
 
@@ -116,15 +116,15 @@ class TestDepositModel:
         _buy(conn, row["id"], "AAPL", 1.0, 100.0)   # spends 100
         # cash = 0 + 1000(deposit) - 100(buy) = 900; mv at 110 = 110; equity = 1010
         # effective_initial = total_deposited = 1000; return = 1%
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={"AAPL": 110.0}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={"AAPL": 110.0}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert result["accountReturnPct"] == pytest.approx(1.0)
 
     def test_zero_initial_and_zero_deposited_returns_zero(self, conn: sqlite3.Connection) -> None:
         row = _make_account(conn, "acct", initial_cash=0.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert result["accountReturnPct"] == pytest.approx(0.0)
 
@@ -158,8 +158,8 @@ class TestTopWinnersLosers:
             ("G", 100.0, 70.0),
         ]
         prices = self._make_prices_and_buys(conn, row["id"], positions)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value=prices), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value=prices), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         winner_tickers = {p["ticker"] for p in result["topWinners"]}
         loser_tickers = {p["ticker"] for p in result["topLosers"]}
@@ -171,8 +171,8 @@ class TestTopWinnersLosers:
         row = _make_account(conn, "acct", initial_cash=10000.0)
         positions = [("A", 100.0, 130.0), ("B", 100.0, 120.0), ("C", 100.0, 110.0)]
         prices = self._make_prices_and_buys(conn, row["id"], positions)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value=prices), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value=prices), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         pnl_pcts = [float(p["unrealizedPnlPct"]) for p in result["topWinners"]]
         assert pnl_pcts == sorted(pnl_pcts, reverse=True)
@@ -181,8 +181,8 @@ class TestTopWinnersLosers:
         row = _make_account(conn, "acct", initial_cash=10000.0)
         positions = [("A", 100.0, 130.0), ("B", 100.0, 90.0), ("C", 100.0, 80.0), ("D", 100.0, 70.0)]
         prices = self._make_prices_and_buys(conn, row["id"], positions)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value=prices), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value=prices), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         pnl_pcts = [float(p["unrealizedPnlPct"]) for p in result["topLosers"]]
         assert pnl_pcts == sorted(pnl_pcts)
@@ -192,8 +192,8 @@ class TestTopWinnersLosers:
         row = _make_account(conn, "acct", initial_cash=5000.0)
         positions = [("A", 100.0, 130.0), ("B", 100.0, 80.0), ("C", 100.0, 95.0)]
         prices = self._make_prices_and_buys(conn, row["id"], positions)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value=prices), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value=prices), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         winner_tickers = {p["ticker"] for p in result["topWinners"]}
         loser_tickers = {p["ticker"] for p in result["topLosers"]}
@@ -207,8 +207,8 @@ class TestTopWinnersLosers:
 class TestReturnShape:
     def test_required_keys_present(self, conn: sqlite3.Connection) -> None:
         row = _make_account(conn, "acct", initial_cash=1000.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         for key in ("accountReturnPct", "benchmarkReturnPct", "alphaPct",
                     "realizedPnl", "unrealizedPnl", "equity",
@@ -217,7 +217,7 @@ class TestReturnShape:
 
     def test_improvement_notes_is_list(self, conn: sqlite3.Connection) -> None:
         row = _make_account(conn, "acct", initial_cash=1000.0)
-        with patch("trading.services.analysis_service.fetch_latest_prices", return_value={}), \
-             patch("trading.services.analysis_service.benchmark_stats", return_value=(None, None)):
+        with patch("trading.services.analysis.queries.fetch_latest_prices", return_value={}), \
+             patch("trading.services.analysis.queries.benchmark_stats", return_value=(None, None)):
             result = fetch_account_analysis(conn, row)
         assert isinstance(result["improvementNotes"], list)
