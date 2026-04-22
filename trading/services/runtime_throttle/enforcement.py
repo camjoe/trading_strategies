@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Callable
 
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.repositories.trades_repository import count_trades_between
+from trading.repositories.trades import count_trades_between
 from trading.services.runtime_settings import RuntimeThrottleSettings, fetch_runtime_throttle_settings
 
 # Rolling one-minute window for the per-minute global runtime trade cap.

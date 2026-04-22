@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.services.runtime_settings import set_evaluation_confidence_settings
-from trading.repositories.global_settings_repository import (
+from trading.repositories.global_settings import (
     fetch_global_settings_row,
     upsert_evaluation_confidence_settings,
 )

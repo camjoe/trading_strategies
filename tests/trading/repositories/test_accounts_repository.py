@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.models import AccountInsert
-from trading.repositories.accounts_repository import (
+from trading.repositories.accounts import (
     fetch_account_by_name,
     fetch_account_rows,
     fetch_account_listing_rows,

@@ -4,7 +4,7 @@ import sqlite3
 
 from common.time import utc_now_iso
 from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
-from trading.repositories.trades_repository import insert_trade
+from trading.repositories.trades import insert_trade
 from trading.services.accounting.queries import load_account_state
 from trading.services.accounts import get_account
 

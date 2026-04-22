@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import sqlite3
 
 from common.coercion import coerce_int, row_expect_int
-from trading.repositories.admin_repository import (
+from trading.repositories.admin import (
     count_rows,
     delete_accounts_by_ids,
     delete_backtest_equity_snapshots_by_run_ids,

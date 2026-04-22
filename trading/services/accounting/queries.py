@@ -4,7 +4,7 @@ import sqlite3
 
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
-from trading.repositories.trades_repository import fetch_trades_for_account
+from trading.repositories.trades import fetch_trades_for_account
 
 
 def list_account_trades(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:

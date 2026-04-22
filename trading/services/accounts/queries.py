@@ -4,13 +4,13 @@ from collections.abc import Collection
 import sqlite3
 
 from trading.models import AccountRecord
-from trading.repositories.accounts_repository import (
+from trading.repositories.accounts import (
     fetch_account_by_name,
     fetch_account_rows,
     fetch_all_account_names,
     _load_all_account_names,
 )
-from trading.repositories.snapshots_repository import (
+from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_snapshot_history_rows,
 )

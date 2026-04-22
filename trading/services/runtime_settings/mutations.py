@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import sqlite3
 
-from trading.repositories.global_settings_repository import (
+from trading.repositories.global_settings import (
     upsert_evaluation_confidence_settings as upsert_evaluation_confidence_settings_row,
     upsert_promotion_policy_settings as upsert_promotion_policy_settings_row,
     upsert_runtime_throttle_settings as upsert_runtime_throttle_settings_row,

@@ -10,7 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from trading.domain.promotion_models import PromotionReviewEvent, PromotionReviewRecord
-from trading.repositories.promotion_repository import (
+from trading.repositories.promotion import (
     fetch_promotion_review_events,
     fetch_promotion_reviews_for_account,
 )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from trading.domain.evaluation_models import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.domain.promotion_models import PromotionAssessment
-from trading.repositories.promotion_repository import (
+from trading.repositories.promotion import (
     fetch_open_promotion_review,
     fetch_promotion_review_by_id,
     fetch_promotion_review_events,

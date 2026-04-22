@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.services.accounts import create_account
-from trading.repositories.snapshots_repository import (
+from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_recent_equity_rows,
     fetch_snapshot_history_rows,

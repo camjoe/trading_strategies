@@ -6,7 +6,7 @@ from common.coercion import coerce_float
 from trading.backtesting.domain.strategy_signals import validate_strategy_name
 from trading.models.account_config import AccountConfig
 from trading.models.rotation_config import RotationConfig
-from trading.repositories.accounts_repository import update_account_fields
+from trading.repositories.accounts import update_account_fields
 from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.services.profile_source import AccountProfileSource, JsonAccountProfileSource
 

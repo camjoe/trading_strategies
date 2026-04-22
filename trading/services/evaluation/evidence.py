@@ -33,11 +33,11 @@ from trading.domain.evaluation_models import (
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
-from trading.repositories.rotation_repository import (
+from trading.repositories.rotation import (
     fetch_latest_closed_rotation_episode,
     fetch_open_rotation_episode,
 )
-from trading.repositories.snapshots_repository import (
+from trading.repositories.snapshots import (
     fetch_latest_snapshot_details_row,
     fetch_snapshot_count_between,
     fetch_snapshot_count_for_account,
