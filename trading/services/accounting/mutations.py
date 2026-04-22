@@ -1,23 +1,12 @@
-"""Accounting service — trade recording and account-state loading."""
+from __future__ import annotations
+
 import sqlite3
 
 from common.time import utc_now_iso
+from trading.domain.accounting import _ensure_sufficient_cash_for_buy, _normalize_order_input
+from trading.repositories.trades_repository import insert_trade
+from trading.services.accounting.queries import load_account_state
 from trading.services.accounts import get_account
-from trading.domain.accounting import (
-    _ensure_sufficient_cash_for_buy,
-    _normalize_order_input,
-    compute_account_state,
-)
-from trading.repositories.trades_repository import fetch_trades_for_account, insert_trade
-
-
-def load_trades(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
-    return [dict(row) for row in fetch_trades_for_account(conn, account_id=account_id)]
-
-
-def _account_state_from_db(conn: sqlite3.Connection, account_id: int, initial_cash: float):
-    trades = load_trades(conn, account_id)
-    return compute_account_state(initial_cash, trades)
 
 
 def record_trade(
@@ -33,7 +22,7 @@ def record_trade(
 ) -> None:
     account = get_account(conn, account_name)
     side, ticker = _normalize_order_input(side, ticker)
-    existing_state = _account_state_from_db(conn, account.id, account.initial_cash)
+    existing_state = load_account_state(conn, account_id=account.id, initial_cash=account.initial_cash)
     _ensure_sufficient_cash_for_buy(side, qty, price, fee, existing_state.cash)
     insert_trade(
         conn,

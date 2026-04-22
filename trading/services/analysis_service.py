@@ -9,9 +9,8 @@ import sqlite3
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
-from trading.services.accounting_service import load_trades
+from trading.services.accounting import load_account_state
 from trading.services.reporting_service import (
     benchmark_stats,
     compute_market_value_and_unrealized,
@@ -181,8 +180,7 @@ def fetch_account_analysis(
     benchmark_ticker = row_expect_str(account_row, "benchmark_ticker")
     created_at = row_expect_str(account_row, "created_at")
 
-    trades = load_trades(conn, account_id)
-    state = compute_account_state(initial_cash, trades)
+    state = load_account_state(conn, account_id=account_id, initial_cash=initial_cash)
     tickers = sorted(state.positions.keys())
     prices = fetch_latest_prices(tickers) if tickers else {}
     market_value, unrealized = compute_market_value_and_unrealized(

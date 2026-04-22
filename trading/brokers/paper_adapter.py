@@ -55,12 +55,12 @@ class PaperBrokerAdapter(BrokerConnection):
 
     def get_positions(self) -> dict[str, float]:
         raise NotImplementedError(
-            "Paper positions are tracked in the DB — use accounting_service instead."
+            "Paper positions are tracked in the DB — use trading.services.accounting instead."
         )
 
     def get_account_info(self) -> dict[str, float]:
         raise NotImplementedError(
-            "Paper account info is tracked in the DB — use accounting_service instead."
+            "Paper account info is tracked in the DB — use trading.services.accounting instead."
         )
 
     def get_quotes(self, tickers: list[str]) -> dict[str, dict[str, float]]:

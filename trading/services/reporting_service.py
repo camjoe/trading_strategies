@@ -22,7 +22,7 @@ from trading.services.accounts import (
     format_goal_text,
     get_account,
 )
-from trading.services.accounting_service import load_trades
+from trading.services.accounting import list_account_trades
 from trading.services.evaluation_service import fetch_strategy_evaluation_for_account_row
 from trading.services.pricing_service import benchmark_stats as _benchmark_stats_svc
 from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
@@ -177,7 +177,7 @@ def build_account_stats(
     return _build_account_stats_impl(
         conn,
         account,
-        load_trades_fn=load_trades,
+        load_trades_fn=list_account_trades,
         compute_account_state_fn=compute_account_state,
         fetch_latest_prices_fn=fetch_latest_prices,
         row_expect_int_fn=row_expect_int,
@@ -482,7 +482,7 @@ def show_snapshots(conn: sqlite3.Connection, account_name: str, limit: int) -> N
 # ---------------------------------------------------------------------------
 
 def load_account_trades(conn: sqlite3.Connection, account_id: int) -> list:
-    return load_trades(conn, account_id)
+    return list_account_trades(conn, account_id)
 
 
 def take_account_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time: str | None = None) -> None:

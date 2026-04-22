@@ -12,7 +12,7 @@ from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
 from trading.services.accounts import get_account
 from trading.domain.accounting import compute_account_state
-from trading.services.accounting_service import load_trades, record_trade
+from trading.services.accounting import list_account_trades, record_trade
 from trading.repositories.broker_orders_repository import (
     fetch_open_broker_orders,
     insert_broker_order,
@@ -148,7 +148,7 @@ def _fetch_runtime_rotation_overlay_tickers(
     return fetch_rotation_overlay_tickers_impl(
         conn,
         account,
-        load_trades_fn=load_trades,
+        load_trades_fn=list_account_trades,
         compute_account_state_fn=compute_account_state,
     )
 
@@ -160,7 +160,7 @@ def _compute_runtime_live_account_metrics(
     return compute_live_account_metrics_impl(
         conn,
         account,
-        load_trades_fn=load_trades,
+        load_trades_fn=list_account_trades,
         compute_account_state_fn=compute_account_state,
         fetch_latest_prices_fn=fetch_latest_prices,
         compute_market_value_and_unrealized_fn=compute_market_value_and_unrealized,
@@ -215,7 +215,7 @@ def _refresh_runtime_account_state(conn: sqlite3.Connection, account: AccountRec
         conn,
         account,
         compute_account_state_fn=compute_account_state,
-        load_trades_fn=load_trades,
+        load_trades_fn=list_account_trades,
     )
 
 

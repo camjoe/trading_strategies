@@ -1,4 +1,4 @@
-from trading.services.accounting_service import record_trade
+from trading.services.accounting import record_trade
 from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
 from trading.backtesting.backtest import (
     backtest_leaderboard_entries,

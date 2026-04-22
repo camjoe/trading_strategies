@@ -1,10 +1,10 @@
 import pytest
 
-import trading.services.accounting_service as accounting_service
+import trading.services.accounting.mutations as accounting_mutations
 from common.time import utc_now_iso
 from trading.domain.accounting import compute_account_state
 from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
-from trading.services.accounting_service import load_trades, record_trade
+from trading.services.accounting import list_account_trades, record_trade
 from trading.services.accounts import create_account, get_account
 
 
@@ -148,7 +148,7 @@ class TestSettlementTickerDepositModel:
         assert state.total_deposited == pytest.approx(0.0)
 
 
-class TestRecordTradeAndLoadTrades:
+class TestRecordTradeAndListAccountTrades:
     def test_rejects_insufficient_cash(self, conn) -> None:
         create_account(conn, "acct_cash", "Trend", 100.0, "SPY")
 
@@ -247,7 +247,7 @@ class TestRecordTradeAndLoadTrades:
 
     def test_uses_default_trade_time_when_missing(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         create_account(conn, "acct_default_time", "Trend", 1000.0, "SPY")
-        monkeypatch.setattr(accounting_service, "utc_now_iso", lambda: "2099-01-01T00:00:00Z")
+        monkeypatch.setattr(accounting_mutations, "utc_now_iso", lambda: "2099-01-01T00:00:00Z")
 
         record_trade(
             conn,
@@ -347,5 +347,5 @@ class TestRecordTradeAndLoadTrades:
         )
         conn.commit()
 
-        rows = load_trades(conn, account["id"])
+        rows = list_account_trades(conn, account["id"])
         assert [row["ticker"] for row in rows] == ["AAPL", "MSFT", "GOOG"]

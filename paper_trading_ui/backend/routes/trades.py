@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from ..config import TEST_ACCOUNT_NAME
 from ..schemas import ManualTradeRequest
 from ..services import db_conn, resolve_backtest_payload_account
-from trading.services.accounting_service import record_trade
+from trading.services.accounting import record_trade
 
 router = APIRouter()
 

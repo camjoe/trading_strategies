@@ -222,7 +222,7 @@ class TestTradeLoopOrchestration:
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)  # target trades = 1
         monkeypatch.setattr(runtime_service.auto_trader_policy, "choose_side", lambda *_args, **_kwargs: "buy")
@@ -257,7 +257,7 @@ class TestTradeLoopOrchestration:
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
         monkeypatch.setattr(runtime_service.auto_trader_policy, "choose_sell_ticker_by_risk", lambda *_args, **_kwargs: "AAPL")
@@ -290,7 +290,7 @@ class TestTradeLoopOrchestration:
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
         monkeypatch.setattr(runtime_service, "prepare_trade_selection_impl", lambda *_args, **_kwargs: None)
@@ -332,7 +332,7 @@ class TestTradeLoopOrchestration:
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 2)
         monkeypatch.setattr(runtime_service.auto_trader_policy, "choose_side", lambda *_args, **_kwargs: "buy")
@@ -368,7 +368,7 @@ class TestTradeLoopOrchestration:
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
         monkeypatch.setattr(runtime_service.auto_trader_policy, "choose_side", lambda *_args, **_kwargs: "buy")
@@ -426,7 +426,7 @@ class TestRotationAwareTradeLoop:
         monkeypatch.setattr(runtime_service, "get_account", lambda _conn, _name: initial_account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
         monkeypatch.setattr(runtime_service, "rotate_runtime_account_if_due_impl", lambda _conn, _name, _acct, _now, _deps: rotated_account)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _conn, _id: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _conn, _id: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_args, **_kwargs: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: 1)
         monkeypatch.setattr(
@@ -499,7 +499,7 @@ class TestBrokerConnectionLifecycle:
         """Common monkeypatches for a simple multi-buy scenario with n_trades target."""
         monkeypatch.setattr(runtime_service, "get_account", lambda _c, _n: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _c, _i: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _c, _i: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_a, **_k: state)
         monkeypatch.setattr(trade_execution_service.random, "randint", lambda a, b: n_trades)
         monkeypatch.setattr(
@@ -560,7 +560,7 @@ class TestBrokerConnectionLifecycle:
 
         monkeypatch.setattr(runtime_service, "get_account", lambda _c, _n: account)
         monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-        monkeypatch.setattr(runtime_service, "load_trades", lambda _c, _i: [])
+        monkeypatch.setattr(runtime_service, "list_account_trades", lambda _c, _i: [])
         monkeypatch.setattr(runtime_service, "compute_account_state", lambda *_a, **_k: state)
         monkeypatch.setattr(
             runtime_service, "prepare_trade_selection_impl", lambda *_a, **_k: None
