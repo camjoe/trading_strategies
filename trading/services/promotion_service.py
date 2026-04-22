@@ -28,7 +28,7 @@ from trading.repositories.promotion_repository import (
     insert_promotion_review_event,
     update_promotion_review_record,
 )
-from trading.services.accounts_service import get_account
+from trading.services.accounts import get_account
 from trading.services.evaluation_service import fetch_strategy_evaluation
 from trading.services.runtime_settings_service import fetch_promotion_policy_settings
 

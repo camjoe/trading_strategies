@@ -33,7 +33,7 @@ def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
 
 
 try:
-    from trading.services.accounts_service import load_all_account_names
+    from trading.services.accounts import load_all_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())

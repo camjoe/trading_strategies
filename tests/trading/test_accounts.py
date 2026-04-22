@@ -1,7 +1,7 @@
 import pytest
 import sqlite3
 
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     configure_account,
     create_account,
     find_account,

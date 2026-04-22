@@ -7,7 +7,7 @@ from trading.domain.evaluation_models import (
     EvaluationPaperLiveEvidence,
     StrategyEvaluationArtifact,
 )
-from trading.services.accounts_service import create_account, get_account
+from trading.services.accounts import create_account, get_account
 import trading.services.reporting_service as reporting_service
 from trading.models import AccountConfig
 from trading.services.reporting_service import (

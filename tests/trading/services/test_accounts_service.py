@@ -2,9 +2,9 @@ import sqlite3
 
 import pytest
 
-import trading.services.accounts_service as accounts_service
+import trading.services.accounts as accounts_service
 from trading.models.account_config import AccountConfig
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     build_account_listing_lines,
     create_account,
     format_account_policy_text,

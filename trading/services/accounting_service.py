@@ -2,7 +2,7 @@
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.services.accounts_service import get_account
+from trading.services.accounts import get_account
 from trading.domain.accounting import (
     _ensure_sufficient_cash_for_buy,
     _normalize_order_input,

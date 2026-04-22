@@ -5,7 +5,7 @@ from common.time import utc_now_iso
 from trading.domain.accounting import compute_account_state
 from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
 from trading.services.accounting_service import load_trades, record_trade
-from trading.services.accounts_service import create_account, get_account
+from trading.services.accounts import create_account, get_account
 
 
 class TestComputeAccountState:

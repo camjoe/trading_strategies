@@ -8,7 +8,7 @@ from fastapi import HTTPException
 
 from trading.models import AccountRecord
 from trading.database.db_init import ensure_db
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     get_account,
     get_latest_account_snapshot as fetch_latest_snapshot_row,
 )

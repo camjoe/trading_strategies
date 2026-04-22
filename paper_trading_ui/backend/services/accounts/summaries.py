@@ -4,7 +4,7 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.models import AccountRecord
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
     parse_rotation_overlay_watchlist,

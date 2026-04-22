@@ -13,7 +13,7 @@ import pytest
 
 from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from trading.database.db_init import ensure_db
-from trading.services.accounts_service import create_account
+from trading.services.accounts import create_account
 from trading.models import AccountConfig
 
 

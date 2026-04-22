@@ -45,7 +45,7 @@ from trading.repositories.snapshots_repository import (
     fetch_snapshot_count_between,
     fetch_snapshot_count_for_account,
 )
-from trading.services.accounts_service import get_account
+from trading.services.accounts import get_account
 from trading.services.runtime_settings_service import fetch_evaluation_confidence_settings
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.

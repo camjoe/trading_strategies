@@ -1,8 +1,8 @@
-"""Internal accounts service package.
+"""Accounts service package.
 
 This package owns the implementation split for account listing, config, and
-mutation helpers. Prefer ``trading.services.accounts_service`` as the stable
-public import surface unless a tightly scoped internal import is clearer.
+mutation helpers. Prefer ``trading.services.accounts`` as the stable public
+import surface unless a tightly scoped internal import is clearer.
 """
 
 from trading.services.accounts.listing import (
@@ -29,11 +29,42 @@ from trading.services.accounts.queries import (
     list_account_snapshots,
     load_all_account_names,
 )
+from trading.domain.exceptions import AccountAlreadyExistsError
+from trading.domain.auto_trader_policy import (
+    DEFAULT_MAX_POSITION_PCT,
+    DEFAULT_TRADE_SIZE_PCT,
+)
+from trading.domain.rotation import (
+    OPTIMALITY_MODES,
+    ROTATION_MODES,
+    ROTATION_OVERLAY_MODES,
+    parse_rotation_overlay_watchlist,
+    parse_rotation_schedule,
+)
+from trading.services.accounts.config import (
+    ACCOUNT_KINDS,
+    ACCOUNT_KIND_LOCAL,
+    ACCOUNT_KIND_MANAGED,
+    ACCOUNT_KIND_TEST_SHADOW,
+    INSTRUMENT_MODES,
+    OPTION_TYPES,
+    RISK_POLICIES,
+)
 
 __all__ = [
+    "ACCOUNT_KINDS",
+    "ACCOUNT_KIND_LOCAL",
+    "ACCOUNT_KIND_MANAGED",
+    "ACCOUNT_KIND_TEST_SHADOW",
+    "AccountAlreadyExistsError",
+    "DEFAULT_MAX_POSITION_PCT",
+    "DEFAULT_TRADE_SIZE_PCT",
     "find_account",
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",
+    "INSTRUMENT_MODES",
+    "OPTIMALITY_MODES",
+    "OPTION_TYPES",
     "build_account_listing_lines",
     "configure_account",
     "create_account",
@@ -47,6 +78,11 @@ __all__ = [
     "list_account_records",
     "list_account_snapshots",
     "load_all_account_names",
+    "parse_rotation_overlay_watchlist",
+    "parse_rotation_schedule",
+    "RISK_POLICIES",
+    "ROTATION_MODES",
+    "ROTATION_OVERLAY_MODES",
     "set_account_strategy",
     "set_benchmark",
 ]

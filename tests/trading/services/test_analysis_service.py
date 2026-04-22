@@ -9,7 +9,7 @@ import pytest
 
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.database.db_init import ensure_db
-from trading.services.accounts_service import create_account
+from trading.services.accounts import create_account
 from trading.services.analysis_service import fetch_account_analysis
 
 

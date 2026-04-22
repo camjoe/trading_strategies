@@ -12,7 +12,7 @@ from paper_trading_ui.backend.routes import logs as logs_routes
 from trading.domain import AccountAlreadyExistsError
 from trading.database.db_init import ensure_db
 from trading.models import AccountConfig
-from trading.services.accounts_service import create_account
+from trading.services.accounts import create_account
 
 
 def _create_test_account(

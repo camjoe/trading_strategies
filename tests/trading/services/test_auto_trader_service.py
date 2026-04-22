@@ -5,7 +5,7 @@ import pytest
 
 import trading.services.auto_trader_service as auto_trader_service
 import trading.services.rotation_service as rotation_service
-from trading.services.accounts_service import create_account, get_account
+from trading.services.accounts import create_account, get_account
 from trading.repositories.rotation_repository import update_account_rotation_state
 from trading.domain.rotation import next_rotation_state, parse_rotation_schedule, resolve_active_strategy, resolve_optimality_mode, resolve_rotation_mode
 from trading.services.auto_trader_service import RotationDeps

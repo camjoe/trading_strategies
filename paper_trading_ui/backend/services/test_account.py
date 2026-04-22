@@ -4,11 +4,11 @@ import re
 import sqlite3
 from pathlib import Path
 
-from trading.services.accounts_service import create_account
-from trading.services.accounts_service import configure_account
-from trading.services.accounts_service import ACCOUNT_KIND_TEST_SHADOW
+from trading.services.accounts import ACCOUNT_KIND_TEST_SHADOW
+from trading.services.accounts import configure_account
+from trading.services.accounts import create_account
 from trading.models import AccountConfig, AccountRecord
-from trading.services.accounts_service import find_account
+from trading.services.accounts import find_account
 
 from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models import AccountRecord
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     ACCOUNT_KIND_LOCAL,
     ACCOUNT_KIND_MANAGED,
     list_account_records,

@@ -16,7 +16,7 @@ from trading.repositories import (
     fetch_snapshot_history_rows,
     insert_snapshot_row,
 )
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     GOAL_NOT_SET_TEXT,
     format_account_policy_text,
     format_goal_text,

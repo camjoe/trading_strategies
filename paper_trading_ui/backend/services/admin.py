@@ -4,7 +4,7 @@ import sqlite3
 
 from fastapi import HTTPException
 
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     AccountAlreadyExistsError,
     create_account,
 )

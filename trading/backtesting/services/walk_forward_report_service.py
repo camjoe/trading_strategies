@@ -11,7 +11,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_walk_forward_group_runs,
 )
 from trading.backtesting.services.report_service import fetch_backtest_report_summary
-from trading.services.accounts_service import get_account
+from trading.services.accounts import get_account
 
 
 def _resolve_walk_forward_group(

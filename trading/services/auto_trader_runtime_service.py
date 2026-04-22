@@ -10,7 +10,7 @@ from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderStatus
 from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
-from trading.services.accounts_service import get_account
+from trading.services.accounts import get_account
 from trading.domain.accounting import compute_account_state
 from trading.services.accounting_service import load_trades, record_trade
 from trading.repositories.broker_orders_repository import (

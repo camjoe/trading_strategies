@@ -56,6 +56,18 @@ Good service function names usually describe the use case:
 External callers should prefer the service layer. However, that does **not**
 mean the service module should mirror repository names one-for-one.
 
+Prefer **one** stable public service surface per capability. In practice, that
+usually means the package root when a capability already has an internal split,
+for example:
+
+- `trading.services.accounts`
+- `trading.services.reporting`
+- `trading.services.profiles`
+
+Do **not** keep a second sibling facade such as `accounts_service.py` once the
+package root already serves as the stable import surface. That creates two
+public APIs for the same capability and reintroduces redirect-only wrappers.
+
 Avoid public service helpers that are only passthroughs like:
 
 ```python
@@ -94,7 +106,8 @@ Use this checklist when cleaning another service/repository pair:
 4. Move not-found handling, validation, and normalization into services.
 5. Keep row mapping and SQL filters/order clauses inside repositories.
 6. Update callers to use the service vocabulary.
-7. Remove redundant service exports once callers are migrated.
+7. Collapse onto a single stable service import surface for the capability.
+8. Remove redundant service exports/modules once callers are migrated.
 
 ## Accounts example
 
@@ -113,5 +126,8 @@ For `accounts`:
   - `list_account_snapshots`
   - `get_latest_account_snapshot`
   - `set_account_strategy`
+
+The stable public import surface should be `trading.services.accounts`, not both
+`trading.services.accounts` and `trading.services.accounts_service`.
 
 That split keeps repository files table-shaped and service files workflow-shaped.

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.account_config import AccountConfig
-from trading.services.accounts_service import set_account_strategy
+from trading.services.accounts import set_account_strategy
 from trading.services.profiles_service import apply_rotation_fields
 
 from ...account_contract import AccountParamsUpdateCommand
@@ -19,7 +19,7 @@ def update_account_params(
         set_account_strategy(conn, account_name, command.strategy)
 
     if AccountConfig.has_any_field(command.config_values):
-        from trading.services.accounts_service import configure_account
+        from trading.services.accounts import configure_account
 
         configure_account(conn, account_name, command.config)
 
