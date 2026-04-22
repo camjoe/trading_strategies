@@ -66,6 +66,7 @@ for example:
 - `trading.services.promotion`
 - `trading.services.evaluation`
 - `trading.services.admin`
+- `trading.services.auto_trading`
 - `trading.services.profiles`
 - `trading.services.runtime_settings`
 - `trading.services.runtime_throttle`
@@ -179,3 +180,15 @@ For strategy evaluation flows:
   caller-facing evaluation reads.
 - internal evidence-building helpers can live beneath that package root without
   exposing a second sibling facade such as `evaluation_service.py`.
+
+## Auto-trading example
+
+For the runtime trading cluster:
+
+- `trading.services.auto_trading` is the stable public service surface for
+  runtime auto-trading orchestration, market/input preparation, and rotation
+  bridge helpers.
+- execution and rotation internals can live beneath that package root without
+  keeping sibling facades such as `auto_trader_service.py`,
+  `trade_execution_service.py`, `rotation_service.py`, or
+  `auto_trader_runtime_service.py`.

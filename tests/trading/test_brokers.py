@@ -4,7 +4,7 @@ Covers:
   - PaperBrokerAdapter — immediate fill behaviour
   - get_broker_for_account factory routing for paper and Web API paths
   - InteractiveBrokersWebClient / InteractiveBrokersWebAdapter behaviour
-  - reconcile_open_ib_orders fill-reconciliation loop for the active broker path
+  - reconcile_open_broker_orders fill-reconciliation loop for the active broker path
   - Live trading safety: live_trading_enabled = 1 must never be set in tests
 """
 from __future__ import annotations
@@ -589,7 +589,7 @@ class TestLiveTradingSafety:
 
 
 # ---------------------------------------------------------------------------
-# reconcile_open_ib_orders
+# reconcile_open_broker_orders
 # ---------------------------------------------------------------------------
 
 
@@ -620,20 +620,20 @@ def _insert_open_broker_order(conn, broker_order_id: str, account_id: int = 1) -
 
 
 class TestReconcileOpenIbOrders:
-    """reconcile_open_ib_orders polls the current broker path for fill updates."""
+    """reconcile_open_broker_orders polls the current broker path for fill updates."""
 
     def test_non_ib_broker_returns_zero(self):
-        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+        from trading.services.auto_trading.runtime import reconcile_open_broker_orders
 
         conn = _make_db()
         account = _make_account(broker_type="paper")
-        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account") as mock_factory:
+        with patch("trading.services.auto_trading.runtime.get_broker_for_account") as mock_factory:
             mock_factory.return_value = PaperBrokerAdapter()
-            result = reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+            result = reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
         assert result == 0
 
     def test_newly_filled_order_increments_count(self):
-        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+        from trading.services.auto_trading.runtime import reconcile_open_broker_orders
 
         conn = _make_db()
         _insert_account_row(conn)
@@ -657,10 +657,10 @@ class TestReconcileOpenIbOrders:
 
         recorded = []
         with (
-            patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeBroker()),
-            patch("trading.services.auto_trader_runtime_service.record_trade", lambda conn, **kw: recorded.append(kw)),
+            patch("trading.services.auto_trading.runtime.get_broker_for_account", return_value=_FakeBroker()),
+            patch("trading.services.auto_trading.runtime.record_trade", lambda conn, **kw: recorded.append(kw)),
         ):
-            count = reconcile_open_ib_orders(conn, "test-account", account, fee=1.0)
+            count = reconcile_open_broker_orders(conn, "test-account", account, fee=1.0)
 
         assert count == 1
         assert len(recorded) == 1
@@ -669,7 +669,7 @@ class TestReconcileOpenIbOrders:
 
     def test_duplicate_fill_is_idempotent(self):
         """Calling reconcile twice with the same exec_id inserts only one fill row."""
-        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+        from trading.services.auto_trading.runtime import reconcile_open_broker_orders
 
         conn = _make_db()
         _insert_account_row(conn)
@@ -691,16 +691,16 @@ class TestReconcileOpenIbOrders:
             def disconnect(self):
                 pass
 
-        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=_FakeBroker()):
-            reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
-            reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+        with patch("trading.services.auto_trading.runtime.get_broker_for_account", return_value=_FakeBroker()):
+            reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
+            reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
 
         fills_count = conn.execute("SELECT COUNT(*) FROM order_fills WHERE exec_id = 'exec-dup'").fetchone()[0]
         assert fills_count == 1, "Duplicate exec_id fill must be inserted only once"
 
     def test_disconnect_called_even_when_no_open_orders(self):
         """Broker.disconnect() must still be called when no open orders are found."""
-        from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+        from trading.services.auto_trading.runtime import reconcile_open_broker_orders
 
         conn = _make_db()
         _insert_account_row(conn)
@@ -718,8 +718,8 @@ class TestReconcileOpenIbOrders:
             _disconnect_calls = 0
 
         fake_broker = _FakeBroker()
-        with patch("trading.services.auto_trader_runtime_service.get_broker_for_account", return_value=fake_broker):
-            result = reconcile_open_ib_orders(conn, "test-account", account, fee=0.0)
+        with patch("trading.services.auto_trading.runtime.get_broker_for_account", return_value=fake_broker):
+            result = reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
 
         assert result == 0
         assert _FakeBroker._disconnect_calls == 1

@@ -6,9 +6,9 @@ import pytest
 from common.time import utc_now_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.interfaces.runtime.jobs import run_auto_trades as auto_trader
-import trading.services.auto_trader_runtime_service as runtime_service
+import trading.services.auto_trading.execution as trade_execution_service
+import trading.services.auto_trading.runtime as runtime_service
 from trading.services.runtime_settings import set_runtime_throttle_settings
-import trading.services.trade_execution_service as trade_execution_service
 from tests.support import make_account_record
 
 

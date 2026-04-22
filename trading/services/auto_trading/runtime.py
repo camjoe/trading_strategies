@@ -1,3 +1,5 @@
+"""Runtime auto-trading orchestration and broker reconciliation."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -42,23 +44,7 @@ from trading.domain.rotation import (
     resolve_optimality_mode,
     resolve_rotation_mode,
 )
-from trading.services.auto_trader_service import (
-    rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
-    select_account_rotation_strategy as select_account_rotation_strategy_impl,
-    RotationDeps,
-)
-from trading.services.rotation_service import (
-    compute_live_account_metrics as compute_live_account_metrics_impl,
-    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
-    parse_as_of_iso as parse_as_of_iso_impl,
-    rotate_account_if_due as rotate_account_if_due_impl,
-    select_regime_strategy as select_regime_strategy_impl,
-    select_optimal_strategy as select_optimal_strategy_impl,
-    sync_rotation_episode as sync_rotation_episode_impl,
-)
-from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
-from trading.services.runtime_throttle import enforce_runtime_trade_throttles
-from trading.services.trade_execution_service import (
+from trading.services.auto_trading.execution import (
     build_leaps_candidates as build_leaps_candidates_impl,
     prepare_buy_trade as prepare_buy_trade_impl,
     prepare_sell_trade as prepare_sell_trade_impl,
@@ -67,6 +53,22 @@ from trading.services.trade_execution_service import (
     refresh_account_state as refresh_account_state_impl,
     run_for_account as run_for_account_impl,
 )
+from trading.services.auto_trading.rotation import (
+    compute_live_account_metrics as compute_live_account_metrics_impl,
+    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
+    parse_as_of_iso as parse_as_of_iso_impl,
+    rotate_account_if_due as rotate_account_if_due_impl,
+    select_regime_strategy as select_regime_strategy_impl,
+    select_optimal_strategy as select_optimal_strategy_impl,
+    sync_rotation_episode as sync_rotation_episode_impl,
+)
+from trading.services.auto_trading.rotation_bridge import (
+    rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
+    select_account_rotation_strategy as select_account_rotation_strategy_impl,
+    RotationDeps,
+)
+from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
+from trading.services.runtime_throttle import enforce_runtime_trade_throttles
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -472,7 +474,7 @@ def run_for_account(
         broker.disconnect()
 
 
-def reconcile_open_ib_orders(
+def reconcile_open_broker_orders(
     conn: sqlite3.Connection,
     account_name: str,
     account: AccountRecord,
@@ -543,3 +545,13 @@ def reconcile_open_ib_orders(
         return newly_filled
     finally:
         broker.disconnect()
+
+
+def reconcile_open_ib_orders(
+    conn: sqlite3.Connection,
+    account_name: str,
+    account: AccountRecord,
+    fee: float,
+) -> int:
+    """Compatibility alias for the old broker reconciliation name."""
+    return reconcile_open_broker_orders(conn, account_name, account, fee)

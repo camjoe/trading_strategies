@@ -1,3 +1,5 @@
+"""Rotation helpers used by runtime auto-trading orchestration."""
+
 from __future__ import annotations
 
 import sqlite3

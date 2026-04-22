@@ -1,3 +1,5 @@
+"""Execution helpers for auto-trading order selection and recording."""
+
 from __future__ import annotations
 
 import random
