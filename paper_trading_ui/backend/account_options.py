@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     ACCOUNT_KINDS,
     INSTRUMENT_MODES,
     OPTIMALITY_MODES,

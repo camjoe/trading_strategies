@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import trading.domain.auto_trader_policy as auto_trader_policy
-import trading.services.trade_execution_service as trade_execution_service
+import trading.services.auto_trading.execution as trade_execution_service
 from tests.support import make_account_record
 
 

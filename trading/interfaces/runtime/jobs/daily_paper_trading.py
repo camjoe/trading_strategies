@@ -13,8 +13,8 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, write_artifact
-from trading.services.notifications_service import notify_webhook_best_effort
-from trading.services.runtime_job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
+from trading.interfaces.runtime.notifications import notify_webhook_best_effort
+from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -33,7 +33,7 @@ def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
 
 
 try:
-    from trading.services.accounts_service import load_all_account_names
+    from trading.services.accounts import load_all_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())

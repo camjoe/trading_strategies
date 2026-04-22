@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from trading.utils.coercion import row_str
+from common.coercion import row_str
 
 
 def build_backtest_warnings(

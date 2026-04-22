@@ -4,15 +4,14 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.models import AccountRecord
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
+    get_latest_account_snapshot,
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
-from trading.services.reporting_service import build_account_stats
-
-from ..db import fetch_latest_snapshot_row
+from trading.services.reporting import build_account_stats
 
 _SETTLEMENT_PRICE = 1.0
 
@@ -95,7 +94,7 @@ def _build_summary_from_stats(
     settlement_cash: float = 0.0,
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
-    latest_snapshot = fetch_latest_snapshot_row(conn, row.id)
+    latest_snapshot = get_latest_account_snapshot(conn, row.id)
     rotation_schedule = parse_rotation_schedule(row.rotation_schedule)
     rotation_overlay_watchlist = parse_rotation_overlay_watchlist(row.rotation_overlay_watchlist)
 

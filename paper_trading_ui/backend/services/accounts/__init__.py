@@ -27,10 +27,8 @@ from .benchmark import (
 from .data_access import (
     build_snapshot_payload,
     build_trade_payload,
-    fetch_account_trades,
+    require_account_row,
     fetch_visible_account_rows,
-    fetch_snapshot_history_rows,
-    take_snapshot,
 )
 from .mutations import update_account_params
 from .summaries import (
@@ -51,12 +49,10 @@ __all__ = [
     "build_snapshot_payload",
     "build_trade_payload",
     "display_account_name",
-    "fetch_account_trades",
     "fetch_latest_backtest_metrics",
     "fetch_latest_backtest_summary",
+    "require_account_row",
     "fetch_visible_account_rows",
     "fetch_recent_backtest_run_summaries",
-    "fetch_snapshot_history_rows",
-    "take_snapshot",
     "update_account_params",
 ]

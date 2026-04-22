@@ -19,7 +19,7 @@ Purpose: save the current-state map and integration path for sentiment, topic, a
 - `trading/accounts.py` — creates accounts with strategy name stored in DB.
 - `trading/config/account_profiles/default.json` — templates with strategies "Momentum", "Mean Reversion".
 - `trading/database/db.py` — seeds `accounts.rotation_overlay_watchlist` from `trading/config/trade_universe.txt` for new schemas and backfills existing accounts when the column is added. That seed is stored in the DB schema/defaults at migration time; changing `trade_universe.txt` later requires an explicit DB update or migration if you want the new list to propagate.
-- `trading/services/rotation_service.py` — account-level regime overlays evaluate the union of current holdings plus `rotation_overlay_watchlist`, so news/social coverage is not limited to already-open positions.
+- `trading/services/auto_trading/rotation.py` — account-level regime overlays evaluate the union of current holdings plus `rotation_overlay_watchlist`, so news/social coverage is not limited to already-open positions.
 
 **Backtesting loop:**
 - Loads price history for all tickers (start–end range).

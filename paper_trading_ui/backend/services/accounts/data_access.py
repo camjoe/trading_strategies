@@ -2,22 +2,29 @@ from __future__ import annotations
 
 import sqlite3
 
+from fastapi import HTTPException
+
 from trading.models import AccountRecord
-from trading.services.accounts_service import (
+from trading.services.accounts import (
     ACCOUNT_KIND_LOCAL,
     ACCOUNT_KIND_MANAGED,
-    fetch_accounts,
-    fetch_snapshot_history_rows as _fetch_snapshot_history_rows,
+    get_account,
+    list_account_records,
 )
-from trading.services.accounting_service import load_trades
-from trading.services.reporting_service import snapshot_account
 
 
 VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 
+def require_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
+    try:
+        return get_account(conn, account_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from exc
+
+
 def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
-    return fetch_accounts(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
+    return list_account_records(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
 
 
 def build_snapshot_payload(snapshot: dict[str, object]) -> dict[str, object]:
@@ -41,15 +48,3 @@ def build_trade_payload(trade: dict[str, object]) -> dict[str, object]:
         "tradeTime": trade["trade_time"],
         "note": trade["note"],
     }
-
-
-def fetch_account_trades(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
-    return load_trades(conn, account_id)
-
-
-def take_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time: str | None = None) -> None:
-    snapshot_account(conn, account_name, snapshot_time)
-
-
-def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[dict[str, object]]:
-    return _fetch_snapshot_history_rows(conn, account_id, limit=limit)

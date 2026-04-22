@@ -15,7 +15,7 @@ from trading.backtesting.repositories.leaderboard_repository import (
     fetch_leaderboard_rows,
     fetch_trade_rows,
 )
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 
 BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]

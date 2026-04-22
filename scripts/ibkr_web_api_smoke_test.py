@@ -25,7 +25,7 @@ import httpx
 from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
 from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType, TimeInForce
-from trading.utils.coercion import coerce_float
+from common.coercion import coerce_float
 
 # Default quantity for the optional paper-order smoke check.
 _DEFAULT_PAPER_ORDER_QTY = 1.0

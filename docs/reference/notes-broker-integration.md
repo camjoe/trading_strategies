@@ -17,7 +17,7 @@ socket/TWS flow.
 ## Architecture
 
 ```
-auto_trader_runtime_service
+auto_trading/runtime
         │
         ▼
 trading/brokers/factory.py          ← resolves BrokerConnection for an account
@@ -48,7 +48,7 @@ trading/brokers/factory.py          ← resolves BrokerConnection for an account
 | `trading/brokers/ib_web_client.py` | Web API config loader + HTTP client |
 | `trading/brokers/factory.py` | Routes accounts → correct `BrokerConnection` |
 | `trading/repositories/broker_orders_repository.py` | DB persistence for orders and fills |
-| `trading/services/auto_trader_runtime_service.py` | Wires broker into trade execution loop |
+| `trading/services/auto_trading/runtime.py` | Wires broker into trade execution loop |
 
 ---
 
@@ -348,18 +348,18 @@ The runtime service handles this in two parts:
 1. **`_record_runtime_trade`** — persists the SUBMITTED `broker_order` row immediately.
    The trade is NOT recorded in the ledger yet.
 
-2. **`reconcile_open_ib_orders`** — polls IB for fill updates on all open orders.
+2. **`reconcile_open_broker_orders`** — polls the active broker path for fill updates on all open orders.
    When an order transitions to FILLED:
    - Updates the `broker_orders` row
    - Inserts `order_fills` rows
    - Calls `record_trade` to add the fill to the account ledger
 
-Call `reconcile_open_ib_orders` periodically in your trading loop:
+Call `reconcile_open_broker_orders` periodically in your trading loop:
 
 ```python
-from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
+from trading.services.auto_trading.runtime import reconcile_open_broker_orders
 
-newly_filled = reconcile_open_ib_orders(conn, account_name, account, fee=0.005)
+newly_filled = reconcile_open_broker_orders(conn, account_name, account, fee=0.005)
 ```
 
 ---

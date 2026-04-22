@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from trading.models import AccountRecord
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
-from trading.utils.coercion import (
+from common.coercion import (
     coerce_float,
     coerce_str,
     row_float,
     row_int,
     row_str,
 )
+from trading.models import AccountRecord
+from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}

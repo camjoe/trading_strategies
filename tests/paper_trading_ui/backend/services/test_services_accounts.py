@@ -36,7 +36,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         account_summaries,
-        "fetch_latest_snapshot_row",
+        "get_latest_account_snapshot",
         lambda _conn, _account_id: {"equity": 1100.0, "snapshot_time": "2026-01-02T00:00:00Z"},
     )
 
@@ -331,7 +331,7 @@ class TestBuildAccountSummaryShape:
         )
         monkeypatch.setattr(
             account_summaries,
-            "fetch_latest_snapshot_row",
+            "get_latest_account_snapshot",
             lambda _conn, _account_id: None,
         )
         row = _account_record(
@@ -351,7 +351,7 @@ class TestBuildAccountSummaryShape:
         )
         monkeypatch.setattr(
             account_summaries,
-            "fetch_latest_snapshot_row",
+            "get_latest_account_snapshot",
             lambda _conn, _account_id: None,
         )
         row = _account_record(
@@ -404,7 +404,7 @@ class TestBuildAccountSummaryShape:
         )
         monkeypatch.setattr(
             account_summaries,
-            "fetch_latest_snapshot_row",
+            "get_latest_account_snapshot",
             lambda _conn, _account_id: None,
         )
         row = _account_record(

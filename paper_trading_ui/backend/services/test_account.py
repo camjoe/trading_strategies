@@ -4,11 +4,11 @@ import re
 import sqlite3
 from pathlib import Path
 
-from trading.services.accounts_service import create_account
-from trading.services.accounts_service import configure_account
-from trading.services.accounts_service import ACCOUNT_KIND_TEST_SHADOW
+from trading.services.accounts import ACCOUNT_KIND_TEST_SHADOW
+from trading.services.accounts import configure_account
+from trading.services.accounts import create_account
 from trading.models import AccountConfig, AccountRecord
-from trading.services.accounts_service import fetch_account_by_name
+from trading.services.accounts import find_account
 
 from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
@@ -102,7 +102,7 @@ def resolve_backtest_account_name(account_name: str) -> str:
 
 
 def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
-    existing = fetch_account_by_name(conn, TEST_BACKTEST_ACCOUNT_NAME)
+    existing = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
     if existing is not None:
         if str(existing.get("account_kind") or "") != ACCOUNT_KIND_TEST_SHADOW:
             configure_account(
@@ -140,13 +140,13 @@ def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection
 
 
 from .accounts import build_account_summary
-from .db import fetch_account_row
+from .accounts import require_account_row
 
 
 def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
     """Resolve ``account_name`` (handles test-account aliasing) and return its DB row."""
     resolved_name = resolve_backtest_payload_account(account_name, conn)
-    return fetch_account_row(conn, resolved_name)
+    return require_account_row(conn, resolved_name)
 
 
 def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:

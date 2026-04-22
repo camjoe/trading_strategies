@@ -6,7 +6,7 @@ import pytest
 from common.time import utc_now_iso
 from trading.database.db_init import ensure_db
 from trading.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST
-from trading.services.accounts_service import create_account
+from trading.services.accounts import create_account
 from trading.models import AccountConfig
 
 

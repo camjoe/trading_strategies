@@ -1,7 +1,18 @@
 import pytest
 import sqlite3
 
-from trading.services.accounts_service import configure_account, create_account, get_account, list_accounts, load_all_account_names, set_benchmark
+from trading.services.accounts import (
+    configure_account,
+    create_account,
+    find_account,
+    get_account,
+    list_account_names,
+    list_account_records,
+    list_accounts,
+    load_all_account_names,
+    set_account_strategy,
+    set_benchmark,
+)
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.models import AccountConfig
 
@@ -102,6 +113,48 @@ class TestAccountLookupAndListing:
             assert load_all_account_names() == ["alpha", "mike", "zulu"]
         finally:
             set_backend(original)
+
+    def test_find_account_strips_name_and_returns_optional_row(self, conn) -> None:
+        create_account(conn, "acct_lookup", "Trend", 1000.0, "SPY")
+
+        account = find_account(conn, "  acct_lookup  ")
+
+        assert account is not None
+        assert account["name"] == "acct_lookup"
+        assert find_account(conn, "missing") is None
+
+    def test_list_account_records_normalizes_account_kind_filters(self, conn) -> None:
+        create_account(conn, "acct_managed", "Trend", 1000.0, "SPY")
+        create_account(
+            conn,
+            "acct_local",
+            "Trend",
+            1000.0,
+            "SPY",
+            config=AccountConfig(account_kind="local"),
+        )
+        create_account(
+            conn,
+            "acct_shadow",
+            "Trend",
+            1000.0,
+            "SPY",
+            config=AccountConfig(account_kind="test_shadow"),
+        )
+
+        rows = list_account_records(conn, account_kinds=(" Local ", "managed"))
+        names = [row["name"] for row in rows]
+
+        assert names == ["acct_local", "acct_managed"]
+        assert list_account_names(conn, account_kinds=("managed",)) == ["acct_managed"]
+
+    def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
+        create_account(conn, "acct_strategy", "Trend", 1000.0, "SPY")
+
+        set_account_strategy(conn, "acct_strategy", "MeanRev")
+
+        account = get_account(conn, "acct_strategy")
+        assert account["strategy"] == "MeanRev"
 
 
 class TestCreateAccount:

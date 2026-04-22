@@ -5,7 +5,7 @@ from collections.abc import Callable
 import pytest
 
 from trading.models import AccountConfig
-from trading.services.accounts_service import create_account
+from trading.services.accounts import create_account
 
 
 @pytest.fixture

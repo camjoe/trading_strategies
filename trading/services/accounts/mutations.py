@@ -3,16 +3,17 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
+from common.coercion import expect_float, expect_int
 from common.time import utc_now_iso
 from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts_repository import (
-    fetch_account_by_name as repo_fetch_account_by_name,
     insert_account,
     update_account_benchmark,
     update_account_fields,
 )
+from trading.services.accounts.queries import find_account
 from trading.services.accounts.config import (
     ACCOUNT_KIND_MANAGED,
     append_numeric_updates,
@@ -30,24 +31,29 @@ from trading.services.accounts.config import (
     validate_position_sizing,
     validate_position_sizing_from_inputs,
 )
-from trading.utils.coercion import expect_float, expect_int
 
 
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
-    row = repo_fetch_account_by_name(conn, name)
+    row = find_account(conn, name)
     if row is None:
         raise ValueError(f"Account '{name}' not found.")
     return row
 
 
-def update_account_fields_by_id(
-    conn: sqlite3.Connection,
-    account_id: int,
-    *,
-    updates: list[str],
-    params: list[object],
-) -> None:
-    update_account_fields(conn, account_id=account_id, updates=updates, params=params)
+def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
+    from trading.backtesting.domain.strategy_signals import validate_strategy_name
+
+    normalized_strategy = strategy.strip()
+    if not normalized_strategy:
+        raise ValueError("strategy cannot be empty.")
+    validate_strategy_name(normalized_strategy)
+    account = get_account(conn, account_name)
+    update_account_fields(
+        conn,
+        account_id=account.id,
+        updates=["strategy = ?"],
+        params=[normalized_strategy],
+    )
 
 
 def create_account(

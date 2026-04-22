@@ -4,8 +4,7 @@ import json
 from datetime import UTC, datetime
 from typing import Callable, Mapping
 
-from trading.utils.coercion import coerce_int
-
+from common.coercion import coerce_int
 from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 
 ROTATION_MODES = {"time", "optimal", "regime"}

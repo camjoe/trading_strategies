@@ -11,13 +11,13 @@ from trading.backtesting.backtest import (
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest, WalkForwardRunRequest
 from ..services import (
-    fetch_account_row,
     build_backtest_config_from_preflight_request,
     build_backtest_config_from_run_request,
     fetch_recent_backtest_run_summaries,
     db_conn,
     display_account_name,
     fetch_latest_backtest_summary,
+    require_account_row,
     resolve_backtest_payload_account,
     build_walk_forward_config_from_request,
 )
@@ -35,7 +35,7 @@ def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str,
 def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
     with db_conn() as conn:
         resolved_account_name = resolve_backtest_payload_account(account_name, conn)
-        fetch_account_row(conn, resolved_account_name)
+        require_account_row(conn, resolved_account_name)
         latest = fetch_latest_backtest_summary(conn, resolved_account_name)
         return {"accountName": account_name, "latestRun": latest}
 

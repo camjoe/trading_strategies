@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from trading.services.accounts_service import get_account
-from trading.services.profiles_service import apply_account_profiles, load_account_profiles
+from trading.services.accounts import get_account
+from trading.services.profiles import apply_account_profiles, load_account_profiles
 
 
 class TestLoadAccountProfiles:

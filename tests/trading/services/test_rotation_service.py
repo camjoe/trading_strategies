@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from trading.domain.rotation import parse_rotation_schedule
-import trading.services.rotation_service as rotation_service
+import trading.services.auto_trading.rotation as rotation_service
 from tests.support import make_account_record
 
 

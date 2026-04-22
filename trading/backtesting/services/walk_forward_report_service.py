@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_str
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_str
 from trading.backtesting.report_models import BacktestReportSummary, WalkForwardDetailReport, WalkForwardWindowDetail
 from trading.backtesting.repositories.walk_forward_repository import (
     fetch_latest_walk_forward_group_for_account,
@@ -11,7 +11,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_walk_forward_group_runs,
 )
 from trading.backtesting.services.report_service import fetch_backtest_report_summary
-from trading.repositories.accounts_repository import fetch_account_by_name
+from trading.services.accounts import get_account
 
 
 def _resolve_walk_forward_group(
@@ -30,9 +30,7 @@ def _resolve_walk_forward_group(
     if account_name is None:
         raise ValueError("Provide either --group-id or --account.")
 
-    account = fetch_account_by_name(conn, account_name)
-    if account is None:
-        raise ValueError(f"Account '{account_name}' not found.")
+    account = get_account(conn, account_name)
 
     if strategy_name is None:
         group = fetch_latest_walk_forward_group_for_account(conn, account_id=account.id)
