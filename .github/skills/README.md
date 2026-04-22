@@ -58,7 +58,7 @@ These agents still exist because they encode repo-specific execution behavior th
 | `trading-runtime.agent.md` | exact runtime job and operator flows |
 | `ui-api-steward.agent.md` | exact `paper_trading_ui` contract paths and semantics |
 
-Repo-specific agents live in top-level `.github/agents/`
+Repo-specific agents live in `.github/agents/`
 
 ## Authoring rules
 

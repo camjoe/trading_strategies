@@ -69,7 +69,7 @@ Suggested keyword cues for fast matching:
 
 # Code Review Shortcut
 
-- If a user message starts with `code review` (ignoring leading/trailing whitespace and case), follow the review workflow defined by `skills/portable/code-review.skill.md`.
+- If a user message starts with `code review` (ignoring leading/trailing whitespace and case), follow the review workflow defined by `.github/skills/code-review.skill.md`.
 - Accepted forms:
   - `code review` — review all staged + unstaged changes against HEAD
   - `code review: <branch>` — review the diff between the current branch and the given base branch
@@ -78,7 +78,7 @@ Suggested keyword cues for fast matching:
 
 # Deep Code Review Shortcut
 
-- If a user message starts with `deep code review` (ignoring leading/trailing whitespace and case), execute the deep review workflow defined in `skills/portable/deep-code-review.skill.md`.
+- If a user message starts with `deep code review` (ignoring leading/trailing whitespace and case), execute the deep review workflow defined in `.github/skills/deep-code-review.skill.md`.
 - Accepted forms:
   - `deep code review` — review `trading/` and `paper_trading_ui/` together
   - `deep code review: trading` — review `trading/`
@@ -89,7 +89,7 @@ Suggested keyword cues for fast matching:
 
 # Docs Sync Shortcut
 
-- If a user message starts with `sync docs` or `docs sync` (ignoring leading/trailing whitespace and case), follow the docs-sync workflow defined in `skills/portable/docs-sync.skill.md`.
+- If a user message starts with `sync docs` or `docs sync` (ignoring leading/trailing whitespace and case), follow the docs-sync workflow defined in `.github/skills/docs-sync.skill.md`.
 - Accepted forms:
   - `sync docs` — audit all recently changed areas for documentation drift and apply targeted updates
   - `sync docs: <file-or-folder>` — restrict the sync to a specific file or module
@@ -145,7 +145,7 @@ Current shortcut catalog to show:
 	- Example: `help`
 
 3. Trigger: `commit message git`
-	- Action: returns commit subject options based on current uncommitted git changes (staged + unstaged), without project-manager context.
+	- Action: returns commit subject options based on current uncommitted git changes (staged + unstaged)
 	- Example: `commit message git`
 
 4. Trigger: `run checks`

@@ -14,8 +14,7 @@ Use a skill directly by default when the task is generic enough to be expressed 
 
 ### 2. Agents (`.github/agents/*.agent.md`)
 
-These exist only when the skill alone is not enough. Published copies are synced
-into `.github/agents/`.
+These exist only when the skill alone is not enough. These exist in `.github/agents/`.
 
 Keep an agent only if it adds one or more of:
 
