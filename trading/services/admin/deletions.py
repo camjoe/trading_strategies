@@ -25,6 +25,7 @@ from trading.repositories.admin_repository import (
     in_placeholders,
 )
 
+
 @dataclass(frozen=True)
 class DeleteCountField:
     key: str

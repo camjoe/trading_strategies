@@ -64,6 +64,7 @@ for example:
 - `trading.services.accounting`
 - `trading.services.reporting`
 - `trading.services.promotion`
+- `trading.services.admin`
 - `trading.services.profiles`
 - `trading.services.runtime_settings`
 - `trading.services.runtime_throttle`
@@ -99,6 +100,10 @@ Example:
 
 This keeps SQL assembly in the repository while keeping validation and policy in
 the service layer.
+
+If persistence writes still need invariant checks, keep those checks in the
+service mutation helper rather than embedding policy validation into the
+repository primitive.
 
 ## Refactor checklist
 
@@ -143,6 +148,9 @@ For the small runtime slice:
 - `trading.services.runtime_settings` is the caller-facing package root for
   runtime throttle, evaluation-confidence, and promotion-policy settings,
   even though those reads still use `global_settings_repository` underneath.
+- `trading.services.runtime_settings` should also own validation for write-side
+  invariants such as normalized evaluation-confidence weights; the repository
+  should only persist the provided row shape.
 - `trading.services.runtime_throttle` is the caller-facing package root for
   enforcing trade-cap policy, even though it still uses `trades_repository`
   for the persistence query.

@@ -6,8 +6,8 @@ import pytest
 from common.time import utc_now_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.interfaces.runtime.jobs import run_auto_trades as auto_trader
-from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
 import trading.services.auto_trader_runtime_service as runtime_service
+from trading.services.runtime_settings import set_runtime_throttle_settings
 import trading.services.trade_execution_service as trade_execution_service
 from tests.support import make_account_record
 
@@ -315,7 +315,7 @@ class TestTradeLoopOrchestration:
     def test_run_for_account_stops_cleanly_when_global_runtime_day_cap_is_hit(self, monkeypatch, conn):
         account = _base_account(learning_enabled=1, id=11)
         state = SimpleNamespace(cash=1000.0, positions={}, avg_cost={})
-        upsert_runtime_throttle_settings(
+        set_runtime_throttle_settings(
             conn,
             runtime_max_trades_per_day=1,
             runtime_max_trades_per_minute=None,

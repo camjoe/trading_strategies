@@ -3,9 +3,9 @@ import pytest
 import trading.services.accounting.mutations as accounting_mutations
 from common.time import utc_now_iso
 from trading.domain.accounting import compute_account_state
-from trading.repositories.global_settings_repository import upsert_runtime_throttle_settings
 from trading.services.accounting import list_account_trades, record_trade
 from trading.services.accounts import create_account, get_account
+from trading.services.runtime_settings import set_runtime_throttle_settings
 
 
 class TestComputeAccountState:
@@ -293,7 +293,7 @@ class TestRecordTradeAndListAccountTrades:
 
     def test_global_runtime_trade_settings_do_not_block_manual_recording(self, conn) -> None:
         create_account(conn, "acct_global_settings_manual", "Trend", 1000.0, "SPY")
-        upsert_runtime_throttle_settings(
+        set_runtime_throttle_settings(
             conn,
             runtime_max_trades_per_day=1,
             runtime_max_trades_per_minute=1,
