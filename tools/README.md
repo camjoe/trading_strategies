@@ -13,17 +13,10 @@ Describe shared tooling surfaces and where to find setup and operational guidanc
 For commit-context usage and documentation precheck details, see:
 - `tools/project_manager/README.md`
 
-Recent tooling note:
-
-- `tools/project_manager/scripts/commit_context` provides commit-context summaries and documentation precheck guidance.
-
 Additional workflow notes:
 
 - `python -m scripts.run_checks --profile ci` is the primary local audit command mirroring CI core checks.
 - Trading structure guidance is tracked in `.github/BOT_ARCHITECTURE_CONVENTIONS.md`.
-- Runtime data operations use canonical module entrypoints under `trading/interfaces/runtime/data_ops/`.
-- Repository-backed backend abstraction updates should keep focused validation in `tests/trading` and `tests/paper_trading_ui/backend` aligned.
-- Repository extraction slices in `trading/` should include focused profile/reporting tests when account update/list paths are touched.
 
 ## Workflows
 
