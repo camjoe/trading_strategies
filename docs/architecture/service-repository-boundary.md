@@ -64,6 +64,7 @@ for example:
 - `trading.services.accounting`
 - `trading.services.reporting`
 - `trading.services.promotion`
+- `trading.services.evaluation`
 - `trading.services.admin`
 - `trading.services.profiles`
 - `trading.services.runtime_settings`
@@ -169,3 +170,12 @@ For profile application flows:
 - `trading.services.profile_source` can remain a separate source abstraction
   because it represents profile-input backends rather than a sibling facade for
   the same use-case API.
+
+## Evaluation example
+
+For strategy evaluation flows:
+
+- `trading.services.evaluation` is the stable public service surface for
+  caller-facing evaluation reads.
+- internal evidence-building helpers can live beneath that package root without
+  exposing a second sibling facade such as `evaluation_service.py`.

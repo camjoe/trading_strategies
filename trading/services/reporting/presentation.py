@@ -21,7 +21,7 @@ from trading.services.accounts import (
     list_account_records,
     list_account_snapshots,
 )
-from trading.services.evaluation_service import fetch_strategy_evaluation_for_account_row
+from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.reporting.calculations import (
     alpha_pct,
     benchmark_available,

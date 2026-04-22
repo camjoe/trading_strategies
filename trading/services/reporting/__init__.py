@@ -9,7 +9,7 @@ from trading.services.accounts import (
     format_account_policy_text,
     format_goal_text,
 )
-from trading.services.evaluation_service import fetch_strategy_evaluation_for_account_row
+from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.reporting.calculations import (
     alpha_pct,
     benchmark_available,

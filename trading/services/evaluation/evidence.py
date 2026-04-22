@@ -4,8 +4,6 @@ import sqlite3
 from dataclasses import replace
 
 from common.coercion import row_expect_int, row_expect_str, row_float, row_int, row_str
-from common.time import utc_now_iso
-from trading.models import AccountRecord
 from trading.backtesting.domain.metrics import max_drawdown_pct
 from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
@@ -29,13 +27,12 @@ from trading.domain.evaluation_models import (
     EvaluationBasicScope,
     EvaluationConfidence,
     EvaluationDiagnostics,
-    EvaluationMeta,
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
-    StrategyEvaluationArtifact,
 )
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
+from trading.models import AccountRecord
 from trading.repositories.rotation_repository import (
     fetch_latest_closed_rotation_episode,
     fetch_open_rotation_episode,
@@ -45,8 +42,6 @@ from trading.repositories.snapshots_repository import (
     fetch_snapshot_count_between,
     fetch_snapshot_count_for_account,
 )
-from trading.services.accounts import get_account
-from trading.services.runtime_settings import fetch_evaluation_confidence_settings
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -73,7 +68,7 @@ PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
-def _resolve_requested_strategy(account: AccountRecord, strategy_name: str | None) -> str:
+def resolve_requested_strategy(account: AccountRecord, strategy_name: str | None) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
         if normalized:
@@ -81,7 +76,7 @@ def _resolve_requested_strategy(account: AccountRecord, strategy_name: str | Non
     return resolve_active_strategy(account)
 
 
-def _build_basic_scope(account: AccountRecord, requested_strategy: str) -> EvaluationBasicScope:
+def build_basic_scope(account: AccountRecord, requested_strategy: str) -> EvaluationBasicScope:
     return EvaluationBasicScope(
         account_id=row_expect_int(account, "id"),
         account_name=row_expect_str(account, "name"),
@@ -96,7 +91,7 @@ def _build_basic_scope(account: AccountRecord, requested_strategy: str) -> Evalu
     )
 
 
-def _build_backtest_evidence(
+def build_backtest_evidence(
     conn: sqlite3.Connection,
     *,
     account_id: int,
@@ -211,7 +206,7 @@ def _latest_rotation_episode_evidence(
     )
 
 
-def _build_paper_live_evidence(
+def build_paper_live_evidence(
     conn: sqlite3.Connection,
     *,
     account: AccountRecord,
@@ -251,7 +246,7 @@ def _build_paper_live_evidence(
     )
 
 
-def _build_walk_forward_evidence(
+def build_walk_forward_evidence(
     conn: sqlite3.Connection,
     *,
     account_id: int,
@@ -280,7 +275,7 @@ def _build_walk_forward_evidence(
     )
 
 
-def _build_confidence(
+def build_confidence(
     *,
     backtest: EvaluationBacktestEvidence,
     paper_live: EvaluationPaperLiveEvidence,
@@ -313,7 +308,7 @@ def _build_confidence(
     )
 
 
-def _build_diagnostics(
+def build_diagnostics(
     *,
     backtest: EvaluationBacktestEvidence,
     paper_live: EvaluationPaperLiveEvidence,
@@ -327,63 +322,3 @@ def _build_diagnostics(
     if not walk_forward.available:
         data_gaps.append(WALK_FORWARD_EVIDENCE_GAP)
     return EvaluationDiagnostics(data_gaps=data_gaps)
-
-
-def fetch_strategy_evaluation_for_account_row(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-    *,
-    strategy_name: str | None = None,
-) -> StrategyEvaluationArtifact:
-    requested_strategy = _resolve_requested_strategy(account, strategy_name)
-    account_id = account.id
-    basic = _build_basic_scope(account, requested_strategy)
-    backtest = _build_backtest_evidence(
-        conn,
-        account_id=account_id,
-        requested_strategy=requested_strategy,
-    )
-    paper_live = _build_paper_live_evidence(
-        conn,
-        account=account,
-        requested_strategy=requested_strategy,
-    )
-    walk_forward = _build_walk_forward_evidence(
-        conn,
-        account_id=account_id,
-        requested_strategy=requested_strategy,
-    )
-    confidence_settings = fetch_evaluation_confidence_settings(conn)
-    confidence = _build_confidence(
-        backtest=backtest,
-        paper_live=paper_live,
-        settings=confidence_settings,
-    )
-    diagnostics = _build_diagnostics(
-        backtest=backtest,
-        paper_live=paper_live,
-        walk_forward=walk_forward,
-    )
-    return StrategyEvaluationArtifact(
-        meta=EvaluationMeta(generated_at=utc_now_iso()),
-        basic=basic,
-        backtest=backtest,
-        walk_forward=walk_forward,
-        paper_live=paper_live,
-        confidence=confidence,
-        diagnostics=diagnostics,
-    )
-
-
-def fetch_strategy_evaluation(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    strategy_name: str | None = None,
-) -> StrategyEvaluationArtifact:
-    account = get_account(conn, account_name)
-    return fetch_strategy_evaluation_for_account_row(
-        conn,
-        account,
-        strategy_name=strategy_name,
-    )

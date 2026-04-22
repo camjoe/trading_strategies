@@ -5,7 +5,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     insert_walk_forward_group_run,
 )
 from trading.services.accounts import create_account, get_account
-from trading.services.evaluation_service import fetch_strategy_evaluation
+from trading.services.evaluation import fetch_strategy_evaluation
 
 
 def _insert_backtest_run(
