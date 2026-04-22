@@ -10,10 +10,7 @@ from trading.services.accounts import (
     ACCOUNT_KIND_MANAGED,
     get_account,
     list_account_records,
-    list_account_snapshots as _list_account_snapshots,
 )
-from trading.services.accounting import list_account_trades
-from trading.services.reporting import snapshot_account
 
 
 VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
@@ -51,15 +48,3 @@ def build_trade_payload(trade: dict[str, object]) -> dict[str, object]:
         "tradeTime": trade["trade_time"],
         "note": trade["note"],
     }
-
-
-def fetch_account_trades(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
-    return list_account_trades(conn, account_id)
-
-
-def take_snapshot(conn: sqlite3.Connection, account_name: str, *, snapshot_time: str | None = None) -> None:
-    snapshot_account(conn, account_name, snapshot_time)
-
-
-def fetch_snapshot_history_rows(conn: sqlite3.Connection, account_id: int, *, limit: int) -> list[dict[str, object]]:
-    return _list_account_snapshots(conn, account_id, limit=limit)

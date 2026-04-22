@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from trading.services.accounting import list_account_trades
+from trading.services.accounts import list_account_snapshots
+
 from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
@@ -14,13 +17,11 @@ from ..services import (
     build_comparison_account_payload,
     build_live_benchmark_overlay,
     db_conn,
-    fetch_account_trades,
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
     require_account_row,
     fetch_visible_account_rows,
     fetch_resolved_account_row,
-    fetch_snapshot_history_rows,
     build_snapshot_payload,
     build_test_account_live_summary,
     build_trade_payload,
@@ -52,14 +53,14 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
         comparison: list[dict[str, object]] = []
         for row in fetch_visible_account_rows(conn):
             summary = build_account_summary(conn, row)
-            snapshots = fetch_snapshot_history_rows(conn, row.id, limit=100)
+            snapshots = list_account_snapshots(conn, row.id, limit=100)
             attach_live_benchmark_summary(summary, build_live_benchmark_overlay(summary, snapshots))
             latest_backtest = fetch_latest_backtest_metrics(conn, row.name)
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
 
         test_summary = build_test_account_live_summary(conn)
         test_account = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
-        test_snapshots = fetch_snapshot_history_rows(conn, test_account.id, limit=100)
+        test_snapshots = list_account_snapshots(conn, test_account.id, limit=100)
         attach_live_benchmark_summary(test_summary, build_live_benchmark_overlay(test_summary, test_snapshots))
         comparison.append(build_comparison_account_payload(test_summary, None))
         comparison.sort(key=lambda item: str(item["name"]))
@@ -76,10 +77,10 @@ def api_account_detail(account_name: str) -> dict[str, object]:
             summary["name"] = TEST_ACCOUNT_NAME
             summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
 
-        snapshots = fetch_snapshot_history_rows(conn, account.id, limit=100)
+        snapshots = list_account_snapshots(conn, account.id, limit=100)
         overlay = build_live_benchmark_overlay(summary, snapshots)
         attach_live_benchmark_summary(summary, overlay)
-        trades = fetch_account_trades(conn, account.id)
+        trades = list_account_trades(conn, account.id)
         latest_backtest = fetch_latest_backtest_summary(conn, account.name)
         latest_backtest_metrics = fetch_latest_backtest_metrics(conn, account.name)
 

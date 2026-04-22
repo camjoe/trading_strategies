@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from trading.services.reporting import snapshot_account
+
 from ..config import TEST_ACCOUNT_NAME
-from ..services import db_conn, require_account_row, take_snapshot
+from ..services import db_conn, require_account_row
 from trading.services.accounts import list_account_names
 
 router = APIRouter()
@@ -16,7 +18,7 @@ def api_snapshot(account_name: str) -> dict[str, str]:
 
     with db_conn() as conn:
         require_account_row(conn, account_name)
-        take_snapshot(conn, account_name, snapshot_time=None)
+        snapshot_account(conn, account_name, snapshot_time=None)
         return {"status": "ok", "message": f"Snapshot saved for {account_name}"}
 
 
@@ -25,5 +27,5 @@ def api_snapshot_all() -> dict[str, object]:
     with db_conn() as conn:
         names = list_account_names(conn)
         for name in names:
-            take_snapshot(conn, name, snapshot_time=None)
+            snapshot_account(conn, name, snapshot_time=None)
         return {"status": "ok", "snapshotted": names + [TEST_ACCOUNT_NAME]}
