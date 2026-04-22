@@ -140,13 +140,13 @@ def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection
 
 
 from .accounts import build_account_summary
-from .db import fetch_account_row
+from .accounts import require_account_row
 
 
 def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
     """Resolve ``account_name`` (handles test-account aliasing) and return its DB row."""
     resolved_name = resolve_backtest_payload_account(account_name, conn)
-    return fetch_account_row(conn, resolved_name)
+    return require_account_row(conn, resolved_name)
 
 
 def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:

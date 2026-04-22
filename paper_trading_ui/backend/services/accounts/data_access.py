@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import sqlite3
 
+from fastapi import HTTPException
+
 from trading.models import AccountRecord
 from trading.services.accounts import (
     ACCOUNT_KIND_LOCAL,
     ACCOUNT_KIND_MANAGED,
+    get_account,
     list_account_records,
     list_account_snapshots as _list_account_snapshots,
 )
@@ -14,6 +17,13 @@ from trading.services.reporting import snapshot_account
 
 
 VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
+
+
+def require_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
+    try:
+        return get_account(conn, account_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from exc
 
 
 def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:

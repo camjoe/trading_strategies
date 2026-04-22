@@ -9,7 +9,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
-from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
+from common.constants import SETTLEMENT_TICKER
 from trading.services.accounting import load_account_state
 from trading.services.analysis.calculations import (
     TOP_POSITIONS_COUNT,
@@ -51,7 +51,7 @@ def fetch_account_analysis(
     ranked = sorted(
         [
             position for position in position_analysis
-            if float(position["marketPrice"]) > 0 and str(position["ticker"]) != _SETTLEMENT_TICKER
+            if float(position["marketPrice"]) > 0 and str(position["ticker"]) != SETTLEMENT_TICKER
         ],
         key=lambda position: float(position["unrealizedPnlPct"]),
         reverse=True,

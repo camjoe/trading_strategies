@@ -5,14 +5,14 @@ import sqlite3
 
 from trading.models import AccountRecord
 from trading.repositories.accounts_repository import (
-    fetch_account_by_name as _repo_fetch_account_by_name,
-    fetch_account_rows as _repo_fetch_account_rows,
-    fetch_all_account_names as _repo_fetch_all_account_names,
+    fetch_account_by_name,
+    fetch_account_rows,
+    fetch_all_account_names,
     fetch_all_account_names_from_conn,
 )
 from trading.repositories.snapshots_repository import (
-    fetch_latest_snapshot_row as _repo_fetch_latest_snapshot_row,
-    fetch_snapshot_history_rows as _repo_fetch_snapshot_history_rows,
+    fetch_latest_snapshot_row,
+    fetch_snapshot_history_rows,
 )
 from trading.services.accounts.config import normalize_account_kind
 
@@ -39,7 +39,7 @@ def _require_positive_account_id(account_id: int) -> None:
 
 
 def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    return _repo_fetch_account_by_name(conn, _normalize_account_name(name))
+    return fetch_account_by_name(conn, _normalize_account_name(name))
 
 
 def list_account_records(
@@ -48,12 +48,12 @@ def list_account_records(
     account_kinds: Collection[str] | None = None,
 ) -> list[AccountRecord]:
     if account_kinds is None:
-        return _repo_fetch_account_rows(conn)
+        return fetch_account_rows(conn)
 
     normalized_kinds = _normalize_account_kinds(account_kinds)
     if not normalized_kinds:
         return []
-    return _repo_fetch_account_rows(conn, account_kinds=normalized_kinds)
+    return fetch_account_rows(conn, account_kinds=normalized_kinds)
 
 
 def list_account_names(
@@ -71,7 +71,7 @@ def get_latest_account_snapshot(
     account_id: int,
 ) -> dict[str, object] | None:
     _require_positive_account_id(account_id)
-    return _repo_fetch_latest_snapshot_row(conn, account_id=account_id)
+    return fetch_latest_snapshot_row(conn, account_id=account_id)
 
 
 def list_account_snapshots(
@@ -83,8 +83,8 @@ def list_account_snapshots(
     _require_positive_account_id(account_id)
     if limit <= 0:
         raise ValueError("limit must be positive.")
-    return _repo_fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
+    return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
 
 
 def load_all_account_names() -> list[str]:
-    return _repo_fetch_all_account_names()
+    return fetch_all_account_names()

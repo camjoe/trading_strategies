@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from ..config import TEST_ACCOUNT_NAME
-from ..services import fetch_account_row, db_conn, take_snapshot
+from ..services import db_conn, require_account_row, take_snapshot
 from trading.services.accounts import list_account_names
 
 router = APIRouter()
@@ -15,7 +15,7 @@ def api_snapshot(account_name: str) -> dict[str, str]:
         return {"status": "ok", "message": "TEST Account snapshot is virtual."}
 
     with db_conn() as conn:
-        fetch_account_row(conn, account_name)
+        require_account_row(conn, account_name)
         take_snapshot(conn, account_name, snapshot_time=None)
         return {"status": "ok", "message": f"Snapshot saved for {account_name}"}
 

@@ -9,7 +9,6 @@ from ..schemas import AccountParamsRequest
 from ..services import (
     attach_live_benchmark_summary,
     build_account_list_payload,
-    fetch_account_row,
     build_account_summary,
     build_account_summary_and_positions,
     build_comparison_account_payload,
@@ -18,6 +17,7 @@ from ..services import (
     fetch_account_trades,
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
+    require_account_row,
     fetch_visible_account_rows,
     fetch_resolved_account_row,
     fetch_snapshot_history_rows,
@@ -104,7 +104,7 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
     account does not exist.
     """
     with db_conn() as conn:
-        account = fetch_account_row(conn, account_name)
+        require_account_row(conn, account_name)
         command = build_account_params_update_command(body)
         try:
             update_account_params(

@@ -14,6 +14,7 @@ from .accounts import (
     fetch_recent_backtest_run_summaries,
     fetch_latest_backtest_metrics,
     fetch_latest_backtest_summary,
+    require_account_row,
     fetch_visible_account_rows,
     fetch_snapshot_history_rows,
     take_snapshot,
@@ -28,7 +29,7 @@ from .backtests import (
     build_backtest_config_from_run_request,
     build_walk_forward_config_from_request,
 )
-from .db import db_conn, fetch_account_row
+from .db import db_conn
 from .exports import list_csv_exports, preview_csv_export
 from .operations import list_operations_overview
 from .promotion import build_promotion_overview
@@ -61,9 +62,9 @@ __all__ = [
     "display_account_name",
     "fetch_account_trades",
     "fetch_recent_backtest_run_summaries",
-    "fetch_account_row",
     "fetch_latest_backtest_metrics",
     "fetch_latest_backtest_summary",
+    "require_account_row",
     "fetch_visible_account_rows",
     "fetch_resolved_account_row",
     "fetch_snapshot_history_rows",
