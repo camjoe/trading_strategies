@@ -4,7 +4,7 @@ import json
 import urllib.error
 from types import SimpleNamespace
 
-from trading.services.notifications_service import (
+from trading.interfaces.runtime.notifications import (
     WEBHOOK_TIMEOUT_SECONDS,
     build_runtime_notification_payload,
     notify_webhook_best_effort,

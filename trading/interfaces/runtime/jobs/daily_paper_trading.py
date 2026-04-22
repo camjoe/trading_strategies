@@ -13,7 +13,7 @@ from pathlib import Path
 
 from common.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, write_artifact
-from trading.services.notifications_service import notify_webhook_best_effort
+from trading.interfaces.runtime.notifications import notify_webhook_best_effort
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
