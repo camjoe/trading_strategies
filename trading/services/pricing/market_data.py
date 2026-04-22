@@ -1,3 +1,5 @@
+"""Pricing market-data helpers for pricing consumers."""
+
 from __future__ import annotations
 
 from datetime import date

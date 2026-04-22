@@ -6,7 +6,7 @@ from common.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
 from trading.database.db_init import ensure_db
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
-from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
+from trading.services.pricing import fetch_latest_prices as _fetch_prices_svc
 from trading.services.auto_trader_service import (
     build_iv_rank_proxy as build_iv_rank_proxy_impl,
     resolve_account_names as resolve_account_names_impl,

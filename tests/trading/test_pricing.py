@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from trading.services.pricing_service import benchmark_stats, fetch_latest_prices
+from trading.services.pricing import benchmark_stats, fetch_latest_prices
 
 
 def _series(*closes: float) -> pd.Series:
@@ -143,4 +143,3 @@ class TestBenchmarkStats:
             "SPY", 10_000.0, "2024-01-01",
             lambda tickers, start, end: _close_history(tickers[0], [float("nan"), float("nan")]),
         ) == (None, None)
-

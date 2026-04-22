@@ -9,8 +9,8 @@ from __future__ import annotations
 from datetime import date
 
 from common.market_data import get_provider
-from trading.services.pricing_service import benchmark_stats as _benchmark_stats_svc
-from trading.services.pricing_service import fetch_latest_prices as _fetch_prices_svc
+from trading.services.pricing import benchmark_stats as _benchmark_stats_svc
+from trading.services.pricing import fetch_latest_prices as _fetch_prices_svc
 
 
 def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
