@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.services.accounts import create_account
-from trading.repositories.rotation_repository import (
+from trading.repositories.rotation import (
     close_rotation_episode,
     fetch_closed_rotation_episodes,
     fetch_open_rotation_episode,

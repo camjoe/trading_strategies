@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.services.accounts import create_account
-from trading.repositories.trades_repository import (
+from trading.repositories.trades import (
     count_trades_between,
     fetch_trades_for_account,
     insert_trade,

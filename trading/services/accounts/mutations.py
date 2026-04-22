@@ -8,7 +8,7 @@ from common.time import utc_now_iso
 from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
-from trading.repositories.accounts_repository import (
+from trading.repositories.accounts import (
     insert_account,
     update_account_benchmark,
     update_account_fields,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import sqlite3
 
 from common.coercion import coerce_int, row_expect_int
-from trading.repositories.admin_repository import (
+from trading.repositories.admin import (
     count_rows,
     delete_accounts_by_ids,
     delete_backtest_equity_snapshots_by_run_ids,
@@ -19,9 +19,9 @@ from trading.repositories.admin_repository import (
     delete_walk_forward_groups_by_account_ids,
     fetch_accounts_by_names,
     fetch_all_accounts,
-    fetch_backtest_run_rows_for_accounts,
-    fetch_promotion_review_rows_for_accounts,
-    fetch_walk_forward_group_rows_for_accounts,
+    fetch_backtest_run_ids_for_account_ids,
+    fetch_promotion_review_ids_for_account_ids,
+    fetch_walk_forward_group_ids_for_account_ids,
     in_placeholders,
 )
 
@@ -115,18 +115,9 @@ def delete_accounts(
 
     account_ids = _collect_required_ids(targets, key="id", label="account")
 
-    run_rows = fetch_backtest_run_rows_for_accounts(conn, account_ids)
-    run_ids = _collect_required_ids(run_rows, key="id", label="backtest run")
-
-    walk_forward_group_rows = fetch_walk_forward_group_rows_for_accounts(conn, account_ids)
-    walk_forward_group_ids = _collect_required_ids(
-        walk_forward_group_rows,
-        key="id",
-        label="walk-forward group",
-    )
-
-    review_rows = fetch_promotion_review_rows_for_accounts(conn, account_ids)
-    review_ids = _collect_required_ids(review_rows, key="id", label="promotion review")
+    run_ids = fetch_backtest_run_ids_for_account_ids(conn, account_ids)
+    walk_forward_group_ids = fetch_walk_forward_group_ids_for_account_ids(conn, account_ids)
+    review_ids = fetch_promotion_review_ids_for_account_ids(conn, account_ids)
 
     account_placeholders_where = f"account_id IN ({in_placeholders(account_ids)})"
     counts = _empty_delete_counts()

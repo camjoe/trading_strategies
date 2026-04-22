@@ -15,7 +15,7 @@ from trading.brokers.factory import get_broker_for_account
 from trading.services.accounts import get_account
 from trading.domain.accounting import compute_account_state
 from trading.services.accounting import list_account_trades, record_trade
-from trading.repositories.broker_orders_repository import (
+from trading.repositories.broker_orders import (
     fetch_open_broker_orders,
     insert_broker_order,
     insert_order_fill,
@@ -28,14 +28,14 @@ from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import NewsFeatureProvider
 from trading.features.policy_feature_provider import PolicyFeatureProvider
 from trading.features.social_feature_provider import SocialFeatureProvider
-from trading.repositories.rotation_repository import update_account_rotation_state
-from trading.repositories.rotation_repository import (
+from trading.repositories.rotation import update_account_rotation_state
+from trading.repositories.rotation import (
     close_rotation_episode,
     fetch_closed_rotation_episodes,
     fetch_open_rotation_episode,
     insert_rotation_episode,
 )
-from trading.repositories.snapshots_repository import fetch_snapshot_count_between
+from trading.repositories.snapshots import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
     next_rotation_state,

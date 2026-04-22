@@ -4,13 +4,13 @@ from collections.abc import Collection
 import sqlite3
 
 from trading.models import AccountRecord
-from trading.repositories.accounts_repository import (
+from trading.repositories.accounts import (
     fetch_account_by_name,
     fetch_account_rows,
     fetch_all_account_names,
-    fetch_all_account_names_from_conn,
+    _load_all_account_names,
 )
-from trading.repositories.snapshots_repository import (
+from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_snapshot_history_rows,
 )
@@ -62,7 +62,7 @@ def list_account_names(
     account_kinds: Collection[str] | None = None,
 ) -> list[str]:
     if account_kinds is None:
-        return fetch_all_account_names_from_conn(conn)
+        return fetch_all_account_names(conn)
     return [row.name for row in list_account_records(conn, account_kinds=account_kinds)]
 
 
@@ -87,4 +87,4 @@ def list_account_snapshots(
 
 
 def load_all_account_names() -> list[str]:
-    return fetch_all_account_names()
+    return _load_all_account_names()

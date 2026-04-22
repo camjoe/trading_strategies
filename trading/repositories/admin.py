@@ -7,20 +7,21 @@ from trading.database.sql_helpers import in_placeholders
 __all__ = ["in_placeholders"]
 
 
-def _fetch_rows_by_account_ids(
+def _fetch_ids_by_account_ids(
     conn: sqlite3.Connection,
     *,
     table: str,
     account_ids: tuple[int, ...],
-) -> list[dict[str, object]]:
+) -> tuple[int, ...]:
     placeholders = in_placeholders(account_ids)
-    return [
-        dict(row)
-        for row in conn.execute(
-            f"SELECT id FROM {table} WHERE account_id IN ({placeholders})",
-            account_ids,
-        ).fetchall()
-    ]
+    rows = conn.execute(
+        f"SELECT id FROM {table} WHERE account_id IN ({placeholders})",
+        account_ids,
+    ).fetchall()
+    ids = tuple(int(row["id"]) for row in rows)
+    if len(ids) != len(rows):
+        raise ValueError(f"Unexpected non-integer id returned from table '{table}'.")
+    return ids
 
 
 def _delete_by_ids(
@@ -64,25 +65,25 @@ def count_rows(
     return n
 
 
-def fetch_backtest_run_rows_for_accounts(
+def fetch_backtest_run_ids_for_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
-) -> list[dict[str, object]]:
-    return _fetch_rows_by_account_ids(conn, table="backtest_runs", account_ids=account_ids)
+) -> tuple[int, ...]:
+    return _fetch_ids_by_account_ids(conn, table="backtest_runs", account_ids=account_ids)
 
 
-def fetch_promotion_review_rows_for_accounts(
+def fetch_promotion_review_ids_for_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
-) -> list[dict[str, object]]:
-    return _fetch_rows_by_account_ids(conn, table="promotion_reviews", account_ids=account_ids)
+) -> tuple[int, ...]:
+    return _fetch_ids_by_account_ids(conn, table="promotion_reviews", account_ids=account_ids)
 
 
-def fetch_walk_forward_group_rows_for_accounts(
+def fetch_walk_forward_group_ids_for_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
-) -> list[dict[str, object]]:
-    return _fetch_rows_by_account_ids(conn, table="walk_forward_groups", account_ids=account_ids)
+) -> tuple[int, ...]:
+    return _fetch_ids_by_account_ids(conn, table="walk_forward_groups", account_ids=account_ids)
 
 
 def delete_backtest_equity_snapshots_by_run_ids(

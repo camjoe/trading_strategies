@@ -47,7 +47,7 @@ trading/brokers/factory.py          ← resolves BrokerConnection for an account
 | `trading/brokers/ib_web_adapter.py` | Interactive Brokers Web API live adapter |
 | `trading/brokers/ib_web_client.py` | Web API config loader + HTTP client |
 | `trading/brokers/factory.py` | Routes accounts → correct `BrokerConnection` |
-| `trading/repositories/broker_orders_repository.py` | DB persistence for orders and fills |
+| `trading/repositories/broker_orders.py` | DB persistence for orders and fills |
 | `trading/services/auto_trading/runtime.py` | Wires broker into trade execution loop |
 
 ---

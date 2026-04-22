@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 
 from trading.models import AccountInsert
-from trading.repositories.accounts_repository import (
+from trading.repositories.accounts import (
     fetch_account_by_name,
     fetch_account_rows,
     fetch_account_listing_rows,
-    fetch_all_account_names_from_conn,
+    fetch_all_account_names,
     insert_account,
     update_account_benchmark,
     update_account_fields,
@@ -194,12 +194,12 @@ class TestUpdateAccountFields:
         assert float(updated["stop_loss_pct"]) == pytest.approx(7.5)
 
 
-class TestFetchAllAccountNamesFromConn:
+class TestFetchAllAccountNames:
     def test_returns_sorted_names(self, conn) -> None:
         _insert(conn, "zulu")
         _insert(conn, "alpha")
         _insert(conn, "mike")
-        assert fetch_all_account_names_from_conn(conn) == ["alpha", "mike", "zulu"]
+        assert fetch_all_account_names(conn) == ["alpha", "mike", "zulu"]
 
     def test_empty_table_returns_empty(self, conn) -> None:
-        assert fetch_all_account_names_from_conn(conn) == []
+        assert fetch_all_account_names(conn) == []

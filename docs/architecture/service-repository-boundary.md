@@ -149,12 +149,12 @@ For the small runtime slice:
 
 - `trading.services.runtime_settings` is the caller-facing package root for
   runtime throttle, evaluation-confidence, and promotion-policy settings,
-  even though those reads still use `global_settings_repository` underneath.
+  even though those reads still use `global_settings` underneath.
 - `trading.services.runtime_settings` should also own validation for write-side
   invariants such as normalized evaluation-confidence weights; the repository
   should only persist the provided row shape.
 - `trading.services.runtime_throttle` is the caller-facing package root for
-  enforcing trade-cap policy, even though it still uses `trades_repository`
+  enforcing trade-cap policy, even though it still uses `trades`
   for the persistence query.
 
 Not every `runtime_*` module needs to become a package. A tiny constants module

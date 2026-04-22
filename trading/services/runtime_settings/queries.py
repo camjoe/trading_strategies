@@ -11,7 +11,7 @@ import sqlite3
 from common.coercion import row_float, row_int
 from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.domain.promotion_policy import PromotionPolicySettings
-from trading.repositories.global_settings_repository import fetch_global_settings_row
+from trading.repositories.global_settings import fetch_global_settings_row
 from trading.services.runtime_settings.models import RuntimeThrottleSettings
 
 

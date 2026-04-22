@@ -23,7 +23,7 @@ from trading.domain.promotion_models import (
     PromotionAssessment,
     PromotionReviewRecord,
 )
-from trading.repositories.promotion_repository import (
+from trading.repositories.promotion import (
     fetch_open_promotion_review,
     fetch_promotion_review_by_id,
     insert_promotion_review,
