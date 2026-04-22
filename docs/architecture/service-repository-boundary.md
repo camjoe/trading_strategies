@@ -61,7 +61,9 @@ usually means the package root when a capability already has an internal split,
 for example:
 
 - `trading.services.accounts`
+- `trading.services.accounting`
 - `trading.services.reporting`
+- `trading.services.promotion`
 - `trading.services.profiles`
 
 Do **not** keep a second sibling facade such as `accounts_service.py` once the

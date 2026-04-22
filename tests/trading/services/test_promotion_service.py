@@ -10,7 +10,7 @@ from trading.domain.evaluation_models import (
     StrategyEvaluationArtifact,
 )
 from trading.domain.promotion_models import PromotionAssessment
-from trading.services.promotion_service import (
+from trading.services.promotion import (
     execute_promotion_review_action,
     execute_promotion_review_request,
     fetch_current_promotion_assessment,
@@ -66,7 +66,7 @@ def test_fetch_current_promotion_assessment_uses_evaluation_service(
         )
 
     monkeypatch.setattr(
-        "trading.services.promotion_service.fetch_strategy_evaluation",
+        "trading.services.promotion.assessment.fetch_strategy_evaluation",
         fake_fetch_strategy_evaluation,
     )
 
@@ -86,7 +86,7 @@ def test_fetch_promotion_assessment_wraps_current_assessment(
 ) -> None:
     expected = PromotionAssessment(account_name="acct_service", strategy_name="trend_v1")
     monkeypatch.setattr(
-        "trading.services.promotion_service.fetch_current_promotion_assessment",
+        "trading.services.promotion.assessment.fetch_current_promotion_assessment",
         lambda _conn, *, account_name, strategy_name=None: expected,
     )
 
@@ -133,7 +133,7 @@ def test_show_promotion_status_prints_read_only_summary(
     capsys,
 ) -> None:
     monkeypatch.setattr(
-        "trading.services.promotion_service.fetch_current_promotion_assessment",
+        "trading.services.promotion.presentation.fetch_current_promotion_assessment",
         lambda _conn, *, account_name, strategy_name=None: PromotionAssessment(
             account_name=account_name,
             strategy_name=strategy_name,
@@ -212,7 +212,7 @@ def test_execute_promotion_review_request_persists_frozen_snapshot(
     )
     conn.commit()
     monkeypatch.setattr(
-        "trading.services.promotion_service.fetch_strategy_evaluation",
+        "trading.services.promotion.assessment.fetch_strategy_evaluation",
         lambda _conn, *, account_name, strategy_name=None: _ready_evaluation(
             account_name=account_name,
             strategy_name=strategy_name or "trend_v1",
@@ -250,7 +250,7 @@ def test_execute_promotion_review_action_closes_open_review(
     )
     conn.commit()
     monkeypatch.setattr(
-        "trading.services.promotion_service.fetch_strategy_evaluation",
+        "trading.services.promotion.assessment.fetch_strategy_evaluation",
         lambda _conn, *, account_name, strategy_name=None: _ready_evaluation(
             account_name=account_name,
             strategy_name=strategy_name or "trend_v1",
@@ -294,7 +294,7 @@ def test_execute_promotion_review_request_canonicalizes_strategy_for_open_review
         )
 
     monkeypatch.setattr(
-        "trading.services.promotion_service.fetch_strategy_evaluation",
+        "trading.services.promotion.assessment.fetch_strategy_evaluation",
         _fake_fetch_strategy_evaluation,
     )
 

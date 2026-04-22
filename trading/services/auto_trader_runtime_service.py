@@ -56,7 +56,7 @@ from trading.services.rotation_service import (
     select_optimal_strategy as select_optimal_strategy_impl,
     sync_rotation_episode as sync_rotation_episode_impl,
 )
-from trading.services.reporting_service import compute_market_value_and_unrealized, fetch_latest_prices
+from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
 from trading.services.runtime_throttle_service import enforce_runtime_trade_throttles
 from trading.services.trade_execution_service import (
     build_leaps_candidates as build_leaps_candidates_impl,

@@ -1,7 +1,13 @@
+"""Promotion mutation workflows for promotion consumers.
+
+Owns persisted promotion-review request and closure flows beneath the stable
+``trading.services.promotion`` package surface.
+"""
+
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 from common.time import utc_now_iso
 from trading.backtesting.domain.strategy_signals import validate_strategy_name
@@ -15,127 +21,21 @@ from trading.domain.promotion_models import (
     PROMOTION_REVIEW_STATE_REJECTED,
     PROMOTION_REVIEW_STATE_REQUESTED,
     PromotionAssessment,
-    PromotionReviewEvent,
     PromotionReviewRecord,
 )
-from trading.domain.promotion_policy import assess_promotion_readiness
 from trading.repositories.promotion_repository import (
     fetch_open_promotion_review,
     fetch_promotion_review_by_id,
-    fetch_promotion_review_events,
-    fetch_promotion_reviews_for_account,
     insert_promotion_review,
     insert_promotion_review_event,
     update_promotion_review_record,
 )
-from trading.services.accounts import get_account
-from trading.services.evaluation_service import fetch_strategy_evaluation
-from trading.services.runtime_settings_service import fetch_promotion_policy_settings
-
-YES_TEXT = "yes"
-NO_TEXT = "no"
-NONE_TEXT = "none"
+from trading.services.promotion._shared import normalize_optional_text
+from trading.services.promotion.assessment import _fetch_current_promotion_snapshot
 
 PROMOTION_REVIEW_ACTION_APPROVE = "approve"
 PROMOTION_REVIEW_ACTION_REJECT = "reject"
 PROMOTION_REVIEW_ACTION_NOTE = "note"
-
-
-@dataclass(frozen=True)
-class PromotionReviewHistoryEntry:
-    review: PromotionReviewRecord
-    events: list[PromotionReviewEvent]
-
-
-def _normalize_optional_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-    normalized = value.strip()
-    return normalized or None
-
-
-def _render_bool(value: bool) -> str:
-    return YES_TEXT if value else NO_TEXT
-
-
-def _fetch_current_promotion_snapshot(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    strategy_name: str | None = None,
-) -> tuple[StrategyEvaluationArtifact, PromotionAssessment]:
-    artifact = fetch_strategy_evaluation(
-        conn,
-        account_name=account_name,
-        strategy_name=strategy_name,
-    )
-    return artifact, assess_promotion_readiness(
-        artifact,
-        settings=fetch_promotion_policy_settings(conn),
-    )
-
-
-def fetch_current_promotion_assessment(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    strategy_name: str | None = None,
-) -> PromotionAssessment:
-    _, assessment = _fetch_current_promotion_snapshot(
-        conn,
-        account_name=account_name,
-        strategy_name=strategy_name,
-    )
-    return assessment
-
-
-def fetch_promotion_assessment(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    strategy_name: str | None = None,
-) -> PromotionAssessment:
-    """Compatibility wrapper for the current computed promotion assessment.
-
-    The promotion workflow is still read-only today, so this returns the
-    current computed assessment rather than a persisted operator review record.
-    """
-    return fetch_current_promotion_assessment(
-        conn,
-        account_name=account_name,
-        strategy_name=strategy_name,
-    )
-
-
-def _render_section(title: str, items: list[str]) -> list[str]:
-    lines = [f"{title}:"]
-    if not items:
-        lines.append(f"- {NONE_TEXT}")
-        return lines
-    for item in items:
-        lines.append(f"- {item}")
-    return lines
-
-
-def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
-    lines = [
-        "Promotion Status:",
-        f"Account: {assessment.account_name}",
-        f"Strategy: {assessment.strategy_name}",
-        f"Stage: {assessment.stage}",
-        f"Status: {assessment.status}",
-        f"Ready for Live: {_render_bool(assessment.ready_for_live)}",
-        f"Live Trading Enabled: {_render_bool(assessment.live_trading_enabled)}",
-        f"Overall Confidence: {assessment.overall_confidence:.2f}",
-        "Evaluation Generated At: "
-        f"{assessment.evaluation_generated_at or NONE_TEXT}",
-        "Data Gaps: "
-        + (", ".join(assessment.data_gaps) if assessment.data_gaps else NONE_TEXT),
-        f"Next Action: {assessment.next_action}",
-    ]
-    lines.extend(_render_section("Blockers", assessment.blockers))
-    lines.extend(_render_section("Warnings", assessment.warnings))
-    return lines
 
 
 def _require_request_context(
@@ -267,8 +167,8 @@ def execute_promotion_review_request(
     )
 
     created_at = utc_now_iso()
-    normalized_requested_by = _normalize_optional_text(requested_by)
-    normalized_note = _normalize_optional_text(note)
+    normalized_requested_by = normalize_optional_text(requested_by)
+    normalized_note = normalize_optional_text(note)
     with conn:
         review = insert_promotion_review(
             conn,
@@ -353,8 +253,8 @@ def execute_promotion_review_action(
 ) -> PromotionReviewRecord:
     review = _require_open_review(conn, review_id=review_id)
 
-    normalized_actor_name = _normalize_optional_text(actor_name)
-    normalized_note = _normalize_optional_text(note)
+    normalized_actor_name = normalize_optional_text(actor_name)
+    normalized_note = normalize_optional_text(note)
     updated_at = utc_now_iso()
 
     if action == PROMOTION_REVIEW_ACTION_NOTE:
@@ -391,97 +291,10 @@ def execute_promotion_review_action(
         )
 
 
-def fetch_promotion_review_history(
-    conn: sqlite3.Connection,
-    *,
-    account_name: str,
-    strategy_name: str | None = None,
-    limit: int = 10,
-) -> list[PromotionReviewHistoryEntry]:
-    if limit <= 0:
-        raise ValueError("Promotion review history limit must be positive.")
-    account = get_account(conn, account_name)
-    review_rows = fetch_promotion_reviews_for_account(
-        conn,
-        account_id=account.id,
-        strategy_name=_normalize_optional_text(strategy_name),
-        limit=limit,
-    )
-    return [
-        PromotionReviewHistoryEntry(
-            review=review,
-            events=fetch_promotion_review_events(conn, review_id=int(review.id)),
-        )
-        for review in review_rows
-    ]
-
-
-def render_promotion_review_history_lines(entries: list[PromotionReviewHistoryEntry]) -> list[str]:
-    lines = ["Promotion Review History:"]
-    if not entries:
-        lines.append(f"- {NONE_TEXT}")
-        return lines
-
-    for entry in entries:
-        review = entry.review
-        lines.extend(
-            [
-                (
-                    f"Review #{review.id}: {review.account_name_snapshot}/{review.strategy_name} "
-                    f"| state={review.review_state} | ready_for_live={_render_bool(review.ready_for_live)}"
-                ),
-                f"Created: {review.created_at}",
-                f"Updated: {review.updated_at}",
-                f"Requested By: {review.requested_by or NONE_TEXT}",
-                f"Reviewed By: {review.reviewed_by or NONE_TEXT}",
-                f"Summary Note: {review.operator_summary_note or NONE_TEXT}",
-            ]
-        )
-        if review.closed_at is not None:
-            lines.append(f"Closed At: {review.closed_at}")
-        lines.append("Events:")
-        if not entry.events:
-            lines.append(f"- {NONE_TEXT}")
-            continue
-        for event in entry.events:
-            actor_text = event.actor_name or NONE_TEXT
-            state_text = (
-                f"{event.from_review_state or NONE_TEXT} -> {event.to_review_state or NONE_TEXT}"
-            )
-            lines.append(
-                f"- [{event.event_seq}] {event.created_at} | {event.event_type} | actor={actor_text} | state={state_text}"
-            )
-            if event.note is not None:
-                lines.append(f"  note: {event.note}")
-    return lines
-
-
-def show_promotion_review_history(
-    conn: sqlite3.Connection,
-    account_name: str,
-    strategy_name: str | None = None,
-    *,
-    limit: int = 10,
-) -> list[PromotionReviewHistoryEntry]:
-    entries = fetch_promotion_review_history(
-        conn,
-        account_name=account_name,
-        strategy_name=strategy_name,
-        limit=limit,
-    )
-    print("\n".join(render_promotion_review_history_lines(entries)))
-    return entries
-
-
-def show_promotion_status(
-    conn: sqlite3.Connection,
-    account_name: str,
-    strategy_name: str | None = None,
-) -> PromotionAssessment:
-    assessment = fetch_current_promotion_assessment(
-        conn,
-        account_name=account_name,
-        strategy_name=strategy_name,
-    )
-    print("\n".join(render_promotion_status_lines(assessment)))
-    return assessment
+__all__ = [
+    "PROMOTION_REVIEW_ACTION_APPROVE",
+    "PROMOTION_REVIEW_ACTION_NOTE",
+    "PROMOTION_REVIEW_ACTION_REJECT",
+    "execute_promotion_review_action",
+    "execute_promotion_review_request",
+]

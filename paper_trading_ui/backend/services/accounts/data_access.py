@@ -10,7 +10,7 @@ from trading.services.accounts import (
     list_account_snapshots as _list_account_snapshots,
 )
 from trading.services.accounting import list_account_trades
-from trading.services.reporting_service import snapshot_account
+from trading.services.reporting import snapshot_account
 
 
 VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)

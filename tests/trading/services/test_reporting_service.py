@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from trading.services.reporting_service import (
+from trading.services.reporting import (
     alpha_pct,
     benchmark_available,
     compute_market_value_and_unrealized,

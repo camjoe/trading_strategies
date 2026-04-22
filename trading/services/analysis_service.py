@@ -11,7 +11,7 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.models import AccountState
 from trading.services.accounting import load_account_state
-from trading.services.reporting_service import (
+from trading.services.reporting import (
     benchmark_stats,
     compute_market_value_and_unrealized,
     fetch_latest_prices,

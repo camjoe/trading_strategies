@@ -10,7 +10,7 @@ from trading.services.accounts import (
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
-from trading.services.reporting_service import build_account_stats
+from trading.services.reporting import build_account_stats
 
 from ..db import fetch_latest_snapshot_row
 
