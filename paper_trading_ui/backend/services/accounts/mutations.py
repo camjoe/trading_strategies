@@ -4,7 +4,7 @@ import sqlite3
 
 from trading.models.account_config import AccountConfig
 from trading.services.accounts import set_account_strategy
-from trading.services.profiles_service import apply_rotation_fields
+from trading.services.profiles import apply_rotation_fields
 
 from ...account_contract import AccountParamsUpdateCommand
 

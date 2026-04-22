@@ -9,7 +9,7 @@ from trading.services.accounts import (
     create_account,
 )
 from trading.services.admin import build_managed_account_delete_counts, delete_accounts
-from trading.services.profiles_service import apply_rotation_fields
+from trading.services.profiles import apply_rotation_fields
 
 from ..account_contract import AdminCreateAccountCommand
 from .db import db_conn

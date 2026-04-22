@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.models.account_config import AccountConfig
-import trading.services.profiles_service as profiles_service
+import trading.services.profiles.application as profiles_application
 from trading.models.rotation_config import RotationConfig
 
 
@@ -12,13 +12,13 @@ def test_apply_account_profiles_rejects_unknown_strategy_name(
 ) -> None:
     create_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
     monkeypatch.setattr(
-        profiles_service,
+        profiles_application,
         "create_account",
         lambda *args, **kwargs: create_calls.append((args, kwargs)),
     )
 
     with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
-        profiles_service.apply_account_profiles(
+        profiles_application.apply_account_profiles(
             object(),
             [{"name": "acct", "strategy": "mystery_strategy"}],
             create_missing=True,

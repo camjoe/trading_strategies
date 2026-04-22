@@ -13,7 +13,7 @@ from trading.database.db_config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
-from trading.services.profiles_service import apply_account_profiles, load_account_profiles
+from trading.services.profiles import apply_account_profiles, load_account_profiles
 from trading.services.promotion import (
     execute_promotion_review_action,
     execute_promotion_review_request,

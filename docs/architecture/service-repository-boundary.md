@@ -159,3 +159,13 @@ Not every `runtime_*` module needs to become a package. A tiny constants module
 like `runtime_job_status.py` can remain standalone when it is already a clear
 surface and does not duplicate a sibling facade or blur a service/repository
 boundary.
+
+## Profiles example
+
+For profile application flows:
+
+- `trading.services.profiles` is the stable public service surface for loading
+  and applying account profiles.
+- `trading.services.profile_source` can remain a separate source abstraction
+  because it represents profile-input backends rather than a sibling facade for
+  the same use-case API.
