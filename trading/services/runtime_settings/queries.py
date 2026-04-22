@@ -1,18 +1,18 @@
+"""Runtime settings queries for runtime-settings consumers.
+
+Owns caller-facing reads of persisted runtime-related settings beneath the
+stable ``trading.services.runtime_settings`` package surface.
+"""
+
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
 
 from common.coercion import row_float, row_int
 from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.domain.promotion_policy import PromotionPolicySettings
 from trading.repositories.global_settings_repository import fetch_global_settings_row
-
-
-@dataclass(frozen=True)
-class RuntimeThrottleSettings:
-    max_trades_per_day: int | None = None
-    max_trades_per_minute: int | None = None
+from trading.services.runtime_settings.models import RuntimeThrottleSettings
 
 
 def fetch_runtime_throttle_settings(conn: sqlite3.Connection) -> RuntimeThrottleSettings:
@@ -125,3 +125,10 @@ def fetch_promotion_policy_settings(conn: sqlite3.Connection) -> PromotionPolicy
             else defaults.min_live_overall_confidence
         ),
     )
+
+
+__all__ = [
+    "fetch_evaluation_confidence_settings",
+    "fetch_promotion_policy_settings",
+    "fetch_runtime_throttle_settings",
+]

@@ -65,6 +65,8 @@ for example:
 - `trading.services.reporting`
 - `trading.services.promotion`
 - `trading.services.profiles`
+- `trading.services.runtime_settings`
+- `trading.services.runtime_throttle`
 
 Do **not** keep a second sibling facade such as `accounts_service.py` once the
 package root already serves as the stable import surface. That creates two
@@ -133,3 +135,19 @@ The stable public import surface should be `trading.services.accounts`, not both
 `trading.services.accounts` and `trading.services.accounts_service`.
 
 That split keeps repository files table-shaped and service files workflow-shaped.
+
+## Runtime example
+
+For the small runtime slice:
+
+- `trading.services.runtime_settings` is the caller-facing package root for
+  runtime throttle, evaluation-confidence, and promotion-policy settings,
+  even though those reads still use `global_settings_repository` underneath.
+- `trading.services.runtime_throttle` is the caller-facing package root for
+  enforcing trade-cap policy, even though it still uses `trades_repository`
+  for the persistence query.
+
+Not every `runtime_*` module needs to become a package. A tiny constants module
+like `runtime_job_status.py` can remain standalone when it is already a clear
+surface and does not duplicate a sibling facade or blur a service/repository
+boundary.

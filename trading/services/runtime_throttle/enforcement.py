@@ -1,3 +1,5 @@
+"""Runtime throttle enforcement helpers for runtime-throttle consumers."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -6,7 +8,7 @@ from typing import Callable
 
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.repositories.trades_repository import count_trades_between
-from trading.services.runtime_settings_service import RuntimeThrottleSettings, fetch_runtime_throttle_settings
+from trading.services.runtime_settings import RuntimeThrottleSettings, fetch_runtime_throttle_settings
 
 # Rolling one-minute window for the per-minute global runtime trade cap.
 TRADE_THROTTLE_MINUTE_WINDOW = timedelta(minutes=1)
@@ -60,3 +62,10 @@ def enforce_runtime_trade_throttles(
                 "Global runtime trade throttle reached: "
                 f"runtime_max_trades_per_minute={settings.max_trades_per_minute}."
             )
+
+
+__all__ = [
+    "RuntimeThrottleSettings",
+    "TRADE_THROTTLE_MINUTE_WINDOW",
+    "enforce_runtime_trade_throttles",
+]

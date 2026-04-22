@@ -12,7 +12,7 @@ from trading.domain.evaluation_models import StrategyEvaluationArtifact
 from trading.domain.promotion_models import PromotionAssessment
 from trading.domain.promotion_policy import assess_promotion_readiness
 from trading.services.evaluation_service import fetch_strategy_evaluation
-from trading.services.runtime_settings_service import fetch_promotion_policy_settings
+from trading.services.runtime_settings import fetch_promotion_policy_settings
 
 
 def _fetch_current_promotion_snapshot(
