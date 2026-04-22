@@ -29,7 +29,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.services.accounts import load_all_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
-from trading.services.runtime_job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
+from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)

@@ -1,4 +1,4 @@
-"""Shared runtime job status constants used across interfaces and services."""
+"""Shared runtime job status constants used across runtime and UI surfaces."""
 
 from __future__ import annotations
 
