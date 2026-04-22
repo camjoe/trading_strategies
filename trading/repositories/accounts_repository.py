@@ -109,14 +109,17 @@ def update_account_fields(
     conn.commit()
 
 
-def fetch_all_account_names_from_conn(conn: sqlite3.Connection) -> list[str]:
+def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
     rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
     return [str(row["name"]) for row in rows]
 
 
-def fetch_all_account_names() -> list[str]:
+# Repository helpers normally require an explicit caller-owned connection.
+# This loader is the current exception that supports the service-level
+# load_all_account_names() entrypoint for top-level runtime callers.
+def _load_all_account_names() -> list[str]:
     conn = get_backend().open_connection()
     try:
-        return fetch_all_account_names_from_conn(conn)
+        return fetch_all_account_names(conn)
     finally:
         conn.close()
