@@ -169,15 +169,6 @@ Domain naming:
 4. Avoid reliance on case-insensitive path behavior.
 5. Make type narrowing explicit where mypy/platform inference may differ.
 
-## Completed Structural Slices
-
-Recent refactors have aligned these areas with repository/service/domain layering:
-
-- Pricing module
-- Profiles module
-- Reporting module
-- Auto-trader orchestration
-
 ## Bot Placement Checklist
 
 Before creating or moving code in `trading/`:
