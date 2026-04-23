@@ -53,9 +53,6 @@ from trading.services.auto_trading.execution import (
 from trading.services.auto_trading.rotation import (
     compute_live_account_metrics as compute_live_account_metrics_impl,
     fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
-    rotate_account_if_due as rotate_account_if_due_impl,
-    select_regime_strategy as select_regime_strategy_impl,
-    select_optimal_strategy as select_optimal_strategy_impl,
     sync_rotation_episode as sync_rotation_episode_impl,
 )
 from trading.services.auto_trading.rotation_bridge import (
@@ -123,8 +120,6 @@ def _select_runtime_rotation_strategy(
         conn,
         account,
         as_of_iso,
-        select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
-        select_regime_strategy_impl_fn=select_regime_strategy_impl,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
         fetch_policy_features_fn=_fetch_policy_rotation_bundle,
         fetch_news_features_fn=_fetch_news_rotation_bundle,
@@ -188,7 +183,6 @@ def _rotate_runtime_account(
 ) -> AccountRecord:
     _sync_runtime_rotation_episode(conn, account, now_iso)
     deps = RotationDeps(
-        rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
         select_optimal_strategy_fn=_select_runtime_rotation_strategy,
         update_account_rotation_state_fn=update_account_rotation_state,

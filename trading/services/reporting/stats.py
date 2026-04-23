@@ -7,7 +7,6 @@ stable ``trading.services.reporting`` package surface.
 from __future__ import annotations
 
 import sqlite3
-from typing import Callable
 
 from common.coercion import row_expect_float, row_expect_int, row_float
 from trading.models import AccountRecord, AccountState
@@ -31,16 +30,13 @@ def _infer_overall_trend_impl(
     account_id: int,
     current_equity: float,
     lookback: int,
-    *,
-    fetch_recent_equity_rows_fn: Callable[..., list[dict[str, object]]],
-    row_float_fn: Callable[..., float | None],
 ) -> str:
-    rows = fetch_recent_equity_rows_fn(
+    rows = fetch_recent_equity_rows(
         conn,
         account_id=account_id,
         limit=int(max(lookback, MIN_TREND_LOOKBACK_ROWS)),
     )
-    history: list[float] = [h for h in (row_float_fn(r, "equity") for r in rows) if h is not None]
+    history: list[float] = [h for h in (row_float(r, "equity") for r in rows) if h is not None]
     history.reverse()
     history.append(current_equity)
 
@@ -79,17 +75,12 @@ def infer_overall_trend(
     account_id: int,
     current_equity: float,
     lookback: int,
-    *,
-    fetch_recent_equity_rows_fn: Callable[..., list[dict[str, object]]] | None = None,
-    row_float_fn: Callable[..., float | None] | None = None,
 ) -> str:
     return _infer_overall_trend_impl(
         conn,
         account_id,
         current_equity,
         lookback,
-        fetch_recent_equity_rows_fn=fetch_recent_equity_rows_fn or fetch_recent_equity_rows,
-        row_float_fn=row_float_fn or row_float,
     )
 
 

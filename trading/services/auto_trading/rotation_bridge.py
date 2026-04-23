@@ -8,6 +8,11 @@ from typing import Callable
 
 from trading.domain.rotation import resolve_rotation_mode
 from trading.models import AccountRecord
+from trading.services.auto_trading.rotation import (
+    rotate_account_if_due as rotate_account_if_due_impl,
+    select_optimal_strategy as select_optimal_strategy_impl,
+    select_regime_strategy as select_regime_strategy_impl,
+)
 
 
 def select_account_rotation_strategy(
@@ -15,8 +20,6 @@ def select_account_rotation_strategy(
     account: AccountRecord,
     as_of_iso: str,
     *,
-    select_optimal_strategy_impl_fn: Callable[..., str | None],
-    select_regime_strategy_impl_fn: Callable[..., str | None] | None,
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
     fetch_policy_features_fn: Callable[[str], object] | None,
     fetch_news_features_fn: Callable[[str], object] | None = None,
@@ -25,9 +28,9 @@ def select_account_rotation_strategy(
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
     if resolve_rotation_mode(account) == "regime":
-        if select_regime_strategy_impl_fn is None or fetch_policy_features_fn is None:
+        if fetch_policy_features_fn is None:
             return None
-        return select_regime_strategy_impl_fn(
+        return select_regime_strategy_impl(
             account,
             conn=conn,
             fetch_policy_features_fn=fetch_policy_features_fn,
@@ -36,7 +39,7 @@ def select_account_rotation_strategy(
             fetch_rotation_overlay_tickers_fn=fetch_rotation_overlay_tickers_fn,
         )
 
-    return select_optimal_strategy_impl_fn(
+    return select_optimal_strategy_impl(
         conn,
         account,
         as_of_iso,
@@ -47,7 +50,6 @@ def select_account_rotation_strategy(
 
 @dataclass
 class RotationDeps:
-    rotate_account_if_due_impl_fn: Callable[..., AccountRecord]
     is_rotation_due_fn: Callable[[AccountRecord], bool]
     select_optimal_strategy_fn: Callable[[sqlite3.Connection, AccountRecord, str], str | None]
     update_account_rotation_state_fn: Callable[..., None]
@@ -61,7 +63,7 @@ def rotate_runtime_account_if_due(
     now_iso: str,
     deps: RotationDeps,
 ) -> AccountRecord:
-    return deps.rotate_account_if_due_impl_fn(
+    return rotate_account_if_due_impl(
         conn,
         account_name,
         account,
