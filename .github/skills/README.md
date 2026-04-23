@@ -9,11 +9,11 @@ Use folder-based skills with a `SKILL.md` file:
 | Path | Purpose |
 |---|---|
 | `.github/skills/<skill-name>/SKILL.md` | Active Codex-style skill definition |
+| `.github/skills/<skill-name>.skill.md` | Thin Copilot-facing compatibility shim pointing at the canonical skill |
 | `.github/skills/templates/portable.skill.template.md` | Template for drafting a portable skill |
 | `.github/skills/templates/local-overlay.agent.template.md` | Template for the rare repo-specific overlay agent |
-| `.github/skills/legacy/*.skill.md` | Archived flat Copilot-era skill files |
 
-The active convention is one folder per skill using lowercase hyphenated names.
+The active convention is one folder per skill using lowercase hyphenated names. Flat `.skill.md` files at the top of `.github/skills/` are compatibility shims, not the canonical source of truth.
 
 ## Skill-first model
 
@@ -45,7 +45,7 @@ If a skill and an agent both exist for the same job:
 | `test-expansion/` | Default surface for generic testing work |
 | `ui-api-contract/` | Default surface for frontend/backend contract work |
 
-Retired from the active set and archived under `legacy/`:
+Retired from the active set:
 
 - `deep-code-review`
 - `frontend-cleanup`

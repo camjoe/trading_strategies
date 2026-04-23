@@ -136,6 +136,4 @@ These phrases are repo conventions for common tasks.
 
 ## Notes
 
-- The archived predecessor to this file is `.github/AGENTS.legacy.md`.
-- Retired flat Copilot-era skill files are archived under `.github/skills/legacy/`.
 - Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.
