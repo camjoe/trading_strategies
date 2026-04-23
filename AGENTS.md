@@ -13,8 +13,8 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
 - Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
-- Legacy Copilot-specific guidance: `.github/copilot-instructions.md`
 - Skill authoring and localization guidance: `.github/skills/README.md`
+- Legacy Copilot-specific guidance: `.github/copilot-instructions.md`
 
 ## Task surfaces
 
@@ -86,7 +86,7 @@ Overlap rules:
 
 ## Shortcut workflows
 
-These phrases are accepted as repo conventions and should trigger the matching workflow.
+These phrases are repo conventions for common tasks.
 
 ### `select bot:`
 
@@ -100,24 +100,17 @@ These phrases are accepted as repo conventions and should trigger the matching w
 
 ### `code review`
 
-- `code review`
-  Review staged and unstaged changes against `HEAD`.
-- `code review: <branch>`
-  Review the diff between the current branch and the given base branch.
-- `code review: <file-or-folder>`
-  Review a specific area.
+- `code review`: review staged and unstaged changes against `HEAD`
+- `code review: <branch>`: review the diff between the current branch and the given base branch
+- `code review: <file-or-folder>`: review a specific area
 - Follow `.github/skills/code-review/SKILL.md`.
 
 ### `deep code review`
 
-- `deep code review`
-  Review `trading/` and `paper_trading_ui/` together.
-- `deep code review: trading`
-  Review `trading/`.
-- `deep code review: paper_trading_ui`
-  Review `paper_trading_ui/`.
-- `deep code review: <file-or-folder>`
-  Review a specific area with the same deep audit workflow.
+- `deep code review`: review `trading/` and `paper_trading_ui/` together
+- `deep code review: trading`: review `trading/`
+- `deep code review: paper_trading_ui`: review `paper_trading_ui/`
+- `deep code review: <file-or-folder>`: review a specific area with the same deep audit workflow
 - Follow `.github/skills/code-review/SKILL.md` in deep-review mode.
 
 ### `sync docs` or `docs sync`
