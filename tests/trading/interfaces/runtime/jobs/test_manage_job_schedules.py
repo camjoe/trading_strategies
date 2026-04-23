@@ -30,7 +30,7 @@ def _args(**overrides):
         "weekly_db_backup_task_name": r"Trading\WeeklyDbBackup",
         "unregister": False,
         "dry_run": False,
-        "python": "/tmp/venv/bin/python",
+        "python": "/tmp/.venv/bin/python",
     }
     defaults.update(overrides)
     return types.SimpleNamespace(**defaults)
@@ -112,7 +112,7 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path) -> Non
     assert isinstance(tasks, list)
     assert len(tasks) == 2
     assert captured["repo_root"] == tmp_path
-    assert captured["python_exe"] == "/tmp/venv/bin/python"
+    assert captured["python_exe"] == "/tmp/.venv/bin/python"
 
 
 def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Path) -> None:

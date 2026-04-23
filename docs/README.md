@@ -11,7 +11,7 @@ Navigation index for docs and README files across the repository.
 **Execution Note:**
 All trading scripts should be run as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
 ```sh
-./venv/bin/python -m trading.interfaces.cli.main
+./.venv/bin/python -m trading.interfaces.cli.main
 ```
 
 ## Docs Folder Files

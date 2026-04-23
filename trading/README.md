@@ -125,22 +125,22 @@ The direct job scripts are the source of truth. Keep operations simple: run the 
 
 ```sh
 # Daily paper trading
-./venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
 
 # Daily snapshot
-./venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
 
 # Daily backtest refresh
-./venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
-./venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
+./.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
 
 # Health check
-./venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
+./.venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
 
 # Register runtime jobs on scheduler with the active venv interpreter
-./venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
   --daily-paper-trading-time 13:10 \
   --daily-paper-trading-fallback-time 15:45 \
   --health-check-time 16:15 \

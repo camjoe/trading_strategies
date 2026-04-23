@@ -13,16 +13,16 @@ from common.runtime_job_status import (
 )
 
 DAILY_PAPER_TRADING_RUN_HINT = (
-    "./venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual"
+    "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual"
 )
 DAILY_SNAPSHOT_RUN_HINT = (
-    "./venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --enable-run"
+    "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --enable-run"
 )
 DAILY_BACKTEST_REFRESH_RUN_HINT = (
-    "./venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run"
+    "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run"
 )
 WEEKLY_DB_BACKUP_RUN_HINT = (
-    "./venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup"
+    "./.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup"
 )
 
 
