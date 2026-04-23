@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from common.time import parse_utc_iso, utc_now_iso
+from common.time import as_utc_iso, parse_utc_iso, utc_now_iso
 
 
 class TestUtcNowIso:
@@ -32,3 +32,10 @@ class TestParseUtcIso:
         parsed = parse_utc_iso("2026-03-16T14:00:00")
 
         assert parsed == datetime(2026, 3, 16, 14, 0, tzinfo=UTC)
+
+
+class TestAsUtcIso:
+    def test_renders_zulu_without_microseconds(self) -> None:
+        rendered = as_utc_iso(datetime(2026, 3, 16, 14, 0, 0, 123456, tzinfo=UTC))
+
+        assert rendered == "2026-03-16T14:00:00Z"

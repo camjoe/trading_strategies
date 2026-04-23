@@ -1,6 +1,7 @@
 import pytest
 from datetime import UTC, datetime
 
+from common.time import as_utc_iso
 import trading.domain.rotation as rotation
 
 from trading.domain.rotation import (
@@ -282,6 +283,6 @@ class TestRotationTimeAndGuardrails:
         assert rotation._parse_iso("not-an-iso") is None
 
     def test_as_utc_iso_normalizes_output(self) -> None:
-        rendered = rotation._as_utc_iso(datetime(2026, 3, 10, 12, 30, 45, tzinfo=UTC))
+        rendered = as_utc_iso(datetime(2026, 3, 10, 12, 30, 45, tzinfo=UTC))
 
         assert rendered == "2026-03-10T12:30:45Z"

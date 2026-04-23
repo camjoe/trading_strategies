@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from common.time import parse_utc_iso
 from trading.domain.rotation import parse_rotation_schedule
 import trading.services.auto_trading.rotation as rotation_service
 from tests.support import make_account_record
@@ -31,7 +32,7 @@ def test_select_optimal_strategy_hybrid_weighted_prefers_better_live_signal() ->
         account=account,
         as_of_iso="2026-03-31T00:00:00Z",
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [
             ("trend", 10.0),
             ("mean_reversion", 9.0),
@@ -82,7 +83,7 @@ def test_select_optimal_strategy_hybrid_weighted_falls_back_to_backtest() -> Non
         account=account,
         as_of_iso="2026-03-31T00:00:00Z",
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [
             ("trend", 10.0),
             ("mean_reversion", 8.0),

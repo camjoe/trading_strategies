@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
+from common.time import parse_utc_iso
 import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.rotation as rotation_service
 from trading.services.accounts import create_account, get_account
@@ -157,9 +158,9 @@ def test_resolve_market_inputs_and_run_accounts() -> None:
 
 
 def test_parse_runtime_as_of_iso_and_safe_return_pct() -> None:
-    naive = rotation_service.parse_as_of_iso("2026-03-21T12:00:00")
-    zulu = rotation_service.parse_as_of_iso("2026-03-21T12:00:00Z")
-    parsed = rotation_service.parse_as_of_iso("2026-03-21T12:00:00+02:00")
+    naive = parse_utc_iso("2026-03-21T12:00:00")
+    zulu = parse_utc_iso("2026-03-21T12:00:00Z")
+    parsed = parse_utc_iso("2026-03-21T12:00:00+02:00")
 
     assert naive.isoformat().endswith("+00:00")
     assert zulu.isoformat().endswith("+00:00")
@@ -267,7 +268,7 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
                 select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
                 select_regime_strategy_impl_fn=None,
                 parse_rotation_schedule_fn=parse_rotation_schedule,
-                parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+                parse_as_of_iso_fn=parse_utc_iso,
                 fetch_strategy_backtest_returns_fn=__import__("trading.backtesting.services.history_service", fromlist=["fetch_strategy_backtest_returns"]).fetch_strategy_backtest_returns,
                 fetch_policy_features_fn=None,
                 resolve_rotation_mode_fn=resolve_rotation_mode,
@@ -317,7 +318,7 @@ def test_select_account_rotation_strategy_returns_none_when_no_runs(conn) -> Non
         select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
         select_regime_strategy_impl_fn=None,
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=history_service.fetch_strategy_backtest_returns,
         fetch_policy_features_fn=None,
         resolve_rotation_mode_fn=resolve_rotation_mode,
@@ -336,7 +337,7 @@ def test_select_account_rotation_strategy_returns_none_when_schedule_empty(conn)
         select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
         select_regime_strategy_impl_fn=None,
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=history_service.fetch_strategy_backtest_returns,
         fetch_policy_features_fn=None,
         resolve_rotation_mode_fn=resolve_rotation_mode,
@@ -362,7 +363,7 @@ def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
         select_optimal_strategy_impl_fn=lambda *_args, **_kwargs: None,
         select_regime_strategy_impl_fn=rotation_service.select_regime_strategy,
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
             available=True,
@@ -393,7 +394,7 @@ def test_select_account_rotation_strategy_passes_overlay_dependencies() -> None:
         select_optimal_strategy_impl_fn=lambda *_args, **_kwargs: None,
         select_regime_strategy_impl_fn=lambda row, **kwargs: calls.update(kwargs) or row["strategy"],
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=rotation_service.parse_as_of_iso,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
         fetch_news_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),

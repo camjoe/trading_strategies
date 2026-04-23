@@ -6,6 +6,8 @@ from typing import Callable, Mapping
 
 from common.coercion import coerce_int
 from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
+from common.time import as_utc_iso
+from common.time import parse_utc_iso
 
 ROTATION_MODES = {"time", "optimal", "regime"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
@@ -59,19 +61,10 @@ def _parse_iso(value: str | None) -> datetime | None:
     text = value.strip()
     if not text:
         return None
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
     try:
-        parsed = datetime.fromisoformat(text)
+        return parse_utc_iso(text)
     except ValueError:
         return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)
-
-
-def _as_utc_iso(value: datetime) -> str:
-    return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _parse_unique_string_list(
@@ -204,5 +197,5 @@ def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dic
     return {
         "rotation_active_index": next_idx,
         "rotation_active_strategy": schedule[next_idx],
-        "rotation_last_at": _as_utc_iso(_parse_iso(as_of_iso) or datetime.now(UTC)),
+        "rotation_last_at": as_utc_iso(_parse_iso(as_of_iso) or datetime.now(UTC)),
     }

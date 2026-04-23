@@ -11,5 +11,9 @@ def parse_utc_iso(value: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
+def as_utc_iso(value: datetime) -> str:
+    return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return as_utc_iso(datetime.now(timezone.utc))

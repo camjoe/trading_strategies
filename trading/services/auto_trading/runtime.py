@@ -57,7 +57,6 @@ from trading.services.auto_trading.execution import (
 from trading.services.auto_trading.rotation import (
     compute_live_account_metrics as compute_live_account_metrics_impl,
     fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
-    parse_as_of_iso as parse_as_of_iso_impl,
     rotate_account_if_due as rotate_account_if_due_impl,
     select_regime_strategy as select_regime_strategy_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
@@ -131,7 +130,7 @@ def _select_runtime_rotation_strategy(
         select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
         select_regime_strategy_impl_fn=select_regime_strategy_impl,
         parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_as_of_iso_impl,
+        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
         fetch_policy_features_fn=_fetch_policy_rotation_bundle,
         fetch_news_features_fn=_fetch_news_rotation_bundle,

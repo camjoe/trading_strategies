@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Callable
 
+from common.time import as_utc_iso
 from common.time import parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.repositories.trades import count_trades_between
@@ -13,10 +14,6 @@ from trading.services.runtime_settings import RuntimeThrottleSettings, fetch_run
 
 # Rolling one-minute window for the per-minute global runtime trade cap.
 TRADE_THROTTLE_MINUTE_WINDOW = timedelta(minutes=1)
-
-
-def _as_utc_iso(value: datetime) -> str:
-    return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def enforce_runtime_trade_throttles(
@@ -34,11 +31,11 @@ def enforce_runtime_trade_throttles(
         return
 
     trade_time = parse_utc_iso(trade_time_iso)
-    trade_time_utc = _as_utc_iso(trade_time)
+    trade_time_utc = as_utc_iso(trade_time)
 
     if settings.max_trades_per_day is not None:
         day_start = trade_time.replace(hour=0, minute=0, second=0, microsecond=0)
-        day_count = count_trades_between_fn(conn, _as_utc_iso(day_start), trade_time_utc)
+        day_count = count_trades_between_fn(conn, as_utc_iso(day_start), trade_time_utc)
         if day_count >= settings.max_trades_per_day:
             raise RuntimeTradeThrottleExceededError(
                 "Global runtime trade throttle reached: "
@@ -47,7 +44,7 @@ def enforce_runtime_trade_throttles(
 
     if settings.max_trades_per_minute is not None:
         window_start = trade_time - TRADE_THROTTLE_MINUTE_WINDOW
-        minute_count = count_trades_between_fn(conn, _as_utc_iso(window_start), trade_time_utc)
+        minute_count = count_trades_between_fn(conn, as_utc_iso(window_start), trade_time_utc)
         if minute_count >= settings.max_trades_per_minute:
             raise RuntimeTradeThrottleExceededError(
                 "Global runtime trade throttle reached: "

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Callable, cast
 
 from common.coercion import coerce_float, row_expect_int, row_float, row_int
@@ -61,15 +61,6 @@ DEFAULT_ROTATION_OVERLAY_CONFIDENCE_THRESHOLD = 0.50
 # than replacing it outright.
 ROTATION_OVERLAY_DIRECTIONS = ("bearish", "bullish")
 REGIME_STATE_ORDER = ("risk_off", "neutral", "risk_on")
-
-def parse_as_of_iso(as_of_iso: str) -> datetime:
-    text = as_of_iso.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-    parsed = datetime.fromisoformat(text)
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)
 
 
 def _average(values: list[float]) -> float | None:
