@@ -1,10 +1,19 @@
 # Reusable Skills Library
 
-## Purpose
+This folder is the repo's primary reusable task surface.
 
-This folder is the repo's **primary reusable task surface**.
+## Active layout
 
-The goal is to keep generic capability in skills and reserve agents for the smaller set of cases that truly need repo-specific execution details.
+Use folder-based skills with a `SKILL.md` file:
+
+| Path | Purpose |
+|---|---|
+| `.github/skills/<skill-name>/SKILL.md` | Active Codex-style skill definition |
+| `.github/skills/templates/portable.skill.template.md` | Template for drafting a portable skill |
+| `.github/skills/templates/local-overlay.agent.template.md` | Template for the rare repo-specific overlay agent |
+| `.github/skills/legacy/*.skill.md` | Archived flat Copilot-era skill files |
+
+The active convention is one folder per skill using lowercase hyphenated names.
 
 ## Skill-first model
 
@@ -14,69 +23,61 @@ Keep or create an agent only when the task needs:
 
 - exact repo paths or command entrypoints
 - project-only safety rules
-- project_manager workflow integration
-- domain behavior too specific for the general skill
+- operator workflow integration
+- domain behavior too specific for the reusable skill
 
-If a skill and an agent both exist for the same job, the default bias is:
+If a skill and an agent both exist for the same job:
 
-1. use the skill
+1. use the skill first
 2. justify the agent
-3. delete the agent if it adds no repo-specific execution value
-
-## Layout
-
-| Path | Purpose |
-|---|---|
-| `.github/skills/*.skill.md` | Reusable, directly usable general skills |
-| `.github/skills/templates/portable.skill.template.md` | Template for new portable skills |
-| `.github/skills/templates/local-overlay.agent.template.md` | Template for the rare repo-specific overlay agent that is still justified |
+3. remove the agent if it no longer adds repo-specific execution value
 
 ## Current skill pack
 
-| Skill | Use directly? | Notes |
-|---|---|---|
-| `architecture-review.skill.md` | Yes | Default surface for structure/layering review |
-| `code-review.skill.md` | Yes | Default surface for generic review/audit work |
-| `deep-code-review.skill.md` | Yes | Default surface for broad simplification/staleness review |
-| `docs-sync.skill.md` | Yes | Default surface for documentation drift work |
-| `frontend-cleanup.skill.md` | Yes | Default surface for frontend-only cleanup |
-| `python-cleanup.skill.md` | Yes | Default surface for Python cleanup |
-| `python-stat-modeling.skill.md` | Yes | Default surface for general modeling/research tasks |
-| `finance-strategy.skill.md` | Yes | Default surface for terminology/strategy explanation |
-| `test-expansion.skill.md` | Yes | Default surface for generic testing work |
-| `ui-api-contract.skill.md` | Usually | Escalate to `ui-api-steward.agent.md` only when repo-specific UI behavior matters |
+| Skill folder | Notes |
+|---|---|
+| `architecture-review/` | Default surface for structure and layering review |
+| `code-review/` | Default surface for generic review and audit work |
+| `deep-code-review/` | Default surface for broad simplification and staleness review |
+| `docs-sync/` | Default surface for documentation drift work |
+| `finance-strategy/` | Default surface for terminology and strategy explanation |
+| `frontend-cleanup/` | Default surface for frontend-only cleanup |
+| `python-cleanup/` | Default surface for Python cleanup |
+| `python-stat-modeling/` | Default surface for modeling and research tasks |
+| `test-expansion/` | Default surface for generic testing work |
+| `ui-api-contract/` | Start here for frontend/backend contract work; escalate only if repo-specific UI behavior matters |
 
-## Agents that still remain
+## Remaining repo-specific agents
 
 These agents still exist because they encode repo-specific execution behavior that the skills should not absorb:
 
 | Agent | Repo-specific value |
 |---|---|
-| `backtesting-analyst.agent.md` | exact backtesting/reporting/UI paths and evaluation flows |
-| `broker-live-safety.agent.md` | repo-specific live-trading safety rules |
-| `db-migration-steward.agent.md` | repo-specific SQLite migration and backup rules |
-| `trading-runtime.agent.md` | exact runtime job and operator flows |
-| `ui-api-steward.agent.md` | exact `paper_trading_ui` contract paths and semantics |
+| `backtesting-analyst.agent.md` | Exact backtesting, reporting, and UI flows |
+| `broker-live-safety.agent.md` | Live-trading safety rules |
+| `db-migration-steward.agent.md` | SQLite migration and backup rules |
+| `trading-runtime.agent.md` | Runtime job and operator flows |
+| `ui-api-steward.agent.md` | Exact `paper_trading_ui` contract paths and semantics |
 
-Repo-specific agents live in `.github/agents/`
+Repo-specific agents live in `.github/agents/`.
 
 ## Authoring rules
 
-### Skills should
+Skills should:
 
-1. Attempt to stay generic enough to reuse in a similar repo
-2. describe responsibilities, constraints, and expected outputs
-3. list the facts that need localization later
-4. avoid hardcoding repo-only paths unless shown as placeholders to replace
+1. stay reusable in a similar repo with light localization
+2. describe responsibilities, constraints, workflow, and expected output
+3. point to repo references only when those references materially improve execution
+4. stay concise and avoid turning `SKILL.md` into general documentation
 
-### Skills should not
+Skills should not:
 
-1. assume this repo's file layout is universal
+1. assume this repo's layout is universal
 2. present repo-specific commands as if they exist everywhere
-3. absorb project-only safety rules that belong in a dedicated overlay agent
+3. absorb project-only safety rules that belong in `AGENTS.md` or a repo-specific agent
 
 ## When to add a new skill vs agent
 
-Add a new **skill** when the capability should be directly reusable in another project with only light localization.
+Add a new skill when the capability should be reusable outside this repo with only light localization.
 
-Add a new **agent** only when the task depends on repo-specific execution behavior that would make the skill less reusable or more confusing.
+Add a new agent only when the task depends on repo-specific execution behavior that would make the skill less reusable or more confusing.
