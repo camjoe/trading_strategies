@@ -54,6 +54,7 @@ Modular check scripts (`scripts/checks/`):
 Data operation scripts (`scripts/data_ops/`):
 
 - `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
+- `describe_db_schema.py`: prints the current database schema from either an in-memory database initialized from `db_schema.py` + migrations or the configured live SQLite database.
 - `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
 - `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
 
@@ -66,6 +67,8 @@ python -m trading.interfaces.runtime.data_ops.csv_export
 
 # Convenience wrappers
 python -m scripts.data_ops.backup_db
+python -m scripts.data_ops.describe_db_schema
+python -m scripts.data_ops.describe_db_schema --source live
 python -m scripts.data_ops.export_db_csv --tables accounts,trades
 python -m scripts.data_ops.export_db_csv_zip
 ```

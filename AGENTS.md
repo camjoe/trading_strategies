@@ -15,6 +15,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
 - Skill authoring and localization guidance: `.github/skills/README.md`
 - Legacy Copilot-specific guidance: `.github/copilot-instructions.md`
+- For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
 
 ## Task surfaces
 
