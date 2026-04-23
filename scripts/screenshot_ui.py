@@ -42,7 +42,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common.project_paths import SCREENSHOTS_DIR
+from common.paths.project_paths import SCREENSHOTS_DIR
 from scripts.ui_config import FRONTEND_PORT, UI_HOST
 
 

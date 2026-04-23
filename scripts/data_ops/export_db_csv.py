@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.data_ops.csv_export import (
     DEFAULT_EXPORT_TABLES,
     export_tables_to_csv,
@@ -54,4 +54,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

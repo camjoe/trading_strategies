@@ -1,9 +1,9 @@
 """Pricing service package.
 
-This package is the stable public pricing surface.
+This package is the stable public pricing surface for price-facing helpers.
 """
 
-from trading.services.pricing.market_data import benchmark_stats, fetch_latest_prices
+from trading.services.pricing.helpers import benchmark_stats, fetch_latest_prices
 
 __all__ = [
     "benchmark_stats",

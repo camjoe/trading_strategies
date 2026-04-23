@@ -6,12 +6,13 @@ import sqlite3
 from typing import Callable, cast
 
 from common.coercion import row_expect_int
-from common.market_hours import is_regular_us_equity_market_open_at_utc_iso
+from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderStatus
 from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
+from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.domain.accounting import compute_account_state
 from trading.services.accounting import list_account_trades, record_trade
@@ -424,7 +425,7 @@ def _record_runtime_trade(
 
 
 def _is_runtime_submission_window_open(now_iso: str) -> bool:
-    return is_regular_us_equity_market_open_at_utc_iso(now_iso)
+    return is_regular_us_equity_market_open(parse_utc_iso(now_iso))
 
 
 def run_for_account(

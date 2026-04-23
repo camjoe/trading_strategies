@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from common.market_data import FeatureBundle, ProxyFeatureDataProvider
+from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
 from trading.services.accounts import create_account
 from trading.models import AccountConfig
 from trading.backtesting.backtest import (
@@ -362,7 +362,7 @@ class TestBacktestProxyFeatureFlow:
             def fetch_close_history(self, tickers: list[str], _start, _end) -> pd.DataFrame:
                 return proxy_frame.loc[:, tickers]
 
-        monkeypatch.setattr("common.market_data.get_provider", lambda: StubProvider())
+        monkeypatch.setattr("trading.services.market_data.get_provider", lambda: StubProvider())
 
         provider = ProxyFeatureDataProvider(category_file=str(category_file))
         bundle = provider.build_feature_bundle(["AAPL", "XOM"], date(2026, 1, 1), date(2026, 3, 1), close_history)

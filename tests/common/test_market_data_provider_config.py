@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import common.market_data as market_data
+import trading.services.market_data as market_data
 
 
 def test_default_provider_is_yfinance() -> None:
@@ -61,7 +61,7 @@ def test_yfinance_close_history_uses_file_cache(tmp_path: Path, monkeypatch: pyt
         calls.append(kwargs)
         return hist
 
-    monkeypatch.setattr("common.market_data.yf.download", _fake_download)
+    monkeypatch.setattr("trading.services.market_data.yf.download", _fake_download)
 
     first = provider.fetch_close_history(
         ["aapl", "msft"],
@@ -94,7 +94,7 @@ def test_yfinance_close_series_uses_file_cache(tmp_path: Path, monkeypatch: pyte
             calls.append(f"{self.ticker}:{period}:{auto_adjust}")
             return history
 
-    monkeypatch.setattr("common.market_data.yf.Ticker", _FakeTicker)
+    monkeypatch.setattr("trading.services.market_data.yf.Ticker", _FakeTicker)
 
     first = provider.fetch_close_series("spy", "5d")
     second = provider.fetch_close_series("SPY", "5d")
@@ -119,7 +119,7 @@ def test_stale_market_data_cache_refetches(tmp_path: Path, monkeypatch: pytest.M
         def history(self, *, period: str, auto_adjust: bool) -> pd.DataFrame:
             return queued.pop(0)
 
-    monkeypatch.setattr("common.market_data.yf.Ticker", _FakeTicker)
+    monkeypatch.setattr("trading.services.market_data.yf.Ticker", _FakeTicker)
 
     first = provider.fetch_close_series("SPY", "5d")
     cache_files = list(tmp_path.glob("*.pkl"))
@@ -141,7 +141,7 @@ def test_cache_write_failure_does_not_break_close_history(tmp_path: Path, monkey
     index = pd.date_range("2026-01-01", periods=2)
     hist = pd.DataFrame({"Close": [100.0, 101.0]}, index=index)
 
-    monkeypatch.setattr("common.market_data.yf.download", lambda **_kwargs: hist)
+    monkeypatch.setattr("trading.services.market_data.yf.download", lambda **_kwargs: hist)
     original_open = market_data.Path.open
 
     def _failing_open(self: Path, *args: object, **kwargs: object):

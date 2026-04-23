@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.market_data import get_provider
+from trading.services.market_data import get_provider
 from common.tickers import load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"

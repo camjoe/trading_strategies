@@ -6,7 +6,7 @@ the virtual test_account only.  Manual trades are not permitted on managed
 """
 from __future__ import annotations
 
-import common.market_data as _md
+import trading.services.market_data as _md
 from common.time import utc_now_iso
 from fastapi import APIRouter, HTTPException
 

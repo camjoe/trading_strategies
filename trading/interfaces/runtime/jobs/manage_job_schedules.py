@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.scheduler_installer import (
     ScheduledTaskSpec,
     register_tasks_for_platform,

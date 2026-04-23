@@ -6,22 +6,13 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Callable
 
+from common.time import parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.repositories.trades import count_trades_between
 from trading.services.runtime_settings import RuntimeThrottleSettings, fetch_runtime_throttle_settings
 
 # Rolling one-minute window for the per-minute global runtime trade cap.
 TRADE_THROTTLE_MINUTE_WINDOW = timedelta(minutes=1)
-
-
-def _parse_utc_iso(value: str) -> datetime:
-    normalized = value.strip()
-    if normalized.endswith("Z"):
-        normalized = normalized[:-1] + "+00:00"
-    parsed = datetime.fromisoformat(normalized)
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=UTC)
-    return parsed.astimezone(UTC)
 
 
 def _as_utc_iso(value: datetime) -> str:
@@ -42,7 +33,7 @@ def enforce_runtime_trade_throttles(
     if settings.max_trades_per_day is None and settings.max_trades_per_minute is None:
         return
 
-    trade_time = _parse_utc_iso(trade_time_iso)
+    trade_time = parse_utc_iso(trade_time_iso)
     trade_time_utc = _as_utc_iso(trade_time)
 
     if settings.max_trades_per_day is not None:

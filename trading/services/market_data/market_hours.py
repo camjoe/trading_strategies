@@ -5,31 +5,16 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-# NYSE and NASDAQ regular sessions follow the U.S. Eastern time zone.
 US_EQUITY_MARKET_TIMEZONE = ZoneInfo("America/New_York")
-
-# Regular U.S. equity trading opens at 9:30 AM Eastern.
 US_EQUITY_MARKET_OPEN_TIME = time(hour=9, minute=30)
-
-# Regular U.S. equity trading closes at 4:00 PM Eastern.
 US_EQUITY_MARKET_CLOSE_TIME = time(hour=16, minute=0)
-
-# Scheduled NYSE early-close sessions end at 1:00 PM Eastern.
 US_EQUITY_EARLY_CLOSE_TIME = time(hour=13, minute=0)
-
-# Monday is the first exchange trading weekday for regular U.S. sessions.
 US_EQUITY_FIRST_TRADING_WEEKDAY = 0
-
-# Friday is the last exchange trading weekday for regular U.S. sessions.
 US_EQUITY_LAST_TRADING_WEEKDAY = 4
-
-# NYSE began observing Juneteenth as a full market holiday in 2022.
 JUNETEENTH_START_YEAR = 2022
 
 
 def is_regular_us_equity_market_open(at: datetime | None = None) -> bool:
-    """Return True when *at* falls inside regular U.S. equity market hours."""
-
     current = at or datetime.now(timezone.utc)
     if current.tzinfo is None:
         raise ValueError("Market-hours checks require a timezone-aware datetime.")
@@ -41,24 +26,6 @@ def is_regular_us_equity_market_open(at: datetime | None = None) -> bool:
 
     current_time = eastern.timetz().replace(tzinfo=None)
     return US_EQUITY_MARKET_OPEN_TIME <= current_time < _market_close_time_for_date(current_date)
-
-
-def is_regular_us_equity_market_open_at_utc_iso(utc_iso: str) -> bool:
-    """Parse a UTC ISO-8601 string and apply the regular-session market-hours check."""
-
-    return is_regular_us_equity_market_open(_parse_utc_iso(utc_iso))
-
-
-def _parse_utc_iso(value: str) -> datetime:
-    normalized = value.strip()
-    if normalized.endswith("Z"):
-        normalized = f"{normalized[:-1]}+00:00"
-    parsed = datetime.fromisoformat(normalized)
-    if parsed.tzinfo is None:
-        raise ValueError("UTC ISO timestamp must include timezone information.")
-    return parsed
-
-
 def _is_us_equity_trading_day(current_date: date) -> bool:
     if current_date.weekday() < US_EQUITY_FIRST_TRADING_WEEKDAY:
         return False
@@ -77,15 +44,15 @@ def _nyse_full_day_holidays(*years: int) -> set[date]:
     holidays: set[date] = set()
     for year in years:
         holidays.add(_observed_fixed_holiday(date(year, 1, 1)))
-        holidays.add(_nth_weekday_of_month(year, 1, weekday=0, occurrence=3))  # MLK Day
-        holidays.add(_nth_weekday_of_month(year, 2, weekday=0, occurrence=3))  # Presidents Day
+        holidays.add(_nth_weekday_of_month(year, 1, weekday=0, occurrence=3))
+        holidays.add(_nth_weekday_of_month(year, 2, weekday=0, occurrence=3))
         holidays.add(_good_friday(year))
-        holidays.add(_last_weekday_of_month(year, 5, weekday=0))  # Memorial Day
+        holidays.add(_last_weekday_of_month(year, 5, weekday=0))
         if year >= JUNETEENTH_START_YEAR:
             holidays.add(_observed_fixed_holiday(date(year, 6, 19)))
         holidays.add(_observed_fixed_holiday(date(year, 7, 4)))
-        holidays.add(_nth_weekday_of_month(year, 9, weekday=0, occurrence=1))  # Labor Day
-        holidays.add(_nth_weekday_of_month(year, 11, weekday=3, occurrence=4))  # Thanksgiving
+        holidays.add(_nth_weekday_of_month(year, 9, weekday=0, occurrence=1))
+        holidays.add(_nth_weekday_of_month(year, 11, weekday=3, occurrence=4))
         holidays.add(_observed_fixed_holiday(date(year, 12, 25)))
     return holidays
 
@@ -138,8 +105,6 @@ def _good_friday(year: int) -> date:
 
 
 def _easter_sunday(year: int) -> date:
-    """Return Gregorian Easter Sunday using the Meeus/Jones/Butcher algorithm."""
-
     century = year // 100
     year_in_century = year % 100
     leap_centuries = century // 4

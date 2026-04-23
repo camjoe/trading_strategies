@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import TypedDict
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV, logs_dir_for_repo
 from trading.interfaces.runtime.notifications import notify_webhook_best_effort
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL as COMPLETE_SENTINEL

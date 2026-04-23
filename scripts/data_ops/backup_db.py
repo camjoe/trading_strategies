@@ -24,7 +24,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.data_ops.admin import backup_database
 
 # ---------------------------------------------------------------------------
@@ -122,5 +122,4 @@ def run_backup(*, verbose: bool = True) -> dict[str, object]:
 
 if __name__ == "__main__":
     run_backup()
-
 

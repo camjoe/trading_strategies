@@ -1,21 +1,16 @@
-"""Pricing market-data helpers for pricing consumers."""
+"""Pricing helpers for caller-facing price and benchmark lookups."""
 
 from __future__ import annotations
 
 from datetime import date
-from typing import Callable
-
 import pandas as pd
+from trading.services.market_data import get_provider
 
 
-def fetch_latest_prices(
-    tickers: list[str],
-    *,
-    fetch_close_series_fn: Callable[[str, str], pd.Series | None],
-) -> dict[str, float]:
+def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
     prices: dict[str, float] = {}
     for ticker in tickers:
-        close = fetch_close_series_fn(ticker, "5d")
+        close = get_provider().fetch_close_series(ticker, "5d")
         if close is not None:
             prices[ticker] = float(close.iloc[-1])
     return prices
@@ -36,14 +31,11 @@ def benchmark_stats(
     benchmark_ticker: str,
     initial_cash: float,
     created_at: str,
-    *,
-    fetch_close_history_fn: Callable[[list[str], date, date], pd.DataFrame],
-    today_fn: Callable[[], date],
 ) -> tuple[float | None, float | None]:
     ticker = benchmark_ticker.upper().strip()
     start = date.fromisoformat(created_at[:10])
     try:
-        close_history = fetch_close_history_fn([ticker], start, today_fn())
+        close_history = get_provider().fetch_close_history([ticker], start, date.today())
         close = _extract_close_series(close_history, ticker)
     except Exception:
         return None, None

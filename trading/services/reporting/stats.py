@@ -14,7 +14,7 @@ from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import fetch_recent_equity_rows
 from trading.services.accounting import load_account_state
 from trading.services.reporting.calculations import compute_market_value_and_unrealized
-from trading.services.reporting.market_data import fetch_latest_prices
+from trading.services.pricing import fetch_latest_prices
 
 # Trend inference needs at least two persisted points plus the current equity value.
 MIN_TREND_HISTORY_POINTS = 3

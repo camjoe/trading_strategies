@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
     is_env_truthy,

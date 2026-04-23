@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.ci import run_ci
 from scripts.checks.quick import run_quick

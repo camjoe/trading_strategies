@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 
 # Canonical repository root resolved via git top-level discovery.
 REPO_ROOT = get_repo_root(__file__)

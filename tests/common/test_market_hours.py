@@ -4,10 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from common.market_hours import (
-    is_regular_us_equity_market_open,
-    is_regular_us_equity_market_open_at_utc_iso,
-)
+from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 
 
 def test_market_open_during_regular_weekday_session() -> None:
@@ -30,9 +27,9 @@ def test_market_closed_on_observed_new_year_holiday() -> None:
     assert not is_regular_us_equity_market_open(datetime(2021, 12, 31, 15, 0, tzinfo=timezone.utc))
 
 
-def test_market_hours_iso_requires_timezone() -> None:
+def test_market_hours_requires_timezone() -> None:
     with pytest.raises(ValueError, match="timezone"):
-        is_regular_us_equity_market_open_at_utc_iso("2026-03-16T14:00:00")
+        is_regular_us_equity_market_open(datetime(2026, 3, 16, 14, 0))
 
 
 def test_market_closed_after_thanksgiving_early_close() -> None:

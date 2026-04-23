@@ -1,4 +1,14 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+
+
+def parse_utc_iso(value: str) -> datetime:
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def utc_now_iso() -> str:

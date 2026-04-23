@@ -17,7 +17,6 @@ from trading.services.reporting.calculations import (
     positions_summary_text,
     strategy_return_pct,
 )
-from trading.services.reporting.market_data import benchmark_stats, fetch_latest_prices
 from trading.services.reporting.presentation import (
     account_report,
     compare_strategies,
@@ -25,6 +24,7 @@ from trading.services.reporting.presentation import (
     snapshot_account,
 )
 from trading.services.reporting.stats import build_account_stats, infer_overall_trend
+from trading.services.pricing import benchmark_stats, fetch_latest_prices
 
 __all__ = [
     "GOAL_NOT_SET_TEXT",

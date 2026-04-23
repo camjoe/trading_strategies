@@ -28,7 +28,7 @@ from trading.services.reporting.calculations import (
     positions_summary_text,
     strategy_return_pct,
 )
-from trading.services.reporting.market_data import benchmark_stats
+from trading.services.pricing import benchmark_stats
 from trading.services.reporting.stats import build_account_stats, infer_overall_trend
 
 

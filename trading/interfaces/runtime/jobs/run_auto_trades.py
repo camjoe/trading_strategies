@@ -1,10 +1,10 @@
 import argparse
 import random
 
-from common.market_data import get_provider
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from common.tickers import load_tickers_from_file
 from trading.database.db_init import ensure_db
+from trading.services.market_data import get_provider
 from trading.services.auto_trading import (
     build_iv_rank_proxy as build_iv_rank_proxy_impl,
     resolve_account_names as resolve_account_names_impl,
@@ -14,14 +14,9 @@ from trading.services.auto_trading import (
     validate_trade_count_range as validate_trade_count_range_impl,
 )
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
-from trading.services.pricing import fetch_latest_prices as _fetch_prices_svc
+from trading.services.pricing import fetch_latest_prices
 
 REPO_ROOT = get_repo_root(__file__)
-
-
-def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
-    """Module-level adapter: inject provider and delegate to pricing_service."""
-    return _fetch_prices_svc(tickers, fetch_close_series_fn=get_provider().fetch_close_series)
 
 
 def parse_args() -> argparse.Namespace:

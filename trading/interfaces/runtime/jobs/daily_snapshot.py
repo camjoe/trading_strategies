@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.services.accounts import load_all_account_names
 from trading.interfaces.runtime.job_status import DAILY_SNAPSHOT_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (

@@ -4,7 +4,7 @@ from collections.abc import Iterator
 
 import pytest
 
-import common.market_data as market_data
+import trading.services.market_data as market_data
 
 
 @pytest.fixture(autouse=True)

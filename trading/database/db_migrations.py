@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from common.project_paths import TRADE_UNIVERSE_PATH
+from common.paths.project_paths import TRADE_UNIVERSE_PATH
 from common.tickers import load_tickers_from_file
 
 # Default source used to seed account-level overlay watchlists so regime overlays
