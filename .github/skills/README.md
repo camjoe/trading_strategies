@@ -43,13 +43,14 @@ If a skill and an agent both exist for the same job:
 | `finance-strategy/` | Default surface for terminology and strategy explanation |
 | `python-stat-modeling/` | Default surface for modeling and research tasks |
 | `test-expansion/` | Default surface for generic testing work |
-| `ui-api-contract/` | Start here for frontend/backend contract work; escalate only if repo-specific UI behavior matters |
+| `ui-api-contract/` | Default surface for frontend/backend contract work |
 
 Retired from the active set and archived under `legacy/`:
 
 - `deep-code-review`
 - `frontend-cleanup`
 - `python-cleanup`
+- `ui-api-steward.agent.md` moved to `.github/agents/legacy/`
 
 ## Remaining repo-specific agents
 
@@ -61,7 +62,6 @@ These agents still exist because they encode repo-specific execution behavior th
 | `broker-live-safety.agent.md` | Live-trading safety rules |
 | `db-migration-steward.agent.md` | SQLite migration and backup rules |
 | `trading-runtime.agent.md` | Runtime job and operator flows |
-| `ui-api-steward.agent.md` | Exact `paper_trading_ui` contract paths and semantics |
 
 Repo-specific agents live in `.github/agents/`.
 

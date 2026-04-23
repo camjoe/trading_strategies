@@ -49,7 +49,6 @@ Current agent inventory:
 | `broker-live-safety.agent.md` | Repo-specific broker safety constraints and live-trading guardrails |
 | `db-migration-steward.agent.md` | Repo-specific SQLite migration safety and backup hygiene |
 | `trading-runtime.agent.md` | Repo-specific runtime jobs, scheduler flows, and operator-facing runtime behavior |
-| `ui-api-steward.agent.md` | Repo-specific `paper_trading_ui` route/schema/frontend contract behavior |
 
 Keep an agent only if it adds one or more of:
 
@@ -75,7 +74,6 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Modeling, alpha research, feature engineering | `python-stat-modeling/` |
 | Cross-stack route/schema/UI contract work | `ui-api-contract/` |
-| Repo-specific `paper_trading_ui` contract or payload behavior | `ui-api-steward.agent.md` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
 | Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |
@@ -84,8 +82,7 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 Overlap rules:
 
 1. If a skill and an agent overlap, use the skill unless the agent adds repo-specific execution value.
-2. `ui-api-steward.agent.md` remains useful for exact `paper_trading_ui` paths, payloads, services, and route behavior.
-3. `backtesting-analyst.agent.md` remains useful for repo-specific evaluation, reporting, and walk-forward flows.
+2. `backtesting-analyst.agent.md` remains useful for repo-specific evaluation, reporting, and walk-forward flows.
 
 ## Shortcut workflows
 
@@ -147,5 +144,6 @@ These phrases are accepted as repo conventions and should trigger the matching w
 ## Notes
 
 - The archived predecessor to this file is `.github/AGENTS.legacy.md`.
+- Retired agents can be archived under `.github/agents/legacy/`.
 - Retired skills are archived under `.github/skills/legacy/`.
 - Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.
