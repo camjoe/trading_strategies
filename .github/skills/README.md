@@ -50,7 +50,6 @@ Retired from the active set and archived under `legacy/`:
 - `deep-code-review`
 - `frontend-cleanup`
 - `python-cleanup`
-- `ui-api-steward.agent.md` moved to `.github/agents/legacy/`
 
 ## Remaining repo-specific agents
 

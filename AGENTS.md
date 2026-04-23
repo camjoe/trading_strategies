@@ -144,6 +144,5 @@ These phrases are accepted as repo conventions and should trigger the matching w
 ## Notes
 
 - The archived predecessor to this file is `.github/AGENTS.legacy.md`.
-- Retired agents can be archived under `.github/agents/legacy/`.
-- Retired skills are archived under `.github/skills/legacy/`.
+- Retired flat Copilot-era skill files are archived under `.github/skills/legacy/`.
 - Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.
