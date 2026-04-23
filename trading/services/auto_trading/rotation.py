@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Callable, cast
 
 from common.coercion import coerce_float, row_expect_int, row_float, row_int
+from common.time import parse_utc_iso
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
+    next_rotation_state,
+    parse_rotation_schedule,
+    resolve_active_strategy,
     resolve_rotation_overlay_mode,
     resolve_rotation_overlay_watchlist,
+    resolve_optimality_mode,
+    resolve_rotation_mode,
+    resolve_rotation_regime_strategy,
 )
 from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import (
@@ -218,20 +225,17 @@ def apply_rotation_overlay_to_regime(regime_state: str, overlay_direction: str |
 def select_regime_strategy(
     account: AccountRecord,
     *,
-    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    resolve_active_strategy_fn: Callable[[AccountRecord], str],
-    resolve_rotation_regime_strategy_fn: Callable[[AccountRecord, str], str | None],
     fetch_policy_features_fn: Callable[[str], ExternalFeatureBundle],
     conn: sqlite3.Connection | None = None,
     fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
     fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, AccountRecord], list[str]] | None = None,
 ) -> str | None:
-    schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
+    schedule = parse_rotation_schedule(account["rotation_schedule"])
     if not schedule:
         return None
 
-    active_strategy = resolve_active_strategy_fn(account)
+    active_strategy = resolve_active_strategy(account)
     bundle = fetch_policy_features_fn(POLICY_REGIME_PROBE_TICKER)
     if not bundle.available:
         return active_strategy
@@ -258,7 +262,7 @@ def select_regime_strategy(
         )
         regime_state = apply_rotation_overlay_to_regime(regime_state, overlay_direction)
 
-    selected = resolve_rotation_regime_strategy_fn(account, regime_state)
+    selected = resolve_rotation_regime_strategy(account, regime_state)
     if not selected:
         return active_strategy
 
@@ -357,18 +361,15 @@ def select_optimal_strategy(
     account: AccountRecord,
     as_of_iso: str,
     *,
-    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    parse_as_of_iso_fn: Callable[[str], datetime],
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
-    resolve_optimality_mode_fn: Callable[[AccountRecord], str],
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
-    schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
+    schedule = parse_rotation_schedule(account["rotation_schedule"])
     if not schedule:
         return None
 
     lookback_days = row_int(account, "rotation_lookback_days") or 180
-    as_of_dt = parse_as_of_iso_fn(as_of_iso)
+    as_of_dt = parse_utc_iso(as_of_iso)
     end_day = as_of_dt.date().isoformat()
     start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
 
@@ -393,7 +394,7 @@ def select_optimal_strategy(
     if not by_strategy:
         by_strategy = {}
 
-    optimality_mode = resolve_optimality_mode_fn(account)
+    optimality_mode = resolve_optimality_mode(account)
     scores: dict[str, float] = {}
     if optimality_mode == "hybrid_weighted":
         live_scores: dict[str, list[float]] = {}
@@ -452,22 +453,18 @@ def rotate_account_if_due(
     now_iso: str,
     *,
     is_rotation_due_fn: Callable[[AccountRecord], bool],
-    resolve_rotation_mode_fn: Callable[[AccountRecord], str],
     select_optimal_strategy_fn: Callable[[sqlite3.Connection, AccountRecord, str], str | None],
-    resolve_active_strategy_fn: Callable[[AccountRecord], str],
-    parse_rotation_schedule_fn: Callable[[object | None], list[str]],
-    next_rotation_state_fn: Callable[[AccountRecord, str], dict[str, object]],
     update_account_rotation_state_fn: Callable[..., None],
     get_account_fn: Callable[[sqlite3.Connection, str], AccountRecord],
 ) -> AccountRecord:
     if not is_rotation_due_fn(account):
         return account
 
-    rotation_mode = resolve_rotation_mode_fn(account)
+    rotation_mode = resolve_rotation_mode(account)
     if rotation_mode in {"optimal", "regime"}:
         selected = select_optimal_strategy_fn(conn, account, now_iso)
-        active = selected or resolve_active_strategy_fn(account)
-        schedule = parse_rotation_schedule_fn(account["rotation_schedule"])
+        active = selected or resolve_active_strategy(account)
+        schedule = parse_rotation_schedule(account["rotation_schedule"])
         if schedule and active in schedule:
             active_idx = schedule.index(active)
         else:
@@ -478,7 +475,7 @@ def rotate_account_if_due(
             "rotation_last_at": now_iso,
         }
     else:
-        next_state = next_rotation_state_fn(account, now_iso)
+        next_state = next_rotation_state(account, as_of_iso=now_iso)
 
     update_account_rotation_state_fn(
         conn,

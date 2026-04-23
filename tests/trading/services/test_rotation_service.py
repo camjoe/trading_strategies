@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from common.time import parse_utc_iso
 from trading.domain.rotation import parse_rotation_schedule
 import trading.services.auto_trading.rotation as rotation_service
 from tests.support import make_account_record
@@ -31,13 +30,10 @@ def test_select_optimal_strategy_hybrid_weighted_prefers_better_live_signal() ->
         conn=object(),
         account=account,
         as_of_iso="2026-03-31T00:00:00Z",
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [
             ("trend", 10.0),
             ("mean_reversion", 9.0),
         ],
-        resolve_optimality_mode_fn=lambda row: str(row["rotation_optimality_mode"]),
         fetch_closed_rotation_episodes_fn=lambda *_args, **_kwargs: [
             {
                 "strategy_name": "trend",
@@ -82,13 +78,10 @@ def test_select_optimal_strategy_hybrid_weighted_falls_back_to_backtest() -> Non
         conn=object(),
         account=account,
         as_of_iso="2026-03-31T00:00:00Z",
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [
             ("trend", 10.0),
             ("mean_reversion", 8.0),
         ],
-        resolve_optimality_mode_fn=lambda row: str(row["rotation_optimality_mode"]),
         fetch_closed_rotation_episodes_fn=lambda *_args, **_kwargs: [],
     )
 
@@ -149,9 +142,6 @@ def test_select_regime_strategy_uses_policy_mapping() -> None:
 
     selected = rotation_service.select_regime_strategy(
         account,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
-        resolve_rotation_regime_strategy_fn=lambda row, state: row[f"rotation_regime_strategy_{state}"],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
             available=True,
             get=lambda key, default=None: {
@@ -175,9 +165,6 @@ def test_select_regime_strategy_keeps_active_when_features_unavailable() -> None
 
     selected = rotation_service.select_regime_strategy(
         account,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
-        resolve_rotation_regime_strategy_fn=lambda row, state: row[f"rotation_regime_strategy_{state}"],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
             available=False,
             get=lambda _key, default=None: default,
@@ -250,9 +237,6 @@ def test_select_regime_strategy_applies_bullish_news_overlay() -> None:
     selected = rotation_service.select_regime_strategy(
         account,
         conn=object(),
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
-        resolve_rotation_regime_strategy_fn=lambda row, state: row[f"rotation_regime_strategy_{state}"],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
             available=True,
             get=lambda key, default=None: {

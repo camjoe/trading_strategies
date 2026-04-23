@@ -8,7 +8,6 @@ import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.rotation as rotation_service
 from trading.services.accounts import create_account, get_account
 from trading.repositories.rotation import update_account_rotation_state
-from trading.domain.rotation import next_rotation_state, parse_rotation_schedule, resolve_active_strategy, resolve_optimality_mode, resolve_rotation_mode
 from trading.services.auto_trading import RotationDeps
 from tests.support import make_account_record
 
@@ -209,11 +208,7 @@ def test_rotate_runtime_account_if_due_updates_state(monkeypatch) -> None:
         RotationDeps(
             rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
             is_rotation_due_fn=lambda _row: True,
-            resolve_rotation_mode_fn=resolve_rotation_mode,
             select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-            resolve_active_strategy_fn=resolve_active_strategy,
-            parse_rotation_schedule_fn=parse_rotation_schedule,
-            next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
             update_account_rotation_state_fn=update_account_rotation_state,
             get_account_fn=lambda _conn, _name: account_after,
         ),
@@ -260,24 +255,15 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
         RotationDeps(
             rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
             is_rotation_due_fn=lambda row: resolve_rotation_mode(row) == "optimal" and True,
-            resolve_rotation_mode_fn=resolve_rotation_mode,
             select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: auto_trading_service.select_account_rotation_strategy(
                 inner_conn,
                 inner_account,
                 inner_as_of,
                 select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
                 select_regime_strategy_impl_fn=None,
-                parse_rotation_schedule_fn=parse_rotation_schedule,
-                parse_as_of_iso_fn=parse_utc_iso,
                 fetch_strategy_backtest_returns_fn=__import__("trading.backtesting.services.history_service", fromlist=["fetch_strategy_backtest_returns"]).fetch_strategy_backtest_returns,
                 fetch_policy_features_fn=None,
-                resolve_rotation_mode_fn=resolve_rotation_mode,
-                resolve_active_strategy_fn=resolve_active_strategy,
-                resolve_optimality_mode_fn=resolve_optimality_mode,
             ),
-            resolve_active_strategy_fn=resolve_active_strategy,
-            parse_rotation_schedule_fn=parse_rotation_schedule,
-            next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
             update_account_rotation_state_fn=update_account_rotation_state,
             get_account_fn=get_account,
         ),
@@ -296,11 +282,7 @@ def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
         deps=RotationDeps(
             rotate_account_if_due_impl_fn=rotation_service.rotate_account_if_due,
             is_rotation_due_fn=lambda *_args, **_kwargs: False,
-            resolve_rotation_mode_fn=resolve_rotation_mode,
             select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-            resolve_active_strategy_fn=resolve_active_strategy,
-            parse_rotation_schedule_fn=parse_rotation_schedule,
-            next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
             update_account_rotation_state_fn=update_account_rotation_state,
             get_account_fn=get_account,
         ),
@@ -317,13 +299,8 @@ def test_select_account_rotation_strategy_returns_none_when_no_runs(conn) -> Non
         "2026-03-21T00:00:00Z",
         select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
         select_regime_strategy_impl_fn=None,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=history_service.fetch_strategy_backtest_returns,
         fetch_policy_features_fn=None,
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
     ) is None
 
 
@@ -336,13 +313,8 @@ def test_select_account_rotation_strategy_returns_none_when_schedule_empty(conn)
         "2026-03-21T00:00:00Z",
         select_optimal_strategy_impl_fn=rotation_service.select_optimal_strategy,
         select_regime_strategy_impl_fn=None,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=history_service.fetch_strategy_backtest_returns,
         fetch_policy_features_fn=None,
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
     ) is None
 
 
@@ -362,8 +334,6 @@ def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
         as_of_iso="2026-03-21T00:00:00Z",
         select_optimal_strategy_impl_fn=lambda *_args, **_kwargs: None,
         select_regime_strategy_impl_fn=rotation_service.select_regime_strategy,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(
             available=True,
@@ -372,9 +342,6 @@ def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
                 "policy_defensive_tilt": 0.03,
             }.get(key, default),
         ),
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
     )
 
     assert selected == "mean_reversion"
@@ -393,16 +360,11 @@ def test_select_account_rotation_strategy_passes_overlay_dependencies() -> None:
         as_of_iso="2026-03-21T00:00:00Z",
         select_optimal_strategy_impl_fn=lambda *_args, **_kwargs: None,
         select_regime_strategy_impl_fn=lambda row, **kwargs: calls.update(kwargs) or row["strategy"],
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
         fetch_policy_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
         fetch_news_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
         fetch_social_features_fn=lambda _ticker: SimpleNamespace(available=False, get=lambda *_args, **_kwargs: None),
         fetch_rotation_overlay_tickers_fn=lambda _conn, _account: ["AAPL"],
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
     )
 
     assert selected == "trend"
