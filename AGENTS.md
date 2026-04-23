@@ -28,16 +28,14 @@ Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `architecture-review.skill.md` | Layering, dependency direction, and structure review |
-| `code-review.skill.md` | Diff-based code review and regression audit |
-| `deep-code-review.skill.md` | Whole-area simplification, stale-code, and redundancy review |
-| `docs-sync.skill.md` | Documentation drift detection and targeted sync |
-| `frontend-cleanup.skill.md` | Frontend-only readability and maintainability cleanup |
-| `python-cleanup.skill.md` | Python-first cleanup and refactor work |
-| `python-stat-modeling.skill.md` | Time-series and finance/statistical modeling workflows |
-| `finance-strategy.skill.md` | Financial terminology, strategy classification, and market mechanics |
-| `test-expansion.skill.md` | Coverage growth and regression-test expansion |
-| `ui-api-contract.skill.md` | Frontend/backend contract stewardship |
+| `architecture-review/` | Layering, dependency direction, and structure review |
+| `code-cleanup/` | Backend, frontend, or mixed cleanup and refactor work |
+| `code-review/` | Diff-based review plus deep audit mode for stale code and redundancy |
+| `docs-sync/` | Documentation drift detection and targeted sync |
+| `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
+| `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
+| `test-expansion/` | Coverage growth and regression-test expansion |
+| `ui-api-contract/` | Frontend/backend contract stewardship |
 
 ### 2. Repo-specific agents
 
@@ -66,16 +64,17 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 
 | Task shape | Preferred surface |
 |---|---|
-| Architecture, layering, dependency direction | `architecture-review.skill.md` |
-| Pre-commit or pre-merge audit | `code-review.skill.md` |
-| Whole-area simplification or stale-code audit | `deep-code-review.skill.md` |
-| README, reference, or API drift | `docs-sync.skill.md` |
-| Frontend-only cleanup in `paper_trading_ui/frontend` | `frontend-cleanup.skill.md` |
-| Generic Python cleanup or refactor | `python-cleanup.skill.md` |
-| Generic test additions or edge-case coverage | `test-expansion.skill.md` |
-| Financial concept or strategy explanation | `finance-strategy.skill.md` |
-| Modeling, alpha research, feature engineering | `python-stat-modeling.skill.md` |
-| Cross-stack route/schema/UI contract work | `ui-api-contract.skill.md` |
+| Architecture, layering, dependency direction | `architecture-review/` |
+| Pre-commit or pre-merge audit | `code-review/` |
+| Whole-area simplification or stale-code audit | `code-review/` in deep mode |
+| README, reference, or API drift | `docs-sync/` |
+| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-cleanup/` |
+| Generic Python cleanup or refactor | `code-cleanup/` |
+| Mixed backend and frontend cleanup | `code-cleanup/` |
+| Generic test additions or edge-case coverage | `test-expansion/` |
+| Financial concept or strategy explanation | `finance-strategy/` |
+| Modeling, alpha research, feature engineering | `python-stat-modeling/` |
+| Cross-stack route/schema/UI contract work | `ui-api-contract/` |
 | Repo-specific `paper_trading_ui` contract or payload behavior | `ui-api-steward.agent.md` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
@@ -110,7 +109,7 @@ These phrases are accepted as repo conventions and should trigger the matching w
   Review the diff between the current branch and the given base branch.
 - `code review: <file-or-folder>`
   Review a specific area.
-- Follow `.github/skills/code-review.skill.md`.
+- Follow `.github/skills/code-review/SKILL.md`.
 
 ### `deep code review`
 
@@ -122,12 +121,12 @@ These phrases are accepted as repo conventions and should trigger the matching w
   Review `paper_trading_ui/`.
 - `deep code review: <file-or-folder>`
   Review a specific area with the same deep audit workflow.
-- Follow `.github/skills/deep-code-review.skill.md`.
+- Follow `.github/skills/code-review/SKILL.md` in deep-review mode.
 
 ### `sync docs` or `docs sync`
 
 - Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.github/skills/docs-sync.skill.md`.
+- Follow `.github/skills/docs-sync/SKILL.md`.
 - After edits, run `python -m scripts.checks.readme_check`.
 
 ### `run checks`
@@ -148,4 +147,5 @@ These phrases are accepted as repo conventions and should trigger the matching w
 ## Notes
 
 - The archived predecessor to this file is `.github/AGENTS.legacy.md`.
+- Retired skills are archived under `.github/skills/legacy/`.
 - Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.

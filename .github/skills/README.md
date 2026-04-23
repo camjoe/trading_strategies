@@ -37,15 +37,19 @@ If a skill and an agent both exist for the same job:
 | Skill folder | Notes |
 |---|---|
 | `architecture-review/` | Default surface for structure and layering review |
-| `code-review/` | Default surface for generic review and audit work |
-| `deep-code-review/` | Default surface for broad simplification and staleness review |
+| `code-cleanup/` | Default surface for backend, frontend, or mixed cleanup work |
+| `code-review/` | Default surface for generic review work and deep audits |
 | `docs-sync/` | Default surface for documentation drift work |
 | `finance-strategy/` | Default surface for terminology and strategy explanation |
-| `frontend-cleanup/` | Default surface for frontend-only cleanup |
-| `python-cleanup/` | Default surface for Python cleanup |
 | `python-stat-modeling/` | Default surface for modeling and research tasks |
 | `test-expansion/` | Default surface for generic testing work |
 | `ui-api-contract/` | Start here for frontend/backend contract work; escalate only if repo-specific UI behavior matters |
+
+Retired from the active set and archived under `legacy/`:
+
+- `deep-code-review`
+- `frontend-cleanup`
+- `python-cleanup`
 
 ## Remaining repo-specific agents
 
