@@ -1,37 +1,13 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import trading.domain.auto_trader_policy as auto_trader_policy
 import trading.services.auto_trading.execution as trade_execution_service
-from tests.support import make_account_record
-
-
-def _base_account(**overrides):
-    base: dict[str, object] = {
-        "option_strike_offset_pct": 5.0,
-        "target_delta_min": None,
-        "target_delta_max": None,
-        "iv_rank_min": None,
-        "iv_rank_max": None,
-        "max_contracts_per_trade": None,
-        "max_premium_per_trade": None,
-        "option_min_dte": 120,
-        "option_max_dte": 365,
-        "option_type": "call",
-        "learning_enabled": 0,
-        "risk_policy": "none",
-        "stop_loss_pct": None,
-        "take_profit_pct": None,
-        "instrument_mode": "equity",
-        "initial_cash": 5000.0,
-        "id": 1,
-        "strategy": "trend",
-    }
-    base.update(overrides)
-    return make_account_record(**base)
+from tests.support import make_auto_trading_account
 
 
 def test_build_leaps_candidates_filters() -> None:
-    account = _base_account()
+    account = make_auto_trading_account()
     prices = {"A": 100.0, "B": 200.0}
 
     def _fake_allowed(_account, ticker, _price, _iv):
@@ -51,8 +27,11 @@ def test_build_leaps_candidates_filters() -> None:
 
 def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
+    choose_buy_qty = Mock(return_value=2)
+    choose_buy_ticker = Mock(return_value="AAPL")
+
     result = trade_execution_service.prepare_buy_trade(
-        account=_base_account(),
+        account=make_auto_trading_account(),
         instrument_mode="equity",
         universe=["AAPL"],
         prices={"AAPL": 100.0},
@@ -60,19 +39,22 @@ def test_prepare_buy_trade_equity() -> None:
         state=state,
         learning_enabled=False,
         fee=0.0,
-        build_leaps_candidates_fn=lambda *_args, **_kwargs: [],
+        build_leaps_candidates_fn=Mock(return_value=[]),
         estimate_option_premium_fn=auto_trader_policy.estimate_option_premium,
-        choose_buy_qty_fn=lambda *_args, **_kwargs: 2,
+        choose_buy_qty_fn=choose_buy_qty,
         apply_leaps_buy_qty_limits_fn=auto_trader_policy.apply_leaps_buy_qty_limits,
-        choose_buy_ticker_fn=lambda *_args, **_kwargs: "AAPL",
+        choose_buy_ticker_fn=choose_buy_ticker,
     )
     assert result == ("AAPL", 2, 100.0, None, None)
+    choose_buy_ticker.assert_called_once()
+    choose_buy_qty.assert_called_once()
 
 
 def test_prepare_buy_trade_leaps(monkeypatch) -> None:
     state = SimpleNamespace(cash=2000.0)
-    account = _base_account(max_contracts_per_trade=2)
+    account = make_auto_trading_account(max_contracts_per_trade=2)
     monkeypatch.setattr(trade_execution_service.random, "choice", lambda seq: seq[0])
+    build_candidates = Mock(return_value=[("AAPL", 0.4, 30.0)])
 
     result = trade_execution_service.prepare_buy_trade(
         account=account,
@@ -83,17 +65,19 @@ def test_prepare_buy_trade_leaps(monkeypatch) -> None:
         state=state,
         learning_enabled=True,
         fee=0.0,
-        build_leaps_candidates_fn=lambda *_args, **_kwargs: [("AAPL", 0.4, 30.0)],
-        estimate_option_premium_fn=lambda *_args, **_kwargs: 120.0,
-        choose_buy_qty_fn=lambda *_args, **_kwargs: 4,
+        build_leaps_candidates_fn=build_candidates,
+        estimate_option_premium_fn=Mock(return_value=120.0),
+        choose_buy_qty_fn=Mock(return_value=4),
         apply_leaps_buy_qty_limits_fn=auto_trader_policy.apply_leaps_buy_qty_limits,
         choose_buy_ticker_fn=auto_trader_policy.choose_buy_ticker,
     )
     assert result == ("AAPL", 2, 120.0, 0.4, 30.0)
+    build_candidates.assert_called_once()
 
 
 def test_prepare_sell_trade_leaps_forced_sell() -> None:
     state = SimpleNamespace(positions={"AAPL": 5.0})
+    choose_sell_qty = Mock(return_value=4)
 
     result = trade_execution_service.prepare_sell_trade(
         can_sell=["AAPL"],
@@ -103,14 +87,15 @@ def test_prepare_sell_trade_leaps_forced_sell() -> None:
         learning_enabled=False,
         instrument_mode="leaps",
         choose_sell_ticker_fn=auto_trader_policy.choose_sell_ticker,
-        choose_sell_qty_fn=lambda *_args, **_kwargs: 4,
+        choose_sell_qty_fn=choose_sell_qty,
     )
     assert result == ("AAPL", 2, 150.0)
+    choose_sell_qty.assert_called_once_with(5.0)
 
 
 def test_prepare_buy_trade_returns_none_when_no_candidates() -> None:
     result = trade_execution_service.prepare_buy_trade(
-        account=_base_account(),
+        account=make_auto_trading_account(),
         instrument_mode="leaps",
         universe=["AAPL"],
         prices={"AAPL": 100.0},
@@ -118,7 +103,7 @@ def test_prepare_buy_trade_returns_none_when_no_candidates() -> None:
         state=SimpleNamespace(cash=1000.0),
         learning_enabled=True,
         fee=0.0,
-        build_leaps_candidates_fn=lambda *_args, **_kwargs: [],
+        build_leaps_candidates_fn=Mock(return_value=[]),
         estimate_option_premium_fn=auto_trader_policy.estimate_option_premium,
         choose_buy_qty_fn=auto_trader_policy.choose_buy_qty,
         apply_leaps_buy_qty_limits_fn=auto_trader_policy.apply_leaps_buy_qty_limits,
@@ -128,6 +113,7 @@ def test_prepare_buy_trade_returns_none_when_no_candidates() -> None:
 
 
 def test_prepare_sell_trade_returns_none_when_invalid_price() -> None:
+    choose_sell_ticker = Mock(return_value="AAPL")
     result = trade_execution_service.prepare_sell_trade(
         can_sell=["AAPL"],
         forced_sell=None,
@@ -135,15 +121,18 @@ def test_prepare_sell_trade_returns_none_when_invalid_price() -> None:
         state=SimpleNamespace(positions={"AAPL": 3.0}),
         learning_enabled=True,
         instrument_mode="equity",
-        choose_sell_ticker_fn=lambda *_args, **_kwargs: "AAPL",
+        choose_sell_ticker_fn=choose_sell_ticker,
         choose_sell_qty_fn=auto_trader_policy.choose_sell_qty,
     )
     assert result is None
+    choose_sell_ticker.assert_called_once()
 
 
 def test_prepare_trade_selection_uses_forced_sell_path() -> None:
     state = SimpleNamespace(positions={"AAPL": 2.0}, avg_cost={"AAPL": 100.0})
-    account = _base_account()
+    account = make_auto_trading_account()
+    choose_side = Mock(return_value="sell")
+    prepare_sell_trade = Mock(return_value=("AAPL", 1, 95.0))
 
     selection = trade_execution_service.prepare_trade_selection(
         account=account,
@@ -157,16 +146,18 @@ def test_prepare_trade_selection_uses_forced_sell_path() -> None:
         learning_enabled=False,
         instrument_mode="equity",
         fee=0.0,
-        choose_side_fn=lambda *_args, **_kwargs: "sell",
-        prepare_buy_trade_fn=lambda *_args, **_kwargs: None,
-        prepare_sell_trade_fn=lambda *_args, **_kwargs: ("AAPL", 1, 95.0),
+        choose_side_fn=choose_side,
+        prepare_buy_trade_fn=Mock(return_value=None),
+        prepare_sell_trade_fn=prepare_sell_trade,
     )
 
     assert selection == ("sell", "AAPL", 1, 95.0, None, None)
+    choose_side.assert_called_once()
+    prepare_sell_trade.assert_called_once()
 
 
 def test_refresh_account_state_delegates_to_load_and_compute() -> None:
-    account = _base_account(initial_cash=1234.0, id=77)
+    account = make_auto_trading_account(initial_cash=1234.0, id=77)
     seen: dict[str, object] = {}
 
     def _fake_load_trades(_conn, account_id):

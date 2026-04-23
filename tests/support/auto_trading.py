@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Mapping, Sequence
 from unittest.mock import Mock
 
 from trading.models.broker_order import OrderStatus
@@ -40,6 +40,17 @@ def make_feature_bundle(*, available: bool = True, **values: object) -> SimpleNa
         available=available,
         get=lambda key, default=None: values.get(key, default),
     )
+
+
+def make_feature_fetcher(
+    bundles_by_ticker: Mapping[str, Mapping[str, object]],
+    *,
+    available: bool = True,
+) -> Callable[[str], SimpleNamespace]:
+    def _fetch(ticker: str) -> SimpleNamespace:
+        return make_feature_bundle(available=available, **dict(bundles_by_ticker.get(ticker, {})))
+
+    return _fetch
 
 
 class FakeBroker:
@@ -144,4 +155,5 @@ __all__ = [
     "make_account_state",
     "make_auto_trading_account",
     "make_feature_bundle",
+    "make_feature_fetcher",
 ]

@@ -7,6 +7,7 @@ from tests.support.auto_trading import (
     make_account_state,
     make_auto_trading_account,
     make_feature_bundle,
+    make_feature_fetcher,
 )
 from tests.support.reporting import insert_snapshot, insert_trade, make_evaluation_artifact
 
@@ -22,4 +23,5 @@ __all__ = [
     "make_auto_trading_account",
     "make_evaluation_artifact",
     "make_feature_bundle",
+    "make_feature_fetcher",
 ]
