@@ -225,7 +225,6 @@ def build_leaps_candidates(
         ok, delta_est, iv_est = auto_trader_policy.option_candidate_allowed(
             account,
             ticker,
-            float(price),
             iv_rank_proxy,
         )
         if ok:

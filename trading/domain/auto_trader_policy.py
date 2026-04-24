@@ -176,7 +176,6 @@ def _return_score(price: float | None, avg_cost: float) -> float | None:
 def option_candidate_allowed(
     account: AccountPolicyInput,
     ticker: str,
-    price: float,
     iv_rank_proxy: dict[str, float],
 ) -> tuple[bool, float, float]:
     strike_offset = float(account["option_strike_offset_pct"] or 0.0)

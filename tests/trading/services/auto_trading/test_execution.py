@@ -10,7 +10,7 @@ def test_build_leaps_candidates_filters() -> None:
     account = make_auto_trading_account()
     prices = {"A": 100.0, "B": 200.0}
 
-    def _fake_allowed(_account, ticker, _price, _iv):
+    def _fake_allowed(_account, ticker, _iv):
         if ticker == "A":
             return True, 0.4, 25.0
         return False, 0.4, 25.0
