@@ -1,244 +1,6 @@
-import financeData from "../assets/finance.json";
-import softwareData from "../assets/software.json";
-import apiData from "../assets/api.json";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type FinanceTerm = {
-  term: string;
-  group: string;
-  use: string;
-  definition: string;
-};
-
-type SoftwarePackage = {
-  name: string;
-  group: string;
-  purpose: string;
-};
-
-type SoftwareProject = {
-  name: string;
-  description: string;
-};
-
-type SoftwareLang = {
-  name: string;
-  usage: string;
-};
-
-type ApiBasic = {
-  item: string;
-  details: string;
-};
-
-type ApiEndpoint = {
-  method: string;
-  path: string;
-  group: string;
-  description: string;
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function esc(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-// ---------------------------------------------------------------------------
-// Finance card
-// ---------------------------------------------------------------------------
-
-const FINANCE_UI_SECTION_MAP: Record<string, string> = {
-  "Execution and Risk Controls": "Execution & Risk Controls",
-  "Performance and Risk": "Performance & Benchmarking",
-  "Options and Volatility": "Options / Derivatives",
-  "Backtesting and Validation": "Data & Backtesting Integrity",
-  "Technical Analysis": "Technical Signals",
-  "Trading Strategies": "Trading Strategies",
-  "Asset Classes": "Asset Classes",
-  "Areas of Focus": "Asset Classes",
-};
-
-const FINANCE_SECTION_ORDER = [
-  "Performance & Benchmarking",
-  "Execution & Risk Controls",
-  "Options / Derivatives",
-  "Data & Backtesting Integrity",
-  "Technical Signals",
-  "Trading Strategies",
-  "Asset Classes",
-];
-
-const FINANCE_SECTION_HEADERS: Record<string, [string, string]> = {
-  "Technical Signals": ["Concept", "Description"],
-  "Trading Strategies": ["Strategy", "Description"],
-  "Asset Classes": ["Asset Class", "Notes"],
-};
-
-const UI_TERM_LABELS: Record<string, string> = {
-  DTE: "DTE (Days to Expiration)",
-};
-
-const TRADING_STRATEGIES_EVAL_LIST = `      <p class="ref-subsection-label">Evaluation Framework</p>
-      <ul class="ref-eval-list">
-        <li>Universe and timeframe</li>
-        <li>Signal definition</li>
-        <li>Entry / exit rules</li>
-        <li>Position sizing</li>
-        <li>Transaction cost and slippage assumptions</li>
-        <li>Risk limits</li>
-        <li>Validation method (walk-forward, out-of-sample)</li>
-        <li>Metrics: Sharpe ratio, max drawdown, turnover, hit rate</li>
-      </ul>`;
-
-function buildFinanceSection(title: string, terms: FinanceTerm[]): string {
-  const [col1, col2] = FINANCE_SECTION_HEADERS[title] ?? ["Term", "Definition"];
-  const rows = terms
-    .map((t) => {
-      const label = esc(UI_TERM_LABELS[t.term] ?? t.term);
-      const def = esc(t.definition);
-      return `          <tr><td>${label}</td><td>${def}</td></tr>`;
-    })
-    .join("\n");
-
-  const extra = title === "Trading Strategies" ? `\n${TRADING_STRATEGIES_EVAL_LIST}` : "";
-
-  return `    <div class="ref-section">
-      <h3>${esc(title)}</h3>
-      <table class="ref-table ref-table--software">
-        <thead><tr><th>${esc(col1)}</th><th>${esc(col2)}</th></tr></thead>
-        <tbody>
-${rows}
-        </tbody>
-      </table>${extra}
-    </div>`;
-}
-
-function buildFinanceCard(): string {
-  const terms = (financeData.terms as FinanceTerm[]).filter(
-    (t) => t.use === "both" || t.use === "ui",
-  );
-
-  const bySection: Record<string, FinanceTerm[]> = {};
-  for (const term of terms) {
-    const section = FINANCE_UI_SECTION_MAP[term.group];
-    if (!section) continue;
-    (bySection[section] ??= []).push(term);
-  }
-
-  const sections = FINANCE_SECTION_ORDER.filter((s) => bySection[s]?.length)
-    .map((s) => buildFinanceSection(s, bySection[s]))
-    .join("\n\n");
-
-  return `  <section class="card ref-card">
-    <div class="ref-card-head">
-      <h2>Financial &amp; Market Knowledge</h2>
-      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">⊞</button>
-    </div>
-
-${sections}
-  </section>`;
-}
-
-// ---------------------------------------------------------------------------
-// Software card
-// ---------------------------------------------------------------------------
-
-const SOFTWARE_PACKAGE_GROUP_ORDER = [
-  "Data & Market Access",
-  "Analysis & Modeling",
-  "Visualization",
-  "Backend & Validation",
-  "Developer Tooling",
-];
-
-function buildPackagesSection(packages: SoftwarePackage[]): string {
-  const grouped: Record<string, SoftwarePackage[]> = {};
-  for (const pkg of packages) {
-    (grouped[pkg.group] ??= []).push(pkg);
-  }
-
-  const orderedGroups = [
-    ...SOFTWARE_PACKAGE_GROUP_ORDER.filter((g) => grouped[g]),
-    ...Object.keys(grouped)
-      .filter((g) => !SOFTWARE_PACKAGE_GROUP_ORDER.includes(g))
-      .sort(),
-  ];
-
-  const parts = orderedGroups.map((group) => {
-    const rows = grouped[group]
-      .map((p) => `          <tr><td>${esc(p.name)}</td><td>${esc(p.purpose)}</td></tr>`)
-      .join("\n");
-    return `      <p class="ref-subsection-label">${esc(group)}</p>
-      <table class="ref-table ref-table--software">
-        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
-        <tbody>
-${rows}
-        </tbody>
-      </table>`;
-  });
-
-  return `    <div class="ref-section">
-      <h3>Key Python Packages</h3>
-${parts.join("\n\n")}
-    </div>`;
-}
-
-function buildSoftwareCard(): string {
-  const projects = softwareData.projects as SoftwareProject[];
-  const langs = softwareData.languages_frameworks as SoftwareLang[];
-  const packages = softwareData.packages as SoftwarePackage[];
-
-  const projectRows = projects
-    .map((p) => `          <tr><td>${esc(p.name)}</td><td>${esc(p.description)}</td></tr>`)
-    .join("\n");
-
-  const langRows = langs
-    .map((l) => `          <tr><td>${esc(l.name)}</td><td>${esc(l.usage)}</td></tr>`)
-    .join("\n");
-
-  return `  <section class="card ref-card">
-    <div class="ref-card-head">
-      <h2>Software</h2>
-      <button type="button" class="ref-card-toggle-all" data-ref-card-toggle-all aria-label="Expand all" data-tooltip="Expand all">⊞</button>
-    </div>
-
-    <div class="ref-section">
-      <h3>Projects in This Repository</h3>
-      <table class="ref-table ref-table--software">
-        <thead><tr><th>Project</th><th>Description</th></tr></thead>
-        <tbody>
-${projectRows}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="ref-section">
-      <h3>Languages and Frameworks</h3>
-      <table class="ref-table ref-table--software">
-        <thead><tr><th>Language / Framework</th><th>Usage</th></tr></thead>
-        <tbody>
-${langRows}
-        </tbody>
-      </table>
-    </div>
-
-${buildPackagesSection(packages)}
-  </section>`;
-}
-
-// ---------------------------------------------------------------------------
-// API card
-// ---------------------------------------------------------------------------
+import apiData from "../../assets/api.json";
+import { esc } from "./shared";
+import type { ApiBasic, ApiEndpoint } from "./types";
 
 const API_GROUP_ORDER = [
   "Accounts & Snapshots Endpoints",
@@ -249,7 +11,6 @@ const API_GROUP_ORDER = [
   "Backtesting Endpoints",
 ];
 
-// Static content: request body model tables (not yet extracted to JSON).
 const ACCOUNTS_REQUEST_BODY_CONTENT = `
       <p class="ref-subsection-label">PATCH /api/accounts/{account_name}/params (AccountParamsRequest)</p>
       <p class="muted">
@@ -397,9 +158,9 @@ const BACKTEST_REQUEST_BODY_SECTION = `    <div class="ref-section">
 
 function buildApiSection(title: string, endpoints: ApiEndpoint[], extra: string): string {
   const rows = endpoints
-    .map((e) => {
-      const methodPath = esc(`${e.method} ${e.path}`);
-      const desc = esc(e.description);
+    .map((endpoint) => {
+      const methodPath = esc(`${endpoint.method} ${endpoint.path}`);
+      const desc = esc(endpoint.description);
       return `          <tr><td>${methodPath}</td><td>${desc}</td></tr>`;
     })
     .join("\n");
@@ -415,26 +176,26 @@ ${rows}
     </div>`;
 }
 
-function buildApiCard(): string {
+export function buildApiCard(): string {
   const basics = (apiData.api_basics as ApiBasic[])
-    .map((b) => `          <tr><td>${esc(b.item)}</td><td>${esc(b.details)}</td></tr>`)
+    .map((basic) => `          <tr><td>${esc(basic.item)}</td><td>${esc(basic.details)}</td></tr>`)
     .join("\n");
 
   const endpoints = apiData.endpoints as ApiEndpoint[];
 
   const grouped: Record<string, ApiEndpoint[]> = {};
-  for (const ep of endpoints) {
-    if (!ep.group) continue;
-    (grouped[ep.group] ??= []).push(ep);
+  for (const endpoint of endpoints) {
+    if (!endpoint.group) continue;
+    (grouped[endpoint.group] ??= []).push(endpoint);
   }
   for (const group of Object.keys(grouped)) {
     grouped[group].sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
   }
 
   const orderedGroups = [
-    ...API_GROUP_ORDER.filter((g) => grouped[g]),
+    ...API_GROUP_ORDER.filter((group) => grouped[group]),
     ...Object.keys(grouped)
-      .filter((g) => !API_GROUP_ORDER.includes(g))
+      .filter((group) => !API_GROUP_ORDER.includes(group))
       .sort(),
   ];
 
@@ -473,18 +234,4 @@ ${endpointSections}
 
 ${BACKTEST_REQUEST_BODY_SECTION}
   </section>`;
-}
-
-// ---------------------------------------------------------------------------
-// Public entry point
-// ---------------------------------------------------------------------------
-
-export function buildDocsTemplate(): string {
-  return `<div id="tab-docs" class="tab-panel layout" hidden>
-${buildFinanceCard()}
-
-${buildSoftwareCard()}
-
-${buildApiCard()}
-</div>`;
 }

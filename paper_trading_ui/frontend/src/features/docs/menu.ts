@@ -1,158 +1,8 @@
-import { find, findAll } from "../lib/dom";
-
-const EXPAND_ALL_ICON = "⊞";
-const COLLAPSE_ALL_ICON = "⊟";
-
-type DocsSectionLink = {
-  groupLabel: string;
-  sectionId: string;
-  sectionTitle: string;
-};
-
-type DocsSectionButtonIndex = Map<string, HTMLButtonElement[]>;
-
-type DocsSectionElementLink = DocsSectionLink & {
-  element: HTMLElement;
-};
-
-const DOCS_GROUP_LABEL_OVERRIDES: Record<string, string> = {
-  "Financial & Market Knowledge": "Financial & Markets",
-  "RESTful API Reference": "API Reference",
-};
-
-function getDocsGroupDisplayLabel(groupLabel: string): string {
-  return DOCS_GROUP_LABEL_OVERRIDES[groupLabel] ?? groupLabel;
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function setDocsSectionExpanded(section: HTMLElement, expanded: boolean): void {
-  const button = section.querySelector<HTMLButtonElement>(":scope > h3 .ref-section-toggle");
-  const body = section.querySelector<HTMLElement>(":scope > .ref-section-body");
-
-  section.classList.toggle("expanded", expanded);
-  button?.setAttribute("aria-expanded", String(expanded));
-  if (button) {
-    if (!expanded) {
-      button.setAttribute("title", "click to expand");
-    } else {
-      button.removeAttribute("title");
-    }
-  }
-  if (body) {
-    body.hidden = !expanded;
-  }
-}
-
-function expandDocsSection(sectionId: string): void {
-  const section = document.getElementById(sectionId);
-  const card = section?.closest<HTMLElement>(".ref-card");
-  if (!section || !card) {
-    return;
-  }
-
-  const siblingSections = Array.from(card.querySelectorAll<HTMLElement>(":scope .ref-section"));
-  siblingSections.forEach((sibling) => {
-    setDocsSectionExpanded(sibling, sibling === section);
-  });
-}
-
-function scrollToDocsSection(sectionId: string, openTab: (target: string) => void): void {
-  openTab("docs");
-  expandDocsSection(sectionId);
-  requestAnimationFrame(() => {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-}
-
-function initDocsAccordion(): void {
-  const cards = Array.from(document.querySelectorAll<HTMLElement>("#tab-docs .ref-card"));
-
-  cards.forEach((card) => {
-    const cardToggleAllBtn = card.querySelector<HTMLButtonElement>("[data-ref-card-toggle-all]");
-    const sections = Array.from(card.querySelectorAll<HTMLElement>(":scope > .ref-section"));
-
-    const updateCardToggleAllButton = () => {
-      if (!cardToggleAllBtn) {
-        return;
-      }
-
-      const allExpanded = sections.length > 0 && sections.every((section) => section.classList.contains("expanded"));
-      const label = allExpanded ? "Collapse all" : "Expand all";
-      cardToggleAllBtn.textContent = allExpanded ? COLLAPSE_ALL_ICON : EXPAND_ALL_ICON;
-      cardToggleAllBtn.setAttribute("aria-label", label);
-      cardToggleAllBtn.setAttribute("data-tooltip", label);
-    };
-
-    sections.forEach((section) => {
-      const heading = section.querySelector<HTMLHeadingElement>(":scope > h3");
-      if (!heading) {
-        return;
-      }
-
-      const sectionTitle = heading.textContent?.trim() ?? "Section";
-      if (!section.id) {
-        section.id = `docs-${slugify(sectionTitle)}`;
-      }
-
-      const body = document.createElement("div");
-      body.className = "ref-section-body";
-      body.id = `${section.id}-content`;
-
-      while (heading.nextSibling) {
-        body.appendChild(heading.nextSibling);
-      }
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "ref-section-toggle";
-      button.textContent = sectionTitle;
-      button.setAttribute("aria-controls", body.id);
-
-      heading.textContent = "";
-      heading.classList.add("ref-section-heading");
-      heading.appendChild(button);
-      section.appendChild(body);
-
-      const setExpanded = (expanded: boolean) => {
-        if (expanded) {
-          sections.forEach((sibling) => {
-            setDocsSectionExpanded(sibling, sibling === section);
-          });
-          updateCardToggleAllButton();
-          return;
-        }
-
-        setDocsSectionExpanded(section, false);
-        updateCardToggleAllButton();
-      };
-
-      button.addEventListener("click", () => {
-        setExpanded(!section.classList.contains("expanded"));
-      });
-
-      setDocsSectionExpanded(section, false);
-    });
-
-    if (cardToggleAllBtn) {
-      cardToggleAllBtn.addEventListener("click", () => {
-        const shouldExpandAll = !sections.every((section) => section.classList.contains("expanded"));
-        sections.forEach((section) => {
-          setDocsSectionExpanded(section, shouldExpandAll);
-        });
-        updateCardToggleAllButton();
-      });
-    }
-
-    updateCardToggleAllButton();
-  });
-}
+import { find, findAll } from "../../lib/dom";
+import { getDocsGroupDisplayLabel } from "./constants";
+import { scrollToDocsSection } from "./accordion";
+import { slugify } from "./helpers";
+import type { DocsSectionButtonIndex, DocsSectionElementLink, DocsSectionLink } from "./types";
 
 function collectDocsSections(): DocsSectionLink[] {
   const sectionHeadings = Array.from(
@@ -308,7 +158,7 @@ function setActiveDocsSection(buttonsBySection: DocsSectionButtonIndex, activeSe
   });
 }
 
-function initDocsMenu(openTab: (target: string) => void): void {
+export function initDocsMenu(openTab: (target: string) => void): void {
   const docsNavItem = find<HTMLElement>("#docsNavItem");
   const docsTabBtn = find<HTMLButtonElement>("#docsTabBtn");
   const docsSectionMenu = find<HTMLElement>("#docsSectionMenu");
@@ -425,9 +275,4 @@ function initDocsMenu(openTab: (target: string) => void): void {
 
   window.addEventListener("scroll", updateActiveSection, { passive: true });
   window.addEventListener("resize", updateActiveSection);
-}
-
-export function initDocsFeature(openTab: (target: string) => void): void {
-  initDocsAccordion();
-  initDocsMenu(openTab);
 }
