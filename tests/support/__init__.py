@@ -1,4 +1,5 @@
 from tests.support.account_records import make_account_record
+from tests.support.accounts import make_accounts_service_row
 from tests.support.analysis import (
     make_analysis_account,
     patch_analysis_market_data,
@@ -72,6 +73,7 @@ __all__ = [
     "MARKET_OPEN_TIME_ISO",
     "RuntimeScenario",
     "CliFakeConn",
+    "make_accounts_service_row",
     "make_analysis_account",
     "insert_account_snapshot",
     "insert_backtest_run",
