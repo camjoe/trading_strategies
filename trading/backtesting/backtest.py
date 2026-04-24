@@ -16,10 +16,6 @@ from trading.backtesting.models import (
 from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
-from trading.backtesting.domain.simulation_math import (
-    update_on_buy,
-    update_on_sell,
-)
 from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
 from trading.backtesting.repositories.backtest_repository import (
@@ -168,8 +164,6 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         fetch_close_history_fn=fetch_close_history,
         fetch_benchmark_close_fn=fetch_benchmark_close,
         insert_run_fn=_insert_run,
-        update_on_buy_fn=update_on_buy,
-        update_on_sell_fn=update_on_sell,
         insert_trade_fn=_insert_trade,
         insert_snapshot_fn=_insert_snapshot,
         choose_buy_qty_fn=choose_buy_qty,

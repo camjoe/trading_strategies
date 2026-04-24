@@ -37,8 +37,6 @@ def test_execution_service_rejects_short_history() -> None:
             fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_index),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0]),
             insert_run_fn=lambda *_args, **_kwargs: 1,
-            update_on_buy_fn=lambda *_args, **_kwargs: 0.0,
-            update_on_sell_fn=lambda *_args, **_kwargs: (0.0, 0.0),
             insert_trade_fn=lambda *_args, **_kwargs: None,
             insert_snapshot_fn=lambda *_args, **_kwargs: None,
         )
@@ -74,8 +72,6 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
             ),
             fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 101.0, 102.0], index=idx),
             insert_run_fn=lambda *_args, **_kwargs: 77,
-            update_on_buy_fn=lambda *_args, **_kwargs: 0.0,
-            update_on_sell_fn=lambda *_args, **_kwargs: (0.0, 0.0),
             insert_trade_fn=lambda *_args, **_kwargs: None,
             insert_snapshot_fn=lambda *_args, **_kwargs: None,
         )

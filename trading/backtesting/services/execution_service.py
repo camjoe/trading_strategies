@@ -12,6 +12,8 @@ from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdow
 from trading.backtesting.domain.simulation_math import (
     compute_market_value,
     compute_unrealized_pnl,
+    update_on_buy,
+    update_on_sell,
 )
 from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
@@ -43,8 +45,6 @@ def run_backtest(
     fetch_close_history_fn: Callable[..., object],
     fetch_benchmark_close_fn: Callable[..., object],
     insert_run_fn: Callable[..., int],
-    update_on_buy_fn,
-    update_on_sell_fn,
     insert_trade_fn,
     insert_snapshot_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
@@ -152,7 +152,7 @@ def run_backtest(
                 if required > cash:
                     continue
 
-                cash = update_on_buy_fn(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
+                cash = update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
                 trade_count += 1
                 insert_trade_fn(
                     conn,
@@ -186,7 +186,7 @@ def run_backtest(
                 if qty_float <= 0:
                     continue
 
-                cash, realized_pnl = update_on_sell_fn(
+                cash, realized_pnl = update_on_sell(
                     ticker,
                     qty_float,
                     exec_px,
