@@ -10,6 +10,7 @@ DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_tradin
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"
+DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
 
 
 def load_runtime_job(module_name: str):
@@ -32,10 +33,15 @@ def load_manage_job_schedules():
     return load_runtime_job(MANAGE_JOB_SCHEDULES_MODULE)
 
 
+def load_daily_snapshot():
+    return load_runtime_job(DAILY_SNAPSHOT_MODULE)
+
+
 daily_paper_trading = load_daily_paper_trading()
 daily_backtest_refresh = load_daily_backtest_refresh()
 check_daily_trader_health = load_check_daily_trader_health()
 manage_job_schedules = load_manage_job_schedules()
+daily_snapshot = load_daily_snapshot()
 
 
 def make_daily_backtest_refresh_args(**overrides):
@@ -87,6 +93,19 @@ def make_manage_job_schedules_args(**overrides):
     return SimpleNamespace(**defaults)
 
 
+def make_daily_snapshot_args(**overrides):
+    defaults = {
+        "accounts": "all",
+        "force_run": False,
+        "run_source": "test-run",
+        "enable_run": True,
+        "max_attempts": 2,
+        "backoff_seconds": 0.0,
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
 def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: list[str]) -> int:
     monkeypatch.setattr(
         sys,
@@ -99,19 +118,23 @@ def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: li
 
 __all__ = [
     "CHECK_DAILY_TRADER_HEALTH_MODULE",
+    "DAILY_SNAPSHOT_MODULE",
     "MANAGE_JOB_SCHEDULES_MODULE",
     "DAILY_BACKTEST_REFRESH_MODULE",
     "DAILY_PAPER_TRADING_MODULE",
     "check_daily_trader_health",
+    "daily_snapshot",
     "manage_job_schedules",
     "daily_backtest_refresh",
     "daily_paper_trading",
     "load_check_daily_trader_health",
+    "load_daily_snapshot",
     "load_manage_job_schedules",
     "load_daily_backtest_refresh",
     "load_daily_paper_trading",
     "load_runtime_job",
     "make_daily_backtest_refresh_args",
+    "make_daily_snapshot_args",
     "make_manage_job_schedules_args",
     "run_runtime_job_main",
 ]
