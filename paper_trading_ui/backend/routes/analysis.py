@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from ..services import db_conn, fetch_resolved_account_row
+from ..services.db import db_conn
+from ..services.test_account import fetch_resolved_account_row
 from trading.services.analysis import fetch_account_analysis
 
 router = APIRouter()

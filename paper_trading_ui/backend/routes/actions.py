@@ -5,7 +5,8 @@ from fastapi import APIRouter
 from trading.services.reporting import snapshot_account
 
 from ..config import TEST_ACCOUNT_NAME
-from ..services import db_conn, require_account_row
+from ..services.accounts.data_access import require_account_row
+from ..services.db import db_conn
 from trading.services.accounts import list_account_names
 
 router = APIRouter()

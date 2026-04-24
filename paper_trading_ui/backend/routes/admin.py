@@ -4,18 +4,17 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ..account_contract import build_admin_create_account_command
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
-from ..services import (
-    attach_live_benchmark_summary,
-    build_account_summary,
-    build_promotion_overview,
+from ..services.accounts.benchmark import attach_live_benchmark_summary
+from ..services.accounts.data_access import require_account_row
+from ..services.accounts.summaries import build_account_summary
+from ..services.admin import (
     create_account_with_rotation,
-    db_conn,
     delete_account_and_dependents,
-    list_csv_exports,
-    list_operations_overview,
-    preview_csv_export,
-    require_account_row,
 )
+from ..services.db import db_conn
+from ..services.exports import list_csv_exports, preview_csv_export
+from ..services.operations import list_operations_overview
+from ..services.promotion import build_promotion_overview
 from ..config import TEST_ACCOUNT_NAME
 
 router = APIRouter()

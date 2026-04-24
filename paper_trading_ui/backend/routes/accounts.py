@@ -9,24 +9,29 @@ from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
 from ..config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_DISPLAY_NAME
 from ..schemas import AccountParamsRequest
-from ..services import (
+from ..services.accounts.backtests import (
+    fetch_latest_backtest_metrics,
+    fetch_latest_backtest_summary,
+)
+from ..services.accounts.benchmark import (
     attach_live_benchmark_summary,
+    build_live_benchmark_overlay,
+)
+from ..services.accounts.data_access import (
+    build_snapshot_payload,
+    build_trade_payload,
+    fetch_visible_account_rows,
+    require_account_row,
+)
+from ..services.accounts.mutations import update_account_params
+from ..services.accounts.summaries import (
     build_account_list_payload,
     build_account_summary,
     build_account_summary_and_positions,
     build_comparison_account_payload,
-    build_live_benchmark_overlay,
-    db_conn,
-    fetch_latest_backtest_metrics,
-    fetch_latest_backtest_summary,
-    require_account_row,
-    fetch_visible_account_rows,
-    fetch_resolved_account_row,
-    build_snapshot_payload,
-    build_test_account_live_summary,
-    build_trade_payload,
-    update_account_params,
 )
+from ..services.db import db_conn
+from ..services.test_account import build_test_account_live_summary, fetch_resolved_account_row
 
 router = APIRouter()
 
