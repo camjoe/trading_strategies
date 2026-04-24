@@ -11,6 +11,7 @@ DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"
 DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
+RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.run_auto_trades"
 
 
 def load_runtime_job(module_name: str):
@@ -37,11 +38,16 @@ def load_daily_snapshot():
     return load_runtime_job(DAILY_SNAPSHOT_MODULE)
 
 
+def load_run_auto_trades():
+    return load_runtime_job(RUN_AUTO_TRADES_MODULE)
+
+
 daily_paper_trading = load_daily_paper_trading()
 daily_backtest_refresh = load_daily_backtest_refresh()
 check_daily_trader_health = load_check_daily_trader_health()
 manage_job_schedules = load_manage_job_schedules()
 daily_snapshot = load_daily_snapshot()
+run_auto_trades = load_run_auto_trades()
 
 
 def make_daily_backtest_refresh_args(**overrides):
@@ -106,6 +112,19 @@ def make_daily_snapshot_args(**overrides):
     return SimpleNamespace(**defaults)
 
 
+def make_run_auto_trades_args(**overrides):
+    defaults = {
+        "min_trades": 1,
+        "max_trades": 1,
+        "seed": None,
+        "accounts": "acct1",
+        "tickers_file": "trading/config/trade_universe.txt",
+        "fee": 0.0,
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
 def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: list[str]) -> int:
     monkeypatch.setattr(
         sys,
@@ -122,19 +141,23 @@ __all__ = [
     "MANAGE_JOB_SCHEDULES_MODULE",
     "DAILY_BACKTEST_REFRESH_MODULE",
     "DAILY_PAPER_TRADING_MODULE",
+    "RUN_AUTO_TRADES_MODULE",
     "check_daily_trader_health",
     "daily_snapshot",
     "manage_job_schedules",
     "daily_backtest_refresh",
     "daily_paper_trading",
+    "run_auto_trades",
     "load_check_daily_trader_health",
     "load_daily_snapshot",
     "load_manage_job_schedules",
     "load_daily_backtest_refresh",
     "load_daily_paper_trading",
+    "load_run_auto_trades",
     "load_runtime_job",
     "make_daily_backtest_refresh_args",
     "make_daily_snapshot_args",
     "make_manage_job_schedules_args",
+    "make_run_auto_trades_args",
     "run_runtime_job_main",
 ]
