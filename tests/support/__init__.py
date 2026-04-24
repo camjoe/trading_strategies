@@ -25,6 +25,7 @@ from tests.support.auto_trading import (
     make_feature_fetcher,
 )
 from tests.support.reporting import insert_snapshot, insert_trade, make_evaluation_artifact
+from tests.support.repositories import insert_repository_account
 from tests.support.evaluation import (
     insert_account_snapshot,
     insert_backtest_run,
@@ -112,6 +113,7 @@ __all__ = [
     "record_analysis_buy",
     "insert_snapshot",
     "insert_trade",
+    "insert_repository_account",
     "CHECK_DAILY_TRADER_HEALTH_MODULE",
     "DAILY_SNAPSHOT_MODULE",
     "MANAGE_JOB_SCHEDULES_MODULE",
