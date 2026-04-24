@@ -1,4 +1,5 @@
 from tests.support.account_records import make_account_record
+from tests.support.admin import seed_admin_dataset
 from tests.support.accounts import make_accounts_service_row
 from tests.support.analysis import (
     make_analysis_account,
@@ -78,6 +79,7 @@ __all__ = [
     "make_analysis_account",
     "make_broker_account",
     "make_broker_order",
+    "seed_admin_dataset",
     "insert_account_snapshot",
     "insert_backtest_run",
     "insert_backtest_snapshot",
