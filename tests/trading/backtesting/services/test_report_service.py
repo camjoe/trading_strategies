@@ -5,7 +5,7 @@ import pytest
 
 from trading.services.accounts import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
-from trading.backtesting.services.report_service import fetch_backtest_report_data
+import trading.backtesting.services.report_service as report_service
 from trading.backtesting.report_models import BacktestFullReport
 
 
@@ -51,11 +51,13 @@ def test_report_service_contract_builds_typed_model(conn, monkeypatch: pytest.Mo
 
     result = run_backtest(conn, _backtest_config("acct_report_service"))
 
-    report = fetch_backtest_report_data(
-        conn,
-        run_id=result.run_id,
-        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0, 102.0]),
+    monkeypatch.setattr(
+        report_service,
+        "fetch_benchmark_close",
+        lambda _ticker, _start, _end: pd.Series([100.0, 102.0]),
     )
+
+    report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
 
     assert isinstance(report, BacktestFullReport)
     assert report.summary.run_id == result.run_id
@@ -81,11 +83,13 @@ def test_report_service_contract_handles_benchmark_fetch_error(conn, monkeypatch
 
     result = run_backtest(conn, _backtest_config("acct_report_error"))
 
-    report = fetch_backtest_report_data(
-        conn,
-        run_id=result.run_id,
-        fetch_benchmark_close_fn=lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")),
+    monkeypatch.setattr(
+        report_service,
+        "fetch_benchmark_close",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")),
     )
+
+    report = report_service.fetch_backtest_report_data(conn, run_id=result.run_id)
 
     assert report.benchmark_return_pct is None
     assert report.alpha_pct is None

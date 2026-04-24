@@ -17,13 +17,11 @@ Re-exports:
 from __future__ import annotations
 
 from datetime import date
-from typing import Callable
-
-import pandas as pd
 
 # Re-exported so callers never reach into trading.backtesting.domain directly.
 from trading.backtesting.domain.strategy_signals import resolve_signal  # noqa: F401
 
+from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
     max_drawdown_pct,
@@ -45,14 +43,11 @@ from trading.backtesting.report_models import (
     BacktestReportTrade,
 )
 
-BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]
-
 
 def fetch_backtest_report_data(
     conn,
     *,
     run_id: int,
-    fetch_benchmark_close_fn: BenchmarkFetcher,
 ) -> BacktestFullReport:
     run = fetch_backtest_report_run(conn, run_id)
     if run is None:
@@ -125,7 +120,7 @@ def fetch_backtest_report_data(
     benchmark_ret: float | None = None
     alpha_pct: float | None = None
     try:
-        benchmark_series = fetch_benchmark_close_fn(
+        benchmark_series = fetch_benchmark_close(
             row_expect_str(run, "benchmark_ticker"),
             date.fromisoformat(row_expect_str(run, "start_date")),
             date.fromisoformat(row_expect_str(run, "end_date")),

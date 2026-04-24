@@ -171,7 +171,7 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
 
 
 def backtest_report_full(conn: sqlite3.Connection, run_id: int) -> BacktestFullReport:
-    return fetch_backtest_report_data(conn, run_id=run_id, fetch_benchmark_close_fn=fetch_benchmark_close)
+    return fetch_backtest_report_data(conn, run_id=run_id)
 
 
 def backtest_report(conn: sqlite3.Connection, run_id: int) -> dict[str, object]:
@@ -264,7 +264,6 @@ def _fetch_backtest_leaderboard_entries(
         limit=limit,
         account_name=account_name,
         strategy=strategy,
-        fetch_benchmark_close_fn=fetch_benchmark_close,
     )
 
 
