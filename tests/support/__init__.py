@@ -10,6 +10,7 @@ from tests.support.auto_trading import (
     make_feature_fetcher,
 )
 from tests.support.reporting import insert_snapshot, insert_trade, make_evaluation_artifact
+from tests.support.promotion import make_observing_assessment, make_ready_evaluation
 from tests.support.cli_main import (
     FakeConn as CliFakeConn,
     FakeParser,
@@ -59,6 +60,8 @@ __all__ = [
     "MARKET_OPEN_TIME_ISO",
     "RuntimeScenario",
     "CliFakeConn",
+    "make_observing_assessment",
+    "make_ready_evaluation",
     "make_backtest_args",
     "make_backtest_batch_args",
     "make_backtest_leaderboard_args",
