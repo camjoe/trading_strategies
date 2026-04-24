@@ -10,12 +10,22 @@ from tests.support.auto_trading import (
     make_feature_fetcher,
 )
 from tests.support.reporting import insert_snapshot, insert_trade, make_evaluation_artifact
+from tests.support.cli_main import (
+    FakeConn as CliFakeConn,
+    FakeParser,
+    configure_account_args,
+    install_main_harness,
+)
 
 __all__ = [
     "FakeBroker",
+    "FakeParser",
     "MARKET_CLOSED_TIME_ISO",
     "MARKET_OPEN_TIME_ISO",
     "RuntimeScenario",
+    "CliFakeConn",
+    "configure_account_args",
+    "install_main_harness",
     "insert_snapshot",
     "insert_trade",
     "make_account_record",
