@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Callable
+
+from common.tickers import load_tickers_from_file
+from trading.services.pricing import fetch_latest_prices
+from trading.services.auto_trading.market import build_iv_rank_proxy
 
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
@@ -20,23 +23,23 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
     return accounts
 
 
-def resolve_market_inputs(
-    tickers_file: str,
-    *,
-    load_tickers_from_file_fn: Callable[[str], list[str]],
-    fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
-    build_iv_rank_proxy_fn: Callable[[list[str]], dict[str, float]],
-) -> tuple[list[str], dict[str, float], dict[str, float]]:
-    universe = load_tickers_from_file_fn(tickers_file)
+def resolve_market_inputs(tickers_file: str) -> tuple[list[str], dict[str, float], dict[str, float]]:
+    universe = load_tickers_from_file(tickers_file)
     if not universe:
         raise ValueError("Ticker universe is empty.")
 
-    prices = fetch_latest_prices_fn(universe)
+    prices = fetch_latest_prices(universe)
     if not prices:
         raise ValueError("Could not fetch any prices for ticker universe.")
 
-    iv_rank_proxy = build_iv_rank_proxy_fn(universe)
+    iv_rank_proxy = build_iv_rank_proxy(universe)
     return universe, prices, iv_rank_proxy
+
+
+def _run_account_trade_loop(**kwargs) -> int:
+    from trading.services.auto_trading.runtime import run_for_account
+
+    return run_for_account(**kwargs)
 
 
 def run_accounts(
@@ -49,11 +52,10 @@ def run_accounts(
     min_trades: int,
     max_trades: int,
     fee: float,
-    run_for_account_fn: Callable[..., int],
 ) -> list[tuple[str, int]]:
     results: list[tuple[str, int]] = []
     for account_name in account_names:
-        executed = run_for_account_fn(
+        executed = _run_account_trade_loop(
             conn=conn,
             account_name=account_name,
             universe=universe,

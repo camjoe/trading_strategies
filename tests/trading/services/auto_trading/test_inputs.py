@@ -4,9 +4,11 @@ import pandas as pd
 import pytest
 
 import trading.services.auto_trading as auto_trading_service
+import trading.services.auto_trading.inputs as auto_trading_inputs
+import trading.services.auto_trading.market as auto_trading_market
 
 
-def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
+def test_build_iv_rank_proxy_handles_empty_and_single(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_fetch_close_series(ticker: str, period: str):
         assert period == "1y"
         if ticker == "EMPTY":
@@ -15,8 +17,14 @@ def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
             return pd.Series(range(1, 50), dtype=float)
         return None
 
-    assert auto_trading_service.build_iv_rank_proxy(["EMPTY"], fetch_close_series_fn=fake_fetch_close_series) == {}
-    assert auto_trading_service.build_iv_rank_proxy(["ONE"], fetch_close_series_fn=fake_fetch_close_series) == {"ONE": 50.0}
+    monkeypatch.setattr(
+        auto_trading_market,
+        "get_provider",
+        lambda: SimpleNamespace(fetch_close_series=fake_fetch_close_series),
+    )
+
+    assert auto_trading_service.build_iv_rank_proxy(["EMPTY"]) == {}
+    assert auto_trading_service.build_iv_rank_proxy(["ONE"]) == {"ONE": 50.0}
 
 
 def test_validate_trade_count_range_and_account_names() -> None:
@@ -30,17 +38,21 @@ def test_validate_trade_count_range_and_account_names() -> None:
         auto_trading_service.resolve_account_names(" , ")
 
 
-def test_resolve_market_inputs_and_run_accounts() -> None:
-    universe, prices, iv_rank = auto_trading_service.resolve_market_inputs(
-        "tickers.txt",
-        load_tickers_from_file_fn=lambda _path: ["AAPL"],
-        fetch_latest_prices_fn=lambda _universe: {"AAPL": 101.0},
-        build_iv_rank_proxy_fn=lambda _universe: {"AAPL": 50.0},
-    )
+def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe: {"AAPL": 101.0})
+    monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe: {"AAPL": 50.0})
+
+    universe, prices, iv_rank = auto_trading_service.resolve_market_inputs("tickers.txt")
     assert universe == ["AAPL"]
     assert prices == {"AAPL": 101.0}
     assert iv_rank == {"AAPL": 50.0}
 
+    monkeypatch.setattr(
+        auto_trading_inputs,
+        "_run_account_trade_loop",
+        lambda **kwargs: 2 if kwargs["account_name"] == "acct1" else 1,
+    )
     results = auto_trading_service.run_accounts(
         conn=object(),
         account_names=["acct1", "acct2"],
@@ -50,7 +62,6 @@ def test_resolve_market_inputs_and_run_accounts() -> None:
         min_trades=1,
         max_trades=2,
         fee=0.0,
-        run_for_account_fn=lambda **kwargs: 2 if kwargs["account_name"] == "acct1" else 1,
     )
     assert results == [("acct1", 2), ("acct2", 1)]
 
