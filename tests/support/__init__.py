@@ -1,4 +1,9 @@
 from tests.support.account_records import make_account_record
+from tests.support.analysis import (
+    make_analysis_account,
+    patch_analysis_market_data,
+    record_analysis_buy,
+)
 from tests.support.auto_trading import (
     FakeBroker,
     MARKET_CLOSED_TIME_ISO,
@@ -67,6 +72,7 @@ __all__ = [
     "MARKET_OPEN_TIME_ISO",
     "RuntimeScenario",
     "CliFakeConn",
+    "make_analysis_account",
     "insert_account_snapshot",
     "insert_backtest_run",
     "insert_backtest_snapshot",
@@ -83,6 +89,8 @@ __all__ = [
     "make_walk_forward_summary",
     "configure_account_args",
     "install_main_harness",
+    "patch_analysis_market_data",
+    "record_analysis_buy",
     "insert_snapshot",
     "insert_trade",
     "CHECK_DAILY_TRADER_HEALTH_MODULE",
