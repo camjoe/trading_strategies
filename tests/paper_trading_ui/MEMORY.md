@@ -1,12 +1,12 @@
 # UI Backend Test Debug Memory
 
-This note records the regression-sweep investigation around
-`tests/paper_trading_ui/test_ui_backend.py`.
+This note records the regression-sweep investigation around direct backend route
+tests now located under `tests/paper_trading_ui/backend/route_functions/`.
 
 ## What Failed
 
-During the broader regression sweep, the `tests/paper_trading_ui/test_ui_backend.py`
-file appeared to hang instead of failing fast.
+During the broader regression sweep, the HTTP-style UI backend tests appeared to
+hang instead of failing fast.
 
 The passing neighbor file
 `tests/paper_trading_ui/backend/test_account_contract.py` was useful as a contrast:
@@ -32,7 +32,7 @@ The key checks were:
 
 ## What We Learned
 
-The hang is not just one broken route in `test_ui_backend.py`.
+The hang is not just one broken route test.
 
 The evidence points to a framework/runtime issue in this environment around the
 sync FastAPI route-dispatch path used by the backend app:
@@ -47,10 +47,11 @@ assumption through the whole `tests/paper_trading_ui/` area.
 
 ## Important Current State
 
-There is currently a work-in-progress experiment in:
+There was previously a work-in-progress experiment in:
 
 - `tests/paper_trading_ui/conftest.py`
-- `tests/paper_trading_ui/test_ui_backend.py`
+- a top-level `tests/paper_trading_ui/test_ui_backend.py` file (now split into
+  `tests/paper_trading_ui/backend/route_functions/`)
 
 That experiment replaces `TestClient` with a small sync wrapper over
 `httpx.AsyncClient` and `ASGITransport`.
@@ -65,7 +66,8 @@ Do not keep pushing the fixture abstraction yet.
 Instead:
 
 1. revert the `api_client` experiment unless it becomes necessary again
-2. treat `tests/paper_trading_ui/test_ui_backend.py` as a narrow test-design cleanup
+2. keep direct route-function tests as a narrow test-design cleanup under
+   `tests/paper_trading_ui/backend/route_functions/`
 3. rewrite that file to call the route functions directly, because those tests mostly
    assert returned payload dicts and one expected `HTTPException`
 
