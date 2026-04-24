@@ -15,8 +15,8 @@ ROTATION_REGIME_STATES = {"risk_on", "neutral", "risk_off"}
 ROTATION_OVERLAY_MODES = {"none", "news", "social", "news_social"}
 
 
-def _value(account: Mapping[str, object], key: str) -> object | None:
-    """Safely get a value from an account mapping, handling both dict and row objects."""
+def _account_field(account: Mapping[str, object], key: str) -> object | None:
+    """Safely read an account field from either dict-like rows or mappings."""
     if hasattr(account, "get"):
         return account.get(key)
     try:
@@ -25,34 +25,18 @@ def _value(account: Mapping[str, object], key: str) -> object | None:
         return None
 
 
-def _as_int(value: object | None, default: int = 0) -> int:
+def _account_text(account: Mapping[str, object], key: str) -> str:
+    return str(_account_field(account, key) or "").strip()
+
+
+def _coerce_default_int(value: object | None, default: int = 0) -> int:
     converted = coerce_int(value)
     return default if converted is None else converted
 
 
-def resolve_rotation_mode(account: Mapping[str, object]) -> str:
-    mode_raw = _value(account, "rotation_mode")
-    mode = str(mode_raw or "time").strip().lower()
-    return mode if mode in ROTATION_MODES else "time"
-
-
-def resolve_optimality_mode(account: Mapping[str, object]) -> str:
-    mode_raw = _value(account, "rotation_optimality_mode")
-    mode = str(mode_raw or "previous_period_best").strip().lower()
-    return mode if mode in OPTIMALITY_MODES else "previous_period_best"
-
-
-def resolve_rotation_regime_strategy(account: Mapping[str, object], regime_state: str) -> str | None:
-    if regime_state not in ROTATION_REGIME_STATES:
-        return None
-    strategy = str(_value(account, f"rotation_regime_strategy_{regime_state}") or "").strip()
-    return strategy or None
-
-
-def resolve_rotation_overlay_mode(account: Mapping[str, object]) -> str:
-    mode_raw = _value(account, "rotation_overlay_mode")
-    mode = str(mode_raw or "none").strip().lower()
-    return mode if mode in ROTATION_OVERLAY_MODES else "none"
+def _normalize_allowed_mode(raw_value: object | None, *, default: str, allowed: set[str]) -> str:
+    mode = str(raw_value or default).strip().lower()
+    return mode if mode in allowed else default
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -106,6 +90,57 @@ def _parse_unique_string_list(
     return items
 
 
+def _rotation_schedule(account: Mapping[str, object]) -> list[str]:
+    return parse_rotation_schedule(_account_field(account, "rotation_schedule"))
+
+
+def _rotation_last_at(account: Mapping[str, object]) -> datetime | None:
+    return _parse_iso(_account_text(account, "rotation_last_at"))
+
+
+def _rotation_interval_seconds(account: Mapping[str, object]) -> int:
+    interval_minutes = _coerce_default_int(_account_field(account, "rotation_interval_minutes"), default=0)
+    if interval_minutes > 0:
+        return interval_minutes * SECONDS_PER_MINUTE
+
+    interval_days = _coerce_default_int(_account_field(account, "rotation_interval_days"), default=0)
+    if interval_days > 0:
+        return interval_days * SECONDS_PER_DAY
+
+    return 0
+
+
+def resolve_rotation_mode(account: Mapping[str, object]) -> str:
+    return _normalize_allowed_mode(
+        _account_field(account, "rotation_mode"),
+        default="time",
+        allowed=ROTATION_MODES,
+    )
+
+
+def resolve_optimality_mode(account: Mapping[str, object]) -> str:
+    return _normalize_allowed_mode(
+        _account_field(account, "rotation_optimality_mode"),
+        default="previous_period_best",
+        allowed=OPTIMALITY_MODES,
+    )
+
+
+def resolve_rotation_regime_strategy(account: Mapping[str, object], regime_state: str) -> str | None:
+    if regime_state not in ROTATION_REGIME_STATES:
+        return None
+    strategy = _account_text(account, f"rotation_regime_strategy_{regime_state}")
+    return strategy or None
+
+
+def resolve_rotation_overlay_mode(account: Mapping[str, object]) -> str:
+    return _normalize_allowed_mode(
+        _account_field(account, "rotation_overlay_mode"),
+        default="none",
+        allowed=ROTATION_OVERLAY_MODES,
+    )
+
+
 def parse_rotation_schedule(raw_value: object | None) -> list[str]:
     return _parse_unique_string_list(
         raw_value,
@@ -132,49 +167,41 @@ def dump_rotation_overlay_watchlist(watchlist: list[str]) -> str:
 
 
 def resolve_rotation_overlay_watchlist(account: Mapping[str, object]) -> list[str]:
-    return parse_rotation_overlay_watchlist(_value(account, "rotation_overlay_watchlist"))
+    return parse_rotation_overlay_watchlist(_account_field(account, "rotation_overlay_watchlist"))
 
 
 def resolve_active_strategy(account: Mapping[str, object]) -> str:
-    fallback = str(_value(account, "strategy") or "").strip()
-    schedule = parse_rotation_schedule(_value(account, "rotation_schedule"))
+    fallback = _account_text(account, "strategy")
+    schedule = _rotation_schedule(account)
     if not schedule:
-        active = str(_value(account, "rotation_active_strategy") or "").strip()
+        active = _account_text(account, "rotation_active_strategy")
         return active or fallback
 
-    active = str(_value(account, "rotation_active_strategy") or "").strip()
+    active = _account_text(account, "rotation_active_strategy")
     if active and active in schedule:
         return active
 
-    idx_raw = _value(account, "rotation_active_index")
-    idx = _as_int(idx_raw, default=0)
+    idx = _coerce_default_int(_account_field(account, "rotation_active_index"), default=0)
     return schedule[idx % len(schedule)]
 
 
 def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
-    enabled_raw = _value(account, "rotation_enabled")
-    enabled = bool(_as_int(enabled_raw, default=0))
-    if not enabled:
+    if not bool(_coerce_default_int(_account_field(account, "rotation_enabled"), default=0)):
         return False
 
-    schedule = parse_rotation_schedule(_value(account, "rotation_schedule"))
+    schedule = _rotation_schedule(account)
     if len(schedule) < 2:
         return False
 
-    interval_minutes = _as_int(_value(account, "rotation_interval_minutes"), default=0)
-    interval_days = _as_int(_value(account, "rotation_interval_days"), default=0)
-    if interval_minutes > 0:
-        interval_seconds = interval_minutes * SECONDS_PER_MINUTE
-    elif interval_days > 0:
-        interval_seconds = interval_days * SECONDS_PER_DAY
-    else:
+    interval_seconds = _rotation_interval_seconds(account)
+    if interval_seconds <= 0:
         return False
 
     now = _parse_iso(as_of_iso)
     if now is None:
         raise ValueError("as_of_iso must be a valid ISO datetime.")
 
-    last_rotation = _parse_iso(str(_value(account, "rotation_last_at") or ""))
+    last_rotation = _rotation_last_at(account)
     if last_rotation is None:
         return True
 
@@ -183,16 +210,15 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
 
 
 def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dict[str, object]:
-    schedule = parse_rotation_schedule(_value(account, "rotation_schedule"))
+    schedule = _rotation_schedule(account)
     if len(schedule) < 2:
         return {
             "rotation_active_index": 0,
             "rotation_active_strategy": resolve_active_strategy(account),
-            "rotation_last_at": str(_value(account, "rotation_last_at") or ""),
+            "rotation_last_at": _account_text(account, "rotation_last_at"),
         }
 
-    idx_raw = _value(account, "rotation_active_index")
-    idx = _as_int(idx_raw, default=0)
+    idx = _coerce_default_int(_account_field(account, "rotation_active_index"), default=0)
     next_idx = (idx + 1) % len(schedule)
     return {
         "rotation_active_index": next_idx,
