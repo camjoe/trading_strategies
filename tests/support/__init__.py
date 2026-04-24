@@ -16,6 +16,7 @@ from tests.support.cli_main import (
     configure_account_args,
     install_main_harness,
 )
+from tests.support.runtime_jobs import load_runtime_job, run_runtime_job_main
 
 __all__ = [
     "FakeBroker",
@@ -34,4 +35,6 @@ __all__ = [
     "make_evaluation_artifact",
     "make_feature_bundle",
     "make_feature_fetcher",
+    "load_runtime_job",
+    "run_runtime_job_main",
 ]
