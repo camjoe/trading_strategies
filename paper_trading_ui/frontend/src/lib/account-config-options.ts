@@ -1,5 +1,5 @@
 import { getJson } from "./http";
-import type { AccountConfigOptions } from "../types";
+import type { AccountConfigOptions } from "../types/accounts";
 
 type OptionsKey =
   | "goalPeriods"

@@ -3,7 +3,7 @@ import { errorMessage, patchJson, postJson } from "../../lib/http";
 import { parseRunId } from "../../lib/parse";
 import { TEST_ACCOUNT_NAME } from "../../lib/constants";
 import { renderAnalysisPanel, renderDetail } from "../../components/detail";
-import type { AccountParamsUpdate } from "../../types";
+import type { AccountParamsUpdate } from "../../types/accounts";
 import type { AccountsFeatureOptions, AccountsState, DetailSection, LoadAccountDetailOptions } from "./types";
 
 function bindClick<T extends Element>(selector: string, handler: (element: T) => Promise<void> | void): void {

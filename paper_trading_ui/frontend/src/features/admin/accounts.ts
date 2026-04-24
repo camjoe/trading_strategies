@@ -4,7 +4,8 @@ import { getAccountConfigOptions } from "../../lib/account-config-options";
 import { errorMessage, getJson, postJson } from "../../lib/http";
 import { intOrUndefined, numOrUndefined, strOrUndefined } from "../../lib/form-parse";
 import { TEST_ACCOUNT_NAME } from "../../lib/constants";
-import type { AccountListItem, AdminCreateAccountPayload } from "../../types";
+import type { AccountListItem } from "../../types/accounts";
+import type { AdminCreateAccountPayload } from "../../types/admin";
 import type { AdminFeatureOptions, CreateResponse, DeleteResponse } from "./types";
 import { setOutput } from "./ui";
 

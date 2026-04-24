@@ -4,7 +4,7 @@ import type {
   OperationJobStatus,
   OperationsOverviewResponse,
   PromotionOverviewResponse,
-} from "../types";
+} from "../types/admin";
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "never";

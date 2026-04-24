@@ -1,4 +1,4 @@
-import type { AccountSummary } from "../../types";
+import type { AccountSummary } from "../../types/accounts";
 
 
 export interface DeleteResponse {

@@ -1,4 +1,4 @@
-import type { AccountListItem } from "../../types";
+import type { AccountListItem } from "../../types/accounts";
 
 export interface BacktestingFeature {
   setAccounts: (accounts: AccountListItem[]) => void;

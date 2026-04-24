@@ -2,7 +2,7 @@ import { find } from "../../lib/dom";
 import { esc } from "../../lib/format";
 import { errorMessage, getJson, postJson } from "../../lib/http";
 import { renderAnalysisPanel } from "../../components/detail";
-import type { AccountAnalysis, AccountDetail, AccountListItem } from "../../types";
+import type { AccountAnalysis, AccountDetail, AccountListItem } from "../../types/accounts";
 import { populateAccountSelect, renderAccountBrowser, renderWorkspaceMeta, updateAccountBrowserToggle } from "./browser";
 import { applyCachedAnalysis, renderCurrentDetail } from "./detail";
 import type { AccountsFeature, AccountsFeatureOptions, AccountsState, LoadAccountDetailOptions } from "./types";

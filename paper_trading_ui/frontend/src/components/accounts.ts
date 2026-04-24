@@ -1,5 +1,5 @@
 import { currency, esc, num, pct } from "../lib/format";
-import type { AccountListItem } from "../types";
+import type { AccountListItem } from "../types/accounts";
 
 export interface AccountCardOptions {
   selected?: boolean;

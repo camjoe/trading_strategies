@@ -1,5 +1,5 @@
 import { currency, esc } from "../../lib/format";
-import type { AccountDetail } from "../../types";
+import type { AccountDetail } from "../../types/accounts";
 
 type DetailSectionName = "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
 

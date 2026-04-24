@@ -1,5 +1,5 @@
 import { currency, esc, pct } from "../lib/format";
-import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../types";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../types/backtesting";
 
 export function warningListHtml(warnings: string[]): string {
   if (!warnings.length) {

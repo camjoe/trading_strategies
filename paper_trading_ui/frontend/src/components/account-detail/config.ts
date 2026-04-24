@@ -1,6 +1,6 @@
 import { esc } from "../../lib/format";
 import { getAccountConfigOptions, renderOptionTags } from "../../lib/account-config-options";
-import type { AccountDetail } from "../../types";
+import type { AccountDetail } from "../../types/accounts";
 
 type DetailSectionName = "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
 

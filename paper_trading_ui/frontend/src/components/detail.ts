@@ -11,7 +11,7 @@ import {
   renderSummarySection,
   renderTradesSection,
 } from "./account-detail/sections";
-import type { AccountDetail } from "../types";
+import type { AccountDetail } from "../types/accounts";
 
 export interface DetailRenderOptions {
   tradePage?: number;

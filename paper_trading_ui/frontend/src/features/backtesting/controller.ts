@@ -9,13 +9,8 @@ import {
   renderWalkForwardResult,
   warningListHtml,
 } from "../../components/backtesting";
-import type {
-  AccountListItem,
-  BacktestReport,
-  BacktestRunResult,
-  BacktestRunSummary,
-  WalkForwardResult,
-} from "../../types";
+import type { AccountListItem } from "../../types/accounts";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../../types/backtesting";
 import {
   BACKTEST_ACCOUNT_SELECT_SELECTOR,
   BACKTEST_REPORT_VIEW_SELECTOR,
