@@ -7,7 +7,7 @@ import {
   renderWalkForwardResult,
   warningListHtml,
 } from "../../components/backtesting";
-import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../../types";
+import type { BacktestReport, BacktestRunResult, BacktestRunSummary, WalkForwardResult } from "../../types/backtesting";
 
 describe("warningListHtml", () => {
   it("renders an empty-state message when no warnings exist", () => {

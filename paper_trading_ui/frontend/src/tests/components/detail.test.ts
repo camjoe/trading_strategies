@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AccountDetail } from "../../types";
+import type { AccountDetail } from "../../types/accounts";
 import { renderDetail } from "../../components/detail";
 import { resetAccountConfigOptions, setAccountConfigOptions } from "../../lib/account-config-options";
 
