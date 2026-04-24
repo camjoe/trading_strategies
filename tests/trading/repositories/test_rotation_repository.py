@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from trading.services.accounts import create_account
 from trading.repositories.rotation import (
     close_rotation_episode,
     fetch_closed_rotation_episodes,
@@ -8,12 +7,11 @@ from trading.repositories.rotation import (
     insert_rotation_episode,
     update_account_rotation_state,
 )
+from tests.support.repositories import insert_repository_account
 
 
 def _account_id(conn, name: str = "rot_acct") -> int:
-    create_account(conn, name, "Trend", 5000.0, "SPY")
-    row = conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()
-    return int(row["id"])
+    return insert_repository_account(conn, name=name)
 
 
 class TestUpdateAccountRotationState:

@@ -11,6 +11,7 @@ from trading.repositories.promotion import (
     insert_promotion_review_event,
     update_promotion_review_record,
 )
+from tests.support.repositories import insert_repository_account
 
 
 def _evaluation(*, account_id: int = 1, account_name: str = "acct_a", strategy_name: str = "Trend") -> StrategyEvaluationArtifact:
@@ -37,23 +38,13 @@ def _assessment(*, account_name: str = "acct_a", strategy_name: str = "Trend") -
     )
 
 
-def _insert_account(conn) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_a', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z')
-        """
-    )
-    conn.commit()
-
-
 def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
-    _insert_account(conn)
+    account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
 
     review = insert_promotion_review(
         conn,
-        assessment=_assessment(),
-        evaluation=_evaluation(),
+        assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
+        evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
         requested_by="alice",
         operator_summary_note="initial request",
         created_at="2026-03-01T00:00:00Z",
@@ -73,11 +64,11 @@ def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
 
 
 def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
-    _insert_account(conn)
+    account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
     review = insert_promotion_review(
         conn,
-        assessment=_assessment(),
-        evaluation=_evaluation(),
+        assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
+        evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
         requested_by="alice",
         operator_summary_note=None,
         created_at="2026-03-01T00:00:00Z",
@@ -115,11 +106,11 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
 
 
 def test_fetch_open_history_and_update_review_state(conn) -> None:
-    _insert_account(conn)
+    account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
     review = insert_promotion_review(
         conn,
-        assessment=_assessment(),
-        evaluation=_evaluation(),
+        assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
+        evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
         requested_by="alice",
         operator_summary_note=None,
         created_at="2026-03-01T00:00:00Z",

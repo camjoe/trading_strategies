@@ -2,19 +2,17 @@ from __future__ import annotations
 
 import pytest
 
-from trading.services.accounts import create_account
 from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_recent_equity_rows,
     fetch_snapshot_history_rows,
     insert_snapshot_row,
 )
+from tests.support.repositories import insert_repository_account
 
 
 def _account_id(conn, name: str = "snap_acct") -> int:
-    create_account(conn, name, "Trend", 5000.0, "SPY")
-    row = conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()
-    return int(row["id"])
+    return insert_repository_account(conn, name=name)
 
 
 def _insert(conn, account_id: int, *, snapshot_time: str, equity: float) -> None:

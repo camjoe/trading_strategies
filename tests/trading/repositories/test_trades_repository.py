@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from trading.services.accounts import create_account
 from trading.repositories.trades import (
     count_trades_between,
     fetch_trades_for_account,
     insert_trade,
 )
+from tests.support.repositories import insert_repository_account
 
 
 def _account_id(conn, name: str = "trade_acct") -> int:
-    create_account(conn, name, "Trend", 5000.0, "SPY")
-    row = conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()
-    return int(row["id"])
+    return insert_repository_account(conn, name=name)
 
 
 class TestInsertTrade:
