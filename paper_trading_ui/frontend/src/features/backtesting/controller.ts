@@ -1,139 +1,46 @@
-import { find, findAll } from "../lib/dom";
-import { esc } from "../lib/format";
-import { errorMessage, getJson, postJson } from "../lib/http";
-import { parseRunId } from "../lib/parse";
-import { debounce } from "../lib/timing";
+import { find, findAll } from "../../lib/dom";
+import { esc } from "../../lib/format";
+import { errorMessage, getJson, postJson } from "../../lib/http";
+import { parseRunId } from "../../lib/parse";
+import { debounce } from "../../lib/timing";
 import {
   renderBacktestReport,
   renderBacktestRunCard,
   renderWalkForwardResult,
   warningListHtml,
-} from "../components/backtesting";
+} from "../../components/backtesting";
 import type {
   AccountListItem,
   BacktestReport,
   BacktestRunResult,
   BacktestRunSummary,
   WalkForwardResult,
-} from "../types";
-
-export interface BacktestingFeature {
-  setAccounts: (accounts: AccountListItem[]) => void;
-  loadBacktestRuns: () => Promise<void>;
-  loadBacktestReport: (runId: number) => Promise<void>;
-  wireActions: () => void;
-}
-
-const PREFLIGHT_INPUT_SELECTOR =
-  'input[name="tickersFile"], input[name="universeHistoryDir"], input[name="start"], input[name="end"], input[name="lookbackMonths"], input[name="allowApproximateLeaps"], select[name="account"]';
-
-const BACKTEST_ACCOUNT_SELECT_SELECTOR = "#backtestAccountSelect";
-const WALK_FORWARD_ACCOUNT_SELECT_SELECTOR = "#walkForwardAccountSelect";
-
-const BACKTEST_WARNINGS_SELECTOR = "#runBacktestWarnings";
-const WALK_FORWARD_WARNINGS_SELECTOR = "#runWalkForwardWarnings";
-
-const BACKTEST_RUNS_LIST_SELECTOR = "#backtestRunsList";
-const BACKTEST_REPORT_VIEW_SELECTOR = "#backtestReportView";
-const REFRESH_BACKTESTS_BUTTON_SELECTOR = "#refreshBacktestsBtn";
-const WALK_FORWARD_RUNS_LIST_SELECTOR = "#walkForwardRunsList";
-const WALK_FORWARD_REPORT_VIEW_SELECTOR = "#walkForwardReportView";
-const REFRESH_WALK_FORWARD_BUTTON_SELECTOR = "#refreshWalkForwardBtn";
-const RUN_BACKTEST_FORM_SELECTOR = "#runBacktestForm";
-const RUN_WALK_FORWARD_FORM_SELECTOR = "#runWalkForwardForm";
-
-const BACKTEST_RUN_ITEM_SELECTOR = ".bt-run-item";
-const QUICK_LOOKBACK_BUTTONS_SELECTOR = ".bt-quick-buttons";
-
-interface BacktestBasePayload {
-  account: string;
-  tickersFile: string;
-  universeHistoryDir: string | null;
-  start: string | null;
-  end: string | null;
-  lookbackMonths: number | null;
-  allowApproximateLeaps: boolean;
-}
-
-interface BacktestRunPayload extends BacktestBasePayload {
-  slippageBps: number;
-  fee: number;
-  runName: string | null;
-}
-
-interface WalkForwardPayload extends BacktestBasePayload {
-  testMonths: number;
-  stepMonths: number;
-  slippageBps: number;
-  fee: number;
-  runNamePrefix: string | null;
-}
-
-function renderDownMessage(message: string): string {
-  return `<div class="down">${esc(message)}</div>`;
-}
-
-function parseOptInt(raw: string): number | null {
-  const v = raw.trim();
-  if (!v) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.trunc(n) : null;
-}
-
-function parseOptStr(raw: string): string | null {
-  const v = raw.trim();
-  return v ? v : null;
-}
-
-function parseFormNumber(fd: FormData, key: string, fallback: number): number {
-  const raw = String(fd.get(key) ?? "").trim();
-  if (!raw) {
-    return fallback;
-  }
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function buildBacktestBasePayload(fd: FormData): BacktestBasePayload {
-  return {
-    account: String(fd.get("account") ?? "").trim(),
-    tickersFile: String(fd.get("tickersFile") ?? "trading/config/trade_universe.txt").trim(),
-    universeHistoryDir: parseOptStr(String(fd.get("universeHistoryDir") ?? "")),
-    start: parseOptStr(String(fd.get("start") ?? "")),
-    end: parseOptStr(String(fd.get("end") ?? "")),
-    lookbackMonths: parseOptInt(String(fd.get("lookbackMonths") ?? "")),
-    allowApproximateLeaps: fd.get("allowApproximateLeaps") !== null,
-  };
-}
-
-function buildBacktestRunPayload(form: HTMLFormElement): BacktestRunPayload {
-  const fd = new FormData(form);
-  return {
-    ...buildBacktestBasePayload(fd),
-    slippageBps: parseFormNumber(fd, "slippageBps", 5),
-    fee: parseFormNumber(fd, "fee", 0),
-    runName: parseOptStr(String(fd.get("runName") ?? "")),
-  };
-}
-
-function buildWalkForwardPayload(form: HTMLFormElement): WalkForwardPayload {
-  const fd = new FormData(form);
-  return {
-    ...buildBacktestBasePayload(fd),
-    testMonths: parseFormNumber(fd, "testMonths", 1),
-    stepMonths: parseFormNumber(fd, "stepMonths", 1),
-    slippageBps: parseFormNumber(fd, "slippageBps", 5),
-    fee: parseFormNumber(fd, "fee", 0),
-    runNamePrefix: parseOptStr(String(fd.get("runNamePrefix") ?? "")),
-  };
-}
-
-function validateDateInputs(start: string | null, lookbackMonths: number | null): string | null {
-  if (start && lookbackMonths !== null) {
-    return "Use either Start date or Lookback months, not both.";
-  }
-  return null;
-}
+} from "../../types";
+import {
+  BACKTEST_ACCOUNT_SELECT_SELECTOR,
+  BACKTEST_REPORT_VIEW_SELECTOR,
+  BACKTEST_RUN_ITEM_SELECTOR,
+  BACKTEST_RUNS_LIST_SELECTOR,
+  BACKTEST_WARNINGS_SELECTOR,
+  PREFLIGHT_INPUT_SELECTOR,
+  QUICK_LOOKBACK_BUTTONS_SELECTOR,
+  REFRESH_BACKTESTS_BUTTON_SELECTOR,
+  REFRESH_WALK_FORWARD_BUTTON_SELECTOR,
+  RUN_BACKTEST_FORM_SELECTOR,
+  RUN_WALK_FORWARD_FORM_SELECTOR,
+  WALK_FORWARD_ACCOUNT_SELECT_SELECTOR,
+  WALK_FORWARD_REPORT_VIEW_SELECTOR,
+  WALK_FORWARD_RUNS_LIST_SELECTOR,
+  WALK_FORWARD_WARNINGS_SELECTOR,
+  renderDownMessage,
+} from "./constants";
+import {
+  buildBacktestBasePayload,
+  buildBacktestRunPayload,
+  buildWalkForwardPayload,
+  validateDateInputs,
+} from "./payloads";
+import type { BacktestingFeature } from "./types";
 
 export function createBacktestingFeature(): BacktestingFeature {
   let cachedAccounts: AccountListItem[] = [];
@@ -143,7 +50,7 @@ export function createBacktestingFeature(): BacktestingFeature {
 
   function populateBacktestAccountSelects(accounts: AccountListItem[]): void {
     const accountOptions = accounts
-      .map((a) => `<option value="${esc(a.name)}">${esc(a.displayName)} (${esc(a.name)})</option>`)
+      .map((account) => `<option value="${esc(account.name)}">${esc(account.displayName)} (${esc(account.name)})</option>`)
       .join("");
 
     for (const selectId of [BACKTEST_ACCOUNT_SELECT_SELECTOR, WALK_FORWARD_ACCOUNT_SELECT_SELECTOR]) {
@@ -151,7 +58,7 @@ export function createBacktestingFeature(): BacktestingFeature {
       if (!select) continue;
       const previous = select.value;
       select.innerHTML = `<option value="">Select account</option>${accountOptions}`;
-      if (previous && accounts.some((a) => a.name === previous)) {
+      if (previous && accounts.some((account) => account.name === previous)) {
         select.value = previous;
       }
     }
@@ -159,7 +66,7 @@ export function createBacktestingFeature(): BacktestingFeature {
 
   function applyBacktestAccountDefaults(form: HTMLFormElement | null, accountName: string): void {
     if (!form || !accountName) return;
-    const account = cachedAccounts.find((a) => a.name === accountName);
+    const account = cachedAccounts.find((item) => item.name === accountName);
     if (!account) return;
 
     const leapsCheckbox = find<HTMLInputElement>('input[name="allowApproximateLeaps"]', form);
@@ -180,9 +87,9 @@ export function createBacktestingFeature(): BacktestingFeature {
 
     target.innerHTML = runs.map(renderBacktestRunCard).join("");
 
-    for (const btn of target.querySelectorAll<HTMLButtonElement>(BACKTEST_RUN_ITEM_SELECTOR)) {
-      btn.addEventListener("click", () => {
-        const runId = parseRunId(btn.dataset.runId);
+    for (const button of target.querySelectorAll<HTMLButtonElement>(BACKTEST_RUN_ITEM_SELECTOR)) {
+      button.addEventListener("click", () => {
+        const runId = parseRunId(button.dataset.runId);
         if (runId === null) return;
         void loadBacktestReportTo(runId, reportTargetSelector);
       });
