@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from trading.models.account_config import AccountConfig
-import trading.services.profiles.application as profiles_application
 from trading.models.rotation_config import RotationConfig
+import trading.services.profiles.application as profiles_application
 
 
 def test_apply_account_profiles_rejects_unknown_strategy_name(

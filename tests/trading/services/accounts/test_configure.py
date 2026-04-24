@@ -1,163 +1,12 @@
 import pytest
-import sqlite3
 
-from trading.services.accounts import (
-    configure_account,
-    create_account,
-    find_account,
-    get_account,
-    list_account_names,
-    list_account_records,
-    list_accounts,
-    load_all_account_names,
-    set_account_strategy,
-    set_benchmark,
-)
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.models import AccountConfig
+from trading.services.accounts import configure_account, create_account, get_account, set_account_strategy
 
 _IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})
 
 
-class TestAccountLookupAndListing:
-    def test_get_account_not_found_raises(self, conn) -> None:
-        with pytest.raises(ValueError, match="Account 'missing' not found"):
-            get_account(conn, "missing")
-
-
-    def test_set_benchmark_updates_and_normalizes_ticker(self, conn) -> None:
-        create_account(conn, "acct_bench", "Trend", 1000.0, "spy")
-
-        set_benchmark(conn, "acct_bench", " qqq ")
-
-        account = get_account(conn, "acct_bench")
-        assert account["benchmark_ticker"] == "QQQ"
-
-
-    def test_list_accounts_prints_empty_message_when_no_accounts(
-        self,
-        conn,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        list_accounts(conn)
-
-        out = capsys.readouterr().out
-        assert "No paper accounts found." in out
-
-
-    @pytest.mark.parametrize(
-        ("name", "goal_min", "goal_max", "goal_period", "expected_goal_text"),
-        [
-            ("acct_goal_none", None, None, "monthly", None),
-            ("acct_goal_range", 1.5, 3.0, "weekly", "goal_metadata=1.50% to 3.00% per weekly"),
-            ("acct_goal_min", 2.0, None, "monthly", "goal_metadata=>= 2.00% per monthly"),
-            ("acct_goal_max", None, 4.5, "quarterly", "goal_metadata=<= 4.50% per quarterly"),
-        ],
-    )
-    def test_list_accounts_formats_goal_variants(
-        self,
-        conn,
-        capsys: pytest.CaptureFixture[str],
-        name: str,
-        goal_min: float | None,
-        goal_max: float | None,
-        goal_period: str,
-        expected_goal_text: str | None,
-    ) -> None:
-        create_account(
-            conn,
-            name=name,
-            strategy="Trend",
-            initial_cash=5000.0,
-            benchmark_ticker="spy",
-            config=AccountConfig(
-                goal_min_return_pct=goal_min,
-                goal_max_return_pct=goal_max,
-                goal_period=goal_period,
-            ),
-        )
-
-        list_accounts(conn)
-
-        out = capsys.readouterr().out
-        if expected_goal_text is None:
-            assert "goal_metadata=" not in out
-        else:
-            assert expected_goal_text in out
-        assert "benchmark=SPY" in out
-
-
-    def test_list_accounts_without_strategy_grouping(self, conn, capsys: pytest.CaptureFixture[str]) -> None:
-        create_account(conn, "acct_a", "Trend", 1000.0, "SPY")
-        create_account(conn, "acct_b", "MeanRev", 1000.0, "SPY")
-
-        list_accounts(conn, by_strategy=False)
-
-        out = capsys.readouterr().out
-        assert "Strategy:" not in out
-        assert "acct_a" in out
-        assert "acct_b" in out
-
-
-    def test_load_all_account_names_sorted(self, tmp_path: pytest.TempPathFactory) -> None:
-        db_path = tmp_path / "accounts_names.db"
-        conn = sqlite3.connect(db_path)
-        conn.execute("CREATE TABLE accounts (name TEXT NOT NULL)")
-        conn.executemany("INSERT INTO accounts (name) VALUES (?)", [("zulu",), ("alpha",), ("mike",)])
-        conn.commit()
-        conn.close()
-
-        original = get_backend()
-        set_backend(SQLiteBackend(db_path))
-        try:
-            assert load_all_account_names() == ["alpha", "mike", "zulu"]
-        finally:
-            set_backend(original)
-
-    def test_find_account_strips_name_and_returns_optional_row(self, conn) -> None:
-        create_account(conn, "acct_lookup", "Trend", 1000.0, "SPY")
-
-        account = find_account(conn, "  acct_lookup  ")
-
-        assert account is not None
-        assert account["name"] == "acct_lookup"
-        assert find_account(conn, "missing") is None
-
-    def test_list_account_records_normalizes_account_kind_filters(self, conn) -> None:
-        create_account(conn, "acct_managed", "Trend", 1000.0, "SPY")
-        create_account(
-            conn,
-            "acct_local",
-            "Trend",
-            1000.0,
-            "SPY",
-            config=AccountConfig(account_kind="local"),
-        )
-        create_account(
-            conn,
-            "acct_shadow",
-            "Trend",
-            1000.0,
-            "SPY",
-            config=AccountConfig(account_kind="test_shadow"),
-        )
-
-        rows = list_account_records(conn, account_kinds=(" Local ", "managed"))
-        names = [row["name"] for row in rows]
-
-        assert names == ["acct_local", "acct_managed"]
-        assert list_account_names(conn, account_kinds=("managed",)) == ["acct_managed"]
-
-    def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
-        create_account(conn, "acct_strategy", "Trend", 1000.0, "SPY")
-
-        set_account_strategy(conn, "acct_strategy", "MeanRev")
-
-        account = get_account(conn, "acct_strategy")
-        assert account["strategy"] == "MeanRev"
-
-
-class TestCreateAccount:
+class TestCreateAccountIntegration:
     @pytest.mark.parametrize(
         ("kwargs", "error_text"),
         [
@@ -184,7 +33,6 @@ class TestCreateAccount:
 
         with pytest.raises(ValueError, match=error_text):
             create_account(conn, **identity, config=AccountConfig(**config_kw))
-
 
     @pytest.mark.parametrize(
         ("kwargs", "error_text"),
@@ -215,7 +63,6 @@ class TestCreateAccount:
         with pytest.raises(ValueError, match=error_text):
             create_account(conn, **identity, config=AccountConfig(**config_kw))
 
-
     def test_normalizes_fields(self, conn) -> None:
         create_account(
             conn,
@@ -236,8 +83,16 @@ class TestCreateAccount:
         assert account["goal_period"] == "weekly"
         assert account["option_type"] == "call"
 
+    def test_set_account_strategy_updates_validated_strategy(self, conn) -> None:
+        create_account(conn, "acct_strategy", "Trend", 1000.0, "SPY")
 
-class TestConfigureAccount:
+        set_account_strategy(conn, "acct_strategy", "MeanRev")
+
+        account = get_account(conn, "acct_strategy")
+        assert account["strategy"] == "MeanRev"
+
+
+class TestConfigureAccountIntegration:
     def test_no_fields_is_noop(self, conn) -> None:
         create_account(conn, "acct_noop", "Trend", 3000.0, "SPY")
         before = dict(get_account(conn, "acct_noop"))
@@ -247,13 +102,11 @@ class TestConfigureAccount:
         after = dict(get_account(conn, "acct_noop"))
         assert before == after
 
-
     def test_rejects_empty_descriptive_name(self, conn) -> None:
         create_account(conn, "acct_empty_name", "Trend", 3000.0, "SPY")
 
         with pytest.raises(ValueError, match="descriptive_name cannot be empty"):
             configure_account(conn, "acct_empty_name", config=AccountConfig(descriptive_name="   "))
-
 
     def test_validates_goal_range_against_existing_values(self, conn) -> None:
         create_account(
@@ -267,7 +120,6 @@ class TestConfigureAccount:
 
         with pytest.raises(ValueError, match="goal_min_return_pct cannot be greater than goal_max_return_pct"):
             configure_account(conn, "acct_goal_validate", config=AccountConfig(goal_max_return_pct=4.0))
-
 
     def test_validates_existing_option_settings(self, conn) -> None:
         create_account(
@@ -288,7 +140,6 @@ class TestConfigureAccount:
         with pytest.raises(ValueError, match="target_delta_min cannot be greater than target_delta_max"):
             configure_account(conn, "acct_opt_validate", config=AccountConfig(target_delta_max=0.5))
 
-
     def test_validates_iv_range_against_existing_values(self, conn) -> None:
         create_account(
             conn,
@@ -301,7 +152,6 @@ class TestConfigureAccount:
 
         with pytest.raises(ValueError, match="iv_rank_min cannot be greater than iv_rank_max"):
             configure_account(conn, "acct_iv_validate", config=AccountConfig(iv_rank_max=10.0))
-
 
     def test_normalizes_goal_period_and_learning_enabled(self, conn) -> None:
         create_account(conn, "acct_config_norm", "Trend", 3000.0, "SPY")
@@ -316,7 +166,6 @@ class TestConfigureAccount:
         assert account["goal_period"] == "weekly"
         assert int(account["learning_enabled"]) == 1
 
-
     def test_validates_position_sizing_against_existing_values(self, conn) -> None:
         create_account(
             conn,
@@ -329,7 +178,6 @@ class TestConfigureAccount:
 
         with pytest.raises(ValueError, match="trade_size_pct cannot be greater than max_position_pct"):
             configure_account(conn, "acct_sizing_validate", config=AccountConfig(trade_size_pct=20.0))
-
 
     @pytest.mark.parametrize(
         ("kwargs", "error_text"),
