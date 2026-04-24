@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import trading.services.auto_trading.rotation as rotation_service
 from tests.support import make_auto_trading_account, make_feature_bundle, make_feature_fetcher
@@ -109,17 +110,21 @@ def test_sync_rotation_episode_closes_previous_and_opens_new() -> None:
         }
     )
 
-    rotation_service.sync_rotation_episode(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-20T00:00:00Z",
-        resolve_active_strategy_fn=lambda row: str(row["rotation_active_strategy"]),
-        fetch_open_rotation_episode_fn=fetch_open_episode,
-        insert_rotation_episode_fn=lambda _conn, **kwargs: inserted_calls.append(kwargs),
-        close_rotation_episode_fn=lambda _conn, **kwargs: closed_calls.append(kwargs),
-        fetch_snapshot_count_between_fn=Mock(return_value=4),
-        compute_live_account_metrics_fn=Mock(return_value={"equity": 1125.0, "realized_pnl": 20.0}),
-    )
+    with patch.object(
+        rotation_service,
+        "compute_live_account_metrics",
+        Mock(return_value={"equity": 1125.0, "realized_pnl": 20.0}),
+    ):
+        rotation_service.sync_rotation_episode(
+            conn=object(),
+            account=account,
+            as_of_iso="2026-03-20T00:00:00Z",
+            fetch_open_rotation_episode_fn=fetch_open_episode,
+            insert_rotation_episode_fn=lambda _conn, **kwargs: inserted_calls.append(kwargs),
+            close_rotation_episode_fn=lambda _conn, **kwargs: closed_calls.append(kwargs),
+            fetch_snapshot_count_between_fn=Mock(return_value=4),
+            compute_live_account_metrics_fn=rotation_service.compute_live_account_metrics,
+        )
 
     assert closed_calls == [
         {
@@ -217,14 +222,17 @@ def test_fetch_rotation_overlay_tickers_unions_holdings_and_watchlist() -> None:
             positions={"AAPL": 5.0, "MSFT": 0.0, "NVDA": 2.0},
         )
     )
-    tickers = rotation_service.fetch_rotation_overlay_tickers(
-        conn=object(),
-        account=_account(
-            rotation_overlay_watchlist='["msft","googl"]',
-        ),
-        load_trades_fn=Mock(return_value=[]),
-        compute_account_state_fn=compute_account_state,
-    )
+    with patch.object(rotation_service, "list_account_trades", Mock(return_value=[])), patch.object(
+        rotation_service,
+        "compute_account_state",
+        compute_account_state,
+    ):
+        tickers = rotation_service.fetch_rotation_overlay_tickers(
+            conn=object(),
+            account=_account(
+                rotation_overlay_watchlist='["msft","googl"]',
+            ),
+        )
 
     assert tickers == ["AAPL", "GOOGL", "MSFT", "NVDA"]
     compute_account_state.assert_called_once()

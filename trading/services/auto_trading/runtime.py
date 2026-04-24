@@ -13,8 +13,7 @@ from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
 from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
-from trading.domain.accounting import compute_account_state
-from trading.services.accounting import list_account_trades, record_trade
+from trading.services.accounting import record_trade
 from trading.repositories.broker_orders import (
     fetch_open_broker_orders,
     insert_broker_order,
@@ -22,7 +21,6 @@ from trading.repositories.broker_orders import (
     update_broker_order_status,
 )
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
-from trading.domain import auto_trader_policy
 from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import NewsFeatureProvider
 from trading.features.policy_feature_provider import PolicyFeatureProvider
@@ -53,7 +51,6 @@ from trading.services.auto_trading.rotation_bridge import (
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
     RotationDeps,
 )
-from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -125,26 +122,14 @@ def _fetch_runtime_rotation_overlay_tickers(
     conn: sqlite3.Connection,
     account: AccountRecord,
 ) -> list[str]:
-    return fetch_rotation_overlay_tickers_impl(
-        conn,
-        account,
-        load_trades_fn=list_account_trades,
-        compute_account_state_fn=compute_account_state,
-    )
+    return fetch_rotation_overlay_tickers_impl(conn, account)
 
 
 def _compute_runtime_live_account_metrics(
     conn: sqlite3.Connection,
     account: AccountRecord,
 ) -> dict[str, float]:
-    return compute_live_account_metrics_impl(
-        conn,
-        account,
-        load_trades_fn=list_account_trades,
-        compute_account_state_fn=compute_account_state,
-        fetch_latest_prices_fn=fetch_latest_prices,
-        compute_market_value_and_unrealized_fn=compute_market_value_and_unrealized,
-    )
+    return compute_live_account_metrics_impl(conn, account)
 
 
 def _sync_runtime_rotation_episode(
@@ -158,7 +143,6 @@ def _sync_runtime_rotation_episode(
         conn,
         account,
         now_iso,
-        resolve_active_strategy_fn=resolve_active_strategy,
         fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
         insert_rotation_episode_fn=insert_rotation_episode,
         close_rotation_episode_fn=close_rotation_episode,

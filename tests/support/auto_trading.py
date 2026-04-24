@@ -140,7 +140,7 @@ class RuntimeScenario:
             Mock(side_effect=_prepare_selection),
         )
         monkeypatch.setattr(
-            runtime_module.auto_trader_policy,
+            execution_service.auto_trader_policy,
             "choose_sell_ticker_by_risk",
             Mock(return_value=self.forced_sell_ticker),
         )

@@ -99,7 +99,7 @@ def test_run_for_account_forced_sell_passes_risk_selection(monkeypatch) -> None:
     )
 
     assert executed == 1
-    runtime_service.auto_trader_policy.choose_sell_ticker_by_risk.assert_called_once()
+    execution_service.auto_trader_policy.choose_sell_ticker_by_risk.assert_called_once()
     args, _kwargs = scenario.trade_recorder.call_args
     assert args[9] == "AAPL"
     assert args[8][0] == "sell"
