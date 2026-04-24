@@ -7,6 +7,13 @@ from tests.support.analysis import (
     record_analysis_buy,
 )
 from tests.support.brokers import make_broker_account, make_broker_order
+from tests.support.backtesting import (
+    create_backtest_account,
+    install_backtest_market_data,
+    make_backtest_config,
+    make_fake_close_history,
+    make_walk_forward_config,
+)
 from tests.support.auto_trading import (
     FakeBroker,
     MARKET_CLOSED_TIME_ISO,
@@ -77,6 +84,11 @@ __all__ = [
     "CliFakeConn",
     "make_accounts_service_row",
     "make_analysis_account",
+    "create_backtest_account",
+    "install_backtest_market_data",
+    "make_backtest_config",
+    "make_fake_close_history",
+    "make_walk_forward_config",
     "make_broker_account",
     "make_broker_order",
     "seed_admin_dataset",
