@@ -16,7 +16,17 @@ from tests.support.cli_main import (
     configure_account_args,
     install_main_harness,
 )
-from tests.support.runtime_jobs import load_runtime_job, run_runtime_job_main
+from tests.support.runtime_jobs import (
+    DAILY_BACKTEST_REFRESH_MODULE,
+    DAILY_PAPER_TRADING_MODULE,
+    daily_backtest_refresh,
+    daily_paper_trading,
+    load_daily_backtest_refresh,
+    load_daily_paper_trading,
+    load_runtime_job,
+    make_daily_backtest_refresh_args,
+    run_runtime_job_main,
+)
 
 __all__ = [
     "FakeBroker",
@@ -29,12 +39,19 @@ __all__ = [
     "install_main_harness",
     "insert_snapshot",
     "insert_trade",
+    "DAILY_BACKTEST_REFRESH_MODULE",
+    "DAILY_PAPER_TRADING_MODULE",
+    "daily_backtest_refresh",
+    "daily_paper_trading",
+    "load_daily_backtest_refresh",
+    "load_daily_paper_trading",
+    "load_runtime_job",
     "make_account_record",
     "make_account_state",
     "make_auto_trading_account",
+    "make_daily_backtest_refresh_args",
     "make_evaluation_artifact",
     "make_feature_bundle",
     "make_feature_fetcher",
-    "load_runtime_job",
     "run_runtime_job_main",
 ]
