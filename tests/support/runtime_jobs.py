@@ -8,6 +8,7 @@ from pathlib import Path
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_trading"
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
+CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
 
 
 def load_runtime_job(module_name: str):
@@ -22,8 +23,13 @@ def load_daily_backtest_refresh():
     return load_runtime_job(DAILY_BACKTEST_REFRESH_MODULE)
 
 
+def load_check_daily_trader_health():
+    return load_runtime_job(CHECK_DAILY_TRADER_HEALTH_MODULE)
+
+
 daily_paper_trading = load_daily_paper_trading()
 daily_backtest_refresh = load_daily_backtest_refresh()
+check_daily_trader_health = load_check_daily_trader_health()
 
 
 def make_daily_backtest_refresh_args(**overrides):
@@ -60,10 +66,13 @@ def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: li
 
 
 __all__ = [
+    "CHECK_DAILY_TRADER_HEALTH_MODULE",
     "DAILY_BACKTEST_REFRESH_MODULE",
     "DAILY_PAPER_TRADING_MODULE",
+    "check_daily_trader_health",
     "daily_backtest_refresh",
     "daily_paper_trading",
+    "load_check_daily_trader_health",
     "load_daily_backtest_refresh",
     "load_daily_paper_trading",
     "load_runtime_job",
