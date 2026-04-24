@@ -4,13 +4,13 @@ import datetime as dt
 from pathlib import Path
 
 from common.paths.project_paths import DB_BACKUPS_DIR
-from ..config import EXPORTS_DIR, LOGS_DIR
-from trading.interfaces.runtime.job_status import (
+from common.runtime_job_status import (
     DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL,
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL as DAILY_PAPER_TRADING_SENTINEL,
     DAILY_SNAPSHOT_COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL,
     WEEKLY_DB_BACKUP_COMPLETE_SENTINEL as WEEKLY_DB_BACKUP_SENTINEL,
 )
+from ..config import EXPORTS_DIR, LOGS_DIR
 
 DAILY_PAPER_TRADING_RUN_HINT = (
     "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual"

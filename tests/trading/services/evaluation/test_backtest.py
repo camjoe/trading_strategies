@@ -1,0 +1,49 @@
+import pytest
+
+from trading.services.accounts import create_account, get_account
+from trading.services.evaluation import fetch_strategy_evaluation
+from tests.support import (
+    insert_account_snapshot,
+    insert_backtest_run,
+    insert_backtest_snapshot,
+    insert_backtest_trade,
+)
+
+
+def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(conn) -> None:
+    create_account(conn, "acct_eval", "trend_v1", 1000.0, "SPY")
+    account = get_account(conn, "acct_eval")
+
+    run_id = insert_backtest_run(conn, account_id=account["id"], strategy_name="trend_v1")
+    insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
+    insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-15T00:00:00Z", equity=1100.0)
+    insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=1050.0)
+    insert_backtest_trade(conn, run_id=run_id, trade_time="2026-01-02T00:00:00Z")
+    insert_backtest_trade(conn, run_id=run_id, trade_time="2026-01-10T00:00:00Z")
+
+    insert_account_snapshot(
+        conn,
+        account_id=account["id"],
+        snapshot_time="2026-02-01T00:00:00Z",
+        cash=800.0,
+        market_value=220.0,
+        equity=1020.0,
+        realized_pnl=10.0,
+        unrealized_pnl=20.0,
+    )
+    conn.commit()
+
+    artifact = fetch_strategy_evaluation(conn, account_name="acct_eval")
+
+    assert artifact.basic.requested_strategy == "trend_v1"
+    assert artifact.backtest.available is True
+    assert artifact.backtest.run_id == run_id
+    assert artifact.backtest.total_return_pct == pytest.approx(5.0)
+    assert artifact.backtest.max_drawdown_pct == pytest.approx(-4.545454545454546)
+    assert artifact.paper_live.available is True
+    assert artifact.paper_live.source_level == "account_snapshot"
+    assert artifact.paper_live.return_pct == pytest.approx(2.0)
+    assert artifact.confidence.overall_confidence > 0.0
+    assert artifact.confidence.blended_score is not None
+    assert artifact.confidence.blended_score > artifact.paper_live.return_pct
+    assert "walk_forward_grouping_not_persisted" in artifact.diagnostics.data_gaps

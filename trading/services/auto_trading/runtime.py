@@ -39,11 +39,7 @@ from trading.repositories.rotation import (
 from trading.repositories.snapshots import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
-    next_rotation_state,
-    parse_rotation_schedule,
     resolve_active_strategy,
-    resolve_optimality_mode,
-    resolve_rotation_mode,
 )
 from trading.services.auto_trading.execution import (
     build_leaps_candidates as build_leaps_candidates_impl,
@@ -57,9 +53,6 @@ from trading.services.auto_trading.execution import (
 from trading.services.auto_trading.rotation import (
     compute_live_account_metrics as compute_live_account_metrics_impl,
     fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
-    rotate_account_if_due as rotate_account_if_due_impl,
-    select_regime_strategy as select_regime_strategy_impl,
-    select_optimal_strategy as select_optimal_strategy_impl,
     sync_rotation_episode as sync_rotation_episode_impl,
 )
 from trading.services.auto_trading.rotation_bridge import (
@@ -127,18 +120,11 @@ def _select_runtime_rotation_strategy(
         conn,
         account,
         as_of_iso,
-        select_optimal_strategy_impl_fn=select_optimal_strategy_impl,
-        select_regime_strategy_impl_fn=select_regime_strategy_impl,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        parse_as_of_iso_fn=parse_utc_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
         fetch_policy_features_fn=_fetch_policy_rotation_bundle,
         fetch_news_features_fn=_fetch_news_rotation_bundle,
         fetch_social_features_fn=_fetch_social_rotation_bundle,
         fetch_rotation_overlay_tickers_fn=_fetch_runtime_rotation_overlay_tickers,
-        resolve_rotation_mode_fn=resolve_rotation_mode,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        resolve_optimality_mode_fn=resolve_optimality_mode,
         fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
     )
 
@@ -197,13 +183,8 @@ def _rotate_runtime_account(
 ) -> AccountRecord:
     _sync_runtime_rotation_episode(conn, account, now_iso)
     deps = RotationDeps(
-        rotate_account_if_due_impl_fn=rotate_account_if_due_impl,
         is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
-        resolve_rotation_mode_fn=resolve_rotation_mode,
         select_optimal_strategy_fn=_select_runtime_rotation_strategy,
-        resolve_active_strategy_fn=resolve_active_strategy,
-        parse_rotation_schedule_fn=parse_rotation_schedule,
-        next_rotation_state_fn=lambda row, as_of: next_rotation_state(row, as_of_iso=as_of),
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
     )
