@@ -10,6 +10,7 @@ from trading.services.profiles.application import (
     load_account_profiles,
     load_account_profiles_from_source,
 )
+from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 
 __all__ = [
     "ROTATION_KEYS",
@@ -17,4 +18,5 @@ __all__ = [
     "apply_rotation_fields",
     "load_account_profiles",
     "load_account_profiles_from_source",
+    "parse_rotation_config_from_profile",
 ]

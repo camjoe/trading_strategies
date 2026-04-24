@@ -15,6 +15,13 @@ Primary flow:
 
 Do not invert this flow.
 
+Top-level package shape is intentionally **hybrid**:
+
+1. The layered backbone above applies to main runtime behavior.
+2. Selected bounded contexts remain top-level when their ownership is distinct
+   (`trading/backtesting`, `trading/brokers`, `trading/features`).
+3. See `docs/architecture/trading-package-map.md` for the concise package map.
+
 ## Allowed and Disallowed Dependencies
 
 Allowed:

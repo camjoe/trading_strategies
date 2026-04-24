@@ -1,17 +1,17 @@
 import pytest
 
-from trading.models.rotation_config import RotationConfig
+from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 
 
-class TestRotationConfigFromProfile:
+class TestParseRotationConfigFromProfile:
     def test_minimal_disabled_profile(self):
-        rc = RotationConfig.from_profile({"rotation_enabled": False})
+        rc = parse_rotation_config_from_profile({"rotation_enabled": False})
         assert rc.enabled is False
         assert rc.mode == "time"
         assert rc.optimality_mode == "previous_period_best"
 
     def test_enabled_with_interval_and_schedule(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
             "rotation_schedule": ["momentum", "meanrev"],
@@ -23,7 +23,7 @@ class TestRotationConfigFromProfile:
         assert rc.active_strategy == "momentum"
 
     def test_enabled_with_minute_interval_and_schedule(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_interval_minutes": 240,
             "rotation_schedule": ["momentum", "meanrev"],
@@ -33,7 +33,7 @@ class TestRotationConfigFromProfile:
         assert rc.schedule == ["momentum", "meanrev"]
 
     def test_explicit_active_index_sets_strategy(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
             "rotation_schedule": ["trend", "breakout", "macd"],
@@ -43,7 +43,7 @@ class TestRotationConfigFromProfile:
         assert rc.active_strategy == "breakout"
 
     def test_explicit_active_strategy_sets_index(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
             "rotation_schedule": ["trend", "breakout", "macd"],
@@ -53,17 +53,17 @@ class TestRotationConfigFromProfile:
         assert rc.active_strategy == "breakout"
 
     def test_active_index_wraps_when_exceeds_schedule_length(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_interval_days": 7,
             "rotation_schedule": ["trend", "breakout"],
-            "rotation_active_index": 4,  # 4 % 2 = 0
+            "rotation_active_index": 4,
         })
         assert rc.active_index == 0
         assert rc.active_strategy == "trend"
 
     def test_optimal_rotation_mode(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_mode": "optimal",
             "rotation_optimality_mode": "average_return",
         })
@@ -71,7 +71,7 @@ class TestRotationConfigFromProfile:
         assert rc.optimality_mode == "average_return"
 
     def test_hybrid_weighted_optimality_mode(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_mode": "optimal",
             "rotation_optimality_mode": "hybrid_weighted",
         })
@@ -79,7 +79,7 @@ class TestRotationConfigFromProfile:
         assert rc.optimality_mode == "hybrid_weighted"
 
     def test_regime_rotation_mode_requires_strategy_map(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_mode": "regime",
             "rotation_interval_minutes": 240,
@@ -94,7 +94,7 @@ class TestRotationConfigFromProfile:
         assert rc.regime_strategy_risk_off == "mean_reversion"
 
     def test_regime_rotation_accepts_overlay_settings(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_enabled": True,
             "rotation_mode": "regime",
             "rotation_interval_minutes": 240,
@@ -111,7 +111,7 @@ class TestRotationConfigFromProfile:
         assert rc.overlay_confidence_threshold == pytest.approx(0.6)
 
     def test_regime_rotation_accepts_overlay_watchlist(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_mode": "regime",
             "rotation_overlay_watchlist": ["aapl", "msft", "AAPL"],
         })
@@ -119,7 +119,7 @@ class TestRotationConfigFromProfile:
         assert rc.to_db_dict()["rotation_overlay_watchlist"] == '["AAPL","MSFT"]'
 
     def test_lookback_days_and_last_at_stored(self):
-        rc = RotationConfig.from_profile({
+        rc = parse_rotation_config_from_profile({
             "rotation_interval_minutes": 60,
             "rotation_lookback_days": 30,
             "rotation_last_at": "2026-01-01T00:00:00Z",
@@ -130,35 +130,35 @@ class TestRotationConfigFromProfile:
 
     def test_invalid_rotation_mode_raises(self):
         with pytest.raises(ValueError, match="rotation_mode"):
-            RotationConfig.from_profile({"rotation_mode": "orbital"})
+            parse_rotation_config_from_profile({"rotation_mode": "orbital"})
 
     def test_invalid_optimality_mode_raises(self):
         with pytest.raises(ValueError, match="rotation_optimality_mode"):
-            RotationConfig.from_profile({"rotation_optimality_mode": "random_pick"})
+            parse_rotation_config_from_profile({"rotation_optimality_mode": "random_pick"})
 
     def test_enabled_without_interval_raises(self):
         with pytest.raises(ValueError, match="rotation interval must be configured"):
-            RotationConfig.from_profile({"rotation_enabled": True})
+            parse_rotation_config_from_profile({"rotation_enabled": True})
 
     def test_interval_minutes_zero_raises(self):
         with pytest.raises(ValueError, match="rotation_interval_minutes"):
-            RotationConfig.from_profile({"rotation_interval_minutes": 0})
+            parse_rotation_config_from_profile({"rotation_interval_minutes": 0})
 
     def test_lookback_days_zero_raises(self):
         with pytest.raises(ValueError, match="rotation_lookback_days"):
-            RotationConfig.from_profile({"rotation_lookback_days": 0})
+            parse_rotation_config_from_profile({"rotation_lookback_days": 0})
 
     def test_lookback_days_negative_raises(self):
         with pytest.raises(ValueError, match="rotation_lookback_days"):
-            RotationConfig.from_profile({"rotation_lookback_days": -5})
+            parse_rotation_config_from_profile({"rotation_lookback_days": -5})
 
     def test_active_index_negative_raises(self):
         with pytest.raises(ValueError, match="rotation_active_index"):
-            RotationConfig.from_profile({"rotation_active_index": -1})
+            parse_rotation_config_from_profile({"rotation_active_index": -1})
 
     def test_active_strategy_not_in_schedule_raises(self):
         with pytest.raises(ValueError, match="rotation_active_strategy"):
-            RotationConfig.from_profile({
+            parse_rotation_config_from_profile({
                 "rotation_enabled": True,
                 "rotation_interval_days": 7,
                 "rotation_schedule": ["trend", "breakout"],
@@ -167,7 +167,7 @@ class TestRotationConfigFromProfile:
 
     def test_regime_strategy_not_in_schedule_raises(self):
         with pytest.raises(ValueError, match="rotation_regime_strategy_risk_off"):
-            RotationConfig.from_profile({
+            parse_rotation_config_from_profile({
                 "rotation_enabled": True,
                 "rotation_mode": "regime",
                 "rotation_interval_days": 7,
@@ -179,7 +179,7 @@ class TestRotationConfigFromProfile:
 
     def test_regime_rotation_missing_mapping_raises(self):
         with pytest.raises(ValueError, match="rotation_regime_strategy_\\* must be set"):
-            RotationConfig.from_profile({
+            parse_rotation_config_from_profile({
                 "rotation_enabled": True,
                 "rotation_mode": "regime",
                 "rotation_interval_days": 7,
@@ -190,13 +190,13 @@ class TestRotationConfigFromProfile:
 
     def test_overlay_mode_requires_regime_rotation(self):
         with pytest.raises(ValueError, match="rotation_overlay_mode requires rotation_mode = regime"):
-            RotationConfig.from_profile({
+            parse_rotation_config_from_profile({
                 "rotation_mode": "time",
                 "rotation_overlay_mode": "news",
             })
 
     def test_empty_profile_uses_defaults(self):
-        rc = RotationConfig.from_profile({})
+        rc = parse_rotation_config_from_profile({})
         assert rc.enabled is None
         assert rc.mode == "time"
         assert rc.optimality_mode == "previous_period_best"

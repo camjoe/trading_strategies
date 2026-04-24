@@ -19,6 +19,21 @@ The `trading/` module handles:
 - Backtesting and walk-forward analysis support, including persisted per-window detail reporting
 - **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `trading/features/`
 
+## Architecture Shape
+
+`trading/` uses a **hybrid structure**:
+
+- A layered backbone for most runtime behavior:
+  - `interfaces -> services -> repositories/domain -> database`
+- Explicit top-level bounded contexts where isolation is valuable:
+  - `trading/backtesting/`
+  - `trading/brokers/`
+  - `trading/features/`
+
+`trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
+
+For the concise package map, see `docs/architecture/trading-package-map.md`.
+
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
 **DB path resolution:** `TRADING_DB_PATH` env var → `db_path` in `local/db_config.json` → `local/paper_trading.db`

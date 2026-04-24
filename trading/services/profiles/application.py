@@ -3,12 +3,12 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import coerce_float
-from trading.backtesting.domain.strategy_signals import validate_strategy_name
 from trading.models.account_config import AccountConfig
-from trading.models.rotation_config import RotationConfig
 from trading.repositories.accounts import update_account_fields
+from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.services.profile_source import AccountProfileSource, JsonAccountProfileSource
+from trading.backtesting.domain.strategy_signals import validate_strategy_name
 
 ROTATION_KEYS = {
     "rotation_enabled",
@@ -44,7 +44,7 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
         return False
 
     account = get_account(conn, name)
-    cfg = RotationConfig.from_profile(profile)
+    cfg = parse_rotation_config_from_profile(profile)
 
     has_schedule_input = "rotation_schedule" in profile
     has_index_input = "rotation_active_index" in profile
