@@ -15,7 +15,7 @@ from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_a
 from trading.brokers.legacy.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.legacy.ib_client import IBClientProtocol, IbApiClient
 from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType
-from tests.support import make_account_record
+from tests.support.account_records import make_account_record
 
 
 def _make_account(**kwargs):

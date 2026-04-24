@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tests.support import make_manage_job_schedules_args, manage_job_schedules as module
+from tests.support.runtime_jobs import make_manage_job_schedules_args, manage_job_schedules as module
 
 
 def test_build_scheduled_tasks_includes_requested_jobs() -> None:

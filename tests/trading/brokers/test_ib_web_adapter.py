@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import IbWebApiContract
 from trading.models.broker_order import OrderStatus, OrderType
-from tests.support import make_broker_order
+from tests.support.brokers import make_broker_order
 
 
 class TestInteractiveBrokersWebAdapter:

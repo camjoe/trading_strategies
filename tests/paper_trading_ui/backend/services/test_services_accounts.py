@@ -16,7 +16,7 @@ from paper_trading_ui.backend.config import (
     TEST_BACKTEST_ACCOUNT_NAME,
 )
 from trading.models.account_state import AccountState
-from tests.support import make_account_record
+from tests.support.account_records import make_account_record
 
 
 def _account_record(**overrides: object):

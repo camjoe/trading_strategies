@@ -5,7 +5,7 @@ from trading.brokers.paper_adapter import PaperBrokerAdapter
 from trading.database.db_init import init_schema
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 import trading.services.auto_trading.runtime as runtime_service
-from tests.support import make_broker_account
+from tests.support.brokers import make_broker_account
 
 
 def _make_db():

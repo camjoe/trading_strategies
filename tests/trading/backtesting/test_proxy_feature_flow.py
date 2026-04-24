@@ -8,7 +8,7 @@ import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.execution_service as execution_service
 from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
 import trading.services.market_data as market_data
-from tests.support import (
+from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
 )

@@ -11,7 +11,7 @@ from trading.backtesting.report_models import (
     BacktestReportSummary,
     BacktestReportTrade,
 )
-from tests.support import (
+from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
     make_backtest_config,

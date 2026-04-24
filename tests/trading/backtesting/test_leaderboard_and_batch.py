@@ -3,7 +3,7 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 from trading.backtesting.models import BacktestBatchConfig, BacktestResult
 from trading.backtesting.report_models import BacktestLeaderboardEntry
-from tests.support import (
+from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
     make_backtest_config,

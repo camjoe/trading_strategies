@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import trading.domain.auto_trader_policy as auto_trader_policy
 import trading.services.auto_trading.execution as trade_execution_service
-from tests.support import make_auto_trading_account
+from tests.support.auto_trading import make_auto_trading_account
 
 
 def test_build_leaps_candidates_filters() -> None:

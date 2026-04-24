@@ -3,7 +3,7 @@ import pytest
 from trading.models import AccountConfig
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
-from tests.support import insert_trade, make_evaluation_artifact
+from tests.support.reporting import insert_trade, make_evaluation_artifact
 
 
 def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
