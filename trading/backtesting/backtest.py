@@ -2,20 +2,10 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import Callable, cast
 
-from common.coercion import (
-    row_expect_float,
-    row_expect_int,
-    row_expect_str,
-)
-from trading.services.market_data import get_feature_provider
 from trading.models import AccountRecord
 from trading.domain.auto_trader_policy import choose_buy_qty
-from trading.backtesting.trading_bridge import (
-    get_account,
-    resolve_active_strategy,
-)
+from trading.backtesting.trading_bridge import get_account
 from trading.backtesting.models import (
     BacktestBatchConfig,
     BacktestConfig,
@@ -25,15 +15,12 @@ from trading.backtesting.models import (
 )
 from trading.backtesting.report_models import BacktestFullReport, BacktestLeaderboardEntry, BacktestReportSummary
 
-from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct
 from trading.backtesting.domain.risk_warnings import build_backtest_warnings
 from trading.backtesting.domain.simulation_math import (
-    compute_market_value,
-    compute_unrealized_pnl,
     update_on_buy,
     update_on_sell,
 )
-from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.backtesting.domain.windowing import build_walk_forward_windows as build_walk_forward_windows_impl
 from trading.backtesting.repositories.backtest_repository import (
     insert_backtest_run,
@@ -180,24 +167,12 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         resolve_universe_fn=_resolve_universe,
         fetch_close_history_fn=fetch_close_history,
         fetch_benchmark_close_fn=fetch_benchmark_close,
-        row_expect_str_fn=row_expect_str,
-        row_expect_int_fn=row_expect_int,
-        row_expect_float_fn=row_expect_float,
-        resolve_active_strategy_fn=cast(Callable[[sqlite3.Row], str], resolve_active_strategy),
-        resolve_strategy_fn=resolve_strategy,
-        get_feature_provider_fn=get_feature_provider,
         insert_run_fn=_insert_run,
-        compute_market_value_fn=compute_market_value,
-        compute_unrealized_pnl_fn=compute_unrealized_pnl,
         update_on_buy_fn=update_on_buy,
         update_on_sell_fn=update_on_sell,
         insert_trade_fn=_insert_trade,
         insert_snapshot_fn=_insert_snapshot,
-        resolve_signal_fn=resolve_signal,
         choose_buy_qty_fn=choose_buy_qty,
-        benchmark_return_pct_fn=benchmark_return_pct,
-        max_drawdown_pct_fn=max_drawdown_pct,
-        backtest_result_cls=BacktestResult,
     )
 
 

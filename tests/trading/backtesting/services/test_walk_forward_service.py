@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
+from unittest.mock import patch
 
 import pytest
 
-from trading.backtesting.services.walk_forward_service import execute_walk_forward_backtest
+import trading.backtesting.services.walk_forward_service as walk_forward_service
 from trading.backtesting.models import WalkForwardConfig
 
 
@@ -48,22 +49,31 @@ def test_walk_forward_service_builds_summary_and_run_names() -> None:
     def fake_insert_group_run(_conn, **kwargs) -> None:
         persisted_group_runs.append(kwargs)
 
-    summary = execute_walk_forward_backtest(
-        conn=object(),
-        cfg=_cfg(),
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 3, 31),
-        windows=[
-            (date(2026, 1, 1), date(2026, 1, 31)),
-            (date(2026, 2, 1), date(2026, 2, 28)),
-            (date(2026, 3, 1), date(2026, 3, 31)),
-        ],
-        run_backtest_fn=fake_run_backtest,
-        insert_group_fn=fake_insert_group,
-        insert_group_run_fn=fake_insert_group_run,
-        grouping_key_factory=lambda: "wf-group-1",
-        commit_fn=lambda _conn: None,
-    )
+    with patch.object(walk_forward_service, "insert_walk_forward_group", fake_insert_group), patch.object(
+        walk_forward_service,
+        "insert_walk_forward_group_run",
+        fake_insert_group_run,
+    ), patch.object(
+        walk_forward_service,
+        "_build_grouping_key",
+        lambda: "wf-group-1",
+    ), patch.object(
+        walk_forward_service,
+        "_commit_connection",
+        lambda _conn: None,
+    ):
+        summary = walk_forward_service.execute_walk_forward_backtest(
+            conn=object(),
+            cfg=_cfg(),
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 3, 31),
+            windows=[
+                (date(2026, 1, 1), date(2026, 1, 31)),
+                (date(2026, 2, 1), date(2026, 2, 28)),
+                (date(2026, 3, 1), date(2026, 3, 31)),
+            ],
+            run_backtest_fn=fake_run_backtest,
+        )
 
     assert seen_run_names == ["wf_wf_01", "wf_wf_02", "wf_wf_03"]
     assert summary.window_count == 3
@@ -118,14 +128,11 @@ def test_walk_forward_service_builds_summary_and_run_names() -> None:
 
 def test_walk_forward_service_rejects_empty_windows() -> None:
     with pytest.raises(ValueError, match="No walk-forward windows generated"):
-        execute_walk_forward_backtest(
+        walk_forward_service.execute_walk_forward_backtest(
             conn=object(),
             cfg=_cfg(),
             start_date=date(2026, 1, 1),
             end_date=date(2026, 3, 31),
             windows=[],
             run_backtest_fn=lambda _conn, _cfg: _Result(run_id=1, total_return_pct=1.0),
-            insert_group_fn=lambda _conn, **_kwargs: 1,
-            insert_group_run_fn=lambda _conn, **_kwargs: None,
-            commit_fn=lambda _conn: None,
         )

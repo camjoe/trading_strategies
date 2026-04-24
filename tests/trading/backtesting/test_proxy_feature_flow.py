@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import trading.backtesting.backtest as backtest_module
+import trading.backtesting.services.execution_service as execution_service
 from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
 import trading.services.market_data as market_data
 from tests.support import (
@@ -88,8 +89,8 @@ class TestBacktestProxyFeatureFlow:
             assert "topic_proxy_rel_strength" in feature_history.columns
             return "hold"
 
-        monkeypatch.setattr(backtest_module, "get_feature_provider", lambda: StubFeatureProvider())
-        monkeypatch.setattr(backtest_module, "resolve_signal", fake_signal)
+        monkeypatch.setattr(execution_service, "get_feature_provider", lambda: StubFeatureProvider())
+        monkeypatch.setattr(execution_service, "resolve_signal", fake_signal)
 
         backtest_module.run_backtest(
             conn,
