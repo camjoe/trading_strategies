@@ -131,25 +131,27 @@ def test_prepare_trade_selection_uses_forced_sell_path() -> None:
     choose_side = Mock(return_value="sell")
     prepare_sell_trade = Mock(return_value=("AAPL", 1, 95.0))
 
-    selection = trade_execution_service.prepare_trade_selection(
-        account=account,
-        active_strategy="trend",
-        state=state,
-        can_sell=["AAPL"],
-        forced_sell="AAPL",
-        universe=["AAPL"],
-        prices={"AAPL": 95.0},
-        iv_rank_proxy={},
-        learning_enabled=False,
-        instrument_mode="equity",
-        fee=0.0,
-        choose_side_fn=choose_side,
-        prepare_buy_trade_fn=Mock(return_value=None),
-        prepare_sell_trade_fn=prepare_sell_trade,
-    )
+    with patch.object(trade_execution_service.auto_trader_policy, "choose_side", choose_side), patch.object(
+        trade_execution_service,
+        "prepare_sell_trade",
+        prepare_sell_trade,
+    ):
+        selection = trade_execution_service.prepare_trade_selection(
+            account=account,
+            active_strategy="trend",
+            state=state,
+            can_sell=["AAPL"],
+            forced_sell="AAPL",
+            universe=["AAPL"],
+            prices={"AAPL": 95.0},
+            iv_rank_proxy={},
+            learning_enabled=False,
+            instrument_mode="equity",
+            fee=0.0,
+        )
 
     assert selection == ("sell", "AAPL", 1, 95.0, None, None)
-    choose_side.assert_called_once()
+    choose_side.assert_called_once_with("AAPL", ["AAPL"], "trend")
     prepare_sell_trade.assert_called_once()
 
 

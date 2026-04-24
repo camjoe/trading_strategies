@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Callable, cast
 
 from common.coercion import row_expect_int
 from common.time import parse_utc_iso
@@ -23,7 +22,6 @@ from trading.repositories.broker_orders import (
     update_broker_order_status,
 )
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
-from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain import auto_trader_policy
 from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import NewsFeatureProvider
@@ -42,8 +40,6 @@ from trading.domain.rotation import (
     resolve_active_strategy,
 )
 from trading.services.auto_trading.execution import (
-    prepare_buy_trade as prepare_buy_trade_impl,
-    prepare_sell_trade as prepare_sell_trade_impl,
     prepare_trade_selection as prepare_trade_selection_impl,
     record_prepared_trade as record_prepared_trade_impl,
     refresh_account_state as refresh_account_state_impl,
@@ -196,93 +192,6 @@ def _refresh_runtime_account_state(conn: sqlite3.Connection, account: AccountRec
     return refresh_account_state_impl(conn, account)
 
 
-def _prepare_runtime_buy_trade(
-    account: AccountRecord,
-    instrument_mode: str,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    state,
-    learning_enabled: bool,
-    fee: float,
-):
-    return prepare_buy_trade_impl(
-        account,
-        instrument_mode,
-        universe,
-        prices,
-        iv_rank_proxy,
-        state,
-        learning_enabled,
-        fee,
-    )
-
-
-def _prepare_runtime_sell_trade(
-    can_sell: list[str],
-    forced_sell: str | None,
-    prices: dict[str, float],
-    state,
-    learning_enabled: bool,
-    instrument_mode: str,
-):
-    return prepare_sell_trade_impl(
-        can_sell,
-        forced_sell,
-        prices,
-        state,
-        learning_enabled,
-        instrument_mode,
-    )
-
-
-def _resolve_strategy_style(strategy_name: str | None) -> str | None:
-    """Resolve a strategy name to its StrategySpec.strategy_style.
-
-    Returns None if the name is absent or unrecognised so that choose_side
-    falls back to SELL_BIAS_DEFAULT rather than raising.
-    """
-    if not strategy_name:
-        return None
-    try:
-        return resolve_strategy(strategy_name).strategy_style
-    except Exception:
-        return None
-
-
-def _prepare_runtime_trade_selection(
-    account: AccountRecord,
-    active_strategy: str | None,
-    state,
-    can_sell: list[str],
-    forced_sell: str | None,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    learning_enabled: bool,
-    instrument_mode: str,
-    fee: float,
-):
-    return prepare_trade_selection_impl(
-        account,
-        active_strategy,
-        state,
-        can_sell,
-        forced_sell,
-        universe,
-        prices,
-        iv_rank_proxy,
-        learning_enabled,
-        instrument_mode,
-        fee,
-        choose_side_fn=lambda forced_sell, can_sell, strategy_name: auto_trader_policy.choose_side(
-            forced_sell, can_sell, _resolve_strategy_style(strategy_name)
-        ),
-        prepare_buy_trade_fn=_prepare_runtime_buy_trade,
-        prepare_sell_trade_fn=_prepare_runtime_sell_trade,
-    )
-
-
 def _record_runtime_trade(
     conn: sqlite3.Connection,
     account_name: str,
@@ -402,7 +311,7 @@ def run_for_account(
             resolve_active_strategy_fn=resolve_active_strategy,
             refresh_account_state_fn=_refresh_runtime_account_state,
             resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
-            prepare_trade_selection_fn=_prepare_runtime_trade_selection,
+            prepare_trade_selection_fn=prepare_trade_selection_impl,
             record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
                 *args, **kwargs, _injected_broker=broker
             ),

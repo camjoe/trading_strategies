@@ -135,7 +135,7 @@ class RuntimeScenario:
         )
         monkeypatch.setattr(
             runtime_module,
-            "_prepare_runtime_trade_selection",
+            "prepare_trade_selection_impl",
             Mock(side_effect=_prepare_selection),
         )
         monkeypatch.setattr(

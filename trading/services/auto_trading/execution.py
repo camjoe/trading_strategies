@@ -8,6 +8,7 @@ from typing import Callable, Mapping, Protocol, cast
 
 from common.coercion import row_expect_int, row_float, row_int
 from common.time import utc_now_iso
+from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain.accounting import compute_account_state
 import trading.domain.auto_trader_policy as auto_trader_policy
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
@@ -106,6 +107,16 @@ def refresh_account_state(
     )
 
 
+def _resolve_strategy_style(strategy_name: str | None) -> str | None:
+    """Resolve a strategy name to its style for side-selection bias."""
+    if not strategy_name:
+        return None
+    try:
+        return resolve_strategy(strategy_name).strategy_style
+    except Exception:
+        return None
+
+
 def prepare_trade_selection(
     account: AccountRecord,
     active_strategy: str | None,
@@ -118,18 +129,18 @@ def prepare_trade_selection(
     learning_enabled: bool,
     instrument_mode: str,
     fee: float,
-    *,
-    choose_side_fn: Callable[[str | None, list[str], str | None], str],
-    prepare_buy_trade_fn: Callable[..., tuple[str, int, float, float | None, float | None] | None],
-    prepare_sell_trade_fn: Callable[..., tuple[str, int, float] | None],
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
-    side = choose_side_fn(forced_sell, can_sell, active_strategy)
+    side = auto_trader_policy.choose_side(
+        forced_sell,
+        can_sell,
+        _resolve_strategy_style(active_strategy),
+    )
 
     delta_est: float | None = None
     iv_est: float | None = None
 
     if side == "buy":
-        prepared_buy = prepare_buy_trade_fn(
+        prepared_buy = prepare_buy_trade(
             account,
             instrument_mode,
             universe,
@@ -143,7 +154,7 @@ def prepare_trade_selection(
             return None
         ticker, qty, trade_price, delta_est, iv_est = prepared_buy
     else:
-        prepared_sell = prepare_sell_trade_fn(
+        prepared_sell = prepare_sell_trade(
             can_sell,
             forced_sell,
             prices,
