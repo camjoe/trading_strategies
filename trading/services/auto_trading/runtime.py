@@ -37,10 +37,8 @@ from trading.repositories.rotation import (
 from trading.repositories.snapshots import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
-    resolve_active_strategy,
 )
 from trading.services.auto_trading.execution import (
-    prepare_trade_selection as prepare_trade_selection_impl,
     record_prepared_trade as record_prepared_trade_impl,
     refresh_account_state as refresh_account_state_impl,
     run_for_account as run_for_account_impl,
@@ -56,7 +54,6 @@ from trading.services.auto_trading.rotation_bridge import (
     RotationDeps,
 )
 from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
-from trading.services.runtime_throttle import enforce_runtime_trade_throttles
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -308,14 +305,9 @@ def run_for_account(
             get_account_fn=get_account,
             utc_now_iso_fn=utc_now_iso,
             rotate_account_if_due_fn=_rotate_runtime_account,
-            resolve_active_strategy_fn=resolve_active_strategy,
-            refresh_account_state_fn=_refresh_runtime_account_state,
-            resolve_forced_sell_ticker_fn=auto_trader_policy.choose_sell_ticker_by_risk,
-            prepare_trade_selection_fn=prepare_trade_selection_impl,
             record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
                 *args, **kwargs, _injected_broker=broker
             ),
-            enforce_runtime_trade_throttles_fn=enforce_runtime_trade_throttles,
             is_submission_window_open_fn=_is_runtime_submission_window_open,
         )
     finally:

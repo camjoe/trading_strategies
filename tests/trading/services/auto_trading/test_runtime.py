@@ -180,7 +180,7 @@ def test_run_for_account_breaks_only_on_runtime_throttle_exception(monkeypatch) 
     scenario.install(monkeypatch, runtime_service)
     monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
     monkeypatch.setattr(
-        runtime_service,
+        execution_service,
         "enforce_runtime_trade_throttles",
         Mock(side_effect=RuntimeTradeThrottleExceededError("cap hit")),
     )

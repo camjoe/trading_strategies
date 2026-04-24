@@ -6,6 +6,7 @@ from typing import Callable, Mapping, Sequence
 from unittest.mock import Mock
 
 from trading.models.broker_order import OrderStatus
+import trading.services.auto_trading.execution as execution_service
 from tests.support.account_records import make_account_record
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
@@ -129,13 +130,13 @@ class RuntimeScenario:
             Mock(return_value=self.rotated_account or self.account),
         )
         monkeypatch.setattr(
-            runtime_module,
-            "_refresh_runtime_account_state",
+            execution_service,
+            "refresh_account_state",
             Mock(return_value=self.state),
         )
         monkeypatch.setattr(
-            runtime_module,
-            "prepare_trade_selection_impl",
+            execution_service,
+            "prepare_trade_selection",
             Mock(side_effect=_prepare_selection),
         )
         monkeypatch.setattr(

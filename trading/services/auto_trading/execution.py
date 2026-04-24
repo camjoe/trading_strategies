@@ -12,8 +12,10 @@ from trading.backtesting.domain.strategy_signals import resolve_strategy
 from trading.domain.accounting import compute_account_state
 import trading.domain.auto_trader_policy as auto_trader_policy
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
+from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
+from trading.services.runtime_throttle import enforce_runtime_trade_throttles
 
 
 class AccountStateLike(Protocol):
@@ -361,12 +363,7 @@ def run_for_account(
     get_account_fn: Callable[[sqlite3.Connection, str], AccountRecord],
     utc_now_iso_fn: Callable[[], str],
     rotate_account_if_due_fn: Callable[[sqlite3.Connection, str, AccountRecord, str], AccountRecord],
-    resolve_active_strategy_fn: Callable[[AccountRecord], str],
-    refresh_account_state_fn: Callable[[sqlite3.Connection, AccountRecord], AccountStateLike],
-    resolve_forced_sell_ticker_fn: Callable[..., str | None],
-    prepare_trade_selection_fn: Callable[..., tuple[str, str, int, float, float | None, float | None] | None],
     record_prepared_trade_fn: Callable[..., None],
-    enforce_runtime_trade_throttles_fn: Callable[..., None],
     is_submission_window_open_fn: Callable[[str], bool],
 ) -> int:
     account = get_account_fn(conn, account_name)
@@ -374,7 +371,7 @@ def run_for_account(
     if not is_submission_window_open_fn(now_iso):
         return 0
     account = rotate_account_if_due_fn(conn, account_name, account, now_iso)
-    active_strategy = resolve_active_strategy_fn(account)
+    active_strategy = resolve_active_strategy(account)
     learning_enabled = bool(
         int(cast(int | float | str | bytes | bytearray, account["learning_enabled"] or 0))
     )
@@ -387,9 +384,9 @@ def run_for_account(
     for _ in range(target):
         if not is_submission_window_open_fn(utc_now_iso_fn()):
             break
-        state = refresh_account_state_fn(conn, account)
+        state = refresh_account_state(conn, account)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
-        forced_sell = resolve_forced_sell_ticker_fn(
+        forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(
             can_sell,
             prices,
             state,
@@ -398,7 +395,7 @@ def run_for_account(
             take_profit_pct,
         )
 
-        selection = prepare_trade_selection_fn(
+        selection = prepare_trade_selection(
             account,
             active_strategy,
             state,
@@ -416,7 +413,7 @@ def run_for_account(
 
         trade_time_iso = utc_now_iso_fn()
         try:
-            enforce_runtime_trade_throttles_fn(
+            enforce_runtime_trade_throttles(
                 conn,
                 trade_time_iso=trade_time_iso,
             )
