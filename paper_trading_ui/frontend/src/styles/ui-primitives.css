@@ -1,0 +1,160 @@
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.icon-button,
+.ref-card-toggle-all {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--surface-white);
+  border: 1px solid var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible,
+.ref-card-toggle-all:hover,
+.ref-card-toggle-all:focus-visible {
+  background: #1f56cf;
+  color: var(--surface-white);
+  border-color: #1f56cf;
+}
+
+.icon-button[data-tooltip]::after,
+.ref-card-toggle-all[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.45rem);
+  transform: translateX(-50%) translateY(4px);
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--ink);
+  border: 1px solid var(--border-action);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 30;
+}
+
+.icon-button[data-tooltip]:hover::after,
+.icon-button[data-tooltip]:focus-visible::after,
+.ref-card-toggle-all[data-tooltip]:hover::after,
+.ref-card-toggle-all[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.icon-label-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--accent);
+  color: var(--surface-white);
+  border: 1px solid var(--accent);
+  box-shadow: none;
+}
+
+.icon-label-button:hover,
+.icon-label-button:focus-visible {
+  background: #1f56cf;
+  color: var(--surface-white);
+  border-color: #1f56cf;
+}
+
+.button-icon {
+  font-size: 1rem;
+  line-height: 1;
+  color: currentColor;
+}
+
+.button-icon-svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  color: currentColor;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.24rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-pill.ok {
+  background: var(--success-bg);
+  color: var(--success-ink);
+  border: 1px solid var(--success-border);
+}
+
+.status-pill.warning {
+  background: var(--warning-bg, #fff4db);
+  color: var(--warning-ink, #8a5d00);
+  border: 1px solid var(--warning-border, #f1d48a);
+}
+
+.status-pill.missing {
+  background: var(--error-bg);
+  color: var(--error-ink);
+  border: 1px solid var(--error-border);
+}
+
+.danger-btn {
+  background: var(--danger);
+  color: var(--surface-white);
+}
+
+.danger-btn:hover,
+.danger-btn:focus-visible {
+  background: var(--danger-hover);
+}
+
+.success {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-ink);
+  font-size: 0.9rem;
+}
+
+.error {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--error-border);
+  background: var(--error-bg);
+  color: var(--error-ink);
+  font-size: 0.9rem;
+}
+
+.tab-btn:hover,
+.detail-section-tab:hover,
+.admin-section-tab:hover,
+.ref-card-toggle-all:hover,
+.ref-section-toggle:hover,
+.compare-open-account-btn:hover {
+  box-shadow: none;
+}

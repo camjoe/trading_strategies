@@ -1,5 +1,10 @@
 @import "./styles/tokens.css";
-@import "./styles/app.css";
+@import "./styles/base.css";
+@import "./styles/shell.css";
+@import "./styles/ui-primitives.css";
+@import "./styles/docs.css";
+@import "./styles/admin.css";
+@import "./styles/compare.css";
 @import "./styles/accounts.css";
 @import "./styles/runtime.css";
 @import "./styles/alt-strategies.css";

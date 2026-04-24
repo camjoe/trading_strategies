@@ -54,32 +54,3 @@
   font-size: 0.82rem;
   color: var(--ink-muted);
 }
-
-@media (max-width: 1080px) {
-  .account-workspace-card,
-  .logs-card {
-    grid-column: span 12;
-  }
-
-  .bt-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .bt-row {
-    grid-template-columns: 1fr;
-  }
-
-  .account-switcher {
-    grid-template-columns: 1fr;
-  }
-
-  #tab-accounts .account-browser-grid {
-    max-height: 65vh;
-  }
-
-  .topbar-inner,
-  .tab-nav,
-  .app-shell {
-    width: 100%;
-  }
-}

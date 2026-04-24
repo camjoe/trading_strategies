@@ -60,21 +60,6 @@
   grid-column: span 12;
 }
 
-h2,
-h3,
-h4 {
-  margin-top: 0;
-  letter-spacing: -0.02em;
-}
-
-h2 {
-  font-size: clamp(1.2rem, 2vw, 1.55rem);
-}
-
-h3 {
-  font-size: 1.02rem;
-}
-
 .accounts-grid {
   display: grid;
   gap: 0.8rem;
@@ -400,4 +385,14 @@ td {
   color: var(--trade-sell-ink);
   border-top: 1px solid var(--trade-sell-border);
   border-bottom: 1px solid var(--trade-sell-border);
+}
+
+@media (max-width: 1080px) {
+  .account-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  #tab-accounts .account-browser-grid {
+    max-height: 65vh;
+  }
 }
