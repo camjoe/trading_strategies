@@ -1,14 +1,14 @@
-import pytest
 from datetime import UTC, datetime
+
+import pytest
 
 from common.time import as_utc_iso
 import trading.domain.rotation as rotation
-
 from trading.domain.rotation import (
     OPTIMALITY_MODES,
-    ROTATION_REGIME_STATES,
     ROTATION_MODES,
     ROTATION_OVERLAY_MODES,
+    ROTATION_REGIME_STATES,
     dump_rotation_overlay_watchlist,
     dump_rotation_schedule,
     is_rotation_due,

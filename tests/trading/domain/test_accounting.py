@@ -1,0 +1,138 @@
+import pytest
+
+from trading.domain.accounting import compute_account_state
+
+
+class TestComputeAccountState:
+    def test_buy_sell_realized_pnl(self) -> None:
+        trades = [
+            {"ticker": "AAPL", "side": "buy", "qty": 10, "price": 100, "fee": 1},
+            {"ticker": "AAPL", "side": "sell", "qty": 4, "price": 110, "fee": 1},
+        ]
+
+        state = compute_account_state(initial_cash=1000.0, trades=trades)
+
+        assert state.positions == {"AAPL": 6.0}
+        assert state.avg_cost["AAPL"] == pytest.approx(100.1)
+        assert state.cash == pytest.approx(438.0)
+        assert state.realized_pnl == pytest.approx(38.6)
+
+    def test_rejects_non_positive_qty(self) -> None:
+        with pytest.raises(ValueError, match="Trade quantity must be > 0"):
+            compute_account_state(
+                initial_cash=1000.0,
+                trades=[{"ticker": "AAPL", "side": "buy", "qty": 0, "price": 100, "fee": 1}],
+            )
+
+    def test_rejects_non_positive_price(self) -> None:
+        with pytest.raises(ValueError, match="Trade price must be > 0"):
+            compute_account_state(
+                initial_cash=1000.0,
+                trades=[{"ticker": "AAPL", "side": "buy", "qty": 1, "price": 0, "fee": 1}],
+            )
+
+    def test_rejects_invalid_side(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported side: hold"):
+            compute_account_state(
+                initial_cash=1000.0,
+                trades=[{"ticker": "AAPL", "side": "hold", "qty": 1, "price": 100, "fee": 1}],
+            )
+
+    def test_rejects_sell_above_holdings(self) -> None:
+        with pytest.raises(ValueError, match="Invalid sell for AAPL"):
+            compute_account_state(
+                initial_cash=1000.0,
+                trades=[{"ticker": "AAPL", "side": "sell", "qty": 1, "price": 100, "fee": 1}],
+            )
+
+    def test_sell_all_removes_position_and_avg_cost(self) -> None:
+        state = compute_account_state(
+            initial_cash=1000.0,
+            trades=[
+                {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+                {"ticker": "AAPL", "side": "sell", "qty": 2, "price": 110, "fee": 0},
+            ],
+        )
+
+        assert state.positions == {}
+        assert state.avg_cost == {}
+        assert state.realized_pnl == pytest.approx(20.0)
+        assert state.cash == pytest.approx(1020.0)
+
+    def test_multiple_buys_updates_weighted_avg_cost(self) -> None:
+        state = compute_account_state(
+            initial_cash=1000.0,
+            trades=[
+                {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+                {"ticker": "AAPL", "side": "buy", "qty": 1, "price": 130, "fee": 1},
+            ],
+        )
+
+        assert state.positions == {"AAPL": 3.0}
+        assert state.avg_cost["AAPL"] == pytest.approx((200.0 + 131.0) / 3.0)
+        assert state.cash == pytest.approx(669.0)
+        assert state.total_deposited == pytest.approx(0.0)
+
+
+class TestSettlementTickerDepositModel:
+    def test_cash_buy_is_deposit_adds_to_cash(self) -> None:
+        trades = [{"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0}]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(1000.0)
+        assert state.total_deposited == pytest.approx(1000.0)
+
+    def test_cash_buy_does_not_create_position(self) -> None:
+        trades = [{"ticker": "CASH", "side": "buy", "qty": 500.0, "price": 1.0, "fee": 0.0}]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert "CASH" not in state.positions
+
+    def test_multiple_cash_deposits_accumulate(self) -> None:
+        trades = [
+            {"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0},
+            {"ticker": "CASH", "side": "buy", "qty": 500.0, "price": 1.0, "fee": 0.0},
+        ]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(1500.0)
+        assert state.total_deposited == pytest.approx(1500.0)
+
+    def test_deposit_then_equity_buy(self) -> None:
+        trades = [
+            {"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0},
+            {"ticker": "AAPL", "side": "buy", "qty": 5.0, "price": 100.0, "fee": 0.0},
+        ]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(500.0)
+        assert state.total_deposited == pytest.approx(1000.0)
+        assert state.positions == {"AAPL": 5.0}
+        assert "CASH" not in state.positions
+
+    def test_cash_sell_is_withdrawal(self) -> None:
+        trades = [
+            {"ticker": "CASH", "side": "buy", "qty": 1000.0, "price": 1.0, "fee": 0.0},
+            {"ticker": "CASH", "side": "sell", "qty": 200.0, "price": 1.0, "fee": 0.0},
+        ]
+        state = compute_account_state(initial_cash=0.0, trades=trades)
+
+        assert state.cash == pytest.approx(800.0)
+        assert state.total_deposited == pytest.approx(1000.0)
+
+    def test_settlement_ticker_none_treats_cash_as_equity(self) -> None:
+        trades = [{"ticker": "CASH", "side": "buy", "qty": 100.0, "price": 1.0, "fee": 0.0}]
+        state = compute_account_state(initial_cash=200.0, trades=trades, settlement_ticker=None)
+
+        assert state.positions == {"CASH": 100.0}
+        assert state.cash == pytest.approx(100.0)
+        assert state.total_deposited == pytest.approx(0.0)
+
+    def test_equity_only_account_has_zero_total_deposited(self) -> None:
+        trades = [
+            {"ticker": "AAPL", "side": "buy", "qty": 2, "price": 100, "fee": 0},
+            {"ticker": "AAPL", "side": "sell", "qty": 1, "price": 110, "fee": 0},
+        ]
+        state = compute_account_state(initial_cash=500.0, trades=trades)
+
+        assert state.total_deposited == pytest.approx(0.0)

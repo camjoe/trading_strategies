@@ -5,6 +5,7 @@ from tests.support.analysis import (
     patch_analysis_market_data,
     record_analysis_buy,
 )
+from tests.support.brokers import make_broker_account, make_broker_order
 from tests.support.auto_trading import (
     FakeBroker,
     MARKET_CLOSED_TIME_ISO,
@@ -75,6 +76,8 @@ __all__ = [
     "CliFakeConn",
     "make_accounts_service_row",
     "make_analysis_account",
+    "make_broker_account",
+    "make_broker_order",
     "insert_account_snapshot",
     "insert_backtest_run",
     "insert_backtest_snapshot",
