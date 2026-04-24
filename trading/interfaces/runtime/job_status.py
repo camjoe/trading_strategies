@@ -1,12 +1,13 @@
-"""Sentinel strings shared across runtime jobs and UI status surfaces."""
+"""Compatibility re-export for runtime job sentinel strings."""
 
 from __future__ import annotations
 
-
-DAILY_PAPER_TRADING_COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
-DAILY_SNAPSHOT_COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
-DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL = "COMPLETE: Daily backtest refresh succeeded."
-WEEKLY_DB_BACKUP_COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded."
+from common.runtime_job_status import (
+    DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL,
+    DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
+    DAILY_SNAPSHOT_COMPLETE_SENTINEL,
+    WEEKLY_DB_BACKUP_COMPLETE_SENTINEL,
+)
 
 __all__ = [
     "DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL",
