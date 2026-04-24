@@ -4,13 +4,14 @@ import pandas as pd
 import pytest
 
 import trading.backtesting.backtest as backtest_module
+import trading.backtesting.services.execution_service as execution_service
 from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestReportSnapshot,
     BacktestReportSummary,
     BacktestReportTrade,
 )
-from tests.support import (
+from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
     make_backtest_config,
@@ -177,7 +178,7 @@ class TestBacktestRunFlow:
             return "hold"
 
         install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
-        monkeypatch.setattr(backtest_module, "resolve_signal", fake_signal)
+        monkeypatch.setattr(execution_service, "resolve_signal", fake_signal)
 
         backtest_module.run_backtest(
             conn,

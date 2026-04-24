@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 import trading.backtesting.backtest as backtest_module
-from tests.support import (
+from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
     make_backtest_config,

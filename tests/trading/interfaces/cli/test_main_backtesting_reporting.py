@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from trading.backtesting.report_models import BacktestLeaderboardEntry
 from trading.interfaces.cli import main as cli_main
-from tests.support import (
-    install_main_harness,
-    make_backtest_leaderboard_args,
-    make_backtest_report_args,
-)
+from tests.support.cli_backtesting import make_backtest_leaderboard_args, make_backtest_report_args
+from tests.support.cli_main import install_main_harness
 
 
 def test_main_backtest_report_dispatches(monkeypatch, capsys) -> None:

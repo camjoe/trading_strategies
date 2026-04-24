@@ -6,7 +6,7 @@ from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.runtime_settings import set_runtime_throttle_settings
-from tests.support import (
+from tests.support.auto_trading import (
     MARKET_CLOSED_TIME_ISO,
     MARKET_OPEN_TIME_ISO,
     RuntimeScenario,
@@ -99,7 +99,7 @@ def test_run_for_account_forced_sell_passes_risk_selection(monkeypatch) -> None:
     )
 
     assert executed == 1
-    runtime_service.auto_trader_policy.choose_sell_ticker_by_risk.assert_called_once()
+    execution_service.auto_trader_policy.choose_sell_ticker_by_risk.assert_called_once()
     args, _kwargs = scenario.trade_recorder.call_args
     assert args[9] == "AAPL"
     assert args[8][0] == "sell"
@@ -180,7 +180,7 @@ def test_run_for_account_breaks_only_on_runtime_throttle_exception(monkeypatch) 
     scenario.install(monkeypatch, runtime_service)
     monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
     monkeypatch.setattr(
-        runtime_service,
+        execution_service,
         "enforce_runtime_trade_throttles",
         Mock(side_effect=RuntimeTradeThrottleExceededError("cap hit")),
     )

@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from tests.support import daily_backtest_refresh as module, make_daily_backtest_refresh_args
+from tests.support.runtime_jobs import daily_backtest_refresh as module, make_daily_backtest_refresh_args
 
 
 def test_run_backtest_refresh_with_retry_retries_transient_then_succeeds(tmp_path: Path) -> None:

@@ -6,7 +6,7 @@ from trading.services.promotion import (
     fetch_promotion_review_history,
 )
 from trading.services.promotion import actions as promotion_actions
-from tests.support import make_ready_evaluation
+from tests.support.promotion import make_ready_evaluation
 
 
 def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str = "trend_v1"):

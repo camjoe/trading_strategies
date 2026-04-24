@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from tests.support import run_auto_trades as module
+from tests.support.runtime_jobs import run_auto_trades as module
 
 
 def test_parse_args_reads_cli_values(monkeypatch) -> None:

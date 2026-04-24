@@ -67,15 +67,11 @@ def _persist_walk_forward_group(
     cfg,
     summary: WalkForwardSummary,
     window_results: list[_WalkForwardWindowResult],
-    insert_group_fn,
-    insert_group_run_fn,
-    grouping_key_factory,
-    commit_fn,
 ) -> None:
-    group_id = insert_group_fn(
+    group_id = insert_walk_forward_group(
         conn,
         primary_run_id=window_results[0].run_id,
-        grouping_key=grouping_key_factory(),
+        grouping_key=_build_grouping_key(),
         run_name_prefix=_normalized_run_name_prefix(cfg.run_name_prefix),
         start_date=summary.start_date,
         end_date=summary.end_date,
@@ -88,7 +84,7 @@ def _persist_walk_forward_group(
         worst_return_pct=summary.worst_return_pct,
     )
     for result in window_results:
-        insert_group_run_fn(
+        insert_walk_forward_group_run(
             conn,
             group_id=group_id,
             run_id=result.run_id,
@@ -97,7 +93,7 @@ def _persist_walk_forward_group(
             window_end=result.window_end,
             total_return_pct=result.total_return_pct,
         )
-    commit_fn(conn)
+    _commit_connection(conn)
 
 
 def _commit_connection(conn) -> None:
@@ -116,10 +112,6 @@ def execute_walk_forward_backtest(
     end_date,
     windows: list[tuple],
     run_backtest_fn,
-    insert_group_fn=insert_walk_forward_group,
-    insert_group_run_fn=insert_walk_forward_group_run,
-    grouping_key_factory=_build_grouping_key,
-    commit_fn=_commit_connection,
 ) -> WalkForwardSummary:
     if not windows:
         raise ValueError("No walk-forward windows generated for the selected date range.")
@@ -171,9 +163,5 @@ def execute_walk_forward_backtest(
         cfg=cfg,
         summary=summary,
         window_results=window_results,
-        insert_group_fn=insert_group_fn,
-        insert_group_run_fn=insert_group_run_fn,
-        grouping_key_factory=grouping_key_factory,
-        commit_fn=commit_fn,
     )
     return summary

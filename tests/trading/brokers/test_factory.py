@@ -6,7 +6,7 @@ from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_a
 from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import IbWebApiSettings
 from trading.brokers.paper_adapter import PaperBrokerAdapter
-from tests.support import make_broker_account
+from tests.support.brokers import make_broker_account
 
 
 class TestGetBrokerForAccount:

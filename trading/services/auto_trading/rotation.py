@@ -8,6 +8,7 @@ from typing import Callable, cast
 
 from common.coercion import coerce_float, row_expect_int, row_float, row_int
 from common.time import parse_utc_iso
+from trading.domain.accounting import compute_account_state
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
     next_rotation_state,
@@ -43,6 +44,8 @@ from trading.features.social_feature_provider import (
     SOCIAL_TREND_SCORE,
 )
 from trading.models import AccountRecord
+from trading.services.accounting import list_account_trades
+from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
 
 # Minimum completed live episodes required before the live component receives
 # its full configured weight in hybrid rotation scoring.
@@ -113,13 +116,13 @@ def classify_policy_regime(
 def fetch_rotation_overlay_tickers(
     conn: sqlite3.Connection,
     account: AccountRecord,
-    *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
-    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
 ) -> list[str]:
     state = cast(
         object,
-        compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id"))),
+        compute_account_state(
+            row_float(account, "initial_cash") or 0.0,
+            list_account_trades(conn, row_expect_int(account, "id")),
+        ),
     )
     positions = cast(dict[str, float], getattr(state, "positions", {}))
     held_tickers = {ticker for ticker, qty in positions.items() if float(qty) > 0}
@@ -272,20 +275,18 @@ def select_regime_strategy(
 def compute_live_account_metrics(
     conn: sqlite3.Connection,
     account: AccountRecord,
-    *,
-    load_trades_fn: Callable[[sqlite3.Connection, int], list[dict[str, object]]],
-    compute_account_state_fn: Callable[[float, list[dict[str, object]]], object],
-    fetch_latest_prices_fn: Callable[[list[str]], dict[str, float]],
-    compute_market_value_and_unrealized_fn: Callable[[dict[str, float], dict[str, float], dict[str, float]], tuple[float, float]],
 ) -> dict[str, float]:
     state = cast(
         object,
-        compute_account_state_fn(row_float(account, "initial_cash") or 0.0, load_trades_fn(conn, row_expect_int(account, "id"))),
+        compute_account_state(
+            row_float(account, "initial_cash") or 0.0,
+            list_account_trades(conn, row_expect_int(account, "id")),
+        ),
     )
     positions = cast(dict[str, float], getattr(state, "positions"))
     avg_cost = cast(dict[str, float], getattr(state, "avg_cost"))
-    prices = fetch_latest_prices_fn(sorted(positions.keys())) if positions else {}
-    market_value, _unrealized = compute_market_value_and_unrealized_fn(positions, avg_cost, prices)
+    prices = fetch_latest_prices(sorted(positions.keys())) if positions else {}
+    market_value, _unrealized = compute_market_value_and_unrealized(positions, avg_cost, prices)
     equity = float(getattr(state, "cash", 0.0)) + float(market_value)
     return {
         "equity": equity,
@@ -298,7 +299,6 @@ def sync_rotation_episode(
     account: AccountRecord,
     as_of_iso: str,
     *,
-    resolve_active_strategy_fn: Callable[[AccountRecord], str],
     fetch_open_rotation_episode_fn: Callable[..., sqlite3.Row | None],
     insert_rotation_episode_fn: Callable[..., None],
     close_rotation_episode_fn: Callable[..., None],
@@ -308,7 +308,7 @@ def sync_rotation_episode(
     if not bool(int(cast(int | float | str | bytes | bytearray, account["rotation_enabled"] or 0))):
         return
 
-    active_strategy = resolve_active_strategy_fn(account)
+    active_strategy = resolve_active_strategy(account)
     if not active_strategy:
         return
 

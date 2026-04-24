@@ -2,22 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Callable
-
-import pandas as pd
-
 from common.constants import ANNUALIZATION_FACTOR
+from trading.services.market_data import get_provider
 
 
-def build_iv_rank_proxy(
-    universe: list[str],
-    *,
-    fetch_close_series_fn: Callable[[str, str], pd.Series | None],
-) -> dict[str, float]:
+def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
     vols: dict[str, float] = {}
+    provider = get_provider()
     for ticker in universe:
         try:
-            close = fetch_close_series_fn(ticker, "1y")
+            close = provider.fetch_close_series(ticker, "1y")
             if close is None or len(close) < 30:
                 continue
             daily_ret = close.pct_change().dropna()

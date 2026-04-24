@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from tests.support import DAILY_PAPER_TRADING_MODULE, daily_paper_trading as module, run_runtime_job_main
+from tests.support.runtime_jobs import DAILY_PAPER_TRADING_MODULE, daily_paper_trading as module, run_runtime_job_main
 
 
 def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path, capsys) -> None:

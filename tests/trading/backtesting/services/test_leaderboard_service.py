@@ -17,7 +17,6 @@ def test_leaderboard_service_rejects_non_positive_limit() -> None:
             limit=0,
             account_name=None,
             strategy=None,
-            fetch_benchmark_close_fn=lambda *_args, **_kwargs: None,
         )
 
 
@@ -67,13 +66,13 @@ def test_leaderboard_service_returns_sorted_entries(monkeypatch: pytest.MonkeyPa
             _Row(ticker="AAPL", side="sell", qty=1.0, price=110.0, fee=0.0),
         ],
     )
+    monkeypatch.setattr(leaderboard_service, "fetch_benchmark_close", lambda _ticker, _start, _end: [100.0, 101.0])
 
     entries = leaderboard_service.fetch_backtest_leaderboard_entries(
         conn=object(),
         limit=10,
         account_name=None,
         strategy=None,
-        fetch_benchmark_close_fn=lambda _ticker, _start, _end: [100.0, 101.0],
     )
 
     assert len(entries) == 2
@@ -103,13 +102,13 @@ def test_leaderboard_service_skips_rows_with_invalid_equity(monkeypatch: pytest.
     monkeypatch.setattr(leaderboard_service, "fetch_leaderboard_rows", lambda *_args, **_kwargs: bad_rows)
     monkeypatch.setattr(leaderboard_service, "fetch_equity_rows", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(leaderboard_service, "fetch_trade_rows", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(leaderboard_service, "fetch_benchmark_close", lambda _ticker, _start, _end: [100.0, 101.0])
 
     entries = leaderboard_service.fetch_backtest_leaderboard_entries(
         conn=object(),
         limit=10,
         account_name=None,
         strategy=None,
-        fetch_benchmark_close_fn=lambda _ticker, _start, _end: [100.0, 101.0],
     )
 
     assert entries == []

@@ -1,7 +1,7 @@
 from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
-from tests.support import RuntimeScenario, make_account_state, make_auto_trading_account
+from tests.support.auto_trading import RuntimeScenario, make_account_state, make_auto_trading_account
 
 
 def test_run_for_account_uses_rotated_active_strategy(monkeypatch) -> None:

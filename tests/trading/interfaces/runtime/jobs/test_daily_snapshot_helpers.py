@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock
 
-from tests.support import daily_snapshot as module
+from tests.support.runtime_jobs import daily_snapshot as module
 
 
 def test_already_completed_today_detects_sentinel(tmp_path: Path) -> None:
