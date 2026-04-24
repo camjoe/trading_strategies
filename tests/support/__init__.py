@@ -16,6 +16,15 @@ from tests.support.cli_main import (
     configure_account_args,
     install_main_harness,
 )
+from tests.support.cli_backtesting import (
+    make_backtest_args,
+    make_backtest_batch_args,
+    make_backtest_leaderboard_args,
+    make_backtest_report_args,
+    make_backtest_result,
+    make_walk_forward_args,
+    make_walk_forward_summary,
+)
 from tests.support.runtime_jobs import (
     CHECK_DAILY_TRADER_HEALTH_MODULE,
     DAILY_SNAPSHOT_MODULE,
@@ -50,6 +59,13 @@ __all__ = [
     "MARKET_OPEN_TIME_ISO",
     "RuntimeScenario",
     "CliFakeConn",
+    "make_backtest_args",
+    "make_backtest_batch_args",
+    "make_backtest_leaderboard_args",
+    "make_backtest_report_args",
+    "make_backtest_result",
+    "make_walk_forward_args",
+    "make_walk_forward_summary",
     "configure_account_args",
     "install_main_harness",
     "insert_snapshot",
