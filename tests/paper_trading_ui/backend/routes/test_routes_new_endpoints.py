@@ -153,6 +153,8 @@ class TestAccountParamsEndpoint:
 
 
 _TICKER_EXISTS = "paper_trading_ui.backend.routes.trades._ticker_exists"
+_FEATURE_STATUS = "paper_trading_ui.backend.routes.features.get_provider_status"
+_FEATURE_SIGNALS = "paper_trading_ui.backend.routes.features.get_signals"
 
 
 class TestManualTradeEndpoint:
@@ -213,7 +215,16 @@ class TestManualTradeEndpoint:
 
 class TestFeaturesStatusEndpoint:
     def test_status_returns_three_providers(self, api_client: TestClient) -> None:
-        resp = api_client.get("/api/features/status")
+        with patch(
+            _FEATURE_STATUS,
+            return_value=[
+                {"name": "Policy", "available": True, "fetched_at": "2026-04-24T00:00:00Z", "key_scores": {}},
+                {"name": "News", "available": False, "fetched_at": "2026-04-24T00:00:00Z", "key_scores": {}},
+                {"name": "Social", "available": True, "fetched_at": "2026-04-24T00:00:00Z", "key_scores": {}},
+            ],
+        ) as mocked:
+            resp = api_client.get("/api/features/status")
+        mocked.assert_called_once_with()
         assert resp.status_code == 200
 
         body = resp.json()
@@ -221,7 +232,16 @@ class TestFeaturesStatusEndpoint:
         assert len(body["providers"]) == 3
 
     def test_status_provider_entries_have_required_fields(self, api_client: TestClient) -> None:
-        resp = api_client.get("/api/features/status")
+        with patch(
+            _FEATURE_STATUS,
+            return_value=[
+                {"name": "Policy", "available": True, "fetched_at": "2026-04-24T00:00:00Z", "key_scores": {"x": 1}},
+                {"name": "News", "available": False, "fetched_at": "2026-04-24T00:00:00Z", "key_scores": {}},
+                {"name": "Social", "available": True, "fetched_at": "2026-04-24T00:00:00Z", "key_scores": {"y": 2}},
+            ],
+        ) as mocked:
+            resp = api_client.get("/api/features/status")
+        mocked.assert_called_once_with()
         providers = resp.json()["providers"]
 
         for p in providers:
@@ -235,7 +255,16 @@ class TestFeaturesStatusEndpoint:
 
 class TestFeaturesSignalsEndpoint:
     def test_signals_returns_three_strategies(self, api_client: TestClient) -> None:
-        resp = api_client.post("/api/features/signals", json={"ticker": "SPY"})
+        with patch(
+            _FEATURE_SIGNALS,
+            return_value=[
+                {"strategy": "policy_regime", "signal": "buy", "available": False},
+                {"strategy": "news_sentiment", "signal": "hold", "available": False},
+                {"strategy": "social_trend_rotation", "signal": "sell", "available": False},
+            ],
+        ) as mocked:
+            resp = api_client.post("/api/features/signals", json={"ticker": "spy"})
+        mocked.assert_called_once_with("SPY")
         assert resp.status_code == 200
 
         body = resp.json()
@@ -243,7 +272,16 @@ class TestFeaturesSignalsEndpoint:
         assert len(body["signals"]) == 3
 
     def test_signals_entries_have_required_fields(self, api_client: TestClient) -> None:
-        resp = api_client.post("/api/features/signals", json={"ticker": "AAPL"})
+        with patch(
+            _FEATURE_SIGNALS,
+            return_value=[
+                {"strategy": "policy_regime", "signal": "buy", "available": False},
+                {"strategy": "news_sentiment", "signal": "hold", "available": False},
+                {"strategy": "social_trend_rotation", "signal": "sell", "available": False},
+            ],
+        ) as mocked:
+            resp = api_client.post("/api/features/signals", json={"ticker": "AAPL"})
+        mocked.assert_called_once_with("AAPL")
         signals = resp.json()["signals"]
 
         for s in signals:
