@@ -42,7 +42,6 @@ from trading.domain.rotation import (
     resolve_active_strategy,
 )
 from trading.services.auto_trading.execution import (
-    build_leaps_candidates as build_leaps_candidates_impl,
     prepare_buy_trade as prepare_buy_trade_impl,
     prepare_sell_trade as prepare_sell_trade_impl,
     prepare_trade_selection as prepare_trade_selection_impl,
@@ -194,33 +193,7 @@ def _rotate_runtime_account(
 
 
 def _refresh_runtime_account_state(conn: sqlite3.Connection, account: AccountRecord):
-    return refresh_account_state_impl(
-        conn,
-        account,
-        compute_account_state_fn=compute_account_state,
-        load_trades_fn=list_account_trades,
-    )
-
-
-def _build_runtime_leaps_candidates(
-    account: AccountRecord,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-) -> list[tuple[str, float, float]]:
-    return build_leaps_candidates_impl(
-        account,
-        universe,
-        prices,
-        iv_rank_proxy,
-        option_candidate_allowed_fn=lambda candidate_account, ticker, price, proxy: auto_trader_policy.option_candidate_allowed(
-            candidate_account,
-            ticker,
-            price,
-            proxy,
-            estimate_delta_fn=auto_trader_policy.estimate_delta,
-        ),
-    )
+    return refresh_account_state_impl(conn, account)
 
 
 def _prepare_runtime_buy_trade(
@@ -242,14 +215,6 @@ def _prepare_runtime_buy_trade(
         state,
         learning_enabled,
         fee,
-        build_leaps_candidates_fn=_build_runtime_leaps_candidates,
-        estimate_option_premium_fn=auto_trader_policy.estimate_option_premium,
-        choose_buy_qty_fn=auto_trader_policy.choose_buy_qty,
-        apply_leaps_buy_qty_limits_fn=auto_trader_policy.apply_leaps_buy_qty_limits,
-        choose_buy_ticker_fn=cast(
-            Callable[[list[str], dict[str, float], object, bool], str],
-            auto_trader_policy.choose_buy_ticker,
-        ),
     )
 
 
@@ -268,11 +233,6 @@ def _prepare_runtime_sell_trade(
         state,
         learning_enabled,
         instrument_mode,
-        choose_sell_ticker_fn=cast(
-            Callable[[list[str], dict[str, float], object, bool], str],
-            auto_trader_policy.choose_sell_ticker,
-        ),
-        choose_sell_qty_fn=auto_trader_policy.choose_sell_qty,
     )
 
 
@@ -395,8 +355,6 @@ def _record_runtime_trade(
             selection,
             forced_sell,
             record_trade_fn=_broker_aware_record_trade,
-            utc_now_iso_fn=utc_now_iso,
-            build_trade_note_fn=auto_trader_policy.build_trade_note,
             trade_time_iso=trade_time_iso,
         )
     finally:
