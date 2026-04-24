@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 import trading.backtesting.backtest as backtest_module
+import trading.backtesting.services.leaderboard_service as leaderboard_service
 from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
@@ -88,7 +89,7 @@ class TestBacktestValidationAndFailurePaths:
             make_backtest_config("acct_lb_bench", run_name="lb-benchmark-error"),
         )
         monkeypatch.setattr(
-            backtest_module,
+            leaderboard_service,
             "fetch_benchmark_close",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")),
         )
