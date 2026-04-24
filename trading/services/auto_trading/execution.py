@@ -227,7 +227,6 @@ def build_leaps_candidates(
             ticker,
             float(price),
             iv_rank_proxy,
-            estimate_delta_fn=auto_trader_policy.estimate_delta,
         )
         if ok:
             candidates.append((ticker, delta_est, iv_est))

@@ -2,7 +2,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from unittest.mock import Mock
 
-import trading.domain.auto_trader_policy as auto_trader_policy
 import trading.services.auto_trading.execution as trade_execution_service
 from tests.support.auto_trading import make_auto_trading_account
 
@@ -11,8 +10,7 @@ def test_build_leaps_candidates_filters() -> None:
     account = make_auto_trading_account()
     prices = {"A": 100.0, "B": 200.0}
 
-    def _fake_allowed(_account, ticker, _price, _iv, *, estimate_delta_fn):
-        assert estimate_delta_fn is auto_trader_policy.estimate_delta
+    def _fake_allowed(_account, ticker, _price, _iv):
         if ticker == "A":
             return True, 0.4, 25.0
         return False, 0.4, 25.0
