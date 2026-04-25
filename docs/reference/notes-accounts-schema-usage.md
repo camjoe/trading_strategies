@@ -1,8 +1,7 @@
 # Architecture Notes: Accounts Schema Usage
 
-Status: Active audit  
-Date: 2026-04-14  
-Audience: Developers, Deep Code Review bot, DB Migration Steward bot
+Status: Active audit
+Last reviewed: 2026-04-25
 
 ---
 
@@ -16,6 +15,13 @@ where it is read, and whether it participates in real runtime logic.
 This is a **living audit**, not a promise that every field below should remain
 forever. Fields marked **unclear / revisit** or **active but niche** are the
 most likely follow-up targets for later simplification passes.
+
+## Scope and Limits
+
+- This is an as-of-now evidence snapshot, not a permanent design commitment.
+- It summarizes field usage patterns; detailed implementation still lives in code.
+- Use this file to decide cleanup priorities, then verify with targeted code/tests
+  before schema changes.
 
 ---
 
