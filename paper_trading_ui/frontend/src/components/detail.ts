@@ -11,12 +11,13 @@ import {
   renderSummarySection,
   renderTradesSection,
 } from "./account-detail/sections";
+import type { DetailSectionName } from "./account-detail/types";
 import type { AccountDetail } from "../types/accounts";
 
 export interface DetailRenderOptions {
   tradePage?: number;
   tradePageSize?: number;
-  activeSection?: "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
+  activeSection?: DetailSectionName;
   showActions?: boolean;
   showAddTrade?: boolean;
   showBacktest?: boolean;
