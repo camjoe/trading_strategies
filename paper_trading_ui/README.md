@@ -1,6 +1,6 @@
 # Paper Trading Web UI
 
-A separate scaffold for viewing paper trading accounts, snapshots, trades, and log files.
+Web dashboard and API for viewing paper trading accounts, snapshots, trades, and logs.
 
 ## Purpose
 
@@ -26,15 +26,15 @@ cp paper_trading_ui/frontend/.env.example paper_trading_ui/frontend/.env
 
 Backend env supports `CORS_ORIGINS` and `LOGS_DIR`. Frontend env supports `VITE_API_BASE` (default `http://127.0.0.1:8000`).
 
-## One-Command Launcher
+## Quick Start
 
-The easiest way to start both services:
+The fastest way to start both services:
 
 ```sh
 python -m scripts.launch_ui
 ```
 
-Keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1:5173`.
+This keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1:5173`.
 
 ## Manual Startup
 
@@ -73,8 +73,7 @@ npm run dev
 
 ### Admin
 
-- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with the default tickers seeded from `trading/config/trade_universe.txt`.
-- The seeded default is persisted in the DB schema/defaults. Updating `trading/config/trade_universe.txt` later does not automatically refresh already-migrated databases; use an explicit DB update or migration if you want new accounts to inherit the revised list.
+- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with default tickers seeded from `trading/config/trade_universe.txt`. That seed is persisted in DB schema/defaults, so later updates to `trading/config/trade_universe.txt` require an explicit DB update or migration to affect already-migrated databases.
 - `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
 - `GET /api/admin/operations/overview` — summarize scheduled job health and recent refresh/snapshot/backup artifacts discovered under `local/`.
 - `GET /api/admin/promotion/overview?accountName=...&strategyName=&limit=5` — show the current computed promotion assessment plus recent persisted review history for one managed account.
@@ -111,8 +110,7 @@ npm run dev
 
 - `GET /health`
 
-For the complete, always-current route list (including backtesting endpoints), see:
-- `paper_trading_ui/backend/main.py`
+For the complete, always-current route list (including backtesting endpoints), see `paper_trading_ui/backend/main.py`.
 
 ## Request Schemas
 
@@ -120,7 +118,7 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
-| `AdminCreateAccountRequest` | Account creation payload with core fields plus `accountKind` and rotation settings. `accountKind` defaults to `managed`; use `local` for local strategy-testing accounts. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the account-level default seeded from `trading/config/trade_universe.txt`; that seeded default lives in the DB schema/defaults and requires an explicit DB update or migration to change for already-migrated databases. | `POST /api/admin/accounts/create` |
+| `AdminCreateAccountRequest` | Account creation payload with core fields plus `accountKind` and rotation settings. `accountKind` defaults to `managed`; use `local` for local strategy-testing accounts. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the seeded `trading/config/trade_universe.txt` default (see Admin route note above for migration behavior). | `POST /api/admin/accounts/create` |
 | `AdminDeleteAccountRequest` | `accountName`, `confirm` | `POST /api/admin/accounts/delete` |
 | `BacktestRunRequest` | `account`, date/window selection, optional universe-history inputs, slippage/fee, optional `runName`, and `allowApproximateLeaps` | `POST /api/backtests/run` |
 | `BacktestPreflightRequest` | Same account/date/universe inputs as a run request, without execution fields | `POST /api/backtests/preflight` |
