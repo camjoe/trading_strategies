@@ -370,5 +370,5 @@ newly_filled = reconcile_open_broker_orders(conn, account_name, account, fee=0.0
 2. Add a `_BROKER_TYPE_<NAME>` constant and routing branch in `factory.py`
 3. Add the `broker_type` value to the `accounts.broker_type` `CHECK` constraint
    (or document the allowed values if no DB-level constraint exists)
-4. Add tests in `tests/trading/test_brokers.py`
+4. Add tests in `tests/trading/brokers/` (for factory/adapter coverage)
 5. Update this document
