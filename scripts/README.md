@@ -15,6 +15,16 @@ Define and document repository-level automation commands for validation, data op
 
 Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
 
+## Quick Start
+
+Run these from the repository root:
+
+```sh
+python -m scripts.run_checks --profile quick
+python -m scripts.checks.readme_check --max-age-days 90
+python -m scripts.documentation_ui.check
+```
+
 ## Script Catalog
 
 Repository workflow scripts (`scripts/`):

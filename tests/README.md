@@ -6,6 +6,14 @@ Repository test suite for trading, trends, backtesting, UI backend, and supporti
 
 Provide reliable verification coverage for runtime behavior, data operations, UI backend flows, and supporting repository scripts.
 
+## Quick Start
+
+Run the full suite from the repository root:
+
+```sh
+python -m pytest
+```
+
 ## Commands
 
 Run these from the repository root.
