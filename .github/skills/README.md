@@ -2,6 +2,16 @@
 
 This folder is the repo's primary reusable task surface.
 
+## Purpose
+
+Define how this repository uses reusable skills vs repo-specific agents, and provide guardrails for maintaining both.
+
+## Usage
+
+1. Choose the closest matching skill folder and follow its `SKILL.md`.
+2. Use a repo-specific agent only when the work depends on repo-only execution behavior.
+3. Keep top-level `.skill.md` files as compatibility shims only; treat folder `SKILL.md` files as canonical.
+
 ## Active layout
 
 Use folder-based skills with a `SKILL.md` file:

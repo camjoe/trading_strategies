@@ -36,6 +36,7 @@ Software (`scripts/documentation_ui/software/`):
 API Reference (`scripts/documentation_ui/api/`):
 
 - `build_registry.py`: rebuilds `paper_trading_ui/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
+
 Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Software and API reference checks together.
@@ -117,14 +118,12 @@ python -m scripts.documentation_ui.api.build_registry
 python -m scripts.documentation_ui.api.check
 
 # Modular checks (direct use)
-python -m scripts.checks.readme_check
 python -m scripts.checks.mypy_check
 python -m scripts.checks.pytest_check -- -q
 python -m scripts.checks.quick
 python -m scripts.checks.ci --skip-frontend
 
 # Focused docs checker
-python -m scripts.checks.readme_check
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.checks.readme_check --enforce-style --enforce-staleness
 ```

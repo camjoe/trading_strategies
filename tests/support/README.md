@@ -22,4 +22,4 @@ The package is intentionally organized by test area rather than as one large uti
 
 - The individual helper modules are still reasonably well-scoped.
 - The main risk of drift is `tests/support/__init__.py` becoming a broad utility dump that hides ownership and encourages unrelated coupling.
-- If future cleanup is needed, review `__init__.py` first before splitting the area into more files.
+- When this area drifts, review `__init__.py` first before splitting it into more files.

@@ -23,7 +23,7 @@ All trading scripts should be run as Python modules from the repository root, pr
 - `reference/notes-broker-integration.md`: broker abstraction layer — architecture, account configuration, IB connection setup, live trading safety guard, fill reconciliation, and extension guide.
 - `reference/notes-db-migration-system.md`: active reference guide for the hand-rolled SQLite migration system.
 - `reference/notes-sentiment-signals.md`: current-state reference for alternative-data signal architecture (`policy_regime`, `news_sentiment`, `social_trend_rotation`) and extension boundaries.
-- `reference/notes-strategies.md`: strategy catalog, implementation status, proxy feature descriptions, and evaluation framework guidance.
+- `reference/notes-strategies.md`: strategy catalog, resolution behavior, data/dependency notes, and evaluation checklist.
 - `reference/notes-screenshot-ui.md`: UI screenshot utility — setup, usage, all flags, and recipes for developers and AI assistants.
 
 ## Architecture Reference
