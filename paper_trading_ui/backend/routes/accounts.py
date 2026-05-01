@@ -62,12 +62,6 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
             attach_live_benchmark_summary(summary, build_live_benchmark_overlay(summary, snapshots))
             latest_backtest = fetch_latest_backtest_metrics(conn, row.name)
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
-
-        test_summary = build_test_account_live_summary(conn)
-        test_account = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
-        test_snapshots = list_account_snapshots(conn, test_account.id, limit=100)
-        attach_live_benchmark_summary(test_summary, build_live_benchmark_overlay(test_summary, test_snapshots))
-        comparison.append(build_comparison_account_payload(test_summary, None))
         comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 

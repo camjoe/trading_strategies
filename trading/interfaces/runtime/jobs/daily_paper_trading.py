@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, stream_command, tee_line, ts, write_artifact
+from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, resolve_accounts, stream_command, tee_line, ts, write_artifact
 from trading.interfaces.runtime.notifications import notify_webhook_best_effort
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
@@ -33,7 +33,7 @@ def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
 
 
 try:
-    from trading.services.accounts import load_all_account_names
+    from trading.services.accounts import load_runtime_job_account_names
 except Exception as exc:
     _startup_log(f"IMPORT ERROR: {exc}")
     _startup_log(traceback.format_exc().rstrip())
@@ -284,18 +284,12 @@ def main() -> int:
     artifact_path = repo_root / "local" / "exports" / "daily_paper_trading" / f"daily_paper_trading_{timestamp}.json"
     _startup_log(f"RUN log_path={log_path}", logs_dir)
 
-    all_accounts = load_all_account_names()
-
-    if args.accounts.strip().lower() == "all":
-        accounts = all_accounts
-    else:
-        requested = [item.strip() for item in args.accounts.split(",") if item.strip()]
-        known = set(all_accounts)
-        missing = [name for name in requested if name not in known]
-        if missing:
-            print(f"Unknown account(s): {', '.join(missing)}", file=sys.stderr)
-            return 1
-        accounts = requested
+    all_accounts = load_runtime_job_account_names()
+    try:
+        accounts = resolve_accounts(args.accounts, all_accounts)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
     if not accounts:
         print("No accounts specified.", file=sys.stderr)
@@ -338,7 +332,8 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    unknown_override_accounts = [name for name in account_trade_cap_overrides if name not in set(all_accounts)]
+    known_accounts = set(all_accounts)
+    unknown_override_accounts = [name for name in account_trade_cap_overrides if name not in known_accounts]
     if unknown_override_accounts:
         print(
             f"Unknown account(s) in --account-trade-caps: {', '.join(unknown_override_accounts)}",

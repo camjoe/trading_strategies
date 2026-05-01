@@ -15,7 +15,9 @@ from ..services.db import db_conn
 from ..services.exports import list_csv_exports, preview_csv_export
 from ..services.operations import list_operations_overview
 from ..services.promotion import build_promotion_overview
+from ..services.test_account import resolve_backtest_payload_account
 from ..config import TEST_ACCOUNT_NAME
+from trading.services.accounts import is_manual_only_account_kind
 
 router = APIRouter()
 
@@ -40,10 +42,14 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
     if not payload.confirm:
         raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
 
-    if payload.accountName.strip() == TEST_ACCOUNT_NAME:
-        raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
+    requested_name = payload.accountName.strip()
+    with db_conn() as conn:
+        resolved_name = resolve_backtest_payload_account(requested_name, conn)
+        account = require_account_row(conn, resolved_name)
+        if requested_name == TEST_ACCOUNT_NAME or is_manual_only_account_kind(account.account_kind):
+            raise HTTPException(status_code=400, detail="TEST Account is manual-only and cannot be deleted.")
 
-    counts = delete_account_and_dependents(payload.accountName.strip())
+    counts = delete_account_and_dependents(resolved_name)
     return {"status": "ok", "deleted": counts}
 
 

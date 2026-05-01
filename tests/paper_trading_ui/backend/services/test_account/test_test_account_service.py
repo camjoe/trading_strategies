@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from paper_trading_ui.backend.services import test_account as services_test_account
 from paper_trading_ui.backend.config import TEST_ACCOUNT_DISPLAY_NAME, TEST_ACCOUNT_NAME, TEST_BACKTEST_ACCOUNT_NAME
 
@@ -32,7 +34,7 @@ def test_resolve_backtest_account_name_and_payload_resolver(conn, monkeypatch) -
     monkeypatch.setattr(
         services_test_account,
         "ensure_test_backtest_account",
-        lambda _conn: calls.append("called"),
+        lambda _conn: calls.append("called") or SimpleNamespace(name=TEST_BACKTEST_ACCOUNT_NAME),
     )
 
     resolved = services_test_account.resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
@@ -40,18 +42,20 @@ def test_resolve_backtest_account_name_and_payload_resolver(conn, monkeypatch) -
     assert calls == ["called"]
 
 
-def test_ensure_test_backtest_account_creates_shadow_account_with_min_cash(conn, monkeypatch) -> None:
+def test_ensure_test_backtest_account_creates_manual_only_account_with_min_cash(conn, monkeypatch) -> None:
     monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 0.0)
     monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "QQQ")
 
-    services_test_account.ensure_test_backtest_account(conn)
+    row = services_test_account.ensure_test_backtest_account(conn)
+    assert row.name == TEST_BACKTEST_ACCOUNT_NAME
 
     row = conn.execute(
-        "SELECT name, initial_cash, benchmark_ticker FROM accounts WHERE name = ?",
+        "SELECT name, account_kind, initial_cash, benchmark_ticker FROM accounts WHERE name = ?",
         (TEST_BACKTEST_ACCOUNT_NAME,),
     ).fetchone()
     assert row is not None
     assert row["name"] == TEST_BACKTEST_ACCOUNT_NAME
+    assert row["account_kind"] == "manual_only"
     assert float(row["initial_cash"]) == 1.0
     assert row["benchmark_ticker"] == "QQQ"
 
@@ -66,3 +70,12 @@ def test_build_test_account_live_summary_uses_db_backed_shadow_account(conn, mon
     assert summary["displayName"] == TEST_ACCOUNT_DISPLAY_NAME
     assert summary["benchmark"] == "QQQ"
     assert summary["equity"] == 1500.0
+
+
+def test_is_manual_trade_account_name_accepts_alias_and_canonical_row(conn, monkeypatch) -> None:
+    monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 1000.0)
+    monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "SPY")
+
+    assert services_test_account.is_manual_trade_account_name(TEST_ACCOUNT_NAME, conn) is True
+    assert services_test_account.is_manual_trade_account_name(TEST_BACKTEST_ACCOUNT_NAME, conn) is True
+    assert services_test_account.is_manual_trade_account_name("acct_other", conn) is False

@@ -9,12 +9,17 @@ from trading.repositories.accounts import (
     fetch_account_rows,
     fetch_all_account_names,
     _load_all_account_names,
+    _load_account_names_by_kinds,
 )
 from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_snapshot_history_rows,
 )
-from trading.services.accounts.config import normalize_account_kind
+from trading.services.accounts.config import (
+    RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS,
+    expand_account_kind_filters,
+    normalize_account_kind,
+)
 
 
 def _normalize_account_name(name: str) -> str:
@@ -25,12 +30,11 @@ def _normalize_account_name(name: str) -> str:
 
 
 def _normalize_account_kinds(account_kinds: Collection[str]) -> tuple[str, ...]:
-    normalized: list[str] = []
+    normalized: set[str] = set()
     for kind in account_kinds:
         resolved = normalize_account_kind(str(kind))
-        if resolved not in normalized:
-            normalized.append(resolved)
-    return tuple(normalized)
+        normalized.add(resolved)
+    return expand_account_kind_filters(normalized)
 
 
 def _require_positive_account_id(account_id: int) -> None:
@@ -88,3 +92,7 @@ def list_account_snapshots(
 
 def load_all_account_names() -> list[str]:
     return _load_all_account_names()
+
+
+def load_runtime_job_account_names() -> list[str]:
+    return _load_account_names_by_kinds(RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS)

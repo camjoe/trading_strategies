@@ -1,5 +1,5 @@
 {
-  "excluded": ["test_account_bt"],
+  "excluded": [],
   "default": {
     "min": 1,
     "max": 11

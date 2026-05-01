@@ -17,9 +17,9 @@ DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
     separators=(",", ":"),
 )
 
-# Legacy persisted name for the UI-owned backtest shadow account. Used only to
-# backfill account_kind when older databases are migrated in place.
+# Legacy persisted name for the UI-owned manual account row.
 TEST_BACKTEST_ACCOUNT_NAME = "test_account_bt"
+MANUAL_ONLY_ACCOUNT_KIND = "manual_only"
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ ACCOUNT_MIGRATIONS = (
         "account_kind",
         "ALTER TABLE accounts ADD COLUMN account_kind TEXT NOT NULL DEFAULT 'managed'",
         (
-            "UPDATE accounts SET account_kind = 'test_shadow' "
+            f"UPDATE accounts SET account_kind = '{MANUAL_ONLY_ACCOUNT_KIND}' "
             f"WHERE name = '{TEST_BACKTEST_ACCOUNT_NAME}'",
         ),
     ),

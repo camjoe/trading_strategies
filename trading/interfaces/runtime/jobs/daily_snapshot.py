@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 
 from common.paths.repo_paths import get_repo_root
-from trading.services.accounts import load_all_account_names
+from trading.services.accounts import load_runtime_job_account_names
 from trading.interfaces.runtime.job_status import DAILY_SNAPSHOT_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
@@ -169,7 +169,7 @@ def main() -> int:
     log_path = LOGS_DIR / f"daily_snapshot_{today}_{timestamp}.log"
     artifact_path = SNAPSHOTS_EXPORT_DIR / f"daily_snapshot_{timestamp}.json"
 
-    all_accounts = load_all_account_names()
+    all_accounts = load_runtime_job_account_names()
     try:
         accounts = resolve_accounts(args.accounts, all_accounts)
     except ValueError as exc:

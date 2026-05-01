@@ -54,6 +54,20 @@ def test_account_detail_virtual_test_account_branch(api_client: TestClient) -> N
     assert isinstance(payload["snapshots"], list)
 
 
+def test_accounts_compare_excludes_manual_test_account(
+    api_client: TestClient,
+    seed_account: Callable[..., None],
+) -> None:
+    seed_account("acct_compare_visible")
+
+    response = api_client.get("/api/accounts/compare")
+    assert response.status_code == 200
+
+    names = [item["name"] for item in response.json()["accounts"]]
+    assert "acct_compare_visible" in names
+    assert TEST_ACCOUNT_NAME not in names
+
+
 class TestAccountParamsEndpoint:
     def test_patch_params_updates_strategy(
         self,

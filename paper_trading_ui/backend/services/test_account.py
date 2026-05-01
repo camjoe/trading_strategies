@@ -4,11 +4,16 @@ import re
 import sqlite3
 from pathlib import Path
 
-from trading.services.accounts import ACCOUNT_KIND_TEST_SHADOW
-from trading.services.accounts import configure_account
-from trading.services.accounts import create_account
 from trading.models import AccountConfig, AccountRecord
-from trading.services.accounts import find_account
+from trading.services.accounts import (
+    ACCOUNT_KIND_MANUAL_ONLY,
+    ACCOUNT_KIND_TEST_SHADOW,
+    configure_account,
+    create_account,
+    find_account,
+    is_manual_only_account_kind,
+    list_account_records,
+)
 
 from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
@@ -18,6 +23,8 @@ from ..config import (
     TEST_INVESTMENTS_CANDIDATES,
 )
 from ..schemas import TestInvestmentRow
+
+MANUAL_ACCOUNT_SEARCH_KINDS = (ACCOUNT_KIND_MANUAL_ONLY, ACCOUNT_KIND_TEST_SHADOW)
 
 
 def get_test_investments_path() -> Path | None:
@@ -94,23 +101,62 @@ def parse_test_account_benchmark() -> str:
 
     return str(match.group(1)).strip().upper() or TEST_ACCOUNT_BENCHMARK_DEFAULT
 
-def resolve_backtest_account_name(account_name: str) -> str:
+
+def _normalize_account_name(account_name: str) -> str:
     name = account_name.strip()
+    if not name:
+        raise ValueError("account_name cannot be empty.")
+    return name
+
+
+def _select_manual_account_row(rows: list[AccountRecord]) -> AccountRecord | None:
+    if not rows:
+        return None
+
+    preferred = next((row for row in rows if row.name == TEST_BACKTEST_ACCOUNT_NAME), None)
+    if preferred is not None:
+        return preferred
+
+    if len(rows) > 1:
+        names = ", ".join(sorted(row.name for row in rows))
+        raise ValueError(f"Multiple manual-only accounts found: {names}")
+
+    return rows[0]
+
+
+def _ensure_manual_account_kind(conn: sqlite3.Connection, row: AccountRecord) -> AccountRecord:
+    if is_manual_only_account_kind(row.account_kind):
+        return row
+
+    configure_account(
+        conn,
+        row.name,
+        AccountConfig(account_kind=ACCOUNT_KIND_MANUAL_ONLY),
+    )
+    refreshed = find_account(conn, row.name)
+    if refreshed is None:
+        raise ValueError(f"Manual account '{row.name}' disappeared during normalization.")
+    return refreshed
+
+
+def resolve_backtest_account_name(account_name: str) -> str:
+    """Legacy compatibility helper for callers that only need alias-to-name mapping."""
+    name = _normalize_account_name(account_name)
     if name == TEST_ACCOUNT_NAME:
         return TEST_BACKTEST_ACCOUNT_NAME
     return name
 
 
-def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
-    existing = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
-    if existing is not None:
-        if str(existing.get("account_kind") or "") != ACCOUNT_KIND_TEST_SHADOW:
-            configure_account(
-                conn,
-                TEST_BACKTEST_ACCOUNT_NAME,
-                AccountConfig(account_kind=ACCOUNT_KIND_TEST_SHADOW),
-            )
-        return
+def ensure_test_backtest_account(conn: sqlite3.Connection) -> AccountRecord:
+    """Ensure one canonical manual-only account exists and return its DB row."""
+    existing_by_legacy_name = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
+    if existing_by_legacy_name is not None:
+        return _ensure_manual_account_kind(conn, existing_by_legacy_name)
+
+    rows = list_account_records(conn, account_kinds=MANUAL_ACCOUNT_SEARCH_KINDS)
+    selected = _select_manual_account_row(rows)
+    if selected is not None:
+        return _ensure_manual_account_kind(conn, selected)
 
     initial_cash = compute_test_account_equity()
     if initial_cash <= 0:
@@ -123,24 +169,35 @@ def ensure_test_backtest_account(conn: sqlite3.Connection) -> None:
         initial_cash=initial_cash,
         benchmark_ticker=parse_test_account_benchmark(),
         config=AccountConfig(
-            account_kind=ACCOUNT_KIND_TEST_SHADOW,
-            descriptive_name="TEST Account (Backtest Shadow)",
+            account_kind=ACCOUNT_KIND_MANUAL_ONLY,
+            descriptive_name="TEST Account",
             risk_policy="none",
             instrument_mode="equity",
         ),
     )
     conn.commit()
 
+    created = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
+    if created is None:
+        raise ValueError("Failed to create canonical manual-only test account.")
+    return created
+
 
 def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection) -> str:
-    resolved = resolve_backtest_account_name(account_name)
-    if resolved == TEST_BACKTEST_ACCOUNT_NAME:
-        ensure_test_backtest_account(conn)
-    return resolved
+    requested_name = _normalize_account_name(account_name)
+    manual_account = ensure_test_backtest_account(conn)
+    if requested_name in {TEST_ACCOUNT_NAME, manual_account.name}:
+        return manual_account.name
+    return requested_name
 
 
-from .accounts import build_account_summary
-from .accounts import require_account_row
+def is_manual_trade_account_name(account_name: str, conn: sqlite3.Connection) -> bool:
+    requested_name = _normalize_account_name(account_name)
+    manual_account = ensure_test_backtest_account(conn)
+    return requested_name in {TEST_ACCOUNT_NAME, manual_account.name}
+
+
+from .accounts import build_account_summary, require_account_row
 
 
 def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
@@ -150,15 +207,9 @@ def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> A
 
 
 def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:
-    """Build the test_account summary using live equity from test_account_bt in the DB.
-
-    Resolves (and auto-creates) the backing account, then delegates to the standard
-    ``build_account_summary`` path so equity and PnL are always computed from real
-    trades rather than the static investments file.
-    """
+    """Build the canonical manual-account summary surfaced under external alias."""
     row = fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
     summary = build_account_summary(conn, row)
-    # Surface under the virtual "test_account" name the UI expects.
     summary["name"] = TEST_ACCOUNT_NAME
     summary["displayName"] = TEST_ACCOUNT_DISPLAY_NAME
     return summary

@@ -106,3 +106,20 @@ Date: 2026-04-24
 - Architecture-only deliverable in this pass (no code mutation yet).
 - Manual account is excluded from automated jobs and aggregate compare views.
 - Manual account remains available for manual trade entry and account-detail analysis.
+
+## Phase 2 Re-Plan (Post-Compatibility)
+- Purpose:
+  - After compatibility rollout is stable, create a new follow-up implementation plan focused on simplifying and removing temporary compatibility paths.
+- Trigger / readiness checklist:
+  - Legacy compatibility migration is deployed and verified.
+  - No unexpected runtime issues from manual-only role filtering.
+  - Alias behavior and manual-trade flows are confirmed stable.
+- Scope for the follow-up plan:
+  - Evaluate hard cutover to a single canonical persisted identity (`test_account`) and remove `test_account_bt` coupling.
+  - Remove legacy `test_shadow` compatibility reads/writes and alias fallback branches.
+  - Collapse resolver logic to one minimal policy path driven by `account_kind == manual_only`.
+  - Simplify affected routes/services/tests accordingly.
+- Exit criteria for the follow-up plan:
+  - No production code path depends on legacy `test_shadow` values.
+  - No production code path requires `test_account_bt` alias mapping behavior.
+  - Test suite and docs reflect the simplified canonical-only model.

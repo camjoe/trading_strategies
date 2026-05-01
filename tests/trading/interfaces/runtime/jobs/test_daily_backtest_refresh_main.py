@@ -24,7 +24,7 @@ def test_is_run_enabled_false_by_default(monkeypatch) -> None:
 
 def test_main_uses_module_level_repo_paths(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path)))
-    monkeypatch.setattr(module, "load_all_account_names", lambda: ["acct1"])
+    monkeypatch.setattr(module, "load_runtime_job_account_names", lambda: ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
     monkeypatch.setattr(
         module,
@@ -51,7 +51,7 @@ def test_main_uses_module_level_repo_paths(monkeypatch, tmp_path: Path) -> None:
 
 def test_main_skips_duplicate_runs(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path)))
-    monkeypatch.setattr(module, "load_all_account_names", lambda: ["acct1"])
+    monkeypatch.setattr(module, "load_runtime_job_account_names", lambda: ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: True)
 
     assert module.main() == 0
@@ -60,7 +60,7 @@ def test_main_skips_duplicate_runs(monkeypatch, tmp_path: Path, capsys) -> None:
 
 def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), accounts="ghost"))
-    monkeypatch.setattr(module, "load_all_account_names", lambda: ["acct1"])
+    monkeypatch.setattr(module, "load_runtime_job_account_names", lambda: ["acct1"])
 
     assert module.main() == 1
     assert "Unknown account" in capsys.readouterr().err
@@ -76,7 +76,7 @@ def test_main_returns_0_when_disabled(monkeypatch, tmp_path: Path, capsys) -> No
 
 def test_main_stops_on_first_failed_refresh(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path)))
-    monkeypatch.setattr(module, "load_all_account_names", lambda: ["acct1", "acct2"])
+    monkeypatch.setattr(module, "load_runtime_job_account_names", lambda: ["acct1", "acct2"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
     run_refresh = Mock(
         side_effect=[
