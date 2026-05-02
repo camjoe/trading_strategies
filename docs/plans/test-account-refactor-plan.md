@@ -2,6 +2,13 @@
 
 Date: 2026-04-24
 
+## Status
+- Completed on 2026-05-02.
+- Phase 2 compatibility-retirement goals are complete:
+  - canonical persisted manual account identity is `test_account`,
+  - legacy `test_account_bt` and `test_shadow` compatibility behavior is retired from production request paths,
+  - runtime job exclusions and compare-view behavior are role/canonical driven.
+
 ## Summary
 - Consolidate `test_account` into one canonical manual-only account policy with a single resolver/service path.
 - Keep external alias compatibility: `test_account` remains the UI/API-facing name.
@@ -103,7 +110,7 @@ Date: 2026-04-24
 ## Assumptions and Defaults
 - One canonical manual account only.
 - External alias name remains `test_account`.
-- Compatibility-first implementation is in progress; legacy aliases remain temporarily supported.
+- Legacy aliases/values are migrated in DB init and no longer part of production request behavior.
 - Manual account is excluded from automated jobs and aggregate compare views.
 - Manual account remains available for manual trade entry and account-detail analysis.
 

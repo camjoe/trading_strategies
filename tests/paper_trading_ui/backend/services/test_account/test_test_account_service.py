@@ -24,15 +24,22 @@ def test_test_account_parsing_helpers(monkeypatch, tmp_path) -> None:
     assert services_test_account.compute_test_account_equity(rows) == 1500.0
     assert services_test_account.parse_test_account_benchmark() == "QQQ"
 
-def test_resolve_backtest_payload_account_uses_canonical_name(conn, monkeypatch) -> None:
+def test_fetch_resolved_account_row_uses_canonical_name(conn, monkeypatch) -> None:
     monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 1000.0)
     monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "SPY")
 
-    resolved = services_test_account.resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
-    assert resolved == TEST_ACCOUNT_NAME
+    resolved = services_test_account.fetch_resolved_account_row(conn, TEST_ACCOUNT_NAME)
+    assert resolved.name == TEST_ACCOUNT_NAME
 
-    resolved_non_test = services_test_account.resolve_backtest_payload_account("acct_live", conn)
-    assert resolved_non_test == "acct_live"
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO accounts (name, account_kind, strategy, initial_cash, created_at, benchmark_ticker, descriptive_name)
+            VALUES ('acct_live', 'managed', 'trend', 1000.0, '2026-01-01T00:00:00Z', 'SPY', 'Live')
+            """
+        )
+    resolved_non_test = services_test_account.fetch_resolved_account_row(conn, "acct_live")
+    assert resolved_non_test.name == "acct_live"
 
 
 def test_ensure_test_account_creates_manual_only_account_with_min_cash(conn, monkeypatch) -> None:
@@ -65,9 +72,9 @@ def test_build_test_account_live_summary_uses_db_backed_shadow_account(conn, mon
     assert summary["equity"] == 1500.0
 
 
-def test_is_manual_trade_account_name_accepts_alias_and_canonical_row(conn, monkeypatch) -> None:
+def test_ensure_test_account_returns_canonical_name(conn, monkeypatch) -> None:
     monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 1000.0)
     monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "SPY")
 
-    assert services_test_account.is_manual_trade_account_name(TEST_ACCOUNT_NAME, conn) is True
-    assert services_test_account.is_manual_trade_account_name("acct_other", conn) is False
+    row = services_test_account.ensure_test_account(conn)
+    assert row.name == TEST_ACCOUNT_NAME

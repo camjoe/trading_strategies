@@ -10,9 +10,10 @@ import trading.services.market_data as _md
 from common.time import utc_now_iso
 from fastapi import APIRouter, HTTPException
 
+from ..config import TEST_ACCOUNT_NAME
 from ..schemas import ManualTradeRequest
 from ..services.db import db_conn
-from ..services.test_account import is_manual_trade_account_name, resolve_backtest_payload_account
+from ..services.test_account import ensure_test_account
 from trading.services.accounting import record_trade
 
 router = APIRouter()
@@ -37,9 +38,14 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
     Returns ``{"status": "ok"}`` on success.  Raises:
     - 403 if *account_name* is not the test-account alias/canonical row
     - 400 if the ticker is not recognised by the market data provider
-    - 404 if the resolved DB account does not exist
     - 400 for other business-rule violations (insufficient cash, oversell)
     """
+    if account_name.strip() != TEST_ACCOUNT_NAME:
+        raise HTTPException(
+            status_code=403,
+            detail="Manual trades are only permitted on the test account.",
+        )
+
     ticker = body.ticker.strip().upper()
     if not _ticker_exists(ticker):
         raise HTTPException(
@@ -48,16 +54,11 @@ def api_add_trade(account_name: str, body: ManualTradeRequest) -> dict[str, str]
         )
 
     with db_conn() as conn:
-        if not is_manual_trade_account_name(account_name, conn):
-            raise HTTPException(
-                status_code=403,
-                detail="Manual trades are only permitted on the test account.",
-            )
-        resolved_name = resolve_backtest_payload_account(account_name, conn)
+        ensure_test_account(conn)
         try:
             record_trade(
                 conn,
-                account_name=resolved_name,
+                account_name=TEST_ACCOUNT_NAME,
                 ticker=ticker,
                 side=body.side,
                 qty=body.qty,

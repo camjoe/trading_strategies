@@ -22,9 +22,18 @@ from ..services.backtests import (
     build_walk_forward_config_from_request,
 )
 from ..services.db import db_conn
-from ..services.test_account import resolve_backtest_payload_account
+from ..services.test_account import ensure_test_account
+from ..config import TEST_ACCOUNT_NAME
 
 router = APIRouter()
+
+
+def _resolve_requested_account_name(conn, account_name: str) -> str:
+    requested_name = account_name.strip()
+    if requested_name == TEST_ACCOUNT_NAME:
+        ensure_test_account(conn)
+        return TEST_ACCOUNT_NAME
+    return requested_name
 
 
 @router.get("/api/backtests/runs")
@@ -36,7 +45,7 @@ def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str,
 @router.get("/api/backtests/latest/{account_name}")
 def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
     with db_conn() as conn:
-        resolved_account_name = resolve_backtest_payload_account(account_name, conn)
+        resolved_account_name = _resolve_requested_account_name(conn, account_name)
         require_account_row(conn, resolved_account_name)
         latest = fetch_latest_backtest_summary(conn, resolved_account_name)
         return {"accountName": account_name, "latestRun": latest}
@@ -54,7 +63,7 @@ def api_backtest_run_report(run_id: int) -> dict[str, object]:
 @router.post("/api/backtests/run")
 def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
     with db_conn() as conn:
-        resolved_account_name = resolve_backtest_payload_account(payload.account, conn)
+        resolved_account_name = _resolve_requested_account_name(conn, payload.account)
         payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             result = run_backtest(conn, build_backtest_config_from_run_request(payload))
@@ -67,7 +76,7 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
 @router.post("/api/backtests/preflight")
 def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, object]:
     with db_conn() as conn:
-        resolved_account_name = resolve_backtest_payload_account(payload.account, conn)
+        resolved_account_name = _resolve_requested_account_name(conn, payload.account)
         payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             warnings = preview_backtest_warnings(conn, build_backtest_config_from_preflight_request(payload))
@@ -82,7 +91,7 @@ def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, objec
 @router.post("/api/backtests/walk-forward")
 def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
     with db_conn() as conn:
-        resolved_account_name = resolve_backtest_payload_account(payload.account, conn)
+        resolved_account_name = _resolve_requested_account_name(conn, payload.account)
         payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             summary = run_walk_forward_backtest(conn, build_walk_forward_config_from_request(payload))

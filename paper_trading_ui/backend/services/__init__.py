@@ -33,7 +33,6 @@ from .promotion import build_promotion_overview
 from .test_account import (
     build_test_account_live_summary,
     fetch_resolved_account_row,
-    resolve_backtest_payload_account,
 )
 
 from .features import get_provider_status, get_signals
@@ -67,6 +66,5 @@ __all__ = [
     "list_csv_exports",
     "list_operations_overview",
     "preview_csv_export",
-    "resolve_backtest_payload_account",
     "update_account_params",
 ]

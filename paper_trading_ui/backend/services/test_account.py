@@ -96,13 +96,6 @@ def parse_test_account_benchmark() -> str:
     return str(match.group(1)).strip().upper() or TEST_ACCOUNT_BENCHMARK_DEFAULT
 
 
-def _normalize_account_name(account_name: str) -> str:
-    name = account_name.strip()
-    if not name:
-        raise ValueError("account_name cannot be empty.")
-    return name
-
-
 def _load_canonical_test_account(conn: sqlite3.Connection) -> AccountRecord | None:
     return find_account(conn, TEST_ACCOUNT_NAME)
 
@@ -153,25 +146,17 @@ def ensure_test_account(conn: sqlite3.Connection) -> AccountRecord:
     return created
 
 
-def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection) -> str:
-    requested_name = _normalize_account_name(account_name)
-    if requested_name != TEST_ACCOUNT_NAME:
-        return requested_name
-    return ensure_test_account(conn).name
-
-
-def is_manual_trade_account_name(account_name: str, conn: sqlite3.Connection) -> bool:
-    requested_name = _normalize_account_name(account_name)
-    return requested_name == ensure_test_account(conn).name
-
-
 from .accounts import build_account_summary, require_account_row
 
 
 def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
     """Resolve ``account_name`` and return its DB row."""
-    resolved_name = resolve_backtest_payload_account(account_name, conn)
-    return require_account_row(conn, resolved_name)
+    requested_name = account_name.strip()
+    if not requested_name:
+        raise ValueError("account_name cannot be empty.")
+    if requested_name == TEST_ACCOUNT_NAME:
+        return ensure_test_account(conn)
+    return require_account_row(conn, requested_name)
 
 
 def build_test_account_live_summary(conn: sqlite3.Connection) -> dict[str, object]:
