@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
-
-from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 
 _CREATE_ACCOUNT = "paper_trading_ui.backend.routes.admin.create_account_with_rotation"
 _LIST_CSV_EXPORTS = "paper_trading_ui.backend.routes.admin.list_csv_exports"
@@ -20,13 +19,19 @@ class TestAdminRoutes:
         assert response.status_code == 400
         assert "explicit confirmation" in response.json()["detail"]
 
-    def test_admin_delete_rejects_virtual_test_account(self, api_client: TestClient) -> None:
+    def test_admin_delete_rejects_manual_only_account(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_manual_only", account_kind="manual_only")
+
         response = api_client.post(
             "/api/admin/accounts/delete",
-            json={"accountName": TEST_ACCOUNT_NAME, "confirm": True},
+            json={"accountName": "acct_manual_only", "confirm": True},
         )
         assert response.status_code == 400
-        assert "cannot be deleted" in response.json()["detail"]
+        assert "manual-only accounts cannot be deleted" in response.json()["detail"].lower()
 
     def test_admin_create_account_handles_value_error(self, api_client: TestClient) -> None:
         create_mock = Mock(side_effect=ValueError("bad payload"))

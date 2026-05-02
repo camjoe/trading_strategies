@@ -104,10 +104,3 @@ def test_resolve_accounts_rejects_unknown_accounts() -> None:
 
     with pytest.raises(ValueError, match="Unknown account\\(s\\): ghost"):
         resolve_accounts("ghost", ["acct_a"])
-
-
-def test_resolve_accounts_rejects_manual_only_alias_test_account() -> None:
-    import pytest
-
-    with pytest.raises(ValueError, match="excluded from automated runtime jobs"):
-        resolve_accounts("test_account", ["acct_a", "acct_b"])

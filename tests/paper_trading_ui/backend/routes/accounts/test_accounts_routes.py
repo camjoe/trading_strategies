@@ -5,9 +5,6 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 import pytest
 
-from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
-
-
 def test_account_config_options_endpoint_returns_canonical_choices(api_client: TestClient) -> None:
     response = api_client.get("/api/accounts/config/options")
     assert response.status_code == 200
@@ -25,7 +22,7 @@ def test_account_config_options_endpoint_returns_canonical_choices(api_client: T
     assert payload["defaults"]["instrumentMode"] == "equity"
 
 
-def test_accounts_endpoint_includes_virtual_test_account(
+def test_accounts_endpoint_lists_visible_accounts(
     api_client: TestClient,
     seed_account: Callable[..., None],
 ) -> None:
@@ -37,24 +34,25 @@ def test_accounts_endpoint_includes_virtual_test_account(
     accounts = response.json()["accounts"]
     names = [item["name"] for item in accounts]
     assert "acct_listed" in names
-    assert TEST_ACCOUNT_NAME in names
     listed = next(item for item in accounts if item["name"] == "acct_listed")
     assert "instrumentMode" in listed
     assert "optionMinDte" not in listed
     assert "rotationOverlayWatchlist" not in listed
 
 
-def test_account_detail_virtual_test_account_branch(api_client: TestClient) -> None:
-    response = api_client.get(f"/api/accounts/{TEST_ACCOUNT_NAME}")
+def test_account_detail_known_account(api_client: TestClient, seed_account: Callable[..., None]) -> None:
+    seed_account("acct_detail")
+
+    response = api_client.get("/api/accounts/acct_detail")
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["account"]["name"] == TEST_ACCOUNT_NAME
+    assert payload["account"]["name"] == "acct_detail"
     assert isinstance(payload["trades"], list)
     assert isinstance(payload["snapshots"], list)
 
 
-def test_accounts_compare_excludes_manual_test_account(
+def test_accounts_compare_lists_visible_accounts(
     api_client: TestClient,
     seed_account: Callable[..., None],
 ) -> None:
@@ -65,7 +63,6 @@ def test_accounts_compare_excludes_manual_test_account(
 
     names = [item["name"] for item in response.json()["accounts"]]
     assert "acct_compare_visible" in names
-    assert TEST_ACCOUNT_NAME not in names
 
 
 class TestAccountParamsEndpoint:

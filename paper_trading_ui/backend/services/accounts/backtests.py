@@ -8,9 +8,6 @@ from trading.backtesting.services.report_service import (
     fetch_latest_backtest_run_id_for_account,
     fetch_recent_backtest_runs,
 )
-from trading.services.accounts import find_account, is_manual_only_account_kind
-
-from ...config import TEST_ACCOUNT_NAME, TEST_ACCOUNT_STRATEGY
 
 
 def fetch_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
@@ -27,19 +24,12 @@ def _apply_display_names(conn: sqlite3.Connection, run_dict: dict[str, object]) 
     return run_dict
 
 
-def _is_manual_only_account_name(conn: sqlite3.Connection, account_name: str) -> bool:
-    row = find_account(conn, account_name)
-    if row is None:
-        return False
-    return is_manual_only_account_kind(row.account_kind)
+def display_account_name(_conn: sqlite3.Connection, account_name: str) -> str:
+    return account_name
 
 
-def display_account_name(conn: sqlite3.Connection, account_name: str) -> str:
-    return TEST_ACCOUNT_NAME if _is_manual_only_account_name(conn, account_name) else account_name
-
-
-def display_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> str:
-    return TEST_ACCOUNT_STRATEGY if _is_manual_only_account_name(conn, account_name) else strategy
+def display_strategy(_conn: sqlite3.Connection, _account_name: str, strategy: str) -> str:
+    return strategy
 
 
 def fetch_recent_backtest_run_summaries(conn: sqlite3.Connection, *, limit: int) -> list[dict[str, object]]:

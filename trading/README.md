@@ -112,7 +112,6 @@ Trade universe files live under `trading/config/`. The default is `trade_univers
 | File | Description |
 |------|-------------|
 | `trading/config/trade_universe.txt` | Default universe (general-purpose) |
-| `trading/config/trade_universe_test_account.txt` | Smaller universe for test accounts (~21 tickers) |
 | `trading/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
 Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.run_auto_trades --help` for all options.

@@ -106,11 +106,6 @@
   justify-content: flex-end;
 }
 
-#test-account-trade-form > button {
-  min-height: 2.8rem;
-  align-self: end;
-}
-
 .bt-check {
   display: flex;
   align-items: center;

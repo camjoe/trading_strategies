@@ -40,7 +40,7 @@ most likely follow-up targets for later simplification passes.
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
 | `name` | `accounts/mutations.py`, admin create route | repository lookup, CLI/UI routing, reporting, promotion, runtime account selection | **core active** | Primary account identity; effectively immutable after create |
-| `account_kind` | `accounts/mutations.py`, UI admin create/params routes, `paper_trading_ui/backend/services/test_account.py` | UI account visibility filtering, shadow-account hiding, operator account-role semantics | **config / display oriented** | Classifies account role (`managed`, `local`, `test_shadow`) independently from broker backend |
+| `account_kind` | `accounts/mutations.py`, UI admin create/params routes | UI account visibility filtering, manual-account hiding, operator account-role semantics | **config / display oriented** | Classifies account role (`managed`, `local`, `manual_only`) independently from broker backend |
 | `strategy` | `accounts/mutations.py`, `trading.services.profiles`, UI params route | runtime strategy resolution, backtesting, reporting, promotion, rotation fallback | **core active** | Central behavioral field |
 | `initial_cash` | `accounts/mutations.py`, admin create route, profiles | reporting, backtesting, runtime/account-state math, rotation overlay ticker derivation | **core active** | Core accounting input |
 | `created_at` | `accounts/mutations.py` | reporting, benchmark comparison timing, UI summaries | **core active** | Historical metadata with live reporting value |

@@ -1,6 +1,6 @@
 # Paper Trading UI Refactor Progress
 
-Last updated: 2026-04-24
+Last updated: 2026-05-02
 
 ## Scope
 
@@ -49,7 +49,6 @@ restart point for the next session.
 3. Backend service cleanup hotspots:
    - `backend/services/accounts/summaries.py` (~224 lines)
    - `backend/services/features/shared.py` (~186 lines)
-   - `backend/services/test_account.py` (~164 lines)
 4. Frontend feature/component readability hotspots:
    - `frontend/src/features/backtesting/controller.ts` (~309 lines)
    - `frontend/src/features/accounts/detail.ts` (~258 lines)
