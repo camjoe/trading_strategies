@@ -11,7 +11,6 @@ from trading.backtesting.backtest import (
 
 from ..schemas import BacktestPreflightRequest, BacktestRunRequest, WalkForwardRunRequest
 from ..services.accounts.backtests import (
-    display_account_name,
     fetch_latest_backtest_summary,
     fetch_recent_backtest_run_summaries,
 )
@@ -29,7 +28,7 @@ router = APIRouter()
 @router.get("/api/backtests/runs")
 def api_backtest_runs(limit: int = Query(default=50, ge=1, le=500)) -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
-        return {"runs": fetch_recent_backtest_run_summaries(conn, limit=int(limit))}
+        return {"runs": fetch_recent_backtest_run_summaries(conn, limit=limit)}
 
 
 @router.get("/api/backtests/latest/{account_name}")
@@ -38,7 +37,7 @@ def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
         resolved_account_name = account_name.strip()
         require_account_row(conn, resolved_account_name)
         latest = fetch_latest_backtest_summary(conn, resolved_account_name)
-        return {"accountName": account_name, "latestRun": latest}
+        return {"accountName": resolved_account_name, "latestRun": latest}
 
 
 @router.get("/api/backtests/runs/{run_id}")
@@ -60,7 +59,7 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return result.to_payload(display_name_fn=lambda name: display_account_name(conn, name))
+        return result.to_payload()
 
 
 @router.post("/api/backtests/preflight")
@@ -88,4 +87,4 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return summary.to_payload(display_name_fn=lambda name: display_account_name(conn, name))
+        return summary.to_payload()

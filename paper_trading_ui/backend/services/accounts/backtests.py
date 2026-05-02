@@ -11,30 +11,11 @@ from trading.backtesting.services.report_service import (
 
 
 def fetch_latest_backtest_summary(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
-    run_dict = fetch_latest_backtest_run_for_account(conn, account_name=account_name)
-    if run_dict is None:
-        return None
-    return _apply_display_names(conn, run_dict)
-
-
-def _apply_display_names(conn: sqlite3.Connection, run_dict: dict[str, object]) -> dict[str, object]:
-    raw_account_name = str(run_dict["accountName"])
-    run_dict["accountName"] = display_account_name(conn, raw_account_name)
-    run_dict["strategy"] = display_strategy(conn, raw_account_name, str(run_dict["strategy"]))
-    return run_dict
-
-
-def display_account_name(_conn: sqlite3.Connection, account_name: str) -> str:
-    return account_name
-
-
-def display_strategy(_conn: sqlite3.Connection, _account_name: str, strategy: str) -> str:
-    return strategy
+    return fetch_latest_backtest_run_for_account(conn, account_name=account_name)
 
 
 def fetch_recent_backtest_run_summaries(conn: sqlite3.Connection, *, limit: int) -> list[dict[str, object]]:
-    dicts = fetch_recent_backtest_runs(conn, limit=limit)
-    return [_apply_display_names(conn, d) for d in dicts]
+    return fetch_recent_backtest_runs(conn, limit=limit)
 
 
 def fetch_latest_backtest_metrics(conn: sqlite3.Connection, account_name: str) -> dict[str, object] | None:
