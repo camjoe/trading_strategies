@@ -67,6 +67,20 @@ def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     assert code == 1
     assert "Unknown account" in capsys.readouterr().err
 
+
+def test_manual_only_test_account_alias_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["real_acct"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "test_account"],
+    )
+
+    assert code == 1
+    assert "excluded from automated runtime jobs" in capsys.readouterr().err
+
 def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: [])
 

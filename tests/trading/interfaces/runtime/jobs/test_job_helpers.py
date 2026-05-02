@@ -5,6 +5,7 @@ from pathlib import Path
 from trading.interfaces.runtime.jobs.job_helpers import (
     latest_log_contains_sentinel,
     logs_dir_for_repo,
+    resolve_accounts,
     run_command,
     stream_command,
     tee_line,
@@ -88,3 +89,32 @@ def test_stream_command_succeeds_silently(tmp_path: Path):
     )
     log_text = log_path.read_text(encoding="utf-8")
     assert "DONE: ok-step" in log_text
+
+
+def test_resolve_accounts_returns_all_for_all_keyword() -> None:
+    assert resolve_accounts("all", ["acct_a", "acct_b"]) == ["acct_a", "acct_b"]
+
+
+def test_resolve_accounts_parses_comma_separated_values() -> None:
+    assert resolve_accounts("acct_a, acct_b", ["acct_a", "acct_b", "acct_c"]) == ["acct_a", "acct_b"]
+
+
+def test_resolve_accounts_rejects_unknown_accounts() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="Unknown account\\(s\\): ghost"):
+        resolve_accounts("ghost", ["acct_a"])
+
+
+def test_resolve_accounts_rejects_manual_only_alias_test_account() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="excluded from automated runtime jobs"):
+        resolve_accounts("test_account", ["acct_a", "acct_b"])
+
+
+def test_resolve_accounts_rejects_manual_only_alias_test_account_bt() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="excluded from automated runtime jobs"):
+        resolve_accounts("test_account_bt", ["acct_a", "acct_b"])

@@ -28,6 +28,11 @@ TRANSIENT_ERROR_TOKENS = (
     "too many requests",
 )
 
+RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIASES = ("test_account", "test_account_bt")
+_RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIAS_SET = {
+    name.strip().lower() for name in RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIASES
+}
+
 
 def logs_dir_for_repo(repo_root: Path) -> Path:
     return repo_root / "local" / "logs"
@@ -62,11 +67,17 @@ def retry_delay_seconds(base_delay_seconds: float, attempt_number: int) -> float
 def resolve_accounts(accounts_arg: str, all_accounts: list[str]) -> list[str]:
     """Resolve 'all' or a comma-separated list against *all_accounts*.
 
-    Raises ValueError for unknown account names.
+    Raises ValueError for unknown account names and manual-only runtime-excluded aliases.
     """
     if accounts_arg.strip().lower() == "all":
         return all_accounts
     requested = [item.strip() for item in accounts_arg.split(",") if item.strip()]
+    blocked = [name for name in requested if name.lower() in _RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIAS_SET]
+    if blocked:
+        raise ValueError(
+            "Manual-only account(s) are excluded from automated runtime jobs: "
+            + ", ".join(blocked)
+        )
     known = set(all_accounts)
     missing = [name for name in requested if name not in known]
     if missing:

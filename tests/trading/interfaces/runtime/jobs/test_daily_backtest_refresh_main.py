@@ -66,6 +66,18 @@ def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys)
     assert "Unknown account" in capsys.readouterr().err
 
 
+def test_main_rejects_manual_only_test_account_alias(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(
+        module,
+        "parse_args",
+        lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), accounts="test_account"),
+    )
+    monkeypatch.setattr(module, "load_runtime_job_account_names", lambda: ["acct1"])
+
+    assert module.main() == 1
+    assert "excluded from automated runtime jobs" in capsys.readouterr().err
+
+
 def test_main_returns_0_when_disabled(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), enable_run=False))
     monkeypatch.setattr(module, "is_run_enabled", lambda _args: False)

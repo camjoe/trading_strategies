@@ -49,3 +49,14 @@ def test_main_uses_module_level_repo_paths(monkeypatch, tmp_path: Path) -> None:
     assert Path(payload["log_path"]).parts[0] == "logs"
     assert Path(payload["artifact_path"]).parts[0] == "exports"
     assert payload["results"][0]["status"] == "success"
+
+
+def test_main_rejects_manual_only_test_account_alias(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(module, "LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr(module, "SNAPSHOTS_EXPORT_DIR", tmp_path / "exports")
+    monkeypatch.setattr(module, "parse_args", lambda: make_daily_snapshot_args(accounts="test_account"))
+    monkeypatch.setattr(module, "load_runtime_job_account_names", lambda: ["acct1"])
+
+    assert module.main() == 1
+    assert "excluded from automated runtime jobs" in capsys.readouterr().err

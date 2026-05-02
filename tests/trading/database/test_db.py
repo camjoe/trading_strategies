@@ -146,6 +146,41 @@ def test_init_schema_migrates_legacy_global_settings_columns(sqlite_backend: SQL
     finally:
         conn.close()
 
+
+def test_init_schema_backfills_test_shadow_to_manual_only_and_disables_live_trading(
+    sqlite_backend: SQLiteBackend,
+) -> None:
+    conn = sqlite_backend.open_connection()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                account_kind TEXT NOT NULL DEFAULT 'managed',
+                strategy TEXT NOT NULL,
+                initial_cash REAL NOT NULL,
+                created_at TEXT NOT NULL,
+                live_trading_enabled INTEGER NOT NULL DEFAULT 0
+            );
+
+            INSERT INTO accounts (name, account_kind, strategy, initial_cash, created_at, live_trading_enabled)
+            VALUES ('test_account_bt', 'test_shadow', 'Trend', 1000, '2026-01-01T00:00:00Z', 1);
+            """
+        )
+
+        init_schema(conn)
+
+        row = conn.execute(
+            "SELECT account_kind, live_trading_enabled FROM accounts WHERE name = 'test_account_bt'"
+        ).fetchone()
+        assert row is not None
+        assert row["account_kind"] == "manual_only"
+        assert int(row["live_trading_enabled"]) == 0
+    finally:
+        conn.close()
+
+
 def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBackend) -> None:
     conn = sqlite_backend.open_connection()
     try:

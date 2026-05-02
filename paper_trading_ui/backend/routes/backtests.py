@@ -61,7 +61,7 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return result.to_payload(display_name_fn=display_account_name)
+        return result.to_payload(display_name_fn=lambda name: display_account_name(conn, name))
 
 
 @router.post("/api/backtests/preflight")
@@ -89,4 +89,4 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        return summary.to_payload(display_name_fn=display_account_name)
+        return summary.to_payload(display_name_fn=lambda name: display_account_name(conn, name))

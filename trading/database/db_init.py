@@ -40,10 +40,20 @@ def _ensure_column(conn: DBConnection, table_name: str, migration: ColumnMigrati
 def _backfill_manual_only_account_kind(conn: DBConnection) -> None:
     if "account_kind" not in _column_names(conn, "accounts"):
         return
-    conn.execute(
-        "UPDATE accounts SET account_kind = ? WHERE account_kind = ?",
-        (_CANONICAL_MANUAL_ONLY_KIND, _LEGACY_TEST_SHADOW_KIND),
-    )
+    columns = _column_names(conn, "accounts")
+    has_live_trading_enabled = "live_trading_enabled" in columns
+    if has_live_trading_enabled:
+        conn.execute(
+            "UPDATE accounts "
+            "SET account_kind = ?, live_trading_enabled = 0 "
+            "WHERE account_kind = ?",
+            (_CANONICAL_MANUAL_ONLY_KIND, _LEGACY_TEST_SHADOW_KIND),
+        )
+    else:
+        conn.execute(
+            "UPDATE accounts SET account_kind = ? WHERE account_kind = ?",
+            (_CANONICAL_MANUAL_ONLY_KIND, _LEGACY_TEST_SHADOW_KIND),
+        )
     conn.commit()
 
 
