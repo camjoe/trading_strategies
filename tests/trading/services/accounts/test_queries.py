@@ -52,15 +52,6 @@ class TestAccountQueries:
             "SPY",
             config=AccountConfig(account_kind="local"),
         )
-        create_account(
-            conn,
-            "acct_shadow",
-            "Trend",
-            1000.0,
-            "SPY",
-            config=AccountConfig(account_kind="manual_only"),
-        )
-
         rows = list_account_records(conn, account_kinds=(" Local ", "managed"))
         names = [row["name"] for row in rows]
 

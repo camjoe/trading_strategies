@@ -13,7 +13,7 @@ from trading.services.accounts import (
 GOAL_PERIODS = ("monthly", "weekly", "quarterly", "yearly")
 
 _RISK_POLICY_ORDER = ("none", "fixed_stop", "take_profit", "stop_and_target")
-_ACCOUNT_KIND_ORDER = ("managed", "local", "manual_only")
+_ACCOUNT_KIND_ORDER = ("managed", "local")
 _INSTRUMENT_MODE_ORDER = ("equity", "leaps")
 _OPTION_TYPE_ORDER = ("call", "put", "both")
 _ROTATION_MODE_ORDER = ("time", "optimal", "regime")

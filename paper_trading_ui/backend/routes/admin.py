@@ -15,7 +15,6 @@ from ..services.db import db_conn
 from ..services.exports import list_csv_exports, preview_csv_export
 from ..services.operations import list_operations_overview
 from ..services.promotion import build_promotion_overview
-from trading.services.accounts import is_manual_only_account_kind
 
 router = APIRouter()
 
@@ -42,9 +41,7 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
 
     with db_conn() as conn:
         requested_name = payload.accountName.strip()
-        account = require_account_row(conn, requested_name)
-        if is_manual_only_account_kind(account.account_kind):
-            raise HTTPException(status_code=400, detail="Manual-only accounts cannot be deleted.")
+        require_account_row(conn, requested_name)
 
     counts = delete_account_and_dependents(requested_name)
     return {"status": "ok", "deleted": counts}

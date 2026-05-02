@@ -20,8 +20,7 @@ OPTION_TYPES = {"call", "put", "both"}
 # from broker_type, which selects the execution backend.
 ACCOUNT_KIND_MANAGED = "managed"
 ACCOUNT_KIND_LOCAL = "local"
-ACCOUNT_KIND_MANUAL_ONLY = "manual_only"
-ACCOUNT_KINDS = {ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL, ACCOUNT_KIND_MANUAL_ONLY}
+ACCOUNT_KINDS = {ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL}
 RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 _ENUM_FIELDS = {
@@ -65,12 +64,6 @@ def normalize_account_kind(account_kind: str) -> str:
 
 def expand_account_kind_filters(account_kinds: set[str]) -> tuple[str, ...]:
     return tuple(sorted(account_kinds))
-
-
-def is_manual_only_account_kind(account_kind: str | None) -> bool:
-    if account_kind is None:
-        return False
-    return normalize_account_kind(account_kind) == ACCOUNT_KIND_MANUAL_ONLY
 
 
 def normalize_instrument_mode(instrument_mode: str) -> str:

@@ -45,19 +45,16 @@ from trading.domain.rotation import (
 from trading.services.accounts.config import (
     ACCOUNT_KINDS,
     ACCOUNT_KIND_LOCAL,
-    ACCOUNT_KIND_MANUAL_ONLY,
     ACCOUNT_KIND_MANAGED,
     INSTRUMENT_MODES,
     OPTION_TYPES,
     RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS,
     RISK_POLICIES,
-    is_manual_only_account_kind,
 )
 
 __all__ = [
     "ACCOUNT_KINDS",
     "ACCOUNT_KIND_LOCAL",
-    "ACCOUNT_KIND_MANUAL_ONLY",
     "ACCOUNT_KIND_MANAGED",
     "AccountAlreadyExistsError",
     "DEFAULT_MAX_POSITION_PCT",
@@ -83,7 +80,6 @@ __all__ = [
     "load_all_account_names",
     "load_runtime_job_account_names",
     "RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS",
-    "is_manual_only_account_kind",
     "parse_rotation_overlay_watchlist",
     "parse_rotation_schedule",
     "RISK_POLICIES",

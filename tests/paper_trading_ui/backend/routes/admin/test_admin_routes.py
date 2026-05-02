@@ -115,20 +115,6 @@ class TestAdminRoutes:
         assert response.json()["status"] == "ok"
         assert response.json()["deleted"]["accounts"] == 1
 
-    def test_admin_delete_rejects_manual_only_account(
-        self,
-        api_client: TestClient,
-        seed_account: Callable[..., None],
-    ) -> None:
-        seed_account("acct_manual_only", account_kind="manual_only")
-
-        response = api_client.post(
-            "/api/admin/accounts/delete",
-            json={"accountName": "acct_manual_only", "confirm": True},
-        )
-        assert response.status_code == 400
-        assert "manual-only accounts cannot be deleted" in response.json()["detail"].lower()
-
     def test_admin_create_account_handles_value_error(self, api_client: TestClient) -> None:
         create_mock = Mock(side_effect=ValueError("bad payload"))
         with patch(_CREATE_ACCOUNT, create_mock):

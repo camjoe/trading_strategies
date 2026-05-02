@@ -46,7 +46,7 @@ Broker-related account fields:
 
 | Field | Role |
 |---|---|
-| `account_kind` | account visibility/role (`managed`, `local`, `manual_only`) |
+| `account_kind` | account visibility/role (`managed`, `local`) |
 | `broker_type` | execution backend selection |
 | `broker_host` | legacy socket/TWS host |
 | `broker_port` | legacy socket/TWS port |

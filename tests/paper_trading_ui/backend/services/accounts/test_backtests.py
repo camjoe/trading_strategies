@@ -13,11 +13,11 @@ def test_display_helpers_preserve_account_name_and_strategy(conn) -> None:
 
 
 def test_build_backtest_run_summary_uses_display_transforms(conn, create_account_row) -> None:
-    create_account_row("acct_manual", account_kind="manual_only")
+    create_account_row("acct_local", account_kind="local")
     run_dict = {
         "runId": 7,
         "runName": "run-shadow",
-        "accountName": "acct_manual",
+        "accountName": "acct_local",
         "strategy": "trend",
         "startDate": "2026-01-01",
         "endDate": "2026-01-31",
@@ -29,7 +29,7 @@ def test_build_backtest_run_summary_uses_display_transforms(conn, create_account
 
     payload = account_backtests._apply_display_names(conn, run_dict)
     assert payload["runId"] == 7
-    assert payload["accountName"] == "acct_manual"
+    assert payload["accountName"] == "acct_local"
     assert payload["strategy"] == "trend"
     assert payload["feePerTrade"] == 1.25
 
