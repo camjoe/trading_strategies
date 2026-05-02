@@ -37,7 +37,7 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
         f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
         lambda _log_path, label, _args, _cwd: stream_calls.append(label),
     )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -55,7 +55,7 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
     assert payload["completed_steps"]
 
 def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["real_acct"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["real_acct"])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -69,7 +69,7 @@ def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
 
 
 def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: [])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: [])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -82,7 +82,7 @@ def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "No accounts" in capsys.readouterr().err
 
 def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -95,7 +95,7 @@ def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys
     assert "primary-max-trades" in capsys.readouterr().err
 
 def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("step failed")),
@@ -112,7 +112,7 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path) -> None
 
 def test_success_notification_requires_flag(monkeypatch, tmp_path: Path) -> None:
     sent: list[dict[str, object]] = []
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
@@ -131,7 +131,7 @@ def test_success_notification_requires_flag(monkeypatch, tmp_path: Path) -> None
 
 def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path) -> None:
     sent: list[dict[str, object]] = []
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
@@ -158,7 +158,7 @@ def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path) -> 
 
 def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path) -> None:
     sent: list[dict[str, object]] = []
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_job_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("step failed")),

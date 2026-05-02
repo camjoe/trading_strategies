@@ -27,7 +27,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
     CLI_MAIN_MODULE,
 )
-from trading.services.accounts import load_runtime_job_account_names
+from trading.services.accounts import load_runtime_eligible_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
@@ -268,7 +268,7 @@ def main() -> int:
     artifact_path = export_dir / f"daily_backtest_refresh_{timestamp}.json"
 
     try:
-        accounts = resolve_accounts(args.accounts, load_runtime_job_account_names())
+        accounts = resolve_accounts(args.accounts, load_runtime_eligible_account_names())
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1

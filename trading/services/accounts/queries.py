@@ -3,20 +3,18 @@ from __future__ import annotations
 from collections.abc import Collection
 import sqlite3
 
+from trading.database.db_backend import get_backend
 from trading.models import AccountRecord
 from trading.repositories.accounts import (
     fetch_account_by_name,
     fetch_account_rows,
     fetch_all_account_names,
-    _load_all_account_names,
-    _load_account_names_by_kinds,
 )
 from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_snapshot_history_rows,
 )
 from trading.services.accounts.config import (
-    RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS,
     expand_account_kind_filters,
     normalize_account_kind,
 )
@@ -89,10 +87,9 @@ def list_account_snapshots(
         raise ValueError("limit must be positive.")
     return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
 
-
-def load_all_account_names() -> list[str]:
-    return _load_all_account_names()
-
-
-def load_runtime_job_account_names() -> list[str]:
-    return _load_account_names_by_kinds(RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS)
+def load_runtime_eligible_account_names() -> list[str]:
+    conn = get_backend().open_connection()
+    try:
+        return fetch_all_account_names(conn)
+    finally:
+        conn.close()

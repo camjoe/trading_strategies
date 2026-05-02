@@ -6,7 +6,7 @@ from trading.services.reporting import snapshot_account
 
 from ..services.accounts.data_access import require_account_row
 from ..services.db import db_conn
-from trading.services.accounts import RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS, list_account_names
+from trading.services.accounts import list_account_names
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ def api_snapshot(account_name: str) -> dict[str, str]:
 @router.post("/api/actions/snapshot-all")
 def api_snapshot_all() -> dict[str, object]:
     with db_conn() as conn:
-        names = list_account_names(conn, account_kinds=RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS)
+        names = list_account_names(conn)
         for name in names:
             snapshot_account(conn, name, snapshot_time=None)
         return {"status": "ok", "snapshotted": names}
