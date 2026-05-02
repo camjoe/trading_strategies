@@ -103,7 +103,7 @@ Date: 2026-04-24
 ## Assumptions and Defaults
 - One canonical manual account only.
 - External alias name remains `test_account`.
-- Architecture-only deliverable in this pass (no code mutation yet).
+- Compatibility-first implementation is in progress; legacy aliases remain temporarily supported.
 - Manual account is excluded from automated jobs and aggregate compare views.
 - Manual account remains available for manual trade entry and account-detail analysis.
 
