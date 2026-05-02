@@ -58,7 +58,7 @@ class TestAccountQueries:
             "Trend",
             1000.0,
             "SPY",
-            config=AccountConfig(account_kind="test_shadow"),
+            config=AccountConfig(account_kind="manual_only"),
         )
 
         rows = list_account_records(conn, account_kinds=(" Local ", "managed"))
@@ -66,16 +66,3 @@ class TestAccountQueries:
 
         assert names == ["acct_local", "acct_managed"]
         assert list_account_names(conn, account_kinds=("managed",)) == ["acct_managed"]
-
-    def test_list_account_records_supports_legacy_test_shadow_filter(self, conn) -> None:
-        create_account(
-            conn,
-            "acct_manual",
-            "Trend",
-            1000.0,
-            "SPY",
-            config=AccountConfig(account_kind="manual_only"),
-        )
-
-        names = list_account_names(conn, account_kinds=("test_shadow",))
-        assert names == ["acct_manual"]

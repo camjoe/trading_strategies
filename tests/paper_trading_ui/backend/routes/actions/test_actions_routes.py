@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
-from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME, TEST_BACKTEST_ACCOUNT_NAME
+from paper_trading_ui.backend.config import TEST_ACCOUNT_NAME
 from trading.database.db_init import ensure_db
 
 
@@ -16,7 +16,7 @@ class TestActionsRoutes:
 
         conn = ensure_db()
         try:
-            account = conn.execute("SELECT id FROM accounts WHERE name = ?", (TEST_BACKTEST_ACCOUNT_NAME,)).fetchone()
+            account = conn.execute("SELECT id FROM accounts WHERE name = ?", (TEST_ACCOUNT_NAME,)).fetchone()
             assert account is not None
             count = conn.execute(
                 "SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?",

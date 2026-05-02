@@ -21,13 +21,7 @@ OPTION_TYPES = {"call", "put", "both"}
 ACCOUNT_KIND_MANAGED = "managed"
 ACCOUNT_KIND_LOCAL = "local"
 ACCOUNT_KIND_MANUAL_ONLY = "manual_only"
-# Legacy compatibility alias persisted in older databases.
-ACCOUNT_KIND_TEST_SHADOW = "test_shadow"
 ACCOUNT_KINDS = {ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL, ACCOUNT_KIND_MANUAL_ONLY}
-_ACCOUNT_KIND_ALIASES = {
-    ACCOUNT_KIND_TEST_SHADOW: ACCOUNT_KIND_MANUAL_ONLY,
-}
-_ACCOUNT_KIND_ACCEPTED_VALUES = ACCOUNT_KINDS | set(_ACCOUNT_KIND_ALIASES.keys())
 RUNTIME_JOB_ELIGIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 _ENUM_FIELDS = {
@@ -63,8 +57,6 @@ def normalize_risk_policy(risk_policy: str) -> str:
 
 def normalize_account_kind(account_kind: str) -> str:
     normalized = normalize_lower(account_kind)
-    if normalized in _ACCOUNT_KIND_ALIASES:
-        return _ACCOUNT_KIND_ALIASES[normalized]
     if normalized not in ACCOUNT_KINDS:
         options = ", ".join(sorted(ACCOUNT_KINDS))
         raise ValueError(f"account_kind must be one of: {options}")
@@ -72,19 +64,13 @@ def normalize_account_kind(account_kind: str) -> str:
 
 
 def expand_account_kind_filters(account_kinds: set[str]) -> tuple[str, ...]:
-    """Return DB filter values including legacy aliases for compatibility reads."""
-    expanded = set(account_kinds)
-    if ACCOUNT_KIND_MANUAL_ONLY in expanded:
-        expanded.add(ACCOUNT_KIND_TEST_SHADOW)
-    return tuple(sorted(expanded))
+    return tuple(sorted(account_kinds))
 
 
 def is_manual_only_account_kind(account_kind: str | None) -> bool:
     if account_kind is None:
         return False
-    return normalize_lower(account_kind) in _ACCOUNT_KIND_ACCEPTED_VALUES and (
-        normalize_account_kind(account_kind) == ACCOUNT_KIND_MANUAL_ONLY
-    )
+    return normalize_account_kind(account_kind) == ACCOUNT_KIND_MANUAL_ONLY
 
 
 def normalize_instrument_mode(instrument_mode: str) -> str:

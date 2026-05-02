@@ -142,22 +142,22 @@ class TestFetchAccountListingRows:
 class TestFetchAccountRows:
     def test_returns_all_accounts_when_account_kinds_omitted(self, conn) -> None:
         _insert(conn, "keep_me")
-        insert_account(conn, _make_account_insert(name="shadow_acct", descriptive_name="shadow_acct", account_kind="test_shadow"))
+        insert_account(conn, _make_account_insert(name="manual_acct", descriptive_name="manual_acct", account_kind="manual_only"))
         names = [r["name"] for r in fetch_account_rows(conn)]
-        assert names == ["keep_me", "shadow_acct"]
+        assert names == ["keep_me", "manual_acct"]
 
     def test_filters_to_included_kinds(self, conn) -> None:
         _insert(conn, "keep_me")
-        insert_account(conn, _make_account_insert(name="shadow_acct", descriptive_name="shadow_acct", account_kind="test_shadow"))
+        insert_account(conn, _make_account_insert(name="manual_acct", descriptive_name="manual_acct", account_kind="manual_only"))
         rows = fetch_account_rows(conn, account_kinds=("managed",))
         names = [r["name"] for r in rows]
-        assert "shadow_acct" not in names
+        assert "manual_acct" not in names
         assert "keep_me" in names
 
     def test_ordered_by_name(self, conn) -> None:
         _insert(conn, "bravo")
         _insert(conn, "alpha")
-        insert_account(conn, _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="test_shadow"))
+        insert_account(conn, _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="manual_only"))
         rows = fetch_account_rows(conn, account_kinds=("managed",))
         names = [r["name"] for r in rows]
         assert names == ["alpha", "bravo"]

@@ -62,7 +62,7 @@ npm run dev
 
 ### Accounts
 
-- `GET /api/accounts` — list visible accounts (`managed` and `local`) plus the virtual test account. The persisted shadow row that backs `test_account` is hidden via `account_kind = 'test_shadow'`.
+- `GET /api/accounts` — list visible accounts (`managed` and `local`) plus the manual-only `test_account`.
 - `GET /api/accounts/compare` — comparison payload for all accounts (used by the Compare tab). Includes live benchmark summary fields such as `liveBenchmarkReturnPct` and `liveAlphaPct` when enough snapshots exist.
 - `GET /api/accounts/{account_name}` — full detail: summary, snapshots, trades, latest backtest, latest backtest metrics, and `liveBenchmarkOverlay`. Account summaries include `accountKind`, `brokerType`, and rotation settings such as `rotationOverlayMode`, thresholds, and `rotationOverlayWatchlist`.
 - `PATCH /api/accounts/{account_name}/params` — update mutable account config and rotation fields. All fields are optional; only supplied (non-`null`) fields are applied. Body: `AccountParamsRequest`.
@@ -80,7 +80,7 @@ npm run dev
 
 ### Trades
 
-- `POST /api/accounts/{account_name}/trades` — inject a manual trade record. Body: `ManualTradeRequest` (`ticker`, `side`, `qty`, `price`, `fee`). Routes `test_account` trades to its backing DB account automatically.
+- `POST /api/accounts/{account_name}/trades` — inject a manual trade record. Body: `ManualTradeRequest` (`ticker`, `side`, `qty`, `price`, `fee`). Manual trades are allowed only for `test_account`.
 
 ### Alt-Strategy Feature Providers
 

@@ -17,8 +17,9 @@ DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
     separators=(",", ":"),
 )
 
-# Legacy persisted name for the UI-owned manual account row.
-TEST_BACKTEST_ACCOUNT_NAME = "test_account_bt"
+# Canonical and legacy persisted names for the UI-owned manual account row.
+TEST_ACCOUNT_NAME = "test_account"
+LEGACY_TEST_ACCOUNT_NAME = "test_account_bt"
 MANUAL_ONLY_ACCOUNT_KIND = "manual_only"
 
 
@@ -35,7 +36,7 @@ ACCOUNT_MIGRATIONS = (
         "ALTER TABLE accounts ADD COLUMN account_kind TEXT NOT NULL DEFAULT 'managed'",
         (
             f"UPDATE accounts SET account_kind = '{MANUAL_ONLY_ACCOUNT_KIND}' "
-            f"WHERE name = '{TEST_BACKTEST_ACCOUNT_NAME}'",
+            f"WHERE name IN ('{TEST_ACCOUNT_NAME}', '{LEGACY_TEST_ACCOUNT_NAME}')",
         ),
     ),
     ColumnMigration(

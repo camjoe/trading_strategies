@@ -7,25 +7,19 @@ from pathlib import Path
 from trading.models import AccountConfig, AccountRecord
 from trading.services.accounts import (
     ACCOUNT_KIND_MANUAL_ONLY,
-    ACCOUNT_KIND_TEST_SHADOW,
     configure_account,
     create_account,
     find_account,
     is_manual_only_account_kind,
-    list_account_records,
 )
 
 from ..config import (
     TEST_ACCOUNT_BENCHMARK_DEFAULT,
     TEST_ACCOUNT_DISPLAY_NAME,
     TEST_ACCOUNT_NAME,
-    TEST_BACKTEST_ACCOUNT_NAME,
     TEST_INVESTMENTS_CANDIDATES,
 )
 from ..schemas import TestInvestmentRow
-
-MANUAL_ACCOUNT_SEARCH_KINDS = (ACCOUNT_KIND_MANUAL_ONLY, ACCOUNT_KIND_TEST_SHADOW)
-
 
 def get_test_investments_path() -> Path | None:
     for candidate in TEST_INVESTMENTS_CANDIDATES:
@@ -109,19 +103,8 @@ def _normalize_account_name(account_name: str) -> str:
     return name
 
 
-def _select_manual_account_row(rows: list[AccountRecord]) -> AccountRecord | None:
-    if not rows:
-        return None
-
-    preferred = next((row for row in rows if row.name == TEST_BACKTEST_ACCOUNT_NAME), None)
-    if preferred is not None:
-        return preferred
-
-    if len(rows) > 1:
-        names = ", ".join(sorted(row.name for row in rows))
-        raise ValueError(f"Multiple manual-only accounts found: {names}")
-
-    return rows[0]
+def _load_canonical_test_account(conn: sqlite3.Connection) -> AccountRecord | None:
+    return find_account(conn, TEST_ACCOUNT_NAME)
 
 
 def _ensure_manual_account_kind(conn: sqlite3.Connection, row: AccountRecord) -> AccountRecord:
@@ -139,24 +122,11 @@ def _ensure_manual_account_kind(conn: sqlite3.Connection, row: AccountRecord) ->
     return refreshed
 
 
-def resolve_backtest_account_name(account_name: str) -> str:
-    """Legacy compatibility helper for callers that only need alias-to-name mapping."""
-    name = _normalize_account_name(account_name)
-    if name == TEST_ACCOUNT_NAME:
-        return TEST_BACKTEST_ACCOUNT_NAME
-    return name
-
-
-def ensure_test_backtest_account(conn: sqlite3.Connection) -> AccountRecord:
-    """Ensure one canonical manual-only account exists and return its DB row."""
-    existing_by_legacy_name = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
-    if existing_by_legacy_name is not None:
-        return _ensure_manual_account_kind(conn, existing_by_legacy_name)
-
-    rows = list_account_records(conn, account_kinds=MANUAL_ACCOUNT_SEARCH_KINDS)
-    selected = _select_manual_account_row(rows)
-    if selected is not None:
-        return _ensure_manual_account_kind(conn, selected)
+def ensure_test_account(conn: sqlite3.Connection) -> AccountRecord:
+    """Ensure canonical persisted test account row exists and return it."""
+    existing = _load_canonical_test_account(conn)
+    if existing is not None:
+        return _ensure_manual_account_kind(conn, existing)
 
     initial_cash = compute_test_account_equity()
     if initial_cash <= 0:
@@ -164,7 +134,7 @@ def ensure_test_backtest_account(conn: sqlite3.Connection) -> AccountRecord:
 
     create_account(
         conn,
-        name=TEST_BACKTEST_ACCOUNT_NAME,
+        name=TEST_ACCOUNT_NAME,
         strategy="trend",
         initial_cash=initial_cash,
         benchmark_ticker=parse_test_account_benchmark(),
@@ -177,7 +147,7 @@ def ensure_test_backtest_account(conn: sqlite3.Connection) -> AccountRecord:
     )
     conn.commit()
 
-    created = find_account(conn, TEST_BACKTEST_ACCOUNT_NAME)
+    created = _load_canonical_test_account(conn)
     if created is None:
         raise ValueError("Failed to create canonical manual-only test account.")
     return created
@@ -185,23 +155,21 @@ def ensure_test_backtest_account(conn: sqlite3.Connection) -> AccountRecord:
 
 def resolve_backtest_payload_account(account_name: str, conn: sqlite3.Connection) -> str:
     requested_name = _normalize_account_name(account_name)
-    manual_account = ensure_test_backtest_account(conn)
-    if requested_name in {TEST_ACCOUNT_NAME, manual_account.name}:
-        return manual_account.name
-    return requested_name
+    if requested_name != TEST_ACCOUNT_NAME:
+        return requested_name
+    return ensure_test_account(conn).name
 
 
 def is_manual_trade_account_name(account_name: str, conn: sqlite3.Connection) -> bool:
     requested_name = _normalize_account_name(account_name)
-    manual_account = ensure_test_backtest_account(conn)
-    return requested_name in {TEST_ACCOUNT_NAME, manual_account.name}
+    return requested_name == ensure_test_account(conn).name
 
 
 from .accounts import build_account_summary, require_account_row
 
 
 def fetch_resolved_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
-    """Resolve ``account_name`` (handles test-account aliasing) and return its DB row."""
+    """Resolve ``account_name`` and return its DB row."""
     resolved_name = resolve_backtest_payload_account(account_name, conn)
     return require_account_row(conn, resolved_name)
 

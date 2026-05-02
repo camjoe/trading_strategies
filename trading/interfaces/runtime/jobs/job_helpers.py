@@ -28,7 +28,7 @@ TRANSIENT_ERROR_TOKENS = (
     "too many requests",
 )
 
-RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIASES = ("test_account", "test_account_bt")
+RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIASES = ("test_account",)
 _RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIAS_SET = {
     name.strip().lower() for name in RUNTIME_EXCLUDED_MANUAL_ACCOUNT_ALIASES
 }

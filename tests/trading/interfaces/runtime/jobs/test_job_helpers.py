@@ -111,10 +111,3 @@ def test_resolve_accounts_rejects_manual_only_alias_test_account() -> None:
 
     with pytest.raises(ValueError, match="excluded from automated runtime jobs"):
         resolve_accounts("test_account", ["acct_a", "acct_b"])
-
-
-def test_resolve_accounts_rejects_manual_only_alias_test_account_bt() -> None:
-    import pytest
-
-    with pytest.raises(ValueError, match="excluded from automated runtime jobs"):
-        resolve_accounts("test_account_bt", ["acct_a", "acct_b"])

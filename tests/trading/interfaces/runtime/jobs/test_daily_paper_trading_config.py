@@ -66,14 +66,14 @@ def test_load_trade_caps_config_without_default_returns_none(tmp_path: Path) -> 
 
 def test_load_trade_caps_config_excluded_accounts_are_returned(tmp_path: Path) -> None:
     config = {
-        "excluded": ["test_account_bt", "sandbox"],
+        "excluded": ["test_account", "sandbox"],
         "default": {"min": 1, "max": 5},
         "accounts": {},
     }
     path = tmp_path / "caps.json"
     path.write_text(json.dumps(config), encoding="utf-8")
     _, _, excluded = module.load_trade_caps_config(path)
-    assert excluded == ["test_account_bt", "sandbox"]
+    assert excluded == ["test_account", "sandbox"]
 
 def test_load_trade_caps_config_non_dict_root_raises(tmp_path: Path) -> None:
     path = tmp_path / "caps.json"

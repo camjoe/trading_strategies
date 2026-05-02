@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from paper_trading_ui.backend.services import test_account as services_test_account
-from paper_trading_ui.backend.config import TEST_ACCOUNT_DISPLAY_NAME, TEST_ACCOUNT_NAME, TEST_BACKTEST_ACCOUNT_NAME
+from paper_trading_ui.backend.config import TEST_ACCOUNT_DISPLAY_NAME, TEST_ACCOUNT_NAME
 
 
 def test_test_account_parsing_helpers(monkeypatch, tmp_path) -> None:
@@ -26,35 +24,30 @@ def test_test_account_parsing_helpers(monkeypatch, tmp_path) -> None:
     assert services_test_account.compute_test_account_equity(rows) == 1500.0
     assert services_test_account.parse_test_account_benchmark() == "QQQ"
 
-def test_resolve_backtest_account_name_and_payload_resolver(conn, monkeypatch) -> None:
-    assert services_test_account.resolve_backtest_account_name(TEST_ACCOUNT_NAME) == TEST_BACKTEST_ACCOUNT_NAME
-    assert services_test_account.resolve_backtest_account_name("acct_live") == "acct_live"
-
-    calls: list[str] = []
-    monkeypatch.setattr(
-        services_test_account,
-        "ensure_test_backtest_account",
-        lambda _conn: calls.append("called") or SimpleNamespace(name=TEST_BACKTEST_ACCOUNT_NAME),
-    )
+def test_resolve_backtest_payload_account_uses_canonical_name(conn, monkeypatch) -> None:
+    monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 1000.0)
+    monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "SPY")
 
     resolved = services_test_account.resolve_backtest_payload_account(TEST_ACCOUNT_NAME, conn)
-    assert resolved == TEST_BACKTEST_ACCOUNT_NAME
-    assert calls == ["called"]
+    assert resolved == TEST_ACCOUNT_NAME
+
+    resolved_non_test = services_test_account.resolve_backtest_payload_account("acct_live", conn)
+    assert resolved_non_test == "acct_live"
 
 
-def test_ensure_test_backtest_account_creates_manual_only_account_with_min_cash(conn, monkeypatch) -> None:
+def test_ensure_test_account_creates_manual_only_account_with_min_cash(conn, monkeypatch) -> None:
     monkeypatch.setattr(services_test_account, "compute_test_account_equity", lambda _rows=None: 0.0)
     monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "QQQ")
 
-    row = services_test_account.ensure_test_backtest_account(conn)
-    assert row.name == TEST_BACKTEST_ACCOUNT_NAME
+    row = services_test_account.ensure_test_account(conn)
+    assert row.name == TEST_ACCOUNT_NAME
 
     row = conn.execute(
         "SELECT name, account_kind, initial_cash, benchmark_ticker FROM accounts WHERE name = ?",
-        (TEST_BACKTEST_ACCOUNT_NAME,),
+        (TEST_ACCOUNT_NAME,),
     ).fetchone()
     assert row is not None
-    assert row["name"] == TEST_BACKTEST_ACCOUNT_NAME
+    assert row["name"] == TEST_ACCOUNT_NAME
     assert row["account_kind"] == "manual_only"
     assert float(row["initial_cash"]) == 1.0
     assert row["benchmark_ticker"] == "QQQ"
@@ -77,5 +70,4 @@ def test_is_manual_trade_account_name_accepts_alias_and_canonical_row(conn, monk
     monkeypatch.setattr(services_test_account, "parse_test_account_benchmark", lambda: "SPY")
 
     assert services_test_account.is_manual_trade_account_name(TEST_ACCOUNT_NAME, conn) is True
-    assert services_test_account.is_manual_trade_account_name(TEST_BACKTEST_ACCOUNT_NAME, conn) is True
     assert services_test_account.is_manual_trade_account_name("acct_other", conn) is False
