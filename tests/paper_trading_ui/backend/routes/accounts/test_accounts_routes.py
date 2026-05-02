@@ -52,6 +52,26 @@ def test_account_detail_known_account(api_client: TestClient, seed_account: Call
     assert isinstance(payload["snapshots"], list)
 
 
+def test_account_detail_exposes_latest_backtest_summary(
+    api_client: TestClient,
+    seed_account: Callable[..., None],
+    seed_backtest_run: Callable[[str, str], None],
+) -> None:
+    seed_account("acct_detail_latest")
+    seed_backtest_run("acct_detail_latest", "latest-run")
+
+    response = api_client.get("/api/accounts/acct_detail_latest")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["account"]["accountKind"] == "managed"
+    assert payload["account"]["brokerType"] == "paper"
+    latest = payload["latestBacktest"]
+    assert latest is not None
+    assert latest["accountName"] == "acct_detail_latest"
+    assert latest["runName"] == "latest-run"
+
+
 def test_accounts_compare_lists_visible_accounts(
     api_client: TestClient,
     seed_account: Callable[..., None],

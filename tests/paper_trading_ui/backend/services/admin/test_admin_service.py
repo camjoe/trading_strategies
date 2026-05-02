@@ -15,8 +15,8 @@ def test_delete_account_and_dependents_not_found_raises(conn) -> None:
     assert exc_info.value.status_code == 404
 
 
-def test_delete_account_and_dependents_removes_related_rows(conn, create_test_account) -> None:
-    account_id = create_test_account("acct_delete")
+def test_delete_account_and_dependents_removes_related_rows(conn, create_account_row) -> None:
+    account_id = create_account_row("acct_delete")
     conn.execute(
         "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-02T00:00:00Z"),

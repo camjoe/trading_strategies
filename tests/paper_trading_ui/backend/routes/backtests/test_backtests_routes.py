@@ -31,6 +31,19 @@ class TestBacktestsRoutes:
         response = api_client.get("/api/backtests/latest/no_such_account")
         assert response.status_code == 404
 
+    def test_latest_backtest_endpoint_returns_none_when_missing(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_api_empty", initial_cash=10000.0)
+
+        response = api_client.get("/api/backtests/latest/acct_api_empty")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["accountName"] == "acct_api_empty"
+        assert payload["latestRun"] is None
+
     def test_backtest_run_report_endpoint_not_found(self, api_client: TestClient) -> None:
         report_mock = Mock(side_effect=ValueError("run not found"))
         with patch(_BACKTEST_REPORT_FULL, report_mock):
@@ -92,6 +105,53 @@ class TestBacktestsRoutes:
         assert response.status_code == 400
         assert response.json()["detail"] == "tickers file missing"
         warnings_mock.assert_called_once()
+
+    def test_backtest_preflight_returns_financial_warnings(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account(
+            "acct_api_leaps",
+            instrument_mode="leaps",
+            option_strike_offset_pct=5.0,
+            option_min_dte=120,
+            option_max_dte=365,
+            option_type="call",
+        )
+
+        response = api_client.post(
+            "/api/backtests/preflight",
+            json={
+                "account": "acct_api_leaps",
+                "tickersFile": "trading/config/trade_universe.txt",
+                "start": "2026-01-01",
+                "end": "2026-03-01",
+                "allowApproximateLeaps": False,
+            },
+        )
+        assert response.status_code == 200
+        warnings = response.json()["warnings"]
+        assert any("LEAPs mode is approximated" in warning for warning in warnings)
+        assert any("opt-in was not enabled" in warning for warning in warnings)
+
+    def test_backtest_preflight_rejects_start_and_lookback_conflict(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_api_conflict")
+        response = api_client.post(
+            "/api/backtests/preflight",
+            json={
+                "account": "acct_api_conflict",
+                "tickersFile": "trading/config/trade_universe.txt",
+                "start": "2026-01-01",
+                "lookbackMonths": 1,
+            },
+        )
+        assert response.status_code == 400
+        assert "Use either --start or --lookback-months" in response.json()["detail"]
 
     def test_walk_forward_endpoint_value_error(
         self,

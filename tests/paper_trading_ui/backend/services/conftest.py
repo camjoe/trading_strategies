@@ -9,7 +9,7 @@ from trading.services.accounts import create_account
 
 
 @pytest.fixture
-def create_test_account(conn) -> Callable[..., int]:
+def create_account_row(conn) -> Callable[..., int]:
     """Factory fixture: creates an account in the test DB and returns its id."""
 
     def _factory(
