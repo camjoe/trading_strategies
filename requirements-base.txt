@@ -8,7 +8,7 @@ pydantic==2.12.5
 python-dotenv==1.2.2
 uvicorn[standard]==0.46.0
 yfinance==1.2.0
-ib_async==1.0.3
+ib_async==2.1.0
 
 # Alternative strategy external-data providers (trading/features/).
 # Keys must be supplied via environment variables — never hardcode credentials.
