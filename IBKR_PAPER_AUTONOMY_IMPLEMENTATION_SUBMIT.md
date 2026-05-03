@@ -101,6 +101,18 @@ During implementation, prioritize reuse of existing modules and remove or merge 
 
 Implement in seven increments so each merge is deployable and testable.
 
+## Increment 0 Work Products (Current)
+
+1. ADR:
+   - `docs/reference/adr-sleeve-virtualization-architecture.md`
+2. Schema contract:
+   - `docs/reference/notes-sleeve-schema-contract.md`
+3. Locked simplicity decisions for Increment 1:
+   - `strategy_name` as validated text
+   - sleeve-only `rotation_decisions`
+   - no `target_qty`/`target_notional` columns in `sleeve_orders`
+   - `config_version` kept as text fields
+
 ## Increment 0: ADR + Schema Contract Freeze
 
 ### Deliverables
@@ -132,6 +144,15 @@ Implement in seven increments so each merge is deployable and testable.
 1. ADR approved.
 2. Table schema and index plan approved.
 3. Migration rollback strategy documented.
+
+### Reuse and Consolidation Focus
+
+1. Reuse existing migration/bootstrap flow:
+   - `trading/database/db_schema.py`
+   - `trading/database/db_init.py`
+   - `trading/database/db_migrations.py`
+2. Avoid introducing a parallel schema bootstrap path for sleeve tables.
+3. Keep existing account-level tables as compatibility backbone during transition, then deprecate overlap only after sleeve parity tests pass.
 
 ## Increment 1: Database and Repository Foundation
 
