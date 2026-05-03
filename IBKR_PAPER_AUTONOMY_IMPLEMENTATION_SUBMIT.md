@@ -4,6 +4,17 @@
 
 Translate `IBKR_PAPER_AUTONOMY_PLAN.md` into repo-specific implementation steps based on the current codebase.
 
+## Document Relationship
+
+1. `IBKR_PAPER_AUTONOMY_PLAN.md` is the strategic source of truth.
+2. This submit document is the implementation source of truth.
+
+Synchronization rule:
+
+1. If strategy, scope, or acceptance outcomes change, update the plan first.
+2. If sequencing, tasks, or repo-level execution details change, update this file.
+3. Every implementation PR must reference both documents and note whether either was updated.
+
 ## Current Repo Baseline (What Already Exists)
 
 1. Runtime scheduler entrypoints and registration are implemented.

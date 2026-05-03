@@ -10,6 +10,21 @@ Define and implement a self-sustaining algorithmic paper trading system on a sin
 - learns from local paper environments and improves over time
 - optionally uses market or stock sentiment as a regime signal when it proves useful
 
+## Document Roles
+
+This repository uses two linked documents for this program:
+
+1. `IBKR_PAPER_AUTONOMY_PLAN.md` (this file)
+- Strategic intent, operating model, target architecture, and acceptance outcomes.
+
+2. `IBKR_PAPER_AUTONOMY_IMPLEMENTATION_SUBMIT.md`
+- Repo-fit gap analysis, phased implementation backlog, delivery sequencing, and execution rules.
+
+Rule:
+
+- Strategy changes start here first.
+- Execution steps and task decomposition live in the submit document.
+
 ## Primary Goals
 
 1. Operate one IBKR paper account as the real execution venue.
@@ -330,32 +345,14 @@ Monthly:
 
 ## Implementation Phases
 
-## Phase 1: Foundation
+1. Foundation
+2. Selection and Rotation
+3. Intelligence Expansion
+4. Autonomy Hardening
 
-- add sleeve data model and migrations
-- order/fill ownership by sleeve
-- sleeve NAV and ledger accounting
-- baseline daily reporting
+Detailed phase deliverables and acceptance gates are maintained in:
 
-## Phase 2: Selection and Rotation
-
-- scoring framework
-- incumbent/challenger evaluation
-- rotation decision engine with cooldown and thresholds
-- config versioning and decision audit trail
-
-## Phase 3: Intelligence Expansion
-
-- sentiment/regime pipeline
-- controlled score integration and uplift testing
-- parameter experiment harness
-
-## Phase 4: Autonomy Hardening
-
-- resilience and recovery workflows
-- replay/backfill tooling
-- alerting and observability
-- runbook completion
+- `IBKR_PAPER_AUTONOMY_IMPLEMENTATION_SUBMIT.md`
 
 ## Acceptance Criteria
 
@@ -367,23 +364,6 @@ System is considered successful when:
 4. Risk controls prevent breaches and trigger deterministic safeguards.
 5. Performance reports support strategy promotion/retirement decisions.
 6. Config versions enable reproducible decisions and post-hoc audits.
-
-## Implementation Checklist
-
-1. Confirm schema strategy (extend existing vs add new tables) and finalize migrations.
-2. Implement sleeve ledger and position accounting.
-3. Tag all generated orders with `sleeve_id`, `strategy_id`, `param_set_id`.
-4. Implement fill reconciliation into sleeve state.
-5. Implement configurable scoring pipeline with rolling-window controls.
-6. Implement rotation decision + cooldown + gate checks.
-7. Implement pre-trade sleeve + portfolio risk gating.
-8. Implement daily/weekly/monthly scheduler jobs and dependencies.
-9. Build daily operator report and anomaly alert outputs.
-10. Enable challenger shadow evaluation.
-11. Add sentiment regime input pipeline with low initial weight.
-12. Add audit logs and config version binding across decisions and orders.
-13. Run backtest + shadow burn-in validation protocol.
-14. Promote to autonomous daily mode once burn-in criteria are met.
 
 ## Companion Implementation Document
 
