@@ -8,6 +8,15 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Respect the layering and ownership rules there. Do not invert dependency direction such as `interfaces -> services -> repositories/domain -> database`.
 - If a requested change would violate those conventions, stop and flag it before proceeding.
 
+## Python environment
+
+- Always run Python tools from the repo virtualenv:
+  - `./.venv/bin/python`
+  - `./.venv/bin/pytest`
+  - `./.venv/bin/pip`
+- Do not use system `python`, `python3`, or `pytest`.
+- If `./.venv` is missing, stop and ask before proceeding.
+
 ## Working references
 
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
