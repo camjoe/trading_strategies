@@ -4,18 +4,36 @@ on:
   push:
     branches:
       - main
-      - features
-      - refactor
     paths:
       - paper_trading_ui/frontend/**
       - .github/workflows/frontend-tests.yml
   pull_request:
-    paths:
-      - paper_trading_ui/frontend/**
-      - .github/workflows/frontend-tests.yml
+
+concurrency:
+  group: frontend-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_related: ${{ steps.filter.outputs.frontend_related }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect frontend-related changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend_related:
+              - paper_trading_ui/frontend/**
+              - .github/workflows/frontend-tests.yml
+
   test:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend_related == 'true'
     runs-on: ubuntu-latest
 
     steps:
