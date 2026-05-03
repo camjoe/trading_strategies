@@ -4,6 +4,7 @@ from collections.abc import Collection
 import sqlite3
 from dataclasses import astuple
 
+from trading.database.db_backend import get_backend
 from trading.database.sql_helpers import in_placeholders
 from trading.models import AccountInsert, AccountRecord
 
@@ -111,3 +112,11 @@ def update_account_fields(
 def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
     rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
     return [str(row["name"]) for row in rows]
+
+
+def load_all_account_names() -> list[str]:
+    conn = get_backend().open_connection()
+    try:
+        return fetch_all_account_names(conn)
+    finally:
+        conn.close()

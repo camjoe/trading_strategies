@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Collection
 import sqlite3
 
-from trading.database.db_backend import get_backend
 from trading.models import AccountRecord
 from trading.repositories.accounts import (
     fetch_account_by_name,
     fetch_account_rows,
     fetch_all_account_names,
+    load_all_account_names,
 )
 from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
@@ -88,8 +88,4 @@ def list_account_snapshots(
     return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
 
 def load_runtime_eligible_account_names() -> list[str]:
-    conn = get_backend().open_connection()
-    try:
-        return fetch_all_account_names(conn)
-    finally:
-        conn.close()
+    return load_all_account_names()
