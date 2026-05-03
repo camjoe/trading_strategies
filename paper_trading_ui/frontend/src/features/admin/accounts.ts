@@ -3,7 +3,6 @@ import { currency, esc, pct } from "../../lib/format";
 import { getAccountConfigOptions } from "../../lib/account-config-options";
 import { errorMessage, getJson, postJson } from "../../lib/http";
 import { intOrUndefined, numOrUndefined, strOrUndefined } from "../../lib/form-parse";
-import { TEST_ACCOUNT_NAME } from "../../lib/constants";
 import type { AccountListItem } from "../../types/accounts";
 import type { AdminCreateAccountPayload } from "../../types/admin";
 import type { AdminFeatureOptions, CreateResponse, DeleteResponse } from "./types";
@@ -59,7 +58,7 @@ export function createAdminAccountsController(
     if (!deleteSelect && !promotionSelect) return;
 
     const data = await getJson<{ accounts: AccountListItem[] }>("/api/accounts");
-    const managedAccounts = data.accounts.filter((a) => a.name !== TEST_ACCOUNT_NAME);
+    const managedAccounts = data.accounts;
     const optionsHtml = managedAccounts
       .map((a) => `<option value="${esc(a.name)}">${esc(a.name)} (${esc(a.strategy)})</option>`)
       .join("");

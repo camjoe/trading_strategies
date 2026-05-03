@@ -15,7 +15,6 @@ from ..services.db import db_conn
 from ..services.exports import list_csv_exports, preview_csv_export
 from ..services.operations import list_operations_overview
 from ..services.promotion import build_promotion_overview
-from ..config import TEST_ACCOUNT_NAME
 
 router = APIRouter()
 
@@ -40,10 +39,11 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
     if not payload.confirm:
         raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
 
-    if payload.accountName.strip() == TEST_ACCOUNT_NAME:
-        raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
+    with db_conn() as conn:
+        requested_name = payload.accountName.strip()
+        require_account_row(conn, requested_name)
 
-    counts = delete_account_and_dependents(payload.accountName.strip())
+    counts = delete_account_and_dependents(requested_name)
     return {"status": "ok", "deleted": counts}
 
 

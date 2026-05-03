@@ -1,46 +1,19 @@
 from __future__ import annotations
-
 from types import SimpleNamespace
 
 from common.time import utc_now_iso
-from paper_trading_ui.backend.config import (
-    TEST_ACCOUNT_NAME,
-    TEST_ACCOUNT_STRATEGY,
-    TEST_BACKTEST_ACCOUNT_NAME,
-)
 from paper_trading_ui.backend.services.accounts import backtests as account_backtests
 
 
-def test_display_helpers_map_shadow_backtest_account() -> None:
-    assert account_backtests.display_account_name(TEST_BACKTEST_ACCOUNT_NAME) == TEST_ACCOUNT_NAME
-    assert account_backtests.display_account_name("acct_live") == "acct_live"
-    assert account_backtests.display_strategy(TEST_BACKTEST_ACCOUNT_NAME, "trend") == TEST_ACCOUNT_STRATEGY
-    assert account_backtests.display_strategy("acct_live", "trend") == "trend"
+def test_fetch_recent_backtest_run_summaries_passthrough(monkeypatch, conn) -> None:
+    rows = [{"runId": 7, "accountName": "acct_local", "strategy": "trend"}]
+    monkeypatch.setattr(account_backtests, "fetch_recent_backtest_runs", lambda _conn, limit: rows)
+
+    assert account_backtests.fetch_recent_backtest_run_summaries(conn, limit=50) == rows
 
 
-def test_build_backtest_run_summary_uses_display_transforms() -> None:
-    run_dict = {
-        "runId": 7,
-        "runName": "run-shadow",
-        "accountName": TEST_BACKTEST_ACCOUNT_NAME,
-        "strategy": "trend",
-        "startDate": "2026-01-01",
-        "endDate": "2026-01-31",
-        "createdAt": "2026-02-01T00:00:00Z",
-        "slippageBps": 5.0,
-        "feePerTrade": 1.25,
-        "tickersFile": "trading/config/trade_universe.txt",
-    }
-
-    payload = account_backtests._apply_display_names(run_dict)
-    assert payload["runId"] == 7
-    assert payload["accountName"] == TEST_ACCOUNT_NAME
-    assert payload["strategy"] == TEST_ACCOUNT_STRATEGY
-    assert payload["feePerTrade"] == 1.25
-
-
-def test_fetch_latest_backtest_summary_none_and_present(conn, create_test_account) -> None:
-    account_id = create_test_account("acct_bt")
+def test_fetch_latest_backtest_summary_none_and_present(conn, create_account_row) -> None:
+    account_id = create_account_row("acct_bt")
 
     assert account_backtests.fetch_latest_backtest_summary(conn, "acct_bt") is None
 
@@ -68,8 +41,8 @@ def test_fetch_latest_backtest_summary_none_and_present(conn, create_test_accoun
     assert summary["accountName"] == "acct_bt"
 
 
-def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, create_test_account) -> None:
-    account_id = create_test_account("acct_metrics")
+def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, create_account_row) -> None:
+    account_id = create_account_row("acct_metrics")
     conn.execute(
         """
         INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)

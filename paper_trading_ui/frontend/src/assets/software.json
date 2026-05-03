@@ -95,7 +95,7 @@
     {
       "name": "httpx",
       "version": ">=0.23.0,<1.0.0",
-      "scope": "development",
+      "scope": "runtime",
       "group": "Developer Tooling",
       "purpose": "HTTP client used in API and integration tests."
     },

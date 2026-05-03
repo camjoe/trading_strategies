@@ -16,8 +16,8 @@ def test_db_conn_context_yields_and_closes_connection() -> None:
         conn.execute("SELECT 1")
 
 
-def test_require_account_row_found_and_missing(conn, create_test_account) -> None:
-    create_test_account("acct_lookup")
+def test_require_account_row_found_and_missing(conn, create_account_row) -> None:
+    create_account_row("acct_lookup")
 
     row = require_account_row(conn, "acct_lookup")
     assert row["name"] == "acct_lookup"
@@ -27,8 +27,8 @@ def test_require_account_row_found_and_missing(conn, create_test_account) -> Non
     assert exc_info.value.status_code == 404
 
 
-def test_get_latest_account_snapshot_prefers_latest_id_for_same_timestamp(conn, create_test_account) -> None:
-    account_id = create_test_account("acct_snapshots")
+def test_get_latest_account_snapshot_prefers_latest_id_for_same_timestamp(conn, create_account_row) -> None:
+    account_id = create_account_row("acct_snapshots")
     conn.execute(
         """
         INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)

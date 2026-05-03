@@ -47,7 +47,7 @@ python -m playwright install chromium
 All commands assume the venv is active and you are in the repo root.
 
 ```sh
-# Test Account tab (default)
+# Accounts tab (default)
 python -m scripts.screenshot_ui
 
 # Any other tab
@@ -68,7 +68,7 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--tab NAME` | `test-account` | Which tab to open. See available tabs below. |
+| `--tab NAME` | `accounts` | Which tab to open. See available tabs below. |
 | `--account NAME` | — | Click into a specific account detail (use with `--tab accounts`). |
 | `--wait-analysis` | off | Wait for the Performance Analysis panel to finish loading before capturing. |
 | `--output PATH` | auto | Custom output file path. |
@@ -82,9 +82,8 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 
 ```
 accounts        alt-strategies
-test-account    docs
 compare         admin
-trades
+docs            trades
 backtesting
 ```
 
@@ -93,14 +92,14 @@ backtesting
 ## Common recipes
 
 ```sh
-# Test Account — wait for Performance Analysis before capturing
-python -m scripts.screenshot_ui --tab test-account --wait-analysis
+# Accounts — wait for Performance Analysis before capturing
+python -m scripts.screenshot_ui --tab accounts --wait-analysis
 
 # Open a specific account detail
 python -m scripts.screenshot_ui --tab accounts --account my_account_bt
 
 # Debug: see exactly what the browser is doing
-python -m scripts.screenshot_ui --tab test-account --headed --wait-analysis
+python -m scripts.screenshot_ui --tab accounts --headed --wait-analysis
 
 # Save to a specific path
 python -m scripts.screenshot_ui --output local/screenshots/before_fix.png
@@ -116,11 +115,11 @@ python -m scripts.screenshot_ui --width 768 --height 1024
 To visually verify a UI change, run the script from within the session:
 
 ```python
-# Example: capture the test account page and inspect the screenshot
+# Example: capture the accounts page and inspect the screenshot
 import subprocess, sys
 result = subprocess.run(
     [sys.executable, "-m", "scripts.screenshot_ui",
-     "--tab", "test-account", "--wait-analysis"],
+     "--tab", "accounts", "--wait-analysis"],
     capture_output=True, text=True
 )
 print(result.stdout)

@@ -26,7 +26,7 @@ def test_main_uses_module_level_repo_paths(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(module, "LOGS_DIR", tmp_path / "logs")
     monkeypatch.setattr(module, "SNAPSHOTS_EXPORT_DIR", tmp_path / "exports")
     monkeypatch.setattr(module, "parse_args", lambda: make_daily_snapshot_args())
-    monkeypatch.setattr(module, "load_all_account_names", lambda: ["acct1"])
+    monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
     monkeypatch.setattr(
         module,

@@ -101,14 +101,6 @@
     },
     {
       "method": "POST",
-      "path": "/api/accounts/{account_name}/trades",
-      "handler": "api_add_trade",
-      "module": "trades",
-      "group": "Trading & Signals Endpoints",
-      "description": "Insert a manual trade for the virtual test account after ticker validation and account-rule checks."
-    },
-    {
-      "method": "POST",
       "path": "/api/features/signals",
       "handler": "api_feature_signals",
       "module": "features",

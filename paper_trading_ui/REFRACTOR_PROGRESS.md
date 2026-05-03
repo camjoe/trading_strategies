@@ -1,6 +1,6 @@
 # Paper Trading UI Refactor Progress
 
-Last updated: 2026-04-24
+Last updated: 2026-05-02
 
 ## Scope
 
@@ -16,7 +16,7 @@ restart point for the next session.
 - Backend tests were moved into matching subfolders and split by responsibility:
   - `tests/paper_trading_ui/backend/routes/...`
   - `tests/paper_trading_ui/backend/services/...`
-  - `tests/paper_trading_ui/backend/route_functions/...`
+  - legacy `tests/paper_trading_ui/backend/route_functions/...` was retired after route coverage was folded into API route tests
 - Frontend type ownership was decomposed from a broad barrel into focused files:
   - `frontend/src/types/accounts.ts`
   - `frontend/src/types/backtesting.ts`
@@ -43,13 +43,12 @@ restart point for the next session.
 1. Frontend test decomposition (largest files):
    - `frontend/src/tests/components/detail.test.ts` (~442 lines)
    - `frontend/src/tests/components/backtesting.test.ts` (~249 lines)
-2. Deferred accounts architecture review:
+2. Accounts route test readability:
    - `tests/paper_trading_ui/backend/routes/accounts/test_accounts_routes.py`
-   - account-route test layering and fixture clarity
+   - keep route-level scenarios focused and avoid redundant direct route-function variants
 3. Backend service cleanup hotspots:
    - `backend/services/accounts/summaries.py` (~224 lines)
    - `backend/services/features/shared.py` (~186 lines)
-   - `backend/services/test_account.py` (~164 lines)
 4. Frontend feature/component readability hotspots:
    - `frontend/src/features/backtesting/controller.ts` (~309 lines)
    - `frontend/src/features/accounts/detail.ts` (~258 lines)
@@ -74,5 +73,5 @@ restart point for the next session.
 1. Re-run frontend baseline checks (`lint`, `typecheck`, `test`, `build`).
 2. Split `detail.test.ts` into section-focused test files.
 3. Split `backtesting.test.ts` into scenario-focused test files.
-4. Perform the deferred accounts-routes/test-accounts architecture pass.
+4. Continue tightening accounts-route test readability and fixture clarity.
 5. Reassess backend service hotspots and pick the next 1-2 bounded files.

@@ -1,7 +1,7 @@
 # UI Backend Test Debug Memory
 
-This note records the regression-sweep investigation around direct backend route
-tests now located under `tests/paper_trading_ui/backend/route_functions/`.
+This note records a historical regression-sweep investigation around backend
+HTTP-style route testing.
 
 ## What Failed
 
@@ -9,9 +9,9 @@ During the broader regression sweep, the HTTP-style UI backend tests appeared to
 hang instead of failing fast.
 
 The passing neighbor file
-`tests/paper_trading_ui/backend/test_account_contract.py` was useful as a contrast:
-it does not start the FastAPI app and only tests pure request-to-command mapping
-helpers.
+`tests/paper_trading_ui/backend/test_contract_mapping.py` was useful as a
+contrast: it does not start the FastAPI app and only tests pure
+request-to-command mapping helpers.
 
 ## What Was Checked
 
@@ -47,39 +47,15 @@ assumption through the whole `tests/paper_trading_ui/` area.
 
 ## Important Current State
 
-There was previously a work-in-progress experiment in:
-
-- `tests/paper_trading_ui/conftest.py`
-- a top-level `tests/paper_trading_ui/test_ui_backend.py` file (now split into
-  `tests/paper_trading_ui/backend/route_functions/`)
-
-That experiment replaces `TestClient` with a small sync wrapper over
-`httpx.AsyncClient` and `ASGITransport`.
-
-That experiment is not yet the recommended long-term fix. It was useful for
-narrowing the failure mode, but it did not resolve the real app hang.
+The historical fixture experiments described above are no longer the active
+testing strategy.
 
 ## Recommended Next Step
 
-Do not keep pushing the fixture abstraction yet.
-
-Instead:
-
-1. revert the `api_client` experiment unless it becomes necessary again
-2. keep direct route-function tests as a narrow test-design cleanup under
-   `tests/paper_trading_ui/backend/route_functions/`
-3. rewrite that file to call the route functions directly, because those tests mostly
-   assert returned payload dicts and one expected `HTTPException`
-
-This keeps the workaround small and local:
-
-- no broad behavioral change to `tests/paper_trading_ui/conftest.py`
-- no accidental impact on the many other UI backend route tests
-- the hanging file can still be covered without depending on the broken HTTP client
-  path
+Prefer API-route tests under `tests/paper_trading_ui/backend/routes/` as the
+primary backend HTTP coverage surface.
 
 ## If We Return Later
 
-If a future pass wants to fix the HTTP-style backend tests more generally, the next
-investigation should focus on why sync FastAPI route execution stalls in this
-environment, not just on replacing `TestClient`.
+If a future pass hits HTTP-style hangs again, focus first on why sync FastAPI
+route execution stalls in the environment, not just on replacing `TestClient`.

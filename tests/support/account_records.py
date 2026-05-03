@@ -12,13 +12,13 @@ def make_account_record(**overrides: object) -> AccountRecord:
 
     values: dict[str, object] = {
         "id": 1,
-        "name": "test-account",
+        "name": "acct-sample",
         "account_kind": "managed",
         "strategy": "trend",
         "initial_cash": 1000.0,
         "created_at": "2026-01-01T00:00:00Z",
         "benchmark_ticker": "SPY",
-        "descriptive_name": "Test Account",
+        "descriptive_name": "Sample Account",
         "goal_min_return_pct": None,
         "goal_max_return_pct": None,
         "goal_period": "monthly",

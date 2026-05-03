@@ -10,8 +10,6 @@ from .backtests import (
     WalkForwardRunRequest,
 )
 from .features import FeatureSignalsRequest
-from .shared import TestInvestmentRow
-from .trades import ManualTradeRequest
 
 __all__ = [
     "AccountParamsRequest",
@@ -21,7 +19,5 @@ __all__ = [
     "BacktestPreflightRequest",
     "BacktestRunRequest",
     "FeatureSignalsRequest",
-    "ManualTradeRequest",
-    "TestInvestmentRow",
     "WalkForwardRunRequest",
 ]

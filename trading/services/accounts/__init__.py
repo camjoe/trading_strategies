@@ -27,7 +27,7 @@ from trading.services.accounts.queries import (
     list_account_names,
     list_account_records,
     list_account_snapshots,
-    load_all_account_names,
+    load_runtime_eligible_account_names,
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.auto_trader_policy import (
@@ -45,7 +45,6 @@ from trading.services.accounts.config import (
     ACCOUNT_KINDS,
     ACCOUNT_KIND_LOCAL,
     ACCOUNT_KIND_MANAGED,
-    ACCOUNT_KIND_TEST_SHADOW,
     INSTRUMENT_MODES,
     OPTION_TYPES,
     RISK_POLICIES,
@@ -55,7 +54,6 @@ __all__ = [
     "ACCOUNT_KINDS",
     "ACCOUNT_KIND_LOCAL",
     "ACCOUNT_KIND_MANAGED",
-    "ACCOUNT_KIND_TEST_SHADOW",
     "AccountAlreadyExistsError",
     "DEFAULT_MAX_POSITION_PCT",
     "DEFAULT_TRADE_SIZE_PCT",
@@ -77,7 +75,7 @@ __all__ = [
     "list_account_names",
     "list_account_records",
     "list_account_snapshots",
-    "load_all_account_names",
+    "load_runtime_eligible_account_names",
     "parse_rotation_overlay_watchlist",
     "parse_rotation_schedule",
     "RISK_POLICIES",

@@ -15,7 +15,7 @@ def _make_db():
     return conn
 
 
-def _insert_account_row(conn, account_id: int = 1, name: str = "test-account") -> None:
+def _insert_account_row(conn, account_id: int = 1, name: str = "acct-sample") -> None:
     conn.execute(
         "INSERT OR IGNORE INTO accounts (id, name, strategy, initial_cash, created_at) "
         "VALUES (?, ?, 'growth', 10000, '2024-01-01T00:00:00')",
@@ -41,7 +41,7 @@ class TestReconcileOpenBrokerOrders:
         mock_factory = Mock(return_value=PaperBrokerAdapter())
         monkeypatch.setattr(runtime_service, "get_broker_for_account", mock_factory)
 
-        result = runtime_service.reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
+        result = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
 
         assert result == 0
         mock_factory.assert_called_once_with(account)
@@ -84,7 +84,7 @@ class TestReconcileOpenBrokerOrders:
         monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=_FakeBroker()))
         monkeypatch.setattr(runtime_service, "record_trade", lambda _conn, **kw: recorded.append(kw))
 
-        count = runtime_service.reconcile_open_broker_orders(conn, "test-account", account, fee=1.0)
+        count = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=1.0)
 
         assert count == 1
         assert len(recorded) == 1
@@ -127,8 +127,8 @@ class TestReconcileOpenBrokerOrders:
 
         monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=_FakeBroker()))
 
-        runtime_service.reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
-        runtime_service.reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
+        runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
+        runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
 
         fills_count = conn.execute("SELECT COUNT(*) FROM order_fills WHERE exec_id = 'exec-dup'").fetchone()[0]
         assert fills_count == 1
@@ -150,7 +150,7 @@ class TestReconcileOpenBrokerOrders:
         fake_broker = _FakeBroker()
         monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=fake_broker))
 
-        result = runtime_service.reconcile_open_broker_orders(conn, "test-account", account, fee=0.0)
+        result = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
 
         assert result == 0
         assert _FakeBroker._disconnect_calls == 1

@@ -14,7 +14,6 @@ from trading.database.db_schema import SCHEMA_SQL
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any
 
-
 def ensure_db() -> DBConnection:
     conn = get_backend().open_connection()
     init_schema(conn)

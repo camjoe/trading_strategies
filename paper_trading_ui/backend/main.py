@@ -13,7 +13,6 @@ from .routes import (
     features_router,
     health_router,
     logs_router,
-    trades_router,
 )
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
@@ -34,5 +33,4 @@ app.include_router(admin_router)
 app.include_router(logs_router)
 app.include_router(actions_router)
 app.include_router(backtests_router)
-app.include_router(trades_router)
 app.include_router(features_router)

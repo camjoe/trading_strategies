@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Collection
 import sqlite3
 from dataclasses import astuple
 
 from trading.database.db_backend import get_backend
-from trading.database.sql_helpers import in_placeholders
 from trading.models import AccountInsert, AccountRecord
 
 _ACCOUNT_INSERT_COLUMNS = (
@@ -75,25 +73,8 @@ def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
     ]
 
 
-def fetch_account_rows(
-    conn: sqlite3.Connection,
-    *,
-    account_kinds: Collection[str] | None = None,
-) -> list[AccountRecord]:
-    if account_kinds is None:
-        rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
-        return [_account_record_from_row(row) for row in rows]
-
-    normalized_kinds = tuple(sorted({str(kind) for kind in account_kinds}))
-    if not normalized_kinds:
-        return []
-
-    rows = conn.execute(
-        "SELECT * FROM accounts "
-        f"WHERE COALESCE(account_kind, 'managed') IN ({in_placeholders(normalized_kinds)}) "
-        "ORDER BY name",
-        normalized_kinds,
-    ).fetchall()
+def fetch_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
+    rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
     return [_account_record_from_row(row) for row in rows]
 
 
@@ -114,10 +95,7 @@ def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
     return [str(row["name"]) for row in rows]
 
 
-# Repository helpers normally require an explicit caller-owned connection.
-# This loader is the current exception that supports the service-level
-# load_all_account_names() entrypoint for top-level runtime callers.
-def _load_all_account_names() -> list[str]:
+def load_all_account_names() -> list[str]:
     conn = get_backend().open_connection()
     try:
         return fetch_all_account_names(conn)

@@ -103,7 +103,7 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 - `weekly_db_backup.py`: scheduled weekly backup execution.
 - `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, daily backtest refresh, health checks, snapshots, and weekly backups.
 - Scheduler support helpers such as `scheduler_installer.py` and `manage_job_schedules.py` live alongside the direct job entrypoints; cadence-prefixed naming remains reserved for the jobs themselves.
-- `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts, a `default` fallback, and an `excluded` list of account names that are automatically skipped when running with `--accounts all`.
+- `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts and a `default` fallback.
 
 ## Auto-Trading
 
@@ -112,7 +112,6 @@ Trade universe files live under `trading/config/`. The default is `trade_univers
 | File | Description |
 |------|-------------|
 | `trading/config/trade_universe.txt` | Default universe (general-purpose) |
-| `trading/config/trade_universe_test_account.txt` | Smaller universe for test accounts (~21 tickers) |
 | `trading/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
 Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.run_auto_trades --help` for all options.

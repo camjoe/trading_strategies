@@ -71,18 +71,6 @@ const ADMIN_REQUEST_BODY_CONTENT = `
       </table>`;
 
 const TRADING_SIGNALS_REQUEST_BODY_CONTENT = `
-      <p class="ref-subsection-label">POST /api/accounts/{account_name}/trades (ManualTradeRequest)</p>
-      <table class="ref-table">
-        <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr><td>ticker</td><td>string (required)</td><td>Ticker is normalized to uppercase and validated against recent market data.</td></tr>
-          <tr><td>side</td><td>"buy" | "sell"</td><td>Manual trades are only permitted on the virtual test account.</td></tr>
-          <tr><td>qty</td><td>float (&gt; 0)</td><td>Position quantity.</td></tr>
-          <tr><td>price</td><td>float (&gt; 0)</td><td>Manual execution price.</td></tr>
-          <tr><td>fee</td><td>float, default 0.0</td><td>Optional execution fee.</td></tr>
-        </tbody>
-      </table>
-
       <p class="ref-subsection-label">POST /api/features/signals (FeatureSignalsRequest)</p>
       <table class="ref-table">
         <thead><tr><th>Field</th><th>Type / Default</th><th>Notes</th></tr></thead>

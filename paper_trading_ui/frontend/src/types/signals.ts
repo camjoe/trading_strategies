@@ -1,11 +1,3 @@
-export interface ManualTradeRequest {
-  ticker: string;
-  side: "buy" | "sell";
-  qty: number;
-  price: number;
-  fee: number;
-}
-
 export interface FeatureDescription {
   label: string;
   description: string;

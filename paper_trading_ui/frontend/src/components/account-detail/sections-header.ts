@@ -6,10 +6,9 @@ export function renderDetailHeader(
   detail: AccountDetail,
   options: {
     benchmarkSummary: string;
-    showAddTrade: boolean;
   },
 ): string {
-  const { benchmarkSummary, showAddTrade } = options;
+  const { benchmarkSummary } = options;
   return `
     <div class="detail-head">
       <div>
@@ -22,9 +21,6 @@ export function renderDetailHeader(
         </p>
         ${benchmarkSummary}
       </div>
-      ${showAddTrade ? `<div class="detail-head-actions">
-        <button id="addTradeBtn" type="button">+ Add Trade</button>
-      </div>` : ""}
     </div>
   `;
 }
@@ -73,46 +69,4 @@ export function renderSectionTabs(
         </div>` : ""}
     </div>
   `;
-}
-
-export function renderAddTradePanel(showAddTrade: boolean): string {
-  if (!showAddTrade) {
-    return "";
-  }
-
-  return `<div id="addTradePanel" class="edit-params-panel" hidden>
-      <div class="edit-params-section">
-        <h5>Add Trade</h5>
-        <div class="bt-row">
-          <div class="bt-field">
-            <span>Ticker</span>
-            <input id="addTradeTicker" type="text" placeholder="e.g. AAPL" style="text-transform:uppercase" />
-          </div>
-          <div class="bt-field">
-            <span>Side</span>
-            <select id="addTradeSide">
-              <option value="buy">buy</option>
-              <option value="sell">sell</option>
-            </select>
-          </div>
-          <div class="bt-field">
-            <span>Qty</span>
-            <input id="addTradeQty" type="number" step="0.0001" min="0.0001" placeholder="e.g. 10" />
-          </div>
-          <div class="bt-field">
-            <span>Price</span>
-            <input id="addTradePrice" type="number" step="0.01" min="0.01" placeholder="e.g. 150.00" />
-          </div>
-          <div class="bt-field">
-            <span>Fee</span>
-            <input id="addTradeFee" type="number" step="0.01" min="0" value="0" />
-          </div>
-        </div>
-      </div>
-      <div class="edit-params-actions">
-        <button id="addTradeSaveBtn" type="button">Submit Trade</button>
-        <button id="addTradeCancelBtn" type="button">Cancel</button>
-        <div id="addTradeMsg"></div>
-      </div>
-    </div>`;
 }
