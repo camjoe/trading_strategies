@@ -140,31 +140,19 @@ class TestFetchAccountListingRows:
 
 
 class TestFetchAccountRows:
-    def test_returns_all_accounts_when_account_kinds_omitted(self, conn) -> None:
+    def test_returns_all_accounts_ordered_by_name(self, conn) -> None:
         _insert(conn, "keep_me")
         insert_account(conn, _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local"))
         names = [r["name"] for r in fetch_account_rows(conn)]
         assert names == ["keep_me", "local_acct"]
 
-    def test_filters_to_included_kinds(self, conn) -> None:
-        _insert(conn, "keep_me")
-        insert_account(conn, _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local"))
-        rows = fetch_account_rows(conn, account_kinds=("managed",))
-        names = [r["name"] for r in rows]
-        assert "local_acct" not in names
-        assert "keep_me" in names
-
     def test_ordered_by_name(self, conn) -> None:
         _insert(conn, "bravo")
         _insert(conn, "alpha")
         insert_account(conn, _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="local"))
-        rows = fetch_account_rows(conn, account_kinds=("managed",))
+        rows = fetch_account_rows(conn)
         names = [r["name"] for r in rows]
-        assert names == ["alpha", "bravo"]
-
-    def test_empty_included_kinds_returns_empty_list(self, conn) -> None:
-        _insert(conn, "alpha")
-        assert fetch_account_rows(conn, account_kinds=()) == []
+        assert names == ["alpha", "bravo", "skip_me"]
 
 
 class TestUpdateAccountFields:

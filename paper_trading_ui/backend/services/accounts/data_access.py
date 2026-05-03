@@ -6,14 +6,9 @@ from fastapi import HTTPException
 
 from trading.models import AccountRecord
 from trading.services.accounts import (
-    ACCOUNT_KIND_LOCAL,
-    ACCOUNT_KIND_MANAGED,
     get_account,
     list_account_records,
 )
-
-
-VISIBLE_ACCOUNT_KINDS = (ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL)
 
 
 def require_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
@@ -24,7 +19,7 @@ def require_account_row(conn: sqlite3.Connection, account_name: str) -> AccountR
 
 
 def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
-    return list_account_records(conn, account_kinds=VISIBLE_ACCOUNT_KINDS)
+    return list_account_records(conn)
 
 
 def build_snapshot_payload(snapshot: dict[str, object]) -> dict[str, object]:

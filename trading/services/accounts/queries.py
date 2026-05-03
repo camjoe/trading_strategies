@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Collection
 import sqlite3
 
 from trading.models import AccountRecord
@@ -14,10 +13,6 @@ from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_snapshot_history_rows,
 )
-from trading.services.accounts.config import (
-    expand_account_kind_filters,
-    normalize_account_kind,
-)
 
 
 def _normalize_account_name(name: str) -> str:
@@ -25,14 +20,6 @@ def _normalize_account_name(name: str) -> str:
     if not normalized:
         raise ValueError("account_name cannot be empty.")
     return normalized
-
-
-def _normalize_account_kinds(account_kinds: Collection[str]) -> tuple[str, ...]:
-    normalized: set[str] = set()
-    for kind in account_kinds:
-        resolved = normalize_account_kind(str(kind))
-        normalized.add(resolved)
-    return expand_account_kind_filters(normalized)
 
 
 def _require_positive_account_id(account_id: int) -> None:
@@ -44,28 +31,12 @@ def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
     return fetch_account_by_name(conn, _normalize_account_name(name))
 
 
-def list_account_records(
-    conn: sqlite3.Connection,
-    *,
-    account_kinds: Collection[str] | None = None,
-) -> list[AccountRecord]:
-    if account_kinds is None:
-        return fetch_account_rows(conn)
-
-    normalized_kinds = _normalize_account_kinds(account_kinds)
-    if not normalized_kinds:
-        return []
-    return fetch_account_rows(conn, account_kinds=normalized_kinds)
+def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
+    return fetch_account_rows(conn)
 
 
-def list_account_names(
-    conn: sqlite3.Connection,
-    *,
-    account_kinds: Collection[str] | None = None,
-) -> list[str]:
-    if account_kinds is None:
-        return fetch_all_account_names(conn)
-    return [row.name for row in list_account_records(conn, account_kinds=account_kinds)]
+def list_account_names(conn: sqlite3.Connection) -> list[str]:
+    return fetch_all_account_names(conn)
 
 
 def get_latest_account_snapshot(

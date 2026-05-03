@@ -24,7 +24,7 @@ class TestAccountQueries:
         assert account["name"] == "acct_lookup"
         assert find_account(conn, "missing") is None
 
-    def test_list_account_records_normalizes_account_kind_filters(self, conn) -> None:
+    def test_list_account_records_returns_all_accounts(self, conn) -> None:
         create_account(conn, "acct_managed", "Trend", 1000.0, "SPY")
         create_account(
             conn,
@@ -34,8 +34,8 @@ class TestAccountQueries:
             "SPY",
             config=AccountConfig(account_kind="local"),
         )
-        rows = list_account_records(conn, account_kinds=(" Local ", "managed"))
+        rows = list_account_records(conn)
         names = [row["name"] for row in rows]
 
         assert names == ["acct_local", "acct_managed"]
-        assert list_account_names(conn, account_kinds=("managed",)) == ["acct_managed"]
+        assert list_account_names(conn) == ["acct_local", "acct_managed"]

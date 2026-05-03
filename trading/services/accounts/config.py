@@ -61,10 +61,6 @@ def normalize_account_kind(account_kind: str) -> str:
     return normalized
 
 
-def expand_account_kind_filters(account_kinds: set[str]) -> tuple[str, ...]:
-    return tuple(sorted(account_kinds))
-
-
 def normalize_instrument_mode(instrument_mode: str) -> str:
     return validate_enum_value(instrument_mode, "instrument_mode")
 
