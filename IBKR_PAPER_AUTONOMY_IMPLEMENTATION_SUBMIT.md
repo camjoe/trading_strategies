@@ -198,6 +198,65 @@ Implement in seven increments so each merge is deployable and testable.
 4. Add reconciliation check:
    - sum(sleeve equity) vs account equity tolerance
 
+### Repo-Fit Implementation Steps (Detailed)
+
+1. Domain transition engine:
+   - Add `trading/domain/sleeve_accounting.py` as the pure state-transition module.
+   - Reuse existing accounting conventions from `trading/domain/accounting.py`:
+     - side normalization and validation shape
+     - buy/sell cash and realized PnL semantics
+     - cost-basis carry behavior on partial sells
+   - Extend with sleeve-specific transition outputs:
+     - deterministic slippage attribution
+     - ending market value and unrealized PnL at fill mark
+     - ending sleeve NAV
+
+2. Sleeve accounting orchestration service:
+   - Add `trading/services/sleeves/accounting.py`.
+   - Reuse existing repositories from Increment 1 (no parallel persistence path):
+     - `sleeve_orders`, `sleeve_positions`, `sleeve_ledger`, `sleeves`
+   - Implement deterministic fill application flow:
+     - idempotency check by `exec_id`
+     - insert fill
+     - write ledger cash/fee/realized entries
+     - upsert or remove sleeve position
+     - update sleeve cash/equity balances
+
+3. Reconciliation service:
+   - Add `trading/services/sleeves/reconciliation.py`.
+   - Reuse:
+     - `strategy_sleeves.current_equity` as sleeve truth
+     - `equity_snapshots` latest account equity for broker-side reference
+   - Emit explicit result payload:
+     - sleeve equity sum
+     - account equity
+     - difference
+     - tolerance
+     - pass/fail boolean
+
+4. Test coverage:
+   - Add domain tests for buy/sell transition math and invalid fills.
+   - Add service tests for fill side effects and duplicate fill idempotency.
+   - Add reconciliation tests for tolerance pass/fail and missing-snapshot handling.
+
+### Reuse and Consolidation Audit (Increment 2)
+
+1. `trading/domain/accounting.py`: `reuse`
+   - Reused accounting semantics and validation patterns.
+   - Kept account-level trade replay model intact; no behavior change.
+
+2. `trading/services/accounting/*`: `retain`
+   - Existing account-scoped manual trade entry remains valid and unchanged.
+   - Sleeve implementation is an additive bounded context, not a replacement yet.
+
+3. `trading/repositories/sleeve_*` and `trading/repositories/sleeves.py`: `reuse`
+   - Reused as canonical write path for sleeve accounting events.
+   - No duplicate fill/position/ledger tables or alternate repository modules introduced.
+
+4. Deprecated/removed overlap in this increment:
+   - None.
+   - Rationale: Increment 3 introduces sleeve-aware execution; delete/merge decisions for account-only execution pathways should be evaluated after Increment 3 parity testing.
+
 ### Acceptance
 
 1. Unit tests for accounting transitions pass.
