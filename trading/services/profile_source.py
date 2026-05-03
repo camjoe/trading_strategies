@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Protocol
 
-from common.project_paths import (
+from common.paths.project_paths import (
     ACCOUNT_PROFILES_DIR,
     DEFAULT_ACCOUNT_PROFILE_PATH,
     LEGACY_ACCOUNT_PROFILES_DIR,
@@ -19,7 +19,7 @@ from common.project_paths import (
     TRADE_UNIVERSE_PATH,
 )
 
-# Mirrors trading.database.db_common.DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE — same file.
+# Mirrors trading.database.db_migrations.DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE — same file.
 DEFAULT_ACCOUNT_PROFILES_FILE = str(DEFAULT_ACCOUNT_PROFILE_PATH)
 DEFAULT_TICKERS_FILE = str(TRADE_UNIVERSE_PATH)
 

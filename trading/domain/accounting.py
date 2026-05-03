@@ -1,9 +1,9 @@
 """Pure ledger computation — no I/O, no repository calls."""
 from collections import defaultdict
 
+from common.coercion import row_float
 from common.constants import SETTLEMENT_TICKER
 from trading.models import AccountState
-from trading.utils.coercion import row_float
 
 VALID_SIDES = {"buy", "sell"}
 

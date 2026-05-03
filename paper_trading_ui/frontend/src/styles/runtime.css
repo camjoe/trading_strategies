@@ -1,0 +1,265 @@
+.log-controls {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1.4fr 2fr auto;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--surface-subtle);
+}
+
+.log-controls .icon-button {
+  align-self: end;
+  margin-bottom: 0.45rem;
+}
+
+.bt-grid {
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.95rem;
+}
+
+.bt-stack {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.bt-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.bt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bt-field > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bt-advanced {
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--surface-subtle);
+}
+
+.bt-advanced summary {
+  cursor: pointer;
+  padding: 0.8rem 0.95rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+  list-style: none;
+}
+
+.bt-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.bt-advanced summary::before {
+  content: "+";
+  display: inline-block;
+  margin-right: 0.45rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.bt-advanced[open] summary::before {
+  content: "−";
+}
+
+.bt-advanced-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 0.95rem 0.95rem;
+}
+
+.bt-quick-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bt-quick-buttons button {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.82rem;
+  background: linear-gradient(120deg, var(--btn-neutral-start), var(--btn-neutral-end));
+  box-shadow: none;
+}
+
+.bt-row {
+  display: grid;
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bt-row .bt-field {
+  justify-content: flex-end;
+}
+
+.bt-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.bt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.bt-runs {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.bt-run-item {
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--panel-border);
+  box-shadow: inset 0 1px 0 #ffffff80;
+}
+
+@media (max-width: 1080px) {
+  .bt-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bt-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .docs-nav-menu {
+    left: auto;
+    right: 0;
+    width: min(82vw, 320px);
+  }
+}
+
+.latest-backtest-section {
+  margin-top: 1.5rem;
+}
+
+.bt-result {
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--panel-2);
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bt-result ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.bt-warning {
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+  border-radius: 16px;
+  padding: 0.8rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.bt-warning ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.log-output {
+  margin: 0;
+  min-height: 320px;
+  max-height: 520px;
+  overflow: auto;
+  background: var(--log-bg);
+  color: var(--log-ink);
+  border: 1px solid var(--log-border);
+  border-radius: 18px;
+  padding: 0.7rem 0.85rem;
+  font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
+  font-weight: 500;
+  font-size: 0.84rem;
+  line-height: 1.18;
+  letter-spacing: 0;
+  white-space: normal;
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+
+.log-line {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.log-text {
+  display: block;
+  color: var(--log-ink);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.18;
+}
+
+.log-group {
+  margin: 0;
+  padding: 0 0 0 0.45rem;
+  border-left: 2px solid var(--log-group-line);
+}
+
+.log-group + .log-group {
+  margin-top: 0.28rem;
+}
+
+.log-meta-line {
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+  color: var(--log-meta);
+  cursor: pointer;
+  list-style: none;
+}
+
+.log-meta-line::-webkit-details-marker {
+  display: none;
+}
+
+.log-error .log-text {
+  color: var(--log-error);
+}
+
+.log-warn .log-text {
+  color: var(--log-warn);
+}
+
+.log-ok .log-text {
+  color: var(--log-ok);
+}
+
+.log-meta .log-text {
+  color: var(--log-meta);
+}
+
+.log-empty {
+  color: var(--log-empty-ink);
+  padding: 0.2rem;
+}

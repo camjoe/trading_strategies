@@ -1,117 +1,90 @@
-# Sentiment/Topic Signal Integration Notes
+# Sentiment and Alternative Signal Reference
 
-Status: Active reference — Phase 4 implementation complete; remaining backlog tracked in project manager (Strategies / Technical Analysis boards)
-Date: 2026-07-14 (updated from 2026-03-27 to reflect Phase 4 implementation)
+Status: Active reference
+Last reviewed: 2026-04-25
 
-Purpose: save the current-state map and integration path for sentiment, topic, and politics-driven trading strategies so future sessions and bots have the context to continue without re-auditing the codebase.
+## Purpose
 
-## 1. Current Signal Architecture
+Capture the current architecture and extension points for alternative-data
+signals used by strategy execution and rotation overlays.
 
-**Signal dispatch:**
-- `trading/backtesting/domain/strategy_signals.py` — `resolve_signal()` dispatches signals via a `STRATEGY_REGISTRY`. The registry now covers 14 strategy IDs across four families: trend (SMA-based, MACD, breakout, pullback, ma_crossover, volatility_filtered_trend), mean_reversion (RSI, Bollinger, mean_reversion), neutral proxy (topic_proxy_rotation, macro_proxy_regime), and **alternative** external-data strategies (policy_regime, news_sentiment, social_trend_rotation). Strategy names are matched by exact ID, alias, or keyword fallback.
-- `trading/backtesting/backtest.py` — calls signal resolver in the main simulation loop.
-- `trading/features/` — new package introduced in Phase 4; houses all external-data feature providers consumed by alternative strategies (see §§ 2a and 3 below).
-- `trends/indicators.py` — calculates MA20/50/200, RS/RSI14, MACD, daily returns.
-- `trends/data.py` — fetches OHLCV via `get_provider().fetch_ohlcv()`.
-- `common/market_data.py` — provider abstraction (currently only `YFinanceProvider`).
+This document intentionally focuses on current behavior. It is not a phase
+history or backlog tracker.
 
-**Account/strategy configuration:**
-- `trading/accounts.py` — creates accounts with strategy name stored in DB.
-- `trading/config/account_profiles/default.json` — templates with strategies "Momentum", "Mean Reversion".
-- `trading/database/db.py` — seeds `accounts.rotation_overlay_watchlist` from `trading/config/trade_universe.txt` for new schemas and backfills existing accounts when the column is added. That seed is stored in the DB schema/defaults at migration time; changing `trade_universe.txt` later requires an explicit DB update or migration if you want the new list to propagate.
-- `trading/services/rotation_service.py` — account-level regime overlays evaluate the union of current holdings plus `rotation_overlay_watchlist`, so news/social coverage is not limited to already-open positions.
+## Scope
 
-**Backtesting loop:**
-- Loads price history for all tickers (start–end range).
-- Each trading day: loops over active tickers, calculates signal from historical price series, executes buy/sell.
-- Position sizing: 10% of equity, fees + slippage applied.
-- Records trades and daily snapshots to DB via `trading/database/db.py`.
+This reference covers:
 
-## 2. Existing Data Sources and Signals
+- `policy_regime`
+- `news_sentiment`
+- `social_trend_rotation`
+- account-level news/social overlay behavior for regime rotation
 
-**Current:**
-- Source: yfinance (OHLCV, adjusted close). Daily bars only.
-- Signals available:
-  - Trend: `close > SMA10 > SMA20` → buy (30-bar lookback)
-  - Mean Reversion: `close < SMA20 * 0.98` → buy (30-bar lookback)
-  - RSI: RSI < 30 → buy, RSI > 70 → sell
-  - MACD: MACD crosses above/below signal line
+Strategy catalog details (all strategy families) live in:
 
-**Now also available (Phase 4 — trading/features/):**
-- News headline sentiment via VADER (`news_sentiment` strategy):
-  - Primary: RSS feeds from Yahoo Finance and Google News (no API key required).
-  - Optional supplementary: NewsAPI (requires `NEWS_API_KEY` env var).
-  - Provider: `trading/features/news_feature_provider.NewsFeatureProvider`
-- Social / Reddit sentiment and Google Trends (`social_trend_rotation` strategy):
-  - Google Trends 30-day interest index via `pytrends` (no key required).
-  - Reddit r/stocks, r/investing, r/wallstreetbets post mentions + VADER scoring via `praw`.
-  - Requires `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` env vars; degrades gracefully without them.
-  - Provider: `trading/features/social_feature_provider.SocialFeatureProvider`
-- Policy/macro regime via ETF price relatives (`policy_regime` strategy):
-  - Uses TLT, GLD, XLU, UUP vs SPY trailing returns as a risk-on/risk-off proxy.
-  - No API key required (yfinance).
-  - Provider: `trading/features/policy_feature_provider.PolicyFeatureProvider`
+- `docs/reference/notes-strategies.md`
 
-**What is still NOT available:**
-- Macro/political event calendars (policy_regime uses ETF proxies, not calendar-based event data)
-- Earnings/event drivers
-- Insider transactions
-- Unusual options activity
-- No momentum ranking across multiple securities
-- No volatility or correlation features
-- No intraday microstructure
-- Portfolio trend inferred only from equity snapshots in `trading/reporting.py` via `infer_overall_trend`
+## Current Architecture
 
-## 3. Implemented in Phase 4 — Alternative Strategies
+Signal dispatch and registration:
 
-The following items from the original "missing pieces" list are now implemented via the `trading/features/` package:
+- `trading/backtesting/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
+  `resolve_signal()` dispatch.
+- The three alternative strategies above are registered with
+  `strategy_style="alternative"`.
 
-- **News/headline sentiment** — `NewsFeatureProvider` fetches RSS headlines and scores them with VADER. Optionally supplemented by NewsAPI when `NEWS_API_KEY` is set. Signal: `news_sentiment` strategy in `STRATEGY_REGISTRY`.
-- **Social media sentiment (Reddit)** — `SocialFeatureProvider` queries r/stocks, r/investing, r/wallstreetbets via `praw` and scores post titles with VADER. Signal: `social_trend_rotation` strategy.
-- **Search trends (Google Trends)** — `SocialFeatureProvider` fetches 30-day ticker interest via `pytrends`. Feeds `social_trend_score` feature. Signal: `social_trend_rotation` strategy.
-- **Macro/political proxy** — `PolicyFeatureProvider` uses TLT/GLD/XLU/UUP vs SPY trailing returns to derive a `policy_risk_on_score` and `policy_defensive_tilt`. Signal: `policy_regime` strategy. Note: this is an ETF-proxy approach, not a direct FRED/VIX or event-calendar integration.
+Provider boundary:
 
-**Architecture for all three:** every provider subclasses `trading.features.base.ExternalFeatureProvider`, which handles TTL-based per-ticker caching and graceful degradation (returns `ExternalFeatureBundle(available=False)` on any error). Signal functions in `strategy_signals.py` import only feature-name constants and check `bundle.available` before using values. For regime-rotation overlays, `select_regime_strategy()` applies these providers across the union of live holdings and each account's `rotation_overlay_watchlist`, which defaults to the canonical tickers in `trading/config/trade_universe.txt`. That default is persisted in the DB schema/defaults, so operators must run an explicit DB update or migration if they change the source universe and want the new default to propagate. See `.github/BOT_ARCHITECTURE_CONVENTIONS.md §External Data Strategies` for the enforced rules.
+- `trading/features/base.py` defines `ExternalFeatureProvider` and
+  `ExternalFeatureBundle`.
+- Concrete providers:
+  - `trading/features/policy_feature_provider.py`
+  - `trading/features/news_feature_provider.py`
+  - `trading/features/social_feature_provider.py`
+- Feature-provider imports are isolated to `trading/features/`.
 
-**Still not implemented (original list items remaining):**
-- Macro/political event calendars (FRED, paid event databases)
-- Earnings/event drivers
-- Insider transactions
-- Unusual options activity
-- Feature store, ML model validation, or experiment tracking infrastructure
+Market-data dependency:
 
-## 4. Integration Path
+- `trading/services/market_data/runtime.py` resolves the configured market-data
+  provider.
+- Alternative providers consume market/news/social data through their own
+  provider logic; strategy functions consume normalized bundles only.
 
-### Step 1: Expand Signal Generator ✅ Complete (Phase 4)
-- New signal functions added to `trading/backtesting/domain/strategy_signals.py`:
-  `_policy_regime_signal`, `_news_sentiment_signal`, `_social_trend_rotation_signal`.
-- All three are registered in `STRATEGY_REGISTRY` with `strategy_style="alternative"`.
-- `resolve_signal()` dispatcher updated with keyword matching for `policy_regime`, `news_sentiment`, `social_trend_rotation`.
+## Runtime Behavior and Guardrails
 
-### Step 2: Add External Feature Provider Package ✅ Complete (Phase 4)
-- `trading/features/` package created with `base.py` (ABC + bundle) and three concrete providers.
-- All providers subclass `ExternalFeatureProvider`; caching, TTL, and degradation handled in base class.
-- API credentials sourced from env vars only (`NEWS_API_KEY`, `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`).
-- New runtime dependencies in `requirements-base.txt`: `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`.
+Degradation contract:
 
-### Step 3: Create Trends Module Parallel — Not taken
-- Decided to isolate external-data providers in `trading/features/` rather than `trends/sentiment.py`.
-- This keeps the dependency direction clean: features package is only ever imported by `backtesting/domain/`, never by `trends/`.
+- providers should degrade gracefully (no hard failure in normal strategy flow)
+- when required features are unavailable, strategy logic returns conservative
+  behavior (typically `hold`)
 
-### Step 4: Database Schema Updates — Not required for current phase
-- Current alternative strategies consume real-time/live provider bundles; no historical sentiment persistence needed yet.
-- May be revisited if backtesting over historical sentiment data is added.
+Rotation overlays:
 
-### Step 5: Universe and Sector Logic — Not required for current phase
-- Alternative strategies operate on individual tickers without topic-to-ticker mapping.
-- Sector rotation logic remains in `topic_proxy_rotation` (proxy-based, no external API).
+- `trading/services/auto_trading/rotation.py` applies news/social overlay votes
+  when `rotation_overlay_mode` is enabled.
+- Overlay coverage uses the union of current holdings and
+  `rotation_overlay_watchlist`.
+- Overlay watchlist defaults are seeded from `trading/config/trade_universe.txt`
+  at schema/default time. Changing that file later does not automatically
+  update already-migrated DB values.
 
-## 5. Implementation Backlog
+Operator visibility:
 
-See project manager items:
-- ✅ "React to Policy/Political Changes" — **Implemented** as `policy_regime` strategy via `PolicyFeatureProvider` (TLT/GLD/XLU/UUP vs SPY ETF proxies). FRED/VIX direct integration still not included.
-- ✅ "News Sentiment Integration (Phase 2)" — **Implemented** as `news_sentiment` strategy via `NewsFeatureProvider` (RSS feeds + optional NewsAPI). Historical backfill not included.
-- ✅ "Search social media for trending topics/companies" — **Implemented** as `social_trend_rotation` strategy via `SocialFeatureProvider` (Reddit praw + Google Trends pytrends).
-- "Feature Store and Experiment Tracking" — long-term MLflow/W&B infrastructure. Still planned/not started.
+- UI feature status and signal inspection are exposed via
+  `paper_trading_ui` feature routes/services.
 
-Implementation backlog items are tracked in the project manager under the **Strategies** and **Technical Analysis** boards.
+## Not Implemented in This Slice
+
+Still out of scope for the current implementation:
+
+- historical sentiment feature store for backfill/replay
+- event-calendar and earnings-driver integrations
+- insider-flow and unusual-options-flow datasets
+- experiment-tracking infrastructure for model research workflows
+
+## Related References
+
+- `docs/reference/notes-strategies.md`
+- `docs/reference/notes-backtesting.md`
+- `trading/README.md`
+- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`

@@ -3,16 +3,15 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from common.coercion import coerce_float, coerce_int, row_expect_int, row_float, row_int
-from trading.services.accounts_service import (
+from trading.models import AccountRecord
+from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
+    get_latest_account_snapshot,
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
-from trading.services.reporting_service import build_account_stats
-
-from ..db import fetch_latest_snapshot_row
+from trading.services.reporting import build_account_stats
 
 _SETTLEMENT_PRICE = 1.0
 
@@ -28,7 +27,7 @@ def _settlement_corrected_equity(state: object, prices: object) -> float:
     )
 
 
-def build_account_summary(conn: sqlite3.Connection, row: dict[str, object]) -> dict[str, object]:
+def build_account_summary(conn: sqlite3.Connection, row: AccountRecord) -> dict[str, object]:
     from trading.models.account_state import AccountState
 
     state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
@@ -43,6 +42,7 @@ def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
     return {
         "name": summary["name"],
         "displayName": summary["displayName"],
+        "accountKind": summary["accountKind"],
         "strategy": summary["strategy"],
         "instrumentMode": summary["instrumentMode"],
         "benchmark": summary["benchmark"],
@@ -55,7 +55,7 @@ def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
 
 
 def build_account_summary_and_positions(
-    conn: sqlite3.Connection, row: dict[str, object]
+    conn: sqlite3.Connection, row: AccountRecord
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     """Call build_account_stats once and return both summary and open positions."""
     from trading.models.account_state import AccountState
@@ -89,20 +89,16 @@ def _settlement_cash(state: object, prices: object) -> float:
 
 def _build_summary_from_stats(
     conn: sqlite3.Connection,
-    row: dict[str, object],
+    row: AccountRecord,
     equity: float,
     settlement_cash: float = 0.0,
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
-    latest_snapshot = fetch_latest_snapshot_row(conn, row_expect_int(row, "id"))  # type: ignore[arg-type]
-    rotation_schedule = parse_rotation_schedule(row.get("rotation_schedule"))
-    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(
-        row.get("rotation_overlay_watchlist")
-    )
-    rotation_active_index = coerce_int(row.get("rotation_active_index"))
+    latest_snapshot = get_latest_account_snapshot(conn, row.id)
+    rotation_schedule = parse_rotation_schedule(row.rotation_schedule)
+    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(row.rotation_overlay_watchlist)
 
-    initial_cash = row_float(row, "initial_cash")
-    effective_initial = initial_cash if initial_cash else total_deposited
+    effective_initial = row.initial_cash if row.initial_cash else total_deposited
     delta = equity - effective_initial
     delta_pct = ((equity / effective_initial) - 1.0) * 100.0 if effective_initial else 0.0
 
@@ -112,57 +108,63 @@ def _build_summary_from_stats(
         change_since_snapshot = equity - previous_equity
 
     return {
-        "name": row["name"],
-        "displayName": row["descriptive_name"],
-        "strategy": row["strategy"],
-        "instrumentMode": row["instrument_mode"],
-        "riskPolicy": row["risk_policy"],
-        "benchmark": row["benchmark_ticker"],
-        "initialCash": initial_cash,
+        "name": row.name,
+        "displayName": row.descriptive_name,
+        "strategy": row.strategy,
+        "instrumentMode": row.instrument_mode,
+        "accountKind": row.account_kind,
+        "brokerType": row.broker_type or "paper",
+        "riskPolicy": row.risk_policy,
+        "benchmark": row.benchmark_ticker,
+        "initialCash": row.initial_cash,
         "equity": equity,
         "settlementCash": settlement_cash,
         "totalChange": delta,
         "totalChangePct": delta_pct,
         "changeSinceLastSnapshot": change_since_snapshot,
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
-        "stopLossPct": row_float(row, "stop_loss_pct"),
-        "takeProfitPct": row_float(row, "take_profit_pct"),
-        "tradeSizePct": coerce_float(row.get("trade_size_pct")) if coerce_float(row.get("trade_size_pct")) is not None else DEFAULT_TRADE_SIZE_PCT,
-        "maxPositionPct": coerce_float(row.get("max_position_pct")) if coerce_float(row.get("max_position_pct")) is not None else DEFAULT_MAX_POSITION_PCT,
-        "goalMinReturnPct": row_float(row, "goal_min_return_pct"),
-        "goalMaxReturnPct": row_float(row, "goal_max_return_pct"),
-        "goalPeriod": row.get("goal_period"),
-        "learningEnabled": bool(row["learning_enabled"]) if row["learning_enabled"] is not None else False,
-        "optionStrikeOffsetPct": row_float(row, "option_strike_offset_pct"),
-        "optionMinDte": row_int(row, "option_min_dte"),
-        "optionMaxDte": row_int(row, "option_max_dte"),
-        "optionType": row.get("option_type"),
-        "targetDeltaMin": row_float(row, "target_delta_min"),
-        "targetDeltaMax": row_float(row, "target_delta_max"),
-        "maxPremiumPerTrade": row_float(row, "max_premium_per_trade"),
-        "maxContractsPerTrade": row_int(row, "max_contracts_per_trade"),
-        "ivRankMin": row_float(row, "iv_rank_min"),
-        "ivRankMax": row_float(row, "iv_rank_max"),
-        "rollDteThreshold": row_int(row, "roll_dte_threshold"),
-        "profitTakePct": row_float(row, "profit_take_pct"),
-        "maxLossPct": row_float(row, "max_loss_pct"),
-        "rotationEnabled": bool(coerce_int(row.get("rotation_enabled")) or 0),
-        "rotationMode": str(row.get("rotation_mode") or "time"),
-        "rotationOptimalityMode": str(row.get("rotation_optimality_mode") or "previous_period_best"),
-        "rotationIntervalDays": coerce_int(row.get("rotation_interval_days")),
-        "rotationIntervalMinutes": coerce_int(row.get("rotation_interval_minutes")),
-        "rotationLookbackDays": coerce_int(row.get("rotation_lookback_days")),
+        "stopLossPct": row.stop_loss_pct,
+        "takeProfitPct": row.take_profit_pct,
+        "tradeSizePct": (
+            row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
+        ),
+        "maxPositionPct": (
+            row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
+        ),
+        "goalMinReturnPct": row.goal_min_return_pct,
+        "goalMaxReturnPct": row.goal_max_return_pct,
+        "goalPeriod": row.goal_period,
+        "learningEnabled": bool(row.learning_enabled),
+        "optionStrikeOffsetPct": row.option_strike_offset_pct,
+        "optionMinDte": row.option_min_dte,
+        "optionMaxDte": row.option_max_dte,
+        "optionType": row.option_type,
+        "targetDeltaMin": row.target_delta_min,
+        "targetDeltaMax": row.target_delta_max,
+        "maxPremiumPerTrade": row.max_premium_per_trade,
+        "maxContractsPerTrade": row.max_contracts_per_trade,
+        "ivRankMin": row.iv_rank_min,
+        "ivRankMax": row.iv_rank_max,
+        "rollDteThreshold": row.roll_dte_threshold,
+        "profitTakePct": row.profit_take_pct,
+        "maxLossPct": row.max_loss_pct,
+        "rotationEnabled": bool(row.rotation_enabled),
+        "rotationMode": row.rotation_mode or "time",
+        "rotationOptimalityMode": row.rotation_optimality_mode or "previous_period_best",
+        "rotationIntervalDays": row.rotation_interval_days,
+        "rotationIntervalMinutes": row.rotation_interval_minutes,
+        "rotationLookbackDays": row.rotation_lookback_days,
         "rotationSchedule": rotation_schedule or None,
-        "rotationRegimeStrategyRiskOn": row.get("rotation_regime_strategy_risk_on"),
-        "rotationRegimeStrategyNeutral": row.get("rotation_regime_strategy_neutral"),
-        "rotationRegimeStrategyRiskOff": row.get("rotation_regime_strategy_risk_off"),
-        "rotationOverlayMode": str(row.get("rotation_overlay_mode") or "none"),
-        "rotationOverlayMinTickers": coerce_int(row.get("rotation_overlay_min_tickers")),
-        "rotationOverlayConfidenceThreshold": coerce_float(row.get("rotation_overlay_confidence_threshold")),
+        "rotationRegimeStrategyRiskOn": row.rotation_regime_strategy_risk_on,
+        "rotationRegimeStrategyNeutral": row.rotation_regime_strategy_neutral,
+        "rotationRegimeStrategyRiskOff": row.rotation_regime_strategy_risk_off,
+        "rotationOverlayMode": row.rotation_overlay_mode or "none",
+        "rotationOverlayMinTickers": row.rotation_overlay_min_tickers,
+        "rotationOverlayConfidenceThreshold": row.rotation_overlay_confidence_threshold,
         "rotationOverlayWatchlist": rotation_overlay_watchlist,
-        "rotationActiveIndex": rotation_active_index if rotation_active_index is not None else 0,
-        "rotationLastAt": row.get("rotation_last_at"),
-        "rotationActiveStrategy": row.get("rotation_active_strategy"),
+        "rotationActiveIndex": row.rotation_active_index if row.rotation_active_index is not None else 0,
+        "rotationLastAt": row.rotation_last_at,
+        "rotationActiveStrategy": row.rotation_active_strategy,
     }
 
 

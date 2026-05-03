@@ -19,8 +19,8 @@ from typing import Any
 
 import httpx
 
-from common.project_paths import LOCAL_DIR
-from trading.utils.coercion import coerce_bool, coerce_float, coerce_str
+from common.coercion import coerce_bool, coerce_float, coerce_str
+from common.paths.project_paths import LOCAL_DIR
 
 # Default local Client Portal Gateway base URL.
 _DEFAULT_WEB_API_BASE_URL = "https://localhost:5000/v1/api"

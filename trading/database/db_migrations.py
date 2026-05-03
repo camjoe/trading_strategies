@@ -1,7 +1,21 @@
+import json
 from dataclasses import dataclass
 
-from trading.database.db_common import DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+from common.paths.project_paths import TRADE_UNIVERSE_PATH
+from common.tickers import load_tickers_from_file
 
+# Default source used to seed account-level overlay watchlists so regime overlays
+# can evaluate a stable baseline universe even before the account accumulates holdings.
+# Mirrors trading.services.profile_source.DEFAULT_TICKERS_FILE — same file, different semantic name.
+DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE = str(TRADE_UNIVERSE_PATH)
+
+# Canonical seeded overlay watchlist shared by new-account defaults and account
+# backfills when the watchlist column is introduced by migration.
+DEFAULT_ROTATION_OVERLAY_WATCHLIST = load_tickers_from_file(DEFAULT_ROTATION_OVERLAY_WATCHLIST_FILE)
+DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
+    DEFAULT_ROTATION_OVERLAY_WATCHLIST,
+    separators=(",", ":"),
+)
 
 @dataclass(frozen=True)
 class ColumnMigration:
@@ -11,6 +25,10 @@ class ColumnMigration:
 
 
 ACCOUNT_MIGRATIONS = (
+    ColumnMigration(
+        "account_kind",
+        "ALTER TABLE accounts ADD COLUMN account_kind TEXT NOT NULL DEFAULT 'managed'",
+    ),
     ColumnMigration(
         "benchmark_ticker",
         "ALTER TABLE accounts ADD COLUMN benchmark_ticker TEXT NOT NULL DEFAULT 'SPY'",

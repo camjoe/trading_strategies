@@ -1,3 +1,0 @@
-[submodule "tools/project_manager"]
-	path = tools/project_manager
-	url = https://github.com/camjoe/project_manager_tool.git

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Callable
 
 from common.coercion import coerce_float
 
@@ -9,11 +8,9 @@ from common.coercion import coerce_float
 def safe_return_pct(
     starting_equity: object,
     ending_equity: object,
-    *,
-    coerce_float_fn: Callable[[object], float | None] = coerce_float,
 ) -> float | None:
-    start = coerce_float_fn(starting_equity)
-    end = coerce_float_fn(ending_equity)
+    start = coerce_float(starting_equity)
+    end = coerce_float(ending_equity)
     if start is None or end is None:
         return None
     if not math.isfinite(start) or not math.isfinite(end):

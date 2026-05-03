@@ -1,7 +1,7 @@
 import { renderOperationsOverview } from "../../components/admin-ops";
 import { find } from "../../lib/dom";
 import { errorMessage, getJson } from "../../lib/http";
-import type { OperationsOverviewResponse } from "../../types";
+import type { OperationsOverviewResponse } from "../../types/admin";
 import { setHtml, setOutput } from "./ui";
 
 

@@ -1,3 +1,9 @@
+"""Backtesting public facade.
+
+This package is an explicit bounded context with internal layering
+(`domain/services/repositories`) and stable convenience exports.
+"""
+
 from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,

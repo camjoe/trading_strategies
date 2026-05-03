@@ -49,7 +49,7 @@ AAPL, MSFT, NVDA, AMZN
 SPY, QQQ, IWM
 ```
 
-## Common Commands
+## Commands
 
 All flags accept `--help` for the full reference.
 

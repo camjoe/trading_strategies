@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AccountListItem } from "../../types";
+import type { AccountListItem } from "../../types/accounts";
 import { accountCard } from "../../components/accounts";
 
 describe("accountCard", () => {

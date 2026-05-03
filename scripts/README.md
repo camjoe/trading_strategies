@@ -15,6 +15,16 @@ Define and document repository-level automation commands for validation, data op
 
 Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
 
+## Quick Start
+
+Run these from the repository root:
+
+```sh
+python -m scripts.run_checks --profile quick
+python -m scripts.checks.readme_check --max-age-days 90
+python -m scripts.documentation_ui.check
+```
+
 ## Script Catalog
 
 Repository workflow scripts (`scripts/`):
@@ -36,6 +46,7 @@ Software (`scripts/documentation_ui/software/`):
 API Reference (`scripts/documentation_ui/api/`):
 
 - `build_registry.py`: rebuilds `paper_trading_ui/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
+
 Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Software and API reference checks together.
@@ -54,6 +65,7 @@ Modular check scripts (`scripts/checks/`):
 Data operation scripts (`scripts/data_ops/`):
 
 - `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
+- `describe_db_schema.py`: prints the current database schema from either an in-memory database initialized from `db_schema.py` + migrations or the configured live SQLite database.
 - `export_db_csv.py`: convenience wrapper for the canonical CSV export flow in `trading.interfaces.runtime.data_ops.csv_export`.
 - `export_db_csv_zip.py`: convenience wrapper that packages exported CSV output as ZIP.
 
@@ -66,6 +78,8 @@ python -m trading.interfaces.runtime.data_ops.csv_export
 
 # Convenience wrappers
 python -m scripts.data_ops.backup_db
+python -m scripts.data_ops.describe_db_schema
+python -m scripts.data_ops.describe_db_schema --source live
 python -m scripts.data_ops.export_db_csv --tables accounts,trades
 python -m scripts.data_ops.export_db_csv_zip
 ```
@@ -114,14 +128,12 @@ python -m scripts.documentation_ui.api.build_registry
 python -m scripts.documentation_ui.api.check
 
 # Modular checks (direct use)
-python -m scripts.checks.readme_check
 python -m scripts.checks.mypy_check
 python -m scripts.checks.pytest_check -- -q
 python -m scripts.checks.quick
 python -m scripts.checks.ci --skip-frontend
 
 # Focused docs checker
-python -m scripts.checks.readme_check
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.checks.readme_check --enforce-style --enforce-staleness
 ```

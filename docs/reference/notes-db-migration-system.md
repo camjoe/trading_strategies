@@ -16,15 +16,16 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 
 | File | Role |
 |------|------|
-| `trading/database/db.py` | Stable public facade for DB schema/migration helpers |
-| `trading/database/db_common.py` | Shared DB path/type aliases and seeded overlay-watchlist defaults |
-| `trading/database/db_schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
-| `trading/database/db_migrations.py` | `ColumnMigration` dataclass and migration tuples |
 | `trading/database/db_init.py` | `ensure_db()`, `init_schema()`, and column-guard helpers |
+| `trading/database/db_schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
+| `trading/database/db_migrations.py` | `ColumnMigration` dataclass, migration tuples, and seeded overlay-watchlist defaults |
 | `trading/database/db_backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `trading/database/db_config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
+| `trading/database/sql_helpers.py` | SQL helper functions such as `in_placeholders()` |
 | `trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
 | `trading/interfaces/runtime/data_ops/csv_export.py` | CSV export for accounts and trades |
+
+For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_schema` for the code-defined schema or `python -m scripts.data_ops.describe_db_schema --source live` for the configured SQLite database. Do not maintain a hand-written full schema mirror.
 
 ---
 
@@ -44,9 +45,7 @@ never hardcode slash direction.
 
 ## Schema Initialization: `init_schema()`
 
-Called from `ensure_db()` on every connection. The public import path remains
-`trading.database.db`, while the implementation currently lives in
-`trading/database/db_init.py`:
+Called from `ensure_db()` on every connection in `trading/database/db_init.py`:
 
 ```python
 def init_schema(conn: DBConnection) -> None:

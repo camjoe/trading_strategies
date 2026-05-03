@@ -1,14 +1,14 @@
 # Core runtime dependencies for trends, trading, and the UI backend.
-fastapi==0.120.4
-httpx>=0.23.0,<1.0.0
+fastapi==0.136.1
+httpx>=0.28.1,<1.0.0
 matplotlib==3.10.8
 numpy==2.4.3
 pandas==3.0.1
 pydantic==2.12.5
-python-dotenv==1.2.1
-uvicorn[standard]==0.35.0
+python-dotenv==1.2.2
+uvicorn[standard]==0.46.0
 yfinance==1.2.0
-ib_async==1.0.3
+ib_async==2.1.0
 
 # Alternative strategy external-data providers (trading/features/).
 # Keys must be supplied via environment variables — never hardcode credentials.

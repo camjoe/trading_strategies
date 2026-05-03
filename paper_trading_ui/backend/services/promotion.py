@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.services.promotion_service import (
+from trading.services.promotion import (
     fetch_current_promotion_assessment,
     fetch_promotion_review_history,
 )

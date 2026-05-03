@@ -4,15 +4,15 @@ from collections.abc import Iterator
 
 import pytest
 
-from trading.database import db
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database.db_init import ensure_db
 
 
 @pytest.fixture
 def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
     original = get_backend()
     set_backend(SQLiteBackend(tmp_path / "paper_trading.db"))
-    connection = db.ensure_db()
+    connection = ensure_db()
     try:
         yield connection
     finally:

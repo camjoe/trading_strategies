@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
     is_env_truthy,
@@ -27,9 +27,9 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
     CLI_MAIN_MODULE,
 )
-from trading.services.accounts_service import load_all_account_names
+from trading.services.accounts import load_runtime_eligible_account_names
 from trading.services.profile_source import DEFAULT_TICKERS_FILE
-from trading.services.runtime_job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
+from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -268,7 +268,7 @@ def main() -> int:
     artifact_path = export_dir / f"daily_backtest_refresh_{timestamp}.json"
 
     try:
-        accounts = resolve_accounts(args.accounts, load_all_account_names())
+        accounts = resolve_accounts(args.accounts, load_runtime_eligible_account_names())
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1

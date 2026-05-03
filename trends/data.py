@@ -1,6 +1,6 @@
 import pandas as pd
 
-from common.market_data import get_provider
+from trading.services.market_data import get_provider
 
 
 def fetch_data(ticker: str, period: str, interval: str, debug_columns: bool = False) -> pd.DataFrame:

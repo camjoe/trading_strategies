@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AccountDetail } from "../../types";
+import type { AccountDetail } from "../../types/accounts";
 import { renderDetail } from "../../components/detail";
 import { resetAccountConfigOptions, setAccountConfigOptions } from "../../lib/account-config-options";
 
@@ -170,124 +170,8 @@ describe("renderDetail", () => {
     expect(html).toContain("editRotationRegimeRiskOffInput");
     expect(html).toContain("editParamsPanel");
     expect(html).toContain("AAPL");
-    // Add Trade should be hidden by default (not test_account)
     expect(html).not.toContain("addTradeBtn");
     expect(html).not.toContain("addTradePanel");
-  });
-
-  it("shows Add Trade panel when showAddTrade is true", () => {
-    const detail: AccountDetail = {
-      account: {
-        name: "test_account",
-        displayName: "TEST Account",
-        strategy: "Manual",
-        instrumentMode: "equity",
-        riskPolicy: "none",
-        benchmark: "SPY",
-        initialCash: 10000,
-        equity: 10000,
-        settlementCash: 10000,
-        totalChange: 0,
-        totalChangePct: 0,
-        liveBenchmarkReturnPct: null,
-        liveAlphaPct: null,
-        liveBenchmarkEquity: null,
-        liveBenchmarkStartTime: null,
-        liveBenchmarkEndTime: null,
-        changeSinceLastSnapshot: null,
-        latestSnapshotTime: null,
-        tradeSizePct: 0.1,
-        maxPositionPct: 0.2,
-        stopLossPct: null,
-        takeProfitPct: null,
-        goalMinReturnPct: null,
-        goalMaxReturnPct: null,
-        goalPeriod: null,
-        learningEnabled: false,
-        optionStrikeOffsetPct: null,
-        optionMinDte: null,
-        optionMaxDte: null,
-        optionType: null,
-        targetDeltaMin: null,
-        targetDeltaMax: null,
-        maxPremiumPerTrade: null,
-        maxContractsPerTrade: null,
-        ivRankMin: null,
-        ivRankMax: null,
-        rollDteThreshold: null,
-        profitTakePct: null,
-        maxLossPct: null,
-      },
-      latestBacktest: null,
-      latestBacktestMetrics: null,
-      liveBenchmarkOverlay: null,
-      snapshots: [],
-      trades: [],
-      positions: [],
-    };
-
-    const html = renderDetail(detail, { showAddTrade: true });
-    expect(html).toContain("addTradeBtn");
-    expect(html).toContain("addTradePanel");
-    expect(html).toContain("Submit Trade");
-  });
-
-  it("hides Add Trade panel when showAddTrade is false (default)", () => {
-    const detail: AccountDetail = {
-      account: {
-        name: "acct2",
-        displayName: "Acct Two",
-        strategy: "Trend",
-        instrumentMode: "equity",
-        riskPolicy: "none",
-        benchmark: "QQQ",
-        initialCash: 1000,
-        equity: 900,
-        settlementCash: 0,
-        totalChange: -100,
-        totalChangePct: -10,
-        liveBenchmarkReturnPct: null,
-        liveAlphaPct: null,
-        liveBenchmarkEquity: null,
-        liveBenchmarkStartTime: null,
-        liveBenchmarkEndTime: null,
-        changeSinceLastSnapshot: null,
-        latestSnapshotTime: null,
-        tradeSizePct: 0.1,
-        maxPositionPct: 0.2,
-        stopLossPct: null,
-        takeProfitPct: null,
-        goalMinReturnPct: null,
-        goalMaxReturnPct: null,
-        goalPeriod: null,
-        learningEnabled: false,
-        optionStrikeOffsetPct: null,
-        optionMinDte: null,
-        optionMaxDte: null,
-        optionType: null,
-        targetDeltaMin: null,
-        targetDeltaMax: null,
-        maxPremiumPerTrade: null,
-        maxContractsPerTrade: null,
-        ivRankMin: null,
-        ivRankMax: null,
-        rollDteThreshold: null,
-        profitTakePct: null,
-        maxLossPct: null,
-      },
-      latestBacktest: null,
-      latestBacktestMetrics: null,
-      liveBenchmarkOverlay: null,
-      snapshots: [],
-      trades: [],
-      positions: [],
-    };
-
-    const htmlDefault = renderDetail(detail);
-    expect(htmlDefault).not.toContain("addTradeBtn");
-
-    const htmlExplicit = renderDetail(detail, { showAddTrade: false });
-    expect(htmlExplicit).not.toContain("addTradeBtn");
   });
 
   it("renders empty states when latest backtest/snapshots/trades are absent", () => {

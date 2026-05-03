@@ -1,5 +1,5 @@
-from trading.services.accounting_service import record_trade
-from trading.services.accounts_service import configure_account, create_account, list_accounts, set_benchmark
+from trading.services.accounting import record_trade
+from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
 from trading.backtesting.backtest import (
     backtest_leaderboard_entries,
     backtest_report,
@@ -8,18 +8,19 @@ from trading.backtesting.backtest import (
     walk_forward_report,
     run_walk_forward_backtest,
 )
-from trading.database.db import DB_PATH, ensure_db
+from trading.database.db_init import ensure_db
+from trading.database.db_config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
-from trading.services.profiles_service import apply_account_profiles, load_account_profiles
-from trading.services.promotion_service import (
+from trading.services.profiles import apply_account_profiles, load_account_profiles
+from trading.services.promotion import (
     execute_promotion_review_action,
     execute_promotion_review_request,
     show_promotion_review_history,
     show_promotion_status,
 )
-from trading.services.reporting_service import account_report, compare_strategies, show_snapshots, snapshot_account
+from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 
 
 def _handler_deps() -> dict[str, object]:
@@ -64,7 +65,7 @@ def main() -> None:
             parser,
             deps=_handler_deps(),
             module_file=__file__,
-            db_path=DB_PATH,
+            db_path=get_db_path(),
         )
     finally:
         conn.close()

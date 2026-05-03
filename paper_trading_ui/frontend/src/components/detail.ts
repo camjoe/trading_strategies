@@ -2,7 +2,6 @@ import { currency, esc } from "../lib/format";
 import { renderAnalysisPanel } from "./account-detail/analysis";
 import { renderConfigSection } from "./account-detail/config";
 import {
-  renderAddTradePanel,
   renderAnalysisSection,
   renderDetailHeader,
   renderPositionsSection,
@@ -11,14 +10,14 @@ import {
   renderSummarySection,
   renderTradesSection,
 } from "./account-detail/sections";
-import type { AccountDetail } from "../types";
+import type { DetailSectionName } from "./account-detail/types";
+import type { AccountDetail } from "../types/accounts";
 
 export interface DetailRenderOptions {
   tradePage?: number;
   tradePageSize?: number;
-  activeSection?: "summary" | "analysis" | "positions" | "trades" | "snapshots" | "config";
+  activeSection?: DetailSectionName;
   showActions?: boolean;
-  showAddTrade?: boolean;
   showBacktest?: boolean;
 }
 
@@ -39,7 +38,6 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
   const totalTradePages = Math.max(1, Math.ceil(totalTrades / tradePageSize));
   const tradePage = Math.min(Math.max(1, options.tradePage ?? 1), totalTradePages);
   const showActions = options.showActions !== false;
-  const showAddTrade = options.showAddTrade === true;
   const showBacktest = options.showBacktest !== false;
   const activeSection = options.activeSection ?? "summary";
   const viewedStart = totalTrades === 0 ? 0 : (tradePage - 1) * tradePageSize + 1;
@@ -117,9 +115,8 @@ export function renderDetail(detail: AccountDetail, options: DetailRenderOptions
     : "";
 
   return `
-    ${renderDetailHeader(detail, { benchmarkSummary, showAddTrade })}
+    ${renderDetailHeader(detail, { benchmarkSummary })}
     ${renderSectionTabs(activeSection, { showActions, accountName: detail.account.name })}
-    ${renderAddTradePanel(showAddTrade)}
     ${renderSummarySection(activeSection, detail, { showBacktest, latestBacktest })}
     ${renderAnalysisSection(activeSection)}
     ${renderPositionsSection(detail, activeSection)}

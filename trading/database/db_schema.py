@@ -1,9 +1,10 @@
-from trading.database.db_common import DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+from trading.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
 
 ACCOUNTS_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    account_kind TEXT NOT NULL DEFAULT 'managed',
     strategy TEXT NOT NULL,
     initial_cash REAL NOT NULL,
     created_at TEXT NOT NULL,

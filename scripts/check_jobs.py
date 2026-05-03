@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.daily_backtest_refresh import COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL
 from trading.interfaces.runtime.jobs.daily_paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
 from trading.interfaces.runtime.jobs.daily_snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
