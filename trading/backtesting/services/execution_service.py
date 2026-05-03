@@ -3,14 +3,28 @@ from __future__ import annotations
 import sqlite3
 from collections import defaultdict
 from datetime import date
+from collections.abc import Mapping
 from typing import Any, Callable, cast
 
+from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import BASIS_POINTS_DIVISOR
-from trading.backtesting.domain.metrics import summarize_backtest_performance
+from trading.backtesting.domain.metrics import benchmark_return_pct, max_drawdown_pct, summarize_backtest_performance
+from trading.backtesting.domain.simulation_math import (
+    compute_market_value,
+    compute_unrealized_pnl,
+    update_on_buy,
+    update_on_sell,
+)
+from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.backtesting.models import BacktestResult
+from trading.backtesting.trading_bridge import resolve_active_strategy
 from trading.domain.auto_trader_policy import choose_buy_qty as default_choose_buy_qty
+from trading.services.market_data import get_feature_provider
+
+AccountRow = Mapping[str, object]
 
 
-def _row_optional_float(row: dict[str, object], column: str) -> float | None:
+def _row_optional_float(row: AccountRow, column: str) -> float | None:
     try:
         value = row[column]
     except (KeyError, IndexError):
@@ -24,30 +38,16 @@ def run_backtest(
     conn: sqlite3.Connection,
     cfg,
     *,
-    get_account_fn: Callable[[sqlite3.Connection, str], dict[str, object]],
+    get_account_fn: Callable[[sqlite3.Connection, str], AccountRow],
     resolve_backtest_dates_fn: Callable[..., tuple[date, date]],
-    warnings_for_config_fn: Callable[[dict[str, object], bool], list[str]],
+    warnings_for_config_fn: Callable[[AccountRow, bool], list[str]],
     resolve_universe_fn: Callable[..., tuple[list[str], dict[str, list[str]], list[str], list[str]]],
     fetch_close_history_fn: Callable[..., object],
     fetch_benchmark_close_fn: Callable[..., object],
-    row_expect_str_fn: Callable[[dict[str, object], str], str],
-    row_expect_int_fn: Callable[[dict[str, object], str], int],
-    row_expect_float_fn: Callable[[dict[str, object], str], float],
-    resolve_active_strategy_fn: Callable[[dict[str, object]], str],
-    resolve_strategy_fn,
-    get_feature_provider_fn,
     insert_run_fn: Callable[..., int],
-    compute_market_value_fn: Callable[[dict[str, float], dict[str, float]], float],
-    compute_unrealized_pnl_fn: Callable[[dict[str, float], dict[str, float], dict[str, float]], float],
-    update_on_buy_fn,
-    update_on_sell_fn,
     insert_trade_fn,
     insert_snapshot_fn,
-    resolve_signal_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
-    benchmark_return_pct_fn: Callable[[object, float], float | None],
-    max_drawdown_pct_fn: Callable[[list[float]], float],
-    backtest_result_cls,
 ):
     account = get_account_fn(conn, cfg.account_name)
     start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
@@ -64,17 +64,17 @@ def run_backtest(
     if len(close.index) < 3:
         raise ValueError("Not enough historical bars in selected range. Need at least 3 trading days.")
 
-    benchmark_ticker = row_expect_str_fn(account, "benchmark_ticker")
-    account_id = row_expect_int_fn(account, "id")
-    initial_cash = row_expect_float_fn(account, "initial_cash")
-    strategy_name = resolve_active_strategy_fn(account)
-    strategy_spec = resolve_strategy_fn(strategy_name)
+    benchmark_ticker = row_expect_str(account, "benchmark_ticker")
+    account_id = row_expect_int(account, "id")
+    initial_cash = row_expect_float(account, "initial_cash")
+    strategy_name = resolve_active_strategy(account)
+    strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
 
     feature_bundle = None
     if strategy_spec.required_features:
-        feature_bundle = get_feature_provider_fn().build_feature_bundle(all_tickers, start_date, end_date, close)
+        feature_bundle = get_feature_provider().build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
     run_id = insert_run_fn(conn, account_id, strategy_name, start_date, end_date, cfg, warnings)
@@ -92,7 +92,7 @@ def run_backtest(
 
     dates = list(close.index)
     first_prices = {ticker: float(close.loc[dates[0], ticker]) for ticker in all_tickers}
-    first_mv = compute_market_value_fn(positions, first_prices)
+    first_mv = compute_market_value(positions, first_prices)
     first_equity = cash + first_mv
     insert_snapshot_fn(
         conn,
@@ -120,9 +120,9 @@ def run_backtest(
             history = close.loc[:signal_date, ticker].dropna()
             feature_history = None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
             if feature_history is None:
-                signal = resolve_signal_fn(strategy_name, history)
+                signal = resolve_signal(strategy_name, history)
             else:
-                signal = resolve_signal_fn(strategy_name, history, feature_history=feature_history)
+                signal = resolve_signal(strategy_name, history, feature_history=feature_history)
 
             if signal == "buy" and ticker not in active_tickers:
                 continue
@@ -143,7 +143,7 @@ def run_backtest(
                     trade_size_pct=_row_optional_float(account, "trade_size_pct"),
                     max_position_pct=_row_optional_float(account, "max_position_pct"),
                     current_position_value=float(positions[ticker]) * px,
-                    portfolio_equity=cash + compute_market_value_fn(positions, trade_prices.to_dict()),
+                    portfolio_equity=cash + compute_market_value(positions, trade_prices.to_dict()),
                 )
                 if qty_int < 1:
                     continue
@@ -152,7 +152,7 @@ def run_backtest(
                 if required > cash:
                     continue
 
-                cash = update_on_buy_fn(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
+                cash = update_on_buy(ticker, float(qty_int), exec_px, cfg.fee_per_trade, positions, avg_cost, cash)
                 trade_count += 1
                 insert_trade_fn(
                     conn,
@@ -186,7 +186,7 @@ def run_backtest(
                 if qty_float <= 0:
                     continue
 
-                cash, realized_pnl = update_on_sell_fn(
+                cash, realized_pnl = update_on_sell(
                     ticker,
                     qty_float,
                     exec_px,
@@ -220,8 +220,8 @@ def run_backtest(
                 )
 
         marks = {ticker: float(trade_prices[ticker]) for ticker in all_tickers}
-        market_value = compute_market_value_fn(positions, marks)
-        unrealized_pnl = compute_unrealized_pnl_fn(positions, avg_cost, marks)
+        market_value = compute_market_value(positions, marks)
+        unrealized_pnl = compute_unrealized_pnl(positions, avg_cost, marks)
 
         equity = cash + market_value
         equity_curve.append(equity)
@@ -240,11 +240,11 @@ def run_backtest(
 
     ending_equity = equity_curve[-1]
     total_return_pct = ((ending_equity / initial_cash) - 1.0) * 100.0
-    benchmark_return = benchmark_return_pct_fn(benchmark_series, initial_cash)
+    benchmark_return = benchmark_return_pct(benchmark_series, initial_cash)
     alpha_pct = None if benchmark_return is None else total_return_pct - benchmark_return
     performance = summarize_backtest_performance(equity_curve, executed_trades)
 
-    return backtest_result_cls(
+    return BacktestResult(
         run_id=run_id,
         account_name=cfg.account_name,
         start_date=start_date.isoformat(),
@@ -255,7 +255,7 @@ def run_backtest(
         total_return_pct=total_return_pct,
         benchmark_return_pct=benchmark_return,
         alpha_pct=alpha_pct,
-        max_drawdown_pct=max_drawdown_pct_fn(equity_curve),
+        max_drawdown_pct=max_drawdown_pct(equity_curve),
         sharpe_ratio=performance.sharpe_ratio,
         sortino_ratio=performance.sortino_ratio,
         calmar_ratio=performance.calmar_ratio,

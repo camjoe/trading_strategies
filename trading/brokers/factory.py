@@ -14,21 +14,19 @@ kept available, but it is not the primary IBKR path for current development.
 """
 from __future__ import annotations
 
-import sqlite3
-
 from trading.brokers.base import BrokerConnection
 from trading.brokers.paper_adapter import PaperBrokerAdapter
 from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
 from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
 from trading.brokers.legacy.factory import build_legacy_ib_broker
+from trading.models import AccountRecord
 
 # Broker type identifiers stored in accounts.broker_type column.
 _BROKER_TYPE_PAPER = "paper"
 _BROKER_TYPE_INTERACTIVE_BROKERS = "interactive_brokers"
 _BROKER_TYPE_INTERACTIVE_BROKERS_WEB = "interactive_brokers_web"
 
-
-def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
+def get_broker_for_account(account: AccountRecord) -> BrokerConnection:
     """Return the appropriate :class:`BrokerConnection` for *account*.
 
     Defaults to :class:`PaperBrokerAdapter` when ``broker_type`` is absent or
@@ -44,11 +42,7 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
         No bot or automated process should ever set this flag — see
         ``BOT_ARCHITECTURE_CONVENTIONS.md`` § Live Trading Safety Guard.
     """
-    try:
-        raw = account["broker_type"]
-    except (KeyError, IndexError):
-        raw = None
-    broker_type = str(raw or _BROKER_TYPE_PAPER).strip().lower()
+    broker_type = str(account.broker_type or _BROKER_TYPE_PAPER).strip().lower()
 
     if broker_type == _BROKER_TYPE_INTERACTIVE_BROKERS:
         # Legacy socket/TWS IBKR path retained for possible future reuse.
@@ -67,7 +61,7 @@ def get_broker_for_account(account: sqlite3.Row) -> BrokerConnection:
     return PaperBrokerAdapter()
 
 
-def _require_live_trading_enabled(account: sqlite3.Row) -> None:
+def _require_live_trading_enabled(account: AccountRecord) -> None:
     """Raise :class:`LiveTradingNotEnabledError` if the account guard is not set.
 
     The ``live_trading_enabled`` column defaults to 0 and must be explicitly
@@ -77,17 +71,9 @@ def _require_live_trading_enabled(account: sqlite3.Row) -> None:
     ``'interactive_brokers_web'`` or legacy ``'interactive_brokers'``,
     orders will never reach the wire without this flag.
     """
-    try:
-        enabled = int(account["live_trading_enabled"] or 0)
-    except (KeyError, IndexError, TypeError, ValueError):
-        enabled = 0
-    if not enabled:
-        try:
-            name = account["name"]
-        except (KeyError, IndexError):
-            name = "<unknown>"
+    if not account.live_trading_enabled:
         raise LiveTradingNotEnabledError(
-            f"Account {name!r} has live_trading_enabled = 0. "
+            f"Account {account.name!r} has live_trading_enabled = 0. "
             "Set live_trading_enabled = 1 on the account row to allow live orders. "
             "This must be done manually — bots must never set this flag."
         )

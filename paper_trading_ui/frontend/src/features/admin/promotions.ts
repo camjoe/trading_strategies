@@ -1,7 +1,7 @@
 import { renderPromotionOverview } from "../../components/admin-ops";
 import { find } from "../../lib/dom";
 import { errorMessage, getJson } from "../../lib/http";
-import type { PromotionOverviewResponse } from "../../types";
+import type { PromotionOverviewResponse } from "../../types/admin";
 import { setHtml, setOutput } from "./ui";
 
 

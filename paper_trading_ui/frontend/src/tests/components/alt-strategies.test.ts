@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProviderStatus, SignalsResponse } from "../../types";
+import type { ProviderStatus, SignalsResponse } from "../../types/signals";
 import { renderProviderCards, renderSignalRows } from "../../components/alt-strategies";
 
 // ---------------------------------------------------------------------------

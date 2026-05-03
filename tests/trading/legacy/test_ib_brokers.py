@@ -15,20 +15,11 @@ from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_a
 from trading.brokers.legacy.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
 from trading.brokers.legacy.ib_client import IBClientProtocol, IbApiClient
 from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType
+from tests.support.account_records import make_account_record
 
 
 def _make_account(**kwargs):
-    defaults = {
-        "id": 1,
-        "name": "test-account",
-        "broker_type": "paper",
-        "broker_host": None,
-        "broker_port": None,
-        "broker_client_id": None,
-        "live_trading_enabled": 0,
-    }
-    defaults.update(kwargs)
-    return defaults
+    return make_account_record(**kwargs)
 
 
 def _make_order(**kwargs) -> BrokerOrder:
@@ -77,14 +68,14 @@ class TestLegacyIbFactoryRouting:
         mock_client.connect.assert_called_once_with("127.0.0.1", 7497, client_id=1)
 
     def test_live_trading_enabled_missing_key_treated_as_disabled(self):
-        account = {"id": 1, "name": "old-account", "broker_type": "interactive_brokers"}
+        account = _make_account(name="old-account", broker_type="interactive_brokers")
         with pytest.raises(LiveTradingNotEnabledError):
             get_broker_for_account(account)
 
-    def test_live_trading_enabled_string_one_is_accepted(self):
+    def test_live_trading_enabled_one_is_accepted(self):
         account = _make_account(
             broker_type="interactive_brokers",
-            live_trading_enabled="1",
+            live_trading_enabled=1,
             broker_host="127.0.0.1",
             broker_port=7497,
             broker_client_id=1,

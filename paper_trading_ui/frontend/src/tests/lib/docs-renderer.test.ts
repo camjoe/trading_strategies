@@ -133,7 +133,6 @@ describe("buildDocsTemplate", () => {
   it("includes newer account and signal routes", () => {
     expect(html).toContain("/api/accounts/{account_name}/params");
     expect(html).toContain("/api/accounts/{account_name}/analysis");
-    expect(html).toContain("/api/accounts/{account_name}/trades");
     expect(html).toContain("/api/features/status");
     expect(html).toContain("/api/features/signals");
     expect(html).toContain("liveBenchmarkOverlay");

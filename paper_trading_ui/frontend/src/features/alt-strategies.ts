@@ -2,7 +2,7 @@ import { find } from "../lib/dom";
 import { esc } from "../lib/format";
 import { errorMessage, getJson, postJson } from "../lib/http";
 import { renderProviderCards, renderSignalRows } from "../components/alt-strategies";
-import type { ProviderStatus, ProviderStatusResponse, SignalsResponse } from "../types";
+import type { ProviderStatus, ProviderStatusResponse, SignalsResponse } from "../types/signals";
 
 const STATUS_PATH = "/api/features/status" as const;
 const SIGNALS_PATH = "/api/features/signals" as const;

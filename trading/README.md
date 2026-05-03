@@ -19,6 +19,21 @@ The `trading/` module handles:
 - Backtesting and walk-forward analysis support, including persisted per-window detail reporting
 - **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `trading/features/`
 
+## Architecture Shape
+
+`trading/` uses a **hybrid structure**:
+
+- A layered backbone for most runtime behavior:
+  - `interfaces -> services -> repositories/domain -> database`
+- Explicit top-level bounded contexts where isolation is valuable:
+  - `trading/backtesting/`
+  - `trading/brokers/`
+  - `trading/features/`
+
+`trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
+
+For the concise package map, see `docs/architecture/trading-package-map.md`.
+
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
 **DB path resolution:** `TRADING_DB_PATH` env var → `db_path` in `local/db_config.json` → `local/paper_trading.db`
@@ -26,7 +41,19 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 When `db_path` in `local/db_config.json` is relative, it is resolved from the
 repository root.
 
-**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `common/market_data_config.example.json` for the config format.
+**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `trading/config/market_data_config.example.json` for the config format.
+
+## Quick Start
+
+Run these common commands from the repository root:
+
+```sh
+python -m trading.interfaces.cli.main init
+python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
+python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
+```
+
+For scheduler operations, promotion review flows, and data-ops commands, use the detailed sections below.
 
 ## Commands
 
@@ -75,8 +102,8 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 - `daily_backtest_refresh.py`: scheduled daily backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/daily_backtest_refresh/`.
 - `weekly_db_backup.py`: scheduled weekly backup execution.
 - `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, daily backtest refresh, health checks, snapshots, and weekly backups.
-- Helper modules that are not scheduled jobs keep verb-based names such as `register_`, `scheduler_`, and `task_`; cadence-prefixed naming is reserved for the jobs themselves.
-- `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts, a `default` fallback, and an `excluded` list of account names that are automatically skipped when running with `--accounts all`.
+- Scheduler support helpers such as `scheduler_installer.py` and `manage_job_schedules.py` live alongside the direct job entrypoints; cadence-prefixed naming remains reserved for the jobs themselves.
+- `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts and a `default` fallback.
 
 ## Auto-Trading
 
@@ -85,7 +112,6 @@ Trade universe files live under `trading/config/`. The default is `trade_univers
 | File | Description |
 |------|-------------|
 | `trading/config/trade_universe.txt` | Default universe (general-purpose) |
-| `trading/config/trade_universe_test_account.txt` | Smaller universe for test accounts (~21 tickers) |
 | `trading/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
 Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.run_auto_trades --help` for all options.
@@ -125,22 +151,22 @@ The direct job scripts are the source of truth. Keep operations simple: run the 
 
 ```sh
 # Daily paper trading
-./venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
 
 # Daily snapshot
-./venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
 
 # Daily backtest refresh
-./venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
-./venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
+./.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
 
 # Health check
-./venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
+./.venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
 
 # Register runtime jobs on scheduler with the active venv interpreter
-./venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
   --daily-paper-trading-time 13:10 \
   --daily-paper-trading-fallback-time 15:45 \
   --health-check-time 16:15 \
@@ -150,7 +176,11 @@ The direct job scripts are the source of truth. Keep operations simple: run the 
   --weekly-db-backup-time 02:00
 ```
 
-`manage_job_schedules.py` remains a thin job-schedule entrypoint, while `scheduler_installer.py` handles the platform-specific cron and Task Scheduler installation details underneath. `manage_job_schedules.py` uses the interpreter you pass via `--python` (default: the current `sys.executable`), writes Task Scheduler entries on Windows and cron entries on Linux, and avoids relying on a host-level `python` shim. Snapshot and daily backtest refresh entries can be installed before they are operator-enabled; they only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh`) or the corresponding environment variable is set.
+Scheduler behavior notes:
+
+- `manage_job_schedules.py` is a thin schedule entrypoint, while `scheduler_installer.py` handles platform-specific cron/Task Scheduler installation details.
+- `manage_job_schedules.py` uses the interpreter provided via `--python` (default: current `sys.executable`), writes Task Scheduler entries on Windows and cron entries on Linux, and avoids relying on a host-level `python` shim.
+- Snapshot and daily backtest refresh entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh`) or the matching environment variable is set.
 
 Windows Task Scheduler task names default to `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`, `Trading\DailyBacktestRefresh`, `Trading\DailyTraderHealthCheck`, and `Trading\WeeklyDbBackup`.
 
@@ -197,10 +227,10 @@ Review requests freeze the current evaluation evidence into a durable record and
 
 ## Related Docs
 
-- Backtesting: `docs/reference/notes-backtesting.md`
-- UI dashboard: `paper_trading_ui/README.md`
-- Broker integration: `docs/reference/notes-broker-integration.md`
-- Trading architecture guide: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- Backtesting: [docs/reference/notes-backtesting.md](../docs/reference/notes-backtesting.md)
+- UI dashboard: [paper_trading_ui/README.md](../paper_trading_ui/README.md)
+- Broker integration: [docs/reference/notes-broker-integration.md](../docs/reference/notes-broker-integration.md)
+- Trading architecture guide: [.github/BOT_ARCHITECTURE_CONVENTIONS.md](../.github/BOT_ARCHITECTURE_CONVENTIONS.md)
 
 ## Preset Profiles
 

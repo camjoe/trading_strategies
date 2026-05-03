@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")

@@ -8,7 +8,7 @@ If trading/features/ is ever moved under backtesting/, the three feature-
 provider blocks below can be deleted entirely.
 """
 
-from trading.services.accounts_service import get_account
+from trading.services.accounts import get_account
 from trading.domain.rotation import resolve_active_strategy
 from trading.domain.returns import safe_return_pct
 # Feature provider constants consumed by backtesting/domain/strategy_signals.py.

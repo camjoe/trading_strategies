@@ -17,12 +17,12 @@ import adminAccountsTemplate from "./views/admin/accounts.html?raw";
 import adminJobsTemplate from "./views/admin/jobs.html?raw";
 import adminOverviewTemplate from "./views/admin/overview.html?raw";
 import adminPromotionsTemplate from "./views/admin/promotions.html?raw";
-import adminTestAccountTemplate from "./views/admin/test-account.html?raw";
 import backtestingTemplate from "./views/backtesting.html?raw";
 import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
+import { errorMessage } from "./lib/http";
 
 const appRoot = find<HTMLDivElement>("#app");
 if (!appRoot) {
@@ -47,7 +47,6 @@ function renderShell(): void {
     .replace("<!-- ADMIN_OVERVIEW_PARTIAL -->", adminOverviewTemplate)
     .replace("<!-- ADMIN_JOBS_PARTIAL -->", adminJobsTemplate)
     .replace("<!-- ADMIN_ACCOUNTS_PARTIAL -->", adminAccountsTemplate)
-    .replace("<!-- ADMIN_TEST_ACCOUNT_PARTIAL -->", adminTestAccountTemplate)
     .replace("<!-- ADMIN_PROMOTIONS_PARTIAL -->", adminPromotionsTemplate)
     .replace("<!-- ADMIN_ARTIFACTS_PARTIAL -->", adminArtifactsTemplate);
   app.innerHTML = appLayoutTemplate
@@ -86,8 +85,6 @@ const altStrategiesFeature = createAltStrategiesFeature();
 
 async function bootstrap(): Promise<void> {
   renderShell();
-  await loadAccountConfigOptions();
-  applyAccountConfigOptionsToAdminForm();
   initTabs();
   initDocsFeature(openTab);
   accountsFeature.wireActions();
@@ -96,6 +93,14 @@ async function bootstrap(): Promise<void> {
   compareFeature.wireActions();
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
+
+  try {
+    await loadAccountConfigOptions();
+    applyAccountConfigOptionsToAdminForm();
+  } catch (error) {
+    console.warn(`Failed to load account config options: ${errorMessage(error, "unknown error")}`);
+  }
+
   await accountsFeature.loadAccounts();
   await adminFeature.loadDeleteAccounts();
   await logsFeature.loadLogFiles();

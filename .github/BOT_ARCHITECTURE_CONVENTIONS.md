@@ -15,6 +15,13 @@ Primary flow:
 
 Do not invert this flow.
 
+Top-level package shape is intentionally **hybrid**:
+
+1. The layered backbone above applies to main runtime behavior.
+2. Selected bounded contexts remain top-level when their ownership is distinct
+   (`trading/backtesting`, `trading/brokers`, `trading/features`).
+3. See `docs/architecture/trading-package-map.md` for the concise package map.
+
 ## Allowed and Disallowed Dependencies
 
 Allowed:
@@ -52,12 +59,12 @@ Disallowed:
 
 7. `trading/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
-   - Migration system reference: `docs/architecture/notes-db-migration-system.md`
+   - Migration system reference: `docs/reference/notes-db-migration-system.md`
    - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
 
 8. `trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
-   - See `docs/architecture/adr-backtesting-layering.md` for layering rationale.
+   - See `docs/reference/adr-backtesting-layering.md` for layering rationale.
 
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
@@ -121,6 +128,10 @@ General Python:
 1. files/functions/variables: `snake_case`
 2. classes/dataclasses: `PascalCase`
 3. constants: `UPPER_SNAKE_CASE`
+4. model suffixes should reflect lifecycle role:
+   - `*Config`: caller-facing, partial, optional input used for create/update flows
+   - `*Insert`: repository-ready create payload with required/defaulted/normalized fields
+   - `*Record`: persisted read model materialized from database rows
 
 Repository naming:
 
@@ -143,6 +154,11 @@ Domain naming:
 1. Prefer direct imports from concrete implementation modules.
 2. Avoid adding import-only facades unless they are deliberate public entrypoints.
 3. Keep compatibility shims temporary and explicit.
+4. When a service module is the public entrypoint, do not mirror repository APIs
+   with one-line passthrough helpers. Service exports should add validation,
+   not-found behavior, orchestration, or caller-facing semantics.
+5. See `docs/architecture/service-repository-boundary.md` for the repeatable
+   service-vs-repository split used during refactors.
 
 ## Abstraction and API Consistency
 
@@ -159,15 +175,6 @@ Domain naming:
 3. Keep command examples runnable from repo root and prefer `python -m ...`.
 4. Avoid reliance on case-insensitive path behavior.
 5. Make type narrowing explicit where mypy/platform inference may differ.
-
-## Completed Structural Slices
-
-Recent refactors have aligned these areas with repository/service/domain layering:
-
-- Pricing module
-- Profiles module
-- Reporting module
-- Auto-trader orchestration
 
 ## Bot Placement Checklist
 

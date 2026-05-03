@@ -1,4 +1,4 @@
-import type { AccountAnalysis, AccountDetail, AccountListItem } from "../../types";
+import type { AccountAnalysis, AccountDetail, AccountListItem } from "../../types/accounts";
 
 export interface AccountsFeatureOptions {
   onAccountsLoaded?: (accounts: AccountListItem[]) => Promise<void> | void;

@@ -2,18 +2,25 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
-from trading.utils.coercion import (
+from common.coercion import (
     coerce_float,
     coerce_str,
     row_float,
     row_int,
     row_str,
 )
+from trading.models import AccountRecord
+from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 
 RISK_POLICIES = {"none", "fixed_stop", "take_profit", "stop_and_target"}
 INSTRUMENT_MODES = {"equity", "leaps"}
 OPTION_TYPES = {"call", "put", "both"}
+
+# Account kind classifies an account's lifecycle/visibility role independently
+# from broker_type, which selects the execution backend.
+ACCOUNT_KIND_MANAGED = "managed"
+ACCOUNT_KIND_LOCAL = "local"
+ACCOUNT_KINDS = {ACCOUNT_KIND_MANAGED, ACCOUNT_KIND_LOCAL}
 
 _ENUM_FIELDS = {
     "risk_policy": RISK_POLICIES,
@@ -44,6 +51,14 @@ def validate_enum_value(value: str, field_name: str) -> str:
 
 def normalize_risk_policy(risk_policy: str) -> str:
     return validate_enum_value(risk_policy, "risk_policy")
+
+
+def normalize_account_kind(account_kind: str) -> str:
+    normalized = normalize_lower(account_kind)
+    if normalized not in ACCOUNT_KINDS:
+        options = ", ".join(sorted(ACCOUNT_KINDS))
+        raise ValueError(f"account_kind must be one of: {options}")
+    return normalized
 
 
 def normalize_instrument_mode(instrument_mode: str) -> str:
@@ -119,7 +134,7 @@ def validate_option_settings(
 
 def resolve_sizing_value(
     value: float | None,
-    row: dict[str, object],
+    row: AccountRecord,
     column: str,
     default: float,
 ) -> float:
@@ -151,7 +166,7 @@ def validate_position_sizing(
 
 
 def validate_position_sizing_from_inputs(
-    account: dict[str, object],
+    account: AccountRecord,
     trade_size_pct: float | None,
     max_position_pct: float | None,
 ) -> tuple[float, float]:
@@ -193,20 +208,20 @@ def append_numeric_updates(
         append_update(updates, params, column, value, transform)
 
 
-def resolved_float(value: float | None, row: dict[str, object], column: str) -> float | None:
+def resolved_float(value: float | None, row: AccountRecord, column: str) -> float | None:
     if value is not None:
         return value
     return row_float(row, column)
 
 
-def resolved_int(value: int | None, row: dict[str, object], column: str) -> int | None:
+def resolved_int(value: int | None, row: AccountRecord, column: str) -> int | None:
     if value is not None:
         return value
     return row_int(row, column)
 
 
 def validate_goal_range_from_inputs(
-    account: dict[str, object],
+    account: AccountRecord,
     goal_min_return_pct: float | None,
     goal_max_return_pct: float | None,
 ) -> None:
@@ -217,7 +232,7 @@ def validate_goal_range_from_inputs(
 
 
 def validate_option_settings_from_inputs(
-    account: dict[str, object],
+    account: AccountRecord,
     option_type: str | None,
     target_delta_min: float | None,
     target_delta_max: float | None,

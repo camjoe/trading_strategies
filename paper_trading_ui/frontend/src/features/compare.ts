@@ -1,7 +1,7 @@
 import { find } from "../lib/dom";
 import { currency, esc, pct } from "../lib/format";
 import { getJson } from "../lib/http";
-import type { AccountComparisonRow } from "../types";
+import type { AccountComparisonRow } from "../types/compare";
 
 export interface CompareFeatureOptions {
   onOpenAccount?: (accountName: string) => Promise<void> | void;

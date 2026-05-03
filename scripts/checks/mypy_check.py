@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.shared import resolve_python_exe, run_step
 

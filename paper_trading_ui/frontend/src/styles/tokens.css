@@ -1,0 +1,100 @@
+:root {
+  /* Layout */
+  --topbar-height: 102px;
+  --tab-nav-height: 56px;
+  --sticky-stack-offset: calc(var(--topbar-height) + 24px);
+
+  /* Surfaces */
+  --bg-1: #ffffff;
+  --bg-2: #eef4fb;
+  --bg-glow-warm: #ffd7ba;
+  --bg-glow-warm-0: #f8d9bc00;
+  --bg-glow-cool: #b7d6ff;
+  --bg-glow-cool-0: #9dd7d700;
+  --topbar-bg: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f6faff;
+  --panel-border: #d8e3ef;
+  --surface-white: #ffffff;
+  --surface-menu: #fffffffa;
+  --surface-subtle: #f4f8fd;
+  --surface-action: #f5f7fb;
+  --surface-action-hover: #e8effa;
+
+  /* Typography */
+  --ink: #152238;
+  --ink-soft: #55657d;
+  --ink-muted: #7b8796;
+
+  /* Accent colors */
+  --accent: #2563eb;
+  --accent-2: #f59e0b;
+  --accent-gradient-end: #4f9cf6;
+  --btn-neutral-start: #6c7f96;
+  --btn-neutral-end: #8ea0b6;
+
+  /* Chart / trading colors */
+  --up: #18794e;
+  --down: #b33f62;
+  --chip-bg: #edf3ff;
+  --chip-border: #bfd1f7;
+  --trade-alt-bg: #edf5ff;
+  --trade-alt-start: #f3f8ff;
+  --trade-alt-end: #e8f0ff;
+  --trade-buy-start: #edf9f2;
+  --trade-buy-end: #def4e8;
+  --trade-buy-ink: #0b6b43;
+  --trade-buy-border: #bde1cb;
+  --trade-sell-start: #fff0f4;
+  --trade-sell-end: #ffe2e9;
+  --trade-sell-ink: #a52d4b;
+  --trade-sell-border: #efc1cf;
+
+  /* Borders and dividers */
+  --line: #d7e1ed;
+  --line-subtle: #e9eff6;
+  --line-table: #dde6f0;
+  --border-menu: #d4dfeb;
+  --border-nav: #d8e4f0;
+  --border-subtle: #d7e1ec;
+  --border-input: #c0cfde;
+  --border-action: #d2deeb;
+  --border-action-hover: #b4cae7;
+  --card-border: #ffffff;
+  --nav-hover-bg: #ecf3ff;
+  --nav-hover-border: #c9daf5;
+
+  /* Table surfaces */
+  --table-head-bg: #f1f6fc;
+  --table-head-bg-compare: #f4f7fc;
+
+  /* Shadows */
+  --shadow: 0 18px 50px #16325214;
+  --shadow-menu: 0 24px 50px #16325218;
+  --shadow-trade: 0 8px 24px #2d577f14;
+
+  /* Interactive states — danger / status / warning */
+  --danger: #aa2a4a;
+  --danger-hover: #8f1d3b;
+  --success-border: #bce3c7;
+  --success-bg: #ecfbf0;
+  --success-ink: #156c3f;
+  --error-border: #efbfd0;
+  --error-bg: #fff1f6;
+  --error-ink: #912549;
+  --warning-border: #e0c15f;
+  --warning-bg: #fff4c7;
+  --warning-ink: #7a5900;
+
+  /* Log panel */
+  --log-bg: #0b1220;
+  --log-ink: #d7e4ff;
+  --log-num: #7b8aa5;
+  --log-error: #ff8da1;
+  --log-warn: #ffd58f;
+  --log-ok: #95e4bc;
+  --log-meta: #9cc8ff;
+  --log-border: #1e2d48;
+  --log-group-line: #ffffff1c;
+  --log-empty-ink: #aebdd8;
+}

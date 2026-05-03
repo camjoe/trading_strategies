@@ -25,6 +25,8 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 | `trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
 | `trading/interfaces/runtime/data_ops/csv_export.py` | CSV export for accounts and trades |
 
+For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_schema` for the code-defined schema or `python -m scripts.data_ops.describe_db_schema --source live` for the configured SQLite database. Do not maintain a hand-written full schema mirror.
+
 ---
 
 ## Database Path Resolution

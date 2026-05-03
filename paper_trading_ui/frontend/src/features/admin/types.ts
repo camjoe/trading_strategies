@@ -1,4 +1,4 @@
-import type { AccountSummary } from "../../types";
+import type { AccountSummary } from "../../types/accounts";
 
 
 export interface DeleteResponse {
@@ -59,4 +59,4 @@ export interface AdminFeature {
 }
 
 
-export type AdminSection = "jobs" | "accounts" | "test-account" | "promotions" | "artifacts";
+export type AdminSection = "jobs" | "accounts" | "promotions" | "artifacts";

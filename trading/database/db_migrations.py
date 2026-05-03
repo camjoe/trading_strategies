@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from common.project_paths import TRADE_UNIVERSE_PATH
+from common.paths.project_paths import TRADE_UNIVERSE_PATH
 from common.tickers import load_tickers_from_file
 
 # Default source used to seed account-level overlay watchlists so regime overlays
@@ -17,7 +17,6 @@ DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
     separators=(",", ":"),
 )
 
-
 @dataclass(frozen=True)
 class ColumnMigration:
     column_name: str
@@ -26,6 +25,10 @@ class ColumnMigration:
 
 
 ACCOUNT_MIGRATIONS = (
+    ColumnMigration(
+        "account_kind",
+        "ALTER TABLE accounts ADD COLUMN account_kind TEXT NOT NULL DEFAULT 'managed'",
+    ),
     ColumnMigration(
         "benchmark_ticker",
         "ALTER TABLE accounts ADD COLUMN benchmark_ticker TEXT NOT NULL DEFAULT 'SPY'",
