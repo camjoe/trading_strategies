@@ -251,6 +251,239 @@ CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account
 CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id ON order_fills(broker_order_id);
 """
 
+STRATEGY_SLEEVES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS strategy_sleeves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('active', 'paused', 'retired')),
+    base_ccy TEXT NOT NULL DEFAULT 'USD',
+    start_equity REAL NOT NULL,
+    current_cash REAL NOT NULL,
+    current_equity REAL NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    UNIQUE(account_id, name)
+);
+"""
+
+STRATEGY_PARAM_SETS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS strategy_param_sets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    strategy_name TEXT NOT NULL,
+    version TEXT NOT NULL,
+    params_json TEXT NOT NULL,
+    config_version TEXT,
+    is_active INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    activated_at TEXT,
+    deactivated_at TEXT,
+    notes TEXT,
+    UNIQUE(strategy_name, version)
+);
+"""
+
+SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sleeve_strategy_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sleeve_id INTEGER NOT NULL,
+    strategy_name TEXT NOT NULL,
+    param_set_id INTEGER,
+    effective_from TEXT NOT NULL,
+    effective_to TEXT,
+    is_incumbent INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
+    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
+);
+"""
+
+ROTATION_DECISIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS rotation_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sleeve_id INTEGER NOT NULL,
+    decision_time TEXT NOT NULL,
+    incumbent_strategy TEXT,
+    challenger_strategy TEXT,
+    selected_strategy TEXT,
+    rotation_action TEXT NOT NULL CHECK (rotation_action IN ('hold', 'rotate')),
+    cooldown_active INTEGER NOT NULL DEFAULT 0,
+    score_components_json TEXT NOT NULL,
+    gate_results_json TEXT NOT NULL,
+    decision_reason TEXT,
+    config_version TEXT,
+    param_set_id INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
+    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
+);
+"""
+
+SLEEVE_ORDERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sleeve_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    sleeve_id INTEGER NOT NULL,
+    strategy_name TEXT NOT NULL,
+    param_set_id INTEGER,
+    rotation_decision_id INTEGER,
+    broker_order_id TEXT,
+    symbol TEXT NOT NULL,
+    side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+    qty REAL NOT NULL,
+    order_type TEXT NOT NULL DEFAULT 'market',
+    time_in_force TEXT NOT NULL DEFAULT 'day',
+    requested_price REAL NOT NULL,
+    status TEXT NOT NULL,
+    config_version TEXT,
+    submitted_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
+    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id),
+    FOREIGN KEY (rotation_decision_id) REFERENCES rotation_decisions(id)
+);
+"""
+
+SLEEVE_FILLS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sleeve_fills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sleeve_order_id INTEGER NOT NULL,
+    sleeve_id INTEGER NOT NULL,
+    broker_fill_id TEXT,
+    exec_id TEXT,
+    symbol TEXT NOT NULL,
+    filled_qty REAL NOT NULL,
+    fill_price REAL NOT NULL,
+    commission REAL NOT NULL DEFAULT 0,
+    fill_time TEXT NOT NULL,
+    FOREIGN KEY (sleeve_order_id) REFERENCES sleeve_orders(id),
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+);
+"""
+
+SLEEVE_POSITIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sleeve_positions (
+    sleeve_id INTEGER NOT NULL,
+    symbol TEXT NOT NULL,
+    qty REAL NOT NULL,
+    avg_cost REAL NOT NULL,
+    market_value REAL NOT NULL,
+    unrealized_pnl REAL NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (sleeve_id, symbol),
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+);
+"""
+
+SLEEVE_LEDGER_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sleeve_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sleeve_id INTEGER NOT NULL,
+    entry_type TEXT NOT NULL CHECK (entry_type IN ('cash_movement', 'realized_pnl', 'fee', 'financing', 'transfer')),
+    amount REAL NOT NULL,
+    reference_type TEXT,
+    reference_id TEXT,
+    entry_time TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+);
+"""
+
+PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS portfolio_risk_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    snapshot_time TEXT NOT NULL,
+    gross_exposure REAL NOT NULL,
+    net_exposure REAL NOT NULL,
+    max_symbol_concentration_pct REAL NOT NULL,
+    max_sector_concentration_pct REAL NOT NULL,
+    drawdown_pct REAL,
+    leverage_proxy REAL,
+    daily_loss_pct REAL,
+    kill_switch_triggered INTEGER NOT NULL DEFAULT 0,
+    risk_payload_json TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    UNIQUE(account_id, snapshot_time)
+);
+"""
+
+DAILY_METRICS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS daily_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    sleeve_id INTEGER,
+    metric_date TEXT NOT NULL,
+    return_pct REAL,
+    drawdown_pct REAL,
+    turnover_pct REAL,
+    slippage_bps REAL,
+    hit_rate REAL,
+    expectancy REAL,
+    risk_adjusted_score REAL,
+    trade_count INTEGER,
+    fees_total REAL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+);
+"""
+
+SLEEVE_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_strategy_sleeves_account_status
+ON strategy_sleeves(account_id, status);
+CREATE INDEX IF NOT EXISTS idx_strategy_param_sets_strategy_active
+ON strategy_param_sets(strategy_name, is_active);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_assignments_active_incumbent
+ON sleeve_strategy_assignments(sleeve_id)
+WHERE is_incumbent = 1 AND effective_to IS NULL;
+CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_sleeve_effective
+ON sleeve_strategy_assignments(sleeve_id, effective_from DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_strategy_effective
+ON sleeve_strategy_assignments(strategy_name, effective_from DESC);
+CREATE INDEX IF NOT EXISTS idx_rotation_decisions_sleeve_time
+ON rotation_decisions(sleeve_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time
+ON rotation_decisions(rotation_action, decision_time DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_orders_account_broker_order_id
+ON sleeve_orders(account_id, broker_order_id)
+WHERE broker_order_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_sleeve_orders_sleeve_submitted
+ON sleeve_orders(sleeve_id, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_orders_account_status_submitted
+ON sleeve_orders(account_id, status, submitted_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_fills_order_exec_id
+ON sleeve_fills(sleeve_order_id, exec_id)
+WHERE exec_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_sleeve_fills_sleeve_time
+ON sleeve_fills(sleeve_id, fill_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_fills_order_time
+ON sleeve_fills(sleeve_order_id, fill_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_positions_symbol_updated
+ON sleeve_positions(symbol, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_sleeve_time
+ON sleeve_ledger(sleeve_id, entry_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_reference
+ON sleeve_ledger(reference_type, reference_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_account_time
+ON portfolio_risk_snapshots(account_id, snapshot_time DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_sleeve_date
+ON daily_metrics(account_id, sleeve_id, metric_date)
+WHERE sleeve_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_portfolio_date
+ON daily_metrics(account_id, metric_date)
+WHERE sleeve_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_daily_metrics_account_date
+ON daily_metrics(account_id, metric_date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_metrics_sleeve_date
+ON daily_metrics(sleeve_id, metric_date DESC);
+"""
+
 WALK_FORWARD_GROUPS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS walk_forward_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -368,6 +601,17 @@ SCHEMA_SQL = "\n".join(
         BROKER_ORDERS_TABLE_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,
+        STRATEGY_SLEEVES_TABLE_SQL,
+        STRATEGY_PARAM_SETS_TABLE_SQL,
+        SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL,
+        ROTATION_DECISIONS_TABLE_SQL,
+        SLEEVE_ORDERS_TABLE_SQL,
+        SLEEVE_FILLS_TABLE_SQL,
+        SLEEVE_POSITIONS_TABLE_SQL,
+        SLEEVE_LEDGER_TABLE_SQL,
+        PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
+        DAILY_METRICS_TABLE_SQL,
+        SLEEVE_INDEXES_SQL,
         WALK_FORWARD_GROUPS_TABLE_SQL,
         WALK_FORWARD_GROUP_RUNS_TABLE_SQL,
         WALK_FORWARD_INDEXES_SQL,
