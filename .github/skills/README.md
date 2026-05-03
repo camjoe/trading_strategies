@@ -49,6 +49,8 @@ If a skill and an agent both exist for the same job:
 | `architecture-review/` | Default surface for structure and layering review |
 | `code-cleanup/` | Default surface for backend, frontend, or mixed cleanup work |
 | `code-review/` | Default surface for generic review work and deep audits |
+| `code-review-baseline/` | Baseline review rubric for A/B quality experiments |
+| `code-review-aggressive/` | Higher-scrutiny review rubric for A/B quality experiments |
 | `docs-sync/` | Default surface for documentation drift work |
 | `finance-strategy/` | Default surface for terminology and strategy explanation |
 | `python-stat-modeling/` | Default surface for modeling and research tasks |
