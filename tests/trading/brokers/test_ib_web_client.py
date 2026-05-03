@@ -154,10 +154,13 @@ class TestInteractiveBrokersWebClient:
             http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
         )
 
-        client.connect()
+        try:
+            client.connect()
 
-        assert client.is_connected() is True
-        assert calls == ["/iserver/auth/status", "/portfolio/accounts", "/iserver/accounts"]
+            assert client.is_connected() is True
+            assert calls == ["/iserver/auth/status", "/portfolio/accounts", "/iserver/accounts"]
+        finally:
+            client.disconnect()
 
     def test_fetch_marketdata_snapshot_retries_after_preflight(self):
         responses = [
