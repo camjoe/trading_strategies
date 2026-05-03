@@ -40,10 +40,9 @@ def test_parse_account_trade_caps_max_less_than_min_raises() -> None:
 
 
 def test_load_trade_caps_config_missing_file_returns_none_and_empty(tmp_path: Path) -> None:
-    default_caps, account_caps, excluded = module.load_trade_caps_config(tmp_path / "missing.json")
+    default_caps, account_caps = module.load_trade_caps_config(tmp_path / "missing.json")
     assert default_caps is None
     assert account_caps == {}
-    assert excluded == []
 
 def test_load_trade_caps_config_valid_config_with_default_and_accounts(tmp_path: Path) -> None:
     config = {
@@ -53,27 +52,15 @@ def test_load_trade_caps_config_valid_config_with_default_and_accounts(tmp_path:
     path = tmp_path / "caps.json"
     path.write_text(json.dumps(config), encoding="utf-8")
 
-    default_caps, account_caps, excluded = module.load_trade_caps_config(path)
+    default_caps, account_caps = module.load_trade_caps_config(path)
     assert default_caps == (1, 5)
     assert account_caps == {"special_acct": (2, 8)}
-    assert excluded == []
 
 def test_load_trade_caps_config_without_default_returns_none(tmp_path: Path) -> None:
     path = tmp_path / "caps.json"
     path.write_text(json.dumps({"accounts": {}}), encoding="utf-8")
-    default_caps, _, _excluded = module.load_trade_caps_config(path)
+    default_caps, _ = module.load_trade_caps_config(path)
     assert default_caps is None
-
-def test_load_trade_caps_config_excluded_accounts_are_returned(tmp_path: Path) -> None:
-    config = {
-        "excluded": ["sandbox", "holdout"],
-        "default": {"min": 1, "max": 5},
-        "accounts": {},
-    }
-    path = tmp_path / "caps.json"
-    path.write_text(json.dumps(config), encoding="utf-8")
-    _, _, excluded = module.load_trade_caps_config(path)
-    assert excluded == ["sandbox", "holdout"]
 
 def test_load_trade_caps_config_non_dict_root_raises(tmp_path: Path) -> None:
     path = tmp_path / "caps.json"
