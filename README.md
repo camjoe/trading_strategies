@@ -4,7 +4,7 @@ A Python suite for stock trends analysis, backtesting, paper trading, and strate
 
 ## Project Overview
 
-This repository contains tools for:
+This repository provides tools for:
 
 - **Trends Analysis**: Chart technical indicators and moving averages for stock tickers using `yfinance` and `matplotlib`.
 - **Backtesting**: Historical and walk-forward simulation with persisted run and per-window reporting.
@@ -18,7 +18,8 @@ This repository contains tools for:
 | `trends/` | Stock trends analysis and indicator calculations. |
 | `trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
 | `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `skills/` | Portable starter skills plus templates for creating repo-local agent overlays. |
+| `.github/agents/` | Repo-specific agent definitions for project-only execution flows. |
+| `.github/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |
 
@@ -35,9 +36,9 @@ pip install -r requirements-dev.txt
 ```
 
 **Execution Note:**
-- All trading scripts must be run as Python modules from the repository root, e.g.,
+- Run trading scripts as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
   ```sh
-  python -m trading.interfaces.cli.main init
+  ./.venv/bin/python -m trading.interfaces.cli.main init
   ```
 
 ## CI Smoke Check
@@ -63,8 +64,8 @@ python -m scripts.run_checks --profile ci --install-python-tools
 
 Single-source validation guidance lives in:
 
-- `scripts/README.md` for script behavior and flags.
-- `.github/DOCS_PRECOMMIT_POLICY.md` for docs-impact audit workflow and bot request templates.
+- [scripts/README.md](scripts/README.md) for script behavior and flags.
+- [.github/DOCS_PRECOMMIT_POLICY.md](.github/DOCS_PRECOMMIT_POLICY.md) for docs-impact audit workflow and bot request templates.
 
 ## Quick Start
 
@@ -101,9 +102,7 @@ npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 
 #### Debugging with pdb
 
-Insert a
-`breakpoint()` call anywhere in the backend Python code, then start the services
-separately (as above, **without** `--reload` so pdb can read from stdin).
+Insert a `breakpoint()` call anywhere in backend Python code, then start the services separately (as above, **without** `--reload` so pdb can read from stdin).
 
 When the breakpoint is hit the browser request will pause and a `(Pdb)` prompt
 appears in the backend terminal.

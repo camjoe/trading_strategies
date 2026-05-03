@@ -1,5 +1,5 @@
 import { esc } from "../lib/format";
-import type { FeatureDescription, ProviderStatus, SignalOutput, SignalsResponse } from "../types";
+import type { FeatureDescription, ProviderStatus, SignalOutput, SignalsResponse } from "../types/signals";
 
 // ---------------------------------------------------------------------------
 // Provider status cards

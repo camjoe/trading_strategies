@@ -5,7 +5,7 @@ Requires the UI to already be running (launch_ui.py).
 
 Usage examples
 --------------
-# Test Account tab (default)
+# Accounts tab (default)
 python -m scripts.screenshot_ui
 
 # Specific tab
@@ -18,8 +18,8 @@ python -m scripts.screenshot_ui --tab admin
 # Open an account detail on the Accounts tab
 python -m scripts.screenshot_ui --tab accounts --account my_account
 
-# Wait for the Performance Analysis to finish loading (test-account tab)
-python -m scripts.screenshot_ui --tab test-account --wait-analysis
+# Wait for the Performance Analysis to finish loading
+python -m scripts.screenshot_ui --tab accounts --wait-analysis
 
 # Custom output path
 python -m scripts.screenshot_ui --output local/screenshots/my_shot.png
@@ -29,7 +29,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
-  accounts, test-account, compare, trades, backtesting,
+  accounts, compare, trades, backtesting,
   alt-strategies, docs, admin
 """
 from __future__ import annotations
@@ -42,7 +42,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common.project_paths import SCREENSHOTS_DIR
+from common.paths.project_paths import SCREENSHOTS_DIR
 from scripts.ui_config import FRONTEND_PORT, UI_HOST
 
 
@@ -145,8 +145,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--tab",
-        default="test-account",
-        help="Tab to open (default: test-account). Options: accounts, test-account, "
+        default="accounts",
+        help="Tab to open (default: accounts). Options: accounts, "
              "compare, trades, backtesting, alt-strategies, docs, admin",
     )
     parser.add_argument(

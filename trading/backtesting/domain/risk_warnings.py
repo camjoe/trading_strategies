@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from trading.utils.coercion import row_str
+from collections.abc import Mapping
+
+from common.coercion import row_str
 
 
-def build_backtest_warnings(account, *, allow_approximate_leaps: bool) -> list[str]:
+def build_backtest_warnings(
+    account: Mapping[str, object],
+    *,
+    allow_approximate_leaps: bool,
+) -> list[str]:
     warnings: list[str] = [
         "Backtest uses adjusted daily close data only; intraday price path is not modeled.",
         "Universe file may include survivorship bias if it only reflects currently listed symbols.",

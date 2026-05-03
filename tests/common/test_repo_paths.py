@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import common.repo_paths as repo_paths
-from common.repo_paths import _discover_repo_root_via_git, get_repo_root
+import common.paths.repo_paths as repo_paths
+from common.paths.repo_paths import _discover_repo_root_via_git, get_repo_root
 
 
 @pytest.fixture(autouse=True)

@@ -301,15 +301,19 @@ def _volatility_filtered_trend_signal(
     if len(history) < min_history:
         return "hold"
 
+    close = float(history.iloc[-1])
+    if not math.isfinite(close):
+        return "hold"
+
     returns = history.pct_change().dropna()
     recent_returns = returns.tail(vol_window)
+    recent_returns = recent_returns[recent_returns.map(lambda value: math.isfinite(float(value)))]
     if recent_returns.empty:
         return "hold"
     annualized_vol_pct = float(recent_returns.std(ddof=0) * (TRADING_DAYS_PER_YEAR**0.5) * 100.0)
     if pd.isna(annualized_vol_pct) or annualized_vol_pct > max_annualized_vol_pct:
         return "hold"
 
-    close = float(history.iloc[-1])
     sma_fast = float(history.tail(fast_window).mean())
     sma_slow = float(history.tail(slow_window).mean())
     if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):

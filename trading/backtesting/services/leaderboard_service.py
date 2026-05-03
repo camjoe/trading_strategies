@@ -1,24 +1,20 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Callable
-
-import pandas as pd
 
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
     max_drawdown_pct,
     summarize_backtest_performance,
 )
+from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 from trading.backtesting.repositories.leaderboard_repository import (
     fetch_equity_rows,
     fetch_leaderboard_rows,
     fetch_trade_rows,
 )
-from trading.utils.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.report_models import BacktestLeaderboardEntry
-
-BenchmarkFetcher = Callable[[str, date, date], pd.Series | pd.DataFrame]
 
 
 def fetch_backtest_leaderboard_entries(
@@ -27,7 +23,6 @@ def fetch_backtest_leaderboard_entries(
     limit: int,
     account_name: str | None,
     strategy: str | None,
-    fetch_benchmark_close_fn: BenchmarkFetcher,
 ) -> list[tuple[BacktestLeaderboardEntry, float]]:
     if limit <= 0:
         raise ValueError("limit must be > 0")
@@ -60,7 +55,7 @@ def fetch_backtest_leaderboard_entries(
         benchmark_ret: float | None = None
         alpha_pct: float | None = None
         try:
-            benchmark_series = fetch_benchmark_close_fn(
+            benchmark_series = fetch_benchmark_close(
                 row_expect_str(row, "benchmark_ticker"),
                 date.fromisoformat(row_expect_str(row, "start_date")),
                 date.fromisoformat(row_expect_str(row, "end_date")),

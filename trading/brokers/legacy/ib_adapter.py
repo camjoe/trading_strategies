@@ -36,7 +36,7 @@ Connection port defaults:
 Async fill note:
     IB order placement is asynchronous.  ``place_order`` returns the order with
     ``status = SUBMITTED``.  Fills arrive via IB callbacks and are reconciled
-    by calling ``reconcile_open_ib_orders`` in the runtime service.
+    by calling ``reconcile_open_broker_orders`` in the runtime service.
 """
 from __future__ import annotations
 

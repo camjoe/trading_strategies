@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { renderOperationsOverview, renderPromotionOverview } from "../../components/admin-ops";
-import type { OperationsOverviewResponse, PromotionOverviewResponse } from "../../types";
+import type { OperationsOverviewResponse, PromotionOverviewResponse } from "../../types/admin";
 
 describe("renderOperationsOverview", () => {
   it("renders job health cards and artifact panels", () => {

@@ -1,9 +1,8 @@
 import { find, findAll } from "../../lib/dom";
 import { errorMessage, patchJson, postJson } from "../../lib/http";
 import { parseRunId } from "../../lib/parse";
-import { TEST_ACCOUNT_NAME } from "../../lib/constants";
 import { renderAnalysisPanel, renderDetail } from "../../components/detail";
-import type { AccountParamsUpdate } from "../../types";
+import type { AccountParamsUpdate } from "../../types/accounts";
 import type { AccountsFeatureOptions, AccountsState, DetailSection, LoadAccountDetailOptions } from "./types";
 
 function bindClick<T extends Element>(selector: string, handler: (element: T) => Promise<void> | void): void {
@@ -123,7 +122,6 @@ export function renderCurrentDetail(
     activeSection: state.currentDetailSection,
     tradePage: state.currentTradePage,
     tradePageSize: state.tradePageSize,
-    showAddTrade: state.currentDetail.account.name === TEST_ACCOUNT_NAME,
   });
 
   bindClick<HTMLButtonElement>("#snapshotOneBtn", async (button) => {
@@ -150,54 +148,6 @@ export function renderCurrentDetail(
     const totalPages = Math.max(1, Math.ceil(state.currentDetail.trades.length / state.tradePageSize));
     state.currentTradePage = Math.min(totalPages, state.currentTradePage + 1);
     renderCurrentDetail(state, options, handlers);
-  });
-
-  bindClick<HTMLButtonElement>("#addTradeBtn", () => {
-    const panel = find<HTMLDivElement>("#addTradePanel");
-    if (panel) panel.hidden = !panel.hidden;
-  });
-
-  bindClick<HTMLButtonElement>("#addTradeCancelBtn", () => {
-    const panel = find<HTMLDivElement>("#addTradePanel");
-    if (panel) panel.hidden = true;
-  });
-
-  bindClick<HTMLButtonElement>("#addTradeSaveBtn", async () => {
-    if (!state.currentDetail) return;
-    const accountName = state.currentDetail.account.name;
-    const msgEl = find<HTMLDivElement>("#addTradeMsg");
-    const ticker = find<HTMLInputElement>("#addTradeTicker")?.value.trim().toUpperCase();
-    const side = find<HTMLSelectElement>("#addTradeSide")?.value;
-    const qty = parseFloat(find<HTMLInputElement>("#addTradeQty")?.value ?? "");
-    const price = parseFloat(find<HTMLInputElement>("#addTradePrice")?.value ?? "");
-    const fee = parseFloat(find<HTMLInputElement>("#addTradeFee")?.value ?? "0");
-
-    if (!ticker || !side || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) {
-      if (msgEl) {
-        msgEl.className = "error";
-        msgEl.textContent = "Ticker, qty, and price are required.";
-      }
-      return;
-    }
-
-    try {
-      await postJson<{ status: string }>(
-        `/api/accounts/${encodeURIComponent(accountName)}/trades`,
-        { ticker, side, qty, price, fee: Number.isFinite(fee) ? fee : 0 },
-      );
-      if (msgEl) {
-        msgEl.className = "";
-        msgEl.textContent = "Trade added.";
-      }
-      setTimeout(() => {
-        void handlers.loadAccountDetail(accountName, { section: state.currentDetailSection });
-      }, 800);
-    } catch (err) {
-      if (msgEl) {
-        msgEl.className = "error";
-        msgEl.textContent = errorMessage(err, "Failed to add trade.");
-      }
-    }
   });
 
   bindClick<HTMLButtonElement>("#openConfigBtn", () => {

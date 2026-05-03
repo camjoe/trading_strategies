@@ -146,6 +146,7 @@ def test_init_schema_migrates_legacy_global_settings_columns(sqlite_backend: SQL
     finally:
         conn.close()
 
+
 def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBackend) -> None:
     conn = sqlite_backend.open_connection()
     try:

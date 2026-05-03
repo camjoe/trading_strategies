@@ -5,8 +5,8 @@ from datetime import date
 
 import pandas as pd
 
-from trading.utils.coercion import coerce_float
-from common.market_data import get_provider
+from trading.services.market_data import get_provider
+from common.coercion import coerce_float
 
 
 def _snapshot_time(snapshot: dict[str, object]) -> str:

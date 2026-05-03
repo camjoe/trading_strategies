@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 
-from trading.utils.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+from common.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
 
 
 @dataclass(frozen=True)
 class AccountConfig:
-    """Configurable fields shared by create_account and configure_account."""
+    """Caller-facing partial input shared by create_account and configure_account."""
 
+    account_kind: str | None = None
     descriptive_name: str | None = None
     goal_min_return_pct: float | None = None
     goal_max_return_pct: float | None = None
@@ -38,6 +39,7 @@ class AccountConfig:
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> AccountConfig:
         return cls(
+            account_kind=coerce_str(values.get("account_kind")),
             descriptive_name=coerce_str(values.get("descriptive_name")),
             goal_min_return_pct=coerce_float(values.get("goal_min_return_pct")),
             goal_max_return_pct=coerce_float(values.get("goal_max_return_pct")),

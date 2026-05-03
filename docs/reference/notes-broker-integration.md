@@ -1,189 +1,118 @@
-# Broker Integration Notes
+# Broker Integration Reference
 
-## Overview
+Status: Active reference
+Last reviewed: 2026-04-25
 
-The broker layer provides a uniform interface over paper and live broker connections.
-All order submission, fill tracking, and account data flows through this abstraction —
-the rest of the trading engine never touches a broker SDK directly.
+## Purpose
 
-**Current/default IBKR path:** `interactive_brokers_web` via the Client Portal /
-Web API.
+Define the current broker architecture, safety guardrails, and operator workflow
+for the Interactive Brokers Web API path.
 
-**Legacy alternative retained in-repo:** `interactive_brokers` via the older
-socket/TWS flow.
+## Scope
 
----
+This document covers:
 
-## Architecture
+- broker-resolution behavior in runtime
+- account fields that affect broker routing and live safety
+- IBKR Web API private configuration and smoke-test workflow
+- legacy socket/TWS support boundaries
 
-```
-auto_trader_runtime_service
-        │
-        ▼
-trading/brokers/factory.py          ← resolves BrokerConnection for an account
-        │
-        ├── PaperBrokerAdapter       ← default; immediate fills, zero commission
-        │
-        ├── InteractiveBrokersAdapter        ← legacy socket/TWS path
-                │
-                └── IBClientProtocol (injected)
-                        ├── IbAsyncClient   ← wraps ib_async (legacy support)
-                        └── IbApiClient     ← wraps IBKR native ibapi (legacy stub)
-        │
-        └── InteractiveBrokersWebAdapter    ← current/default local gateway path
-                │
-                └── InteractiveBrokersWebClient
-                        └── IBKR Client Portal / Campus Web API
-```
+## Current Broker Paths
 
-### Key files
+Broker resolution is handled in:
 
-| File | Purpose |
-|------|---------|
-| `trading/brokers/base.py` | `BrokerConnection` ABC, `BrokerOrder`, `OrderFill`, `OrderStatus` |
-| `trading/brokers/paper_adapter.py` | Simulated immediate-fill paper broker |
-| `trading/brokers/legacy/ib_adapter.py` | Legacy Interactive Brokers socket/TWS live adapter |
-| `trading/brokers/legacy/ib_client.py` | Legacy socket/TWS client abstraction (`IBClientProtocol`, `IbAsyncClient`, `IbApiClient` stub) |
-| `trading/brokers/ib_web_adapter.py` | Interactive Brokers Web API live adapter |
-| `trading/brokers/ib_web_client.py` | Web API config loader + HTTP client |
-| `trading/brokers/factory.py` | Routes accounts → correct `BrokerConnection` |
-| `trading/repositories/broker_orders_repository.py` | DB persistence for orders and fills |
-| `trading/services/auto_trader_runtime_service.py` | Wires broker into trade execution loop |
+- `trading/brokers/factory.py`
 
----
+Supported `accounts.broker_type` values:
 
-## Account configuration
+- `paper` (default)
+- `interactive_brokers_web` (current/default live IBKR path)
+- `interactive_brokers` (legacy socket/TWS path)
 
-Broker settings live on the `accounts` table:
+Key files:
 
-| Column | Type | Default | Purpose |
-|--------|------|---------|---------|
-| `broker_type` | TEXT | `'paper'` | `'paper'`, `'interactive_brokers'` (legacy), or `'interactive_brokers_web'` |
-| `broker_host` | TEXT | NULL | TWS/Gateway host for the legacy socket/TWS path |
-| `broker_port` | INTEGER | NULL | TWS/Gateway port for the legacy socket/TWS path |
-| `broker_client_id` | INTEGER | NULL | IB client ID for the legacy socket/TWS path |
-| `live_trading_enabled` | INTEGER | `0` | **Safety gate** — see below |
+- `trading/brokers/base.py`: broker interfaces and order models
+- `trading/brokers/paper_adapter.py`: paper execution adapter
+- `trading/brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
+- `trading/brokers/ib_web_adapter.py`: broker adapter backed by Web API client
+- `trading/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
+- `trading/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
+- `trading/brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
+- `trading/repositories/broker_orders.py`: persisted broker-order state
 
----
+## Account Fields and Routing
 
-## Live trading safety guard
+Broker-related account fields:
 
-`live_trading_enabled` is a hard gate that prevents real orders from being
-sent accidentally.  It defaults to `0` and must be set to `1` manually.
+| Field | Role |
+|---|---|
+| `account_kind` | account visibility/role (`managed`, `local`) |
+| `broker_type` | execution backend selection |
+| `broker_host` | legacy socket/TWS host |
+| `broker_port` | legacy socket/TWS port |
+| `broker_client_id` | legacy socket/TWS client id |
+| `live_trading_enabled` | hard gate required for live broker adapters |
 
-**How to enable live trading for an account:**
+`account_kind` and `broker_type` are orthogonal:
+
+- `account_kind` answers account role in this repo
+- `broker_type` answers execution backend
+
+## Live Trading Safety Guard
+
+`live_trading_enabled` is a hard runtime gate for live broker paths.
+
+- default is `0`
+- live paths raise `LiveTradingNotEnabledError` unless set to `1`
+- this flag must be enabled manually by a human
+
+Manual enable example:
 
 ```sql
--- Run directly against the DB. Never do this through a bot or script.
-UPDATE accounts SET live_trading_enabled = 1 WHERE name = 'my-live-account';
+UPDATE accounts
+SET live_trading_enabled = 1
+WHERE name = 'my-live-account';
 ```
 
-**What happens without it:**
+Guardrail rules:
 
-```python
-# factory.py raises this — it will never be silenced automatically
-LiveTradingNotEnabledError: Account 'my-account' has live_trading_enabled = 0.
-Set live_trading_enabled = 1 on the account row to allow live orders.
-This must be done manually — bots must never set this flag.
-```
+- bots must never set `live_trading_enabled = 1`
+- bots must never suppress `LiveTradingNotEnabledError`
+- test fixtures keep `live_trading_enabled = 0`
 
-**Bot rules (enforced in `BOT_ARCHITECTURE_CONVENTIONS.md`):**
+## IBKR Web API Configuration
 
-- Bots must never set `live_trading_enabled = 1`
-- Bots must never catch or suppress `LiveTradingNotEnabledError`
-- Test fixtures must always keep `live_trading_enabled = 0`
+Primary integration path: `interactive_brokers_web`.
 
----
+Settings loader:
 
-## Legacy socket/TWS connection defaults
+- `trading/brokers/ib_web_client.py::load_ib_web_api_settings`
 
-| Environment | Port |
-|-------------|------|
-| TWS paper trading | 7497 |
-| TWS live trading | 7496 |
-| IB Gateway paper | 4002 |
-| IB Gateway live | 4001 |
+Resolution behavior:
 
-TWS/Gateway setup:
-1. Open TWS or IB Gateway
-2. Edit → Global Config → API → Settings
-3. Enable "Enable ActiveX and Socket Clients"
-4. Set the trusted IP (127.0.0.1 for local)
+- environment variables override file values
+- optional file path override via `TRADING_IBKR_WEB_API_CONFIG`
+- default local file path: `local/ibkr_web_api_config.json`
 
----
+Important settings:
 
-## IBKR Web API configuration
-
-The Web API adapter is the current/default IBKR path and is selected when
-`broker_type = 'interactive_brokers_web'`.
-Unlike the socket/TWS adapter, it does **not** store live account identifiers or
-session headers on the account row.
-
-Primary IBKR Web API docs:
-
-- Client Portal / Web API overview and endpoint guide:
-  `https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/`
-- IBKR Campus Web API landing page:
-  `https://ibkrcampus.com/campus/ibkr-api-page/webapi-doc/`
-
-Sensitive values are loaded from env vars or an ignored local config file:
-
-- `TRADING_IBKR_WEB_API_ACCOUNT_ID`
-- `TRADING_IBKR_WEB_API_BASE_URL` (defaults to `https://localhost:5000/v1/api`)
-- `TRADING_IBKR_WEB_API_SESSION_TOKEN`
+- `TRADING_IBKR_WEB_API_ACCOUNT_ID` (required)
+- `TRADING_IBKR_WEB_API_BASE_URL`
 - `TRADING_IBKR_WEB_API_HEADERS_JSON`
+- `TRADING_IBKR_WEB_API_SESSION_TOKEN`
 - `TRADING_IBKR_WEB_API_VERIFY_SSL`
 - `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS`
 - `TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED`
 - `TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS`
-- `TRADING_IBKR_WEB_API_CONFIG`
+- `TRADING_IBKR_WEB_API_CONFIG` (path to private JSON config)
 
-Recommended private setup for this repo:
+Recommended operator practice:
 
-- Keep real account IDs, names, cookies, and tokens in env vars or in a private
-  config file **outside the repository**.
-- Do not add them to account rows, tracked JSON fixtures, or shared docs.
-- Create the file **outside the repo** and point
-  `TRADING_IBKR_WEB_API_CONFIG` at it yourself with the required keys shown below.
+- keep account ids/tokens/cookies outside tracked repo files
+- store secrets in env vars or an external private JSON file
+- avoid committing credentials to account rows or fixtures
 
-Env-to-local-JSON mapping:
-
-| Environment variable | Local JSON key | Notes |
-|---|---|---|
-| `TRADING_IBKR_WEB_API_ACCOUNT_ID` | `account_id` | Required account identifier |
-| `TRADING_IBKR_WEB_API_BASE_URL` | `base_url` | Optional base URL override; repo default is local gateway |
-| `TRADING_IBKR_WEB_API_SESSION_TOKEN` | `session_token` | Converted to `Cookie: api=...` if `headers` does not already provide `Cookie` |
-| `TRADING_IBKR_WEB_API_HEADERS_JSON` | `headers` | Env form is a JSON-encoded object; file form is a plain JSON object |
-| `TRADING_IBKR_WEB_API_VERIFY_SSL` | `verify_ssl` | Boolean; local gateway usually wants `false` unless you installed a trusted local cert |
-| `TRADING_IBKR_WEB_API_TIMEOUT_SECONDS` | `timeout_seconds` | Positive number |
-| `TRADING_IBKR_WEB_API_KEEPALIVE_ENABLED` | `keepalive_enabled` | Boolean; enables background `/tickle` keepalive while connected |
-| `TRADING_IBKR_WEB_API_KEEPALIVE_INTERVAL_SECONDS` | `keepalive_interval_seconds` | Positive number; docs recommend about 60 seconds |
-| `TRADING_IBKR_WEB_API_CONFIG` | — | Points to the config file path itself; not a key inside the file |
-
-Recommended external config workflow:
-
-1. Create a private directory outside the repository, for example:
-   - Linux: `~/.config/trading_strategies/`
-   - macOS: `~/.config/trading_strategies/`
-2. Create `ibkr_web_api_config.json` in that directory.
-3. Restrict permissions so only your user can read it:
-
-```bash
-mkdir -p ~/.config/trading_strategies
-chmod 700 ~/.config/trading_strategies
-touch ~/.config/trading_strategies/ibkr_web_api_config.json
-chmod 600 ~/.config/trading_strategies/ibkr_web_api_config.json
-```
-
-4. Put your private IBKR values in that file.
-5. Export `TRADING_IBKR_WEB_API_CONFIG` to point at the external path before
-   running trading code:
-
-```bash
-export TRADING_IBKR_WEB_API_CONFIG="$HOME/.config/trading_strategies/ibkr_web_api_config.json"
-```
-
-Recommended external file contents:
+Private JSON example:
 
 ```json
 {
@@ -199,159 +128,77 @@ Recommended external file contents:
 }
 ```
 
-Read-only smoke test command:
+## Smoke Test Workflow
 
-```bash
-python -m scripts.ibkr_web_api_smoke_test
-```
+Script:
+
+- `python -m scripts.ibkr_web_api_smoke_test`
+
+Read-only smoke test validates:
+
+- session/auth/account visibility
+- ledger/summary/positions retrieval
 
 Optional paper-order lifecycle check:
 
-```bash
+```sh
 python -m scripts.ibkr_web_api_smoke_test \
   --paper-order-check \
   --paper-order-symbol AAPL \
   --paper-order-limit-price 1.00
 ```
 
-What it does:
+Safety notes for optional paper-order check:
 
-- Loads private config via the existing Web API settings loader.
-- Validates the authenticated brokerage session and configured account visibility.
-- Fetches ledger, summary, and positions through the existing client.
-- Prints sanitized pass/fail output only; it does not place orders.
-- When explicitly requested, it can also place a small paper-only limit order,
-  check order status, poll live orders, inspect recent trades, and request
-  cancellation by order id when the lifecycle state is still cancellable.
+- use paper account only
+- use clearly non-marketable limit prices
+- cancellation is best-effort and status-dependent
+- outside market hours, order states may remain pre-submission
 
-Recommended workflow:
+## Runtime Order Lifecycle
 
-1. Start the local Client Portal Gateway.
-2. Authenticate it in the browser.
-3. Export `TRADING_IBKR_WEB_API_CONFIG` to your external config path.
-4. Run `python -m scripts.ibkr_web_api_smoke_test`.
-5. If you share results back here, redact anything beyond the script's summary output.
+Runtime execution opens one broker connection per account loop in:
 
-Paper-order check notes:
+- `trading/services/auto_trading/runtime.py`
 
-- Use a **paper account only**.
-- Use a clearly non-marketable limit price so the test order stays cancellable.
-- The optional order check is gated behind `--paper-order-check`; the default
-  smoke test remains read-only.
-- Outside market hours, IBKR may leave the order in `PreSubmitted`; that still
-  proves the submit path worked even if no fill occurs.
+Open-order reconciliation is handled by:
 
-Current Web API method coverage:
+- `reconcile_open_broker_orders(...)`
 
-- Session validation via `/iserver/auth/status`, `/portfolio/accounts`, and `/iserver/accounts`
-- Account values via `/portfolio/{accountId}/ledger` and `/portfolio/{accountId}/summary`
-- Position reads via `/portfolio/{accountId}/positions/0`
-- Quote snapshots via `/iserver/marketdata/snapshot`
-- Orders via `/iserver/account/{accountId}/orders`, `/iserver/reply/{messageId}`, and `/iserver/account/{accountId}/order/{orderId}`
-- Open-order reconciliation via `/iserver/account/orders`
+Reconciliation behavior:
 
-Documented Client Portal pacing limits from
-`https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/`:
+- polls open broker orders
+- persists fill updates to `broker_orders` / `order_fills`
+- writes filled trades into account ledger via `record_trade`
 
-- Global limit: **10 total requests per second**
-- `GET /fyi/unreadnumber`: **1 request per second**
-- `GET /fyi/settings`: **1 request per second**
-- `POST /fyi/settings/{typecode}`: **1 request per second**
-- `GET /fyi/disclaimer/{typecode}`: **1 request per second**
-- `PUT /fyi/disclaimer/{typecode}`: **1 request per second**
-- `GET /fyi/deliveryoptions`: **1 request per second**
-- `PUT /fyi/deliveryoptions/email`: **1 request per second**
-- `POST /fyi/deliveryoptions/device`: **1 request per second**
-- `DELETE /fyi/deliveryoptions/{deviceId}`: **1 request per second**
-- `GET /fyi/notifications`: **1 request per second**
-- `GET /fyi/notifications/more`: **1 request per second**
-- `PUT /fyi/notifications/{notificationId}`: **1 request per second**
-- `GET /iserver/account/orders`: **1 request per 5 seconds**
-- `GET /iserver/account/pnl/partitioned`: **1 request per 5 seconds**
-- `GET /iserver/account/trades`: **1 request per 5 seconds**
-- `GET /iserver/marketdata/history`: **5 concurrent requests**
-- `GET /iserver/marketdata/snapshot`: **10 requests per second**
-- `GET /iserver/scanner/params`: **1 request per 15 minutes**
-- `POST /iserver/scanner/run`: **1 request per second**
-- `POST /pa/performance`: **1 request per 15 minutes**
-- `POST /pa/summary`: **1 request per 15 minutes**
-- `POST /pa/transactions`: **1 request per 15 minutes**
-- `GET /portfolio/accounts`: **1 request per 5 seconds**
-- `GET /portfolio/subaccounts`: **1 request per 5 seconds**
-- `GET /sso/validate`: **1 request per minute**
-- `GET /tickle`: **1 request per second**
+## Legacy Socket/TWS Path
 
-Other operational notes from the docs worth preserving:
+Legacy path remains available via `broker_type = 'interactive_brokers'`.
 
-- A session can remain authenticated for up to 24 hours, but resets at midnight
-  for the relevant IBKR region.
-- Sessions time out after about 6 minutes without requests; `/tickle` should be
-  called regularly to keep the session alive.
-- IBKR recommends calling `/tickle` about once per minute for keepalive.
-- This repo's Web API client can run a background keepalive thread while
-  connected; it is enabled by default with a 60-second interval.
-- The auto-trader runtime now reuses one broker connection per account trade
-  loop, so IBKR Web API keepalive remains active across multi-trade account runs
-  instead of reconnecting around every individual order.
-- `GET /iserver/auth/status` is the primary endpoint for checking brokerage
-  session state.
-- Client Portal Gateway defaults to localhost port `5000`, but the port is
-  configurable in `conf.yaml`.
+- default backend: `ib_async`
+- optional backend: `ibapi` (native client stub currently not implemented)
+- backend switch lives in `trading/brokers/legacy/factory.py`
 
----
+Legacy default socket ports:
 
-## Switching IB backends
+- TWS paper: `7497`
+- TWS live: `7496`
+- IB Gateway paper: `4002`
+- IB Gateway live: `4001`
 
-The `InteractiveBrokersAdapter` is backend-agnostic. Change one variable in
-`trading/brokers/legacy/factory.py` to switch:
+## Extending Broker Support
 
-```python
-# trading/brokers/legacy/factory.py
-IB_CLIENT_BACKEND: str = "ib_async"   # default — uses ib_async library
-IB_CLIENT_BACKEND: str = "ibapi"      # uses IBKR native ibapi (implement IbApiClient first)
-```
+When adding a new broker:
 
-**`ib_async` (default):**  Community-maintained fork of `ib_insync`
-([ib-api-reloaded/ib_async](https://github.com/ib-api-reloaded/ib_async)).
-Near-identical API to `ib_insync`, actively maintained.  Install: `pip install ib_async`.
+1. implement adapter under `trading/brokers/`
+2. add broker-type routing in `trading/brokers/factory.py`
+3. update account `broker_type` constraints/docs
+4. add tests under `tests/trading/brokers/` and related runtime tests
+5. update this document
 
-**`ibapi` (stub):**  IBKR's official Python API.  Callback-based architecture
-(EWrapper + EClient).  Implement `IbApiClient` in `trading/brokers/legacy/ib_client.py`
-following the skeleton in its docstring.  Install: `pip install ibapi`.
+## Related References
 
----
-
-## Async fill reconciliation
-
-IB is asynchronous — `place_order` returns `status = SUBMITTED`, not `FILLED`.
-Fills arrive later via IB callbacks.
-
-The runtime service handles this in two parts:
-
-1. **`_record_runtime_trade`** — persists the SUBMITTED `broker_order` row immediately.
-   The trade is NOT recorded in the ledger yet.
-
-2. **`reconcile_open_ib_orders`** — polls IB for fill updates on all open orders.
-   When an order transitions to FILLED:
-   - Updates the `broker_orders` row
-   - Inserts `order_fills` rows
-   - Calls `record_trade` to add the fill to the account ledger
-
-Call `reconcile_open_ib_orders` periodically in your trading loop:
-
-```python
-from trading.services.auto_trader_runtime_service import reconcile_open_ib_orders
-
-newly_filled = reconcile_open_ib_orders(conn, account_name, account, fee=0.005)
-```
-
----
-
-## Adding a new broker
-
-1. Create `trading/brokers/<name>_adapter.py` implementing `BrokerConnection`
-2. Add a `_BROKER_TYPE_<NAME>` constant and routing branch in `factory.py`
-3. Add the `broker_type` value to the `accounts.broker_type` `CHECK` constraint
-   (or document the allowed values if no DB-level constraint exists)
-4. Add tests in `tests/trading/test_brokers.py`
-5. Update this document
+- `trading/README.md`
+- `scripts/README.md`
+- `docs/reference/notes-accounts-schema-usage.md`
+- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`

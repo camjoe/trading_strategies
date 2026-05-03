@@ -81,9 +81,7 @@ def test_option_candidate_allowed_with_delta_and_iv_filters() -> None:
     ok, _, _ = auto_trader_policy.option_candidate_allowed(
         account,
         "AAPL",
-        100.0,
         {"AAPL": 50.0},
-        estimate_delta_fn=auto_trader_policy.estimate_delta,
     )
     assert ok is False
 
@@ -91,9 +89,7 @@ def test_option_candidate_allowed_with_delta_and_iv_filters() -> None:
     ok, _, iv_rank = auto_trader_policy.option_candidate_allowed(
         account,
         "AAPL",
-        100.0,
         {},
-        estimate_delta_fn=auto_trader_policy.estimate_delta,
     )
     assert ok is False
     assert iv_rank == -1.0
@@ -102,9 +98,7 @@ def test_option_candidate_allowed_with_delta_and_iv_filters() -> None:
     ok, delta, iv_rank = auto_trader_policy.option_candidate_allowed(
         account,
         "AAPL",
-        100.0,
         {"AAPL": 50.0},
-        estimate_delta_fn=auto_trader_policy.estimate_delta,
     )
     assert ok is True
     assert 0.0 <= delta <= 1.0

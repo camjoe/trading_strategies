@@ -4,7 +4,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.layer_check import run_layer_check
 from scripts.checks.mypy_check import run_mypy

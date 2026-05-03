@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.repo_paths import get_repo_root
+from common.paths.repo_paths import get_repo_root
 from scripts.documentation_ui.api.build_registry import run_build as build_api
 from scripts.documentation_ui.software.build_registry import run_build as build_software
 

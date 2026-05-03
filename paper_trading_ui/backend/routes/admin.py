@@ -4,19 +4,17 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ..account_contract import build_admin_create_account_command
 from ..schemas import AdminCreateAccountRequest, AdminDeleteAccountRequest
-from ..services import (
-    attach_live_benchmark_summary,
-    fetch_account_row,
-    build_account_summary,
-    build_promotion_overview,
+from ..services.accounts.benchmark import attach_live_benchmark_summary
+from ..services.accounts.data_access import require_account_row
+from ..services.accounts.summaries import build_account_summary
+from ..services.admin import (
     create_account_with_rotation,
-    db_conn,
     delete_account_and_dependents,
-    list_csv_exports,
-    list_operations_overview,
-    preview_csv_export,
 )
-from ..config import TEST_ACCOUNT_NAME
+from ..services.db import db_conn
+from ..services.exports import list_csv_exports, preview_csv_export
+from ..services.operations import list_operations_overview
+from ..services.promotion import build_promotion_overview
 
 router = APIRouter()
 
@@ -30,7 +28,7 @@ def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, ob
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
-        account = fetch_account_row(conn, command.name)
+        account = require_account_row(conn, command.name)
         summary = build_account_summary(conn, account)
         attach_live_benchmark_summary(summary, None)
         return {"status": "ok", "account": summary}
@@ -41,10 +39,11 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
     if not payload.confirm:
         raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
 
-    if payload.accountName.strip() == TEST_ACCOUNT_NAME:
-        raise HTTPException(status_code=400, detail="TEST Account is virtual and cannot be deleted.")
+    with db_conn() as conn:
+        requested_name = payload.accountName.strip()
+        require_account_row(conn, requested_name)
 
-    counts = delete_account_and_dependents(payload.accountName.strip())
+    counts = delete_account_and_dependents(requested_name)
     return {"status": "ok", "deleted": counts}
 
 

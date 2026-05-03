@@ -78,8 +78,12 @@ _STYLE_TO_SELL_BIAS: dict[str, float] = {
 }
 
 
-class AccountConfig(Protocol):
+class AccountPolicyInput(Protocol):
     def __getitem__(self, key: str) -> Any: ...
+
+
+# Backward-compatible alias for older call sites and type hints.
+AccountConfig = AccountPolicyInput
 
 
 def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:
@@ -163,16 +167,19 @@ def estimate_option_premium(
     return max(OPTION_PREMIUM_FLOOR, premium)
 
 
+def _return_score(price: float | None, avg_cost: float) -> float | None:
+    if price is None or price <= 0 or avg_cost <= 0:
+        return None
+    return (price / avg_cost) - 1.0
+
+
 def option_candidate_allowed(
-    account: AccountConfig,
+    account: AccountPolicyInput,
     ticker: str,
-    price: float,
     iv_rank_proxy: dict[str, float],
-    *,
-    estimate_delta_fn,
 ) -> tuple[bool, float, float]:
     strike_offset = float(account["option_strike_offset_pct"] or 0.0)
-    delta_est = estimate_delta_fn(strike_offset)
+    delta_est = estimate_delta(strike_offset)
     iv_rank = iv_rank_proxy.get(ticker)
 
     delta_min = account["target_delta_min"]
@@ -237,15 +244,10 @@ def choose_buy_ticker(
 
     scored: list[tuple[float, str]] = []
     for ticker in universe:
-        price = prices.get(ticker)
-        if price is None or price <= 0:
+        score = _return_score(prices.get(ticker), state.avg_cost.get(ticker, 0.0))
+        if score is None and (prices.get(ticker) is None or prices.get(ticker, 0.0) <= 0):
             continue
-        avg_cost = state.avg_cost.get(ticker, 0.0)
-        if avg_cost > 0:
-            score = (price / avg_cost) - 1.0
-        else:
-            score = 0.0
-        scored.append((score, ticker))
+        scored.append((score if score is not None else 0.0, ticker))
 
     if not scored:
         return random.choice(universe)
@@ -266,13 +268,8 @@ def choose_sell_ticker(
 
     scored: list[tuple[float, str]] = []
     for ticker in can_sell:
-        price = prices.get(ticker)
-        avg_cost = state.avg_cost.get(ticker, 0.0)
-        if price is None or price <= 0 or avg_cost <= 0:
-            score = 0.0
-        else:
-            score = (price / avg_cost) - 1.0
-        scored.append((score, ticker))
+        score = _return_score(prices.get(ticker), state.avg_cost.get(ticker, 0.0))
+        scored.append((score if score is not None else 0.0, ticker))
 
     scored.sort(key=lambda x: x[0])
     worst_n = max(1, len(scored) // 2)
@@ -282,7 +279,7 @@ def choose_sell_ticker(
 def apply_leaps_buy_qty_limits(
     qty: int,
     option_price: float,
-    account: AccountConfig,
+    account: AccountPolicyInput,
 ) -> int:
     max_contracts = account["max_contracts_per_trade"]
     if max_contracts is not None:
@@ -301,7 +298,7 @@ def build_trade_note(
     forced_sell: str | None,
     risk_policy: str,
     instrument_mode: str,
-    account: AccountConfig,
+    account: AccountPolicyInput,
     side: str,
     delta_est: float | None,
     iv_est: float | None,

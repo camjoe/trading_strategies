@@ -1,0 +1,411 @@
+.admin-card {
+  grid-column: span 12;
+}
+
+.admin-note {
+  margin: 0 0 0.75rem;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.admin-note-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-note-row .admin-note {
+  flex: 1;
+  margin: 0;
+}
+
+.admin-overview-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.admin-section-tab {
+  background: var(--surface-action);
+  color: var(--ink-soft);
+  border: 1px solid var(--border-action);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.admin-section-tab.active,
+.admin-section-tab:hover,
+.admin-section-tab:focus-visible {
+  background: var(--surface-action-hover);
+  color: var(--accent);
+  border-color: var(--border-action-hover);
+  transform: none;
+  filter: none;
+}
+
+.admin-section-page {
+  display: contents;
+}
+
+.admin-section-page[hidden] {
+  display: none;
+}
+
+.admin-form {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.admin-delete-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.admin-delete-row label {
+  flex: 1;
+}
+
+.admin-delete-row .danger-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.admin-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-section-label {
+  margin: 0.6rem 0 0;
+  padding-bottom: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-grid .bt-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.admin-grid .bt-field > span {
+  flex: 0 0 7.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-align: right;
+  line-height: 1.3;
+}
+
+.admin-grid .bt-field > input,
+.admin-grid .bt-field > select {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-collapsible {
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--surface-subtle);
+}
+
+.admin-collapsible summary {
+  cursor: pointer;
+  padding: 0.8rem 0.95rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+  list-style: none;
+}
+
+.admin-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-collapsible summary::before {
+  content: "+";
+  display: inline-block;
+  margin-right: 0.45rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.admin-collapsible[open] summary::before {
+  content: "−";
+}
+
+.admin-grid-section {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 0.95rem 0.95rem;
+}
+
+.admin-grid-section .bt-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.admin-grid-section .bt-field > span {
+  flex: 0 0 7.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-align: right;
+  line-height: 1.3;
+}
+
+.admin-grid-section .bt-field > input,
+.admin-grid-section .bt-field > select {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-inline-check {
+  grid-column: 1 / -1;
+}
+
+.admin-csv-controls {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto auto;
+  align-items: end;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--surface-subtle);
+}
+
+.admin-csv-controls .bt-field {
+  margin: 0;
+}
+
+.admin-csv-controls .icon-button,
+.admin-promotion-controls .icon-button {
+  align-self: end;
+}
+
+.admin-csv-controls .icon-button {
+  margin-bottom: 0.3rem;
+}
+
+.admin-promotion-controls .icon-button {
+  margin-bottom: 0.4rem;
+}
+
+.admin-csv-table {
+  min-width: 720px;
+}
+
+.admin-ops-controls,
+.admin-promotion-controls {
+  display: grid;
+  gap: 0.85rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.admin-ops-controls {
+  grid-template-columns: auto;
+  justify-content: end;
+}
+
+.admin-promotion-controls {
+  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--surface-subtle);
+}
+
+.admin-ops-output,
+.promotion-output {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ops-status-grid,
+.ops-artifact-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ops-status-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.ops-artifact-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ops-status-card,
+.ops-artifact-panel,
+.promotion-history-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel-2);
+  padding: 1rem 1.05rem;
+  box-shadow: inset 0 1px 0 #ffffff80;
+}
+
+.ops-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.ops-card-meta,
+.promotion-review-meta {
+  color: var(--ink-soft);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.ops-card-copy {
+  margin: 0.55rem 0;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.ops-card-hint {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.65rem;
+}
+
+.ops-card-hint span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+.ops-card-hint code,
+.ops-card-meta code {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.ops-artifact-panel h3,
+.promotion-section h4 {
+  margin: 0 0 0.65rem;
+}
+
+.ops-artifact-list,
+.promotion-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ops-artifact-list li {
+  display: grid;
+  gap: 0.12rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.ops-artifact-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.promotion-summary-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.promotion-section {
+  margin-top: 0.35rem;
+}
+
+.promotion-history-stack,
+.promotion-events {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.promotion-event-row {
+  display: grid;
+  gap: 0.2rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line-subtle);
+  font-size: 0.85rem;
+}
+
+.promotion-event-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.promotion-event-note {
+  color: var(--ink-soft);
+}
+
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-csv-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-promotion-controls,
+  .ops-artifact-grid,
+  .promotion-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-grid-section {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-csv-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-promotion-controls,
+  .ops-artifact-grid,
+  .promotion-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

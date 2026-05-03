@@ -1,5 +1,5 @@
 import { currency, esc } from "../../lib/format";
-import type { AccountAnalysis } from "../../types";
+import type { AccountAnalysis } from "../../types/accounts";
 
 export function renderAnalysisPanel(analysis: AccountAnalysis): string {
   const signClass = (value: number) => (value >= 0 ? "up" : "down");

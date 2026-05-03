@@ -1,8 +1,7 @@
 # Architecture Notes: Accounts Schema Usage
 
-Status: Active audit  
-Date: 2026-04-14  
-Audience: Developers, Deep Code Review bot, DB Migration Steward bot
+Status: Active audit
+Last reviewed: 2026-04-25
 
 ---
 
@@ -16,6 +15,13 @@ where it is read, and whether it participates in real runtime logic.
 This is a **living audit**, not a promise that every field below should remain
 forever. Fields marked **unclear / revisit** or **active but niche** are the
 most likely follow-up targets for later simplification passes.
+
+## Scope and Limits
+
+- This is an as-of-now evidence snapshot, not a permanent design commitment.
+- It summarizes field usage patterns; detailed implementation still lives in code.
+- Use this file to decide cleanup priorities, then verify with targeted code/tests
+  before schema changes.
 
 ---
 
@@ -34,7 +40,8 @@ most likely follow-up targets for later simplification passes.
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
 | `name` | `accounts/mutations.py`, admin create route | repository lookup, CLI/UI routing, reporting, promotion, runtime account selection | **core active** | Primary account identity; effectively immutable after create |
-| `strategy` | `accounts/mutations.py`, `profiles_service.py`, UI params route | runtime strategy resolution, backtesting, reporting, promotion, rotation fallback | **core active** | Central behavioral field |
+| `account_kind` | `accounts/mutations.py`, UI admin create/params routes | UI account visibility filtering and operator account-role semantics | **config / display oriented** | Classifies account role (`managed`, `local`) independently from broker backend |
+| `strategy` | `accounts/mutations.py`, `trading.services.profiles`, UI params route | runtime strategy resolution, backtesting, reporting, promotion, rotation fallback | **core active** | Central behavioral field |
 | `initial_cash` | `accounts/mutations.py`, admin create route, profiles | reporting, backtesting, runtime/account-state math, rotation overlay ticker derivation | **core active** | Core accounting input |
 | `created_at` | `accounts/mutations.py` | reporting, benchmark comparison timing, UI summaries | **core active** | Historical metadata with live reporting value |
 | `benchmark_ticker` | `accounts/mutations.py`, `set_benchmark()`, profiles, admin create route | reporting, backtesting, UI summaries and live benchmark overlay | **core active** | Shared across account, backtest, and UI comparison flows |
@@ -83,23 +90,23 @@ most likely follow-up targets for later simplification passes.
 
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
-| `rotation_enabled` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route, runtime state updates | listing, evaluation/promotion context, rotation runtime entry gating, UI summaries | **core active** | Central rotation feature gate |
-| `rotation_mode` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | runtime rotation selection, UI summaries | **core active** | Determines major rotation behavior |
-| `rotation_optimality_mode` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | rotation strategy selection, UI summaries | **core active** | Used in runtime selection scoring |
-| `rotation_interval_days` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | due checks and validation, UI summaries | **core active** | One of the schedule-driving fields |
-| `rotation_interval_minutes` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | due checks and validation, UI summaries | **core active** | Minute-granularity schedule control |
-| `rotation_lookback_days` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | runtime optimal-strategy selection, UI summaries | **core active** | Shapes historical evaluation window |
-| `rotation_schedule` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | runtime strategy selection, validation, UI summaries | **core active** | Key rotation configuration surface |
-| `rotation_regime_strategy_risk_on` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | regime-based selection, validation, UI summaries | **active but niche** | Only meaningful for regime rotation |
-| `rotation_regime_strategy_neutral` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | regime-based selection, validation, UI summaries | **active but niche** | Only meaningful for regime rotation |
-| `rotation_regime_strategy_risk_off` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | regime-based selection, validation, UI summaries | **active but niche** | Only meaningful for regime rotation |
-| `rotation_overlay_mode` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | overlay vote selection and validation, UI summaries | **active but niche** | Real runtime behavior, but narrower than base rotation |
-| `rotation_overlay_min_tickers` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | overlay confidence logic, UI summaries | **active but niche** | Runtime threshold tuning |
-| `rotation_overlay_confidence_threshold` | `profiles_service.py`, `RotationConfig`, UI params route, admin create route | overlay confidence logic, UI summaries | **active but niche** | Runtime threshold tuning |
-| `rotation_overlay_watchlist` | migration backfill, `profiles_service.py`, `RotationConfig`, UI params route | overlay ticker resolution, UI summaries | **core active** | Used directly to derive overlay ticker universe |
-| `rotation_active_index` | `profiles_service.py`, `RotationConfig`, UI params route, runtime rotation state updates | runtime active strategy resolution, UI summaries | **core active** | Mutable runtime state, not just setup config |
-| `rotation_last_at` | `profiles_service.py`, `RotationConfig`, UI params route, runtime rotation state updates | due checks, episode sync, UI summaries | **core active** | Important runtime timing state |
-| `rotation_active_strategy` | `profiles_service.py`, `RotationConfig`, UI params route, runtime rotation state updates | listing, runtime strategy resolution, UI summaries | **core active** | Runtime-facing resolved state |
+| `rotation_enabled` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route, runtime state updates | listing, evaluation/promotion context, rotation runtime entry gating, UI summaries | **core active** | Central rotation feature gate |
+| `rotation_mode` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | runtime rotation selection, UI summaries | **core active** | Determines major rotation behavior |
+| `rotation_optimality_mode` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | rotation strategy selection, UI summaries | **core active** | Used in runtime selection scoring |
+| `rotation_interval_days` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | due checks and validation, UI summaries | **core active** | One of the schedule-driving fields |
+| `rotation_interval_minutes` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | due checks and validation, UI summaries | **core active** | Minute-granularity schedule control |
+| `rotation_lookback_days` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | runtime optimal-strategy selection, UI summaries | **core active** | Shapes historical evaluation window |
+| `rotation_schedule` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | runtime strategy selection, validation, UI summaries | **core active** | Key rotation configuration surface |
+| `rotation_regime_strategy_risk_on` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | regime-based selection, validation, UI summaries | **active but niche** | Only meaningful for regime rotation |
+| `rotation_regime_strategy_neutral` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | regime-based selection, validation, UI summaries | **active but niche** | Only meaningful for regime rotation |
+| `rotation_regime_strategy_risk_off` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | regime-based selection, validation, UI summaries | **active but niche** | Only meaningful for regime rotation |
+| `rotation_overlay_mode` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | overlay vote selection and validation, UI summaries | **active but niche** | Real runtime behavior, but narrower than base rotation |
+| `rotation_overlay_min_tickers` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | overlay confidence logic, UI summaries | **active but niche** | Runtime threshold tuning |
+| `rotation_overlay_confidence_threshold` | `trading.services.profiles`, `RotationConfig`, UI params route, admin create route | overlay confidence logic, UI summaries | **active but niche** | Runtime threshold tuning |
+| `rotation_overlay_watchlist` | migration backfill, `trading.services.profiles`, `RotationConfig`, UI params route | overlay ticker resolution, UI summaries | **core active** | Used directly to derive overlay ticker universe |
+| `rotation_active_index` | `trading.services.profiles`, `RotationConfig`, UI params route, runtime rotation state updates | runtime active strategy resolution, UI summaries | **core active** | Mutable runtime state, not just setup config |
+| `rotation_last_at` | `trading.services.profiles`, `RotationConfig`, UI params route, runtime rotation state updates | due checks, episode sync, UI summaries | **core active** | Important runtime timing state |
+| `rotation_active_strategy` | `trading.services.profiles`, `RotationConfig`, UI params route, runtime rotation state updates | listing, runtime strategy resolution, UI summaries | **core active** | Runtime-facing resolved state |
 
 ---
 
@@ -107,7 +114,7 @@ most likely follow-up targets for later simplification passes.
 
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
-| `broker_type` | migration default; intended manual/operator DB updates | `trading/brokers/factory.py` broker selection | **manual / safety-critical** | Narrow surface, but real runtime behavior |
+| `broker_type` | migration default; intended manual/operator DB updates | `trading/brokers/factory.py` broker selection | **manual / safety-critical** | Execution-backend selector (`paper`, IBKR today, future live brokers such as Alpaca later); orthogonal to `account_kind` |
 | `broker_host` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
 | `broker_port` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
 | `broker_client_id` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
