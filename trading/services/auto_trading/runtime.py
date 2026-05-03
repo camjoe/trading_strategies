@@ -51,6 +51,12 @@ from trading.services.auto_trading.rotation_bridge import (
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
     RotationDeps,
 )
+from trading.services.auto_trading.inputs import (
+    EXECUTION_MODE_ACCOUNT,
+    EXECUTION_MODE_SLEEVE,
+    validate_execution_mode,
+)
+from trading.services.sleeves.execution import run_sleeve_mode_for_account as run_sleeve_mode_for_account_impl
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -265,10 +271,25 @@ def run_for_account(
     min_trades: int,
     max_trades: int,
     fee: float,
+    execution_mode: str = EXECUTION_MODE_ACCOUNT,
 ) -> int:
     now_iso = utc_now_iso()
     if not _is_runtime_submission_window_open(now_iso):
         return 0
+    resolved_execution_mode = validate_execution_mode(execution_mode)
+    if resolved_execution_mode == EXECUTION_MODE_SLEEVE:
+        account = get_account(conn, account_name)
+        rotated_account = _rotate_runtime_account(conn, account_name, account, now_iso)
+        return run_sleeve_mode_for_account_impl(
+            conn,
+            account=rotated_account,
+            universe=universe,
+            prices=prices,
+            iv_rank_proxy=iv_rank_proxy,
+            min_trades=min_trades,
+            max_trades=max_trades,
+            fee=fee,
+        )
     # Open one broker connection for the entire account trade loop so that
     # keepalive (e.g. IBKR Web API /tickle) remains effective across all
     # trades in the run.  Broker settings (broker_type, live_trading_enabled)

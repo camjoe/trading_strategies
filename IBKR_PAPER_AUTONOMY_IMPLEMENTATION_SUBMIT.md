@@ -282,6 +282,52 @@ Implement in seven increments so each merge is deployable and testable.
    - account-level mode (current)
    - sleeve mode (new)
 
+### Increment 3 Slice A (Implemented)
+
+Scope of this slice:
+
+1. Add explicit runtime execution toggle with backward-compatible default:
+   - `execution_mode=account` remains default path.
+   - `execution_mode=sleeve` enables sleeve-mode orchestration path.
+
+2. Introduce sleeve intent-generation service:
+   - `trading/services/sleeves/execution.py`
+   - Generates per-sleeve intents from active sleeves using:
+     - sleeve assignment strategy when present
+     - account active strategy fallback otherwise
+   - Reuses existing trade-selection policy from auto-trading execution service.
+
+3. Wire runtime branch without broker-layer changes:
+   - Branch in `trading/services/auto_trading/runtime.py` routes sleeve mode to sleeve intent generation.
+   - Account mode broker lifecycle remains unchanged.
+
+4. Wire CLI and batch orchestration toggle:
+   - `trading/interfaces/runtime/jobs/run_auto_trades.py` adds `--execution-mode`.
+   - `trading/services/auto_trading/inputs.py` validates and propagates execution mode.
+
+Slice A explicitly defers:
+
+1. Mapping sleeve intents to live broker orders in sleeve mode.
+2. Sleeve fill ingestion and sleeve-order linkage from broker reconciliation.
+3. End-to-end sleeve submission/reconciliation parity acceptance.
+
+### Reuse and Consolidation Audit (Increment 3 Slice A)
+
+1. `trading/services/auto_trading/execution.py`: `reuse`
+   - Reused existing `prepare_trade_selection` policy logic.
+   - No duplicate policy module introduced for sleeve mode.
+
+2. `trading/services/auto_trading/runtime.py`: `retain + extend`
+   - Retained account-mode broker execution as default path.
+   - Added explicit sleeve-mode branch behind runtime toggle.
+
+3. `trading/repositories/sleeves.py` and `trading/repositories/sleeve_positions.py`: `reuse`
+   - Reused as canonical read sources for active sleeves and sleeve states.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: account-mode and sleeve-mode coexist during staged rollout until Increment 3 end-to-end parity is completed.
+
 ### Acceptance
 
 1. Sleeve mode can run paper orders end-to-end.
