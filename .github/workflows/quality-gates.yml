@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - features
-      - refactor
     paths:
       - trading/**
       - trends/**
@@ -15,17 +13,42 @@ on:
       - requirements-dev.txt
       - .github/workflows/quality-gates.yml
   pull_request:
-    paths:
-      - trading/**
-      - trends/**
-      - paper_trading_ui/backend/**
-      - paper_trading_ui/frontend/**
-      - requirements-base.txt
-      - requirements-dev.txt
-      - .github/workflows/quality-gates.yml
+
+concurrency:
+  group: quality-gates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python_related: ${{ steps.filter.outputs.python_related }}
+      frontend_related: ${{ steps.filter.outputs.frontend_related }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect quality gate scope
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            python_related:
+              - trading/**
+              - trends/**
+              - paper_trading_ui/backend/**
+              - requirements-base.txt
+              - requirements-dev.txt
+              - .github/workflows/quality-gates.yml
+            frontend_related:
+              - paper_trading_ui/frontend/**
+              - requirements-base.txt
+              - requirements-dev.txt
+              - .github/workflows/quality-gates.yml
+
   python-quality:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.python_related == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -54,6 +77,8 @@ jobs:
         run: mypy paper_trading_ui/backend trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip
 
   frontend-quality:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend_related == 'true'
     runs-on: ubuntu-latest
 
     steps:

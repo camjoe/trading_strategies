@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - features
-      - refactor
     paths:
       - trading/**
       - trends/**
@@ -18,20 +16,40 @@ on:
       - .coveragerc
       - .github/workflows/python-tests.yml
   pull_request:
-    paths:
-      - trading/**
-      - trends/**
-      - tests/**
-      - paper_trading_ui/backend/**
-      - paper_trading_ui/__init__.py
-      - requirements-base.txt
-      - requirements-dev.txt
-      - pytest.ini
-      - .coveragerc
-      - .github/workflows/python-tests.yml
+
+concurrency:
+  group: python-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python_related: ${{ steps.filter.outputs.python_related }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect python-related changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            python_related:
+              - trading/**
+              - trends/**
+              - tests/**
+              - paper_trading_ui/backend/**
+              - paper_trading_ui/__init__.py
+              - requirements-base.txt
+              - requirements-dev.txt
+              - pytest.ini
+              - .coveragerc
+              - .github/workflows/python-tests.yml
+
   test:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.python_related == 'true'
     runs-on: ubuntu-latest
 
     steps:
