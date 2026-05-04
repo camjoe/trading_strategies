@@ -8,7 +8,7 @@ from common.coercion import row_expect_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.models import AccountRecord
-from trading.models.broker_order import BrokerOrder, OrderStatus
+from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.brokers.base import BrokerConnection
 from trading.brokers.factory import get_broker_for_account
 from trading.services.market_data.market_hours import is_regular_us_equity_market_open
@@ -22,6 +22,7 @@ from trading.repositories.broker_orders import (
 )
 from trading.repositories.sleeve_orders import (
     attach_sleeve_order_broker_order_id,
+    fetch_sleeve_order_by_broker_order_id,
     insert_sleeve_order,
     update_sleeve_order_status,
 )
@@ -268,6 +269,18 @@ def _is_runtime_submission_window_open(now_iso: str) -> bool:
     return is_regular_us_equity_market_open(parse_utc_iso(now_iso))
 
 
+def _resolve_reconciliation_exec_id(
+    *,
+    broker_order_id: str,
+    fill: OrderFill,
+    fill_index: int,
+) -> str:
+    if fill.exec_id:
+        return fill.exec_id
+    # Deterministic fallback for broker payloads that omit execution IDs.
+    return f"{broker_order_id}:{fill.fill_time}:{fill.filled_qty}:{fill.fill_price}:{fill_index}"
+
+
 def _insert_submitted_sleeve_order(
     conn: sqlite3.Connection,
     *,
@@ -485,6 +498,7 @@ def reconcile_open_broker_orders(
         return 0
 
     open_ids = {row["broker_order_id"]: row for row in open_rows}
+    account_id = row_expect_int(account, "id")
     try:
         live_orders = broker.get_open_trades()
         now = utc_now_iso()
@@ -494,10 +508,31 @@ def reconcile_open_broker_orders(
             if live.broker_order_id not in open_ids:
                 continue
             persisted = open_ids[live.broker_order_id]
+            sleeve_order_row = fetch_sleeve_order_by_broker_order_id(
+                conn,
+                account_id=account_id,
+                broker_order_id=live.broker_order_id,
+            )
 
             # Persist any new fills not yet in the DB.
-            for fill in live.fills:
+            for fill_index, fill in enumerate(live.fills):
                 insert_order_fill(conn, live.broker_order_id, fill)
+                if sleeve_order_row is not None:
+                    apply_sleeve_fill(
+                        conn,
+                        sleeve_order_id=int(sleeve_order_row["id"]),
+                        broker_fill_id=live.broker_order_id,
+                        exec_id=_resolve_reconciliation_exec_id(
+                            broker_order_id=live.broker_order_id,
+                            fill=fill,
+                            fill_index=fill_index,
+                        ),
+                        filled_qty=fill.filled_qty,
+                        fill_price=fill.fill_price,
+                        commission=fill.commission,
+                        fill_time=fill.fill_time,
+                        updated_at=now,
+                    )
 
             # Update the order row with latest status.
             update_broker_order_status(
@@ -509,6 +544,13 @@ def reconcile_open_broker_orders(
                 commission=live.commission,
                 updated_at=now,
             )
+            if sleeve_order_row is not None:
+                update_sleeve_order_status(
+                    conn,
+                    sleeve_order_id=int(sleeve_order_row["id"]),
+                    status=live.status.value,
+                    updated_at=now,
+                )
 
             if live.status == OrderStatus.FILLED:
                 record_trade(

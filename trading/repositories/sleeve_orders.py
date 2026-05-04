@@ -121,6 +121,24 @@ def fetch_sleeve_order_by_id(
     ).fetchone()
 
 
+def fetch_sleeve_order_by_broker_order_id(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    broker_order_id: str,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT *
+        FROM sleeve_orders
+        WHERE account_id = ? AND broker_order_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (int(account_id), broker_order_id),
+    ).fetchone()
+
+
 def fetch_sleeve_orders_for_sleeve(
     conn: sqlite3.Connection,
     *,

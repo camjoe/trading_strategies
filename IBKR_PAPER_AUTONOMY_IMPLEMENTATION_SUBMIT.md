@@ -333,8 +333,30 @@ Scope of this slice:
 
 Slice B explicitly defers:
 
-1. Asynchronous open-order sleeve reconciliation (non-immediate fills) binding from broker polling path.
-2. Full end-to-end parity assertions across all broker status permutations (partial fill, cancel, reject) in sleeve mode.
+1. Full end-to-end parity assertions across all broker status permutations in sleeve mode across all brokers.
+
+### Increment 3 Slice C (Implemented)
+
+Scope of this slice:
+
+1. Add asynchronous sleeve reconciliation in broker polling flow:
+   - resolve sleeve orders by `account_id + broker_order_id`.
+   - apply sleeve fills during reconciliation using sleeve accounting service.
+   - update sleeve-order status during broker status updates.
+
+2. Enforce idempotent sleeve fill application during repeated polling:
+   - use broker `exec_id` when available.
+   - use deterministic fallback execution id when broker payload omits `exec_id`.
+
+3. Add status-path coverage for sleeve reconciliation:
+   - partial fill idempotency across repeated reconciliation passes.
+   - cancelled/rejected status propagation to `sleeve_orders`.
+   - no unintended account-trade or sleeve-fill writes for non-filled terminal paths.
+
+Slice C explicitly defers:
+
+1. Multi-broker parity validation for sleeve reconciliation semantics beyond current IB-oriented flow.
+2. Cross-run replay tooling for sleeve reconciliation event streams (planned under later hardening increments).
 
 ### Reuse and Consolidation Audit (Increment 3 Slice A)
 
@@ -370,6 +392,24 @@ Slice B explicitly defers:
 4. Deprecated/removed overlap in this slice:
    - None.
    - Rationale: account-level and sleeve-level execution flows intentionally coexist during Increment 3 rollout.
+
+### Reuse and Consolidation Audit (Increment 3 Slice C)
+
+1. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused existing open-order reconciliation loop and broker polling behavior.
+   - Extended the loop to route fills/status updates into sleeve persistence.
+
+2. `trading/services/sleeves/accounting.py`: `reuse`
+   - Reused as the single fill-to-ledger/position/NAV transition engine for both immediate and reconciled fills.
+   - Avoided introducing a separate reconciliation-only fill application path.
+
+3. `trading/repositories/sleeve_orders.py`: `reuse + extend`
+   - Added broker-order lookup helper rather than a parallel query module.
+   - Continued using existing update helpers for status and broker-order linkage.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: retained compatibility overlap while closing the asynchronous reconciliation gap for sleeve mode.
 
 ### Acceptance
 
