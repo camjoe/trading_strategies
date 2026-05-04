@@ -64,6 +64,7 @@ from trading.services.auto_trading.inputs import (
 )
 from trading.services.sleeves.accounting import apply_sleeve_fill
 from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
+from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -332,11 +333,19 @@ def _run_sleeve_mode_for_account(
     )
     if not intents:
         return 0
+    gated = evaluate_sleeve_risk_gate(
+        conn,
+        account_id=row_expect_int(account, "id"),
+        intents=intents,
+    )
+    approved_intents = gated.approved_intents
+    if not approved_intents:
+        return 0
 
     broker = get_broker_for_account(account)
     try:
         submitted_count = 0
-        for intent in intents:
+        for intent in approved_intents:
             submitted_at = utc_now_iso()
             sleeve_order_id = _insert_submitted_sleeve_order(
                 conn,

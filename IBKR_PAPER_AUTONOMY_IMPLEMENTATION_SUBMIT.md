@@ -437,6 +437,52 @@ Slice C explicitly defers:
    - reconciliation mismatch
    - broker/API anomaly
 
+### Increment 4 Slice A (Implemented)
+
+Scope of this slice:
+
+1. Add deterministic pre-trade sleeve risk gate service:
+   - `trading/services/sleeves/risk_gate.py`
+   - evaluates each sleeve intent and returns structured `allow`, `rescale`, or `block` decisions.
+
+2. Initial constraints implemented:
+   - sleeve symbol notional cap as percent of sleeve equity
+   - account-level symbol concentration cap
+   - account-level gross exposure cap
+
+3. Wire risk gate into sleeve runtime execution:
+   - apply risk gate before broker submission in sleeve mode
+   - submit only approved/rescaled intents
+   - preserve account-mode runtime behavior unchanged
+
+4. Add deterministic tests:
+   - allow path
+   - rescale path
+   - block path
+   - runtime verification that rescaled qty is actually submitted/persisted
+
+Slice A explicitly defers:
+
+1. Persisting risk decisions to dedicated risk-decision storage (reason-code audit trail persistence).
+2. Kill-switch enforcement and stale-data/anomaly signals (later Increment 4 slices).
+3. Sector-concentration enforcement (later Increment 4 slices).
+
+### Reuse and Consolidation Audit (Increment 4 Slice A)
+
+1. `trading/services/sleeves/execution.py`: `reuse`
+   - Reused sleeve intent generation as the upstream input to risk gating.
+
+2. `trading/services/auto_trading/runtime.py`: `retain + extend`
+   - Retained sleeve/account runtime split and broker flow.
+   - Extended sleeve flow with pre-submit gate evaluation.
+
+3. `trading/repositories/sleeves.py` and `trading/repositories/sleeve_positions.py`: `reuse`
+   - Reused as canonical sources for sleeve equity and position exposures.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: introducing gate semantics without removing any existing paths keeps rollout risk low.
+
 ### Acceptance
 
 1. Risk gate returns structured decision payloads.

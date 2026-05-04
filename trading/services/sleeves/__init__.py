@@ -15,6 +15,12 @@ from trading.services.sleeves.reconciliation import (
     reconcile_sleeves_vs_account_equity,
     reconcile_sleeves_vs_latest_snapshot,
 )
+from trading.services.sleeves.risk_gate import (
+    SleeveRiskDecision,
+    SleeveRiskGateConfig,
+    SleeveRiskGateResult,
+    evaluate_sleeve_risk_gate,
+)
 
 __all__ = [
     "SleeveFillApplicationResult",
@@ -25,4 +31,8 @@ __all__ = [
     "reconcile_sleeves_vs_account_equity",
     "reconcile_sleeves_vs_latest_snapshot",
     "run_sleeve_mode_for_account",
+    "SleeveRiskDecision",
+    "SleeveRiskGateConfig",
+    "SleeveRiskGateResult",
+    "evaluate_sleeve_risk_gate",
 ]

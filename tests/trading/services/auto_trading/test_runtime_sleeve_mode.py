@@ -108,3 +108,73 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypat
 
     broker.place_order.assert_called_once()
     broker.disconnect.assert_called_once()
+
+
+def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(conn, monkeypatch) -> None:
+    account_name = "acct_runtime_sleeve_rescale"
+    account_id = insert_repository_account(conn, name=account_name)
+    sleeve_id = insert_strategy_sleeve(
+        conn,
+        account_id=account_id,
+        name="core_rescale",
+        status="active",
+        base_ccy="USD",
+        start_equity=1_000.0,
+        current_cash=1_000.0,
+        current_equity=1_000.0,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    broker = FakeBroker()
+
+    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
+    monkeypatch.setattr(
+        runtime_service,
+        "_rotate_runtime_account",
+        lambda _conn, _account_name, account_row, _now_iso: account_row,
+    )
+    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
+    monkeypatch.setattr(
+        runtime_service,
+        "generate_sleeve_trade_intents",
+        lambda *_args, **_kwargs: [
+            SleeveTradeIntent(
+                account_id=account_id,
+                sleeve_id=sleeve_id,
+                strategy_name="trend",
+                param_set_id=None,
+                side="buy",
+                symbol="AAPL",
+                qty=5,
+                requested_price=100.0,
+                forced_sell=None,
+                delta_est=None,
+                iv_est=None,
+            )
+        ],
+    )
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=1,
+        fee=0.0,
+        execution_mode="sleeve",
+    )
+
+    assert executed == 1
+    broker.place_order.assert_called_once()
+    broker_order = broker.place_order.call_args.args[0]
+    assert broker_order.qty == 2.0
+
+    order_row = conn.execute(
+        "SELECT qty FROM sleeve_orders WHERE account_id = ? ORDER BY id DESC LIMIT 1",
+        (account_id,),
+    ).fetchone()
+    assert order_row is not None
+    assert float(order_row["qty"]) == 2.0
