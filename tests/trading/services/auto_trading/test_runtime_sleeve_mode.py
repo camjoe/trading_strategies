@@ -514,3 +514,82 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(conn, monkeypatc
     assert decision_row["action"] == "block"
     assert decision_row["reason_code"] == "broker_api_anomaly"
     assert broker.disconnect_calls == 1
+
+
+def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(conn, monkeypatch) -> None:
+    account_name = "acct_runtime_sleeve_stale_snapshot"
+    account_id = insert_repository_account(conn, name=account_name)
+    sleeve_id = insert_strategy_sleeve(
+        conn,
+        account_id=account_id,
+        name="core_stale_snapshot",
+        status="active",
+        base_ccy="USD",
+        start_equity=1_000.0,
+        current_cash=1_000.0,
+        current_equity=1_000.0,
+        created_at="2026-05-01T00:00:00Z",
+        updated_at="2026-05-01T00:00:00Z",
+    )
+    insert_snapshot_row(
+        conn,
+        account_id=account_id,
+        snapshot_time="2026-05-01T00:00:00Z",
+        cash=1_000.0,
+        market_value=0.0,
+        equity=1_000.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
+
+    broker = FakeBroker()
+    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
+    monkeypatch.setattr(
+        runtime_service,
+        "_rotate_runtime_account",
+        lambda _conn, _account_name, account_row, _now_iso: account_row,
+    )
+    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
+    monkeypatch.setattr(
+        runtime_service,
+        "generate_sleeve_trade_intents",
+        lambda *_args, **_kwargs: [
+            SleeveTradeIntent(
+                account_id=account_id,
+                sleeve_id=sleeve_id,
+                strategy_name="trend",
+                param_set_id=None,
+                side="buy",
+                symbol="AAPL",
+                qty=1,
+                requested_price=100.0,
+                forced_sell=None,
+                delta_est=None,
+                iv_est=None,
+            )
+        ],
+    )
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=1,
+        fee=0.0,
+        execution_mode="sleeve",
+    )
+
+    assert executed == 0
+    broker.place_order.assert_not_called()
+    row = conn.execute(
+        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    assert row is not None
+    assert int(row["kill_switch_triggered"]) == 1
+    payload = json.loads(row["risk_payload_json"])
+    assert "stale_reconciliation_snapshot" in payload["kill_switch_reasons"]

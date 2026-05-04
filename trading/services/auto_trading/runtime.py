@@ -87,8 +87,13 @@ KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
 KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
 # Kill-switch reason when no account snapshot exists for reconciliation guard.
 KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
+# Kill-switch reason when latest account snapshot is older than freshness threshold.
+KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT = "stale_reconciliation_snapshot"
 # Kill-switch reason when broker submission raises an exception.
 KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
+
+# Maximum allowed age for account snapshot freshness validation (seconds).
+MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
 
 
 def _get_policy_rotation_provider() -> PolicyFeatureProvider:
@@ -432,6 +437,23 @@ def _persist_normalized_sleeve_risk_decisions(
         )
 
 
+def _is_snapshot_time_stale(
+    *,
+    snapshot_time: str | None,
+    now_iso: str,
+    max_age_seconds: int,
+) -> bool:
+    if snapshot_time is None:
+        return True
+    try:
+        snapshot_dt = parse_utc_iso(snapshot_time)
+        now_dt = parse_utc_iso(now_iso)
+    except Exception:
+        return True
+    age_seconds = (now_dt - snapshot_dt).total_seconds()
+    return age_seconds > float(max_age_seconds)
+
+
 def _run_sleeve_mode_for_account(
     conn: sqlite3.Connection,
     *,
@@ -503,6 +525,21 @@ def _run_sleeve_mode_for_account(
             )
     try:
         reconciliation = reconcile_sleeves_vs_latest_snapshot(conn, account_id=account_id)
+        if _is_snapshot_time_stale(
+            snapshot_time=reconciliation.snapshot_time,
+            now_iso=snapshot_time,
+            max_age_seconds=MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
+        ):
+            kill_switch_reasons.append(KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT)
+            approved_intents = []
+            risk_decisions.append(
+                {
+                    "action": "block",
+                    "reason_code": KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT,
+                    "snapshot_time": reconciliation.snapshot_time,
+                    "max_age_seconds": MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
+                }
+            )
         if not reconciliation.within_tolerance:
             kill_switch_reasons.append(KILL_SWITCH_REASON_RECONCILIATION_MISMATCH)
             approved_intents = []

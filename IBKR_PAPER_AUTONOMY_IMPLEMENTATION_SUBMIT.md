@@ -546,6 +546,31 @@ Slice D explicitly defers:
 1. External stale-data freshness timestamps beyond runtime price-validity checks.
 2. Additional decision normalization for non-sleeve runtime modes (currently sleeve-mode focused).
 
+### Increment 4 Slice E (Implemented)
+
+Scope of this slice:
+
+1. Add reconciliation snapshot freshness kill-switch in sleeve runtime:
+   - enforce max age threshold for latest account reconciliation snapshot.
+   - trigger kill-switch and block submissions when snapshot staleness exceeds threshold.
+
+2. Persist explicit stale-snapshot decision context:
+   - add `stale_reconciliation_snapshot` reason to risk payload and normalized decision rows.
+   - include snapshot timestamp and threshold seconds in decision payload.
+
+3. Keep compatibility with existing kill-switch/risk snapshot pipeline:
+   - reuse existing runtime kill-switch aggregation and snapshot persistence path.
+   - avoid introducing a separate stale-data pipeline for this guard.
+
+4. Add deterministic runtime test coverage:
+   - validate stale snapshot condition blocks broker submission.
+   - validate persisted risk payload includes stale snapshot reason.
+
+Slice E explicitly defers:
+
+1. Dynamic thresholding by account volatility regime (uses fixed threshold in this slice).
+2. Freshness SLA sourced from external data-health service (runtime-local threshold only).
+
 ### Reuse and Consolidation Audit (Increment 4 Slice A)
 
 1. `trading/services/sleeves/execution.py`: `reuse`
@@ -610,6 +635,24 @@ Slice D explicitly defers:
 4. Deprecated/removed overlap in this slice:
    - None.
    - Rationale: dual-write (snapshot payload + normalized rows) intentionally preserves compatibility while enabling structured analytics.
+
+### Reuse and Consolidation Audit (Increment 4 Slice E)
+
+1. `trading/services/sleeves/reconciliation.py`: `reuse`
+   - Reused existing reconciliation output (`snapshot_time`) as the single freshness signal.
+   - Avoided duplicate snapshot lookups in runtime.
+
+2. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused existing kill-switch decision aggregation.
+   - Extended with staleness evaluation helper and explicit stale-snapshot reason code.
+
+3. `portfolio_risk_snapshots` and `sleeve_risk_decisions` persistence: `reuse`
+   - Reused existing persistence pathways for snapshot payload + normalized decision rows.
+   - No parallel persistence format introduced.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: this slice adds a missing freshness invariant without replacing existing runtime paths.
 
 ### Acceptance
 
