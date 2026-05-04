@@ -412,6 +412,28 @@ CREATE TABLE IF NOT EXISTS portfolio_risk_snapshots (
 );
 """
 
+SLEEVE_RISK_DECISIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sleeve_risk_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    sleeve_id INTEGER,
+    decision_time TEXT NOT NULL,
+    symbol TEXT,
+    side TEXT CHECK (side IN ('buy', 'sell')),
+    action TEXT NOT NULL CHECK (action IN ('allow', 'rescale', 'block')),
+    reason_code TEXT NOT NULL,
+    requested_qty INTEGER,
+    approved_qty INTEGER,
+    requested_notional REAL,
+    approved_notional REAL,
+    execution_mode TEXT NOT NULL DEFAULT 'sleeve',
+    risk_payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+);
+"""
+
 DAILY_METRICS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS daily_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -472,6 +494,12 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_reference
 ON sleeve_ledger(reference_type, reference_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_account_time
 ON portfolio_risk_snapshots(account_id, snapshot_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_account_time
+ON sleeve_risk_decisions(account_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_sleeve_time
+ON sleeve_risk_decisions(sleeve_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_action_reason_time
+ON sleeve_risk_decisions(action, reason_code, decision_time DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_sleeve_date
 ON daily_metrics(account_id, sleeve_id, metric_date)
 WHERE sleeve_id IS NOT NULL;
@@ -610,6 +638,7 @@ SCHEMA_SQL = "\n".join(
         SLEEVE_POSITIONS_TABLE_SQL,
         SLEEVE_LEDGER_TABLE_SQL,
         PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
+        SLEEVE_RISK_DECISIONS_TABLE_SQL,
         DAILY_METRICS_TABLE_SQL,
         SLEEVE_INDEXES_SQL,
         WALK_FORWARD_GROUPS_TABLE_SQL,

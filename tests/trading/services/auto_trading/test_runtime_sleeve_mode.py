@@ -137,6 +137,17 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypat
     assert risk_snapshot is not None
     assert float(risk_snapshot["max_symbol_concentration_pct"]) > 0
     assert float(risk_snapshot["max_sector_concentration_pct"]) > 0
+    decision_rows = conn.execute(
+        """
+        SELECT action, reason_code
+        FROM sleeve_risk_decisions
+        WHERE account_id = ?
+        ORDER BY id ASC
+        """,
+        (account_id,),
+    ).fetchall()
+    assert len(decision_rows) >= 1
+    assert decision_rows[0]["action"] == "allow"
 
     broker.place_order.assert_called_once()
     broker.disconnect.assert_called_once()
@@ -211,6 +222,21 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(conn, mo
     ).fetchone()
     assert order_row is not None
     assert float(order_row["qty"]) == 2.0
+    rescale_row = conn.execute(
+        """
+        SELECT action, reason_code, requested_qty, approved_qty
+        FROM sleeve_risk_decisions
+        WHERE account_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    ).fetchone()
+    assert rescale_row is not None
+    assert rescale_row["action"] == "rescale"
+    assert rescale_row["reason_code"] == "sleeve_notional_cap"
+    assert int(rescale_row["requested_qty"]) == 5
+    assert int(rescale_row["approved_qty"]) == 2
 
 
 def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(conn, monkeypatch) -> None:
@@ -281,6 +307,19 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(c
     assert int(row["kill_switch_triggered"]) == 1
     payload = json.loads(row["risk_payload_json"])
     assert "stale_price_data" in payload["kill_switch_reasons"]
+    decision_row = conn.execute(
+        """
+        SELECT action, reason_code
+        FROM sleeve_risk_decisions
+        WHERE account_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    ).fetchone()
+    assert decision_row is not None
+    assert decision_row["action"] == "block"
+    assert decision_row["reason_code"] == "stale_price_data"
 
 
 def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(conn, monkeypatch) -> None:
@@ -363,6 +402,19 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(conn, m
     assert int(row["kill_switch_triggered"]) == 1
     payload = json.loads(row["risk_payload_json"])
     assert "reconciliation_mismatch" in payload["kill_switch_reasons"]
+    decision_row = conn.execute(
+        """
+        SELECT action, reason_code
+        FROM sleeve_risk_decisions
+        WHERE account_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    ).fetchone()
+    assert decision_row is not None
+    assert decision_row["action"] == "block"
+    assert decision_row["reason_code"] == "reconciliation_mismatch"
 
 
 def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(conn, monkeypatch) -> None:
@@ -448,4 +500,17 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(conn, monkeypatc
     ).fetchone()
     assert sleeve_order_status is not None
     assert sleeve_order_status["status"] == "rejected"
+    decision_row = conn.execute(
+        """
+        SELECT action, reason_code
+        FROM sleeve_risk_decisions
+        WHERE account_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    ).fetchone()
+    assert decision_row is not None
+    assert decision_row["action"] == "block"
+    assert decision_row["reason_code"] == "broker_api_anomaly"
     assert broker.disconnect_calls == 1

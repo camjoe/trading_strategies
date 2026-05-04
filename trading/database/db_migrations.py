@@ -256,5 +256,6 @@ SLEEVE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
     "sleeve_positions": (),
     "sleeve_ledger": (),
     "portfolio_risk_snapshots": (),
+    "sleeve_risk_decisions": (),
     "daily_metrics": (),
 }

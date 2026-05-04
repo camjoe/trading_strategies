@@ -518,8 +518,33 @@ Scope of this slice:
 
 Slice C explicitly defers:
 
-1. Dedicated normalized risk-event tables (current persistence remains snapshot payload JSON).
-2. External stale-data freshness timestamps beyond runtime price-validity checks.
+1. External stale-data freshness timestamps beyond runtime price-validity checks.
+
+### Increment 4 Slice D (Implemented)
+
+Scope of this slice:
+
+1. Add normalized risk-decision table persistence:
+   - add `sleeve_risk_decisions` table and indexes.
+   - add repository module `trading/repositories/sleeve_risk_decisions.py`.
+   - persist one row per risk decision with action/reason/qty/notional fields.
+
+2. Keep snapshot payload compatibility:
+   - continue writing `portfolio_risk_snapshots.risk_payload_json`.
+   - add normalized row persistence in parallel for queryable analytics/audit paths.
+
+3. Wire runtime decision persistence:
+   - persist gate decisions (`allow`, `rescale`, `block`) and kill-switch decisions.
+   - include execution mode and payload JSON for decision-level detail retention.
+
+4. Add deterministic test coverage:
+   - repository insert/fetch tests for normalized decision rows.
+   - runtime tests asserting normalized rows for rescale and kill-switch reasons.
+
+Slice D explicitly defers:
+
+1. External stale-data freshness timestamps beyond runtime price-validity checks.
+2. Additional decision normalization for non-sleeve runtime modes (currently sleeve-mode focused).
 
 ### Reuse and Consolidation Audit (Increment 4 Slice A)
 
@@ -569,6 +594,22 @@ Slice C explicitly defers:
 4. Deprecated/removed overlap in this slice:
    - None.
    - Rationale: incremental extension preserves rollout stability.
+
+### Reuse and Consolidation Audit (Increment 4 Slice D)
+
+1. `portfolio_risk_snapshots` flow: `retain`
+   - Retained existing snapshot payload path for backward compatibility.
+
+2. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused existing risk decision construction flow.
+   - Extended with normalized per-decision row persistence.
+
+3. `trading/repositories/sleeve_risk_decisions.py`: `new canonical normalized store`
+   - Added as dedicated queryable persistence for risk decisions.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: dual-write (snapshot payload + normalized rows) intentionally preserves compatibility while enabling structured analytics.
 
 ### Acceptance
 

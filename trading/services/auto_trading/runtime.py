@@ -23,6 +23,7 @@ from trading.repositories.broker_orders import (
     update_broker_order_status,
 )
 from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
+from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
 from trading.repositories.sleeve_orders import (
     attach_sleeve_order_broker_order_id,
     fetch_sleeve_order_by_broker_order_id,
@@ -388,6 +389,49 @@ def _persist_sleeve_risk_snapshot(
     )
 
 
+def _persist_normalized_sleeve_risk_decisions(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    decision_time: str,
+    risk_decisions: list[dict[str, object]],
+) -> None:
+    for decision in risk_decisions:
+        action = str(decision.get("action", "block")).strip().lower()
+        reason_code = str(decision.get("reason_code", "unspecified")).strip().lower()
+        sleeve_id_value = decision.get("sleeve_id")
+        sleeve_id = int(sleeve_id_value) if sleeve_id_value is not None else None
+        symbol_value = decision.get("symbol")
+        symbol = str(symbol_value).upper().strip() if symbol_value is not None else None
+        side_value = decision.get("side")
+        side = str(side_value).lower().strip() if side_value is not None else None
+        requested_qty_value = decision.get("requested_qty")
+        approved_qty_value = decision.get("approved_qty")
+        requested_notional_value = decision.get("requested_notional")
+        approved_notional_value = decision.get("approved_notional")
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            decision_time=decision_time,
+            symbol=symbol,
+            side=side,
+            action=action,
+            reason_code=reason_code,
+            requested_qty=int(requested_qty_value) if requested_qty_value is not None else None,
+            approved_qty=int(approved_qty_value) if approved_qty_value is not None else None,
+            requested_notional=(
+                float(requested_notional_value) if requested_notional_value is not None else None
+            ),
+            approved_notional=(
+                float(approved_notional_value) if approved_notional_value is not None else None
+            ),
+            execution_mode="sleeve",
+            risk_payload_json=json.dumps(decision, sort_keys=True),
+            created_at=decision_time,
+        )
+
+
 def _run_sleeve_mode_for_account(
     conn: sqlite3.Connection,
     *,
@@ -413,6 +457,12 @@ def _run_sleeve_mode_for_account(
         fee=fee,
     )
     if not intents:
+        _persist_normalized_sleeve_risk_decisions(
+            conn,
+            account_id=account_id,
+            decision_time=snapshot_time,
+            risk_decisions=[],
+        )
         _persist_sleeve_risk_snapshot(
             conn,
             account_id=account_id,
@@ -475,6 +525,12 @@ def _run_sleeve_mode_for_account(
         )
 
     if not approved_intents:
+        _persist_normalized_sleeve_risk_decisions(
+            conn,
+            account_id=account_id,
+            decision_time=snapshot_time,
+            risk_decisions=risk_decisions,
+        )
         _persist_sleeve_risk_snapshot(
             conn,
             account_id=account_id,
@@ -585,6 +641,12 @@ def _run_sleeve_mode_for_account(
                     note=f"sleeve_fill sleeve_id={intent.sleeve_id} strategy={intent.strategy_name}",
                 )
             submitted_count += 1
+        _persist_normalized_sleeve_risk_decisions(
+            conn,
+            account_id=account_id,
+            decision_time=snapshot_time,
+            risk_decisions=risk_decisions,
+        )
         _persist_sleeve_risk_snapshot(
             conn,
             account_id=account_id,

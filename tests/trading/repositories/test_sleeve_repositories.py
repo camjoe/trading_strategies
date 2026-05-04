@@ -9,6 +9,10 @@ from trading.repositories.portfolio_risk_snapshots import (
     fetch_latest_portfolio_risk_snapshot,
     upsert_portfolio_risk_snapshot,
 )
+from trading.repositories.sleeve_risk_decisions import (
+    fetch_sleeve_risk_decisions_for_account,
+    insert_sleeve_risk_decision,
+)
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotation_decision_for_sleeve,
     fetch_rotation_decisions_for_sleeve,
@@ -511,3 +515,49 @@ class TestPortfolioRiskSnapshotsRepository:
         assert float(updated_same_time["gross_exposure"]) == 1100.0
         assert int(updated_same_time["kill_switch_triggered"]) == 1
         assert updated_same_time["risk_payload_json"] == '{"a":2}'
+
+
+class TestSleeveRiskDecisionsRepository:
+    def test_insert_and_fetch_sleeve_risk_decisions(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_risk_decisions_repo")
+        sleeve_id = _sleeve_id(conn, account_id, "risk_decisions")
+
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-03T10:00:00Z",
+            symbol="AAPL",
+            side="buy",
+            action="rescale",
+            reason_code="sleeve_notional_cap",
+            requested_qty=5,
+            approved_qty=2,
+            requested_notional=500.0,
+            approved_notional=200.0,
+            execution_mode="sleeve",
+            risk_payload_json='{"x":1}',
+            created_at="2026-05-03T10:00:00Z",
+        )
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=None,
+            decision_time="2026-05-03T11:00:00Z",
+            symbol=None,
+            side=None,
+            action="block",
+            reason_code="stale_price_data",
+            requested_qty=None,
+            approved_qty=None,
+            requested_notional=None,
+            approved_notional=None,
+            execution_mode="sleeve",
+            risk_payload_json='{"y":2}',
+            created_at="2026-05-03T11:00:00Z",
+        )
+
+        rows = fetch_sleeve_risk_decisions_for_account(conn, account_id=account_id, limit=10)
+        assert len(rows) == 2
+        assert rows[0]["reason_code"] == "stale_price_data"
+        assert rows[1]["reason_code"] == "sleeve_notional_cap"
