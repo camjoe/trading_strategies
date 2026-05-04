@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
+from dataclasses import asdict
 
 from common.coercion import row_expect_int
 from common.time import parse_utc_iso
@@ -20,6 +22,7 @@ from trading.repositories.broker_orders import (
     insert_order_fill,
     update_broker_order_status,
 )
+from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
 from trading.repositories.sleeve_orders import (
     attach_sleeve_order_broker_order_id,
     fetch_sleeve_order_by_broker_order_id,
@@ -65,10 +68,22 @@ from trading.services.auto_trading.inputs import (
 from trading.services.sleeves.accounting import apply_sleeve_fill
 from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
 from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
+from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
+from trading.repositories.sleeve_positions import fetch_sleeve_positions_for_account
+from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
 _social_rotation_provider: SocialFeatureProvider | None = None
+
+# Kill-switch reason when required price marks are unavailable or invalid.
+KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
+# Kill-switch reason when sleeve/account equity reconciliation is out of tolerance.
+KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
+# Kill-switch reason when no account snapshot exists for reconciliation guard.
+KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
+# Kill-switch reason when broker submission raises an exception.
+KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
 
 
 def _get_policy_rotation_provider() -> PolicyFeatureProvider:
@@ -309,6 +324,59 @@ def _insert_submitted_sleeve_order(
     )
 
 
+def _compute_current_exposure_snapshot(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+) -> tuple[float, float, float]:
+    position_rows = fetch_sleeve_positions_for_account(conn, account_id=account_id)
+    gross_exposure = 0.0
+    net_exposure = 0.0
+    symbol_exposure: dict[str, float] = {}
+    for row in position_rows:
+        symbol = str(row["symbol"]).upper().strip()
+        market_value = float(row["market_value"])
+        abs_value = abs(market_value)
+        gross_exposure += abs_value
+        net_exposure += market_value
+        symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + abs_value
+
+    sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
+    total_equity = sum(float(row["current_equity"]) for row in sleeve_rows)
+    max_symbol_concentration_pct = 0.0
+    if total_equity > 0 and symbol_exposure:
+        max_symbol_concentration_pct = max(symbol_exposure.values()) / total_equity
+    return gross_exposure, net_exposure, max_symbol_concentration_pct
+
+
+def _persist_sleeve_risk_snapshot(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    snapshot_time: str,
+    kill_switch_triggered: bool,
+    payload: dict[str, object],
+) -> None:
+    gross_exposure, net_exposure, max_symbol_concentration_pct = _compute_current_exposure_snapshot(
+        conn,
+        account_id=account_id,
+    )
+    upsert_portfolio_risk_snapshot(
+        conn,
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        gross_exposure=gross_exposure,
+        net_exposure=net_exposure,
+        max_symbol_concentration_pct=max_symbol_concentration_pct,
+        max_sector_concentration_pct=0.0,
+        drawdown_pct=None,
+        leverage_proxy=None,
+        daily_loss_pct=None,
+        kill_switch_triggered=1 if kill_switch_triggered else 0,
+        risk_payload_json=json.dumps(payload, sort_keys=True),
+    )
+
+
 def _run_sleeve_mode_for_account(
     conn: sqlite3.Connection,
     *,
@@ -321,6 +389,8 @@ def _run_sleeve_mode_for_account(
     max_trades: int,
     fee: float,
 ) -> int:
+    account_id = row_expect_int(account, "id")
+    snapshot_time = utc_now_iso()
     intents = generate_sleeve_trade_intents(
         conn,
         account=account,
@@ -332,14 +402,84 @@ def _run_sleeve_mode_for_account(
         fee=fee,
     )
     if not intents:
+        _persist_sleeve_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            kill_switch_triggered=False,
+            payload={
+                "kill_switch_reasons": [],
+                "risk_decisions": [],
+                "summary": {"submitted_count": 0, "blocked_count": 0, "rescaled_count": 0, "allowed_count": 0},
+            },
+        )
         return 0
     gated = evaluate_sleeve_risk_gate(
         conn,
-        account_id=row_expect_int(account, "id"),
+        account_id=account_id,
         intents=intents,
     )
     approved_intents = gated.approved_intents
+    kill_switch_reasons: list[str] = []
+    risk_decisions = [asdict(decision) for decision in gated.decisions]
+    if approved_intents:
+        stale_symbols = sorted(
+            {
+                intent.symbol
+                for intent in approved_intents
+                if prices.get(intent.symbol) is None or float(prices[intent.symbol]) <= 0
+            }
+        )
+        if stale_symbols:
+            kill_switch_reasons.append(KILL_SWITCH_REASON_STALE_PRICE_DATA)
+            approved_intents = []
+            risk_decisions.append(
+                {
+                    "action": "block",
+                    "reason_code": KILL_SWITCH_REASON_STALE_PRICE_DATA,
+                    "stale_symbols": stale_symbols,
+                }
+            )
+    try:
+        reconciliation = reconcile_sleeves_vs_latest_snapshot(conn, account_id=account_id)
+        if not reconciliation.within_tolerance:
+            kill_switch_reasons.append(KILL_SWITCH_REASON_RECONCILIATION_MISMATCH)
+            approved_intents = []
+            risk_decisions.append(
+                {
+                    "action": "block",
+                    "reason_code": KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
+                    "equity_difference": reconciliation.equity_difference,
+                    "tolerance": reconciliation.tolerance,
+                }
+            )
+    except ValueError:
+        kill_switch_reasons.append(KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING)
+        approved_intents = []
+        risk_decisions.append(
+            {
+                "action": "block",
+                "reason_code": KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
+            }
+        )
+
     if not approved_intents:
+        _persist_sleeve_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            kill_switch_triggered=bool(kill_switch_reasons),
+            payload={
+                "kill_switch_reasons": kill_switch_reasons,
+                "risk_decisions": risk_decisions,
+                "summary": {
+                    "submitted_count": 0,
+                    "blocked_count": gated.blocked_count,
+                    "rescaled_count": gated.rescaled_count,
+                    "allowed_count": gated.allowed_count,
+                },
+            },
+        )
         return 0
 
     broker = get_broker_for_account(account)
@@ -359,7 +499,26 @@ def _run_sleeve_mode_for_account(
                 qty=float(intent.qty),
                 price=float(intent.requested_price),
             )
-            broker_order = broker.place_order(order)
+            try:
+                broker_order = broker.place_order(order)
+            except Exception as exc:
+                kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
+                risk_decisions.append(
+                    {
+                        "action": "block",
+                        "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
+                        "symbol": intent.symbol,
+                        "side": intent.side,
+                        "error": str(exc),
+                    }
+                )
+                update_sleeve_order_status(
+                    conn,
+                    sleeve_order_id=sleeve_order_id,
+                    status=OrderStatus.REJECTED.value,
+                    updated_at=utc_now_iso(),
+                )
+                break
             updated_at = utc_now_iso()
 
             if broker_order.broker_order_id:
@@ -415,6 +574,24 @@ def _run_sleeve_mode_for_account(
                     note=f"sleeve_fill sleeve_id={intent.sleeve_id} strategy={intent.strategy_name}",
                 )
             submitted_count += 1
+        _persist_sleeve_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time=snapshot_time,
+            kill_switch_triggered=bool(kill_switch_reasons),
+            payload={
+                "kill_switch_reasons": kill_switch_reasons,
+                "risk_decisions": risk_decisions,
+                "summary": {
+                    "submitted_count": submitted_count,
+                    "blocked_count": gated.blocked_count,
+                    "rescaled_count": gated.rescaled_count,
+                    "allowed_count": gated.allowed_count,
+                    "gross_exposure_before": gated.gross_exposure_before,
+                    "gross_exposure_after": gated.gross_exposure_after,
+                },
+            },
+        )
         return submitted_count
     finally:
         broker.disconnect()

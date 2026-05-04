@@ -5,6 +5,10 @@ from trading.repositories.daily_metrics import (
     fetch_daily_metrics_for_sleeve,
     upsert_daily_metric,
 )
+from trading.repositories.portfolio_risk_snapshots import (
+    fetch_latest_portfolio_risk_snapshot,
+    upsert_portfolio_risk_snapshot,
+)
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotation_decision_for_sleeve,
     fetch_rotation_decisions_for_sleeve,
@@ -441,3 +445,69 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         delete_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
         removed = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
         assert removed is None
+
+
+class TestPortfolioRiskSnapshotsRepository:
+    def test_upsert_and_fetch_latest_snapshot(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_risk_snap_repo")
+
+        upsert_portfolio_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time="2026-05-03T10:00:00Z",
+            gross_exposure=1000.0,
+            net_exposure=400.0,
+            max_symbol_concentration_pct=0.2,
+            max_sector_concentration_pct=0.0,
+            drawdown_pct=None,
+            leverage_proxy=None,
+            daily_loss_pct=None,
+            kill_switch_triggered=0,
+            risk_payload_json='{"a":1}',
+        )
+        upsert_portfolio_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time="2026-05-03T10:00:00Z",
+            gross_exposure=1100.0,
+            net_exposure=450.0,
+            max_symbol_concentration_pct=0.25,
+            max_sector_concentration_pct=0.0,
+            drawdown_pct=None,
+            leverage_proxy=None,
+            daily_loss_pct=None,
+            kill_switch_triggered=1,
+            risk_payload_json='{"a":2}',
+        )
+        upsert_portfolio_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time="2026-05-03T11:00:00Z",
+            gross_exposure=1200.0,
+            net_exposure=500.0,
+            max_symbol_concentration_pct=0.3,
+            max_sector_concentration_pct=0.0,
+            drawdown_pct=None,
+            leverage_proxy=None,
+            daily_loss_pct=None,
+            kill_switch_triggered=0,
+            risk_payload_json='{"a":3}',
+        )
+
+        latest = fetch_latest_portfolio_risk_snapshot(conn, account_id=account_id)
+        assert latest is not None
+        assert latest["snapshot_time"] == "2026-05-03T11:00:00Z"
+        assert float(latest["gross_exposure"]) == 1200.0
+
+        updated_same_time = conn.execute(
+            """
+            SELECT gross_exposure, kill_switch_triggered, risk_payload_json
+            FROM portfolio_risk_snapshots
+            WHERE account_id = ? AND snapshot_time = ?
+            """,
+            (account_id, "2026-05-03T10:00:00Z"),
+        ).fetchone()
+        assert updated_same_time is not None
+        assert float(updated_same_time["gross_exposure"]) == 1100.0
+        assert int(updated_same_time["kill_switch_triggered"]) == 1
+        assert updated_same_time["risk_payload_json"] == '{"a":2}'

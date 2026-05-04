@@ -76,6 +76,10 @@ from trading.repositories.daily_metrics import (
     fetch_daily_metrics_for_sleeve,
     upsert_daily_metric,
 )
+from trading.repositories.portfolio_risk_snapshots import (
+    fetch_latest_portfolio_risk_snapshot,
+    upsert_portfolio_risk_snapshot,
+)
 
 __all__ = [
     "fetch_account_by_name",
@@ -137,4 +141,6 @@ __all__ = [
     "upsert_daily_metric",
     "fetch_daily_metrics_for_account",
     "fetch_daily_metrics_for_sleeve",
+    "upsert_portfolio_risk_snapshot",
+    "fetch_latest_portfolio_risk_snapshot",
 ]

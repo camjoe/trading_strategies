@@ -463,9 +463,38 @@ Scope of this slice:
 
 Slice A explicitly defers:
 
-1. Persisting risk decisions to dedicated risk-decision storage (reason-code audit trail persistence).
-2. Kill-switch enforcement and stale-data/anomaly signals (later Increment 4 slices).
-3. Sector-concentration enforcement (later Increment 4 slices).
+1. Kill-switch enforcement and stale-data/anomaly signals (later Increment 4 slices).
+2. Sector-concentration enforcement (later Increment 4 slices).
+
+### Increment 4 Slice B (Implemented)
+
+Scope of this slice:
+
+1. Persist risk decisions and kill-switch outcomes:
+   - add `trading/repositories/portfolio_risk_snapshots.py`.
+   - persist per-run risk payloads to `portfolio_risk_snapshots.risk_payload_json`.
+   - include block/rescale reason codes and run summary counts.
+
+2. Add sleeve-mode kill-switch checks in runtime:
+   - stale price data guard before broker submission.
+   - sleeve/account reconciliation mismatch guard using latest snapshot comparison.
+   - broker/API anomaly guard around `place_order` failures.
+
+3. Wire kill-switch outcomes into persisted risk snapshots:
+   - set `kill_switch_triggered`.
+   - persist explicit reason list and structured decision payload.
+
+4. Add deterministic test coverage:
+   - stale-price kill switch blocks submissions.
+   - reconciliation-mismatch kill switch blocks submissions.
+   - broker anomaly kill switch marks sleeve order rejected and persists reason.
+   - repository tests for snapshot upsert/fetch semantics.
+
+Slice B explicitly defers:
+
+1. Sector-concentration guard implementation.
+2. Dedicated normalized risk-event tables (current persistence is snapshot payload JSON).
+3. External stale-data freshness timestamps beyond runtime price-validity checks.
 
 ### Reuse and Consolidation Audit (Increment 4 Slice A)
 
@@ -482,6 +511,22 @@ Slice A explicitly defers:
 4. Deprecated/removed overlap in this slice:
    - None.
    - Rationale: introducing gate semantics without removing any existing paths keeps rollout risk low.
+
+### Reuse and Consolidation Audit (Increment 4 Slice B)
+
+1. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused sleeve-mode submission workflow.
+   - Extended it with kill-switch guards and risk snapshot persistence.
+
+2. `trading/services/sleeves/reconciliation.py`: `reuse`
+   - Reused for reconciliation mismatch guard instead of duplicating equity checks.
+
+3. `trading/repositories/portfolio_risk_snapshots.py`: `new canonical persistence`
+   - Introduced as the single persistence path for runtime risk decision payloads.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: existing runtime paths are preserved while adding auditable risk persistence.
 
 ### Acceptance
 
