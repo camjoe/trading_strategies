@@ -67,7 +67,11 @@ from trading.services.auto_trading.inputs import (
 )
 from trading.services.sleeves.accounting import apply_sleeve_fill
 from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
-from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
+from trading.services.sleeves.risk_gate import (
+    DEFAULT_SYMBOL_SECTOR_MAP,
+    evaluate_sleeve_risk_gate,
+    resolve_sector_for_symbol,
+)
 from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
 from trading.repositories.sleeve_positions import fetch_sleeve_positions_for_account
 from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
@@ -328,11 +332,12 @@ def _compute_current_exposure_snapshot(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     position_rows = fetch_sleeve_positions_for_account(conn, account_id=account_id)
     gross_exposure = 0.0
     net_exposure = 0.0
     symbol_exposure: dict[str, float] = {}
+    sector_exposure: dict[str, float] = {}
     for row in position_rows:
         symbol = str(row["symbol"]).upper().strip()
         market_value = float(row["market_value"])
@@ -340,13 +345,19 @@ def _compute_current_exposure_snapshot(
         gross_exposure += abs_value
         net_exposure += market_value
         symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + abs_value
+        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=DEFAULT_SYMBOL_SECTOR_MAP)
+        if sector is not None:
+            sector_exposure[sector] = sector_exposure.get(sector, 0.0) + abs_value
 
     sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
     total_equity = sum(float(row["current_equity"]) for row in sleeve_rows)
     max_symbol_concentration_pct = 0.0
+    max_sector_concentration_pct = 0.0
     if total_equity > 0 and symbol_exposure:
         max_symbol_concentration_pct = max(symbol_exposure.values()) / total_equity
-    return gross_exposure, net_exposure, max_symbol_concentration_pct
+    if total_equity > 0 and sector_exposure:
+        max_sector_concentration_pct = max(sector_exposure.values()) / total_equity
+    return gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct
 
 
 def _persist_sleeve_risk_snapshot(
@@ -357,7 +368,7 @@ def _persist_sleeve_risk_snapshot(
     kill_switch_triggered: bool,
     payload: dict[str, object],
 ) -> None:
-    gross_exposure, net_exposure, max_symbol_concentration_pct = _compute_current_exposure_snapshot(
+    gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct = _compute_current_exposure_snapshot(
         conn,
         account_id=account_id,
     )
@@ -368,7 +379,7 @@ def _persist_sleeve_risk_snapshot(
         gross_exposure=gross_exposure,
         net_exposure=net_exposure,
         max_symbol_concentration_pct=max_symbol_concentration_pct,
-        max_sector_concentration_pct=0.0,
+        max_sector_concentration_pct=max_sector_concentration_pct,
         drawdown_pct=None,
         leverage_proxy=None,
         daily_loss_pct=None,

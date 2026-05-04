@@ -110,3 +110,38 @@ def test_evaluate_sleeve_risk_gate_blocks_when_gross_exposure_is_exhausted(conn)
     assert result.blocked_count == 1
     assert result.decisions[0].action == "block"
     assert result.decisions[0].reason_code == "gross_exposure_cap"
+
+
+def test_evaluate_sleeve_risk_gate_blocks_when_sector_cap_is_exhausted(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_risk_sector_block")
+    sleeve_a = _insert_sleeve(conn, account_id=account_id, sleeve_id=5, equity=1_000.0)
+    sleeve_b = _insert_sleeve(conn, account_id=account_id, sleeve_id=6, equity=1_000.0)
+    upsert_sleeve_position(
+        conn,
+        sleeve_id=sleeve_a,
+        symbol="AAPL",
+        qty=9.0,
+        avg_cost=100.0,
+        market_value=900.0,
+        unrealized_pnl=0.0,
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    intent = SleeveTradeIntent(
+        account_id=account_id,
+        sleeve_id=sleeve_b,
+        strategy_name="trend",
+        param_set_id=None,
+        side="buy",
+        symbol="MSFT",
+        qty=2,
+        requested_price=100.0,
+        forced_sell=None,
+        delta_est=None,
+        iv_est=None,
+    )
+
+    result = evaluate_sleeve_risk_gate(conn, account_id=account_id, intents=[intent])
+    assert len(result.approved_intents) == 0
+    assert result.blocked_count == 1
+    assert result.decisions[0].action == "block"
+    assert result.decisions[0].reason_code == "sector_concentration_cap"

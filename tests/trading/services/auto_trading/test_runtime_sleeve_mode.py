@@ -124,6 +124,20 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypat
     assert float(sleeve_row["current_cash"]) == 900.0
     assert float(sleeve_row["current_equity"]) == 1_000.0
 
+    risk_snapshot = conn.execute(
+        """
+        SELECT max_symbol_concentration_pct, max_sector_concentration_pct
+        FROM portfolio_risk_snapshots
+        WHERE account_id = ?
+        ORDER BY snapshot_time DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    ).fetchone()
+    assert risk_snapshot is not None
+    assert float(risk_snapshot["max_symbol_concentration_pct"]) > 0
+    assert float(risk_snapshot["max_sector_concentration_pct"]) > 0
+
     broker.place_order.assert_called_once()
     broker.disconnect.assert_called_once()
 

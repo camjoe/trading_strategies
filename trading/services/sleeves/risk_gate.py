@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 import math
 import sqlite3
 
@@ -16,6 +16,27 @@ DEFAULT_MAX_SLEEVE_NOTIONAL_PCT = 0.25
 DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT = 0.30
 # Maximum account-level gross exposure as a fraction of total sleeve equity.
 DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE = 1.0
+# Maximum account-level sector exposure as a fraction of total sleeve equity.
+DEFAULT_MAX_SECTOR_CONCENTRATION_PCT = 0.45
+
+# Default coarse sector map for the baseline trade universe.
+DEFAULT_SYMBOL_SECTOR_MAP: dict[str, str] = {
+    "AAPL": "technology",
+    "MSFT": "technology",
+    "NVDA": "technology",
+    "GOOGL": "technology",
+    "META": "technology",
+    "AMZN": "consumer_discretionary",
+    "TSLA": "consumer_discretionary",
+    "JPM": "financials",
+    "JNJ": "healthcare",
+    "UNH": "healthcare",
+    "XOM": "energy",
+    "WMT": "consumer_staples",
+    "SPY": "broad_market",
+    "QQQ": "broad_market",
+    "IWM": "broad_market",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +44,8 @@ class SleeveRiskGateConfig:
     max_sleeve_notional_pct: float = DEFAULT_MAX_SLEEVE_NOTIONAL_PCT
     max_symbol_concentration_pct: float = DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT
     max_portfolio_gross_exposure: float = DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE
+    max_sector_concentration_pct: float = DEFAULT_MAX_SECTOR_CONCENTRATION_PCT
+    symbol_sector_map: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_SYMBOL_SECTOR_MAP))
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,14 +84,25 @@ def _resolve_blocking_reason(
     remaining_sleeve_notional: float,
     remaining_symbol_notional: float,
     remaining_gross_notional: float,
+    remaining_sector_notional: float,
 ) -> str:
     limits = [
         ("sleeve_notional_cap", remaining_sleeve_notional),
         ("symbol_concentration_cap", remaining_symbol_notional),
         ("gross_exposure_cap", remaining_gross_notional),
+        ("sector_concentration_cap", remaining_sector_notional),
     ]
     limits.sort(key=lambda item: item[1])
     return limits[0][0]
+
+
+def resolve_sector_for_symbol(symbol: str, *, symbol_sector_map: dict[str, str]) -> str | None:
+    normalized_symbol = symbol.upper().strip()
+    sector = symbol_sector_map.get(normalized_symbol)
+    if sector is None:
+        return None
+    normalized_sector = sector.strip().lower()
+    return normalized_sector if normalized_sector else None
 
 
 def evaluate_sleeve_risk_gate(
@@ -98,6 +132,10 @@ def evaluate_sleeve_risk_gate(
     max_portfolio_gross_exposure = _coerce_positive_fraction(
         config.max_portfolio_gross_exposure, field_name="max_portfolio_gross_exposure"
     )
+    max_sector_concentration_pct = _coerce_positive_fraction(
+        config.max_sector_concentration_pct, field_name="max_sector_concentration_pct"
+    )
+    symbol_sector_map = {key.upper().strip(): value for key, value in config.symbol_sector_map.items()}
 
     sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=int(account_id))
     sleeve_equity_by_id = {
@@ -107,9 +145,11 @@ def evaluate_sleeve_risk_gate(
     total_equity = sum(sleeve_equity_by_id.values())
     gross_cap_notional = total_equity * max_portfolio_gross_exposure
     symbol_cap_notional = total_equity * max_symbol_concentration_pct
+    sector_cap_notional = total_equity * max_sector_concentration_pct
 
     position_rows = fetch_sleeve_positions_for_account(conn, account_id=int(account_id))
     symbol_exposure: dict[str, float] = {}
+    sector_exposure: dict[str, float] = {}
     sleeve_symbol_exposure: dict[tuple[int, str], float] = {}
     gross_exposure = 0.0
     for row in position_rows:
@@ -118,6 +158,9 @@ def evaluate_sleeve_risk_gate(
         exposure = abs(row_expect_float(row, "market_value"))
         gross_exposure += exposure
         symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + exposure
+        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+        if sector is not None:
+            sector_exposure[sector] = sector_exposure.get(sector, 0.0) + exposure
         sleeve_symbol_exposure[(sleeve_id, symbol)] = exposure
     gross_before = gross_exposure
 
@@ -158,6 +201,9 @@ def evaluate_sleeve_risk_gate(
             )
             gross_exposure = max(0.0, gross_exposure - exposure_delta)
             symbol_exposure[symbol] = max(0.0, symbol_exposure.get(symbol, 0.0) - exposure_delta)
+            sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+            if sector is not None:
+                sector_exposure[sector] = max(0.0, sector_exposure.get(sector, 0.0) - exposure_delta)
             sleeve_key = (int(intent.sleeve_id), symbol)
             sleeve_symbol_exposure[sleeve_key] = max(
                 0.0, sleeve_symbol_exposure.get(sleeve_key, 0.0) - exposure_delta
@@ -183,7 +229,19 @@ def evaluate_sleeve_risk_gate(
         remaining_sleeve_notional = max(0.0, sleeve_symbol_cap_notional - current_sleeve_symbol_exposure)
         remaining_symbol_notional = max(0.0, symbol_cap_notional - symbol_exposure.get(symbol, 0.0))
         remaining_gross_notional = max(0.0, gross_cap_notional - gross_exposure)
-        max_notional = min(requested_notional, remaining_sleeve_notional, remaining_symbol_notional, remaining_gross_notional)
+        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+        remaining_sector_notional = (
+            max(0.0, sector_cap_notional - sector_exposure.get(sector, 0.0))
+            if sector is not None
+            else float("inf")
+        )
+        max_notional = min(
+            requested_notional,
+            remaining_sleeve_notional,
+            remaining_symbol_notional,
+            remaining_gross_notional,
+            remaining_sector_notional,
+        )
 
         price = float(intent.requested_price)
         max_qty = int(math.floor(max_notional / price)) if price > 0 else 0
@@ -199,6 +257,7 @@ def evaluate_sleeve_risk_gate(
                         remaining_sleeve_notional=remaining_sleeve_notional,
                         remaining_symbol_notional=remaining_symbol_notional,
                         remaining_gross_notional=remaining_gross_notional,
+                        remaining_sector_notional=remaining_sector_notional,
                     ),
                     requested_qty=requested_qty,
                     approved_qty=0,
@@ -217,6 +276,7 @@ def evaluate_sleeve_risk_gate(
                 remaining_sleeve_notional=remaining_sleeve_notional,
                 remaining_symbol_notional=remaining_symbol_notional,
                 remaining_gross_notional=remaining_gross_notional,
+                remaining_sector_notional=remaining_sector_notional,
             )
             approved_intents.append(replace(intent, qty=approved_qty))
         else:
@@ -227,6 +287,8 @@ def evaluate_sleeve_risk_gate(
 
         gross_exposure += approved_notional
         symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + approved_notional
+        if sector is not None:
+            sector_exposure[sector] = sector_exposure.get(sector, 0.0) + approved_notional
         sleeve_key = (int(intent.sleeve_id), symbol)
         sleeve_symbol_exposure[sleeve_key] = sleeve_symbol_exposure.get(sleeve_key, 0.0) + approved_notional
         decisions.append(

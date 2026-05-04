@@ -492,9 +492,34 @@ Scope of this slice:
 
 Slice B explicitly defers:
 
-1. Sector-concentration guard implementation.
-2. Dedicated normalized risk-event tables (current persistence is snapshot payload JSON).
-3. External stale-data freshness timestamps beyond runtime price-validity checks.
+1. Dedicated normalized risk-event tables (current persistence is snapshot payload JSON).
+2. External stale-data freshness timestamps beyond runtime price-validity checks.
+
+### Increment 4 Slice C (Implemented)
+
+Scope of this slice:
+
+1. Implement sector concentration guard in sleeve risk gate:
+   - add `max_sector_concentration_pct` support in `SleeveRiskGateConfig`.
+   - evaluate sector exposure alongside sleeve symbol, symbol concentration, and gross exposure caps.
+   - emit `sector_concentration_cap` reason code when sector cap is the binding constraint.
+
+2. Add deterministic symbol-to-sector mapping support:
+   - introduce default symbol-sector map for baseline trade universe symbols.
+   - allow explicit override via risk-gate config map.
+
+3. Align runtime risk snapshot metrics with sector logic:
+   - compute and persist `max_sector_concentration_pct` from current sleeve positions.
+   - keep `portfolio_risk_snapshots` as canonical risk-snapshot persistence.
+
+4. Add deterministic test coverage:
+   - sector-cap block behavior in sleeve risk gate tests.
+   - runtime snapshot assertion that sector concentration metric is populated.
+
+Slice C explicitly defers:
+
+1. Dedicated normalized risk-event tables (current persistence remains snapshot payload JSON).
+2. External stale-data freshness timestamps beyond runtime price-validity checks.
 
 ### Reuse and Consolidation Audit (Increment 4 Slice A)
 
@@ -527,6 +552,23 @@ Slice B explicitly defers:
 4. Deprecated/removed overlap in this slice:
    - None.
    - Rationale: existing runtime paths are preserved while adding auditable risk persistence.
+
+### Reuse and Consolidation Audit (Increment 4 Slice C)
+
+1. `trading/services/sleeves/risk_gate.py`: `extend existing`
+   - Extended existing gate module with sector-cap logic.
+   - Avoided parallel risk-policy modules.
+
+2. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused existing risk snapshot pipeline.
+   - Extended concentration calculations to include sector concentration.
+
+3. `portfolio_risk_snapshots` persistence path: `reuse`
+   - Reused existing snapshot repository and schema fields (`max_sector_concentration_pct`).
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: incremental extension preserves rollout stability.
 
 ### Acceptance
 
