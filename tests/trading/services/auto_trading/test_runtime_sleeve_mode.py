@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from trading.repositories.sleeves import fetch_strategy_sleeve_by_id, insert_strategy_sleeve
+from trading.services.accounts import get_account
+from trading.services.auto_trading.runtime import run_for_account
+import trading.services.auto_trading.runtime as runtime_service
+from trading.services.sleeves.execution import SleeveTradeIntent
+from tests.support.auto_trading import FakeBroker
+from tests.support.repositories import insert_repository_account
+
+
+def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypatch) -> None:
+    account_name = "acct_runtime_sleeve"
+    account_id = insert_repository_account(conn, name=account_name)
+    sleeve_id = insert_strategy_sleeve(
+        conn,
+        account_id=account_id,
+        name="core",
+        status="active",
+        base_ccy="USD",
+        start_equity=1_000.0,
+        current_cash=1_000.0,
+        current_equity=1_000.0,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    account = get_account(conn, account_name)
+    broker = FakeBroker()
+
+    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
+    monkeypatch.setattr(
+        runtime_service,
+        "_rotate_runtime_account",
+        lambda _conn, _account_name, account_row, _now_iso: account_row,
+    )
+    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
+    monkeypatch.setattr(
+        runtime_service,
+        "generate_sleeve_trade_intents",
+        lambda *_args, **_kwargs: [
+            SleeveTradeIntent(
+                account_id=account_id,
+                sleeve_id=sleeve_id,
+                strategy_name="trend",
+                param_set_id=None,
+                side="buy",
+                symbol="AAPL",
+                qty=1,
+                requested_price=100.0,
+                forced_sell=None,
+                delta_est=None,
+                iv_est=None,
+            )
+        ],
+    )
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=1,
+        fee=0.0,
+        execution_mode="sleeve",
+    )
+
+    assert executed == 1
+    order_row = conn.execute(
+        """
+        SELECT sleeve_id, strategy_name, symbol, side, qty, status, broker_order_id
+        FROM sleeve_orders
+        WHERE account_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    ).fetchone()
+    assert order_row is not None
+    assert int(order_row["sleeve_id"]) == sleeve_id
+    assert order_row["strategy_name"] == "trend"
+    assert order_row["symbol"] == "AAPL"
+    assert order_row["side"] == "buy"
+    assert float(order_row["qty"]) == 1.0
+    assert order_row["status"] == "filled"
+    assert order_row["broker_order_id"] == "fake-broker-order"
+
+    fill_count = conn.execute(
+        "SELECT COUNT(*) AS n FROM sleeve_fills WHERE sleeve_id = ?",
+        (sleeve_id,),
+    ).fetchone()
+    assert fill_count is not None
+    assert int(fill_count["n"]) == 1
+
+    trade_count = conn.execute(
+        "SELECT COUNT(*) AS n FROM trades WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    assert trade_count is not None
+    assert int(trade_count["n"]) == 1
+
+    sleeve_row = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+    assert sleeve_row is not None
+    assert float(sleeve_row["current_cash"]) == 900.0
+    assert float(sleeve_row["current_equity"]) == 1_000.0
+
+    broker.place_order.assert_called_once()
+    broker.disconnect.assert_called_once()

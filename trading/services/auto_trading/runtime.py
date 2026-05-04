@@ -20,6 +20,11 @@ from trading.repositories.broker_orders import (
     insert_order_fill,
     update_broker_order_status,
 )
+from trading.repositories.sleeve_orders import (
+    attach_sleeve_order_broker_order_id,
+    insert_sleeve_order,
+    update_sleeve_order_status,
+)
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import NewsFeatureProvider
@@ -56,7 +61,8 @@ from trading.services.auto_trading.inputs import (
     EXECUTION_MODE_SLEEVE,
     validate_execution_mode,
 )
-from trading.services.sleeves.execution import run_sleeve_mode_for_account as run_sleeve_mode_for_account_impl
+from trading.services.sleeves.accounting import apply_sleeve_fill
+from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -262,6 +268,136 @@ def _is_runtime_submission_window_open(now_iso: str) -> bool:
     return is_regular_us_equity_market_open(parse_utc_iso(now_iso))
 
 
+def _insert_submitted_sleeve_order(
+    conn: sqlite3.Connection,
+    *,
+    intent: SleeveTradeIntent,
+    now_iso: str,
+) -> int:
+    return insert_sleeve_order(
+        conn,
+        account_id=intent.account_id,
+        sleeve_id=intent.sleeve_id,
+        strategy_name=intent.strategy_name,
+        param_set_id=intent.param_set_id,
+        rotation_decision_id=None,
+        broker_order_id=None,
+        symbol=intent.symbol,
+        side=intent.side,
+        qty=float(intent.qty),
+        order_type="market",
+        time_in_force="day",
+        requested_price=float(intent.requested_price),
+        status=OrderStatus.SUBMITTED.value,
+        config_version=None,
+        submitted_at=now_iso,
+        updated_at=now_iso,
+    )
+
+
+def _run_sleeve_mode_for_account(
+    conn: sqlite3.Connection,
+    *,
+    account_name: str,
+    account: AccountRecord,
+    universe: list[str],
+    prices: dict[str, float],
+    iv_rank_proxy: dict[str, float],
+    min_trades: int,
+    max_trades: int,
+    fee: float,
+) -> int:
+    intents = generate_sleeve_trade_intents(
+        conn,
+        account=account,
+        universe=universe,
+        prices=prices,
+        iv_rank_proxy=iv_rank_proxy,
+        min_trades=min_trades,
+        max_trades=max_trades,
+        fee=fee,
+    )
+    if not intents:
+        return 0
+
+    broker = get_broker_for_account(account)
+    try:
+        submitted_count = 0
+        for intent in intents:
+            submitted_at = utc_now_iso()
+            sleeve_order_id = _insert_submitted_sleeve_order(
+                conn,
+                intent=intent,
+                now_iso=submitted_at,
+            )
+            order = BrokerOrder(
+                account_id=intent.account_id,
+                ticker=intent.symbol,
+                side=intent.side,
+                qty=float(intent.qty),
+                price=float(intent.requested_price),
+            )
+            broker_order = broker.place_order(order)
+            updated_at = utc_now_iso()
+
+            if broker_order.broker_order_id:
+                if broker_order.submitted_at is None:
+                    broker_order.submitted_at = submitted_at
+                if broker_order.updated_at is None:
+                    broker_order.updated_at = updated_at
+                attach_sleeve_order_broker_order_id(
+                    conn,
+                    sleeve_order_id=sleeve_order_id,
+                    broker_order_id=broker_order.broker_order_id,
+                    updated_at=updated_at,
+                )
+                insert_broker_order(conn, broker_order)
+                for fill in broker_order.fills:
+                    insert_order_fill(conn, broker_order.broker_order_id, fill)
+
+            update_sleeve_order_status(
+                conn,
+                sleeve_order_id=sleeve_order_id,
+                status=broker_order.status.value,
+                updated_at=updated_at,
+            )
+
+            if broker_order.status == OrderStatus.FILLED:
+                fill_price = (
+                    float(broker_order.avg_fill_price)
+                    if broker_order.avg_fill_price is not None
+                    else float(intent.requested_price)
+                )
+                fill_qty = float(broker_order.filled_qty) if broker_order.filled_qty > 0 else float(intent.qty)
+                fill_time = broker_order.updated_at or updated_at
+                apply_sleeve_fill(
+                    conn,
+                    sleeve_order_id=sleeve_order_id,
+                    broker_fill_id=broker_order.broker_order_id,
+                    exec_id=None,
+                    filled_qty=fill_qty,
+                    fill_price=fill_price,
+                    commission=float(broker_order.commission),
+                    fill_time=fill_time,
+                    updated_at=updated_at,
+                )
+                record_trade(
+                    conn,
+                    account_name=account_name,
+                    side=intent.side,
+                    ticker=intent.symbol,
+                    qty=fill_qty,
+                    price=fill_price,
+                    fee=float(fee),
+                    trade_time=fill_time,
+                    note=f"sleeve_fill sleeve_id={intent.sleeve_id} strategy={intent.strategy_name}",
+                )
+            submitted_count += 1
+        return submitted_count
+    finally:
+        broker.disconnect()
+
+
 def run_for_account(
     conn: sqlite3.Connection,
     account_name: str,
@@ -280,8 +416,9 @@ def run_for_account(
     if resolved_execution_mode == EXECUTION_MODE_SLEEVE:
         account = get_account(conn, account_name)
         rotated_account = _rotate_runtime_account(conn, account_name, account, now_iso)
-        return run_sleeve_mode_for_account_impl(
+        return _run_sleeve_mode_for_account(
             conn,
+            account_name=account_name,
             account=rotated_account,
             universe=universe,
             prices=prices,

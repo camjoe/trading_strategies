@@ -307,9 +307,34 @@ Scope of this slice:
 
 Slice A explicitly defers:
 
-1. Mapping sleeve intents to live broker orders in sleeve mode.
-2. Sleeve fill ingestion and sleeve-order linkage from broker reconciliation.
-3. End-to-end sleeve submission/reconciliation parity acceptance.
+1. Sleeve fill ingestion and sleeve-order linkage from broker reconciliation.
+2. End-to-end sleeve submission/reconciliation parity acceptance.
+
+### Increment 3 Slice B (Implemented)
+
+Scope of this slice:
+
+1. Map sleeve intents to broker submissions in runtime:
+   - submit generated sleeve intents through existing `BrokerConnection.place_order`.
+   - keep broker lifecycle ownership in `trading/services/auto_trading/runtime.py`.
+
+2. Persist sleeve order records at submission time:
+   - create `sleeve_orders` row on submit.
+   - attach `broker_order_id` when broker responds with an identifier.
+   - update sleeve order status from broker status.
+
+3. Apply immediate sleeve accounting updates for synchronous filled paper orders:
+   - call sleeve accounting service to write `sleeve_fills`, update sleeve positions/ledger/cash/equity.
+   - keep account-level trade history updates via existing `record_trade` pathway.
+
+4. Keep existing broker abstraction untouched:
+   - no sleeve-aware logic added inside broker adapters.
+   - sleeve execution remains in service layer above brokers.
+
+Slice B explicitly defers:
+
+1. Asynchronous open-order sleeve reconciliation (non-immediate fills) binding from broker polling path.
+2. Full end-to-end parity assertions across all broker status permutations (partial fill, cancel, reject) in sleeve mode.
 
 ### Reuse and Consolidation Audit (Increment 3 Slice A)
 
@@ -327,6 +352,24 @@ Slice A explicitly defers:
 4. Deprecated/removed overlap in this slice:
    - None.
    - Rationale: account-mode and sleeve-mode coexist during staged rollout until Increment 3 end-to-end parity is completed.
+
+### Reuse and Consolidation Audit (Increment 3 Slice B)
+
+1. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused existing broker submission and persistence patterns from account mode.
+   - Extended with sleeve-order persistence and broker-id linkage in sleeve mode branch.
+
+2. `trading/services/sleeves/accounting.py`: `reuse`
+   - Reused as canonical sleeve fill application engine for synchronous filled orders.
+   - Avoided duplicate fill-to-ledger implementation in runtime layer.
+
+3. `trading/repositories/sleeve_orders.py`: `reuse`
+   - Reused insert/attach/update helpers as canonical persistence path.
+   - No parallel sleeve-order repository or alternative table introduced.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: account-level and sleeve-level execution flows intentionally coexist during Increment 3 rollout.
 
 ### Acceptance
 

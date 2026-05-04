@@ -208,7 +208,7 @@ def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> No
     )
     scenario.install(monkeypatch, runtime_service)
     sleeve_runner = Mock(return_value=3)
-    monkeypatch.setattr(runtime_service, "run_sleeve_mode_for_account_impl", sleeve_runner)
+    monkeypatch.setattr(runtime_service, "_run_sleeve_mode_for_account", sleeve_runner)
 
     executed = run_for_account(
         conn=object(),
