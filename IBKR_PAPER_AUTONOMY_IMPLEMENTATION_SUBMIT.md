@@ -997,6 +997,70 @@ Slice A explicitly defers:
 2. Artifacts are written per run with machine-readable JSON payloads.
 3. Health-check job can detect stale or incomplete runs.
 
+### Increment 6 Slice B (Implemented)
+
+Scope of this slice:
+
+1. Enrich step 10 (`10_emit_report_and_alerts`) with a structured per-account operator report:
+   - Per-account sections: sleeve performance rows, risk violations summary, rotation decisions.
+   - `SleevePerformanceRow`: NAV, return metrics, drawdown from daily metrics.
+   - `RiskViolationsSummary`: violation counts, kill switch state from portfolio risk snapshots.
+   - `RotationDecisionRow`: rotation events for each sleeve on the report date.
+   - `AccountDailyReport` dataclass aggregates all sections; serialises to dict via `account_daily_report_as_dict`.
+
+2. Add date-bounded repository helpers:
+   - `fetch_sleeve_risk_decisions_for_account_date(conn, *, account_id, report_date)` in `trading/repositories/sleeve_risk_decisions.py`.
+   - `fetch_rotation_decisions_for_sleeve_date(conn, *, sleeve_id, report_date)` in `trading/repositories/rotation_decisions.py`.
+   - Both use `decision_time >= date AND decision_time < next_date` bounds to scope ISO timestamp columns.
+
+3. New service module `trading/services/sleeves/daily_report.py`:
+   - Orchestrates assembly of `AccountDailyReport` from repositories.
+   - Uses `fetch_latest_portfolio_risk_snapshot` for kill switch state.
+   - No raw SQL in service layer (delegates to repository helpers per architecture convention).
+
+4. Step 10 in `daily_paper_trading.py` wired to `_build_daily_operator_report` helper:
+   - Opens DB via `ensure_db()`, resolves account IDs by name, builds per-account reports.
+   - Embeds `report_date`, `account_count`, `account_reports` in step 10 details in the run artifact.
+
+5. Tests:
+   - 8-test suite for `daily_report.py` service using `SQLiteBackend + tmp_path` fixture pattern.
+   - `test_step_10_operator_report_embedded_in_artifact` verifies step 10 artifact structure.
+   - Autouse fixture stubs `_build_daily_operator_report` in all other daily-job tests to prevent DB access side effects.
+
+Slice B explicitly defers:
+
+1. Enriching success/failure webhook notification payloads with the operator report content.
+2. Weekly and monthly governance jobs.
+
+### Reuse and Consolidation Audit (Increment 6 Slice B)
+
+1. `trading/repositories/sleeve_risk_decisions.py`: `reuse + extend`
+   - Reused existing module; added one date-scoped query function.
+
+2. `trading/repositories/rotation_decisions.py`: `reuse + extend`
+   - Reused existing module; added one date-scoped query function.
+
+3. `trading/services/sleeves/daily_report.py`: `new`
+   - No prior equivalent; added as new capability module in the existing sleeves service package.
+
+4. `trading/interfaces/runtime/jobs/daily_paper_trading.py`: `reuse + extend`
+   - Reused DAG structure from Slice A; wired step 10 with real operator report assembly.
+
+5. `tests/trading/services/sleeves/test_daily_report.py`: `new`
+   - Fresh test suite for new service module.
+
+6. `tests/trading/interfaces/runtime/jobs/test_daily_paper_trading_main.py`: `reuse + extend`
+   - Added step 10 test and autouse DB-isolation fixture without altering existing tests.
+
+7. Deprecated/removed overlap in this slice:
+   - None.
+
+### Acceptance (Increment 6 Slice B)
+
+1. Step 10 artifact section contains `report_date`, `account_count`, and `account_reports` on each run.
+2. Per-account report includes sleeve performance, risk violations (with kill switch flag), and rotation decisions.
+3. All 22 affected tests pass; no DB-access side effects in unrelated daily-job tests.
+
 ## Increment 7: Hardening and Burn-In
 
 ### Deliverables

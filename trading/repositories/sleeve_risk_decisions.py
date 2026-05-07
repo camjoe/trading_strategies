@@ -80,3 +80,26 @@ def fetch_sleeve_risk_decisions_for_account(
         """,
         (int(account_id), int(limit)),
     ).fetchall()
+
+
+def fetch_sleeve_risk_decisions_for_account_date(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    report_date: str,
+) -> list[sqlite3.Row]:
+    """Return all risk decisions for *account_id* that fall on *report_date* (YYYY-MM-DD)."""
+    import datetime as dt
+
+    next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+    return conn.execute(
+        """
+        SELECT *
+        FROM sleeve_risk_decisions
+        WHERE account_id = ?
+          AND decision_time >= ?
+          AND decision_time < ?
+        ORDER BY decision_time ASC, id ASC
+        """,
+        (int(account_id), report_date, next_date),
+    ).fetchall()

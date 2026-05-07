@@ -12,8 +12,11 @@ import traceback
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
+from trading.database.db_init import ensure_db
 from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, resolve_accounts, stream_command, tee_line, ts, write_artifact
 from trading.interfaces.runtime.notifications import notify_webhook_best_effort
+from trading.repositories.accounts import fetch_account_by_name
+from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
@@ -400,6 +403,35 @@ def run_auto_trader_group(
     stream_command(log_path, label, auto_trader_args, repo_root)
 
 
+def _build_daily_operator_report(
+    accounts: list[str],
+    artifact_path: Path,
+    repo_root: Path,
+    notify_on_success: bool,
+) -> dict[str, object]:
+    report_date = dt.date.today().isoformat()
+    conn = ensure_db()
+    account_reports = []
+    for account_name in accounts:
+        account_row = fetch_account_by_name(conn, account_name)
+        if account_row is None:
+            continue
+        report = build_account_daily_report(
+            conn,
+            account_id=int(account_row["id"]),
+            account_name=account_name,
+            report_date=report_date,
+        )
+        account_reports.append(account_daily_report_as_dict(report))
+    return {
+        "artifact_path": str(artifact_path.relative_to(repo_root)),
+        "notify_on_success": notify_on_success,
+        "report_date": report_date,
+        "account_count": len(account_reports),
+        "account_reports": account_reports,
+    }
+
+
 def _maybe_send_notification(
     *,
     webhook_url: str,
@@ -677,10 +709,12 @@ def main() -> int:
         _run_dag_step(
             step_results,
             step_id="10_emit_report_and_alerts",
-            run_fn=lambda: {
-                "artifact_path": str(artifact_path.relative_to(repo_root)),
-                "notify_on_success": bool(args.notify_on_success),
-            },
+            run_fn=lambda: _build_daily_operator_report(
+                accounts,
+                artifact_path,
+                repo_root,
+                bool(args.notify_on_success),
+            ),
         )
 
         completed_steps = _completed_steps_from_dag(step_results)

@@ -96,6 +96,29 @@ def fetch_rotation_decisions_for_sleeve(
     ).fetchall()
 
 
+def fetch_rotation_decisions_for_sleeve_date(
+    conn: sqlite3.Connection,
+    *,
+    sleeve_id: int,
+    report_date: str,
+) -> list[sqlite3.Row]:
+    """Return all rotation decisions for *sleeve_id* that fall on *report_date* (YYYY-MM-DD)."""
+    import datetime as dt
+
+    next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+    return conn.execute(
+        """
+        SELECT *
+        FROM rotation_decisions
+        WHERE sleeve_id = ?
+          AND decision_time >= ?
+          AND decision_time < ?
+        ORDER BY decision_time ASC, id ASC
+        """,
+        (int(sleeve_id), report_date, next_date),
+    ).fetchall()
+
+
 def fetch_latest_rotate_decision_for_sleeve(
     conn: sqlite3.Connection,
     *,

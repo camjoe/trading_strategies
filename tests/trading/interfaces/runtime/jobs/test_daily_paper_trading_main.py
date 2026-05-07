@@ -5,7 +5,26 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from tests.support.runtime_jobs import DAILY_PAPER_TRADING_MODULE, daily_paper_trading as module, run_runtime_job_main
+
+_STUB_OPERATOR_REPORT = {
+    "report_date": "2026-01-01",
+    "account_count": 0,
+    "account_reports": [],
+    "artifact_path": "",
+    "notify_on_success": False,
+}
+
+
+@pytest.fixture(autouse=True)
+def _stub_build_daily_operator_report(monkeypatch):
+    """Stub _build_daily_operator_report for all tests that don't need real DB access in step 10."""
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
+        lambda *_args, **_kwargs: dict(_STUB_OPERATOR_REPORT),
+    )
 
 
 def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -306,3 +325,54 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path) -
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert payload["status"] == "failed"
     assert payload["error"] == "step failed"
+
+
+def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Path) -> None:
+    fake_report = {
+        "artifact_path": "local/exports/daily_paper_trading/run.json",
+        "notify_on_success": False,
+        "report_date": "2026-05-07",
+        "account_count": 1,
+        "account_reports": [
+            {
+                "account_id": 1,
+                "account_name": "acct_a",
+                "report_date": "2026-05-07",
+                "sleeve_performance": [],
+                "risk_violations": {
+                    "total_decisions": 0,
+                    "block_count": 0,
+                    "rescale_count": 0,
+                    "allow_count": 0,
+                    "kill_switch_triggered": False,
+                    "top_reason_codes": [],
+                },
+                "rotation_decisions": [],
+            }
+        ],
+    }
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
+        lambda *_args, **_kwargs: fake_report,
+    )
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a"],
+    )
+
+    assert code == 0
+    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    step_10 = next(s for s in payload["step_results"] if s["step"] == "10_emit_report_and_alerts")
+    assert step_10["status"] == "ok"
+    details = step_10["details"]
+    assert details["report_date"] == "2026-05-07"
+    assert details["account_count"] == 1
+    assert len(details["account_reports"]) == 1
+    assert details["account_reports"][0]["account_name"] == "acct_a"
