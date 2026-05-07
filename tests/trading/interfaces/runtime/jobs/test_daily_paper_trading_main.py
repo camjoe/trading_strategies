@@ -54,6 +54,38 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
     assert payload["status"] == "success"
     assert payload["completed_steps"]
 
+
+def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, list[str]]] = []
+
+    def _capture(_log_path, label, args, _cwd):
+        calls.append((label, args))
+
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
+        _capture,
+    )
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        [
+            "--accounts",
+            "acct_a",
+            "--run-challenger-shadow-eval",
+            "--shadow-eval-rolling-window-days",
+            "45",
+        ],
+    )
+
+    assert code == 0
+    assert calls
+    assert calls[0][0] == "Challenger Shadow Eval"
+    assert "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval" in calls[0][1]
+    assert "--rolling-window-days" in calls[0][1]
+
 def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["real_acct"])
 
@@ -93,6 +125,20 @@ def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys
 
     assert code == 1
     assert "primary-max-trades" in capsys.readouterr().err
+
+
+def test_invalid_shadow_eval_window_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--shadow-eval-rolling-window-days", "0"],
+    )
+
+    assert code == 1
+    assert "shadow-eval-rolling-window-days" in capsys.readouterr().err
 
 def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])

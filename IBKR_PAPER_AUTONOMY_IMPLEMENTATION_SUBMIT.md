@@ -832,6 +832,42 @@ Slice C explicitly defers:
    - Runtime-local challenger candidate construction helpers removed from `runtime.py`.
    - Rationale: shared service now owns challenger materialization and avoids drift between runtime and standalone shadow-eval job.
 
+### Increment 5 Slice D (Implemented)
+
+Scope of this slice:
+
+1. Add optional challenger shadow-eval step into daily orchestration:
+   - extend `trading/interfaces/runtime/jobs/daily_paper_trading.py` with:
+     - `--run-challenger-shadow-eval`
+     - `--shadow-eval-rolling-window-days`
+   - when enabled, run `daily_challenger_shadow_eval` before auto-trader submissions.
+
+2. Keep backward-compatible default behavior:
+   - daily paper trading flow is unchanged unless the new flag is explicitly set.
+
+3. Add deterministic job tests:
+   - validate shadow-eval step ordering before auto-trader.
+   - validate rolling-window input guardrails.
+
+Slice D explicitly defers:
+
+1. Default-on enablement for challenger shadow-eval step in daily scheduler configs.
+2. Promotion of shadow-eval summaries into operator notifications.
+
+### Reuse and Consolidation Audit (Increment 5 Slice D)
+
+1. `trading/interfaces/runtime/jobs/daily_paper_trading.py`: `reuse + extend`
+   - Reused existing step runner (`stream_command`) and artifact step tracking.
+   - Extended with one optional pre-trade step instead of a parallel orchestration script.
+
+2. `trading/interfaces/runtime/jobs/job_helpers.py`: `reuse + extend`
+   - Reused existing module-constant pattern for subprocess job dispatch.
+   - Added challenger shadow-eval module constant for consistency.
+
+3. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: this slice wires optional orchestration only and does not replace existing job pathways.
+
 ### Acceptance
 
 1. Rotation decisions are explainable and replayable from persisted data.

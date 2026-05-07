@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, resolve_accounts, stream_command, tee_line, ts, write_artifact
+from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, resolve_accounts, stream_command, tee_line, ts, write_artifact
 from trading.interfaces.runtime.notifications import notify_webhook_best_effort
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
@@ -77,6 +77,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--fee", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument(
+        "--run-challenger-shadow-eval",
+        action="store_true",
+        help="Run challenger shadow evaluation before auto-trading.",
+    )
+    parser.add_argument(
+        "--shadow-eval-rolling-window-days",
+        type=int,
+        default=30,
+        help="Lookback window passed to challenger shadow evaluation (default: 30).",
+    )
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
     parser.add_argument("--run-source", default="scheduled-daily")
     parser.add_argument(
@@ -294,6 +305,9 @@ def main() -> int:
     if args.primary_min_trades < 1:
         print("--primary-min-trades must be >= 1", file=sys.stderr)
         return 1
+    if args.shadow_eval_rolling_window_days < 1:
+        print("--shadow-eval-rolling-window-days must be >= 1", file=sys.stderr)
+        return 1
     if args.primary_max_trades < args.primary_min_trades:
         print("--primary-max-trades must be >= --primary-min-trades", file=sys.stderr)
         return 1
@@ -365,6 +379,31 @@ def main() -> int:
     completed_steps: list[dict[str, object]] = []
 
     try:
+        if args.run_challenger_shadow_eval:
+            stream_command(
+                log_path,
+                "Challenger Shadow Eval",
+                [
+                    "-m",
+                    DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+                    "--accounts",
+                    ",".join(accounts),
+                    "--enable-run",
+                    "--rolling-window-days",
+                    str(args.shadow_eval_rolling_window_days),
+                    "--run-source",
+                    "daily-paper-trading",
+                ],
+                repo_root,
+            )
+            completed_steps.append(
+                {
+                    "step": "challenger_shadow_eval",
+                    "accounts": accounts,
+                    "rolling_window_days": args.shadow_eval_rolling_window_days,
+                }
+            )
+
         grouped_accounts = group_accounts_by_caps(accounts, account_trade_caps)
 
         for limits, group_accounts in sorted(grouped_accounts.items(), key=lambda item: (item[0][0], item[0][1], item[1])):
