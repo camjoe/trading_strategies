@@ -58,7 +58,6 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
     )
     monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
-    monkeypatch.setattr(module, "ensure_db", lambda: object())
     monkeypatch.setattr(module, "ts", lambda: "2026-05-07T12:00:00+00:00")
     monkeypatch.setattr(module, "day_tag", lambda _now: "20260507")
     monkeypatch.setattr(

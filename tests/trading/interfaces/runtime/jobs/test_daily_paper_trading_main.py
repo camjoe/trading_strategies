@@ -27,6 +27,33 @@ def _stub_build_daily_operator_report(monkeypatch):
     )
 
 
+@pytest.fixture
+def _runtime_harness(monkeypatch):
+    state: dict[str, object] = {
+        "accounts": ["acct_a"],
+        "stream_calls": [],
+        "stream_error": None,
+        "notifications": [],
+    }
+
+    def _stream(_log_path, label, args, _cwd):
+        state["stream_calls"].append((label, args))
+        error = state["stream_error"]
+        if error is not None:
+            raise error
+
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
+        lambda: list(state["accounts"]),
+    )
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", _stream)
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
+        lambda **kwargs: state["notifications"].append(kwargs) or True,
+    )
+    return state
+
+
 def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path, capsys) -> None:
     log_dir = tmp_path / "local" / "logs"
     log_dir.mkdir(parents=True)
@@ -42,7 +69,7 @@ def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path
     assert code == 0
     assert "skipping duplicate run" in capsys.readouterr().out
 
-def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None:
+def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     log_dir = tmp_path / "local" / "logs"
     log_dir.mkdir(parents=True)
     today = dt.date.today().strftime("%Y%m%d")
@@ -50,13 +77,6 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
         f"{module.COMPLETE_SENTINEL}\n",
         encoding="utf-8",
     )
-
-    stream_calls: list[str] = []
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
-        lambda _log_path, label, _args, _cwd: stream_calls.append(label),
-    )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -66,7 +86,7 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
     )
 
     assert code == 0
-    assert stream_calls
+    assert _runtime_harness["stream_calls"]
     artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
     assert len(artifacts) == 1
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
@@ -77,18 +97,7 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
     assert payload["step_results"][-1]["step"] == "10_emit_report_and_alerts"
 
 
-def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path: Path) -> None:
-    calls: list[tuple[str, list[str]]] = []
-
-    def _capture(_log_path, label, args, _cwd):
-        calls.append((label, args))
-
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
-        _capture,
-    )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-
+def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -103,21 +112,14 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     )
 
     assert code == 0
+    calls = _runtime_harness["stream_calls"]
     assert calls
     assert calls[0][0] == "Challenger Shadow Eval"
     assert "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval" in calls[0][1]
     assert "--rolling-window-days" in calls[0][1]
 
 
-def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path) -> None:
-    calls: list[tuple[str, list[str]]] = []
-
-    def _capture(_log_path, label, args, _cwd):
-        calls.append((label, args))
-
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", _capture)
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-
+def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -126,14 +128,14 @@ def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path) 
     )
 
     assert code == 0
-    auto_trader_calls = [args for label, args in calls if label.startswith("Auto Trader")]
+    auto_trader_calls = [args for label, args in _runtime_harness["stream_calls"] if label.startswith("Auto Trader")]
     assert len(auto_trader_calls) == 1
     args = auto_trader_calls[0]
     mode_index = args.index("--execution-mode")
     assert args[mode_index + 1] == "sleeve"
 
 
-def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path) -> None:
+def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     shadow_export_dir = tmp_path / "local" / "exports" / "daily_challenger_shadow_eval"
     shadow_export_dir.mkdir(parents=True, exist_ok=True)
     (shadow_export_dir / "daily_challenger_shadow_eval_20260507_120000.json").write_text(
@@ -153,12 +155,6 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
         ),
         encoding="utf-8",
     )
-
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
-        lambda *_args, **_kwargs: None,
-    )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -193,8 +189,8 @@ def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "Unknown account" in capsys.readouterr().err
 
 
-def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: [])
+def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+    _runtime_harness["accounts"] = []
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -206,9 +202,7 @@ def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     assert code == 1
     assert "No accounts" in capsys.readouterr().err
 
-def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-
+def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -220,9 +214,7 @@ def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys
     assert "primary-max-trades" in capsys.readouterr().err
 
 
-def test_invalid_shadow_eval_window_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-
+def test_invalid_shadow_eval_window_returns_1(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -233,13 +225,8 @@ def test_invalid_shadow_eval_window_returns_1(monkeypatch, tmp_path: Path, capsy
     assert code == 1
     assert "shadow-eval-rolling-window-days" in capsys.readouterr().err
 
-def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("step failed")),
-    )
-
+def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness["stream_error"] = RuntimeError("step failed")
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -258,10 +245,7 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path) -> None
     assert failed_steps[0]["step"] == "05_build_position_targets_by_sleeve"
 
 
-def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
-
+def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -276,15 +260,7 @@ def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path) -> None:
     ordered_steps = [step["step"] for step in payload["step_results"]]
     assert ordered_steps == [step_id for step_id, _name in module.DAILY_DAG_STEPS]
 
-def test_success_notification_requires_flag(monkeypatch, tmp_path: Path) -> None:
-    sent: list[dict[str, object]] = []
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
-        lambda **kwargs: sent.append(kwargs) or True,
-    )
-
+def test_success_notification_requires_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -293,17 +269,9 @@ def test_success_notification_requires_flag(monkeypatch, tmp_path: Path) -> None
     )
 
     assert code == 0
-    assert sent == []
+    assert _runtime_harness["notifications"] == []
 
-def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path) -> None:
-    sent: list[dict[str, object]] = []
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
-        lambda **kwargs: sent.append(kwargs) or True,
-    )
-
+def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -318,22 +286,13 @@ def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path) -> 
     )
 
     assert code == 0
-    assert len(sent) == 1
-    assert sent[0]["status"] == "ok"
-    assert sent[0]["event"] == "daily-paper-trading"
+    assert len(_runtime_harness["notifications"]) == 1
+    sent = _runtime_harness["notifications"][0]
+    assert sent["status"] == "ok"
+    assert sent["event"] == "daily-paper-trading"
 
-def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path) -> None:
-    sent: list[dict[str, object]] = []
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("step failed")),
-    )
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
-        lambda **kwargs: sent.append(kwargs) or True,
-    )
-
+def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness["stream_error"] = RuntimeError("step failed")
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -342,8 +301,8 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path) -
     )
 
     assert code == 1
-    assert len(sent) == 1
-    assert sent[0]["status"] == "fail"
+    assert len(_runtime_harness["notifications"]) == 1
+    assert _runtime_harness["notifications"][0]["status"] == "fail"
     artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
     assert len(artifacts) == 1
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
@@ -351,7 +310,7 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path) -
     assert payload["error"] == "step failed"
 
 
-def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Path) -> None:
+def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     fake_report = {
         "artifact_path": "local/exports/daily_paper_trading/run.json",
         "notify_on_success": False,
@@ -375,8 +334,6 @@ def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Pat
             }
         ],
     }
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
         lambda *_args, **_kwargs: fake_report,

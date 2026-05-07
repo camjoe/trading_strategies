@@ -111,8 +111,6 @@ def test_replay_dry_run_lists_missing_dates(monkeypatch, tmp_path: Path, capsys)
 
     monkeypatch.setattr(replay_module, "REPO_ROOT", tmp_path)
 
-    code = replay_module.main.__wrapped__ if hasattr(replay_module.main, "__wrapped__") else None
-
     # Drive via sys.argv
     monkeypatch.setattr(
         sys,

@@ -3,11 +3,10 @@ from __future__ import annotations
 import datetime as dt
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 from trading.domain.promotion_models import PromotionAssessment
 import trading.interfaces.runtime.jobs.weekly_governance_w2_promotion_review as module
-from tests.support.runtime_jobs import run_runtime_job_main
+from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.weekly_governance_w2_promotion_review"
 
@@ -52,23 +51,11 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
+        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
         monkeypatch.setattr(
             module,
             "fetch_current_promotion_assessment",
             lambda conn, *, account_name: _make_assessment(),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: [],
         )
 
         result = run_runtime_job_main(
@@ -92,25 +79,13 @@ class TestArtifactStructure:
             "name": "sleeve_alpha",
             "status": "active",
         }
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
+        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         monkeypatch.setattr(
             module,
             "fetch_current_promotion_assessment",
             lambda conn, *, account_name: _make_assessment(
                 ready_for_live=False, blockers=["missing_data"]
             ),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: [sleeve_row],
         )
         monkeypatch.setattr(
             module,

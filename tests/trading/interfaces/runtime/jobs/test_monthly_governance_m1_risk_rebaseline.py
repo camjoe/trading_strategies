@@ -3,10 +3,9 @@ from __future__ import annotations
 import datetime as dt
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import trading.interfaces.runtime.jobs.monthly_governance_m1_risk_rebaseline as module
-from tests.support.runtime_jobs import run_runtime_job_main
+from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.monthly_governance_m1_risk_rebaseline"
 
@@ -42,14 +41,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
+        stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,
             "fetch_latest_portfolio_risk_snapshot",
@@ -72,14 +64,7 @@ class TestArtifactStructure:
         assert isinstance(payload["accounts"], list)
 
     def test_no_snapshot_produces_null_entry(self, monkeypatch, tmp_path: Path) -> None:
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
+        stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,
             "fetch_latest_portfolio_risk_snapshot",
@@ -109,14 +94,7 @@ class TestArtifactStructure:
             "max_symbol_concentration_pct": 15.0,
             "max_sector_concentration_pct": 30.0,
         }
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
+        stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,
             "fetch_latest_portfolio_risk_snapshot",

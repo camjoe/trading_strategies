@@ -3,10 +3,9 @@ from __future__ import annotations
 import datetime as dt
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import trading.interfaces.runtime.jobs.monthly_governance_m3_performance_audit as module
-from tests.support.runtime_jobs import run_runtime_job_main
+from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.monthly_governance_m3_performance_audit"
 
@@ -42,19 +41,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: [],
-        )
+        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
 
         result = run_runtime_job_main(
             monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
@@ -90,19 +77,7 @@ class TestArtifactStructure:
                 "trade_count": 4,
             },
         ]
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: [sleeve_row],
-        )
+        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         monkeypatch.setattr(
             module,
             "fetch_active_sleeve_strategy_assignment",
@@ -135,19 +110,7 @@ class TestArtifactStructure:
 
     def test_empty_metrics_produces_null_stats(self, monkeypatch, tmp_path: Path) -> None:
         sleeve_row = {"id": 9, "name": "sleeve_empty"}
-        mock_conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: [sleeve_row],
-        )
+        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         monkeypatch.setattr(
             module,
             "fetch_active_sleeve_strategy_assignment",
@@ -184,20 +147,8 @@ class TestArtifactStructure:
 
         captured: dict[str, str] = {}
         sleeve_row = {"id": 5, "name": "sleeve_m"}
-        mock_conn = SimpleNamespace(close=lambda: None)
         monkeypatch.setattr(module.dt, "datetime", _FixedDateTime)
-        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
-        monkeypatch.setattr(
-            module,
-            "fetch_account_by_name",
-            lambda conn, name: SimpleNamespace(id=1, name=name),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: [sleeve_row],
-        )
+        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         monkeypatch.setattr(
             module,
             "fetch_active_sleeve_strategy_assignment",

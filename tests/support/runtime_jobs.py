@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from collections.abc import Callable
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -160,6 +161,38 @@ def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: li
     return load_runtime_job(module_name).main()
 
 
+def stub_runtime_job_basics(
+    monkeypatch,
+    module,
+    *,
+    runtime_accounts: list[str] | None = None,
+    db_conn=None,
+    account_lookup: Callable[[str], object | None] | None = None,
+    sleeves_for_account: list[dict[str, object]] | None = None,
+) -> object:
+    """Apply common runtime-job test stubs for DB/account surfaces."""
+    resolved_accounts = list(runtime_accounts or ["acct1"])
+    resolved_conn = db_conn or SimpleNamespace(close=lambda: None)
+    lookup = account_lookup or (lambda name: SimpleNamespace(id=1, name=name))
+
+    monkeypatch.setattr(module, "ensure_db", lambda: resolved_conn)
+    if hasattr(module, "load_runtime_eligible_account_names"):
+        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
+    if hasattr(module, "fetch_account_by_name"):
+        monkeypatch.setattr(
+            module,
+            "fetch_account_by_name",
+            lambda conn, name: lookup(name),
+        )
+    if sleeves_for_account is not None and hasattr(module, "fetch_strategy_sleeves_for_account"):
+        monkeypatch.setattr(
+            module,
+            "fetch_strategy_sleeves_for_account",
+            lambda conn, *, account_id: list(sleeves_for_account),
+        )
+    return resolved_conn
+
+
 __all__ = [
     "CHECK_DAILY_TRADER_HEALTH_MODULE",
     "DAILY_SNAPSHOT_MODULE",
@@ -189,4 +222,5 @@ __all__ = [
     "make_manage_job_schedules_args",
     "make_run_auto_trades_args",
     "run_runtime_job_main",
+    "stub_runtime_job_basics",
 ]
