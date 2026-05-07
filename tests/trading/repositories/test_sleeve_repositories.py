@@ -3,6 +3,7 @@ from __future__ import annotations
 from trading.repositories.daily_metrics import (
     fetch_daily_metrics_for_account,
     fetch_daily_metrics_for_sleeve,
+    fetch_daily_metrics_for_sleeve_window,
     upsert_daily_metric,
 )
 from trading.repositories.portfolio_risk_snapshots import (
@@ -15,6 +16,7 @@ from trading.repositories.sleeve_risk_decisions import (
 )
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotation_decision_for_sleeve,
+    fetch_latest_rotate_decision_for_sleeve,
     fetch_rotation_decisions_for_sleeve,
     insert_rotation_decision,
 )
@@ -368,6 +370,27 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         assert latest["rotation_action"] == "hold"
         history = fetch_rotation_decisions_for_sleeve(conn, sleeve_id=sleeve_id, limit=5)
         assert len(history) == 1
+        assert fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=sleeve_id) is None
+
+        insert_rotation_decision(
+            conn,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-03T16:00:00Z",
+            incumbent_strategy="trend",
+            challenger_strategy="meanrev",
+            selected_strategy="meanrev",
+            rotation_action="rotate",
+            cooldown_active=0,
+            score_components_json='{"a":2}',
+            gate_results_json='{"ok":true}',
+            decision_reason="rotate_to_challenger",
+            config_version="cfg-z",
+            param_set_id=None,
+            created_at="2026-05-03T16:00:00Z",
+        )
+        latest_rotate = fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=sleeve_id)
+        assert latest_rotate is not None
+        assert latest_rotate["rotation_action"] == "rotate"
 
         sleeve_metric_id = upsert_daily_metric(
             conn,
@@ -445,6 +468,13 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         assert len(account_metrics) == 2
         sleeve_metrics = fetch_daily_metrics_for_sleeve(conn, sleeve_id=sleeve_id, limit=10)
         assert len(sleeve_metrics) == 1
+        sleeve_window_metrics = fetch_daily_metrics_for_sleeve_window(
+            conn,
+            sleeve_id=sleeve_id,
+            start_date="2026-05-03",
+            end_date="2026-05-03",
+        )
+        assert len(sleeve_window_metrics) == 1
 
         delete_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
         removed = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")

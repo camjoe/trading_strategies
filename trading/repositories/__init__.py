@@ -45,6 +45,7 @@ from trading.repositories.sleeves import (
 )
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotation_decision_for_sleeve,
+    fetch_latest_rotate_decision_for_sleeve,
     fetch_rotation_decisions_for_sleeve,
     insert_rotation_decision,
 )
@@ -74,6 +75,7 @@ from trading.repositories.sleeve_ledger import (
 from trading.repositories.daily_metrics import (
     fetch_daily_metrics_for_account,
     fetch_daily_metrics_for_sleeve,
+    fetch_daily_metrics_for_sleeve_window,
     upsert_daily_metric,
 )
 from trading.repositories.portfolio_risk_snapshots import (
@@ -124,6 +126,7 @@ __all__ = [
     "fetch_sleeve_strategy_assignments",
     "insert_rotation_decision",
     "fetch_latest_rotation_decision_for_sleeve",
+    "fetch_latest_rotate_decision_for_sleeve",
     "fetch_rotation_decisions_for_sleeve",
     "insert_sleeve_order",
     "attach_sleeve_order_broker_order_id",
@@ -145,6 +148,7 @@ __all__ = [
     "upsert_daily_metric",
     "fetch_daily_metrics_for_account",
     "fetch_daily_metrics_for_sleeve",
+    "fetch_daily_metrics_for_sleeve_window",
     "upsert_portfolio_risk_snapshot",
     "fetch_latest_portfolio_risk_snapshot",
     "insert_sleeve_risk_decision",

@@ -675,6 +675,64 @@ Slice E explicitly defers:
 3. Implement rotation decision recording and cooldown enforcement.
 4. Bind decisions to config version + param set IDs.
 
+### Increment 5 Slice A (Implemented)
+
+Scope of this slice:
+
+1. Add configurable sleeve rotation scoring domain policy:
+   - add `trading/domain/sleeve_rotation.py`.
+   - implement weighted champion/challenger score:
+     - risk-adjusted return
+     - stability
+     - drawdown penalty
+     - cost penalty
+     - regime-fit term
+   - implement explicit gate evaluation:
+     - cooldown
+     - minimum sample size
+     - outperformance threshold (bps)
+     - challenger score superiority
+
+2. Add sleeve rotation orchestration service:
+   - add `trading/services/sleeves/rotation.py`.
+   - build incumbent window metrics from `daily_metrics`.
+   - evaluate challengers against incumbent and produce structured decision payload.
+   - persist `rotation_decisions` with score components, gate results, config version, and selected `param_set_id`.
+   - apply incumbent assignment switch only for `rotate` decisions.
+
+3. Add repository read helpers required for Increment 5 scoring/cooldown:
+   - `trading/repositories/daily_metrics.py`:
+     - `fetch_daily_metrics_for_sleeve_window(...)`
+   - `trading/repositories/rotation_decisions.py`:
+     - `fetch_latest_rotate_decision_for_sleeve(...)`
+
+4. Add deterministic test coverage:
+   - `tests/trading/domain/test_sleeve_rotation.py`
+   - `tests/trading/services/sleeves/test_rotation.py`
+   - repository coverage additions in `tests/trading/repositories/test_sleeve_repositories.py`
+
+Slice A explicitly defers:
+
+1. Challenger shadow-evaluation runtime job scheduling and materialization flow.
+2. Sleeve-mode runtime wiring that auto-executes Increment 5 decisions before order intent generation.
+
+### Reuse and Consolidation Audit (Increment 5 Slice A)
+
+1. `trading/repositories/daily_metrics.py`: `reuse + extend`
+   - Reused existing sleeve metric store as incumbent evidence source.
+   - Extended with windowed fetch helper only; no duplicate metric store introduced.
+
+2. `trading/repositories/rotation_decisions.py`: `reuse + extend`
+   - Reused existing decision persistence table and insert path.
+   - Extended with rotate-only latest lookup for cooldown checks.
+
+3. `trading/repositories/sleeves.py`: `reuse`
+   - Reused incumbent assignment close/insert helpers as the single assignment mutation pathway.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: Increment 5 Slice A introduces policy/orchestration without replacing existing runtime rotation pathways yet.
+
 ### Acceptance
 
 1. Rotation decisions are explainable and replayable from persisted data.

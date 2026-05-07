@@ -21,6 +21,11 @@ from trading.services.sleeves.risk_gate import (
     SleeveRiskGateResult,
     evaluate_sleeve_risk_gate,
 )
+from trading.services.sleeves.rotation import (
+    SleeveRotationConfig,
+    SleeveRotationRunResult,
+    evaluate_and_apply_sleeve_rotation,
+)
 
 __all__ = [
     "SleeveFillApplicationResult",
@@ -35,4 +40,7 @@ __all__ = [
     "SleeveRiskGateConfig",
     "SleeveRiskGateResult",
     "evaluate_sleeve_risk_gate",
+    "SleeveRotationConfig",
+    "SleeveRotationRunResult",
+    "evaluate_and_apply_sleeve_rotation",
 ]

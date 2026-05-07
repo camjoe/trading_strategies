@@ -152,3 +152,23 @@ def fetch_daily_metrics_for_sleeve(
         """,
         (int(sleeve_id), int(limit)),
     ).fetchall()
+
+
+def fetch_daily_metrics_for_sleeve_window(
+    conn: sqlite3.Connection,
+    *,
+    sleeve_id: int,
+    start_date: str,
+    end_date: str,
+) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT *
+        FROM daily_metrics
+        WHERE sleeve_id = ?
+          AND metric_date >= ?
+          AND metric_date <= ?
+        ORDER BY metric_date ASC, id ASC
+        """,
+        (int(sleeve_id), start_date, end_date),
+    ).fetchall()

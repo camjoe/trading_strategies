@@ -94,3 +94,21 @@ def fetch_rotation_decisions_for_sleeve(
         """,
         (int(sleeve_id), int(limit)),
     ).fetchall()
+
+
+def fetch_latest_rotate_decision_for_sleeve(
+    conn: sqlite3.Connection,
+    *,
+    sleeve_id: int,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT *
+        FROM rotation_decisions
+        WHERE sleeve_id = ?
+          AND rotation_action = 'rotate'
+        ORDER BY decision_time DESC, id DESC
+        LIMIT 1
+        """,
+        (int(sleeve_id),),
+    ).fetchone()
