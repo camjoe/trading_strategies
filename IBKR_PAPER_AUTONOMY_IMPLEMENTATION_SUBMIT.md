@@ -733,6 +733,51 @@ Slice A explicitly defers:
    - None.
    - Rationale: Increment 5 Slice A introduces policy/orchestration without replacing existing runtime rotation pathways yet.
 
+### Increment 5 Slice B (Implemented)
+
+Scope of this slice:
+
+1. Wire Increment 5 rotation decisions into sleeve runtime execution path:
+   - `trading/services/auto_trading/runtime.py` now executes sleeve rotation decisions before sleeve intent generation.
+   - rotation actions are applied on active sleeves with incumbent assignments so `generate_sleeve_trade_intents` consumes current incumbent strategy state.
+
+2. Add runtime challenger metric bootstrap from persisted backtest evidence:
+   - derive challenger candidates from account rotation schedule.
+   - map backtest return windows into `SleeveStrategyMetrics` inputs for rotation scoring.
+   - bind challenger `param_set_id` through active strategy param-set lookup when available.
+
+3. Preserve staged compatibility:
+   - sleeves without active assignments are skipped (no forced failure).
+   - existing account-mode runtime branch remains unchanged.
+
+4. Add deterministic runtime tests:
+   - rotation is applied before sleeve intent generation.
+   - cooldown hold path preserves incumbent assignment.
+   - assertions verify persisted `rotation_decisions` outcomes.
+
+Slice B explicitly defers:
+
+1. Dedicated scheduler job for shadow challenger materialization (currently runtime-bootstrap from existing backtest returns).
+2. Advanced challenger feature inputs (regime-fit/sentiment components) beyond current baseline bootstrap.
+
+### Reuse and Consolidation Audit (Increment 5 Slice B)
+
+1. `trading/services/auto_trading/runtime.py`: `reuse + extend`
+   - Reused existing sleeve runtime orchestration flow.
+   - Extended with pre-intent rotation decision step without adding a parallel runtime entrypoint.
+
+2. `trading/backtesting/services/history_service.py`: `reuse`
+   - Reused existing `fetch_strategy_backtest_returns` evidence source for challenger bootstrap.
+   - Avoided introducing a duplicate challenger evidence persistence path.
+
+3. `trading/services/sleeves/rotation.py`: `reuse`
+   - Reused Slice A rotation orchestration and persistence as the single decision engine.
+   - Avoided runtime-local duplicate scoring/decision implementation.
+
+4. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: Slice B completes runtime wiring while keeping existing account-level rotation path stable.
+
 ### Acceptance
 
 1. Rotation decisions are explainable and replayable from persisted data.

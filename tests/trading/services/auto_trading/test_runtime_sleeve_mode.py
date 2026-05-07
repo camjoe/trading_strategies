@@ -2,8 +2,15 @@ from __future__ import annotations
 
 import json
 
+from trading.domain.rotation import dump_rotation_schedule
 from trading.repositories.snapshots import insert_snapshot_row
-from trading.repositories.sleeves import fetch_strategy_sleeve_by_id, insert_strategy_sleeve
+from trading.repositories.daily_metrics import upsert_daily_metric
+from trading.repositories.sleeves import (
+    fetch_active_sleeve_strategy_assignment,
+    fetch_strategy_sleeve_by_id,
+    insert_sleeve_strategy_assignment,
+    insert_strategy_sleeve,
+)
 from trading.services.accounts import get_account
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
@@ -24,6 +31,259 @@ def _insert_matching_snapshot(conn, *, account_id: int, equity: float) -> None:
         realized_pnl=0.0,
         unrealized_pnl=0.0,
     )
+
+
+def _insert_rotation_metric_rows(conn, *, account_id: int, sleeve_id: int) -> None:
+    upsert_daily_metric(
+        conn,
+        account_id=account_id,
+        sleeve_id=sleeve_id,
+        metric_date="2026-05-03",
+        return_pct=0.5,
+        drawdown_pct=-0.7,
+        turnover_pct=2.0,
+        slippage_bps=8.0,
+        hit_rate=0.45,
+        expectancy=0.08,
+        risk_adjusted_score=0.60,
+        trade_count=10,
+        fees_total=3.0,
+        created_at="2026-05-03T23:59:00Z",
+        updated_at="2026-05-03T23:59:00Z",
+    )
+    upsert_daily_metric(
+        conn,
+        account_id=account_id,
+        sleeve_id=sleeve_id,
+        metric_date="2026-05-04",
+        return_pct=0.4,
+        drawdown_pct=-0.6,
+        turnover_pct=2.1,
+        slippage_bps=7.5,
+        hit_rate=0.44,
+        expectancy=0.07,
+        risk_adjusted_score=0.55,
+        trade_count=11,
+        fees_total=3.2,
+        created_at="2026-05-04T23:59:00Z",
+        updated_at="2026-05-04T23:59:00Z",
+    )
+
+
+def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(conn, monkeypatch) -> None:
+    account_name = "acct_runtime_sleeve_rotation"
+    account_id = insert_repository_account(conn, name=account_name, strategy="trend")
+    conn.execute(
+        """
+        UPDATE accounts
+        SET rotation_schedule = ?,
+            rotation_lookback_days = ?
+        WHERE id = ?
+        """,
+        (
+            dump_rotation_schedule(["trend", "meanrev"]),
+            30,
+            account_id,
+        ),
+    )
+    conn.commit()
+    sleeve_id = insert_strategy_sleeve(
+        conn,
+        account_id=account_id,
+        name="core_rotation",
+        status="active",
+        base_ccy="USD",
+        start_equity=1_000.0,
+        current_cash=1_000.0,
+        current_equity=1_000.0,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    insert_sleeve_strategy_assignment(
+        conn,
+        sleeve_id=sleeve_id,
+        strategy_name="trend",
+        param_set_id=None,
+        effective_from="2026-05-03T00:00:00Z",
+        effective_to=None,
+        is_incumbent=1,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    _insert_rotation_metric_rows(conn, account_id=account_id, sleeve_id=sleeve_id)
+    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+
+    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-05T14:00:00Z")
+    monkeypatch.setattr(
+        runtime_service,
+        "_rotate_runtime_account",
+        lambda _conn, _account_name, account_row, _now_iso: account_row,
+    )
+    monkeypatch.setattr(
+        runtime_service,
+        "fetch_strategy_backtest_returns",
+        lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
+    )
+    captured = {"active_strategy": None}
+
+    def _capture_intents(*_args, **_kwargs):
+        assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+        captured["active_strategy"] = (
+            str(assignment["strategy_name"]).strip()
+            if assignment is not None and assignment["strategy_name"] is not None
+            else None
+        )
+        return []
+
+    monkeypatch.setattr(runtime_service, "generate_sleeve_trade_intents", _capture_intents)
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=1,
+        fee=0.0,
+        execution_mode="sleeve",
+    )
+
+    assert executed == 0
+    assert captured["active_strategy"] == "meanrev"
+    latest_decision = conn.execute(
+        """
+        SELECT rotation_action, selected_strategy
+        FROM rotation_decisions
+        WHERE sleeve_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (sleeve_id,),
+    ).fetchone()
+    assert latest_decision is not None
+    assert latest_decision["rotation_action"] == "rotate"
+    assert latest_decision["selected_strategy"] == "meanrev"
+
+
+def test_run_for_account_sleeve_mode_respects_rotation_cooldown(conn, monkeypatch) -> None:
+    account_name = "acct_runtime_sleeve_rotation_cooldown"
+    account_id = insert_repository_account(conn, name=account_name, strategy="trend")
+    conn.execute(
+        """
+        UPDATE accounts
+        SET rotation_schedule = ?,
+            rotation_lookback_days = ?
+        WHERE id = ?
+        """,
+        (
+            dump_rotation_schedule(["trend", "meanrev"]),
+            30,
+            account_id,
+        ),
+    )
+    conn.commit()
+    sleeve_id = insert_strategy_sleeve(
+        conn,
+        account_id=account_id,
+        name="core_rotation_cooldown",
+        status="active",
+        base_ccy="USD",
+        start_equity=1_000.0,
+        current_cash=1_000.0,
+        current_equity=1_000.0,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    insert_sleeve_strategy_assignment(
+        conn,
+        sleeve_id=sleeve_id,
+        strategy_name="trend",
+        param_set_id=None,
+        effective_from="2026-05-03T00:00:00Z",
+        effective_to=None,
+        is_incumbent=1,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    _insert_rotation_metric_rows(conn, account_id=account_id, sleeve_id=sleeve_id)
+    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+    conn.execute(
+        """
+        INSERT INTO rotation_decisions (
+            sleeve_id, decision_time, incumbent_strategy, challenger_strategy,
+            selected_strategy, rotation_action, cooldown_active, score_components_json,
+            gate_results_json, decision_reason, config_version, param_set_id, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, 'rotate', 0, '{}', '{}', ?, ?, NULL, ?)
+        """,
+        (
+            sleeve_id,
+            "2026-05-05T10:00:00Z",
+            "trend",
+            "meanrev",
+            "meanrev",
+            "rotate_to_challenger",
+            "cfg-old",
+            "2026-05-05T10:00:00Z",
+        ),
+    )
+    conn.commit()
+
+    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-05T14:00:00Z")
+    monkeypatch.setattr(
+        runtime_service,
+        "_rotate_runtime_account",
+        lambda _conn, _account_name, account_row, _now_iso: account_row,
+    )
+    monkeypatch.setattr(
+        runtime_service,
+        "fetch_strategy_backtest_returns",
+        lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
+    )
+    captured = {"active_strategy": None}
+
+    def _capture_intents(*_args, **_kwargs):
+        assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+        captured["active_strategy"] = (
+            str(assignment["strategy_name"]).strip()
+            if assignment is not None and assignment["strategy_name"] is not None
+            else None
+        )
+        return []
+
+    monkeypatch.setattr(runtime_service, "generate_sleeve_trade_intents", _capture_intents)
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=1,
+        fee=0.0,
+        execution_mode="sleeve",
+    )
+
+    assert executed == 0
+    assert captured["active_strategy"] == "trend"
+    latest_decision = conn.execute(
+        """
+        SELECT rotation_action, decision_reason, cooldown_active
+        FROM rotation_decisions
+        WHERE sleeve_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (sleeve_id,),
+    ).fetchone()
+    assert latest_decision is not None
+    assert latest_decision["rotation_action"] == "hold"
+    assert latest_decision["decision_reason"] == "cooldown_active"
+    assert int(latest_decision["cooldown_active"]) == 1
 
 
 def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypatch) -> None:
