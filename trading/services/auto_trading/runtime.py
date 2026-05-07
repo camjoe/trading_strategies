@@ -5,12 +5,10 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import asdict
-from datetime import timedelta
 
 from common.coercion import row_expect_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
-from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.brokers.base import BrokerConnection
@@ -47,7 +45,6 @@ from trading.repositories.rotation import (
 from trading.repositories.snapshots import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
-    parse_rotation_schedule,
 )
 from trading.services.auto_trading.execution import (
     record_prepared_trade as record_prepared_trade_impl,
@@ -80,13 +77,13 @@ from trading.services.sleeves.rotation import (
     SleeveRotationConfig,
     evaluate_and_apply_sleeve_rotation,
 )
+from trading.services.sleeves.shadow_evaluation import (
+    DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
+    build_sleeve_shadow_evaluation,
+)
 from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
 from trading.repositories.sleeve_positions import fetch_sleeve_positions_for_account
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_active_strategy_param_set,
-    fetch_strategy_sleeves_for_account,
-)
+from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
 
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
@@ -465,58 +462,6 @@ def _is_snapshot_time_stale(
     return age_seconds > float(max_age_seconds)
 
 
-def _mean(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    return sum(values) / len(values)
-
-
-def _build_challenger_metrics_from_backtest_returns(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    strategy_name: str,
-    start_day: str,
-    end_day: str,
-) -> SleeveStrategyMetrics:
-    rows = fetch_strategy_backtest_returns(
-        conn,
-        account_id=account_id,
-        strategy_names=[strategy_name],
-        start_day=start_day,
-        end_day=end_day,
-    )
-    returns = [
-        float(return_pct)
-        for candidate, return_pct in rows
-        if str(candidate).strip() == strategy_name
-    ]
-    trade_count = len(returns)
-    risk_adjusted_return = _mean(returns)
-    stability = (
-        float(sum(1 for value in returns if value > 0.0)) / float(trade_count)
-        if trade_count > 0
-        else 0.0
-    )
-    drawdown_penalty = abs(min(returns)) if returns and min(returns) < 0 else 0.0
-    param_set_row = fetch_active_strategy_param_set(conn, strategy_name=strategy_name)
-    param_set_id = (
-        int(param_set_row["id"])
-        if param_set_row is not None and param_set_row["id"] is not None
-        else None
-    )
-    return SleeveStrategyMetrics(
-        strategy_name=strategy_name,
-        param_set_id=param_set_id,
-        trade_count=trade_count,
-        risk_adjusted_return=risk_adjusted_return,
-        stability=stability,
-        drawdown_penalty=drawdown_penalty,
-        cost_penalty=0.0,
-        regime_fit=0.0,
-    )
-
-
 def _run_sleeve_rotation_decisions(
     conn: sqlite3.Connection,
     *,
@@ -524,55 +469,26 @@ def _run_sleeve_rotation_decisions(
     decision_time: str,
 ) -> None:
     account_id = row_expect_int(account, "id")
-    strategy_schedule: list[str] = []
-    try:
-        strategy_schedule = parse_rotation_schedule(account.rotation_schedule)
-    except ValueError:
-        strategy_schedule = []
-    if not strategy_schedule:
-        strategy_schedule = [str(account.strategy).strip()]
-    strategy_schedule = [name for name in strategy_schedule if name]
-
+    rolling_window_days = (
+        int(account.rotation_lookback_days)
+        if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
+        else DEFAULT_SHADOW_ROLLING_WINDOW_DAYS
+    )
     config = SleeveRotationConfig(
-        rolling_window_days=(
-            int(account.rotation_lookback_days)
-            if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
-            else SleeveRotationConfig().rolling_window_days
-        ),
+        rolling_window_days=rolling_window_days,
         config_version=f"sleeve-rotation:{decision_time[:10]}",
     )
-    window_end_day = decision_time[:10]
-    window_start_day = (
-        parse_utc_iso(decision_time).date() - timedelta(days=max(1, config.rolling_window_days) - 1)
-    ).isoformat()
-
-    sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
-    for sleeve_row in sleeve_rows:
-        if str(sleeve_row["status"]).strip().lower() != "active":
-            continue
-        sleeve_id = int(sleeve_row["id"])
-        assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
-        if assignment is None:
-            continue
-        incumbent_strategy = str(assignment["strategy_name"]).strip()
-        challengers: list[SleeveStrategyMetrics] = []
-        for strategy_name in strategy_schedule:
-            if strategy_name == incumbent_strategy:
-                continue
-            challengers.append(
-                _build_challenger_metrics_from_backtest_returns(
-                    conn,
-                    account_id=account_id,
-                    strategy_name=strategy_name,
-                    start_day=window_start_day,
-                    end_day=window_end_day,
-                )
-            )
-
+    shadow_eval = build_sleeve_shadow_evaluation(
+        conn,
+        account=account,
+        as_of_iso=decision_time,
+        rolling_window_days=rolling_window_days,
+    )
+    for sleeve_eval in shadow_eval.sleeves:
         evaluate_and_apply_sleeve_rotation(
             conn,
-            sleeve_id=sleeve_id,
-            challengers=challengers,
+            sleeve_id=sleeve_eval.sleeve_id,
+            challengers=sleeve_eval.challengers,
             config=config,
             decision_time=decision_time,
         )

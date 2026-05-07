@@ -121,8 +121,7 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(c
         lambda _conn, _account_name, account_row, _now_iso: account_row,
     )
     monkeypatch.setattr(
-        runtime_service,
-        "fetch_strategy_backtest_returns",
+        "trading.services.sleeves.shadow_evaluation.fetch_strategy_backtest_returns",
         lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
     )
     captured = {"active_strategy": None}
@@ -239,8 +238,7 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(conn, monkeypatc
         lambda _conn, _account_name, account_row, _now_iso: account_row,
     )
     monkeypatch.setattr(
-        runtime_service,
-        "fetch_strategy_backtest_returns",
+        "trading.services.sleeves.shadow_evaluation.fetch_strategy_backtest_returns",
         lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
     )
     captured = {"active_strategy": None}

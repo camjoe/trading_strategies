@@ -26,6 +26,13 @@ from trading.services.sleeves.rotation import (
     SleeveRotationRunResult,
     evaluate_and_apply_sleeve_rotation,
 )
+from trading.services.sleeves.shadow_evaluation import (
+    DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
+    ShadowEvaluationRun,
+    SleeveShadowEvaluation,
+    build_challenger_metrics_from_backtest_returns,
+    build_sleeve_shadow_evaluation,
+)
 
 __all__ = [
     "SleeveFillApplicationResult",
@@ -43,4 +50,9 @@ __all__ = [
     "SleeveRotationConfig",
     "SleeveRotationRunResult",
     "evaluate_and_apply_sleeve_rotation",
+    "DEFAULT_SHADOW_ROLLING_WINDOW_DAYS",
+    "ShadowEvaluationRun",
+    "SleeveShadowEvaluation",
+    "build_challenger_metrics_from_backtest_returns",
+    "build_sleeve_shadow_evaluation",
 ]

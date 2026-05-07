@@ -89,6 +89,7 @@ def test_main_unregisters_all_default_task_names(monkeypatch) -> None:
     assert captured["task_names"] == [
         r"Trading\DailyPaperTrading",
         r"Trading\DailyPaperTradingFallback",
+        r"Trading\DailyChallengerShadowEval",
         r"Trading\DailySnapshot",
         r"Trading\DailyBacktestRefresh",
         r"Trading\DailyTraderHealthCheck",

@@ -778,6 +778,60 @@ Slice B explicitly defers:
    - None.
    - Rationale: Slice B completes runtime wiring while keeping existing account-level rotation path stable.
 
+### Increment 5 Slice C (Implemented)
+
+Scope of this slice:
+
+1. Add dedicated challenger shadow-evaluation service:
+   - add `trading/services/sleeves/shadow_evaluation.py`.
+   - centralize account+sleeve challenger candidate materialization from:
+     - account rotation schedule
+     - incumbent sleeve assignments
+     - backtest return evidence windows
+   - emit structured challenger metrics reusable by runtime and jobs.
+
+2. Refactor sleeve runtime to reuse shared shadow-evaluation service:
+   - remove runtime-local challenger candidate construction.
+   - use shared service output as the single challenger source for Increment 5 rotation decisions.
+
+3. Add dedicated runtime job entrypoint for challenger shadow evaluation:
+   - add `trading/interfaces/runtime/jobs/daily_challenger_shadow_eval.py`.
+   - add enable flag/env guard, duplicate-run sentinel, per-account artifact output, and failure artifacts.
+
+4. Add scheduler wiring for the new job:
+   - extend `trading/interfaces/runtime/jobs/manage_job_schedules.py` with:
+     - optional `--daily-challenger-shadow-eval-time`
+     - optional `--enable-daily-challenger-shadow-eval`
+     - default task name `Trading\\DailyChallengerShadowEval`
+
+5. Add deterministic tests:
+   - `tests/trading/services/sleeves/test_shadow_evaluation.py`
+   - `tests/trading/interfaces/runtime/jobs/test_daily_challenger_shadow_eval_main.py`
+   - scheduler build/main test updates for new task registration/unregister behavior
+   - runtime sleeve-mode tests updated for shared shadow-evaluation service seam
+
+Slice C explicitly defers:
+
+1. Persisting challenger-evaluation snapshots into normalized DB tables (current materialization is artifact-focused).
+2. Regime-fit and sentiment-weight challenger features in shadow-job outputs (currently baseline backtest-derived metrics).
+
+### Reuse and Consolidation Audit (Increment 5 Slice C)
+
+1. `trading/services/sleeves/shadow_evaluation.py`: `new canonical challenger materialization`
+   - Introduced as single service for challenger candidate generation.
+
+2. `trading/services/auto_trading/runtime.py`: `reuse + simplify`
+   - Reused Slice B runtime hook.
+   - Removed runtime-local challenger build logic in favor of shared service output.
+
+3. `trading/interfaces/runtime/jobs/manage_job_schedules.py`: `reuse + extend`
+   - Reused existing scheduler registration framework.
+   - Extended with challenger shadow-eval task options rather than adding a parallel scheduler management path.
+
+4. Deprecated/removed overlap in this slice:
+   - Runtime-local challenger candidate construction helpers removed from `runtime.py`.
+   - Rationale: shared service now owns challenger materialization and avoids drift between runtime and standalone shadow-eval job.
+
 ### Acceptance
 
 1. Rotation decisions are explainable and replayable from persisted data.

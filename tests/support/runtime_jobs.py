@@ -12,6 +12,7 @@ CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.check_daily_
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"
 DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.run_auto_trades"
+DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval"
 
 
 def load_runtime_job(module_name: str):
@@ -42,12 +43,17 @@ def load_run_auto_trades():
     return load_runtime_job(RUN_AUTO_TRADES_MODULE)
 
 
+def load_daily_challenger_shadow_eval():
+    return load_runtime_job(DAILY_CHALLENGER_SHADOW_EVAL_MODULE)
+
+
 daily_paper_trading = load_daily_paper_trading()
 daily_backtest_refresh = load_daily_backtest_refresh()
 check_daily_trader_health = load_check_daily_trader_health()
 manage_job_schedules = load_manage_job_schedules()
 daily_snapshot = load_daily_snapshot()
 run_auto_trades = load_run_auto_trades()
+daily_challenger_shadow_eval = load_daily_challenger_shadow_eval()
 
 
 def make_daily_backtest_refresh_args(**overrides):
@@ -79,6 +85,9 @@ def make_manage_job_schedules_args(**overrides):
         "daily_paper_trading_task_name": r"Trading\DailyPaperTrading",
         "daily_paper_trading_fallback_time": "",
         "daily_paper_trading_fallback_task_name": r"Trading\DailyPaperTradingFallback",
+        "daily_challenger_shadow_eval_time": "",
+        "daily_challenger_shadow_eval_task_name": r"Trading\DailyChallengerShadowEval",
+        "enable_daily_challenger_shadow_eval": False,
         "daily_snapshot_time": "",
         "daily_snapshot_task_name": r"Trading\DailySnapshot",
         "enable_daily_snapshot": False,
@@ -126,6 +135,19 @@ def make_run_auto_trades_args(**overrides):
     return SimpleNamespace(**defaults)
 
 
+def make_daily_challenger_shadow_eval_args(**overrides):
+    defaults = {
+        "accounts": "all",
+        "force_run": False,
+        "run_source": "test-run",
+        "enable_run": True,
+        "rolling_window_days": 30,
+        "repo_root": ".",
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
 def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: list[str]) -> int:
     monkeypatch.setattr(
         sys,
@@ -143,21 +165,25 @@ __all__ = [
     "DAILY_BACKTEST_REFRESH_MODULE",
     "DAILY_PAPER_TRADING_MODULE",
     "RUN_AUTO_TRADES_MODULE",
+    "DAILY_CHALLENGER_SHADOW_EVAL_MODULE",
     "check_daily_trader_health",
     "daily_snapshot",
     "manage_job_schedules",
     "daily_backtest_refresh",
     "daily_paper_trading",
     "run_auto_trades",
+    "daily_challenger_shadow_eval",
     "load_check_daily_trader_health",
     "load_daily_snapshot",
     "load_manage_job_schedules",
     "load_daily_backtest_refresh",
     "load_daily_paper_trading",
     "load_run_auto_trades",
+    "load_daily_challenger_shadow_eval",
     "load_runtime_job",
     "make_daily_backtest_refresh_args",
     "make_daily_snapshot_args",
+    "make_daily_challenger_shadow_eval_args",
     "make_manage_job_schedules_args",
     "make_run_auto_trades_args",
     "run_runtime_job_main",
