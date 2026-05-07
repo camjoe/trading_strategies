@@ -31,10 +31,6 @@ from trading.repositories.sleeve_orders import (
     update_sleeve_order_status,
 )
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
-from trading.features.base import ExternalFeatureBundle
-from trading.features.news_feature_provider import NewsFeatureProvider
-from trading.features.policy_feature_provider import PolicyFeatureProvider
-from trading.features.social_feature_provider import SocialFeatureProvider
 from trading.repositories.rotation import update_account_rotation_state
 from trading.repositories.rotation import (
     close_rotation_episode,
@@ -51,27 +47,26 @@ from trading.services.auto_trading.execution import (
     refresh_account_state as refresh_account_state_impl,
     run_for_account as run_for_account_impl,
 )
-from trading.services.auto_trading.rotation import (
-    compute_live_account_metrics as compute_live_account_metrics_impl,
-    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
-    sync_rotation_episode as sync_rotation_episode_impl,
-)
-from trading.services.auto_trading.rotation_bridge import (
-    rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
-    select_account_rotation_strategy as select_account_rotation_strategy_impl,
-    RotationDeps,
-)
 from trading.services.auto_trading.inputs import (
     EXECUTION_MODE_ACCOUNT,
     EXECUTION_MODE_SLEEVE,
     validate_execution_mode,
 )
+from trading.services.auto_trading.runtime_reconciliation import (
+    reconcile_open_broker_orders_impl,
+    resolve_reconciliation_exec_id,
+)
+from trading.services.auto_trading.runtime_rotation import rotate_runtime_account
+from trading.services.auto_trading.runtime_sleeve_risk import (
+    compute_current_exposure_snapshot,
+    is_snapshot_time_stale,
+    persist_normalized_sleeve_risk_decisions,
+    persist_sleeve_risk_snapshot,
+)
 from trading.services.sleeves.accounting import apply_sleeve_fill
 from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
 from trading.services.sleeves.risk_gate import (
-    DEFAULT_SYMBOL_SECTOR_MAP,
     evaluate_sleeve_risk_gate,
-    resolve_sector_for_symbol,
 )
 from trading.services.sleeves.rotation import (
     SleeveRotationConfig,
@@ -84,10 +79,6 @@ from trading.services.sleeves.shadow_evaluation import (
 from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
 from trading.repositories.sleeve_positions import fetch_sleeve_positions_for_account
 from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
-
-_policy_rotation_provider: PolicyFeatureProvider | None = None
-_news_rotation_provider: NewsFeatureProvider | None = None
-_social_rotation_provider: SocialFeatureProvider | None = None
 
 # Kill-switch reason when required price marks are unavailable or invalid.
 KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
@@ -104,116 +95,27 @@ KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
 MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
 
 
-def _get_policy_rotation_provider() -> PolicyFeatureProvider:
-    global _policy_rotation_provider
-    if _policy_rotation_provider is None:
-        _policy_rotation_provider = PolicyFeatureProvider()
-    return _policy_rotation_provider
-
-
-def _get_news_rotation_provider() -> NewsFeatureProvider:
-    global _news_rotation_provider
-    if _news_rotation_provider is None:
-        _news_rotation_provider = NewsFeatureProvider()
-    return _news_rotation_provider
-
-
-def _get_social_rotation_provider() -> SocialFeatureProvider:
-    global _social_rotation_provider
-    if _social_rotation_provider is None:
-        _social_rotation_provider = SocialFeatureProvider()
-    return _social_rotation_provider
-
-
-def _fetch_policy_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
-    try:
-        return _get_policy_rotation_provider().get_features(ticker)
-    except Exception:
-        return ExternalFeatureBundle.unavailable(source="etf-proxies")
-
-
-def _fetch_news_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
-    try:
-        return _get_news_rotation_provider().get_features(ticker)
-    except Exception:
-        return ExternalFeatureBundle.unavailable(source="rss+vader")
-
-
-def _fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
-    try:
-        return _get_social_rotation_provider().get_features(ticker)
-    except Exception:
-        return ExternalFeatureBundle.unavailable(source="reddit+gtrends")
-
-
-
-def _select_runtime_rotation_strategy(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-    as_of_iso: str,
-) -> str | None:
-    return select_account_rotation_strategy_impl(
-        conn,
-        account,
-        as_of_iso,
-        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
-        fetch_policy_features_fn=_fetch_policy_rotation_bundle,
-        fetch_news_features_fn=_fetch_news_rotation_bundle,
-        fetch_social_features_fn=_fetch_social_rotation_bundle,
-        fetch_rotation_overlay_tickers_fn=_fetch_runtime_rotation_overlay_tickers,
-        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
-    )
-
-
-def _fetch_runtime_rotation_overlay_tickers(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-) -> list[str]:
-    return fetch_rotation_overlay_tickers_impl(conn, account)
-
-
-def _compute_runtime_live_account_metrics(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-) -> dict[str, float]:
-    return compute_live_account_metrics_impl(conn, account)
-
-
-def _sync_runtime_rotation_episode(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-    now_iso: str,
-) -> None:
-    if not hasattr(conn, "execute"):
-        return
-    sync_rotation_episode_impl(
-        conn,
-        account,
-        now_iso,
-        fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
-        insert_rotation_episode_fn=insert_rotation_episode,
-        close_rotation_episode_fn=close_rotation_episode,
-        fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
-        compute_live_account_metrics_fn=_compute_runtime_live_account_metrics,
-    )
-
-
 def _rotate_runtime_account(
     conn: sqlite3.Connection,
     account_name: str,
     account: AccountRecord,
     now_iso: str,
 ) -> AccountRecord:
-    _sync_runtime_rotation_episode(conn, account, now_iso)
-    deps = RotationDeps(
-        is_rotation_due_fn=lambda row: is_rotation_due(row, as_of_iso=now_iso),
-        select_optimal_strategy_fn=_select_runtime_rotation_strategy,
+    return rotate_runtime_account(
+        conn,
+        account_name,
+        account,
+        now_iso,
+        is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
+        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
+        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
+        fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
+        insert_rotation_episode_fn=insert_rotation_episode,
+        close_rotation_episode_fn=close_rotation_episode,
+        fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
     )
-    rotated = rotate_runtime_account_if_due_impl(conn, account_name, account, now_iso, deps)
-    _sync_runtime_rotation_episode(conn, rotated, now_iso)
-    return rotated
 
 
 def _refresh_runtime_account_state(conn: sqlite3.Connection, account: AccountRecord):
@@ -309,10 +211,11 @@ def _resolve_reconciliation_exec_id(
     fill: OrderFill,
     fill_index: int,
 ) -> str:
-    if fill.exec_id:
-        return fill.exec_id
-    # Deterministic fallback for broker payloads that omit execution IDs.
-    return f"{broker_order_id}:{fill.fill_time}:{fill.filled_qty}:{fill.fill_price}:{fill_index}"
+    return resolve_reconciliation_exec_id(
+        broker_order_id=broker_order_id,
+        fill=fill,
+        fill_index=fill_index,
+    )
 
 
 def _insert_submitted_sleeve_order(
@@ -347,31 +250,12 @@ def _compute_current_exposure_snapshot(
     *,
     account_id: int,
 ) -> tuple[float, float, float, float]:
-    position_rows = fetch_sleeve_positions_for_account(conn, account_id=account_id)
-    gross_exposure = 0.0
-    net_exposure = 0.0
-    symbol_exposure: dict[str, float] = {}
-    sector_exposure: dict[str, float] = {}
-    for row in position_rows:
-        symbol = str(row["symbol"]).upper().strip()
-        market_value = float(row["market_value"])
-        abs_value = abs(market_value)
-        gross_exposure += abs_value
-        net_exposure += market_value
-        symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + abs_value
-        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=DEFAULT_SYMBOL_SECTOR_MAP)
-        if sector is not None:
-            sector_exposure[sector] = sector_exposure.get(sector, 0.0) + abs_value
-
-    sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
-    total_equity = sum(float(row["current_equity"]) for row in sleeve_rows)
-    max_symbol_concentration_pct = 0.0
-    max_sector_concentration_pct = 0.0
-    if total_equity > 0 and symbol_exposure:
-        max_symbol_concentration_pct = max(symbol_exposure.values()) / total_equity
-    if total_equity > 0 and sector_exposure:
-        max_sector_concentration_pct = max(sector_exposure.values()) / total_equity
-    return gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct
+    return compute_current_exposure_snapshot(
+        conn,
+        account_id=account_id,
+        fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account,
+        fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account,
+    )
 
 
 def _persist_sleeve_risk_snapshot(
@@ -382,23 +266,15 @@ def _persist_sleeve_risk_snapshot(
     kill_switch_triggered: bool,
     payload: dict[str, object],
 ) -> None:
-    gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct = _compute_current_exposure_snapshot(
-        conn,
-        account_id=account_id,
-    )
-    upsert_portfolio_risk_snapshot(
+    persist_sleeve_risk_snapshot(
         conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
-        gross_exposure=gross_exposure,
-        net_exposure=net_exposure,
-        max_symbol_concentration_pct=max_symbol_concentration_pct,
-        max_sector_concentration_pct=max_sector_concentration_pct,
-        drawdown_pct=None,
-        leverage_proxy=None,
-        daily_loss_pct=None,
-        kill_switch_triggered=1 if kill_switch_triggered else 0,
-        risk_payload_json=json.dumps(payload, sort_keys=True),
+        kill_switch_triggered=kill_switch_triggered,
+        payload=payload,
+        fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account,
+        fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account,
+        upsert_portfolio_risk_snapshot_fn=upsert_portfolio_risk_snapshot,
     )
 
 
@@ -409,40 +285,13 @@ def _persist_normalized_sleeve_risk_decisions(
     decision_time: str,
     risk_decisions: list[dict[str, object]],
 ) -> None:
-    for decision in risk_decisions:
-        action = str(decision.get("action", "block")).strip().lower()
-        reason_code = str(decision.get("reason_code", "unspecified")).strip().lower()
-        sleeve_id_value = decision.get("sleeve_id")
-        sleeve_id = int(sleeve_id_value) if sleeve_id_value is not None else None
-        symbol_value = decision.get("symbol")
-        symbol = str(symbol_value).upper().strip() if symbol_value is not None else None
-        side_value = decision.get("side")
-        side = str(side_value).lower().strip() if side_value is not None else None
-        requested_qty_value = decision.get("requested_qty")
-        approved_qty_value = decision.get("approved_qty")
-        requested_notional_value = decision.get("requested_notional")
-        approved_notional_value = decision.get("approved_notional")
-        insert_sleeve_risk_decision(
-            conn,
-            account_id=account_id,
-            sleeve_id=sleeve_id,
-            decision_time=decision_time,
-            symbol=symbol,
-            side=side,
-            action=action,
-            reason_code=reason_code,
-            requested_qty=int(requested_qty_value) if requested_qty_value is not None else None,
-            approved_qty=int(approved_qty_value) if approved_qty_value is not None else None,
-            requested_notional=(
-                float(requested_notional_value) if requested_notional_value is not None else None
-            ),
-            approved_notional=(
-                float(approved_notional_value) if approved_notional_value is not None else None
-            ),
-            execution_mode="sleeve",
-            risk_payload_json=json.dumps(decision, sort_keys=True),
-            created_at=decision_time,
-        )
+    persist_normalized_sleeve_risk_decisions(
+        conn,
+        account_id=account_id,
+        decision_time=decision_time,
+        risk_decisions=risk_decisions,
+        insert_sleeve_risk_decision_fn=insert_sleeve_risk_decision,
+    )
 
 
 def _is_snapshot_time_stale(
@@ -451,15 +300,11 @@ def _is_snapshot_time_stale(
     now_iso: str,
     max_age_seconds: int,
 ) -> bool:
-    if snapshot_time is None:
-        return True
-    try:
-        snapshot_dt = parse_utc_iso(snapshot_time)
-        now_dt = parse_utc_iso(now_iso)
-    except Exception:
-        return True
-    age_seconds = (now_dt - snapshot_dt).total_seconds()
-    return age_seconds > float(max_age_seconds)
+    return is_snapshot_time_stale(
+        snapshot_time=snapshot_time,
+        now_iso=now_iso,
+        max_age_seconds=max_age_seconds,
+    )
 
 
 def _run_sleeve_rotation_decisions(
@@ -831,85 +676,19 @@ def reconcile_open_broker_orders(
     accounts since paper orders are synchronously filled and report no open
     trades through the broker interface.
     """
-    broker = get_broker_for_account(account)
-
-    open_rows = fetch_open_broker_orders(conn, account_id=row_expect_int(account, "id"))
-    if not open_rows:
-        broker.disconnect()
-        return 0
-
-    open_ids = {row["broker_order_id"]: row for row in open_rows}
-    account_id = row_expect_int(account, "id")
-    try:
-        live_orders = broker.get_open_trades()
-        now = utc_now_iso()
-        newly_filled = 0
-
-        for live in live_orders:
-            if live.broker_order_id not in open_ids:
-                continue
-            persisted = open_ids[live.broker_order_id]
-            sleeve_order_row = fetch_sleeve_order_by_broker_order_id(
-                conn,
-                account_id=account_id,
-                broker_order_id=live.broker_order_id,
-            )
-
-            # Persist any new fills not yet in the DB.
-            for fill_index, fill in enumerate(live.fills):
-                insert_order_fill(conn, live.broker_order_id, fill)
-                if sleeve_order_row is not None:
-                    apply_sleeve_fill(
-                        conn,
-                        sleeve_order_id=int(sleeve_order_row["id"]),
-                        broker_fill_id=live.broker_order_id,
-                        exec_id=_resolve_reconciliation_exec_id(
-                            broker_order_id=live.broker_order_id,
-                            fill=fill,
-                            fill_index=fill_index,
-                        ),
-                        filled_qty=fill.filled_qty,
-                        fill_price=fill.fill_price,
-                        commission=fill.commission,
-                        fill_time=fill.fill_time,
-                        updated_at=now,
-                    )
-
-            # Update the order row with latest status.
-            update_broker_order_status(
-                conn,
-                broker_order_id=live.broker_order_id,
-                status=live.status,
-                filled_qty=live.filled_qty,
-                avg_fill_price=live.avg_fill_price,
-                commission=live.commission,
-                updated_at=now,
-            )
-            if sleeve_order_row is not None:
-                update_sleeve_order_status(
-                    conn,
-                    sleeve_order_id=int(sleeve_order_row["id"]),
-                    status=live.status.value,
-                    updated_at=now,
-                )
-
-            if live.status == OrderStatus.FILLED:
-                record_trade(
-                    conn,
-                    account_name=account_name,
-                    side=persisted["side"],
-                    ticker=persisted["ticker"],
-                    qty=live.filled_qty,
-                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted["requested_price"],
-                    fee=fee,
-                    trade_time=now,
-                    note=f"ib-fill order={live.broker_order_id}",
-                )
-                newly_filled += 1
-
-        return newly_filled
-    finally:
-        broker.disconnect()
+    return reconcile_open_broker_orders_impl(
+        conn,
+        account_name,
+        account,
+        fee,
+        get_broker_for_account_fn=get_broker_for_account,
+        fetch_open_broker_orders_fn=fetch_open_broker_orders,
+        fetch_sleeve_order_by_broker_order_id_fn=fetch_sleeve_order_by_broker_order_id,
+        insert_order_fill_fn=insert_order_fill,
+        update_broker_order_status_fn=update_broker_order_status,
+        update_sleeve_order_status_fn=update_sleeve_order_status,
+        record_trade_fn=record_trade,
+    )
 
 
 def reconcile_open_ib_orders(
