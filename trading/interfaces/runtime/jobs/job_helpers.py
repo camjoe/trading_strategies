@@ -49,6 +49,58 @@ def day_tag(now: dt.datetime | None = None) -> str:
     return (now or dt.datetime.now()).strftime("%Y%m%d")
 
 
+def week_tag(now: dt.datetime) -> str:
+    """Return ISO week tag (YYYY_Www) for a timestamp."""
+    iso_year, iso_week, _ = now.isocalendar()
+    return f"{iso_year}_W{iso_week:02d}"
+
+
+def month_tag(now: dt.datetime) -> str:
+    """Return month tag (YYYY_MM) for a timestamp."""
+    return now.strftime("%Y_%m")
+
+
+def already_completed_for_period(
+    *,
+    log_dir: Path,
+    job_name: str,
+    period_tag: str,
+    sentinel: str,
+) -> bool:
+    """Return True when latest log for job+period contains completion sentinel."""
+    return latest_log_contains_sentinel(
+        log_dir,
+        f"{job_name}_{period_tag}_*.log",
+        sentinel,
+    )
+
+
+def skip_if_already_completed_for_period(
+    *,
+    log_path: Path,
+    log_dir: Path,
+    job_name: str,
+    period_name: str,
+    period_tag: str,
+    sentinel: str,
+    force_run: bool,
+) -> bool:
+    """Log and print a standardized skip message for duplicate periodic runs."""
+    if force_run:
+        return False
+    if not already_completed_for_period(
+        log_dir=log_dir,
+        job_name=job_name,
+        period_tag=period_tag,
+        sentinel=sentinel,
+    ):
+        return False
+    message = f"{job_name}: already completed this {period_name}; skipping. Use --force-run to override."
+    tee_line(log_path, f"[{ts()}] SKIP: {message}")
+    print(message)
+    return True
+
+
 def is_transient_error(output: str) -> bool:
     """Return True if *output* contains a known transient connectivity error token."""
     lowered = output.lower()

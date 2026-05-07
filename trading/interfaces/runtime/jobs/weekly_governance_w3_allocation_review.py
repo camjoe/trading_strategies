@@ -11,11 +11,13 @@ from pathlib import Path
 from common.paths.repo_paths import get_repo_root
 from trading.database.db_init import ensure_db
 from trading.interfaces.runtime.jobs.job_helpers import (
-    latest_log_contains_sentinel,
+    already_completed_for_period,
     logs_dir_for_repo,
     resolve_accounts,
+    skip_if_already_completed_for_period,
     tee_line,
     ts,
+    week_tag,
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL
@@ -29,18 +31,12 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL
 
 JOB_NAME = "weekly_governance_w3_allocation_review"
-
-
-def week_tag(now: dt.datetime) -> str:
-    iso_year, iso_week, _ = now.isocalendar()
-    return f"{iso_year}_W{iso_week:02d}"
-
-
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
-    return latest_log_contains_sentinel(
-        log_dir,
-        f"{JOB_NAME}_{tag}_*.log",
-        COMPLETE_SENTINEL,
+    return already_completed_for_period(
+        log_dir=log_dir,
+        job_name=JOB_NAME,
+        period_tag=tag,
+        sentinel=COMPLETE_SENTINEL,
     )
 
 
@@ -87,10 +83,15 @@ def main() -> int:
 
     tee_line(log_path, f"[{ts()}] RUN META: job={JOB_NAME} week={tag} force={bool(args.force_run)}")
 
-    if not args.force_run and already_completed_this_week(logs_dir, tag):
-        message = f"{JOB_NAME}: already completed this week; skipping. Use --force-run to override."
-        tee_line(log_path, f"[{ts()}] SKIP: {message}")
-        print(message)
+    if skip_if_already_completed_for_period(
+        log_path=log_path,
+        log_dir=logs_dir,
+        job_name=JOB_NAME,
+        period_name="week",
+        period_tag=tag,
+        sentinel=COMPLETE_SENTINEL,
+        force_run=bool(args.force_run),
+    ):
         return 0
 
     try:

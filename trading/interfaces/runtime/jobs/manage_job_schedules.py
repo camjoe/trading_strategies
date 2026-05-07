@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import sys
 
 from common.paths.repo_paths import get_repo_root
+from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
 from trading.interfaces.runtime.jobs.scheduler_installer import (
     ScheduledTaskSpec,
     register_tasks_for_platform,
@@ -15,7 +16,6 @@ from trading.interfaces.runtime.jobs.scheduler_installer import (
 )
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_trading"
-DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval"
 DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
 DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
