@@ -106,3 +106,14 @@ def test_main_rejects_non_positive_health_check_threshold(monkeypatch, capsys) -
 
     assert module.main() == 2
     assert "--health-check-max-age-hours must be > 0" in capsys.readouterr().err
+
+
+def test_main_rejects_invalid_shadow_eval_lead_minutes(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        module,
+        "parse_args",
+        lambda: make_manage_job_schedules_args(shadow_eval_lead_minutes=0),
+    )
+
+    assert module.main() == 2
+    assert "--shadow-eval-lead-minutes" in capsys.readouterr().err

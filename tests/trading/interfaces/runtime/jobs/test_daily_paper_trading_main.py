@@ -86,6 +86,53 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     assert "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval" in calls[0][1]
     assert "--rolling-window-days" in calls[0][1]
 
+
+def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path) -> None:
+    shadow_export_dir = tmp_path / "local" / "exports" / "daily_challenger_shadow_eval"
+    shadow_export_dir.mkdir(parents=True, exist_ok=True)
+    (shadow_export_dir / "daily_challenger_shadow_eval_20260507_120000.json").write_text(
+        json.dumps(
+            {
+                "status": "success",
+                "results": [
+                    {
+                        "account_name": "acct_a",
+                        "sleeves": [
+                            {"sleeve_id": 1, "challenger_count": 2},
+                            {"sleeve_id": 2, "challenger_count": 1},
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        f"{DAILY_PAPER_TRADING_MODULE}.stream_command",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--run-challenger-shadow-eval"],
+    )
+
+    assert code == 0
+    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    shadow_steps = [step for step in payload["completed_steps"] if step["step"] == "challenger_shadow_eval"]
+    assert len(shadow_steps) == 1
+    summary = shadow_steps[0]["summary"]
+    assert summary is not None
+    assert summary["account_count"] == 1
+    assert summary["sleeve_count"] == 2
+    assert summary["challenger_count"] == 3
+
 def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["real_acct"])
 

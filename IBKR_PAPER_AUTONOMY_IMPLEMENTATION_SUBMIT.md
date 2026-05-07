@@ -868,6 +868,47 @@ Slice D explicitly defers:
    - None.
    - Rationale: this slice wires optional orchestration only and does not replace existing job pathways.
 
+### Increment 5 Slice E (Implemented)
+
+Scope of this slice:
+
+1. Add scheduler rollout defaults for challenger shadow evaluation:
+   - extend `trading/interfaces/runtime/jobs/manage_job_schedules.py` with:
+     - `--auto-shadow-eval-from-daily-paper`
+     - `--shadow-eval-lead-minutes`
+   - derive shadow-eval time from daily paper-trading schedule when explicit shadow-eval time is omitted.
+   - auto-derived shadow-eval tasks include `--enable-run` to enforce explicit job activation during rollout.
+
+2. Add operator-facing shadow-eval coverage summary into daily paper-trading artifacts:
+   - `trading/interfaces/runtime/jobs/daily_paper_trading.py` now loads latest shadow-eval artifact summary and stores:
+     - evaluated accounts
+     - sleeves evaluated
+     - challenger candidate count
+   - summary is attached to the `challenger_shadow_eval` completed step payload.
+
+3. Add deterministic tests:
+   - scheduler auto-derivation behavior and lead-minute validation
+   - daily artifact embedding of shadow-eval summary metrics
+
+Slice E explicitly defers:
+
+1. Webhook notification enrichment with shadow-eval summary payload fields.
+2. Default task-time presets for shadow-eval in deployment scripts (supports derivation but does not force defaults).
+
+### Reuse and Consolidation Audit (Increment 5 Slice E)
+
+1. `trading/interfaces/runtime/jobs/manage_job_schedules.py`: `reuse + extend`
+   - Reused existing schedule build pipeline.
+   - Extended with deterministic time-derivation helper; no parallel scheduler entrypoint added.
+
+2. `trading/interfaces/runtime/jobs/daily_paper_trading.py`: `reuse + extend`
+   - Reused existing artifact step-tracking structure.
+   - Extended with shadow-eval summary hydration from exported job artifacts.
+
+3. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: this slice enriches scheduling/reporting without replacing core execution pathways.
+
 ### Acceptance
 
 1. Rotation decisions are explainable and replayable from persisted data.

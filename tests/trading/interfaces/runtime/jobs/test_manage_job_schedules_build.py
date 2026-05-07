@@ -44,3 +44,19 @@ def test_build_scheduled_tasks_omits_optional_jobs_without_times() -> None:
 
     assert len(tasks) == 1
     assert tasks[0].module == module.DAILY_PAPER_TRADING_MODULE
+
+
+def test_build_scheduled_tasks_auto_derives_shadow_eval_time() -> None:
+    tasks = module.build_scheduled_tasks(
+        make_manage_job_schedules_args(
+            daily_paper_trading_time="13:10",
+            auto_shadow_eval_from_daily_paper=True,
+            shadow_eval_lead_minutes=20,
+        )
+    )
+
+    assert len(tasks) == 2
+    assert tasks[0].module == module.DAILY_PAPER_TRADING_MODULE
+    assert tasks[1].module == module.DAILY_CHALLENGER_SHADOW_EVAL_MODULE
+    assert tasks[1].time == "12:50"
+    assert tasks[1].args == ("--enable-run",)

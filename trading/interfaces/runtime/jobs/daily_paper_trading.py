@@ -19,6 +19,7 @@ from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_S
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 DEFAULT_TRADE_CAPS_CONFIG = REPO_ROOT / "trading" / "config" / "account_trade_caps.json"
+SHADOW_EVAL_EXPORT_DIR = Path("local") / "exports" / "daily_challenger_shadow_eval"
 
 
 def _startup_log(message: str, logs_dir: Path = LOGS_DIR) -> None:
@@ -224,6 +225,42 @@ def group_accounts_by_caps(
     return grouped
 
 
+def _latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
+    export_dir = repo_root / SHADOW_EVAL_EXPORT_DIR
+    artifacts = sorted(
+        export_dir.glob("daily_challenger_shadow_eval_*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not artifacts:
+        return None
+    latest = artifacts[0]
+    payload = json.loads(latest.read_text(encoding="utf-8"))
+    results = payload.get("results", [])
+    if not isinstance(results, list):
+        results = []
+    sleeve_count = 0
+    challenger_count = 0
+    for account_result in results:
+        if not isinstance(account_result, dict):
+            continue
+        sleeves = account_result.get("sleeves", [])
+        if not isinstance(sleeves, list):
+            continue
+        sleeve_count += len(sleeves)
+        for sleeve in sleeves:
+            if not isinstance(sleeve, dict):
+                continue
+            challenger_count += int(sleeve.get("challenger_count") or 0)
+    return {
+        "status": payload.get("status"),
+        "artifact_path": str(latest.relative_to(repo_root)),
+        "account_count": len(results),
+        "sleeve_count": sleeve_count,
+        "challenger_count": challenger_count,
+    }
+
+
 def run_auto_trader_group(
     log_path: Path,
     repo_root: Path,
@@ -396,11 +433,13 @@ def main() -> int:
                 ],
                 repo_root,
             )
+            shadow_eval_summary = _latest_shadow_eval_summary(repo_root)
             completed_steps.append(
                 {
                     "step": "challenger_shadow_eval",
                     "accounts": accounts,
                     "rolling_window_days": args.shadow_eval_rolling_window_days,
+                    "summary": shadow_eval_summary,
                 }
             )
 

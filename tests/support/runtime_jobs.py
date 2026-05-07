@@ -88,6 +88,8 @@ def make_manage_job_schedules_args(**overrides):
         "daily_challenger_shadow_eval_time": "",
         "daily_challenger_shadow_eval_task_name": r"Trading\DailyChallengerShadowEval",
         "enable_daily_challenger_shadow_eval": False,
+        "auto_shadow_eval_from_daily_paper": False,
+        "shadow_eval_lead_minutes": 20,
         "daily_snapshot_time": "",
         "daily_snapshot_task_name": r"Trading\DailySnapshot",
         "enable_daily_snapshot": False,
