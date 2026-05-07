@@ -1,0 +1,175 @@
+from __future__ import annotations
+
+import datetime as dt
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+import trading.interfaces.runtime.jobs.monthly_governance_m3_performance_audit as module
+from tests.support.runtime_jobs import run_runtime_job_main
+
+MODULE_NAME = "trading.interfaces.runtime.jobs.monthly_governance_m3_performance_audit"
+
+
+class TestDedupGuard:
+    def test_skips_when_already_completed_this_month(self, monkeypatch, tmp_path: Path) -> None:
+        now = dt.datetime.now()
+        tag = module.month_tag(now)
+        logs_dir = tmp_path / "local" / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = now.strftime("%Y%m%d_%H%M%S")
+        log_path = logs_dir / f"monthly_governance_m3_performance_audit_{tag}_{timestamp}.log"
+        log_path.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+
+        result = run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all"])
+        assert result == 0
+
+    def test_returns_false_when_no_prior_log(self, tmp_path: Path) -> None:
+        assert module.already_completed_this_month(tmp_path, "2099_12") is False
+
+    def test_returns_true_when_sentinel_in_log(self, tmp_path: Path) -> None:
+        tag = "2099_06"
+        log = tmp_path / f"monthly_governance_m3_performance_audit_{tag}_20990601_000000.log"
+        log.write_text(f"stuff\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+        assert module.already_completed_this_month(tmp_path, tag) is True
+
+    def test_returns_false_when_sentinel_absent(self, tmp_path: Path) -> None:
+        tag = "2099_07"
+        log = tmp_path / f"monthly_governance_m3_performance_audit_{tag}_20990701_000000.log"
+        log.write_text("incomplete run\n", encoding="utf-8")
+        assert module.already_completed_this_month(tmp_path, tag) is False
+
+
+class TestArtifactStructure:
+    def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
+        mock_conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
+        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+        monkeypatch.setattr(
+            module,
+            "fetch_account_by_name",
+            lambda conn, name: SimpleNamespace(id=1, name=name),
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_strategy_sleeves_for_account",
+            lambda conn, *, account_id: [],
+        )
+
+        result = run_runtime_job_main(
+            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
+        )
+        assert result == 0
+
+        artifacts = list(
+            (tmp_path / "local" / "artifacts").glob("monthly_governance_m3_performance_audit_*.json")
+        )
+        assert len(artifacts) == 1
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        assert "month" in payload
+        assert "generated_at" in payload
+        assert "audit_window_days" in payload
+        assert "accounts" in payload
+        assert isinstance(payload["accounts"], list)
+
+    def test_cumulative_return_and_stats_computed(self, monkeypatch, tmp_path: Path) -> None:
+        sleeve_row = {"id": 5, "name": "sleeve_m"}
+        # Two metric rows: +2% and +3%
+        # compound = (1.02 * 1.03 - 1) * 100 = 5.06%
+        metrics = [
+            {
+                "return_pct": 2.0,
+                "drawdown_pct": -1.0,
+                "hit_rate": 0.6,
+                "trade_count": 3,
+            },
+            {
+                "return_pct": 3.0,
+                "drawdown_pct": -2.0,
+                "hit_rate": 0.7,
+                "trade_count": 4,
+            },
+        ]
+        mock_conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
+        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+        monkeypatch.setattr(
+            module,
+            "fetch_account_by_name",
+            lambda conn, name: SimpleNamespace(id=1, name=name),
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_strategy_sleeves_for_account",
+            lambda conn, *, account_id: [sleeve_row],
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_active_sleeve_strategy_assignment",
+            lambda conn, *, sleeve_id: {"strategy_name": "trend_v2"},
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_daily_metrics_for_sleeve_window",
+            lambda conn, *, sleeve_id, start_date, end_date: metrics,
+        )
+
+        result = run_runtime_job_main(
+            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
+        )
+        assert result == 0
+
+        artifacts = list(
+            (tmp_path / "local" / "artifacts").glob("monthly_governance_m3_performance_audit_*.json")
+        )
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        sleeve = payload["accounts"][0]["sleeves"][0]
+        assert sleeve["sleeve_name"] == "sleeve_m"
+        assert sleeve["strategy_name"] == "trend_v2"
+        assert sleeve["data_points"] == 2
+        assert sleeve["total_trades"] == 7
+        assert sleeve["max_drawdown_pct"] == -2.0
+        assert abs(sleeve["avg_hit_rate"] - 0.65) < 0.001
+        # cumulative: (1.02 * 1.03 - 1) * 100 = 5.06
+        assert abs(sleeve["cumulative_return_pct"] - 5.06) < 0.001
+
+    def test_empty_metrics_produces_null_stats(self, monkeypatch, tmp_path: Path) -> None:
+        sleeve_row = {"id": 9, "name": "sleeve_empty"}
+        mock_conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
+        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+        monkeypatch.setattr(
+            module,
+            "fetch_account_by_name",
+            lambda conn, name: SimpleNamespace(id=1, name=name),
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_strategy_sleeves_for_account",
+            lambda conn, *, account_id: [sleeve_row],
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_active_sleeve_strategy_assignment",
+            lambda conn, *, sleeve_id: None,
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_daily_metrics_for_sleeve_window",
+            lambda conn, *, sleeve_id, start_date, end_date: [],
+        )
+
+        run_runtime_job_main(
+            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
+        )
+        artifacts = list(
+            (tmp_path / "local" / "artifacts").glob("monthly_governance_m3_performance_audit_*.json")
+        )
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        sleeve = payload["accounts"][0]["sleeves"][0]
+        assert sleeve["data_points"] == 0
+        assert sleeve["cumulative_return_pct"] is None
+        assert sleeve["max_drawdown_pct"] is None
+        assert sleeve["avg_hit_rate"] is None
+        assert sleeve["total_trades"] == 0
+        assert sleeve["strategy_name"] is None

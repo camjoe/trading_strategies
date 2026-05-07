@@ -1061,6 +1061,65 @@ Slice B explicitly defers:
 2. Per-account report includes sleeve performance, risk violations (with kill switch flag), and rotation decisions.
 3. All 22 affected tests pass; no DB-access side effects in unrelated daily-job tests.
 
+### Increment 6 Slice C (Implemented)
+
+Scope of this slice:
+
+1. Six standalone weekly and monthly governance job entrypoints:
+
+   **Weekly jobs (dedup guard: ISO week tag):**
+   - `weekly_governance_w1_leaderboard`: 30-day sleeve performance ranking per account; sleeves ranked by `avg_risk_adjusted_score`.
+   - `weekly_governance_w2_promotion_review`: promotion readiness and sleeve status per account using `fetch_current_promotion_assessment`; reports `ready_for_live` and `blockers`.
+   - `weekly_governance_w3_allocation_review`: compares actual sleeve NAV allocation vs original `start_equity` ratios; flags sleeves where `|drift_pct| >= threshold` (default 5%).
+
+   **Monthly jobs (dedup guard: calendar month tag `YYYY_MM`):**
+   - `monthly_governance_m1_risk_rebaseline`: latest portfolio risk snapshot per account for operator monthly review; includes kill switch state, exposure, drawdown.
+   - `monthly_governance_m2_parameter_governance`: active strategy param set inventory per sleeve; operator reviews parameter health without automated enforcement.
+   - `monthly_governance_m3_performance_audit`: 90-day compound return, max drawdown, average hit rate, and total trades per sleeve; configurable `--audit-window-days`.
+
+2. Six new completion sentinels in `common/runtime_job_status.py`; re-exported from `trading/interfaces/runtime/job_status.py`.
+
+3. All 6 jobs are read-only against the DB — no writes, no mutations.
+
+4. Each job writes a timestamped JSON artifact to `local/artifacts/` and supports `--force-run` to bypass the dedup guard.
+
+5. 39 deterministic tests across 6 files: dedup guard skip, sentinel detection, artifact key structure, and job-specific computations (ranking, drift math, cumulative return, null stats).
+
+Slice C explicitly defers:
+
+1. Scheduling registration in `manage_job_schedules.py` (operator can schedule manually with cron/Task Scheduler).
+2. Automated promotion/retirement actions triggered by W2 output (read-only reports only).
+3. Automated risk budget updates triggered by M1/M2 output.
+
+### Reuse and Consolidation Audit (Increment 6 Slice C)
+
+1. `common/runtime_job_status.py`: `reuse + extend`
+   - Added 6 new sentinel constants; no existing sentinels changed.
+
+2. `trading/interfaces/runtime/job_status.py`: `reuse + extend`
+   - Re-exported 6 new sentinels; existing exports unchanged.
+
+3. `trading/interfaces/runtime/jobs/weekly_governance_w[1-3]*.py`: `new`
+   - Three new standalone weekly job entrypoints following `weekly_db_backup.py` dedup pattern.
+
+4. `trading/interfaces/runtime/jobs/monthly_governance_m[1-3]*.py`: `new`
+   - Three new standalone monthly job entrypoints following the same pattern with a `month_tag` variant.
+
+5. `tests/trading/interfaces/runtime/jobs/test_weekly_governance_*.py` + `test_monthly_governance_*.py`: `new`
+   - Six new test files; each follows the `run_runtime_job_main` helper pattern from existing daily job tests.
+
+6. No repositories were modified — all queries use existing read functions.
+
+7. Deprecated/removed overlap in this slice:
+   - None.
+
+### Acceptance (Increment 6 Slice C)
+
+1. All 6 governance jobs run to completion as standalone `python -m` invocations.
+2. Dedup guards prevent duplicate weekly/monthly runs without `--force-run`.
+3. Artifacts land in `local/artifacts/` with correct JSON structure for each job type.
+4. All 39 new tests pass; no mutations to existing tests or repository code.
+
 ## Increment 7: Hardening and Burn-In
 
 ### Deliverables
