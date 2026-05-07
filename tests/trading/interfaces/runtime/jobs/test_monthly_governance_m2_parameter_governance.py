@@ -90,12 +90,12 @@ class TestArtifactStructure:
         monkeypatch.setattr(
             module,
             "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: {"strategy_name": "mean_rev"},
+            lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 42},
         )
         monkeypatch.setattr(
             module,
-            "fetch_active_strategy_param_set",
-            lambda conn, *, strategy_name: param_row,
+            "fetch_strategy_param_set_by_id",
+            lambda conn, *, param_set_id: param_row,
         )
 
         result = run_runtime_job_main(
@@ -112,6 +112,49 @@ class TestArtifactStructure:
         assert sleeve["strategy_name"] == "mean_rev"
         assert sleeve["param_set_id"] == 42
         assert sleeve["params"] == {"lookback": 20, "threshold": 0.5}
+
+    def test_uses_assignment_param_set_id_instead_of_global_active_set(self, monkeypatch, tmp_path: Path) -> None:
+        sleeve_row = {"id": 7, "name": "sleeve_q"}
+        param_row = {"id": 99, "params_json": '{"alpha": 1.2}'}
+        captured: dict[str, int] = {}
+        mock_conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
+        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+        monkeypatch.setattr(
+            module,
+            "fetch_account_by_name",
+            lambda conn, name: SimpleNamespace(id=1, name=name),
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_strategy_sleeves_for_account",
+            lambda conn, *, account_id: [sleeve_row],
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_active_sleeve_strategy_assignment",
+            lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 99},
+        )
+
+        def _fetch_param_set_by_id(conn, *, param_set_id):
+            captured["param_set_id"] = param_set_id
+            return param_row
+
+        monkeypatch.setattr(module, "fetch_strategy_param_set_by_id", _fetch_param_set_by_id)
+
+        result = run_runtime_job_main(
+            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
+        )
+        assert result == 0
+        assert captured["param_set_id"] == 99
+
+        artifacts = list(
+            (tmp_path / "local" / "artifacts").glob("monthly_governance_m2_parameter_governance_*.json")
+        )
+        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        sleeve = payload["accounts"][0]["sleeves"][0]
+        assert sleeve["param_set_id"] == 99
+        assert sleeve["params"] == {"alpha": 1.2}
 
     def test_null_param_set_when_no_assignment(self, monkeypatch, tmp_path: Path) -> None:
         sleeve_row = {"id": 8, "name": "sleeve_r"}

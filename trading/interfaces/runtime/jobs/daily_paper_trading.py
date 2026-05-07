@@ -16,6 +16,7 @@ from trading.database.db_init import ensure_db
 from trading.interfaces.runtime.jobs.job_helpers import CLI_MAIN_MODULE, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, RUN_AUTO_TRADES_MODULE, RUNTIME_ALERT_WEBHOOK_ENV, latest_log_contains_sentinel, logs_dir_for_repo, resolve_accounts, stream_command, tee_line, ts, write_artifact
 from trading.interfaces.runtime.notifications import notify_webhook_best_effort
 from trading.repositories.accounts import fetch_account_by_name
+from trading.services.auto_trading import EXECUTION_MODE_SLEEVE
 from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
@@ -407,6 +408,8 @@ def run_auto_trader_group(
         str(max_trades),
         "--fee",
         str(fee),
+        "--execution-mode",
+        EXECUTION_MODE_SLEEVE,
     ]
     if seed is not None:
         auto_trader_args.extend(["--seed", str(seed)])

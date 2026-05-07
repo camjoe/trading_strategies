@@ -23,7 +23,7 @@ from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M2_PARAMETE
 from trading.repositories.accounts import fetch_account_by_name
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
-    fetch_active_strategy_param_set,
+    fetch_strategy_param_set_by_id,
     fetch_strategy_sleeves_for_account,
 )
 from trading.services.accounts import load_runtime_eligible_account_names
@@ -121,14 +121,16 @@ def main() -> int:
 
                 if assignment is not None:
                     strategy_name = str(assignment["strategy_name"])
-                    param_set = fetch_active_strategy_param_set(conn, strategy_name=strategy_name)
-                    if param_set is not None:
-                        param_set_id = int(param_set["id"])
-                        raw_json = param_set["params_json"]
-                        try:
-                            params = json.loads(raw_json) if raw_json else None
-                        except (ValueError, TypeError):
-                            params = None
+                    assigned_param_set_id = assignment["param_set_id"]
+                    if assigned_param_set_id is not None:
+                        param_set_id = int(assigned_param_set_id)
+                        param_set = fetch_strategy_param_set_by_id(conn, param_set_id=param_set_id)
+                        if param_set is not None:
+                            raw_json = param_set["params_json"]
+                            try:
+                                params = json.loads(raw_json) if raw_json else None
+                            except (ValueError, TypeError):
+                                params = None
 
                 sleeve_rows.append(
                     {

@@ -109,6 +109,30 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     assert "--rolling-window-days" in calls[0][1]
 
 
+def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, list[str]]] = []
+
+    def _capture(_log_path, label, args, _cwd):
+        calls.append((label, args))
+
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", _capture)
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--force-run"],
+    )
+
+    assert code == 0
+    auto_trader_calls = [args for label, args in calls if label.startswith("Auto Trader")]
+    assert len(auto_trader_calls) == 1
+    args = auto_trader_calls[0]
+    mode_index = args.index("--execution-mode")
+    assert args[mode_index + 1] == "sleeve"
+
+
 def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path) -> None:
     shadow_export_dir = tmp_path / "local" / "exports" / "daily_challenger_shadow_eval"
     shadow_export_dir.mkdir(parents=True, exist_ok=True)
