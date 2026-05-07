@@ -4,10 +4,10 @@ import datetime as dt
 import json
 from pathlib import Path
 
-import trading.interfaces.runtime.jobs.monthly_governance_m2_parameter_governance as module
+import trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance as module
 from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
-MODULE_NAME = "trading.interfaces.runtime.jobs.monthly_governance_m2_parameter_governance"
+MODULE_NAME = "trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance"
 RUN_ALL_ARGS = ("--accounts", "all")
 RUN_ALL_FORCE_ARGS = (*RUN_ALL_ARGS, "--force-run")
 

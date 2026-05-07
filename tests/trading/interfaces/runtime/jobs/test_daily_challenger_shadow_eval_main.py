@@ -111,4 +111,4 @@ def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys)
 
 
 def test_main_registered_in_support_module_constant() -> None:
-    assert DAILY_CHALLENGER_SHADOW_EVAL_MODULE.endswith("daily_challenger_shadow_eval")
+    assert DAILY_CHALLENGER_SHADOW_EVAL_MODULE.endswith("daily.challenger_shadow_eval")

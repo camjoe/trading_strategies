@@ -7,7 +7,7 @@ from pathlib import Path
 
 def _load():
     return importlib.import_module(
-        "trading.interfaces.runtime.jobs.weekly_db_backup"
+        "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
     )
 
 

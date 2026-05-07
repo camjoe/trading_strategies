@@ -8,7 +8,7 @@ The daily paper-trading job runs once per trading day via Windows Task Scheduler
 
 **Entrypoint:**
 ```
-python -m trading.interfaces.runtime.jobs.daily_paper_trading
+python -m trading.interfaces.runtime.jobs.daily.paper_trading
 ```
 
 **Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
@@ -63,7 +63,7 @@ python -m trading.interfaces.runtime.jobs.daily_paper_trading
 3. Fix the underlying issue (connectivity, data freshness, configuration).
 4. Re-run with `--force-run`:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --force-run
+   .venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
    ```
 
 ### Run did not execute (scheduler missed)
@@ -74,12 +74,12 @@ python -m trading.interfaces.runtime.jobs.daily_paper_trading
    ```
 2. Replay via the backfill tool:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.replay_daily_runs \
+   .venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
        --from-date YYYY-MM-DD --to-date YYYY-MM-DD
    ```
 3. Use `--dry-run` first to confirm which dates are missing across a range:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.replay_daily_runs \
+   .venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
        --from-date 2026-05-01 --to-date 2026-05-07 --dry-run
    ```
 
@@ -122,5 +122,5 @@ Pass `--notify-on-success` to also receive success notifications.
 
 The `check_daily_trader_health` job validates that a recent successful run artifact exists within the configured `--max-age-hours` window:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health
+.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
 ```

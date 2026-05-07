@@ -26,7 +26,7 @@ The system runs daily in paper mode with real IBKR Paper broker credentials. No 
 
 Run the burn-in status checker after the shadow period:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.check_burn_in_status --force-run
+.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
 
 Evaluate the output artifact at `local/artifacts/check_burn_in_status_*.json`.
@@ -43,7 +43,7 @@ Evaluate the output artifact at `local/artifacts/check_burn_in_status_*.json`.
 
 **To apply tighter thresholds:**
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.check_burn_in_status \
+.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status \
     --min-consecutive-days 20 \
     --max-failure-rate-pct 5.0 \
     --window-days 60 \

@@ -9,15 +9,15 @@ invoking daily_paper_trading with --as-of-date and --force-run.
 Usage examples::
 
     # Dry run — list missing dates without executing
-    python -m trading.interfaces.runtime.jobs.replay_daily_runs \\
+    python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \\
         --from-date 2026-05-01 --to-date 2026-05-06 --dry-run
 
     # Replay all missing dates in May
-    python -m trading.interfaces.runtime.jobs.replay_daily_runs \\
+    python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \\
         --from-date 2026-05-01 --to-date 2026-05-06
 
     # Replay a single date
-    python -m trading.interfaces.runtime.jobs.replay_daily_runs \\
+    python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \\
         --from-date 2026-05-03 --to-date 2026-05-03
 """
 
@@ -30,11 +30,11 @@ import sys
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.daily_paper_trading import already_completed_today
+from trading.interfaces.runtime.jobs.daily.paper_trading import already_completed_today
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo, ts
 
 REPO_ROOT = get_repo_root(__file__)
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_trading"
+DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 
 
 def parse_args() -> argparse.Namespace:

@@ -5,7 +5,7 @@ Assembles three report sections from persisted data for a given account and date
   - risk violations summary (from sleeve_risk_decisions + portfolio_risk_snapshots)
   - rotation decision log (from rotation_decisions)
 
-Consumed by: trading.interfaces.runtime.jobs.daily_paper_trading (step 10)
+Consumed by: trading.interfaces.runtime.jobs.daily.paper_trading (step 10)
 """
 
 from __future__ import annotations

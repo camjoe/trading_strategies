@@ -15,11 +15,11 @@ from trading.interfaces.runtime.jobs.scheduler_installer import (
     unregister_tasks_for_platform,
 )
 
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_trading"
-DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
-DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
-DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
-WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.weekly_db_backup"
+DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
+DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
+DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
+WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 DEFAULT_DAILY_PAPER_TRADING_TASK_NAME = r"Trading\DailyPaperTrading"
 DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME = r"Trading\DailyPaperTradingFallback"

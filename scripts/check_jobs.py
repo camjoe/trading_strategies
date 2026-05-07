@@ -15,19 +15,19 @@ import sys
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.jobs.daily_backtest_refresh import COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL
-from trading.interfaces.runtime.jobs.daily_paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
-from trading.interfaces.runtime.jobs.daily_snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
+from trading.interfaces.runtime.jobs.daily.backtest_refresh import COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL
+from trading.interfaces.runtime.jobs.daily.paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
+from trading.interfaces.runtime.jobs.daily.snapshot import COMPLETE_SENTINEL as DAILY_SNAPSHOT_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import logs_dir_for_repo
-from trading.interfaces.runtime.jobs.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
+from trading.interfaces.runtime.jobs.maintenance.weekly_db_backup import COMPLETE_SENTINEL as WEEKLY_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 
-DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily_paper_trading"
-DAILY_SNAPSHOT_SCRIPT = "trading.interfaces.runtime.jobs.daily_snapshot"
-DAILY_BACKTEST_REFRESH_SCRIPT = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
-WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.weekly_db_backup"
+DAILY_SCRIPT = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_SNAPSHOT_SCRIPT = "trading.interfaces.runtime.jobs.daily.snapshot"
+DAILY_BACKTEST_REFRESH_SCRIPT = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
+WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
 # ---------------------------------------------------------------------------

@@ -5,10 +5,10 @@ import json
 from pathlib import Path
 
 from trading.domain.promotion_models import PromotionAssessment
-import trading.interfaces.runtime.jobs.weekly_governance_w2_promotion_review as module
+import trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review as module
 from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
-MODULE_NAME = "trading.interfaces.runtime.jobs.weekly_governance_w2_promotion_review"
+MODULE_NAME = "trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review"
 RUN_ALL_ARGS = ("--accounts", "all")
 RUN_ALL_FORCE_ARGS = (*RUN_ALL_ARGS, "--force-run")
 

@@ -21,11 +21,11 @@ grep "COMPLETE" local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log
 
 ### Replay a missed date
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.replay_daily_runs \
+.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
     --from-date YYYY-MM-DD --to-date YYYY-MM-DD
 ```
 
 ### Check burn-in status
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.check_burn_in_status --force-run
+.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```

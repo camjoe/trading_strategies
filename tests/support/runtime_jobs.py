@@ -7,13 +7,13 @@ from types import SimpleNamespace
 from pathlib import Path
 
 
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_trading"
-DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
-CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
+DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
+CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"
-DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
+DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.run_auto_trades"
-DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval"
+DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 
 
 def load_runtime_job(module_name: str):

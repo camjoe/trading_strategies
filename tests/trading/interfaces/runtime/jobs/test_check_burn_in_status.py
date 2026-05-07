@@ -1,4 +1,4 @@
-"""Tests for trading.interfaces.runtime.jobs.check_burn_in_status."""
+"""Tests for trading.interfaces.runtime.jobs.maintenance.burn_in_status."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-MODULE = "trading.interfaces.runtime.jobs.check_burn_in_status"
+MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
 DEFAULT_FAKE_NOW = _real_dt.datetime(2026, 5, 20, 14, 0, 0)
 
 

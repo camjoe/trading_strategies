@@ -19,7 +19,7 @@ Run each of the three weekly jobs after Friday's close or over the weekend.
 Ranks sleeves by 30-day risk-adjusted performance score.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_governance_w1_leaderboard
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard
 ```
 
 **Key fields in artifact:**
@@ -39,7 +39,7 @@ Ranks sleeves by 30-day risk-adjusted performance score.
 Reports promotion readiness and any blocking violations for each account.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_governance_w2_promotion_review
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review
 ```
 
 **Key fields in artifact:**
@@ -58,7 +58,7 @@ Reports promotion readiness and any blocking violations for each account.
 Compares actual sleeve NAV allocation against original `start_equity` ratios.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_governance_w3_allocation_review
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review
 ```
 
 **Key fields in artifact:**
@@ -72,7 +72,7 @@ Compares actual sleeve NAV allocation against original `start_equity` ratios.
 
 **Changing the drift threshold:**
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_governance_w3_allocation_review \
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review \
     --drift-threshold-pct 10.0
 ```
 
@@ -87,7 +87,7 @@ Run monthly jobs at the end of each calendar month.
 Snapshots the current portfolio risk state per account for operator review.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.monthly_governance_m1_risk_rebaseline
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline
 ```
 
 **Key fields in artifact:**
@@ -107,7 +107,7 @@ Snapshots the current portfolio risk state per account for operator review.
 Inventories all active strategy parameter sets for operator review.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.monthly_governance_m2_parameter_governance
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance
 ```
 
 **Key fields in artifact:**
@@ -126,7 +126,7 @@ Inventories all active strategy parameter sets for operator review.
 90-day compound return, max drawdown, and average hit rate per sleeve.
 
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.monthly_governance_m3_performance_audit
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit
 ```
 
 **Key fields in artifact:**
@@ -137,7 +137,7 @@ Inventories all active strategy parameter sets for operator review.
 
 **Changing the audit window:**
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.monthly_governance_m3_performance_audit \
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit \
     --audit-window-days 60
 ```
 
@@ -151,14 +151,14 @@ Inventories all active strategy parameter sets for operator review.
 
 All governance jobs support `--force-run` to bypass the weekly/monthly dedup guard:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_governance_w1_leaderboard --force-run
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard --force-run
 ```
 
 ## Scoping to specific accounts
 
 Pass `--accounts` to limit to specific accounts:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_governance_w1_leaderboard \
+.venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard \
     --accounts momentum_5k,meanrev_5k
 ```
 

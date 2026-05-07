@@ -115,7 +115,7 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     calls = _runtime_harness["stream_calls"]
     assert calls
     assert calls[0][0] == "Challenger Shadow Eval"
-    assert "trading.interfaces.runtime.jobs.daily_challenger_shadow_eval" in calls[0][1]
+    assert "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval" in calls[0][1]
     assert "--rolling-window-days" in calls[0][1]
 
 
