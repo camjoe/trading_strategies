@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 MODULE = "trading.interfaces.runtime.jobs.check_burn_in_status"
+DEFAULT_FAKE_NOW = _real_dt.datetime(2026, 5, 20, 14, 0, 0)
 
 
 def _mod():
@@ -46,6 +47,17 @@ def _run_main(monkeypatch, tmp_path: Path, extra_args: list[str] | None = None) 
     return mod.main()
 
 
+def _run_main_at_now(
+    monkeypatch,
+    tmp_path: Path,
+    *,
+    fake_now: _real_dt.datetime = DEFAULT_FAKE_NOW,
+    extra_args: list[str] | None = None,
+) -> int:
+    _patch_now(monkeypatch, fake_now)
+    return _run_main(monkeypatch, tmp_path, extra_args)
+
+
 # ---------------------------------------------------------------------------
 # Test 1: ready_for_live when consecutive threshold met
 # ---------------------------------------------------------------------------
@@ -58,9 +70,11 @@ class TestReadyForLiveWhenConsecutiveThresholdMet:
             d = today - _real_dt.timedelta(days=9 - i)
             _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
 
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 14, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path, ["--min-consecutive-days", "10", "--window-days", "30"])
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+            extra_args=["--min-consecutive-days", "10"],
+        )
         assert rc == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
@@ -82,9 +96,11 @@ class TestNotReadyWhenBelowConsecutiveThreshold:
             d = today - _real_dt.timedelta(days=4 - i)
             _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
 
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 14, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path, ["--min-consecutive-days", "10", "--window-days", "30"])
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+            extra_args=["--min-consecutive-days", "10"],
+        )
         assert rc == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
@@ -108,9 +124,11 @@ class TestNotReadyWhenFailureRateExceeded:
             d = today - _real_dt.timedelta(days=9 - i)
             _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
 
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 14, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path, ["--min-consecutive-days", "5", "--max-failure-rate-pct", "0.0", "--window-days", "30"])
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+            extra_args=["--min-consecutive-days", "5", "--max-failure-rate-pct", "0.0"],
+        )
         assert rc == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
@@ -134,9 +152,10 @@ class TestDedupGuardSkipsWhenAlreadyDone:
         sentinel_log = logs_dir / f"check_burn_in_status_{today_tag}_120000.log"
         sentinel_log.write_text(f"previous run\n{mod.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 14, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path)
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+        )
         assert rc == 0
         out = capsys.readouterr().out
         assert "skipping" in out.lower() or "already" in out.lower()
@@ -160,9 +179,11 @@ class TestForceRunBypassesDedupGuard:
         sentinel_log = logs_dir / f"check_burn_in_status_{today_tag}_120000.log"
         sentinel_log.write_text(f"previous run\n{mod.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 14, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path, ["--force-run"])
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+            extra_args=["--force-run"],
+        )
         assert rc == 0
 
         # Artifact must have been written (job actually ran).
@@ -176,9 +197,10 @@ class TestForceRunBypassesDedupGuard:
 
 class TestNoArtifactsGivesZeroConsecutiveSuccesses:
     def test_no_artifacts_gives_zero_consecutive_successes(self, monkeypatch, tmp_path: Path) -> None:
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 14, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path)
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+        )
         assert rc == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
@@ -203,9 +225,11 @@ class TestLatestArtifactUsedWhenMultipleOnSameDate:
         _write_artifact(export_dir, date_str, "120000", "ok")
         _write_artifact(export_dir, date_str, "150000", "failed", failed_step="07_submit_ibkr_orders")
 
-        _patch_now(monkeypatch, _real_dt.datetime(2026, 5, 20, 16, 0, 0))
-
-        rc = _run_main(monkeypatch, tmp_path)
+        rc = _run_main_at_now(
+            monkeypatch,
+            tmp_path,
+            fake_now=_real_dt.datetime(2026, 5, 20, 16, 0, 0),
+        )
         assert rc == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))

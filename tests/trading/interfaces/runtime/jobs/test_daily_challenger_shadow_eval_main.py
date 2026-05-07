@@ -9,6 +9,7 @@ from tests.support.runtime_jobs import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     daily_challenger_shadow_eval as module,
     make_daily_challenger_shadow_eval_args,
+    run_runtime_job_main,
 )
 
 
@@ -28,34 +29,22 @@ def test_is_run_enabled_false_by_default(monkeypatch) -> None:
 
 
 def test_main_returns_0_when_disabled(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_daily_challenger_shadow_eval_args(repo_root=str(tmp_path), enable_run=False),
-    )
-    monkeypatch.setattr(module, "is_run_enabled", lambda _args: False)
-
-    assert module.main() == 0
+    monkeypatch.delenv(module.CHALLENGER_SHADOW_EVAL_ENABLED_ENV, raising=False)
+    assert run_runtime_job_main(monkeypatch, tmp_path, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, []) == 0
     assert "disabled" in capsys.readouterr().err
 
 
 def test_main_returns_1_for_invalid_window(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_daily_challenger_shadow_eval_args(repo_root=str(tmp_path), rolling_window_days=0),
-    )
-
-    assert module.main() == 1
+    assert run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+        ["--enable-run", "--rolling-window-days", "0"],
+    ) == 1
     assert "rolling-window-days" in capsys.readouterr().err
 
 
 def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_daily_challenger_shadow_eval_args(repo_root=str(tmp_path), accounts="acct1"),
-    )
     monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
     monkeypatch.setattr(module, "ts", lambda: "2026-05-07T12:00:00+00:00")
@@ -95,7 +84,12 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
 
     monkeypatch.setattr(module, "ensure_db", lambda: _Conn())
 
-    assert module.main() == 0
+    assert run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+        ["--accounts", "acct1", "--enable-run"],
+    ) == 0
     artifacts = list((tmp_path / "local" / "exports" / "daily_challenger_shadow_eval").glob("daily_challenger_shadow_eval_*.json"))
     assert len(artifacts) == 1
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
@@ -105,14 +99,14 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_daily_challenger_shadow_eval_args(repo_root=str(tmp_path), accounts="ghost"),
-    )
     monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
 
-    assert module.main() == 1
+    assert run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+        ["--accounts", "ghost", "--enable-run"],
+    ) == 1
     assert "Unknown account" in capsys.readouterr().err
 
 

@@ -2,27 +2,31 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.support.runtime_jobs import make_manage_job_schedules_args, manage_job_schedules as module
 
 
-def test_main_requires_at_least_one_time_when_registering(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(module, "parse_args", lambda: make_manage_job_schedules_args())
+@pytest.fixture
+def _run_main_with_args(monkeypatch):
+    def _run(**overrides):
+        monkeypatch.setattr(
+            module,
+            "parse_args",
+            lambda: make_manage_job_schedules_args(**overrides),
+        )
+        return module.main()
 
-    assert module.main() == 2
+    return _run
+
+
+def test_main_requires_at_least_one_time_when_registering(_run_main_with_args, capsys) -> None:
+    assert _run_main_with_args() == 2
     assert "Provide at least one schedule time" in capsys.readouterr().err
 
 
-def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path) -> None:
+def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path, _run_main_with_args) -> None:
     captured: dict[str, object] = {}
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_manage_job_schedules_args(
-            daily_paper_trading_time="13:10",
-            daily_snapshot_time="13:40",
-            enable_daily_snapshot=True,
-        ),
-    )
     monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
 
     def fake_register(tasks, *, repo_root, python_exe, dry_run):
@@ -34,7 +38,11 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path) -> Non
 
     monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
 
-    assert module.main() == 0
+    assert _run_main_with_args(
+        daily_paper_trading_time="13:10",
+        daily_snapshot_time="13:40",
+        enable_daily_snapshot=True,
+    ) == 0
     tasks = captured["tasks"]
     assert isinstance(tasks, list)
     assert len(tasks) == 2
@@ -42,17 +50,8 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path) -> Non
     assert captured["python_exe"] == "/tmp/.venv/bin/python"
 
 
-def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Path) -> None:
+def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Path, _run_main_with_args) -> None:
     captured: dict[str, object] = {}
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_manage_job_schedules_args(
-            daily_paper_trading_time="13:10",
-            weekly_db_backup_time="02:00",
-            weekly_db_backup_day_of_week="Monday",
-        ),
-    )
     monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
 
     def fake_register(tasks, *, repo_root, python_exe, dry_run):
@@ -61,7 +60,11 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
 
     monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
 
-    assert module.main() == 0
+    assert _run_main_with_args(
+        daily_paper_trading_time="13:10",
+        weekly_db_backup_time="02:00",
+        weekly_db_backup_day_of_week="Monday",
+    ) == 0
     tasks = captured["tasks"]
     assert len(tasks) == 2
     weekly = tasks[1]
@@ -70,13 +73,8 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
     assert weekly.day_of_week == "Monday"
 
 
-def test_main_unregisters_all_default_task_names(monkeypatch) -> None:
+def test_main_unregisters_all_default_task_names(monkeypatch, _run_main_with_args) -> None:
     captured: dict[str, object] = {}
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_manage_job_schedules_args(unregister=True),
-    )
 
     def fake_unregister(task_names, *, dry_run):
         captured["task_names"] = task_names
@@ -85,7 +83,7 @@ def test_main_unregisters_all_default_task_names(monkeypatch) -> None:
 
     monkeypatch.setattr(module, "unregister_tasks_for_platform", fake_unregister)
 
-    assert module.main() == 0
+    assert _run_main_with_args(unregister=True) == 0
     assert captured["task_names"] == [
         r"Trading\DailyPaperTrading",
         r"Trading\DailyPaperTradingFallback",
@@ -97,23 +95,11 @@ def test_main_unregisters_all_default_task_names(monkeypatch) -> None:
     ]
 
 
-def test_main_rejects_non_positive_health_check_threshold(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_manage_job_schedules_args(health_check_max_age_hours=0),
-    )
-
-    assert module.main() == 2
+def test_main_rejects_non_positive_health_check_threshold(_run_main_with_args, capsys) -> None:
+    assert _run_main_with_args(health_check_max_age_hours=0) == 2
     assert "--health-check-max-age-hours must be > 0" in capsys.readouterr().err
 
 
-def test_main_rejects_invalid_shadow_eval_lead_minutes(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(
-        module,
-        "parse_args",
-        lambda: make_manage_job_schedules_args(shadow_eval_lead_minutes=0),
-    )
-
-    assert module.main() == 2
+def test_main_rejects_invalid_shadow_eval_lead_minutes(_run_main_with_args, capsys) -> None:
+    assert _run_main_with_args(shadow_eval_lead_minutes=0) == 2
     assert "--shadow-eval-lead-minutes" in capsys.readouterr().err

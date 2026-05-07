@@ -8,6 +8,12 @@ import trading.interfaces.runtime.jobs.weekly_governance_w1_leaderboard as modul
 from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.weekly_governance_w1_leaderboard"
+RUN_ALL_ARGS = ("--accounts", "all")
+RUN_ALL_FORCE_ARGS = (*RUN_ALL_ARGS, "--force-run")
+
+
+def _run_job(monkeypatch, tmp_path: Path, args: tuple[str, ...] = RUN_ALL_ARGS) -> int:
+    return run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, list(args))
 
 
 class TestDedupGuard:
@@ -20,7 +26,7 @@ class TestDedupGuard:
         log_path = logs_dir / f"weekly_governance_w1_leaderboard_{tag}_{timestamp}.log"
         log_path.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
-        result = run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all"])
+        result = _run_job(monkeypatch, tmp_path)
         assert result == 0
 
     def test_returns_false_when_no_prior_log(self, tmp_path: Path) -> None:
@@ -43,9 +49,7 @@ class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
         stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
 
-        result = run_runtime_job_main(
-            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
-        )
+        result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("weekly_governance_w1_leaderboard_*.json"))
@@ -83,9 +87,7 @@ class TestArtifactStructure:
             ],
         )
 
-        result = run_runtime_job_main(
-            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
-        )
+        result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
 
         artifacts = list((tmp_path / "local" / "artifacts").glob("weekly_governance_w1_leaderboard_*.json"))
@@ -121,11 +123,10 @@ class TestArtifactStructure:
 
         monkeypatch.setattr(module, "fetch_daily_metrics_for_sleeve_window", _capture_metrics)
 
-        result = run_runtime_job_main(
+        result = _run_job(
             monkeypatch,
             tmp_path,
-            MODULE_NAME,
-            ["--accounts", "all", "--force-run", "--window-days", "1"],
+            (*RUN_ALL_FORCE_ARGS, "--window-days", "1"),
         )
         assert result == 0
         assert captured["start_date"] == "2026-01-15"

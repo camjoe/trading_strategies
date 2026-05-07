@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import datetime as dt
 import json
-import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,20 +24,36 @@ def _stub_operator_report(monkeypatch):
     )
 
 
-def test_as_of_date_uses_date_prefix_in_log_name(monkeypatch, tmp_path: Path) -> None:
-    """--as-of-date YYYY-MM-DD should name log/artifact with that date prefix."""
+@pytest.fixture(autouse=True)
+def _stub_daily_runtime_defaults(monkeypatch):
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
         lambda: ["acct1"],
     )
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.ensure_db", lambda: None)
 
-    code = run_runtime_job_main(
+
+def _run_replay_main(monkeypatch, tmp_path: Path, args: list[str]) -> int:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["replay_daily_runs", *args, "--repo-root", str(tmp_path)],
+    )
+    return replay_module.main()
+
+
+def _run_daily_as_of(monkeypatch, tmp_path: Path, args: list[str]) -> int:
+    return run_runtime_job_main(
         monkeypatch,
         tmp_path,
         DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct1", "--as-of-date", "2020-01-15", "--force-run"],
+        ["--accounts", "acct1", *args],
     )
+
+
+def test_as_of_date_uses_date_prefix_in_log_name(monkeypatch, tmp_path: Path) -> None:
+    """--as-of-date YYYY-MM-DD should name log/artifact with that date prefix."""
+    _run_daily_as_of(monkeypatch, tmp_path, ["--as-of-date", "2020-01-15", "--force-run"])
 
     logs_dir = tmp_path / "local" / "logs"
     log_files = list(logs_dir.glob("daily_paper_trading_20200115_*.log"))
@@ -55,12 +69,7 @@ def test_as_of_date_dedup_guard_uses_override_date(monkeypatch, tmp_path: Path, 
         f"{daily_module.COMPLETE_SENTINEL}\n", encoding="utf-8"
     )
 
-    code = run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct1", "--as-of-date", "2020-01-15"],
-    )
+    code = _run_daily_as_of(monkeypatch, tmp_path, ["--as-of-date", "2020-01-15"])
 
     assert code == 0
     out = capsys.readouterr().out
@@ -68,29 +77,13 @@ def test_as_of_date_dedup_guard_uses_override_date(monkeypatch, tmp_path: Path, 
 
 
 def test_as_of_date_invalid_value_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    code = run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct1", "--as-of-date", "not-a-date"],
-    )
+    code = _run_daily_as_of(monkeypatch, tmp_path, ["--as-of-date", "not-a-date"])
     assert code == 1
 
 
 def test_as_of_date_recorded_in_artifact(monkeypatch, tmp_path: Path) -> None:
     """as_of_date field should appear in the artifact JSON."""
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
-        lambda: ["acct1"],
-    )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.ensure_db", lambda: None)
-
-    run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_PAPER_TRADING_MODULE,
-        ["--accounts", "acct1", "--as-of-date", "2020-01-15", "--force-run"],
-    )
+    _run_daily_as_of(monkeypatch, tmp_path, ["--as-of-date", "2020-01-15", "--force-run"])
 
     export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
     artifacts = list(export_dir.glob("daily_paper_trading_20200115_*.json"))
@@ -109,21 +102,11 @@ def test_replay_dry_run_lists_missing_dates(monkeypatch, tmp_path: Path, capsys)
     logs_dir = tmp_path / "local" / "logs"
     logs_dir.mkdir(parents=True)
 
-    monkeypatch.setattr(replay_module, "REPO_ROOT", tmp_path)
-
-    # Drive via sys.argv
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "replay_daily_runs",
-            "--from-date", "2026-05-01",
-            "--to-date", "2026-05-03",
-            "--dry-run",
-            "--repo-root", str(tmp_path),
-        ],
+    result = _run_replay_main(
+        monkeypatch,
+        tmp_path,
+        ["--from-date", "2026-05-01", "--to-date", "2026-05-03", "--dry-run"],
     )
-    result = replay_module.main()
     out = capsys.readouterr().out
     assert result == 0
     assert "DRY RUN" in out
@@ -139,18 +122,11 @@ def test_replay_nothing_to_do_when_all_complete(monkeypatch, tmp_path: Path, cap
             f"{daily_module.COMPLETE_SENTINEL}\n", encoding="utf-8"
         )
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "replay_daily_runs",
-            "--from-date", "2026-05-01",
-            "--to-date", "2026-05-03",
-            "--dry-run",
-            "--repo-root", str(tmp_path),
-        ],
+    result = _run_replay_main(
+        monkeypatch,
+        tmp_path,
+        ["--from-date", "2026-05-01", "--to-date", "2026-05-03", "--dry-run"],
     )
-    result = replay_module.main()
     out = capsys.readouterr().out
     assert result == 0
     assert "Nothing to replay" in out
@@ -172,17 +148,11 @@ def test_replay_executes_missing_dates(monkeypatch, tmp_path: Path) -> None:
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(replay_module.subprocess, "run", _fake_run)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "replay_daily_runs",
-            "--from-date", "2026-05-01",
-            "--to-date", "2026-05-03",
-            "--repo-root", str(tmp_path),
-        ],
+    result = _run_replay_main(
+        monkeypatch,
+        tmp_path,
+        ["--from-date", "2026-05-01", "--to-date", "2026-05-03"],
     )
-    result = replay_module.main()
     assert result == 0
     replayed_dates = [
         cmd[cmd.index("--as-of-date") + 1]
@@ -203,30 +173,18 @@ def test_replay_reports_failure_when_subprocess_fails(monkeypatch, tmp_path: Pat
         replay_module.subprocess, "run",
         lambda cmd, *, check: SimpleNamespace(returncode=1),
     )
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "replay_daily_runs",
-            "--from-date", "2026-05-01",
-            "--to-date", "2026-05-01",
-            "--repo-root", str(tmp_path),
-        ],
+    result = _run_replay_main(
+        monkeypatch,
+        tmp_path,
+        ["--from-date", "2026-05-01", "--to-date", "2026-05-01"],
     )
-    result = replay_module.main()
     assert result == 1
 
 
 def test_replay_from_date_after_to_date_returns_1(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "replay_daily_runs",
-            "--from-date", "2026-05-05",
-            "--to-date", "2026-05-01",
-            "--repo-root", str(tmp_path),
-        ],
+    result = _run_replay_main(
+        monkeypatch,
+        tmp_path,
+        ["--from-date", "2026-05-05", "--to-date", "2026-05-01"],
     )
-    result = replay_module.main()
     assert result == 1

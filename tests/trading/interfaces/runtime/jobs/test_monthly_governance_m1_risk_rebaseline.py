@@ -8,6 +8,12 @@ import trading.interfaces.runtime.jobs.monthly_governance_m1_risk_rebaseline as 
 from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.monthly_governance_m1_risk_rebaseline"
+RUN_ALL_ARGS = ("--accounts", "all")
+RUN_ALL_FORCE_ARGS = (*RUN_ALL_ARGS, "--force-run")
+
+
+def _run_job(monkeypatch, tmp_path: Path, args: tuple[str, ...] = RUN_ALL_ARGS) -> int:
+    return run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, list(args))
 
 
 class TestDedupGuard:
@@ -20,7 +26,7 @@ class TestDedupGuard:
         log_path = logs_dir / f"monthly_governance_m1_risk_rebaseline_{tag}_{timestamp}.log"
         log_path.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
-        result = run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all"])
+        result = _run_job(monkeypatch, tmp_path)
         assert result == 0
 
     def test_returns_false_when_no_prior_log(self, tmp_path: Path) -> None:
@@ -48,9 +54,7 @@ class TestArtifactStructure:
             lambda conn, *, account_id: None,
         )
 
-        result = run_runtime_job_main(
-            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
-        )
+        result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
 
         artifacts = list(
@@ -71,9 +75,7 @@ class TestArtifactStructure:
             lambda conn, *, account_id: None,
         )
 
-        run_runtime_job_main(
-            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
-        )
+        _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         artifacts = list(
             (tmp_path / "local" / "artifacts").glob("monthly_governance_m1_risk_rebaseline_*.json")
         )
@@ -101,9 +103,7 @@ class TestArtifactStructure:
             lambda conn, *, account_id: snapshot,
         )
 
-        run_runtime_job_main(
-            monkeypatch, tmp_path, MODULE_NAME, ["--accounts", "all", "--force-run"]
-        )
+        _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         artifacts = list(
             (tmp_path / "local" / "artifacts").glob("monthly_governance_m1_risk_rebaseline_*.json")
         )

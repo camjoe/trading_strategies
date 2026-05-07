@@ -11,13 +11,14 @@ from trading.repositories.sleeves import (
     insert_sleeve_strategy_assignment,
     insert_strategy_sleeve,
 )
-from trading.services.accounts import get_account
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
 from tests.support.auto_trading import FakeBroker
 from tests.support.repositories import insert_repository_account
+
+DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
 
 
 def _insert_matching_snapshot(conn, *, account_id: int, equity: float) -> None:
@@ -70,6 +71,53 @@ def _insert_rotation_metric_rows(conn, *, account_id: int, sleeve_id: int) -> No
     )
 
 
+def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> SleeveTradeIntent:
+    return SleeveTradeIntent(
+        account_id=account_id,
+        sleeve_id=sleeve_id,
+        strategy_name="trend",
+        param_set_id=None,
+        side="buy",
+        symbol="AAPL",
+        qty=qty,
+        requested_price=100.0,
+        forced_sell=None,
+        delta_est=None,
+        iv_est=None,
+    )
+
+
+def _patch_single_buy_intent(
+    monkeypatch,
+    *,
+    account_id: int,
+    sleeve_id: int,
+    qty: int = 1,
+) -> None:
+    monkeypatch.setattr(
+        runtime_service,
+        "generate_sleeve_trade_intents",
+        lambda *_args, **_kwargs: [_make_buy_intent(account_id=account_id, sleeve_id=sleeve_id, qty=qty)],
+    )
+
+
+def _patch_runtime_sleeve_execution(
+    monkeypatch,
+    *,
+    now_iso: str = DEFAULT_RUNTIME_NOW_ISO,
+    broker=None,
+) -> None:
+    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
+    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: now_iso)
+    monkeypatch.setattr(
+        runtime_service,
+        "_rotate_runtime_account",
+        lambda _conn, _account_name, account_row, _now_iso: account_row,
+    )
+    if broker is not None:
+        monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
+
+
 def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(conn, monkeypatch) -> None:
     account_name = "acct_runtime_sleeve_rotation"
     account_id = insert_repository_account(conn, name=account_name, strategy="trend")
@@ -113,13 +161,7 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(c
     _insert_rotation_metric_rows(conn, account_id=account_id, sleeve_id=sleeve_id)
     _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
 
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-05T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
     monkeypatch.setattr(
         "trading.services.sleeves.shadow_evaluation.fetch_strategy_backtest_returns",
         lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
@@ -230,13 +272,7 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(conn, monkeypatc
     )
     conn.commit()
 
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-05T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
     monkeypatch.setattr(
         "trading.services.sleeves.shadow_evaluation.fetch_strategy_backtest_returns",
         lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
@@ -299,37 +335,11 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypat
         created_at="2026-05-03T00:00:00Z",
         updated_at="2026-05-03T00:00:00Z",
     )
-    account = get_account(conn, account_name)
     broker = FakeBroker()
     _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
 
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
-    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
-    monkeypatch.setattr(
-        runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [
-            SleeveTradeIntent(
-                account_id=account_id,
-                sleeve_id=sleeve_id,
-                strategy_name="trend",
-                param_set_id=None,
-                side="buy",
-                symbol="AAPL",
-                qty=1,
-                requested_price=100.0,
-                forced_sell=None,
-                delta_est=None,
-                iv_est=None,
-            )
-        ],
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -429,33 +439,8 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(conn, mo
     broker = FakeBroker()
     _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
 
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
-    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
-    monkeypatch.setattr(
-        runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [
-            SleeveTradeIntent(
-                account_id=account_id,
-                sleeve_id=sleeve_id,
-                strategy_name="trend",
-                param_set_id=None,
-                side="buy",
-                symbol="AAPL",
-                qty=5,
-                requested_price=100.0,
-                forced_sell=None,
-                delta_est=None,
-                iv_est=None,
-            )
-        ],
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id, qty=5)
 
     executed = run_for_account(
         conn,
@@ -515,33 +500,8 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(c
     _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
 
     broker = FakeBroker()
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
-    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
-    monkeypatch.setattr(
-        runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [
-            SleeveTradeIntent(
-                account_id=account_id,
-                sleeve_id=sleeve_id,
-                strategy_name="trend",
-                param_set_id=None,
-                side="buy",
-                symbol="AAPL",
-                qty=1,
-                requested_price=100.0,
-                forced_sell=None,
-                delta_est=None,
-                iv_est=None,
-            )
-        ],
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -597,14 +557,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(conn, m
     )
     broker = FakeBroker()
 
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
-    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
+    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
     monkeypatch.setattr(
         runtime_service,
         "reconcile_sleeves_vs_latest_snapshot",
@@ -618,25 +571,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(conn, m
             snapshot_time="2026-05-03T13:59:00Z",
         ),
     )
-    monkeypatch.setattr(
-        runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [
-            SleeveTradeIntent(
-                account_id=account_id,
-                sleeve_id=sleeve_id,
-                strategy_name="trend",
-                param_set_id=None,
-                side="buy",
-                symbol="AAPL",
-                qty=1,
-                requested_price=100.0,
-                forced_sell=None,
-                delta_est=None,
-                iv_est=None,
-            )
-        ],
-    )
+    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -703,33 +638,8 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(conn, monkeypatc
             self.disconnect_calls += 1
 
     broker = _FailingBroker()
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
-    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
-    monkeypatch.setattr(
-        runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [
-            SleeveTradeIntent(
-                account_id=account_id,
-                sleeve_id=sleeve_id,
-                strategy_name="trend",
-                param_set_id=None,
-                side="buy",
-                symbol="AAPL",
-                qty=1,
-                requested_price=100.0,
-                forced_sell=None,
-                delta_est=None,
-                iv_est=None,
-            )
-        ],
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -801,33 +711,8 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
     )
 
     broker = FakeBroker()
-    monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
-    monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: "2026-05-03T14:00:00Z")
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
-    )
-    monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
-    monkeypatch.setattr(
-        runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [
-            SleeveTradeIntent(
-                account_id=account_id,
-                sleeve_id=sleeve_id,
-                strategy_name="trend",
-                param_set_id=None,
-                side="buy",
-                symbol="AAPL",
-                qty=1,
-                requested_price=100.0,
-                forced_sell=None,
-                delta_est=None,
-                iv_est=None,
-            )
-        ],
-    )
+    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
