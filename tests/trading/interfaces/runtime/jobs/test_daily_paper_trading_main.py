@@ -53,6 +53,9 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path) -> None
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert payload["status"] == "success"
     assert payload["completed_steps"]
+    assert payload["step_results"]
+    assert payload["step_results"][0]["step"] == "00_ingest_market_and_account"
+    assert payload["step_results"][-1]["step"] == "10_emit_report_and_alerts"
 
 
 def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path: Path) -> None:
@@ -125,9 +128,9 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
     artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
     assert len(artifacts) == 1
     payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
-    shadow_steps = [step for step in payload["completed_steps"] if step["step"] == "challenger_shadow_eval"]
-    assert len(shadow_steps) == 1
-    summary = shadow_steps[0]["summary"]
+    score_steps = [step for step in payload["step_results"] if step["step"] == "03_score_incumbent_vs_challengers"]
+    assert len(score_steps) == 1
+    summary = score_steps[0]["details"]["shadow_eval_summary"]
     assert summary is not None
     assert summary["account_count"] == 1
     assert summary["sleeve_count"] == 2
@@ -202,6 +205,33 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path) -> None
     )
 
     assert code == 1
+    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert payload["status"] == "failed"
+    assert payload["failed_step"] == "05_build_position_targets_by_sleeve"
+    failed_steps = [step for step in payload["step_results"] if step["status"] == "failed"]
+    assert len(failed_steps) == 1
+    assert failed_steps[0]["step"] == "05_build_position_targets_by_sleeve"
+
+
+def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["acct_a"])
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", lambda *_args, **_kwargs: None)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a"],
+    )
+
+    assert code == 0
+    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
+    assert len(artifacts) == 1
+    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    ordered_steps = [step["step"] for step in payload["step_results"]]
+    assert ordered_steps == [step_id for step_id, _name in module.DAILY_DAG_STEPS]
 
 def test_success_notification_requires_flag(monkeypatch, tmp_path: Path) -> None:
     sent: list[dict[str, object]] = []

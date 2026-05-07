@@ -884,7 +884,7 @@ Scope of this slice:
      - evaluated accounts
      - sleeves evaluated
      - challenger candidate count
-   - summary is attached to the `challenger_shadow_eval` completed step payload.
+   - summary is attached to DAG step-result payloads for scoring/target-build stages.
 
 3. Add deterministic tests:
    - scheduler auto-derivation behavior and lead-minute validation
@@ -937,6 +937,59 @@ Slice E explicitly defers:
    - sleeve performance table
    - risk violations
    - rotation decision summary
+
+### Increment 6 Slice A (Implemented)
+
+Scope of this slice:
+
+1. Refactor `daily_paper_trading` into explicit numbered DAG steps:
+   - `00_ingest_market_and_account`
+   - `01_mark_sleeve_nav`
+   - `02_run_signals_all_strategies`
+   - `03_score_incumbent_vs_challengers`
+   - `04_rotation_decision`
+   - `05_build_position_targets_by_sleeve`
+   - `06_pretrade_risk_gate`
+   - `07_submit_ibkr_orders`
+   - `08_reconcile_fills_update_ledgers`
+   - `09_postclose_metrics_and_attribution`
+   - `10_emit_report_and_alerts`
+
+2. Add structured per-step artifact schema:
+   - `step_results` now records:
+     - step id/name
+     - status (`pending`, `running`, `ok`, `skipped`, `failed`)
+     - `started_at`, `finished_at`, `duration_seconds`
+     - step details and error payload (when failed)
+
+3. Preserve backward compatibility while enriching diagnostics:
+   - keep `completed_steps` in artifact payload.
+   - add `failed_step` id for failed runs.
+   - keep existing runtime command behaviors and flags.
+
+4. Add deterministic tests:
+   - DAG order preservation in artifact output.
+   - failed-step capture for partial-run failures.
+   - existing daily config/state behavior remains covered.
+
+Slice A explicitly defers:
+
+1. Weekly/monthly governance job implementation.
+2. Dedicated health-check consumption of new DAG step payload fields (schema now available).
+
+### Reuse and Consolidation Audit (Increment 6 Slice A)
+
+1. `trading/interfaces/runtime/jobs/daily_paper_trading.py`: `reuse + restructure`
+   - Reused existing command execution flow and notification wiring.
+   - Restructured orchestration into explicit DAG step wrappers and artifact schema.
+
+2. `tests/trading/interfaces/runtime/jobs/test_daily_paper_trading_main.py`: `reuse + extend`
+   - Reused existing behavioral coverage.
+   - Extended with DAG ordering and failed-step assertions.
+
+3. Deprecated/removed overlap in this slice:
+   - None.
+   - Rationale: this slice changes orchestration shape and reporting schema without introducing duplicate job entrypoints.
 
 ### Acceptance
 

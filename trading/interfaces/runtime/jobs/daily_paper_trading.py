@@ -43,6 +43,21 @@ except Exception as exc:
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
+DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
+    ("00_ingest_market_and_account", "Ingest market and account context"),
+    ("01_mark_sleeve_nav", "Mark sleeve NAV"),
+    ("02_run_signals_all_strategies", "Run incumbent/challenger strategy signals"),
+    ("03_score_incumbent_vs_challengers", "Score incumbent versus challengers"),
+    ("04_rotation_decision", "Apply rotation decision gates"),
+    ("05_build_position_targets_by_sleeve", "Build position targets by sleeve"),
+    ("06_pretrade_risk_gate", "Apply pretrade risk gate"),
+    ("07_submit_ibkr_orders", "Submit broker orders"),
+    ("08_reconcile_fills_update_ledgers", "Reconcile fills and update ledgers"),
+    ("09_postclose_metrics_and_attribution", "Compute post-close metrics and attribution"),
+    ("10_emit_report_and_alerts", "Emit report and alerts"),
+)
+TERMINAL_STEP_STATUSES = {"ok", "skipped", "failed"}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the daily paper-trading workflow.")
@@ -261,6 +276,101 @@ def _latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
     }
 
 
+def _new_step_results() -> list[dict[str, object]]:
+    return [
+        {
+            "step": step_id,
+            "name": step_name,
+            "status": "pending",
+            "started_at": None,
+            "finished_at": None,
+            "duration_seconds": None,
+            "details": {},
+            "error": None,
+        }
+        for step_id, step_name in DAILY_DAG_STEPS
+    ]
+
+
+def _step_result(step_results: list[dict[str, object]], step_id: str) -> dict[str, object]:
+    for result in step_results:
+        if result["step"] == step_id:
+            return result
+    raise ValueError(f"Unknown DAG step id: {step_id}")
+
+
+def _run_dag_step(
+    step_results: list[dict[str, object]],
+    *,
+    step_id: str,
+    run_fn,
+) -> dict[str, object]:
+    result = _step_result(step_results, step_id)
+    start_time = dt.datetime.now(dt.timezone.utc)
+    result["status"] = "running"
+    result["started_at"] = ts()
+    try:
+        details = run_fn() or {}
+    except Exception as exc:
+        finish_time = dt.datetime.now(dt.timezone.utc)
+        result["status"] = "failed"
+        result["finished_at"] = ts()
+        result["duration_seconds"] = round((finish_time - start_time).total_seconds(), 6)
+        result["error"] = str(exc)
+        if not isinstance(result["details"], dict):
+            result["details"] = {}
+        raise
+
+    finish_time = dt.datetime.now(dt.timezone.utc)
+    result["status"] = "ok"
+    result["finished_at"] = ts()
+    result["duration_seconds"] = round((finish_time - start_time).total_seconds(), 6)
+    result["details"] = details if isinstance(details, dict) else {"value": details}
+    return result
+
+
+def _skip_dag_step(
+    step_results: list[dict[str, object]],
+    *,
+    step_id: str,
+    reason: str,
+    details: dict[str, object] | None = None,
+) -> dict[str, object]:
+    result = _step_result(step_results, step_id)
+    now = ts()
+    result["status"] = "skipped"
+    result["started_at"] = now
+    result["finished_at"] = now
+    result["duration_seconds"] = 0.0
+    payload = dict(details or {})
+    payload["reason"] = reason
+    result["details"] = payload
+    return result
+
+
+def _completed_steps_from_dag(step_results: list[dict[str, object]]) -> list[dict[str, object]]:
+    completed: list[dict[str, object]] = []
+    for step in step_results:
+        status = str(step["status"])
+        if status not in TERMINAL_STEP_STATUSES:
+            continue
+        completed.append(
+            {
+                "step": step["step"],
+                "status": status,
+                "details": step["details"],
+            }
+        )
+    return completed
+
+
+def _failed_step_id(step_results: list[dict[str, object]]) -> str | None:
+    for step in step_results:
+        if step["status"] == "failed":
+            return str(step["step"])
+    return None
+
+
 def run_auto_trader_group(
     log_path: Path,
     repo_root: Path,
@@ -413,85 +523,178 @@ def main() -> int:
         "artifact_path": str(artifact_path.relative_to(repo_root)),
         "started_at": ts(),
     }
-    completed_steps: list[dict[str, object]] = []
+    step_results = _new_step_results()
 
     try:
+        _run_dag_step(
+            step_results,
+            step_id="00_ingest_market_and_account",
+            run_fn=lambda: {
+                "accounts": accounts,
+                "account_count": len(accounts),
+                "caps_summary": caps_summary,
+            },
+        )
+        _skip_dag_step(
+            step_results,
+            step_id="01_mark_sleeve_nav",
+            reason="nav_marking_is_handled_in_runtime_snapshot_and_reconciliation",
+        )
+
+        shadow_eval_summary: dict[str, object] | None = None
         if args.run_challenger_shadow_eval:
-            stream_command(
-                log_path,
-                "Challenger Shadow Eval",
-                [
-                    "-m",
-                    DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-                    "--accounts",
-                    ",".join(accounts),
-                    "--enable-run",
-                    "--rolling-window-days",
-                    str(args.shadow_eval_rolling_window_days),
-                    "--run-source",
-                    "daily-paper-trading",
-                ],
-                repo_root,
+            _run_dag_step(
+                step_results,
+                step_id="02_run_signals_all_strategies",
+                run_fn=lambda: (
+                    stream_command(
+                        log_path,
+                        "Challenger Shadow Eval",
+                        [
+                            "-m",
+                            DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+                            "--accounts",
+                            ",".join(accounts),
+                            "--enable-run",
+                            "--rolling-window-days",
+                            str(args.shadow_eval_rolling_window_days),
+                            "--run-source",
+                            "daily-paper-trading",
+                        ],
+                        repo_root,
+                    ),
+                    {"rolling_window_days": args.shadow_eval_rolling_window_days},
+                )[1],
             )
             shadow_eval_summary = _latest_shadow_eval_summary(repo_root)
-            completed_steps.append(
-                {
-                    "step": "challenger_shadow_eval",
-                    "accounts": accounts,
-                    "rolling_window_days": args.shadow_eval_rolling_window_days,
-                    "summary": shadow_eval_summary,
-                }
+            _run_dag_step(
+                step_results,
+                step_id="03_score_incumbent_vs_challengers",
+                run_fn=lambda: {"shadow_eval_summary": shadow_eval_summary},
             )
+        else:
+            _skip_dag_step(
+                step_results,
+                step_id="02_run_signals_all_strategies",
+                reason="challenger_shadow_eval_not_enabled",
+            )
+            _skip_dag_step(
+                step_results,
+                step_id="03_score_incumbent_vs_challengers",
+                reason="no_challenger_signal_run",
+            )
+
+        _skip_dag_step(
+            step_results,
+            step_id="04_rotation_decision",
+            reason="rotation_decisions_are_enforced_inside_sleeve_runtime_path",
+        )
 
         grouped_accounts = group_accounts_by_caps(accounts, account_trade_caps)
-
-        for limits, group_accounts in sorted(grouped_accounts.items(), key=lambda item: (item[0][0], item[0][1], item[1])):
-            min_trades, max_trades = limits
-            run_auto_trader_group(
-                log_path,
-                repo_root,
-                f"Auto Trader ({min_trades}-{max_trades} trades)",
-                group_accounts,
-                min_trades,
-                max_trades,
-                args.fee,
-                args.seed,
-            )
-            completed_steps.append(
+        auto_trader_groups: list[dict[str, object]] = []
+        _run_dag_step(
+            step_results,
+            step_id="05_build_position_targets_by_sleeve",
+            run_fn=lambda: (
+                [
+                    (
+                        run_auto_trader_group(
+                            log_path,
+                            repo_root,
+                            f"Auto Trader ({limits[0]}-{limits[1]} trades)",
+                            group_accounts,
+                            limits[0],
+                            limits[1],
+                            args.fee,
+                            args.seed,
+                        ),
+                        auto_trader_groups.append(
+                            {
+                                "accounts": group_accounts,
+                                "min_trades": limits[0],
+                                "max_trades": limits[1],
+                            }
+                        ),
+                    )
+                    for limits, group_accounts in sorted(
+                        grouped_accounts.items(),
+                        key=lambda item: (item[0][0], item[0][1], item[1]),
+                    )
+                ],
                 {
-                    "step": "auto_trader",
-                    "accounts": group_accounts,
-                    "min_trades": min_trades,
-                    "max_trades": max_trades,
-                }
-            )
-
-        for account in accounts:
-            stream_command(
-                log_path,
-                f"Snapshot {account}",
-                ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
-                repo_root,
-            )
-            completed_steps.append({"step": "snapshot", "account": account})
-
-        stream_command(
-            log_path,
-            "Compare Strategies",
-            ["-m", CLI_MAIN_MODULE, "compare-strategies"],
-            repo_root,
+                    "groups": auto_trader_groups,
+                    "group_count": len(auto_trader_groups),
+                    "shadow_eval_summary": shadow_eval_summary,
+                },
+            )[1],
         )
-        completed_steps.append({"step": "compare_strategies"})
+        _skip_dag_step(
+            step_results,
+            step_id="06_pretrade_risk_gate",
+            reason="risk_gate_runs_inside_auto_trading_runtime",
+        )
+        _skip_dag_step(
+            step_results,
+            step_id="07_submit_ibkr_orders",
+            reason="broker_submission_runs_inside_auto_trading_runtime",
+        )
 
+        snapshot_accounts: list[str] = []
+        _run_dag_step(
+            step_results,
+            step_id="08_reconcile_fills_update_ledgers",
+            run_fn=lambda: (
+                [
+                    (
+                        stream_command(
+                            log_path,
+                            f"Snapshot {account}",
+                            ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
+                            repo_root,
+                        ),
+                        snapshot_accounts.append(account),
+                    )
+                    for account in accounts
+                ],
+                {"accounts": snapshot_accounts, "count": len(snapshot_accounts)},
+            )[1],
+        )
+
+        _run_dag_step(
+            step_results,
+            step_id="09_postclose_metrics_and_attribution",
+            run_fn=lambda: (
+                stream_command(
+                    log_path,
+                    "Compare Strategies",
+                    ["-m", CLI_MAIN_MODULE, "compare-strategies"],
+                    repo_root,
+                ),
+                {"command": "compare-strategies"},
+            )[1],
+        )
+
+        _run_dag_step(
+            step_results,
+            step_id="10_emit_report_and_alerts",
+            run_fn=lambda: {
+                "artifact_path": str(artifact_path.relative_to(repo_root)),
+                "notify_on_success": bool(args.notify_on_success),
+            },
+        )
+
+        completed_steps = _completed_steps_from_dag(step_results)
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
+        success_payload = {
+            **run_meta,
+            "status": "success",
+            "completed_steps": completed_steps,
+            "step_results": step_results,
+            "finished_at": ts(),
+        }
         write_artifact(
             artifact_path,
-            {
-                **run_meta,
-                "status": "success",
-                "completed_steps": completed_steps,
-                "finished_at": ts(),
-            },
+            success_payload,
         )
         _maybe_send_notification(
             webhook_url=args.notify_webhook_url,
@@ -508,15 +711,18 @@ def main() -> int:
         return 0
     except Exception as exc:
         tee_line(log_path, f"[{ts()}] ERROR: {exc}")
+        failure_payload = {
+            **run_meta,
+            "status": "failed",
+            "completed_steps": _completed_steps_from_dag(step_results),
+            "step_results": step_results,
+            "failed_step": _failed_step_id(step_results),
+            "error": str(exc),
+            "finished_at": ts(),
+        }
         write_artifact(
             artifact_path,
-            {
-                **run_meta,
-                "status": "failed",
-                "completed_steps": completed_steps,
-                "error": str(exc),
-                "finished_at": ts(),
-            },
+            failure_payload,
         )
         _maybe_send_notification(
             webhook_url=args.notify_webhook_url,
