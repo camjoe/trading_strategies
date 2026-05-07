@@ -1131,11 +1131,104 @@ Slice C explicitly defers:
    - stability thresholds
    - promotion gate to autonomous mode
 
-### Acceptance
+### Increment 7 Slice A (Implemented)
 
-1. Consecutive burn-in run target achieved with no critical failures.
-2. Reconciliation and risk checks remain within thresholds.
-3. Go-live checklist signed off.
+Scope of this slice:
+
+1. Add `--as-of-date YYYY-MM-DD` flag to `daily_paper_trading.py`:
+   - Overrides the date used for the dedup guard (`already_completed_today`), log file name prefix, and artifact file name prefix.
+   - Enables replay of a specific historical date without affecting the normal daily dedup flow.
+   - Records `as_of_date` field in the run artifact so replay runs are distinguishable from live runs.
+
+2. New `trading/interfaces/runtime/jobs/replay_daily_runs.py` backfill script:
+   - Args: `--from-date`, `--to-date`, `--dry-run`, `--accounts`, `--run-source`, `--repo-root`.
+   - For each date in the range, checks whether a successful run sentinel exists (`already_completed_today`).
+   - Missing dates are replayed via `subprocess.run` invoking `daily_paper_trading --as-of-date DATE --force-run`.
+   - `--dry-run` prints missing dates without executing.
+   - Returns exit 1 if any replay subprocess fails; otherwise exit 0.
+
+3. 9 deterministic tests in `tests/trading/interfaces/runtime/jobs/test_replay_daily_runs.py`:
+   - `--as-of-date` log/artifact naming, dedup guard override, invalid date handling, `as_of_date` field in artifact.
+   - Replay: dry run lists missing dates, skips already-complete dates, executes missing dates, propagates subprocess failure, rejects reversed date range.
+
+### Reuse and Consolidation Audit (Increment 7 Slice A)
+
+1. `trading/interfaces/runtime/jobs/daily_paper_trading.py`: `reuse + extend`
+   - Reused existing dedup guard (`already_completed_today`) and log/artifact naming.
+   - Extended with `--as-of-date` arg and date-prefix override logic.
+
+2. `trading/interfaces/runtime/jobs/replay_daily_runs.py`: `new`
+   - No prior equivalent; thin orchestration script using existing job and helpers.
+
+3. Deprecated/removed overlap:
+   - None.
+
+### Acceptance (Increment 7 Slice A)
+
+1. `--as-of-date 2026-05-03` produces log and artifact files prefixed `20260503_*`.
+2. Dedup guard for a given date is satisfied by the asof-prefixed log sentinel.
+3. `replay_daily_runs --from-date X --to-date Y --dry-run` lists all missing dates without executing.
+4. All 9 Slice A tests pass.
+
+### Increment 7 Slice B (Implemented)
+
+Scope of this slice:
+
+1. New `trading/interfaces/runtime/jobs/check_burn_in_status.py` go-live readiness checker:
+   - Reads artifacts from `local/exports/daily_paper_trading/` for the last `--window-days` (default 30) calendar days.
+   - Selects the most-recent artifact per calendar date (by filename sort) to handle replays.
+   - Computes: `consecutive_successes` (trailing ok streak), `total_runs_in_window`, `failed_runs`, `failure_rate_pct`.
+   - `ready_for_live: true` when `consecutive_successes >= --min-consecutive-days` AND `failure_rate_pct <= --max-failure-rate-pct`.
+   - Writes a structured JSON artifact to `local/artifacts/` and prints a human-readable summary.
+   - Daily dedup guard; `--force-run` to bypass.
+
+2. New `BURN_IN_STATUS_COMPLETE_SENTINEL` in `common/runtime_job_status.py`; re-exported from `trading/interfaces/runtime/job_status.py`.
+
+3. 7 deterministic tests in `tests/trading/interfaces/runtime/jobs/test_check_burn_in_status.py`:
+   - Threshold met, below threshold, failure rate exceeded, dedup guard, force-run bypass, no artifacts, multiple artifacts per date.
+
+### Reuse and Consolidation Audit (Increment 7 Slice B)
+
+1. `common/runtime_job_status.py`: `reuse + extend`
+   - Added `BURN_IN_STATUS_COMPLETE_SENTINEL`; no existing constants changed.
+
+2. `trading/interfaces/runtime/job_status.py`: `reuse + extend`
+   - Re-exported new sentinel.
+
+3. `trading/interfaces/runtime/jobs/check_burn_in_status.py`: `new`
+   - Filesystem-only job; no DB access.
+
+4. Deprecated/removed overlap:
+   - None.
+
+### Acceptance (Increment 7 Slice B)
+
+1. `check_burn_in_status` returns `ready_for_live: true` after 10+ consecutive successful artifacts.
+2. Artifact includes `consecutive_successes`, `failure_rate_pct`, `total_runs_in_window`, and per-date `entries`.
+3. All 7 Slice B tests pass.
+
+### Increment 7 Slice C (Implemented)
+
+Scope of this slice:
+
+1. Operator runbook documentation in `docs/runbooks/`:
+   - `README.md` — runbook index and quick-reference commands.
+   - `daily_operations.md` — daily monitoring checklist, DAG step reference, failure recovery procedures (failed run, missed run, kill switch), log/artifact locations, webhook notification setup.
+   - `burn_in_protocol.md` — shadow period definition, stability thresholds table, go-live checklist (infrastructure, system health, risk controls, governance, sign-off), failure handling and counter reset rules, promotion gate criteria.
+   - `governance_review_guide.md` — procedures for all six weekly/monthly governance jobs (W1–W3, M1–M3) with key artifact fields and action guidance.
+
+2. No code changes in Slice C — documentation only.
+
+### Acceptance (Increment 7 Slice C)
+
+1. `docs/runbooks/` contains four runbook files covering daily operations, burn-in, and governance.
+2. Every governance job and every recovery scenario is documented with runnable commands.
+
+### Acceptance (Increment 7 Overall)
+
+1. Consecutive burn-in run target achievable via `check_burn_in_status --min-consecutive-days N`.
+2. Reconciliation and risk check results are visible in daily operator report and M1 risk rebaseline artifact.
+3. Go-live checklist in `burn_in_protocol.md` provides the formal sign-off gate.
 
 ## Testing Plan
 

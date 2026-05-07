@@ -108,6 +108,16 @@ def parse_args() -> argparse.Namespace:
         help="Lookback window passed to challenger shadow evaluation (default: 30).",
     )
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
+    parser.add_argument(
+        "--as-of-date",
+        default="",
+        help=(
+            "Override the trading date for this run (YYYY-MM-DD). "
+            "Used by replay/backfill tooling to re-run a missed date. "
+            "Affects dedup guard key and log/artifact file name prefix. "
+            "Implies --force-run for the dedup guard."
+        ),
+    )
     parser.add_argument("--run-source", default="scheduled-daily")
     parser.add_argument(
         "--notify-webhook-url",
@@ -465,7 +475,21 @@ def main() -> int:
         print(f"Daily paper trading already completed today; skipping duplicate run. source={args.run_source}")
         return 0
 
-    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    as_of_date: dt.date | None = None
+    if args.as_of_date:
+        try:
+            as_of_date = dt.date.fromisoformat(args.as_of_date)
+        except ValueError:
+            print(f"Invalid --as-of-date value: {args.as_of_date!r}. Expected YYYY-MM-DD.", file=sys.stderr)
+            return 1
+        if not args.force_run and already_completed_today(logs_dir, today=as_of_date):
+            _startup_log(f"SKIP duplicate run for as-of-date={as_of_date} (source={args.run_source})", logs_dir)
+            print(f"Daily paper trading already completed for {as_of_date}; skipping. Use --force-run to override.")
+            return 0
+
+    date_prefix = as_of_date.strftime("%Y%m%d") if as_of_date else dt.datetime.now().strftime("%Y%m%d")
+    time_suffix = dt.datetime.now().strftime("%H%M%S")
+    timestamp = f"{date_prefix}_{time_suffix}"
     log_path = logs_dir / f"daily_paper_trading_{timestamp}.log"
     artifact_path = repo_root / "local" / "exports" / "daily_paper_trading" / f"daily_paper_trading_{timestamp}.json"
     _startup_log(f"RUN log_path={log_path}", logs_dir)
@@ -548,6 +572,7 @@ def main() -> int:
         "job": "daily_paper_trading",
         "run_source": args.run_source,
         "force_run": bool(args.force_run),
+        "as_of_date": str(as_of_date) if as_of_date else None,
         "accounts": accounts,
         "account_count": len(accounts),
         "caps_summary": caps_summary,
