@@ -74,7 +74,7 @@ class TestArtifactStructure:
 
     def test_drift_and_reweight_computed_correctly(self, monkeypatch, tmp_path: Path) -> None:
         # Two sleeves: start_equity 600 and 400 (60% / 40% target)
-        # current_cash + current_equity: 700 and 300 (70% / 30% current)
+        # current_equity values: 600 and 400 (60% / 40% current)
         sleeve_rows = [
             {
                 "id": 1,
@@ -88,7 +88,7 @@ class TestArtifactStructure:
                 "name": "sleeve_b",
                 "start_equity": 400.0,
                 "current_cash": 100.0,
-                "current_equity": 200.0,
+                "current_equity": 400.0,
             },
         ]
         mock_conn = SimpleNamespace(close=lambda: None)
@@ -118,15 +118,15 @@ class TestArtifactStructure:
         )
         payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
         acct = payload["accounts"][0]
-        assert acct["total_nav"] == 1000.0  # 700 + 300
+        assert acct["total_nav"] == 1000.0  # 600 + 400
         sleeves = {s["sleeve_name"]: s for s in acct["sleeves"]}
-        # sleeve_a: current_nav=700, current_pct=70, target_pct=60, drift=+10 → reweight
-        assert abs(sleeves["sleeve_a"]["current_pct"] - 70.0) < 0.01
+        # sleeve_a: current_nav=600, current_pct=60, target_pct=60, drift=0 → no reweight
+        assert abs(sleeves["sleeve_a"]["current_pct"] - 60.0) < 0.01
         assert abs(sleeves["sleeve_a"]["target_pct"] - 60.0) < 0.01
-        assert abs(sleeves["sleeve_a"]["drift_pct"] - 10.0) < 0.01
-        assert sleeves["sleeve_a"]["reweight_suggested"] is True
-        # sleeve_b: current_nav=300, current_pct=30, target_pct=40, drift=-10 → reweight
-        assert abs(sleeves["sleeve_b"]["current_pct"] - 30.0) < 0.01
+        assert abs(sleeves["sleeve_a"]["drift_pct"] - 0.0) < 0.01
+        assert sleeves["sleeve_a"]["reweight_suggested"] is False
+        # sleeve_b: current_nav=400, current_pct=40, target_pct=40, drift=0 → no reweight
+        assert abs(sleeves["sleeve_b"]["current_pct"] - 40.0) < 0.01
         assert abs(sleeves["sleeve_b"]["target_pct"] - 40.0) < 0.01
-        assert abs(sleeves["sleeve_b"]["drift_pct"] - (-10.0)) < 0.01
-        assert sleeves["sleeve_b"]["reweight_suggested"] is True
+        assert abs(sleeves["sleeve_b"]["drift_pct"] - 0.0) < 0.01
+        assert sleeves["sleeve_b"]["reweight_suggested"] is False

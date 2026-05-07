@@ -113,9 +113,9 @@ def main() -> int:
 
             sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
 
-            # Compute current NAVs.
+            # current_equity already includes cash for each sleeve.
             current_navs = [
-                float(sleeve["current_cash"]) + float(sleeve["current_equity"])
+                float(sleeve["current_equity"])
                 for sleeve in sleeves
             ]
             total_nav = sum(current_navs)

@@ -143,8 +143,10 @@ def main() -> int:
 
     conn = ensure_db()
     try:
-        today_str = now.date().isoformat()
-        start_str = (now.date() - dt.timedelta(days=int(args.audit_window_days))).isoformat()
+        audit_window_days = int(args.audit_window_days)
+        today = now.date()
+        today_str = today.isoformat()
+        start_str = (today - dt.timedelta(days=audit_window_days - 1)).isoformat()
 
         account_results: list[dict[str, object]] = []
         for account_name in accounts:
@@ -184,14 +186,14 @@ def main() -> int:
                 log_path,
                 (
                     f"[{ts()}] PERFORMANCE_AUDIT: account={account_name} "
-                    f"sleeves={len(sleeve_rows)} window_days={args.audit_window_days}"
+                    f"sleeves={len(sleeve_rows)} window_days={audit_window_days}"
                 ),
             )
 
         payload: dict[str, object] = {
             "month": tag,
             "generated_at": ts(),
-            "audit_window_days": int(args.audit_window_days),
+            "audit_window_days": audit_window_days,
             "accounts": account_results,
         }
         write_artifact(artifact_path, payload)

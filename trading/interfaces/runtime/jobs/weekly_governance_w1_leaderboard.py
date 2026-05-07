@@ -127,8 +127,10 @@ def main() -> int:
 
     conn = ensure_db()
     try:
-        today_str = now.date().isoformat()
-        start_str = (now.date() - dt.timedelta(days=int(args.window_days))).isoformat()
+        window_days = int(args.window_days)
+        today = now.date()
+        today_str = today.isoformat()
+        start_str = (today - dt.timedelta(days=window_days - 1)).isoformat()
 
         account_results: list[dict[str, object]] = []
         for account_name in accounts:
@@ -181,7 +183,7 @@ def main() -> int:
         payload: dict[str, object] = {
             "week": tag,
             "generated_at": ts(),
-            "window_days": int(args.window_days),
+            "window_days": window_days,
             "accounts": account_results,
         }
         write_artifact(artifact_path, payload)

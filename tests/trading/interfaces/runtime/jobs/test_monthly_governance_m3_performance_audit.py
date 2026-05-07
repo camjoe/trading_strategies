@@ -173,3 +173,50 @@ class TestArtifactStructure:
         assert sleeve["avg_hit_rate"] is None
         assert sleeve["total_trades"] == 0
         assert sleeve["strategy_name"] is None
+
+    def test_audit_window_days_uses_inclusive_day_count(self, monkeypatch, tmp_path: Path) -> None:
+        fixed_now = dt.datetime(2026, 1, 15, 9, 30, 0)
+
+        class _FixedDateTime(dt.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return fixed_now
+
+        captured: dict[str, str] = {}
+        sleeve_row = {"id": 5, "name": "sleeve_m"}
+        mock_conn = SimpleNamespace(close=lambda: None)
+        monkeypatch.setattr(module.dt, "datetime", _FixedDateTime)
+        monkeypatch.setattr(module, "ensure_db", lambda: mock_conn)
+        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+        monkeypatch.setattr(
+            module,
+            "fetch_account_by_name",
+            lambda conn, name: SimpleNamespace(id=1, name=name),
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_strategy_sleeves_for_account",
+            lambda conn, *, account_id: [sleeve_row],
+        )
+        monkeypatch.setattr(
+            module,
+            "fetch_active_sleeve_strategy_assignment",
+            lambda conn, *, sleeve_id: None,
+        )
+
+        def _capture_metrics(conn, *, sleeve_id, start_date, end_date):
+            captured["start_date"] = start_date
+            captured["end_date"] = end_date
+            return []
+
+        monkeypatch.setattr(module, "fetch_daily_metrics_for_sleeve_window", _capture_metrics)
+
+        result = run_runtime_job_main(
+            monkeypatch,
+            tmp_path,
+            MODULE_NAME,
+            ["--accounts", "all", "--force-run", "--audit-window-days", "1"],
+        )
+        assert result == 0
+        assert captured["start_date"] == "2026-01-15"
+        assert captured["end_date"] == "2026-01-15"
