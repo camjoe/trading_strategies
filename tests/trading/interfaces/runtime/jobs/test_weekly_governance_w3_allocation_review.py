@@ -1,30 +1,36 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 from pathlib import Path
 
 import trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review as module
-from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
+from tests.support.runtime_jobs import (
+    RUN_ALL_ACCOUNTS_ARGS,
+    load_single_artifact_json,
+    run_runtime_job_with_args,
+    stub_runtime_job_basics,
+    write_completed_runtime_log,
+)
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review"
-RUN_ALL_ARGS = ("--accounts", "all")
+RUN_ALL_ARGS = RUN_ALL_ACCOUNTS_ARGS
 RUN_ALL_FORCE_ARGS = (*RUN_ALL_ARGS, "--force-run")
 
 
 def _run_job(monkeypatch, tmp_path: Path, args: tuple[str, ...] = RUN_ALL_ARGS) -> int:
-    return run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, list(args))
+    return run_runtime_job_with_args(monkeypatch, tmp_path, MODULE_NAME, args)
 
 
 class TestDedupGuard:
     def test_skips_when_already_completed_this_week(self, monkeypatch, tmp_path: Path) -> None:
         now = dt.datetime.now()
         tag = module.week_tag(now)
-        logs_dir = tmp_path / "local" / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = now.strftime("%Y%m%d_%H%M%S")
-        log_path = logs_dir / f"weekly_governance_w3_allocation_review_{tag}_{timestamp}.log"
-        log_path.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+        write_completed_runtime_log(
+            tmp_path,
+            filename_prefix="weekly_governance_w3_allocation_review",
+            tag=tag,
+            sentinel=module.COMPLETE_SENTINEL,
+        )
 
         result = _run_job(monkeypatch, tmp_path)
         assert result == 0
@@ -52,11 +58,10 @@ class TestArtifactStructure:
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
 
-        artifacts = list(
-            (tmp_path / "local" / "artifacts").glob("weekly_governance_w3_allocation_review_*.json")
+        payload = load_single_artifact_json(
+            tmp_path / "local" / "artifacts",
+            "weekly_governance_w3_allocation_review_*.json",
         )
-        assert len(artifacts) == 1
-        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
         assert "week" in payload
         assert "generated_at" in payload
         assert "drift_threshold_pct" in payload
@@ -91,10 +96,10 @@ class TestArtifactStructure:
         )
         assert result == 0
 
-        artifacts = list(
-            (tmp_path / "local" / "artifacts").glob("weekly_governance_w3_allocation_review_*.json")
+        payload = load_single_artifact_json(
+            tmp_path / "local" / "artifacts",
+            "weekly_governance_w3_allocation_review_*.json",
         )
-        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
         acct = payload["accounts"][0]
         assert acct["total_nav"] == 1000.0  # 600 + 400
         sleeves = {s["sleeve_name"]: s for s in acct["sleeves"]}

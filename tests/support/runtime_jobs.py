@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import datetime as dt
 import importlib
+import json
 import sys
 from collections.abc import Callable
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
+RUN_ALL_ACCOUNTS_ARGS: tuple[str, ...] = ("--accounts", "all")
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading_reporting"
@@ -162,6 +165,37 @@ def run_runtime_job_main(monkeypatch, tmp_path: Path, module_name: str, argv: li
     return load_runtime_job(module_name).main()
 
 
+def run_runtime_job_with_args(
+    monkeypatch,
+    tmp_path: Path,
+    module_name: str,
+    args: tuple[str, ...] = RUN_ALL_ACCOUNTS_ARGS,
+) -> int:
+    return run_runtime_job_main(monkeypatch, tmp_path, module_name, list(args))
+
+
+def write_completed_runtime_log(
+    tmp_path: Path,
+    *,
+    filename_prefix: str,
+    tag: str,
+    sentinel: str,
+    timestamp: str | None = None,
+) -> Path:
+    logs_dir = tmp_path / "local" / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    resolved_timestamp = timestamp or dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = logs_dir / f"{filename_prefix}_{tag}_{resolved_timestamp}.log"
+    log_path.write_text(f"{sentinel}\n", encoding="utf-8")
+    return log_path
+
+
+def load_single_artifact_json(artifacts_dir: Path, pattern: str) -> dict[str, object]:
+    artifacts = list(artifacts_dir.glob(pattern))
+    assert len(artifacts) == 1
+    return json.loads(artifacts[0].read_text(encoding="utf-8"))
+
+
 def stub_runtime_job_basics(
     monkeypatch,
     module,
@@ -199,6 +233,7 @@ __all__ = [
     "DAILY_SNAPSHOT_MODULE",
     "MANAGE_JOB_SCHEDULES_MODULE",
     "DAILY_BACKTEST_REFRESH_MODULE",
+    "RUN_ALL_ACCOUNTS_ARGS",
     "DAILY_PAPER_TRADING_MODULE",
     "RUN_AUTO_TRADES_MODULE",
     "DAILY_CHALLENGER_SHADOW_EVAL_MODULE",
@@ -217,11 +252,14 @@ __all__ = [
     "load_run_auto_trades",
     "load_daily_challenger_shadow_eval",
     "load_runtime_job",
+    "load_single_artifact_json",
     "make_daily_backtest_refresh_args",
     "make_daily_snapshot_args",
     "make_daily_challenger_shadow_eval_args",
     "make_manage_job_schedules_args",
     "make_run_auto_trades_args",
     "run_runtime_job_main",
+    "run_runtime_job_with_args",
     "stub_runtime_job_basics",
+    "write_completed_runtime_log",
 ]

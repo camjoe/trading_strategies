@@ -1,30 +1,36 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 from pathlib import Path
 
 import trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline as module
-from tests.support.runtime_jobs import run_runtime_job_main, stub_runtime_job_basics
+from tests.support.runtime_jobs import (
+    RUN_ALL_ACCOUNTS_ARGS,
+    load_single_artifact_json,
+    run_runtime_job_with_args,
+    stub_runtime_job_basics,
+    write_completed_runtime_log,
+)
 
 MODULE_NAME = "trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline"
-RUN_ALL_ARGS = ("--accounts", "all")
+RUN_ALL_ARGS = RUN_ALL_ACCOUNTS_ARGS
 RUN_ALL_FORCE_ARGS = (*RUN_ALL_ARGS, "--force-run")
 
 
 def _run_job(monkeypatch, tmp_path: Path, args: tuple[str, ...] = RUN_ALL_ARGS) -> int:
-    return run_runtime_job_main(monkeypatch, tmp_path, MODULE_NAME, list(args))
+    return run_runtime_job_with_args(monkeypatch, tmp_path, MODULE_NAME, args)
 
 
 class TestDedupGuard:
     def test_skips_when_already_completed_this_month(self, monkeypatch, tmp_path: Path) -> None:
         now = dt.datetime.now()
         tag = module.month_tag(now)
-        logs_dir = tmp_path / "local" / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = now.strftime("%Y%m%d_%H%M%S")
-        log_path = logs_dir / f"monthly_governance_m1_risk_rebaseline_{tag}_{timestamp}.log"
-        log_path.write_text(f"{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+        write_completed_runtime_log(
+            tmp_path,
+            filename_prefix="monthly_governance_m1_risk_rebaseline",
+            tag=tag,
+            sentinel=module.COMPLETE_SENTINEL,
+        )
 
         result = _run_job(monkeypatch, tmp_path)
         assert result == 0
@@ -57,11 +63,10 @@ class TestArtifactStructure:
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
 
-        artifacts = list(
-            (tmp_path / "local" / "artifacts").glob("monthly_governance_m1_risk_rebaseline_*.json")
+        payload = load_single_artifact_json(
+            tmp_path / "local" / "artifacts",
+            "monthly_governance_m1_risk_rebaseline_*.json",
         )
-        assert len(artifacts) == 1
-        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
         assert "month" in payload
         assert "generated_at" in payload
         assert "accounts" in payload
@@ -76,10 +81,10 @@ class TestArtifactStructure:
         )
 
         _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
-        artifacts = list(
-            (tmp_path / "local" / "artifacts").glob("monthly_governance_m1_risk_rebaseline_*.json")
+        payload = load_single_artifact_json(
+            tmp_path / "local" / "artifacts",
+            "monthly_governance_m1_risk_rebaseline_*.json",
         )
-        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
         acct = payload["accounts"][0]
         assert acct["account_name"] == "acct1"
         assert acct["snapshot_time"] is None
@@ -104,10 +109,10 @@ class TestArtifactStructure:
         )
 
         _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
-        artifacts = list(
-            (tmp_path / "local" / "artifacts").glob("monthly_governance_m1_risk_rebaseline_*.json")
+        payload = load_single_artifact_json(
+            tmp_path / "local" / "artifacts",
+            "monthly_governance_m1_risk_rebaseline_*.json",
         )
-        payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
         acct = payload["accounts"][0]
         assert acct["snapshot_time"] == "2026-06-01T10:00:00"
         assert acct["kill_switch_triggered"] is False
