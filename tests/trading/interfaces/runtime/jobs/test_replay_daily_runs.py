@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 import trading.interfaces.runtime.jobs.maintenance.replay_daily_runs as replay_module
-from tests.support.runtime_jobs import DAILY_PAPER_TRADING_MODULE, daily_paper_trading as daily_module, run_runtime_job_main
+from tests.support.runtime_jobs import DAILY_PAPER_TRADING_MODULE, DAILY_PAPER_TRADING_REPORTING_MODULE, daily_paper_trading as daily_module, run_runtime_job_main
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ def _stub_daily_runtime_defaults(monkeypatch):
         f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
         lambda: ["acct1"],
     )
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.ensure_db", lambda: None)
+    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_REPORTING_MODULE}.ensure_db", lambda: None)
 
 
 def _run_replay_main(monkeypatch, tmp_path: Path, args: list[str]) -> int:

@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import sys
 from pathlib import Path
+from typing import Any
 
 from common.paths.repo_paths import get_repo_root
 from trading.database.db_init import ensure_db
@@ -140,7 +141,7 @@ def main() -> int:
                 continue
 
             sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
-            sleeve_rows: list[dict[str, object]] = []
+            sleeve_rows: list[dict[str, Any]] = []
 
             for sleeve in sleeves:
                 sleeve_id = int(sleeve["id"])
@@ -166,7 +167,7 @@ def main() -> int:
 
             # Sort by avg_risk_adjusted_score descending; nulls last.
             sleeve_rows.sort(
-                key=lambda r: r["avg_risk_adjusted_score"]
+                key=lambda r: float(r["avg_risk_adjusted_score"])
                 if r["avg_risk_adjusted_score"] is not None
                 else float("-inf"),
                 reverse=True,

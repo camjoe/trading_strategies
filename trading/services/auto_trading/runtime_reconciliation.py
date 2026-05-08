@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable
+from typing import Any
 
 from common.coercion import row_expect_int
 from common.time import utc_now_iso
@@ -29,9 +30,9 @@ def reconcile_open_broker_orders_impl(
     account: AccountRecord,
     fee: float,
     *,
-    get_broker_for_account_fn: Callable[..., object],
-    fetch_open_broker_orders_fn: Callable[..., list[object]],
-    fetch_sleeve_order_by_broker_order_id_fn: Callable[..., object],
+    get_broker_for_account_fn: Callable[..., Any],
+    fetch_open_broker_orders_fn: Callable[..., list[Any]],
+    fetch_sleeve_order_by_broker_order_id_fn: Callable[..., Any],
     insert_order_fill_fn: Callable[..., object],
     update_broker_order_status_fn: Callable[..., object],
     update_sleeve_order_status_fn: Callable[..., object],

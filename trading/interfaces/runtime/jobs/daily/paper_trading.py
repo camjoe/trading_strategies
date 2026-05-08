@@ -386,41 +386,39 @@ def main() -> int:
 
         grouped_accounts = group_accounts_by_caps(accounts, account_trade_caps)
         auto_trader_groups: list[dict[str, object]] = []
+
+        def _run_all_auto_trader_groups() -> dict[str, object]:
+            for limits, group_accounts in sorted(
+                grouped_accounts.items(),
+                key=lambda item: (item[0][0], item[0][1], item[1]),
+            ):
+                run_auto_trader_group(
+                    log_path,
+                    repo_root,
+                    f"Auto Trader ({limits[0]}-{limits[1]} trades)",
+                    group_accounts,
+                    limits[0],
+                    limits[1],
+                    args.fee,
+                    args.seed,
+                )
+                auto_trader_groups.append(
+                    {
+                        "accounts": group_accounts,
+                        "min_trades": limits[0],
+                        "max_trades": limits[1],
+                    }
+                )
+            return {
+                "groups": auto_trader_groups,
+                "group_count": len(auto_trader_groups),
+                "shadow_eval_summary": shadow_eval_summary,
+            }
+
         run_dag_step(
             step_results,
             step_id="05_build_position_targets_by_sleeve",
-            run_fn=lambda: (
-                [
-                    (
-                        run_auto_trader_group(
-                            log_path,
-                            repo_root,
-                            f"Auto Trader ({limits[0]}-{limits[1]} trades)",
-                            group_accounts,
-                            limits[0],
-                            limits[1],
-                            args.fee,
-                            args.seed,
-                        ),
-                        auto_trader_groups.append(
-                            {
-                                "accounts": group_accounts,
-                                "min_trades": limits[0],
-                                "max_trades": limits[1],
-                            }
-                        ),
-                    )
-                    for limits, group_accounts in sorted(
-                        grouped_accounts.items(),
-                        key=lambda item: (item[0][0], item[0][1], item[1]),
-                    )
-                ],
-                {
-                    "groups": auto_trader_groups,
-                    "group_count": len(auto_trader_groups),
-                    "shadow_eval_summary": shadow_eval_summary,
-                },
-            )[1],
+            run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )
         skip_dag_step(
@@ -437,24 +435,22 @@ def main() -> int:
         )
 
         snapshot_accounts: list[str] = []
+
+        def _run_all_snapshots() -> dict[str, object]:
+            for account in accounts:
+                stream_command(
+                    log_path,
+                    f"Snapshot {account}",
+                    ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
+                    repo_root,
+                )
+                snapshot_accounts.append(account)
+            return {"accounts": snapshot_accounts, "count": len(snapshot_accounts)}
+
         run_dag_step(
             step_results,
             step_id="08_reconcile_fills_update_ledgers",
-            run_fn=lambda: (
-                [
-                    (
-                        stream_command(
-                            log_path,
-                            f"Snapshot {account}",
-                            ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
-                            repo_root,
-                        ),
-                        snapshot_accounts.append(account),
-                    )
-                    for account in accounts
-                ],
-                {"accounts": snapshot_accounts, "count": len(snapshot_accounts)},
-            )[1],
+            run_fn=_run_all_snapshots,
             now_iso=ts,
         )
 

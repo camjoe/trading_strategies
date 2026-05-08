@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading_reporting"
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
 MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"

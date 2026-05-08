@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Callable
+from typing import Any
 
 from common.time import parse_utc_iso
 from trading.services.sleeves.risk_gate import DEFAULT_SYMBOL_SECTOR_MAP, resolve_sector_for_symbol
@@ -14,8 +15,8 @@ def compute_current_exposure_snapshot(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-    fetch_sleeve_positions_for_account_fn: Callable[..., list[object]],
-    fetch_strategy_sleeves_for_account_fn: Callable[..., list[object]],
+    fetch_sleeve_positions_for_account_fn: Callable[..., list[Any]],
+    fetch_strategy_sleeves_for_account_fn: Callable[..., list[Any]],
 ) -> tuple[float, float, float, float]:
     position_rows = fetch_sleeve_positions_for_account_fn(conn, account_id=account_id)
     gross_exposure = 0.0
@@ -51,8 +52,8 @@ def persist_sleeve_risk_snapshot(
     snapshot_time: str,
     kill_switch_triggered: bool,
     payload: dict[str, object],
-    fetch_sleeve_positions_for_account_fn: Callable[..., list[object]],
-    fetch_strategy_sleeves_for_account_fn: Callable[..., list[object]],
+    fetch_sleeve_positions_for_account_fn: Callable[..., list[Any]],
+    fetch_strategy_sleeves_for_account_fn: Callable[..., list[Any]],
     upsert_portfolio_risk_snapshot_fn: Callable[..., object],
 ) -> None:
     gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct = (
@@ -84,7 +85,7 @@ def persist_normalized_sleeve_risk_decisions(
     *,
     account_id: int,
     decision_time: str,
-    risk_decisions: list[dict[str, object]],
+    risk_decisions: list[dict[str, Any]],
     insert_sleeve_risk_decision_fn: Callable[..., object],
 ) -> None:
     for decision in risk_decisions:
