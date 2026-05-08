@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
 import sqlite3
 
 from common.coercion import row_expect_int
-from common.time import parse_utc_iso
 from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
 from trading.domain.rotation import parse_rotation_schedule
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
@@ -15,6 +13,8 @@ from trading.repositories.sleeves import (
     fetch_active_strategy_param_set,
     fetch_strategy_sleeves_for_account,
 )
+from trading.services.sleeves._shared import mean as _sleeve_mean
+from trading.services.sleeves._shared import resolve_window_bounds as _resolve_window_bounds_shared
 
 # Default historical lookback window for challenger shadow evaluation.
 DEFAULT_SHADOW_ROLLING_WINDOW_DAYS = 30
@@ -37,9 +37,7 @@ class ShadowEvaluationRun:
 
 
 def _mean(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    return sum(values) / len(values)
+    return _sleeve_mean(values)
 
 
 def _resolve_strategy_schedule(account: AccountRecord) -> list[str]:
@@ -58,10 +56,7 @@ def _resolve_window_bounds(
     as_of_iso: str,
     rolling_window_days: int,
 ) -> tuple[str, str]:
-    window_days = max(1, int(rolling_window_days))
-    as_of_date = parse_utc_iso(as_of_iso).date()
-    start_day = as_of_date - timedelta(days=window_days - 1)
-    return start_day.isoformat(), as_of_date.isoformat()
+    return _resolve_window_bounds_shared(as_of_iso=as_of_iso, rolling_window_days=rolling_window_days)
 
 
 def build_challenger_metrics_from_backtest_returns(

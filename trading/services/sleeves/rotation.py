@@ -8,6 +8,8 @@ import sqlite3
 from common.coercion import row_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
+from trading.services.sleeves._shared import mean as _sleeve_mean
+from trading.services.sleeves._shared import resolve_window_bounds as _resolve_window_bounds_shared
 from trading.domain.sleeve_rotation import (
     SleeveRotationDecision,
     SleeveRotationScoreWeights,
@@ -67,9 +69,7 @@ class SleeveRotationRunResult:
 
 
 def _average(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    return sum(values) / len(values)
+    return _sleeve_mean(values)
 
 
 def _weights_from_config(config: SleeveRotationConfig) -> SleeveRotationScoreWeights:
@@ -83,10 +83,7 @@ def _weights_from_config(config: SleeveRotationConfig) -> SleeveRotationScoreWei
 
 
 def _resolve_window_bounds(*, as_of_iso: str, rolling_window_days: int) -> tuple[str, str]:
-    as_of_date = parse_utc_iso(as_of_iso).date()
-    window_days = max(1, int(rolling_window_days))
-    start_date = as_of_date - timedelta(days=window_days - 1)
-    return start_date.isoformat(), as_of_date.isoformat()
+    return _resolve_window_bounds_shared(as_of_iso=as_of_iso, rolling_window_days=rolling_window_days)
 
 
 def _build_incumbent_metrics(
