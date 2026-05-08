@@ -24,6 +24,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading_dag import (
     failed_step_id,
     new_step_results,
     run_dag_step,
+    serialize_step_results,
     skip_dag_step,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading_reporting import (
@@ -488,7 +489,7 @@ def main() -> int:
             **run_meta,
             "status": "success",
             "completed_steps": completed_steps_from_dag(step_results),
-            "step_results": step_results,
+            "step_results": serialize_step_results(step_results),
             "finished_at": ts(),
         }
         write_artifact(
@@ -515,7 +516,7 @@ def main() -> int:
             **run_meta,
             "status": "failed",
             "completed_steps": completed_steps_from_dag(step_results),
-            "step_results": step_results,
+            "step_results": serialize_step_results(step_results),
             "failed_step": failed_step_id(step_results),
             "error": str(exc),
             "finished_at": ts(),
