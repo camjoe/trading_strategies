@@ -19,6 +19,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading_caps import (
     resolve_trade_caps,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading_dag import (
+    DAILY_DAG_STEPS as _DAILY_DAG_STEPS,
     completed_steps_from_dag,
     failed_step_id,
     new_step_results,
@@ -71,6 +72,7 @@ except Exception as exc:
 
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
+DAILY_DAG_STEPS = _DAILY_DAG_STEPS
 
 
 def parse_args() -> argparse.Namespace:
