@@ -10,6 +10,11 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 from trading.database.db_init import ensure_db
+from trading.interfaces.runtime.jobs.governance.payload_models import (
+    WeeklyAllocationAccountPayload,
+    WeeklyAllocationArtifactPayload,
+    WeeklyAllocationSleevePayload,
+)
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
     logs_dir_for_repo,
@@ -105,7 +110,7 @@ def main() -> int:
 
     conn = ensure_db()
     try:
-        account_results: list[dict[str, object]] = []
+        account_results: list[WeeklyAllocationAccountPayload] = []
         for account_name in accounts:
             account = fetch_account_by_name(conn, account_name)
             if account is None:
@@ -125,7 +130,7 @@ def main() -> int:
             start_equities = [float(sleeve["start_equity"]) for sleeve in sleeves]
             total_start_equity = sum(start_equities)
 
-            sleeve_rows: list[dict[str, object]] = []
+            sleeve_rows: list[WeeklyAllocationSleevePayload] = []
             for sleeve, current_nav, start_equity in zip(sleeves, current_navs, start_equities):
                 current_pct = (current_nav / total_nav * 100.0) if total_nav != 0.0 else 0.0
                 target_pct = (start_equity / total_start_equity * 100.0) if total_start_equity != 0.0 else 0.0
@@ -133,24 +138,24 @@ def main() -> int:
                 reweight_suggested = abs(drift_pct) >= drift_threshold
 
                 sleeve_rows.append(
-                    {
-                        "sleeve_name": str(sleeve["name"]),
-                        "current_nav": current_nav,
-                        "current_pct": current_pct,
-                        "target_pct": target_pct,
-                        "drift_pct": drift_pct,
-                        "reweight_suggested": reweight_suggested,
-                    }
+                    WeeklyAllocationSleevePayload(
+                        sleeve_name=str(sleeve["name"]),
+                        current_nav=current_nav,
+                        current_pct=current_pct,
+                        target_pct=target_pct,
+                        drift_pct=drift_pct,
+                        reweight_suggested=reweight_suggested,
+                    )
                 )
 
             account_results.append(
-                {
-                    "account_name": account_name,
-                    "total_nav": total_nav,
-                    "sleeves": sleeve_rows,
-                }
+                WeeklyAllocationAccountPayload(
+                    account_name=account_name,
+                    total_nav=total_nav,
+                    sleeves=sleeve_rows,
+                )
             )
-            reweight_count = sum(1 for s in sleeve_rows if s["reweight_suggested"])
+            reweight_count = sum(1 for s in sleeve_rows if s.reweight_suggested)
             tee_line(
                 log_path,
                 (
@@ -160,13 +165,13 @@ def main() -> int:
                 ),
             )
 
-        payload: dict[str, object] = {
-            "week": tag,
-            "generated_at": ts(),
-            "drift_threshold_pct": drift_threshold,
-            "accounts": account_results,
-        }
-        write_artifact(artifact_path, payload)
+        payload = WeeklyAllocationArtifactPayload(
+            week=tag,
+            generated_at=ts(),
+            drift_threshold_pct=drift_threshold,
+            accounts=account_results,
+        )
+        write_artifact(artifact_path, payload.as_dict())
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
         return 0
 

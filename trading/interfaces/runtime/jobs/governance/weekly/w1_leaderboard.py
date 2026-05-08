@@ -6,11 +6,17 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import sys
+from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 from common.paths.repo_paths import get_repo_root
 from trading.database.db_init import ensure_db
+from trading.interfaces.runtime.jobs.governance.payload_models import (
+    WeeklyLeaderboardAccountPayload,
+    WeeklyLeaderboardArtifactPayload,
+    WeeklyLeaderboardSleevePayload,
+)
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
     logs_dir_for_repo,
@@ -69,7 +75,15 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _compute_sleeve_stats(metrics: list) -> dict[str, object]:
+class SleeveStats(TypedDict):
+    avg_return_pct: float | None
+    avg_risk_adjusted_score: float | None
+    max_drawdown_pct: float | None
+    total_trade_count: int
+    data_points: int
+
+
+def _compute_sleeve_stats(metrics: list) -> SleeveStats:
     """Compute aggregated performance stats from a list of daily metric rows."""
     returns = [row["return_pct"] for row in metrics if row["return_pct"] is not None]
     risk_scores = [row["risk_adjusted_score"] for row in metrics if row["risk_adjusted_score"] is not None]
@@ -133,7 +147,7 @@ def main() -> int:
         today_str = today.isoformat()
         start_str = (today - dt.timedelta(days=window_days - 1)).isoformat()
 
-        account_results: list[dict[str, object]] = []
+        account_results: list[WeeklyLeaderboardAccountPayload] = []
         for account_name in accounts:
             account = fetch_account_by_name(conn, account_name)
             if account is None:
@@ -141,7 +155,7 @@ def main() -> int:
                 continue
 
             sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
-            sleeve_rows: list[dict[str, Any]] = []
+            sleeve_rows: list[WeeklyLeaderboardSleevePayload] = []
 
             for sleeve in sleeves:
                 sleeve_id = int(sleeve["id"])
@@ -158,36 +172,48 @@ def main() -> int:
                 )
                 stats = _compute_sleeve_stats(metrics)
                 sleeve_rows.append(
-                    {
-                        "sleeve_name": sleeve_name,
-                        "strategy_name": strategy_name,
-                        **stats,
-                    }
+                    WeeklyLeaderboardSleevePayload(
+                        sleeve_name=sleeve_name,
+                        strategy_name=strategy_name,
+                        avg_return_pct=stats["avg_return_pct"],
+                        avg_risk_adjusted_score=stats["avg_risk_adjusted_score"],
+                        max_drawdown_pct=stats["max_drawdown_pct"],
+                        total_trade_count=stats["total_trade_count"],
+                        data_points=stats["data_points"],
+                        rank=0,
+                    )
                 )
 
             # Sort by avg_risk_adjusted_score descending; nulls last.
             sleeve_rows.sort(
-                key=lambda r: float(r["avg_risk_adjusted_score"])
-                if r["avg_risk_adjusted_score"] is not None
+                key=lambda r: float(r.avg_risk_adjusted_score)
+                if r.avg_risk_adjusted_score is not None
                 else float("-inf"),
                 reverse=True,
             )
-            for rank, sleeve_row in enumerate(sleeve_rows, start=1):
-                sleeve_row["rank"] = rank
+            ranked_sleeves = [
+                replace(sleeve_row, rank=rank)
+                for rank, sleeve_row in enumerate(sleeve_rows, start=1)
+            ]
 
-            account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
+            account_results.append(
+                WeeklyLeaderboardAccountPayload(
+                    account_name=account_name,
+                    sleeves=ranked_sleeves,
+                )
+            )
             tee_line(
                 log_path,
                 f"[{ts()}] LEADERBOARD: account={account_name} sleeves={len(sleeve_rows)}",
             )
 
-        payload: dict[str, object] = {
-            "week": tag,
-            "generated_at": ts(),
-            "window_days": window_days,
-            "accounts": account_results,
-        }
-        write_artifact(artifact_path, payload)
+        payload = WeeklyLeaderboardArtifactPayload(
+            week=tag,
+            generated_at=ts(),
+            window_days=window_days,
+            accounts=account_results,
+        )
+        write_artifact(artifact_path, payload.as_dict())
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
         return 0
 

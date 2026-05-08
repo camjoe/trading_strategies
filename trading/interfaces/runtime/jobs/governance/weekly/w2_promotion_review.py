@@ -10,6 +10,11 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 from trading.database.db_init import ensure_db
+from trading.interfaces.runtime.jobs.governance.payload_models import (
+    WeeklyPromotionAccountPayload,
+    WeeklyPromotionArtifactPayload,
+    WeeklyPromotionSleevePayload,
+)
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
     logs_dir_for_repo,
@@ -101,7 +106,7 @@ def main() -> int:
 
     conn = ensure_db()
     try:
-        account_results: list[dict[str, object]] = []
+        account_results: list[WeeklyPromotionAccountPayload] = []
         for account_name in accounts:
             account = fetch_account_by_name(conn, account_name)
             if account is None:
@@ -111,7 +116,7 @@ def main() -> int:
             assessment = fetch_current_promotion_assessment(conn, account_name=account_name)
 
             sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
-            sleeve_rows: list[dict[str, object]] = []
+            sleeve_rows: list[WeeklyPromotionSleevePayload] = []
             for sleeve in sleeves:
                 sleeve_id = int(sleeve["id"])
                 sleeve_name = str(sleeve["name"])
@@ -121,20 +126,20 @@ def main() -> int:
                 strategy_name = str(assignment["strategy_name"]) if assignment is not None else None
 
                 sleeve_rows.append(
-                    {
-                        "sleeve_name": sleeve_name,
-                        "strategy_name": strategy_name,
-                        "sleeve_status": sleeve_status,
-                    }
+                    WeeklyPromotionSleevePayload(
+                        sleeve_name=sleeve_name,
+                        strategy_name=strategy_name,
+                        sleeve_status=sleeve_status,
+                    )
                 )
 
             account_results.append(
-                {
-                    "account_name": account_name,
-                    "ready_for_live": bool(assessment.ready_for_live),
-                    "blockers": list(assessment.blockers),
-                    "sleeves": sleeve_rows,
-                }
+                WeeklyPromotionAccountPayload(
+                    account_name=account_name,
+                    ready_for_live=bool(assessment.ready_for_live),
+                    blockers=list(assessment.blockers),
+                    sleeves=sleeve_rows,
+                )
             )
             tee_line(
                 log_path,
@@ -145,12 +150,12 @@ def main() -> int:
                 ),
             )
 
-        payload: dict[str, object] = {
-            "week": tag,
-            "generated_at": ts(),
-            "accounts": account_results,
-        }
-        write_artifact(artifact_path, payload)
+        payload = WeeklyPromotionArtifactPayload(
+            week=tag,
+            generated_at=ts(),
+            accounts=account_results,
+        )
+        write_artifact(artifact_path, payload.as_dict())
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
         return 0
 
