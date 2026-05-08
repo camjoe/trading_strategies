@@ -5,10 +5,10 @@ from unittest.mock import Mock
 import trading.services.sleeves.execution as sleeve_execution
 from trading.repositories.sleeves import (
     insert_sleeve_strategy_assignment,
-    insert_strategy_sleeve,
 )
 from trading.services.accounts import get_account
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 def _insert_sleeve(
@@ -19,17 +19,14 @@ def _insert_sleeve(
     status: str = "active",
     current_cash: float = 1_000.0,
 ) -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name=name,
         status=status,
-        base_ccy="USD",
         start_equity=current_cash,
         current_cash=current_cash,
         current_equity=current_cash,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
     )
 
 

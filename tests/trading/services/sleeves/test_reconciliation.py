@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 
 from trading.repositories.snapshots import insert_snapshot_row
-from trading.repositories.sleeves import insert_strategy_sleeve
 from trading.services.sleeves.reconciliation import (
     reconcile_sleeves_vs_account_equity,
     reconcile_sleeves_vs_latest_snapshot,
 )
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 def _insert_sleeve(
@@ -18,17 +18,13 @@ def _insert_sleeve(
     name: str,
     equity: float,
 ) -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name=name,
-        status="active",
-        base_ccy="USD",
         start_equity=equity,
         current_cash=equity,
         current_equity=equity,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
     )
 
 

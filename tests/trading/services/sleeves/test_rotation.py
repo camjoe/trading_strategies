@@ -10,25 +10,20 @@ from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_sleeve_strategy_assignments,
     insert_sleeve_strategy_assignment,
-    insert_strategy_sleeve,
 )
 from trading.services.sleeves.rotation import (
     SleeveRotationConfig,
     evaluate_and_apply_sleeve_rotation,
 )
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 def _insert_sleeve(conn, *, account_id: int, name: str = "core") -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name=name,
-        status="active",
-        base_ccy="USD",
-        start_equity=10_000.0,
-        current_cash=10_000.0,
-        current_equity=10_000.0,
         created_at="2026-05-01T00:00:00Z",
         updated_at="2026-05-01T00:00:00Z",
     )

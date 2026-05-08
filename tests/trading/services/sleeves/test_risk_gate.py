@@ -1,24 +1,20 @@
 from __future__ import annotations
 
 from trading.repositories.sleeve_positions import upsert_sleeve_position
-from trading.repositories.sleeves import insert_strategy_sleeve
 from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 def _insert_sleeve(conn, *, account_id: int, sleeve_id: int, equity: float) -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name=f"sleeve_{sleeve_id}",
-        status="active",
-        base_ccy="USD",
         start_equity=equity,
         current_cash=equity,
         current_equity=equity,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
     )
 
 

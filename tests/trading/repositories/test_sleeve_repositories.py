@@ -52,12 +52,12 @@ from trading.repositories.sleeves import (
     fetch_strategy_sleeves_for_account,
     insert_sleeve_strategy_assignment,
     insert_strategy_param_set,
-    insert_strategy_sleeve,
     set_strategy_param_set_activation,
     update_strategy_sleeve_balances,
     update_strategy_sleeve_status,
 )
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 def _account_id(conn, name: str = "sleeve_repo_acct") -> int:
@@ -65,17 +65,10 @@ def _account_id(conn, name: str = "sleeve_repo_acct") -> int:
 
 
 def _sleeve_id(conn, account_id: int, name: str = "core") -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name=name,
-        status="active",
-        base_ccy="USD",
-        start_equity=10_000.0,
-        current_cash=10_000.0,
-        current_equity=10_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
     )
 
 

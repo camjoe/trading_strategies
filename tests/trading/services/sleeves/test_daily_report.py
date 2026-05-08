@@ -14,7 +14,6 @@ from trading.repositories.rotation_decisions import insert_rotation_decision
 from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
 from trading.repositories.sleeves import (
     insert_sleeve_strategy_assignment,
-    insert_strategy_sleeve,
 )
 from trading.services.sleeves.daily_report import (
     AccountDailyReport,
@@ -22,6 +21,7 @@ from trading.services.sleeves.daily_report import (
     build_account_daily_report,
 )
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 @pytest.fixture
@@ -35,12 +35,10 @@ def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 
 
 def _insert_sleeve(conn, *, account_id: int, name: str = "sleeve_a", start_equity: float = 10_000.0) -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name=name,
-        status="active",
-        base_ccy="USD",
         start_equity=start_equity,
         current_cash=start_equity,
         current_equity=start_equity,

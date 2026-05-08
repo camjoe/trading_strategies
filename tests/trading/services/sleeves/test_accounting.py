@@ -5,23 +5,20 @@ import pytest
 from trading.repositories.sleeve_ledger import fetch_sleeve_ledger_sum_by_type
 from trading.repositories.sleeve_orders import fetch_sleeve_fills_for_order, insert_sleeve_order
 from trading.repositories.sleeve_positions import fetch_sleeve_position
-from trading.repositories.sleeves import fetch_strategy_sleeve_by_id, insert_strategy_sleeve
+from trading.repositories.sleeves import fetch_strategy_sleeve_by_id
 from trading.services.sleeves.accounting import apply_sleeve_fill
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 
 def _seed_sleeve(conn, *, account_id: int, cash: float, equity: float) -> int:
-    return insert_strategy_sleeve(
+    return insert_test_sleeve(
         conn,
         account_id=account_id,
         name="core",
-        status="active",
-        base_ccy="USD",
         start_equity=equity,
         current_cash=cash,
         current_equity=equity,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
     )
 
 
