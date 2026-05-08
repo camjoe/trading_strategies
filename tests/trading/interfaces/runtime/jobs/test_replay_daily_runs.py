@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,7 +7,15 @@ from types import SimpleNamespace
 import pytest
 
 import trading.interfaces.runtime.jobs.maintenance.replay_daily_runs as replay_module
-from tests.support.runtime_jobs import DAILY_PAPER_TRADING_MODULE, DAILY_PAPER_TRADING_REPORTING_MODULE, daily_paper_trading as daily_module, run_runtime_job_main
+from tests.support.runtime_jobs import (
+    DAILY_PAPER_TRADING_MODULE,
+    DAILY_PAPER_TRADING_REPORTING_MODULE,
+    daily_paper_trading as daily_module,
+    load_single_artifact_json,
+    run_runtime_job_main,
+    set_runtime_eligible_accounts,
+    write_completed_runtime_log,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -26,10 +33,7 @@ def _stub_operator_report(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _stub_daily_runtime_defaults(monkeypatch):
-    monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names",
-        lambda: ["acct1"],
-    )
+    set_runtime_eligible_accounts(monkeypatch, DAILY_PAPER_TRADING_MODULE, ["acct1"])
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_REPORTING_MODULE}.ensure_db", lambda: None)
 
 
@@ -65,8 +69,12 @@ def test_as_of_date_dedup_guard_uses_override_date(monkeypatch, tmp_path: Path, 
     log_dir = tmp_path / "local" / "logs"
     log_dir.mkdir(parents=True)
     # Pre-write a sentinel for the override date
-    (log_dir / "daily_paper_trading_20200115_000000.log").write_text(
-        f"{daily_module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+    write_completed_runtime_log(
+        tmp_path,
+        filename_prefix="daily_paper_trading",
+        tag="20200115",
+        sentinel=daily_module.COMPLETE_SENTINEL,
+        timestamp="000000",
     )
 
     code = _run_daily_as_of(monkeypatch, tmp_path, ["--as-of-date", "2020-01-15"])
@@ -86,9 +94,10 @@ def test_as_of_date_recorded_in_artifact(monkeypatch, tmp_path: Path) -> None:
     _run_daily_as_of(monkeypatch, tmp_path, ["--as-of-date", "2020-01-15", "--force-run"])
 
     export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
-    artifacts = list(export_dir.glob("daily_paper_trading_20200115_*.json"))
-    assert artifacts, "Expected artifact prefixed with 20200115"
-    payload = json.loads(artifacts[0].read_text())
+    payload = load_single_artifact_json(
+        export_dir,
+        "daily_paper_trading_20200115_*.json",
+    )
     assert payload.get("as_of_date") == "2020-01-15"
 
 
@@ -118,8 +127,12 @@ def test_replay_nothing_to_do_when_all_complete(monkeypatch, tmp_path: Path, cap
     logs_dir = tmp_path / "local" / "logs"
     logs_dir.mkdir(parents=True)
     for day in ("20260501", "20260502", "20260503"):
-        (logs_dir / f"daily_paper_trading_{day}_000000.log").write_text(
-            f"{daily_module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+        write_completed_runtime_log(
+            tmp_path,
+            filename_prefix="daily_paper_trading",
+            tag=day,
+            sentinel=daily_module.COMPLETE_SENTINEL,
+            timestamp="000000",
         )
 
     result = _run_replay_main(
@@ -137,8 +150,12 @@ def test_replay_executes_missing_dates(monkeypatch, tmp_path: Path) -> None:
     logs_dir = tmp_path / "local" / "logs"
     logs_dir.mkdir(parents=True)
     # Only 2026-05-02 is pre-completed
-    (logs_dir / "daily_paper_trading_20260502_000000.log").write_text(
-        f"{daily_module.COMPLETE_SENTINEL}\n", encoding="utf-8"
+    write_completed_runtime_log(
+        tmp_path,
+        filename_prefix="daily_paper_trading",
+        tag="20260502",
+        sentinel=daily_module.COMPLETE_SENTINEL,
+        timestamp="000000",
     )
 
     called: list[list[str]] = []

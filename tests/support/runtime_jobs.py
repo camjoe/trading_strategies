@@ -196,6 +196,13 @@ def load_single_artifact_json(artifacts_dir: Path, pattern: str) -> dict[str, ob
     return json.loads(artifacts[0].read_text(encoding="utf-8"))
 
 
+def set_runtime_eligible_accounts(monkeypatch, module_name: str, accounts: list[str]) -> None:
+    monkeypatch.setattr(
+        f"{module_name}.load_runtime_eligible_account_names",
+        lambda: list(accounts),
+    )
+
+
 def stub_runtime_job_basics(
     monkeypatch,
     module,
@@ -260,6 +267,7 @@ __all__ = [
     "make_run_auto_trades_args",
     "run_runtime_job_main",
     "run_runtime_job_with_args",
+    "set_runtime_eligible_accounts",
     "stub_runtime_job_basics",
     "write_completed_runtime_log",
 ]

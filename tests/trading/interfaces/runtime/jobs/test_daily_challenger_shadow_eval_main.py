@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
@@ -8,8 +7,10 @@ from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, Slee
 from tests.support.runtime_jobs import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     daily_challenger_shadow_eval as module,
+    load_single_artifact_json,
     make_daily_challenger_shadow_eval_args,
     run_runtime_job_main,
+    set_runtime_eligible_accounts,
 )
 
 
@@ -45,7 +46,7 @@ def test_main_returns_1_for_invalid_window(monkeypatch, tmp_path: Path, capsys) 
 
 
 def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+    set_runtime_eligible_accounts(monkeypatch, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
     monkeypatch.setattr(module, "ts", lambda: "2026-05-07T12:00:00+00:00")
     monkeypatch.setattr(module, "day_tag", lambda _now: "20260507")
@@ -90,16 +91,17 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
         DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
         ["--accounts", "acct1", "--enable-run"],
     ) == 0
-    artifacts = list((tmp_path / "local" / "exports" / "daily_challenger_shadow_eval").glob("daily_challenger_shadow_eval_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_challenger_shadow_eval",
+        "daily_challenger_shadow_eval_*.json",
+    )
     assert payload["status"] == "success"
     assert payload["results"][0]["account_name"] == "acct1"
     assert payload["results"][0]["sleeves"][0]["challenger_count"] == 1
 
 
 def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+    set_runtime_eligible_accounts(monkeypatch, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["acct1"])
 
     assert run_runtime_job_main(
         monkeypatch,

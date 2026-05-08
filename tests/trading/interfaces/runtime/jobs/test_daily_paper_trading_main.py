@@ -7,7 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.runtime_jobs import DAILY_PAPER_TRADING_MODULE, daily_paper_trading as module, run_runtime_job_main
+from tests.support.runtime_jobs import (
+    DAILY_PAPER_TRADING_MODULE,
+    daily_paper_trading as module,
+    load_single_artifact_json,
+    run_runtime_job_main,
+    set_runtime_eligible_accounts,
+    write_completed_runtime_log,
+)
 
 _STUB_OPERATOR_REPORT = {
     "report_date": "2026-01-01",
@@ -55,12 +62,13 @@ def _runtime_harness(monkeypatch):
 
 
 def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path, capsys) -> None:
-    log_dir = tmp_path / "local" / "logs"
-    log_dir.mkdir(parents=True)
     today = dt.date.today().strftime("%Y%m%d")
-    (log_dir / f"daily_paper_trading_{today}_000000.log").write_text(
-        f"{module.COMPLETE_SENTINEL}\n",
-        encoding="utf-8",
+    write_completed_runtime_log(
+        tmp_path,
+        filename_prefix="daily_paper_trading",
+        tag=today,
+        sentinel=module.COMPLETE_SENTINEL,
+        timestamp="000000",
     )
 
     monkeypatch.setattr(sys, "argv", ["daily_paper_trading", "--repo-root", str(tmp_path)])
@@ -70,12 +78,13 @@ def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path
     assert "skipping duplicate run" in capsys.readouterr().out
 
 def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
-    log_dir = tmp_path / "local" / "logs"
-    log_dir.mkdir(parents=True)
     today = dt.date.today().strftime("%Y%m%d")
-    (log_dir / f"daily_paper_trading_{today}_000000.log").write_text(
-        f"{module.COMPLETE_SENTINEL}\n",
-        encoding="utf-8",
+    write_completed_runtime_log(
+        tmp_path,
+        filename_prefix="daily_paper_trading",
+        tag=today,
+        sentinel=module.COMPLETE_SENTINEL,
+        timestamp="000000",
     )
 
     code = run_runtime_job_main(
@@ -87,9 +96,10 @@ def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path, _runtim
 
     assert code == 0
     assert _runtime_harness["stream_calls"]
-    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
     assert payload["status"] == "success"
     assert payload["completed_steps"]
     assert payload["step_results"]
@@ -164,9 +174,10 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
     )
 
     assert code == 0
-    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
     score_steps = [step for step in payload["step_results"] if step["step"] == "03_score_incumbent_vs_challengers"]
     assert len(score_steps) == 1
     summary = score_steps[0]["details"]["shadow_eval_summary"]
@@ -176,7 +187,7 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
     assert summary["challenger_count"] == 3
 
 def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.load_runtime_eligible_account_names", lambda: ["real_acct"])
+    set_runtime_eligible_accounts(monkeypatch, DAILY_PAPER_TRADING_MODULE, ["real_acct"])
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -235,9 +246,10 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path, _runtim
     )
 
     assert code == 1
-    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
     assert payload["status"] == "failed"
     assert payload["failed_step"] == "05_build_position_targets_by_sleeve"
     failed_steps = [step for step in payload["step_results"] if step["status"] == "failed"]
@@ -254,9 +266,10 @@ def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_h
     )
 
     assert code == 0
-    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
     ordered_steps = [step["step"] for step in payload["step_results"]]
     assert ordered_steps == [step_id for step_id, _name in module.DAILY_DAG_STEPS]
 
@@ -303,9 +316,10 @@ def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path, _
     assert code == 1
     assert len(_runtime_harness["notifications"]) == 1
     assert _runtime_harness["notifications"][0]["status"] == "fail"
-    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
     assert payload["status"] == "failed"
     assert payload["error"] == "step failed"
 
@@ -347,9 +361,10 @@ def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Pat
     )
 
     assert code == 0
-    artifacts = list((tmp_path / "local" / "exports" / "daily_paper_trading").glob("daily_paper_trading_*.json"))
-    assert len(artifacts) == 1
-    payload = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
     step_10 = next(s for s in payload["step_results"] if s["step"] == "10_emit_report_and_alerts")
     assert step_10["status"] == "ok"
     details = step_10["details"]
