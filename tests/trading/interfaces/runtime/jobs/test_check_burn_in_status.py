@@ -58,6 +58,16 @@ def _run_main_at_now(
     return _run_main(monkeypatch, tmp_path, extra_args)
 
 
+def _burn_in_artifacts(tmp_path: Path) -> list[Path]:
+    return list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
+
+
+def _load_single_burn_in_artifact(tmp_path: Path) -> dict[str, object]:
+    artifacts = _burn_in_artifacts(tmp_path)
+    assert len(artifacts) == 1
+    return json.loads(artifacts[0].read_text(encoding="utf-8"))
+
+
 # ---------------------------------------------------------------------------
 # Test 1: ready_for_live when consecutive threshold met
 # ---------------------------------------------------------------------------
@@ -77,9 +87,7 @@ class TestReadyForLiveWhenConsecutiveThresholdMet:
         )
         assert rc == 0
 
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        assert len(artifacts) == 1
-        data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        data = _load_single_burn_in_artifact(tmp_path)
         assert data["ready_for_live"] is True
         assert data["consecutive_successes"] >= 10
 
@@ -103,8 +111,7 @@ class TestNotReadyWhenBelowConsecutiveThreshold:
         )
         assert rc == 0
 
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        data = _load_single_burn_in_artifact(tmp_path)
         assert data["ready_for_live"] is False
         assert data["consecutive_successes"] == 5
 
@@ -131,8 +138,7 @@ class TestNotReadyWhenFailureRateExceeded:
         )
         assert rc == 0
 
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        data = _load_single_burn_in_artifact(tmp_path)
         assert data["ready_for_live"] is False
         assert data["failed_runs"] >= 1
         assert data["failure_rate_pct"] > 0.0
@@ -161,8 +167,7 @@ class TestDedupGuardSkipsWhenAlreadyDone:
         assert "skipping" in out.lower() or "already" in out.lower()
 
         # No new artifact should have been written.
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        assert len(artifacts) == 0
+        assert _burn_in_artifacts(tmp_path) == []
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +192,7 @@ class TestForceRunBypassesDedupGuard:
         assert rc == 0
 
         # Artifact must have been written (job actually ran).
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        assert len(artifacts) == 1
+        assert len(_burn_in_artifacts(tmp_path)) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -203,9 +207,7 @@ class TestNoArtifactsGivesZeroConsecutiveSuccesses:
         )
         assert rc == 0
 
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        assert len(artifacts) == 1
-        data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        data = _load_single_burn_in_artifact(tmp_path)
         assert data["ready_for_live"] is False
         assert data["consecutive_successes"] == 0
         assert data["total_runs_in_window"] == 0
@@ -232,8 +234,7 @@ class TestLatestArtifactUsedWhenMultipleOnSameDate:
         )
         assert rc == 0
 
-        artifacts = list((tmp_path / "local" / "artifacts").glob("check_burn_in_status_*.json"))
-        data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        data = _load_single_burn_in_artifact(tmp_path)
         # Only one entry for the date, and it should be the later (failed) one.
         assert data["total_runs_in_window"] == 1
         assert data["entries"][0]["status"] == "failed"
