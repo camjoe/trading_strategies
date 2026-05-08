@@ -11,7 +11,6 @@ import traceback
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.database.db_init import ensure_db
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.daily.paper_trading_caps import (
     group_accounts_by_caps,
@@ -20,7 +19,6 @@ from trading.interfaces.runtime.jobs.daily.paper_trading_caps import (
     resolve_trade_caps,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading_dag import (
-    DAILY_DAG_STEPS,
     completed_steps_from_dag,
     failed_step_id,
     new_step_results,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import asdict
 
@@ -313,7 +312,6 @@ def _run_sleeve_rotation_decisions(
     account: AccountRecord,
     decision_time: str,
 ) -> None:
-    account_id = row_expect_int(account, "id")
     rolling_window_days = (
         int(account.rotation_lookback_days)
         if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
