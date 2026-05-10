@@ -110,7 +110,7 @@ function renderDashboard(): void {
   attachEventListeners();
 }
 
-function renderAccountOverview(account: IbkrPaperAccountOverview["account"]): string {
+export function renderAccountOverview(account: IbkrPaperAccountOverview["account"]): string {
   const returnClass = account.return_pct >= 0 ? "up" : "down";
   
   return `
@@ -148,7 +148,7 @@ function renderAccountOverview(account: IbkrPaperAccountOverview["account"]): st
   `;
 }
 
-function renderSleevesPanel(sleeves: IbkrPaperSleeve[]): string {
+export function renderSleevesPanel(sleeves: IbkrPaperSleeve[]): string {
   if (sleeves.length === 0) {
     return '<section class="card sleeves-card"><p>No sleeves configured</p></section>';
   }
@@ -197,7 +197,7 @@ function renderSleevesPanel(sleeves: IbkrPaperSleeve[]): string {
   `;
 }
 
-function renderDailyWorkflowPanel(workflow: IbkrDailyWorkflow | null): string {
+export function renderDailyWorkflowPanel(workflow: IbkrDailyWorkflow | null): string {
   if (!workflow) {
     return '<section class="card workflow-card"><p>No workflow data available</p></section>';
   }
@@ -243,7 +243,7 @@ function renderDailyWorkflowPanel(workflow: IbkrDailyWorkflow | null): string {
   `;
 }
 
-function renderGovernancePanel(governance: Record<string, GovernanceCheckStatus>): string {
+export function renderGovernancePanel(governance: Record<string, GovernanceCheckStatus>): string {
   const jobs = [
     { key: "w1_leaderboard", label: "W1 Leaderboard", freq: "Weekly" },
     { key: "w2_promotion", label: "W2 Promotion", freq: "Weekly" },
@@ -280,7 +280,7 @@ function renderGovernancePanel(governance: Record<string, GovernanceCheckStatus>
   `;
 }
 
-function renderBurnInPanel(burnIn: BurnInStatus): string {
+export function renderBurnInPanel(burnIn: BurnInStatus): string {
   const progress = burnIn.consecutive_successes || 0;
   const required = burnIn.min_required_successes || 10;
   const progressPct = Math.min((progress / required) * 100, 100);
@@ -320,7 +320,7 @@ function renderBurnInPanel(burnIn: BurnInStatus): string {
   `;
 }
 
-function renderRotationsPanel(rotations: RotationDecision[]): string {
+export function renderRotationsPanel(rotations: RotationDecision[]): string {
   if (rotations.length === 0) {
     return '<section class="card rotations-card"><p>No recent rotations</p></section>';
   }
@@ -358,7 +358,7 @@ function renderRotationsPanel(rotations: RotationDecision[]): string {
   `;
 }
 
-function renderRiskSummaryPanel(riskSummary: RiskSummary): string {
+export function renderRiskSummaryPanel(riskSummary: RiskSummary): string {
   const killSwitchClass = riskSummary.kill_switch_triggered ? "triggered" : "normal";
   const violations = riskSummary.recent_violations || [];
   
