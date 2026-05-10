@@ -1,4 +1,5 @@
 import { currency, num, pct } from "../lib/format";
+import { getJson, errorMessage } from "../lib/http";
 import type { IbkrPaperAccountOverview } from "../types/ibkr-paper-monitor";
 
 interface IbkrPaperState {
@@ -21,13 +22,11 @@ const state: IbkrPaperState = {
 
 async function fetchAccounts(): Promise<void> {
   try {
-    const response = await fetch("/api/ibkr-paper-accounts");
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    const data = await response.json();
-    state.accounts = data.accounts || [];
+    const response = await getJson<{ accounts: Array<{ name: string; total_equity: number; sleeve_count: number }> }>("/api/ibkr-paper-accounts");
+    state.accounts = response.accounts || [];
     updateAccountSelect();
   } catch (err) {
-    state.error = `Failed to load accounts: ${err instanceof Error ? err.message : String(err)}`;
+    state.error = `Failed to load accounts: ${errorMessage(err)}`;
     console.error(state.error);
   }
 }
@@ -39,13 +38,11 @@ async function fetchAccountData(accountName: string): Promise<void> {
   state.error = null;
   
   try {
-    const response = await fetch(`/api/ibkr-paper-accounts/${encodeURIComponent(accountName)}`);
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    state.currentData = await response.json();
+    state.currentData = await getJson<IbkrPaperAccountOverview>(`/api/ibkr-paper-accounts/${encodeURIComponent(accountName)}`);
     state.lastRefresh = new Date();
     renderDashboard();
   } catch (err) {
-    state.error = `Failed to load account data: ${err instanceof Error ? err.message : String(err)}`;
+    state.error = `Failed to load account data: ${errorMessage(err)}`;
     console.error(state.error);
     renderError();
   } finally {
@@ -59,14 +56,6 @@ function updateAccountSelect(): void {
   
   select.innerHTML = '<option value="">-- Select Account --</option>' +
     state.accounts.map(a => `<option value="${a.name}">${a.name} (${a.sleeve_count} sleeves)</option>`).join("");
-  
-  select.addEventListener("change", (e) => {
-    const target = e.target as HTMLSelectElement;
-    state.selectedAccount = target.value;
-    if (target.value) {
-      fetchAccountData(target.value);
-    }
-  });
 }
 
 function renderError(): void {
@@ -409,6 +398,17 @@ function renderRiskSummaryPanel(riskSummary: any): string {
 }
 
 function attachEventListeners(): void {
+  const select = document.getElementById("ibkrPaperAccountSelect") as HTMLSelectElement | null;
+  if (!select) return;
+
+  select.addEventListener("change", (e) => {
+    const target = e.target as HTMLSelectElement;
+    state.selectedAccount = target.value;
+    if (target.value) {
+      fetchAccountData(target.value);
+    }
+  });
+
   const refreshBtn = document.getElementById("ibkrPaperRefreshBtn");
   if (refreshBtn && state.selectedAccount) {
     refreshBtn.addEventListener("click", () => fetchAccountData(state.selectedAccount!));
@@ -416,5 +416,6 @@ function attachEventListeners(): void {
 }
 
 export function init(): void {
+  attachEventListeners();
   fetchAccounts();
 }
