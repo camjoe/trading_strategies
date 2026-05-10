@@ -89,6 +89,7 @@ const altStrategiesFeature = createAltStrategiesFeature();
 async function bootstrap(): Promise<void> {
   renderShell();
   initTabs();
+  openTab("accounts");  // Set initial active tab
   initDocsFeature(openTab);
   accountsFeature.wireActions();
   adminFeature.wireActions();
