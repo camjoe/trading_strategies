@@ -1,0 +1,35 @@
+<div id="tab-ibkr-paper-monitor" class="tab-panel layout">
+  <section class="card ibkr-paper-workspace-card">
+    <div class="ibkr-paper-workspace-head section-heading">
+      <div>
+        <p class="section-kicker">IBKR Paper Autonomy</p>
+        <h2>Account Monitoring Dashboard</h2>
+        <p id="ibkrPaperMeta" class="muted">Real-time status of sleeves, workflow, and governance.</p>
+      </div>
+      <div class="section-actions">
+        <button id="ibkrPaperRefreshBtn" class="icon-label-button" type="button" aria-label="Refresh IBKR data">
+          <svg class="button-icon-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            <path d="M3 21v-5h5"/>
+          </svg>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="ibkr-paper-account-selector">
+      <label class="bt-field">
+        <span>Select account</span>
+        <select id="ibkrPaperAccountSelect">
+          <option value="">Loading accounts...</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="ibkrPaperDashboard" class="ibkr-paper-dashboard empty">
+      <p>Select an account to view monitoring dashboard.</p>
+    </div>
+  </section>
+</div>

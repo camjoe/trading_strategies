@@ -1,0 +1,478 @@
+/* IBKR Paper Account Monitor Dashboard */
+
+.ibkr-paper-workspace-card {
+  grid-column: span 12;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ibkr-paper-workspace-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.ibkr-paper-account-selector {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ibkr-paper-account-selector .bt-field {
+  flex: 1;
+  max-width: 400px;
+}
+
+.ibkr-paper-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ibkr-paper-dashboard.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* Account Overview Card */
+.account-overview-card .card-header {
+  margin-bottom: 1rem;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: var(--color-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.overview-item .label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.overview-item .value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.overview-item.up .value {
+  color: #10b981;
+}
+
+.overview-item.down .value {
+  color: #ef4444;
+}
+
+/* Sleeves Table */
+.sleeves-card .card-header,
+.workflow-card .card-header,
+.governance-card .card-header,
+.burn-in-card .card-header,
+.rotations-card .card-header,
+.risk-card .card-header {
+  margin-bottom: 1rem;
+}
+
+.sleeves-card h3,
+.workflow-card h3,
+.governance-card h3,
+.burn-in-card h3,
+.rotations-card h3,
+.risk-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sleeves-table,
+.rotations-table,
+.violations-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sleeves-table thead,
+.rotations-table thead,
+.violations-table thead {
+  background-color: var(--color-bg-secondary);
+}
+
+.sleeves-table th,
+.rotations-table th,
+.violations-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.sleeves-table td,
+.rotations-table td,
+.violations-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.sleeve-row.status-active {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.sleeve-row.status-paused {
+  background-color: rgba(234, 179, 8, 0.05);
+}
+
+.sleeve-row.status-retired {
+  background-color: rgba(107, 114, 128, 0.05);
+}
+
+.sleeve-row .return.up {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.sleeve-row .return.down {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-active {
+  background-color: #dbeafe;
+  color: #0c4a6e;
+}
+
+.status-paused {
+  background-color: #fef3c7;
+  color: #78350f;
+}
+
+.status-retired {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.status-success {
+  background-color: #dcfce7;
+  color: #14532d;
+}
+
+.status-failed {
+  background-color: #fee2e2;
+  color: #7f1d1d;
+}
+
+.status-not_run {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+/* Workflow Status */
+.workflow-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--color-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.workflow-summary.status-success {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.workflow-summary.status-failed {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.workflow-summary .item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.workflow-summary .label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.workflow-summary .value {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.error-box {
+  padding: 1rem;
+  margin-top: 1rem;
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  color: #7f1d1d;
+  font-size: 0.875rem;
+}
+
+.error-message {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.error-message .btn {
+  margin-top: 1rem;
+}
+
+/* Governance Checks Grid */
+.governance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.governance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: var(--color-bg-secondary);
+  border: 2px solid var(--color-border-subtle);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.governance-card.status-success {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.governance-card.status-failed {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.governance-card.status-not_run {
+  border-color: var(--color-border-subtle);
+  background-color: var(--color-bg-secondary);
+}
+
+.gov-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.gov-freq {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.gov-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.gov-lastrun {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* Burn-In Progress */
+.burn-in-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background-color: var(--color-bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.burn-in-summary.ready {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.progress-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.progress-bar-container {
+  position: relative;
+  height: 32px;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.burn-in-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat .label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.stat .value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Risk Summary */
+.risk-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.kill-switch {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 6px;
+  background-color: var(--color-bg-secondary);
+}
+
+.kill-switch.triggered {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+}
+
+.kill-switch .status {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.violations-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.violation-row.action-block {
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.violation-row.action-rescale {
+  background-color: rgba(234, 179, 8, 0.05);
+}
+
+.violation-row.action-allow {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.action-block {
+  background-color: #fee2e2;
+  color: #7f1d1d;
+}
+
+.action-rescale {
+  background-color: #fef3c7;
+  color: #78350f;
+}
+
+.action-allow {
+  background-color: #dcfce7;
+  color: #14532d;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ibkr-paper-account-selector {
+    flex-direction: column;
+  }
+
+  .overview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .governance-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sleeves-table,
+  .rotations-table {
+    font-size: 0.75rem;
+  }
+
+  .sleeves-table th,
+  .sleeves-table td,
+  .rotations-table th,
+  .rotations-table td {
+    padding: 0.5rem;
+  }
+}
