@@ -36,6 +36,10 @@ def test_validate_trade_count_range_and_account_names() -> None:
     assert auto_trading_service.resolve_account_names("acct1, acct2") == ["acct1", "acct2"]
     with pytest.raises(ValueError, match="No accounts"):
         auto_trading_service.resolve_account_names(" , ")
+    assert auto_trading_service.validate_execution_mode("ACCOUNT") == "account"
+    assert auto_trading_service.validate_execution_mode("sleeve") == "sleeve"
+    with pytest.raises(ValueError, match="execution_mode must be one of"):
+        auto_trading_service.validate_execution_mode("invalid-mode")
 
 
 def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -48,11 +52,13 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     assert prices == {"AAPL": 101.0}
     assert iv_rank == {"AAPL": 50.0}
 
-    monkeypatch.setattr(
-        auto_trading_inputs,
-        "_run_account_trade_loop",
-        lambda **kwargs: 2 if kwargs["account_name"] == "acct1" else 1,
-    )
+    seen_modes: list[str] = []
+
+    def _fake_trade_loop(**kwargs):
+        seen_modes.append(kwargs["execution_mode"])
+        return 2 if kwargs["account_name"] == "acct1" else 1
+
+    monkeypatch.setattr(auto_trading_inputs, "_run_account_trade_loop", _fake_trade_loop)
     results = auto_trading_service.run_accounts(
         conn=object(),
         account_names=["acct1", "acct2"],
@@ -62,8 +68,10 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         min_trades=1,
         max_trades=2,
         fee=0.0,
+        execution_mode="sleeve",
     )
     assert results == [("acct1", 2), ("acct2", 1)]
+    assert seen_modes == ["sleeve", "sleeve"]
 
 
 def test_parse_runtime_as_of_iso_handles_supported_formats() -> None:

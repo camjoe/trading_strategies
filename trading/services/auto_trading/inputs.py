@@ -8,6 +8,15 @@ from common.tickers import load_tickers_from_file
 from trading.services.pricing import fetch_latest_prices
 from trading.services.auto_trading.market import build_iv_rank_proxy
 
+# Default execution mode keeps existing account-scoped behavior.
+EXECUTION_MODE_ACCOUNT = "account"
+# New sleeve mode enables sleeve intent generation.
+EXECUTION_MODE_SLEEVE = "sleeve"
+SUPPORTED_EXECUTION_MODES = {
+    EXECUTION_MODE_ACCOUNT,
+    EXECUTION_MODE_SLEEVE,
+}
+
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
     if min_trades < 1:
@@ -21,6 +30,14 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
     if not accounts:
         raise ValueError("No accounts provided.")
     return accounts
+
+
+def validate_execution_mode(execution_mode: str) -> str:
+    normalized_mode = execution_mode.strip().lower()
+    if normalized_mode not in SUPPORTED_EXECUTION_MODES:
+        options = ", ".join(sorted(SUPPORTED_EXECUTION_MODES))
+        raise ValueError(f"execution_mode must be one of: {options}")
+    return normalized_mode
 
 
 def resolve_market_inputs(tickers_file: str) -> tuple[list[str], dict[str, float], dict[str, float]]:
@@ -52,7 +69,9 @@ def run_accounts(
     min_trades: int,
     max_trades: int,
     fee: float,
+    execution_mode: str = EXECUTION_MODE_ACCOUNT,
 ) -> list[tuple[str, int]]:
+    resolved_execution_mode = validate_execution_mode(execution_mode)
     results: list[tuple[str, int]] = []
     for account_name in account_names:
         executed = _run_account_trade_loop(
@@ -64,6 +83,7 @@ def run_accounts(
             min_trades=min_trades,
             max_trades=max_trades,
             fee=fee,
+            execution_mode=resolved_execution_mode,
         )
         results.append((account_name, executed))
     return results

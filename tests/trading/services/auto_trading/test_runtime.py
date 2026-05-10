@@ -198,3 +198,31 @@ def test_run_for_account_breaks_only_on_runtime_throttle_exception(monkeypatch) 
 
     assert executed == 0
     scenario.trade_recorder.assert_not_called()
+
+
+def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> None:
+    scenario = RuntimeScenario(
+        account=make_auto_trading_account(learning_enabled=1, id=42),
+        state=make_account_state(),
+        now_values=[MARKET_OPEN_TIME_ISO],
+    )
+    scenario.install(monkeypatch, runtime_service)
+    sleeve_runner = Mock(return_value=3)
+    monkeypatch.setattr(runtime_service, "_run_sleeve_mode_for_account", sleeve_runner)
+
+    executed = run_for_account(
+        conn=object(),
+        account_name="acct",
+        universe=["AAPL"],
+        prices={"AAPL": 101.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=3,
+        fee=0.0,
+        execution_mode="sleeve",
+    )
+
+    assert executed == 3
+    runtime_service.get_broker_for_account.assert_not_called()
+    scenario.trade_recorder.assert_not_called()
+    assert sleeve_runner.call_count == 1

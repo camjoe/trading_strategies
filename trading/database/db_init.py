@@ -8,6 +8,7 @@ from trading.database.db_migrations import (
     ColumnMigration,
     GLOBAL_SETTINGS_MIGRATIONS,
     ORDER_FILL_MIGRATIONS,
+    SLEEVE_MIGRATIONS_BY_TABLE,
 )
 from trading.database.db_schema import SCHEMA_SQL
 
@@ -45,4 +46,7 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "order_fills", migration)
     for migration in GLOBAL_SETTINGS_MIGRATIONS:
         _ensure_column(conn, "global_settings", migration)
+    for table_name, migrations in SLEEVE_MIGRATIONS_BY_TABLE.items():
+        for migration in migrations:
+            _ensure_column(conn, table_name, migration)
     conn.commit()

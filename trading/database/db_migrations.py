@@ -243,3 +243,19 @@ GLOBAL_SETTINGS_MIGRATIONS = (
         "ALTER TABLE global_settings ADD COLUMN promotion_min_live_overall_confidence REAL NOT NULL DEFAULT 0.6",
     ),
 )
+
+# Placeholder hooks for future additive sleeve-table column migrations.
+# New ColumnMigration entries for these tables should be appended in place.
+SLEEVE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
+    "strategy_sleeves": (),
+    "strategy_param_sets": (),
+    "sleeve_strategy_assignments": (),
+    "rotation_decisions": (),
+    "sleeve_orders": (),
+    "sleeve_fills": (),
+    "sleeve_positions": (),
+    "sleeve_ledger": (),
+    "portfolio_risk_snapshots": (),
+    "sleeve_risk_decisions": (),
+    "daily_metrics": (),
+}

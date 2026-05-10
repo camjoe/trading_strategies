@@ -28,14 +28,19 @@ def test_main_validation_errors(monkeypatch) -> None:
 
 def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     conn = FakeConn()
-    install_main_args(monkeypatch, min_trades=1, max_trades=2, seed=123, accounts="acct1,acct2", fee=1.0)
+    install_main_args(
+        monkeypatch,
+        min_trades=1,
+        max_trades=2,
+        seed=123,
+        accounts="acct1,acct2",
+        fee=1.0,
+        execution_mode="sleeve",
+    )
     monkeypatch.setattr(module, "resolve_market_inputs", lambda _p: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0}))
     monkeypatch.setattr(module, "ensure_db", lambda: conn)
-    monkeypatch.setattr(
-        module,
-        "run_accounts",
-        lambda *_args, **_kwargs: [("acct1", 2), ("acct2", 2)],
-    )
+    run_accounts_mock = Mock(return_value=[("acct1", 2), ("acct2", 2)])
+    monkeypatch.setattr(module, "run_accounts", run_accounts_mock)
 
     module.main()
 
@@ -43,6 +48,7 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     assert "acct1: executed 2 trades" in out
     assert "acct2: executed 2 trades" in out
     assert conn.closed is True
+    assert run_accounts_mock.call_args.kwargs["execution_mode"] == "sleeve"
 
 
 def test_main_additional_validation_paths(monkeypatch) -> None:

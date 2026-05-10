@@ -1,0 +1,586 @@
+from __future__ import annotations
+
+from trading.repositories.daily_metrics import (
+    fetch_daily_metrics_for_account,
+    fetch_daily_metrics_for_sleeve,
+    fetch_daily_metrics_for_sleeve_window,
+    upsert_daily_metric,
+)
+from trading.repositories.portfolio_risk_snapshots import (
+    fetch_latest_portfolio_risk_snapshot,
+    upsert_portfolio_risk_snapshot,
+)
+from trading.repositories.sleeve_risk_decisions import (
+    fetch_sleeve_risk_decisions_for_account,
+    insert_sleeve_risk_decision,
+)
+from trading.repositories.rotation_decisions import (
+    fetch_latest_rotation_decision_for_sleeve,
+    fetch_latest_rotate_decision_for_sleeve,
+    fetch_rotation_decisions_for_sleeve,
+    insert_rotation_decision,
+)
+from trading.repositories.sleeve_ledger import (
+    fetch_sleeve_ledger_entries,
+    fetch_sleeve_ledger_sum_by_type,
+    insert_sleeve_ledger_entry,
+)
+from trading.repositories.sleeve_orders import (
+    attach_sleeve_order_broker_order_id,
+    fetch_open_sleeve_orders_for_account,
+    fetch_sleeve_fills_for_order,
+    fetch_sleeve_order_by_id,
+    fetch_sleeve_orders_for_sleeve,
+    insert_sleeve_fill,
+    insert_sleeve_order,
+    update_sleeve_order_status,
+)
+from trading.repositories.sleeve_positions import (
+    delete_sleeve_position,
+    fetch_sleeve_position,
+    fetch_sleeve_positions,
+    fetch_sleeve_positions_for_account,
+    upsert_sleeve_position,
+)
+from trading.repositories.sleeves import (
+    close_active_sleeve_strategy_assignment,
+    fetch_active_sleeve_strategy_assignment,
+    fetch_active_strategy_param_set,
+    fetch_sleeve_strategy_assignments,
+    fetch_strategy_param_set_by_id,
+    fetch_strategy_sleeve_by_id,
+    fetch_strategy_sleeves_for_account,
+    insert_sleeve_strategy_assignment,
+    insert_strategy_param_set,
+    set_strategy_param_set_activation,
+    update_strategy_sleeve_balances,
+    update_strategy_sleeve_status,
+)
+from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
+
+
+def _account_id(conn, name: str = "sleeve_repo_acct") -> int:
+    return insert_repository_account(conn, name=name)
+
+
+def _sleeve_id(conn, account_id: int, name: str = "core") -> int:
+    return insert_test_sleeve(
+        conn,
+        account_id=account_id,
+        name=name,
+    )
+
+
+class TestSleevesRepository:
+    def test_insert_fetch_and_update_sleeve(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_base_a")
+        sleeve_id = _sleeve_id(conn, account_id, "alpha")
+
+        row = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        assert row is not None
+        assert row["name"] == "alpha"
+        assert float(row["current_cash"]) == 10_000.0
+
+        update_strategy_sleeve_status(
+            conn,
+            sleeve_id=sleeve_id,
+            status="paused",
+            updated_at="2026-05-04T00:00:00Z",
+        )
+        update_strategy_sleeve_balances(
+            conn,
+            sleeve_id=sleeve_id,
+            current_cash=9_100.0,
+            current_equity=9_500.0,
+            updated_at="2026-05-04T00:00:00Z",
+        )
+
+        updated = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        assert updated is not None
+        assert updated["status"] == "paused"
+        assert float(updated["current_cash"]) == 9_100.0
+        assert float(updated["current_equity"]) == 9_500.0
+
+        rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
+        assert [int(item["id"]) for item in rows] == [sleeve_id]
+
+    def test_param_sets_and_assignments(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_base_b")
+        sleeve_id = _sleeve_id(conn, account_id, "beta")
+
+        param_set_id = insert_strategy_param_set(
+            conn,
+            strategy_name="trend",
+            version="v1",
+            params_json='{"lookback":20}',
+            config_version="cfg-1",
+            is_active=0,
+            created_at="2026-05-03T00:00:00Z",
+            updated_at="2026-05-03T00:00:00Z",
+            activated_at=None,
+            deactivated_at=None,
+            notes=None,
+        )
+        set_strategy_param_set_activation(
+            conn,
+            param_set_id=param_set_id,
+            is_active=1,
+            updated_at="2026-05-03T01:00:00Z",
+            activated_at="2026-05-03T01:00:00Z",
+            deactivated_at=None,
+        )
+
+        active = fetch_active_strategy_param_set(conn, strategy_name="trend")
+        assert active is not None
+        assert int(active["id"]) == param_set_id
+
+        inserted = fetch_strategy_param_set_by_id(conn, param_set_id=param_set_id)
+        assert inserted is not None
+        assert inserted["version"] == "v1"
+
+        first_assignment_id = insert_sleeve_strategy_assignment(
+            conn,
+            sleeve_id=sleeve_id,
+            strategy_name="trend",
+            param_set_id=param_set_id,
+            effective_from="2026-05-03T02:00:00Z",
+            effective_to=None,
+            is_incumbent=1,
+            created_at="2026-05-03T02:00:00Z",
+            updated_at="2026-05-03T02:00:00Z",
+        )
+        assert first_assignment_id > 0
+
+        close_active_sleeve_strategy_assignment(
+            conn,
+            sleeve_id=sleeve_id,
+            effective_to="2026-05-04T00:00:00Z",
+            updated_at="2026-05-04T00:00:00Z",
+        )
+
+        insert_sleeve_strategy_assignment(
+            conn,
+            sleeve_id=sleeve_id,
+            strategy_name="meanrev",
+            param_set_id=None,
+            effective_from="2026-05-04T00:00:00Z",
+            effective_to=None,
+            is_incumbent=1,
+            created_at="2026-05-04T00:00:00Z",
+            updated_at="2026-05-04T00:00:00Z",
+        )
+
+        active_assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+        assert active_assignment is not None
+        assert active_assignment["strategy_name"] == "meanrev"
+
+        all_assignments = fetch_sleeve_strategy_assignments(conn, sleeve_id=sleeve_id)
+        assert len(all_assignments) == 2
+
+
+class TestSleeveOrdersRepository:
+    def test_insert_update_and_query_sleeve_orders(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_orders_a")
+        sleeve_id = _sleeve_id(conn, account_id, "core_orders")
+
+        order_id = insert_sleeve_order(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            strategy_name="trend",
+            param_set_id=None,
+            rotation_decision_id=None,
+            broker_order_id=None,
+            symbol="SPY",
+            side="buy",
+            qty=10,
+            order_type="market",
+            time_in_force="day",
+            requested_price=500.0,
+            status="Submitted",
+            config_version="cfg-a",
+            submitted_at="2026-05-03T10:00:00Z",
+            updated_at="2026-05-03T10:00:00Z",
+        )
+        attach_sleeve_order_broker_order_id(
+            conn,
+            sleeve_order_id=order_id,
+            broker_order_id="ib-100",
+            updated_at="2026-05-03T10:01:00Z",
+        )
+        update_sleeve_order_status(
+            conn,
+            sleeve_order_id=order_id,
+            status="Filled",
+            updated_at="2026-05-03T10:02:00Z",
+        )
+
+        row = fetch_sleeve_order_by_id(conn, sleeve_order_id=order_id)
+        assert row is not None
+        assert row["broker_order_id"] == "ib-100"
+        assert row["status"] == "Filled"
+
+        sleeve_rows = fetch_sleeve_orders_for_sleeve(conn, sleeve_id=sleeve_id)
+        assert len(sleeve_rows) == 1
+
+        open_rows = fetch_open_sleeve_orders_for_account(conn, account_id=account_id)
+        assert len(open_rows) == 0
+
+    def test_fill_insert_is_idempotent_for_exec_id(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_orders_b")
+        sleeve_id = _sleeve_id(conn, account_id, "fills")
+        order_id = insert_sleeve_order(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            strategy_name="trend",
+            param_set_id=None,
+            rotation_decision_id=None,
+            broker_order_id="ib-200",
+            symbol="QQQ",
+            side="buy",
+            qty=5,
+            order_type="market",
+            time_in_force="day",
+            requested_price=420.0,
+            status="Submitted",
+            config_version=None,
+            submitted_at="2026-05-03T11:00:00Z",
+            updated_at="2026-05-03T11:00:00Z",
+        )
+        insert_sleeve_fill(
+            conn,
+            sleeve_order_id=order_id,
+            sleeve_id=sleeve_id,
+            broker_fill_id="fill-1",
+            exec_id="exec-1",
+            symbol="QQQ",
+            filled_qty=5,
+            fill_price=421.0,
+            commission=1.2,
+            fill_time="2026-05-03T11:01:00Z",
+        )
+        insert_sleeve_fill(
+            conn,
+            sleeve_order_id=order_id,
+            sleeve_id=sleeve_id,
+            broker_fill_id="fill-1",
+            exec_id="exec-1",
+            symbol="QQQ",
+            filled_qty=5,
+            fill_price=421.0,
+            commission=1.2,
+            fill_time="2026-05-03T11:01:00Z",
+        )
+        fills = fetch_sleeve_fills_for_order(conn, sleeve_order_id=order_id)
+        assert len(fills) == 1
+
+
+class TestSleevePositionsLedgerDecisionsAndMetrics:
+    def test_positions_ledger_decisions_and_metrics(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_combo")
+        sleeve_id = _sleeve_id(conn, account_id, "combo")
+
+        upsert_sleeve_position(
+            conn,
+            sleeve_id=sleeve_id,
+            symbol="IWM",
+            qty=4,
+            avg_cost=200.0,
+            market_value=810.0,
+            unrealized_pnl=10.0,
+            updated_at="2026-05-03T12:00:00Z",
+        )
+        upsert_sleeve_position(
+            conn,
+            sleeve_id=sleeve_id,
+            symbol="IWM",
+            qty=6,
+            avg_cost=205.0,
+            market_value=1_250.0,
+            unrealized_pnl=20.0,
+            updated_at="2026-05-03T13:00:00Z",
+        )
+
+        one = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
+        assert one is not None
+        assert float(one["qty"]) == 6.0
+
+        many = fetch_sleeve_positions(conn, sleeve_id=sleeve_id)
+        assert len(many) == 1
+        joined = fetch_sleeve_positions_for_account(conn, account_id=account_id)
+        assert len(joined) == 1
+
+        insert_sleeve_ledger_entry(
+            conn,
+            sleeve_id=sleeve_id,
+            entry_type="fee",
+            amount=-1.5,
+            reference_type="order",
+            reference_id="1",
+            entry_time="2026-05-03T13:30:00Z",
+            created_at="2026-05-03T13:30:00Z",
+        )
+        insert_sleeve_ledger_entry(
+            conn,
+            sleeve_id=sleeve_id,
+            entry_type="fee",
+            amount=-2.0,
+            reference_type="order",
+            reference_id="2",
+            entry_time="2026-05-03T14:00:00Z",
+            created_at="2026-05-03T14:00:00Z",
+        )
+        entries = fetch_sleeve_ledger_entries(conn, sleeve_id=sleeve_id, limit=10)
+        assert len(entries) == 2
+        fee_total = fetch_sleeve_ledger_sum_by_type(
+            conn,
+            sleeve_id=sleeve_id,
+            entry_type="fee",
+        )
+        assert fee_total == -3.5
+
+        decision_id = insert_rotation_decision(
+            conn,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-03T15:00:00Z",
+            incumbent_strategy="trend",
+            challenger_strategy="meanrev",
+            selected_strategy="trend",
+            rotation_action="hold",
+            cooldown_active=0,
+            score_components_json='{"a":1}',
+            gate_results_json='{"ok":true}',
+            decision_reason="threshold_not_met",
+            config_version="cfg-z",
+            param_set_id=None,
+            created_at="2026-05-03T15:00:00Z",
+        )
+        assert decision_id > 0
+        latest = fetch_latest_rotation_decision_for_sleeve(conn, sleeve_id=sleeve_id)
+        assert latest is not None
+        assert latest["rotation_action"] == "hold"
+        history = fetch_rotation_decisions_for_sleeve(conn, sleeve_id=sleeve_id, limit=5)
+        assert len(history) == 1
+        assert fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=sleeve_id) is None
+
+        insert_rotation_decision(
+            conn,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-03T16:00:00Z",
+            incumbent_strategy="trend",
+            challenger_strategy="meanrev",
+            selected_strategy="meanrev",
+            rotation_action="rotate",
+            cooldown_active=0,
+            score_components_json='{"a":2}',
+            gate_results_json='{"ok":true}',
+            decision_reason="rotate_to_challenger",
+            config_version="cfg-z",
+            param_set_id=None,
+            created_at="2026-05-03T16:00:00Z",
+        )
+        latest_rotate = fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=sleeve_id)
+        assert latest_rotate is not None
+        assert latest_rotate["rotation_action"] == "rotate"
+
+        sleeve_metric_id = upsert_daily_metric(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            metric_date="2026-05-03",
+            return_pct=1.2,
+            drawdown_pct=-0.4,
+            turnover_pct=3.0,
+            slippage_bps=4.5,
+            hit_rate=0.6,
+            expectancy=0.12,
+            risk_adjusted_score=1.1,
+            trade_count=2,
+            fees_total=3.5,
+            created_at="2026-05-03T23:59:00Z",
+            updated_at="2026-05-03T23:59:00Z",
+        )
+        sleeve_metric_id_updated = upsert_daily_metric(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            metric_date="2026-05-03",
+            return_pct=1.3,
+            drawdown_pct=-0.3,
+            turnover_pct=3.1,
+            slippage_bps=4.0,
+            hit_rate=0.62,
+            expectancy=0.15,
+            risk_adjusted_score=1.2,
+            trade_count=3,
+            fees_total=3.9,
+            created_at="2026-05-03T23:59:00Z",
+            updated_at="2026-05-04T00:01:00Z",
+        )
+        assert sleeve_metric_id_updated == sleeve_metric_id
+
+        portfolio_metric_id = upsert_daily_metric(
+            conn,
+            account_id=account_id,
+            sleeve_id=None,
+            metric_date="2026-05-03",
+            return_pct=0.8,
+            drawdown_pct=-0.2,
+            turnover_pct=2.0,
+            slippage_bps=3.0,
+            hit_rate=0.55,
+            expectancy=0.1,
+            risk_adjusted_score=0.9,
+            trade_count=4,
+            fees_total=5.0,
+            created_at="2026-05-03T23:59:00Z",
+            updated_at="2026-05-03T23:59:00Z",
+        )
+        portfolio_metric_id_updated = upsert_daily_metric(
+            conn,
+            account_id=account_id,
+            sleeve_id=None,
+            metric_date="2026-05-03",
+            return_pct=0.9,
+            drawdown_pct=-0.15,
+            turnover_pct=2.1,
+            slippage_bps=2.8,
+            hit_rate=0.56,
+            expectancy=0.11,
+            risk_adjusted_score=0.95,
+            trade_count=5,
+            fees_total=5.2,
+            created_at="2026-05-03T23:59:00Z",
+            updated_at="2026-05-04T00:01:00Z",
+        )
+        assert portfolio_metric_id_updated == portfolio_metric_id
+
+        account_metrics = fetch_daily_metrics_for_account(conn, account_id=account_id, limit=10)
+        assert len(account_metrics) == 2
+        sleeve_metrics = fetch_daily_metrics_for_sleeve(conn, sleeve_id=sleeve_id, limit=10)
+        assert len(sleeve_metrics) == 1
+        sleeve_window_metrics = fetch_daily_metrics_for_sleeve_window(
+            conn,
+            sleeve_id=sleeve_id,
+            start_date="2026-05-03",
+            end_date="2026-05-03",
+        )
+        assert len(sleeve_window_metrics) == 1
+
+        delete_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
+        removed = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
+        assert removed is None
+
+
+class TestPortfolioRiskSnapshotsRepository:
+    def test_upsert_and_fetch_latest_snapshot(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_risk_snap_repo")
+
+        upsert_portfolio_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time="2026-05-03T10:00:00Z",
+            gross_exposure=1000.0,
+            net_exposure=400.0,
+            max_symbol_concentration_pct=0.2,
+            max_sector_concentration_pct=0.0,
+            drawdown_pct=None,
+            leverage_proxy=None,
+            daily_loss_pct=None,
+            kill_switch_triggered=0,
+            risk_payload_json='{"a":1}',
+        )
+        upsert_portfolio_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time="2026-05-03T10:00:00Z",
+            gross_exposure=1100.0,
+            net_exposure=450.0,
+            max_symbol_concentration_pct=0.25,
+            max_sector_concentration_pct=0.0,
+            drawdown_pct=None,
+            leverage_proxy=None,
+            daily_loss_pct=None,
+            kill_switch_triggered=1,
+            risk_payload_json='{"a":2}',
+        )
+        upsert_portfolio_risk_snapshot(
+            conn,
+            account_id=account_id,
+            snapshot_time="2026-05-03T11:00:00Z",
+            gross_exposure=1200.0,
+            net_exposure=500.0,
+            max_symbol_concentration_pct=0.3,
+            max_sector_concentration_pct=0.0,
+            drawdown_pct=None,
+            leverage_proxy=None,
+            daily_loss_pct=None,
+            kill_switch_triggered=0,
+            risk_payload_json='{"a":3}',
+        )
+
+        latest = fetch_latest_portfolio_risk_snapshot(conn, account_id=account_id)
+        assert latest is not None
+        assert latest["snapshot_time"] == "2026-05-03T11:00:00Z"
+        assert float(latest["gross_exposure"]) == 1200.0
+
+        updated_same_time = conn.execute(
+            """
+            SELECT gross_exposure, kill_switch_triggered, risk_payload_json
+            FROM portfolio_risk_snapshots
+            WHERE account_id = ? AND snapshot_time = ?
+            """,
+            (account_id, "2026-05-03T10:00:00Z"),
+        ).fetchone()
+        assert updated_same_time is not None
+        assert float(updated_same_time["gross_exposure"]) == 1100.0
+        assert int(updated_same_time["kill_switch_triggered"]) == 1
+        assert updated_same_time["risk_payload_json"] == '{"a":2}'
+
+
+class TestSleeveRiskDecisionsRepository:
+    def test_insert_and_fetch_sleeve_risk_decisions(self, conn) -> None:
+        account_id = _account_id(conn, "sleeve_risk_decisions_repo")
+        sleeve_id = _sleeve_id(conn, account_id, "risk_decisions")
+
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-03T10:00:00Z",
+            symbol="AAPL",
+            side="buy",
+            action="rescale",
+            reason_code="sleeve_notional_cap",
+            requested_qty=5,
+            approved_qty=2,
+            requested_notional=500.0,
+            approved_notional=200.0,
+            execution_mode="sleeve",
+            risk_payload_json='{"x":1}',
+            created_at="2026-05-03T10:00:00Z",
+        )
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=None,
+            decision_time="2026-05-03T11:00:00Z",
+            symbol=None,
+            side=None,
+            action="block",
+            reason_code="stale_price_data",
+            requested_qty=None,
+            approved_qty=None,
+            requested_notional=None,
+            approved_notional=None,
+            execution_mode="sleeve",
+            risk_payload_json='{"y":2}',
+            created_at="2026-05-03T11:00:00Z",
+        )
+
+        rows = fetch_sleeve_risk_decisions_for_account(conn, account_id=account_id, limit=10)
+        assert len(rows) == 2
+        assert rows[0]["reason_code"] == "stale_price_data"
+        assert rows[1]["reason_code"] == "sleeve_notional_cap"
