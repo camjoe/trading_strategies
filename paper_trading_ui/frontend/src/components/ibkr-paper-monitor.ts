@@ -1,6 +1,15 @@
 import { currency, num, pct } from "../lib/format";
 import { getJson, errorMessage } from "../lib/http";
-import type { IbkrPaperAccountOverview } from "../types/ibkr-paper-monitor";
+import type {
+  IbkrPaperAccountOverview,
+  IbkrPaperSleeve,
+  IbkrDailyWorkflow,
+  GovernanceCheckStatus,
+  BurnInStatus,
+  RotationDecision,
+  RiskSummary,
+  RiskViolation,
+} from "../types/ibkr-paper-monitor";
 
 interface IbkrPaperState {
   accounts: Array<{ name: string; total_equity: number; sleeve_count: number }>;
@@ -101,7 +110,7 @@ function renderDashboard(): void {
   attachEventListeners();
 }
 
-function renderAccountOverview(account: any): string {
+function renderAccountOverview(account: IbkrPaperAccountOverview["account"]): string {
   const returnClass = account.return_pct >= 0 ? "up" : "down";
   
   return `
@@ -139,7 +148,7 @@ function renderAccountOverview(account: any): string {
   `;
 }
 
-function renderSleevesPanel(sleeves: any[]): string {
+function renderSleevesPanel(sleeves: IbkrPaperSleeve[]): string {
   if (sleeves.length === 0) {
     return '<section class="card sleeves-card"><p>No sleeves configured</p></section>';
   }
@@ -188,7 +197,7 @@ function renderSleevesPanel(sleeves: any[]): string {
   `;
 }
 
-function renderDailyWorkflowPanel(workflow: any): string {
+function renderDailyWorkflowPanel(workflow: IbkrDailyWorkflow | null): string {
   if (!workflow) {
     return '<section class="card workflow-card"><p>No workflow data available</p></section>';
   }
@@ -234,7 +243,7 @@ function renderDailyWorkflowPanel(workflow: any): string {
   `;
 }
 
-function renderGovernancePanel(governance: any): string {
+function renderGovernancePanel(governance: Record<string, GovernanceCheckStatus>): string {
   const jobs = [
     { key: "w1_leaderboard", label: "W1 Leaderboard", freq: "Weekly" },
     { key: "w2_promotion", label: "W2 Promotion", freq: "Weekly" },
@@ -245,7 +254,7 @@ function renderGovernancePanel(governance: any): string {
   ];
   
   const govCards = jobs.map(job => {
-    const govData = governance[job.key] || { last_run: null, status: "not_run" };
+    const govData = governance[job.key] || { last_run: null, status: "not_run" as const, has_results: false };
     const statusClass = govData.status === "success" ? "success" : govData.status === "failed" ? "failed" : "not_run";
     const lastRun = govData.last_run ? new Date(govData.last_run).toLocaleDateString() : "Never";
     
@@ -271,7 +280,7 @@ function renderGovernancePanel(governance: any): string {
   `;
 }
 
-function renderBurnInPanel(burnIn: any): string {
+function renderBurnInPanel(burnIn: BurnInStatus): string {
   const progress = burnIn.consecutive_successes || 0;
   const required = burnIn.min_required_successes || 10;
   const progressPct = Math.min((progress / required) * 100, 100);
@@ -311,12 +320,12 @@ function renderBurnInPanel(burnIn: any): string {
   `;
 }
 
-function renderRotationsPanel(rotations: any[]): string {
+function renderRotationsPanel(rotations: RotationDecision[]): string {
   if (rotations.length === 0) {
     return '<section class="card rotations-card"><p>No recent rotations</p></section>';
   }
   
-  const rows = rotations.slice(0, 10).map((r: any) => `
+  const rows = rotations.slice(0, 10).map((r: RotationDecision) => `
     <tr>
       <td>${r.sleeve_name}</td>
       <td>${r.incumbent}</td>
@@ -349,11 +358,11 @@ function renderRotationsPanel(rotations: any[]): string {
   `;
 }
 
-function renderRiskSummaryPanel(riskSummary: any): string {
+function renderRiskSummaryPanel(riskSummary: RiskSummary): string {
   const killSwitchClass = riskSummary.kill_switch_triggered ? "triggered" : "normal";
   const violations = riskSummary.recent_violations || [];
   
-  const violationRows = violations.slice(0, 5).map((v: any) => `
+  const violationRows = violations.slice(0, 5).map((v: RiskViolation) => `
     <tr class="violation-row action-${v.action}">
       <td>${v.sleeve_name}</td>
       <td>${v.reason}</td>

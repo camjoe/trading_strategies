@@ -59,7 +59,7 @@ export interface DagStepResult {
   started_at: string | null;
   finished_at: string | null;
   duration_seconds: number | null;
-  details: Record<string, any>;
+  details: Record<string, string | number | boolean | null>;
   error: string | null;
 }
 
