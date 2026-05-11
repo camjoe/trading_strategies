@@ -5,13 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from trading.domain.rotation import dump_rotation_schedule
 from trading.repositories.snapshots import insert_snapshot_row
-from trading.repositories.daily_metrics import upsert_daily_metric
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_strategy_sleeve_by_id,
-    insert_sleeve_strategy_assignment,
 )
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
@@ -22,56 +19,6 @@ from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
-
-
-def _insert_matching_snapshot(conn, *, account_id: int, equity: float) -> None:
-    insert_snapshot_row(
-        conn,
-        account_id=account_id,
-        snapshot_time="2026-05-03T13:59:00Z",
-        cash=equity,
-        market_value=0.0,
-        equity=equity,
-        realized_pnl=0.0,
-        unrealized_pnl=0.0,
-    )
-
-
-def _insert_rotation_metric_rows(conn, *, account_id: int, sleeve_id: int) -> None:
-    upsert_daily_metric(
-        conn,
-        account_id=account_id,
-        sleeve_id=sleeve_id,
-        metric_date="2026-05-03",
-        return_pct=0.5,
-        drawdown_pct=-0.7,
-        turnover_pct=2.0,
-        slippage_bps=8.0,
-        hit_rate=0.45,
-        expectancy=0.08,
-        risk_adjusted_score=0.60,
-        trade_count=10,
-        fees_total=3.0,
-        created_at="2026-05-03T23:59:00Z",
-        updated_at="2026-05-03T23:59:00Z",
-    )
-    upsert_daily_metric(
-        conn,
-        account_id=account_id,
-        sleeve_id=sleeve_id,
-        metric_date="2026-05-04",
-        return_pct=0.4,
-        drawdown_pct=-0.6,
-        turnover_pct=2.1,
-        slippage_bps=7.5,
-        hit_rate=0.44,
-        expectancy=0.07,
-        risk_adjusted_score=0.55,
-        trade_count=11,
-        fees_total=3.2,
-        created_at="2026-05-04T23:59:00Z",
-        updated_at="2026-05-04T23:59:00Z",
-    )
 
 
 def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> SleeveTradeIntent:
@@ -119,56 +66,6 @@ def _patch_runtime_sleeve_execution(
     )
     if broker is not None:
         monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def sleeve_env(conn):
-    """Account + active sleeve + matching snapshot, function-scoped.
-
-    Covers the common case where tests need a sleeve runtime environment
-    without a rotation schedule.  Returns a SimpleNamespace with
-    ``account_name``, ``account_id``, and ``sleeve_id``.
-    """
-    account_name = "acct_sleeve"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=1_000.0)
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
-    return SimpleNamespace(account_name=account_name, account_id=account_id, sleeve_id=sleeve_id)
-
-
-@pytest.fixture
-def rotation_sleeve_env(conn):
-    """Account with rotation schedule + sleeve + strategy assignment + metric rows + snapshot.
-
-    Covers tests that exercise the rotation path.  Returns a SimpleNamespace
-    with ``account_name``, ``account_id``, and ``sleeve_id``.
-    """
-    account_name = "acct_sleeve"
-    account_id = insert_repository_account(conn, name=account_name, strategy="trend")
-    conn.execute(
-        "UPDATE accounts SET rotation_schedule = ?, rotation_lookback_days = ? WHERE id = ?",
-        (dump_rotation_schedule(["trend", "meanrev"]), 30, account_id),
-    )
-    conn.commit()
-    sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=1_000.0)
-    insert_sleeve_strategy_assignment(
-        conn,
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=None,
-        effective_from="2026-05-03T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
-    _insert_rotation_metric_rows(conn, account_id=account_id, sleeve_id=sleeve_id)
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
-    return SimpleNamespace(account_name=account_name, account_id=account_id, sleeve_id=sleeve_id)
 
 
 # ---------------------------------------------------------------------------

@@ -93,20 +93,17 @@ class TestCreateAccountIntegration:
 
 
 class TestConfigureAccountIntegration:
-    def test_no_fields_is_noop(self, conn) -> None:
-        create_account(conn, "acct_noop", "Trend", 3000.0, "SPY")
-        before = dict(get_account(conn, "acct_noop"))
+    def test_no_fields_is_noop(self, conn, base_account) -> None:
+        before = dict(get_account(conn, base_account))
 
-        configure_account(conn, "acct_noop")
+        configure_account(conn, base_account)
 
-        after = dict(get_account(conn, "acct_noop"))
+        after = dict(get_account(conn, base_account))
         assert before == after
 
-    def test_rejects_empty_descriptive_name(self, conn) -> None:
-        create_account(conn, "acct_empty_name", "Trend", 3000.0, "SPY")
-
+    def test_rejects_empty_descriptive_name(self, conn, base_account) -> None:
         with pytest.raises(ValueError, match="descriptive_name cannot be empty"):
-            configure_account(conn, "acct_empty_name", config=AccountConfig(descriptive_name="   "))
+            configure_account(conn, base_account, config=AccountConfig(descriptive_name="   "))
 
     def test_validates_goal_range_against_existing_values(self, conn) -> None:
         create_account(
@@ -153,16 +150,14 @@ class TestConfigureAccountIntegration:
         with pytest.raises(ValueError, match="iv_rank_min cannot be greater than iv_rank_max"):
             configure_account(conn, "acct_iv_validate", config=AccountConfig(iv_rank_max=10.0))
 
-    def test_normalizes_goal_period_and_learning_enabled(self, conn) -> None:
-        create_account(conn, "acct_config_norm", "Trend", 3000.0, "SPY")
-
+    def test_normalizes_goal_period_and_learning_enabled(self, conn, base_account) -> None:
         configure_account(
             conn,
-            "acct_config_norm",
+            base_account,
             config=AccountConfig(goal_period=" Weekly ", learning_enabled=True),
         )
 
-        account = get_account(conn, "acct_config_norm")
+        account = get_account(conn, base_account)
         assert account["goal_period"] == "weekly"
         assert int(account["learning_enabled"]) == 1
 
@@ -190,22 +185,19 @@ class TestConfigureAccountIntegration:
     def test_rejects_invalid_enum_inputs(
         self,
         conn,
+        base_account,
         kwargs: dict[str, object],
         error_text: str,
     ) -> None:
-        create_account(conn, "acct_bad_enum", "Trend", 3000.0, "SPY")
-
         with pytest.raises(ValueError, match=error_text):
-            configure_account(conn, "acct_bad_enum", config=AccountConfig(**kwargs))
+            configure_account(conn, base_account, config=AccountConfig(**kwargs))
 
 
 class TestConfigureAccountOptionFields:
-    def test_configure_account_updates_risk_and_option_fields(self, conn) -> None:
-        create_account(conn, "acct_cfg", "Trend", 5000.0, "SPY")
-
+    def test_configure_account_updates_risk_and_option_fields(self, conn, base_account) -> None:
         configure_account(
             conn,
-            account_name="acct_cfg",
+            account_name=base_account,
             config=AccountConfig(
                 risk_policy="stop_and_target",
                 stop_loss_pct=5.0,
@@ -217,7 +209,7 @@ class TestConfigureAccountOptionFields:
             ),
         )
 
-        account = get_account(conn, "acct_cfg")
+        account = get_account(conn, base_account)
         assert account["risk_policy"] == "stop_and_target"
         assert float(account["stop_loss_pct"]) == pytest.approx(5.0)
         assert float(account["take_profit_pct"]) == pytest.approx(10.0)
@@ -226,16 +218,14 @@ class TestConfigureAccountOptionFields:
         assert int(account["option_min_dte"]) == 150
         assert int(account["option_max_dte"]) == 365
 
-    def test_configure_account_updates_position_sizing_fields(self, conn) -> None:
-        create_account(conn, "acct_cfg_sizing", "Trend", 5000.0, "SPY")
-
+    def test_configure_account_updates_position_sizing_fields(self, conn, base_account) -> None:
         configure_account(
             conn,
-            account_name="acct_cfg_sizing",
+            account_name=base_account,
             config=AccountConfig(trade_size_pct=12.0, max_position_pct=24.0),
         )
 
-        account = get_account(conn, "acct_cfg_sizing")
+        account = get_account(conn, base_account)
         assert float(account["trade_size_pct"]) == pytest.approx(12.0)
         assert float(account["max_position_pct"]) == pytest.approx(24.0)
 
@@ -254,22 +244,19 @@ class TestConfigureAccountOptionFields:
                 ),
             )
 
-    def test_configure_account_rejects_invalid_iv_rank_range(self, conn) -> None:
-        create_account(conn, "acct_bad_iv", "Trend", 5000.0, "SPY")
-
-        with pytest.raises(ValueError, match="iv_rank_min cannot be greater than iv_rank_max"):
-            configure_account(
-                conn,
-                account_name="acct_bad_iv",
-                config=AccountConfig(iv_rank_min=80, iv_rank_max=20),
-            )
-
-    def test_configure_account_rejects_invalid_delta_bounds(self, conn) -> None:
-        create_account(conn, "acct_bad_delta", "Trend", 5000.0, "SPY")
-
-        with pytest.raises(ValueError, match="target_delta_min must be between 0 and 1"):
-            configure_account(
-                conn,
-                account_name="acct_bad_delta",
-                config=AccountConfig(target_delta_min=1.2),
-            )
+    @pytest.mark.parametrize(
+        ("kwargs", "error_text"),
+        [
+            ({"iv_rank_min": 80, "iv_rank_max": 20}, "iv_rank_min cannot be greater than iv_rank_max"),
+            ({"target_delta_min": 1.2}, "target_delta_min must be between 0 and 1"),
+        ],
+    )
+    def test_configure_account_rejects_invalid_range(
+        self,
+        conn,
+        base_account,
+        kwargs: dict[str, object],
+        error_text: str,
+    ) -> None:
+        with pytest.raises(ValueError, match=error_text):
+            configure_account(conn, account_name=base_account, config=AccountConfig(**kwargs))
