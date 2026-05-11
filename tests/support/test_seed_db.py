@@ -14,6 +14,9 @@ from tests.support.seed_db import (
     ACCT_TREND,
     BACKTEST_RUN_NAME,
     PROMOTION_STRATEGY,
+    SLEEVE_METRIC_DATE,
+    SLEEVE_STRATEGY,
+    SLEEVE_TREND,
     SNAPSHOT_T1,
     SNAPSHOT_T2,
     SNAPSHOT_T3,
@@ -93,3 +96,36 @@ class TestSeededPromotionReview:
         ).fetchone()
         assert row is not None
         assert row["review_state"] == "requested"
+
+
+class TestSeededSleeves:
+    def test_sleeve_exists_under_trend_account(self, seeded_conn) -> None:
+        acct_id = seeded_conn.execute(
+            "SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)
+        ).fetchone()["id"]
+        row = seeded_conn.execute(
+            "SELECT name FROM strategy_sleeves WHERE account_id = ? AND name = ?",
+            (acct_id, SLEEVE_TREND),
+        ).fetchone()
+        assert row is not None
+
+    def test_sleeve_has_incumbent_strategy_assignment(self, seeded_conn) -> None:
+        sleeve_id = seeded_conn.execute(
+            "SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)
+        ).fetchone()["id"]
+        row = seeded_conn.execute(
+            "SELECT strategy_name FROM sleeve_strategy_assignments WHERE sleeve_id = ? AND is_incumbent = 1",
+            (sleeve_id,),
+        ).fetchone()
+        assert row is not None
+        assert row["strategy_name"] == SLEEVE_STRATEGY
+
+    def test_sleeve_has_daily_metric_row(self, seeded_conn) -> None:
+        sleeve_id = seeded_conn.execute(
+            "SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)
+        ).fetchone()["id"]
+        row = seeded_conn.execute(
+            "SELECT metric_date FROM daily_metrics WHERE sleeve_id = ? AND metric_date = ?",
+            (sleeve_id, SLEEVE_METRIC_DATE),
+        ).fetchone()
+        assert row is not None

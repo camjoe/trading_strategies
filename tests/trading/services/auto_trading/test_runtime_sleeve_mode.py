@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
+
+import pytest
 
 from trading.domain.rotation import dump_rotation_schedule
 from trading.repositories.snapshots import insert_snapshot_row
@@ -9,7 +12,6 @@ from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_strategy_sleeve_by_id,
     insert_sleeve_strategy_assignment,
-    insert_strategy_sleeve,
 )
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
@@ -17,6 +19,7 @@ from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
 from tests.support.auto_trading import FakeBroker
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import insert_test_sleeve
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
 
@@ -118,35 +121,40 @@ def _patch_runtime_sleeve_execution(
         monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
 
 
-def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_rotation"
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sleeve_env(conn):
+    """Account + active sleeve + matching snapshot, function-scoped.
+
+    Covers the common case where tests need a sleeve runtime environment
+    without a rotation schedule.  Returns a SimpleNamespace with
+    ``account_name``, ``account_id``, and ``sleeve_id``.
+    """
+    account_name = "acct_sleeve"
+    account_id = insert_repository_account(conn, name=account_name)
+    sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=1_000.0)
+    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+    return SimpleNamespace(account_name=account_name, account_id=account_id, sleeve_id=sleeve_id)
+
+
+@pytest.fixture
+def rotation_sleeve_env(conn):
+    """Account with rotation schedule + sleeve + strategy assignment + metric rows + snapshot.
+
+    Covers tests that exercise the rotation path.  Returns a SimpleNamespace
+    with ``account_name``, ``account_id``, and ``sleeve_id``.
+    """
+    account_name = "acct_sleeve"
     account_id = insert_repository_account(conn, name=account_name, strategy="trend")
     conn.execute(
-        """
-        UPDATE accounts
-        SET rotation_schedule = ?,
-            rotation_lookback_days = ?
-        WHERE id = ?
-        """,
-        (
-            dump_rotation_schedule(["trend", "meanrev"]),
-            30,
-            account_id,
-        ),
+        "UPDATE accounts SET rotation_schedule = ?, rotation_lookback_days = ? WHERE id = ?",
+        (dump_rotation_schedule(["trend", "meanrev"]), 30, account_id),
     )
     conn.commit()
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core_rotation",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
+    sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=1_000.0)
     insert_sleeve_strategy_assignment(
         conn,
         sleeve_id=sleeve_id,
@@ -160,6 +168,16 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(c
     )
     _insert_rotation_metric_rows(conn, account_id=account_id, sleeve_id=sleeve_id)
     _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+    return SimpleNamespace(account_name=account_name, account_id=account_id, sleeve_id=sleeve_id)
+
+
+# ---------------------------------------------------------------------------
+
+
+def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(rotation_sleeve_env, conn, monkeypatch) -> None:
+    account_name = rotation_sleeve_env.account_name
+    account_id = rotation_sleeve_env.account_id
+    sleeve_id = rotation_sleeve_env.sleeve_id
 
     _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
     monkeypatch.setattr(
@@ -208,48 +226,10 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(c
     assert latest_decision["selected_strategy"] == "meanrev"
 
 
-def test_run_for_account_sleeve_mode_respects_rotation_cooldown(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_rotation_cooldown"
-    account_id = insert_repository_account(conn, name=account_name, strategy="trend")
-    conn.execute(
-        """
-        UPDATE accounts
-        SET rotation_schedule = ?,
-            rotation_lookback_days = ?
-        WHERE id = ?
-        """,
-        (
-            dump_rotation_schedule(["trend", "meanrev"]),
-            30,
-            account_id,
-        ),
-    )
-    conn.commit()
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core_rotation_cooldown",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
-    insert_sleeve_strategy_assignment(
-        conn,
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=None,
-        effective_from="2026-05-03T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
-    _insert_rotation_metric_rows(conn, account_id=account_id, sleeve_id=sleeve_id)
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_env, conn, monkeypatch) -> None:
+    account_name = rotation_sleeve_env.account_name
+    account_id = rotation_sleeve_env.account_id
+    sleeve_id = rotation_sleeve_env.sleeve_id
     conn.execute(
         """
         INSERT INTO rotation_decisions (
@@ -320,23 +300,11 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(conn, monkeypatc
     assert int(latest_decision["cooldown_active"]) == 1
 
 
-def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
+def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, conn, monkeypatch) -> None:
+    account_name = sleeve_env.account_name
+    account_id = sleeve_env.account_id
+    sleeve_id = sleeve_env.sleeve_id
     broker = FakeBroker()
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
 
     _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
@@ -421,23 +389,11 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(conn, monkeypat
     broker.disconnect.assert_called_once()
 
 
-def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_rescale"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core_rescale",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
+def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_env, conn, monkeypatch) -> None:
+    account_name = sleeve_env.account_name
+    account_id = sleeve_env.account_id
+    sleeve_id = sleeve_env.sleeve_id
     broker = FakeBroker()
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
 
     _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id, qty=5)
@@ -482,22 +438,10 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(conn, mo
     assert int(rescale_row["approved_qty"]) == 2
 
 
-def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_stale"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core_stale",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(sleeve_env, conn, monkeypatch) -> None:
+    account_name = sleeve_env.account_name
+    account_id = sleeve_env.account_id
+    sleeve_id = sleeve_env.sleeve_id
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
@@ -540,21 +484,10 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(c
     assert decision_row["reason_code"] == "stale_price_data"
 
 
-def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_recon"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core_recon",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
+def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_env, conn, monkeypatch) -> None:
+    account_name = sleeve_env.account_name
+    account_id = sleeve_env.account_id
+    sleeve_id = sleeve_env.sleeve_id
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
@@ -610,22 +543,10 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(conn, m
     assert decision_row["reason_code"] == "reconciliation_mismatch"
 
 
-def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_broker_anomaly"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_strategy_sleeve(
-        conn,
-        account_id=account_id,
-        name="core_anomaly",
-        status="active",
-        base_ccy="USD",
-        start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
-    _insert_matching_snapshot(conn, account_id=account_id, equity=1_000.0)
+def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn, monkeypatch) -> None:
+    account_name = sleeve_env.account_name
+    account_id = sleeve_env.account_id
+    sleeve_id = sleeve_env.sleeve_id
 
     class _FailingBroker:
         def __init__(self) -> None:
@@ -685,17 +606,11 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(conn, monkeypatc
 
 
 def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(conn, monkeypatch) -> None:
-    account_name = "acct_runtime_sleeve_stale_snapshot"
-    account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = insert_strategy_sleeve(
+    account_id = insert_repository_account(conn, name="acct_sleeve")
+    sleeve_id = insert_test_sleeve(
         conn,
         account_id=account_id,
-        name="core_stale_snapshot",
-        status="active",
-        base_ccy="USD",
         start_equity=1_000.0,
-        current_cash=1_000.0,
-        current_equity=1_000.0,
         created_at="2026-05-01T00:00:00Z",
         updated_at="2026-05-01T00:00:00Z",
     )
@@ -716,7 +631,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
 
     executed = run_for_account(
         conn,
-        account_name=account_name,
+        account_name="acct_sleeve",
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},

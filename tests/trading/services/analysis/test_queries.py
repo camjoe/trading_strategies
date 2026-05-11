@@ -2,34 +2,15 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 
 import pytest
 
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
-from trading.database.db_init import ensure_db
 from trading.services.analysis import fetch_account_analysis
 from tests.support.analysis import (
     make_analysis_account,
     patch_analysis_market_data,
     record_analysis_buy,
 )
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def conn(tmp_path: Path):
-    original = get_backend()
-    set_backend(SQLiteBackend(tmp_path / "paper_trading.db"))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-        set_backend(original)
 
 
 # ---------------------------------------------------------------------------
