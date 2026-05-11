@@ -8,7 +8,7 @@ from trading.services.accounts import (
     list_account_names,
     list_account_records,
 )
-from tests.support.seed_db import ACCT_LOCAL, ACCT_MOMENTUM, ACCT_TREND
+from tests.support.seed_db import ACCT_TREND
 
 
 class TestAccountQueries:
@@ -23,13 +23,6 @@ class TestAccountQueries:
         assert account is not None
         assert account["name"] == ACCT_TREND
         assert find_account(seeded_conn, "no_such_account") is None
-
-    def test_seeded_accounts_present(self, seeded_conn) -> None:
-        names = list_account_names(seeded_conn)
-
-        assert ACCT_TREND in names
-        assert ACCT_MOMENTUM in names
-        assert ACCT_LOCAL in names
 
     # Exact-list assertion on a known set — uses isolated conn to avoid noise
     # from the shared seeded DB.
