@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from trading.backtesting.report_models import BacktestLeaderboardEntry
 from trading.interfaces.cli import main as cli_main
+from tests.support.backtesting import make_backtest_leaderboard_entry
 from tests.support.cli_backtesting import make_backtest_leaderboard_args, make_backtest_report_args
 from tests.support.cli_main import install_main_harness
 
@@ -81,17 +81,13 @@ def test_main_backtest_leaderboard_dispatches(monkeypatch, capsys) -> None:
         cli_main,
         "backtest_leaderboard_entries",
         lambda _conn, *, limit, account_name, strategy: [
-            BacktestLeaderboardEntry(
+            make_backtest_leaderboard_entry(
+                "acct1",
                 run_id=9,
                 run_name="batch_01",
-                account_name="acct1",
-                strategy="trend_v1",
-                start_date="2026-01-01",
-                end_date="2026-03-01",
-                created_at="2026-03-17T01:00:00Z",
-                trade_count=8,
-                ending_equity=10500.0,
                 total_return_pct=5.0,
+                ending_equity=10_500.0,
+                trade_count=8,
                 max_drawdown_pct=-1.2,
                 benchmark_return_pct=2.0,
                 alpha_pct=3.0,
