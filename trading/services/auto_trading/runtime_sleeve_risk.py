@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from collections.abc import Callable
 from typing import Any
 
 from common.time import parse_utc_iso
 from trading.services.sleeves.risk_gate import DEFAULT_SYMBOL_SECTOR_MAP, resolve_sector_for_symbol
+
+logger = logging.getLogger(__name__)
 
 
 def compute_current_exposure_snapshot(
@@ -135,7 +138,8 @@ def is_snapshot_time_stale(
     try:
         snapshot_dt = parse_utc_iso(snapshot_time)
         now_dt = parse_utc_iso(now_iso)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to parse snapshot staleness timestamps: %s", exc, exc_info=True)
         return True
     age_seconds = (now_dt - snapshot_dt).total_seconds()
     return age_seconds > float(max_age_seconds)

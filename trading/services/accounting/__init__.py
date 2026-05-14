@@ -5,6 +5,8 @@ trade-recording workflows. Prefer ``trading.services.accounting`` as the stable
 public import surface unless a tightly scoped internal import is clearer.
 """
 
+from __future__ import annotations
+
 from trading.services.accounting.mutations import record_trade
 from trading.services.accounting.queries import list_account_trades, load_account_state
 

@@ -36,7 +36,7 @@ class BacktestReportSummary:
     avg_trade_return_pct: float | None = None
 
     @classmethod
-    def from_mapping(cls, value: Mapping[str, Any]) -> "BacktestReportSummary":
+    def from_mapping(cls, value: Mapping[str, Any]) -> BacktestReportSummary:
         return cls(
             run_id=int(value["run_id"]),
             run_name=None if value.get("run_name") is None else str(value["run_name"]),
@@ -88,7 +88,7 @@ class BacktestLeaderboardEntry:
     avg_trade_return_pct: float | None = None
 
     @classmethod
-    def from_mapping(cls, value: Mapping[str, Any]) -> "BacktestLeaderboardEntry":
+    def from_mapping(cls, value: Mapping[str, Any]) -> BacktestLeaderboardEntry:
         benchmark_return = value.get("benchmark_return_pct")
         alpha = value.get("alpha_pct")
         return cls(

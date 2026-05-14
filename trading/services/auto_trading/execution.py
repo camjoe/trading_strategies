@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import random
 import sqlite3
 from typing import Callable, Mapping, Protocol, cast
@@ -16,6 +17,8 @@ from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
 from trading.services.runtime_throttle import enforce_runtime_trade_throttles
+
+logger = logging.getLogger(__name__)
 
 
 class AccountStateLike(Protocol):
@@ -115,7 +118,8 @@ def _resolve_strategy_style(strategy_name: str | None) -> str | None:
         return None
     try:
         return resolve_strategy(strategy_name).strategy_style
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to resolve strategy style for %r: %s", strategy_name, exc, exc_info=True)
         return None
 
 

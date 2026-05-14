@@ -1,3 +1,5 @@
+
+from __future__ import annotations
 from trading.services.accounting import record_trade
 from trading.services.accounts import configure_account, create_account, list_accounts, set_benchmark
 from trading.backtesting.backtest import (
@@ -21,7 +23,6 @@ from trading.services.promotion import (
     show_promotion_status,
 )
 from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
-
 
 def _handler_deps() -> dict[str, object]:
     # Keep runtime dependencies explicit so handlers are testable and monkeypatch-friendly.
@@ -52,7 +53,6 @@ def _handler_deps() -> dict[str, object]:
         "snapshot_account": snapshot_account,
     }
 
-
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -69,7 +69,6 @@ def main() -> None:
         )
     finally:
         conn.close()
-
 
 if __name__ == "__main__":
     main()

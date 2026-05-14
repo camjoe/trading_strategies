@@ -7,6 +7,8 @@ operators.
 Concrete logic lives in focused modules beneath this package root.
 """
 
+from __future__ import annotations
+
 from trading.services.ibkr_paper_monitor.queries import (
     fetch_ibkr_paper_accounts_list,
     fetch_ibkr_paper_account_detail,

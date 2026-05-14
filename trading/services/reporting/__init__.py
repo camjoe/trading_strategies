@@ -4,6 +4,8 @@ This package is the stable public reporting surface. Concrete logic lives in
 focused reporting modules beneath this package root.
 """
 
+from __future__ import annotations
+
 from trading.services.accounts import (
     GOAL_NOT_SET_TEXT,
     format_account_policy_text,

@@ -5,6 +5,8 @@ mutation helpers. Prefer ``trading.services.accounts`` as the stable public
 import surface unless a tightly scoped internal import is clearer.
 """
 
+from __future__ import annotations
+
 from trading.services.accounts.listing import (
     GOAL_NOT_SET_TEXT,
     HEURISTIC_EXPLORATION_LABEL,

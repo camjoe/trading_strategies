@@ -1,3 +1,5 @@
+
+from __future__ import annotations
 import json
 from dataclasses import dataclass
 
@@ -22,7 +24,6 @@ class ColumnMigration:
     column_name: str
     ddl: str
     post_sql: tuple[str, ...] = ()
-
 
 ACCOUNT_MIGRATIONS = (
     ColumnMigration(
@@ -134,7 +135,10 @@ ACCOUNT_MIGRATIONS = (
     ),
     ColumnMigration(
         "rotation_overlay_watchlist",
-        f"ALTER TABLE accounts ADD COLUMN rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}'",
+        (
+            "ALTER TABLE accounts ADD COLUMN rotation_overlay_watchlist TEXT NOT NULL DEFAULT "
+            f"'{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}'"
+        ),
         (
             f"UPDATE accounts SET rotation_overlay_watchlist = '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}' "
             "WHERE rotation_overlay_watchlist IS NULL OR TRIM(rotation_overlay_watchlist) = ''",
@@ -188,15 +192,24 @@ ORDER_FILL_MIGRATIONS = (
 GLOBAL_SETTINGS_MIGRATIONS = (
     ColumnMigration(
         "evaluation_backtest_trade_count_for_full_confidence",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_trade_count_for_full_confidence INTEGER NOT NULL DEFAULT 50",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_backtest_trade_count_for_full_confidence INTEGER NOT NULL DEFAULT 50"
+        ),
     ),
     ColumnMigration(
         "evaluation_backtest_snapshot_count_for_full_confidence",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 60",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_backtest_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 60"
+        ),
     ),
     ColumnMigration(
         "evaluation_paper_live_snapshot_count_for_full_confidence",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_paper_live_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 30",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_paper_live_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 30"
+        ),
     ),
     ColumnMigration(
         "evaluation_backtest_trade_confidence_weight",
@@ -204,7 +217,10 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
     ColumnMigration(
         "evaluation_backtest_snapshot_confidence_weight",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_snapshot_confidence_weight REAL NOT NULL DEFAULT 0.3",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_backtest_snapshot_confidence_weight REAL NOT NULL DEFAULT 0.3"
+        ),
     ),
     ColumnMigration(
         "evaluation_backtest_evidence_weight",
@@ -216,11 +232,17 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
     ColumnMigration(
         "promotion_min_research_backtest_trade_count",
-        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_trade_count INTEGER NOT NULL DEFAULT 10",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " promotion_min_research_backtest_trade_count INTEGER NOT NULL DEFAULT 10"
+        ),
     ),
     ColumnMigration(
         "promotion_min_research_backtest_snapshot_count",
-        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_snapshot_count INTEGER NOT NULL DEFAULT 20",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " promotion_min_research_backtest_snapshot_count INTEGER NOT NULL DEFAULT 20"
+        ),
     ),
     ColumnMigration(
         "promotion_min_research_backtest_return_pct",
@@ -232,7 +254,10 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
     ColumnMigration(
         "promotion_min_research_walk_forward_average_return_pct",
-        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_walk_forward_average_return_pct REAL NOT NULL DEFAULT 0.0",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " promotion_min_research_walk_forward_average_return_pct REAL NOT NULL DEFAULT 0.0"
+        ),
     ),
     ColumnMigration(
         "promotion_min_live_paper_snapshot_count",

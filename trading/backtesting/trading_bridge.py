@@ -8,6 +8,8 @@ If trading/features/ is ever moved under backtesting/, the three feature-
 provider blocks below can be deleted entirely.
 """
 
+from __future__ import annotations
+
 from trading.services.accounts import get_account
 from trading.domain.rotation import resolve_active_strategy
 from trading.domain.returns import safe_return_pct

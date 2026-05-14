@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import NoReturn
 
@@ -11,6 +12,8 @@ from .cache import market_data_cache_key
 from .cache import read_market_data_cache
 from .cache import write_market_data_cache
 from .interfaces import MarketDataProvider
+
+logger = logging.getLogger(__name__)
 
 
 class YFinanceProvider(MarketDataProvider):
@@ -119,7 +122,8 @@ class YFinanceProvider(MarketDataProvider):
                 return None
             write_market_data_cache(cache_key, close)
             return close
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to fetch close history for %s: %s", ticker, exc, exc_info=True)
             return None
 
 

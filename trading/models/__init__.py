@@ -5,6 +5,8 @@ state/order models that are reused by services, repositories, brokers, and
 domain helpers.
 """
 
+from __future__ import annotations
+
 from trading.models.account_config import AccountConfig
 from trading.models.account_insert import AccountInsert
 from trading.models.account_record import AccountRecord

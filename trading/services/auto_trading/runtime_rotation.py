@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Callable
 
@@ -21,6 +22,8 @@ from trading.services.auto_trading.rotation_bridge import (
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
 )
 
+logger = logging.getLogger(__name__)
+
 _policy_rotation_provider: PolicyFeatureProvider | None = None
 _news_rotation_provider: NewsFeatureProvider | None = None
 _social_rotation_provider: SocialFeatureProvider | None = None
@@ -32,7 +35,8 @@ def fetch_policy_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
         _policy_rotation_provider = PolicyFeatureProvider()
     try:
         return _policy_rotation_provider.get_features(ticker)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Policy rotation provider failed for %s: %s", ticker, exc, exc_info=True)
         return ExternalFeatureBundle.unavailable(source="etf-proxies")
 
 
@@ -42,7 +46,8 @@ def fetch_news_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
         _news_rotation_provider = NewsFeatureProvider()
     try:
         return _news_rotation_provider.get_features(ticker)
-    except Exception:
+    except Exception as exc:
+        logger.warning("News rotation provider failed for %s: %s", ticker, exc, exc_info=True)
         return ExternalFeatureBundle.unavailable(source="rss+vader")
 
 
@@ -52,7 +57,8 @@ def fetch_social_rotation_bundle(ticker: str) -> ExternalFeatureBundle:
         _social_rotation_provider = SocialFeatureProvider()
     try:
         return _social_rotation_provider.get_features(ticker)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Social rotation provider failed for %s: %s", ticker, exc, exc_info=True)
         return ExternalFeatureBundle.unavailable(source="reddit+gtrends")
 
 

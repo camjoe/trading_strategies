@@ -21,13 +21,14 @@ Design rules (enforced by BOT_ARCHITECTURE_CONVENTIONS.md):
 """
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Feature bundle
@@ -72,7 +73,7 @@ class ExternalFeatureBundle:
         return pd.DataFrame([self.features])
 
     @classmethod
-    def unavailable(cls, source: str = "") -> "ExternalFeatureBundle":
+    def unavailable(cls, source: str = "") -> ExternalFeatureBundle:
         """Return a sentinel bundle indicating data is not available."""
         return cls(features={}, available=False, source=source)
 
@@ -127,7 +128,8 @@ class ExternalFeatureProvider(ABC):
 
         try:
             bundle = self._fetch(ticker)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Feature fetch failed for %s (%s): %s", ticker, self.source_label, exc, exc_info=True)
             bundle = ExternalFeatureBundle.unavailable(source=self.source_label)
 
         self._cache[ticker] = bundle

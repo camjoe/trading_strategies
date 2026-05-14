@@ -1,3 +1,5 @@
+
+from __future__ import annotations
 from pathlib import Path
 
 from .cache import _MARKET_DATA_CACHE_TTL_SECONDS
@@ -15,7 +17,6 @@ from .runtime import set_feature_provider
 from .runtime import set_provider
 from .runtime import set_provider_by_name
 from .runtime import supported_provider_names
-
 
 __all__ = [
     "FeatureBundle",
