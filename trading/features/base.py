@@ -19,6 +19,7 @@ Design rules (enforced by BOT_ARCHITECTURE_CONVENTIONS.md):
 4. Providers should cache results with a configurable TTL to avoid
    redundant API calls across multiple tickers in the same trading loop.
 """
+
 from __future__ import annotations
 
 import logging

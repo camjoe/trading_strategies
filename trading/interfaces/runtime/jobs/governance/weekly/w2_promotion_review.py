@@ -40,6 +40,8 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
 
 JOB_NAME = "weekly_governance_w2_promotion_review"
+
+
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
     return already_completed_for_period(
         log_dir=log_dir,

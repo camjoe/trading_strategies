@@ -36,12 +36,15 @@ def test_main_returns_0_when_disabled(monkeypatch, tmp_path: Path, capsys) -> No
 
 
 def test_main_returns_1_for_invalid_window(monkeypatch, tmp_path: Path, capsys) -> None:
-    assert run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-        ["--enable-run", "--rolling-window-days", "0"],
-    ) == 1
+    assert (
+        run_runtime_job_main(
+            monkeypatch,
+            tmp_path,
+            DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+            ["--enable-run", "--rolling-window-days", "0"],
+        )
+        == 1
+    )
     assert "rolling-window-days" in capsys.readouterr().err
 
 
@@ -85,12 +88,15 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
 
     monkeypatch.setattr(module, "ensure_db", lambda: _Conn())
 
-    assert run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-        ["--accounts", "acct1", "--enable-run"],
-    ) == 0
+    assert (
+        run_runtime_job_main(
+            monkeypatch,
+            tmp_path,
+            DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+            ["--accounts", "acct1", "--enable-run"],
+        )
+        == 0
+    )
     payload = load_single_artifact_json(
         tmp_path / "local" / "exports" / "daily_challenger_shadow_eval",
         "daily_challenger_shadow_eval_*.json",
@@ -103,12 +109,15 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
 def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys) -> None:
     set_runtime_eligible_accounts(monkeypatch, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["acct1"])
 
-    assert run_runtime_job_main(
-        monkeypatch,
-        tmp_path,
-        DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
-        ["--accounts", "ghost", "--enable-run"],
-    ) == 1
+    assert (
+        run_runtime_job_main(
+            monkeypatch,
+            tmp_path,
+            DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+            ["--accounts", "ghost", "--enable-run"],
+        )
+        == 1
+    )
     assert "Unknown account" in capsys.readouterr().err
 
 

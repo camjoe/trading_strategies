@@ -154,11 +154,7 @@ def test_fetch_governance_checks_status_parses_artifacts(mock_repo_root: Path) -
     w1_dir = export_dir / "weekly_governance_2026_05_10"
     w1_dir.mkdir(parents=True, exist_ok=True)
     w1_artifact = w1_dir / "w1_leaderboard_2026_05_10.json"
-    w1_artifact.write_text(
-        __import__("json").dumps(
-            {"success": True, "run_timestamp": "2026-05-10T10:00:00Z"}
-        )
-    )
+    w1_artifact.write_text(__import__("json").dumps({"success": True, "run_timestamp": "2026-05-10T10:00:00Z"}))
 
     result = artifacts.fetch_governance_checks_status(repo_root=mock_repo_root)
 

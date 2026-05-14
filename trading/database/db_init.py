@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import Any
 
@@ -17,13 +16,16 @@ from trading.database.db_schema import SCHEMA_SQL
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any
 
+
 def ensure_db() -> DBConnection:
     conn = get_backend().open_connection()
     init_schema(conn)
     return conn
 
+
 def _column_names(conn: DBConnection, table_name: str) -> set[str]:
     return get_backend().get_table_columns(conn, table_name)
+
 
 def _ensure_column(conn: DBConnection, table_name: str, migration: ColumnMigration) -> None:
     if migration.column_name in _column_names(conn, table_name):
@@ -32,6 +34,7 @@ def _ensure_column(conn: DBConnection, table_name: str, migration: ColumnMigrati
     for stmt in migration.post_sql:
         conn.execute(stmt)
     conn.commit()
+
 
 def init_schema(conn: DBConnection) -> None:
     get_backend().run_script(conn, SCHEMA_SQL)

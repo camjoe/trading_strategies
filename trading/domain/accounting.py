@@ -9,6 +9,7 @@ from trading.models import AccountState
 
 VALID_SIDES = {"buy", "sell"}
 
+
 def _normalize_trade_fields(trade: dict[str, object]) -> tuple[str, str, float, float, float]:
     return (
         str(trade["ticker"]).upper(),
@@ -18,6 +19,7 @@ def _normalize_trade_fields(trade: dict[str, object]) -> tuple[str, str, float, 
         row_float(trade, "fee") or 0.0,
     )
 
+
 def _validate_trade_values(qty: float, price: float, *, side: str = "buy") -> None:
     if qty <= 0:
         raise ValueError("Trade quantity must be > 0.")
@@ -26,6 +28,7 @@ def _validate_trade_values(qty: float, price: float, *, side: str = "buy") -> No
         raise ValueError("Trade price must be > 0.")
     if price < 0:
         raise ValueError("Trade price must be >= 0.")
+
 
 def _apply_buy(
     ticker: str,
@@ -43,6 +46,7 @@ def _apply_buy(
     avg_cost[ticker] = (old_value + trade_value) / new_qty
     positions[ticker] = new_qty
     return cash - trade_value
+
 
 def _apply_sell(
     ticker: str,
@@ -65,12 +69,14 @@ def _apply_sell(
         avg_cost[ticker] = 0.0
     return cash, realized
 
+
 def _compact_positions(
     positions: dict[str, float], avg_cost: dict[str, float]
 ) -> tuple[dict[str, float], dict[str, float]]:
     open_positions = {ticker: qty for ticker, qty in positions.items() if qty > 0}
     open_avg_cost = {ticker: avg_cost[ticker] for ticker in open_positions}
     return open_positions, open_avg_cost
+
 
 def _apply_trade_to_state(
     trade: dict[str, object],
@@ -97,12 +103,14 @@ def _apply_trade_to_state(
         return new_cash, new_realized, total_deposited
     raise ValueError(f"Unsupported side: {side}")
 
+
 def _normalize_order_input(side: str, ticker: str) -> tuple[str, str]:
     normalized_side = side.lower().strip()
     normalized_ticker = ticker.upper().strip()
     if normalized_side not in VALID_SIDES:
         raise ValueError("side must be one of: buy, sell")
     return normalized_side, normalized_ticker
+
 
 def _ensure_sufficient_cash_for_buy(
     side: str,
@@ -116,6 +124,7 @@ def _ensure_sufficient_cash_for_buy(
     required_cash = qty * price + fee
     if required_cash > available_cash:
         raise ValueError(f"Insufficient cash: need {required_cash:.2f}, available {available_cash:.2f}.")
+
 
 def compute_account_state(
     initial_cash: float,

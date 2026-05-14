@@ -17,6 +17,11 @@ def run_ruff(repo_root: Path, python_exe: str, targets: list[str] | None = None)
         [python_exe, "-m", "ruff", "check", *selected_targets],
         repo_root,
     )
+    run_step(
+        "Python quality: ruff format",
+        [python_exe, "-m", "ruff", "format", "--check", *selected_targets],
+        repo_root,
+    )
 
 
 def parse_args() -> argparse.Namespace:

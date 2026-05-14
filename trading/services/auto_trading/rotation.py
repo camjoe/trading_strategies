@@ -251,11 +251,7 @@ def select_regime_strategy(
         return active_strategy
 
     overlay_mode = resolve_rotation_overlay_mode(account)
-    if (
-        overlay_mode != "none"
-        and conn is not None
-        and fetch_rotation_overlay_tickers_fn is not None
-    ):
+    if overlay_mode != "none" and conn is not None and fetch_rotation_overlay_tickers_fn is not None:
         overlay_direction = select_rotation_overlay_direction(
             account,
             fetch_rotation_overlay_tickers_fn(conn, account),
@@ -481,9 +477,7 @@ def rotate_account_if_due(
         conn,
         account_id=row_expect_int(account, "id"),
         strategy=str(next_state["rotation_active_strategy"]),
-        rotation_active_index=int(
-            cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])
-        ),
+        rotation_active_index=int(cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])),
         rotation_active_strategy=str(next_state["rotation_active_strategy"]),
         rotation_last_at=str(next_state["rotation_last_at"]),
     )

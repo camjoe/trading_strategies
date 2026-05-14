@@ -374,9 +374,7 @@ def run_for_account(
         return 0
     account = rotate_account_if_due_fn(conn, account_name, account, now_iso)
     active_strategy = resolve_active_strategy(account)
-    learning_enabled = bool(
-        int(cast(int | float | str | bytes | bytearray, account["learning_enabled"] or 0))
-    )
+    learning_enabled = bool(int(cast(int | float | str | bytes | bytearray, account["learning_enabled"] or 0)))
     risk_policy = str(account["risk_policy"]).strip().lower()
     stop_loss_pct = account["stop_loss_pct"]
     take_profit_pct = account["take_profit_pct"]

@@ -45,10 +45,7 @@ def positions_summary_text(positions: dict[str, float]) -> tuple[int, str]:
     if not positions:
         return position_count, "none"
     sorted_positions = sorted(positions.items(), key=lambda x: x[0])
-    positions_text = ", ".join(
-        f"{ticker}:{qty:.2f}"
-        for ticker, qty in sorted_positions[:POSITION_SUMMARY_LIMIT]
-    )
+    positions_text = ", ".join(f"{ticker}:{qty:.2f}" for ticker, qty in sorted_positions[:POSITION_SUMMARY_LIMIT])
     if len(sorted_positions) > POSITION_SUMMARY_LIMIT:
         positions_text += ", ..."
     return position_count, positions_text

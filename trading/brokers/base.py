@@ -6,6 +6,7 @@ are injected at the runtime / interface layer.
 Order data types live in :mod:`trading.models.broker_order` so that repositories
 and services can use them without depending on this package.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

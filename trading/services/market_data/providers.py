@@ -32,10 +32,7 @@ class YFinanceProvider(MarketDataProvider):
 
         df = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
         if df.empty:
-            raise ValueError(
-                f"No data returned for ticker '{ticker}' "
-                f"(period={period}, interval={interval})."
-            )
+            raise ValueError(f"No data returned for ticker '{ticker}' (period={period}, interval={interval}).")
         if isinstance(df.columns, pd.MultiIndex):
             if "Ticker" in df.columns.names:
                 tickers_in_df = df.columns.get_level_values("Ticker")
@@ -135,8 +132,7 @@ class UnavailableProvider(MarketDataProvider):
 
     def _raise_unavailable(self) -> NoReturn:
         raise NotImplementedError(
-            f"Market data provider '{self.provider_name}' is not implemented yet. "
-            "Use provider 'yfinance' for now."
+            f"Market data provider '{self.provider_name}' is not implemented yet. Use provider 'yfinance' for now."
         )
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:

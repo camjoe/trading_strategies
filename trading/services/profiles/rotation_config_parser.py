@@ -83,8 +83,7 @@ def parse_rotation_config_from_profile(profile: Mapping[str, object]) -> Rotatio
     if interval_minutes is not None and interval_minutes <= 0:
         raise ValueError("rotation_interval_minutes must be > 0")
     if enabled and not (
-        (interval_minutes is not None and interval_minutes > 0)
-        or (interval_days is not None and interval_days > 0)
+        (interval_minutes is not None and interval_minutes > 0) or (interval_days is not None and interval_days > 0)
     ):
         raise ValueError(
             "rotation interval must be configured with rotation_interval_minutes"
@@ -126,15 +125,11 @@ def parse_rotation_config_from_profile(profile: Mapping[str, object]) -> Rotatio
 
     if enabled and mode == "regime":
         missing_states = [
-            regime_state
-            for regime_state, strategy_name in regime_strategy_map.items()
-            if not strategy_name
+            regime_state for regime_state, strategy_name in regime_strategy_map.items() if not strategy_name
         ]
         if missing_states:
             missing = ", ".join(missing_states)
-            raise ValueError(
-                f"rotation_regime_strategy_* must be set for regime rotation; missing: {missing}"
-            )
+            raise ValueError(f"rotation_regime_strategy_* must be set for regime rotation; missing: {missing}")
     if overlay_mode != "none" and mode != "regime":
         raise ValueError("rotation_overlay_mode requires rotation_mode = regime")
 

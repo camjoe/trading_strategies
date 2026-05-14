@@ -14,6 +14,7 @@ Run standalone::
 
 Or call ``run_layer_check(repo_root)`` from other check scripts.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,6 +28,7 @@ from common.paths.repo_paths import get_repo_root
 # ---------------------------------------------------------------------------
 # Rules — edit this table to add or change layer constraints.
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class LayerRule:
@@ -105,6 +107,7 @@ LAYER_RULES: list[LayerRule] = [
 # Core logic
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Violation:
     rule_label: str
@@ -131,10 +134,18 @@ def _extract_imports(source: str) -> list[tuple[int, str]]:
     return results
 
 
-_IGNORED_PARTS = frozenset({
-    ".git", ".venv", "node_modules", "__pycache__", ".pytest_cache",
-    "dist", "build", "coverage",
-})
+_IGNORED_PARTS = frozenset(
+    {
+        ".git",
+        ".venv",
+        "node_modules",
+        "__pycache__",
+        ".pytest_cache",
+        "dist",
+        "build",
+        "coverage",
+    }
+)
 
 
 def _discover_files(repo_root: Path, glob: str) -> list[Path]:
@@ -161,12 +172,14 @@ def check_rule(repo_root: Path, rule: LayerRule) -> list[Violation]:
         for lineno, module in _extract_imports(source):
             for prefix in rule.forbidden_prefixes:
                 if module == prefix.rstrip(".") or module.startswith(prefix):
-                    violations.append(Violation(
-                        rule_label=rule.label,
-                        file=path,
-                        line=lineno,
-                        import_text=module,
-                    ))
+                    violations.append(
+                        Violation(
+                            rule_label=rule.label,
+                            file=path,
+                            line=lineno,
+                            import_text=module,
+                        )
+                    )
     return violations
 
 
@@ -200,6 +213,7 @@ def run_layer_check(repo_root: Path, *, rules: list[LayerRule] | None = None) ->
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(

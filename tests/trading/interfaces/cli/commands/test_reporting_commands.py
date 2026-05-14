@@ -41,9 +41,7 @@ def test_compare_strategies_and_snapshot_history_defaults() -> None:
     promotion_args = parser.parse_args(["promotion-status", "--account", "acct1"])
     request_args = parser.parse_args(["promotion-request-review", "--account", "acct1"])
     review_history_args = parser.parse_args(["promotion-review-history", "--account", "acct1"])
-    review_action_args = parser.parse_args(
-        ["promotion-review-action", "--review-id", "7", "--action", "note"]
-    )
+    review_action_args = parser.parse_args(["promotion-review-action", "--review-id", "7", "--action", "note"])
 
     assert compare_args.lookback == 10
     assert history_args.limit == 20

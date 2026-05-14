@@ -38,6 +38,7 @@ Async fill note:
     ``status = SUBMITTED``.  Fills arrive via IB callbacks and are reconciled
     by calling ``reconcile_open_broker_orders`` in the runtime service.
 """
+
 from __future__ import annotations
 
 from common.time import utc_now_iso
@@ -198,10 +199,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
         contracts = [self._make_stock(t) for t in tickers]
         self._client.qualify_contracts(*contracts)
         ticker_data = self._client.req_tickers(*contracts)
-        return {
-            t.contract.symbol: {"bid": t.bid, "ask": t.ask, "last": t.last}
-            for t in ticker_data
-        }
+        return {t.contract.symbol: {"bid": t.bid, "ask": t.ask, "last": t.last} for t in ticker_data}
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -213,9 +211,7 @@ class InteractiveBrokersAdapter(BrokerConnection):
 
     def _require_connected(self) -> None:
         if not self._client.is_connected():
-            raise RuntimeError(
-                "InteractiveBrokersAdapter is not connected. Call connect() first."
-            )
+            raise RuntimeError("InteractiveBrokersAdapter is not connected. Call connect() first.")
 
 
 # IB order status strings → our OrderStatus enum.

@@ -22,9 +22,7 @@ def resolve_tickers(args: object) -> list[str]:
         key = args.category.strip().lower()
         if key not in categories:
             available = ", ".join(sorted(categories.keys()))
-            raise ValueError(
-                f"Unknown category '{args.category}'. Available categories: {available}"
-            )
+            raise ValueError(f"Unknown category '{args.category}'. Available categories: {available}")
         return categories[key]
 
     if args.tickers_file:

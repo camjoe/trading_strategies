@@ -103,10 +103,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--trade-caps-config",
         default=DEFAULT_TRADE_CAPS_CONFIG,
-        help=(
-            "Path to JSON file with default and per-account trade caps "
-            f"(default: {DEFAULT_TRADE_CAPS_CONFIG})"
-        ),
+        help=(f"Path to JSON file with default and per-account trade caps (default: {DEFAULT_TRADE_CAPS_CONFIG})"),
     )
     parser.add_argument("--fee", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=None)
@@ -136,10 +133,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--notify-webhook-url",
         default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
-        help=(
-            "Optional webhook URL for runtime notifications "
-            f"(default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"
-        ),
+        help=(f"Optional webhook URL for runtime notifications (default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"),
     )
     parser.add_argument(
         "--notify-on-success",
@@ -291,9 +285,7 @@ def main() -> int:
         args.other_max_trades,
         account_trade_cap_overrides,
     )
-    caps_summary = ",".join(
-        f"{name}:{limits[0]}-{limits[1]}" for name, limits in account_trade_caps.items()
-    )
+    caps_summary = ",".join(f"{name}:{limits[0]}-{limits[1]}" for name, limits in account_trade_caps.items())
 
     tee_line(
         log_path,

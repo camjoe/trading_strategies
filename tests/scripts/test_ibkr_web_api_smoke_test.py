@@ -69,9 +69,7 @@ def test_main_redacts_account_id_on_failure(monkeypatch, capsys) -> None:
             self._settings = _settings
 
         def connect(self) -> None:
-            raise RuntimeError(
-                "Configured IBKR Web API account_id 'U1234567' is not visible in the current session."
-            )
+            raise RuntimeError("Configured IBKR Web API account_id 'U1234567' is not visible in the current session.")
 
         def disconnect(self) -> None:
             return None

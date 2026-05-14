@@ -4,6 +4,7 @@ Used by all accounts with ``broker_type = 'paper'`` (the default).  Behaviour
 is identical to the previous paper-only path: every order is accepted and
 filled in full at the given price with zero commission.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -54,16 +55,10 @@ class PaperBrokerAdapter(BrokerConnection):
         return []
 
     def get_positions(self) -> dict[str, float]:
-        raise NotImplementedError(
-            "Paper positions are tracked in the DB — use trading.services.accounting instead."
-        )
+        raise NotImplementedError("Paper positions are tracked in the DB — use trading.services.accounting instead.")
 
     def get_account_info(self) -> dict[str, float]:
-        raise NotImplementedError(
-            "Paper account info is tracked in the DB — use trading.services.accounting instead."
-        )
+        raise NotImplementedError("Paper account info is tracked in the DB — use trading.services.accounting instead.")
 
     def get_quotes(self, tickers: list[str]) -> dict[str, dict[str, float]]:
-        raise NotImplementedError(
-            "Paper trading uses yfinance prices — use the MarketDataProvider instead."
-        )
+        raise NotImplementedError("Paper trading uses yfinance prices — use the MarketDataProvider instead.")

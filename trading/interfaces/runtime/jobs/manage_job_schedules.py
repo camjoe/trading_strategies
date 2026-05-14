@@ -59,9 +59,7 @@ def _scheduled_task(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Manage job schedules for paper trading operations."
-    )
+    parser = argparse.ArgumentParser(description="Manage job schedules for paper trading operations.")
     parser.add_argument(
         "--daily-paper-trading-time",
         default="",
@@ -106,10 +104,7 @@ def parse_args() -> argparse.Namespace:
         "--shadow-eval-lead-minutes",
         type=int,
         default=DEFAULT_SHADOW_EVAL_LEAD_MINUTES,
-        help=(
-            "Lead minutes for auto-derived shadow-eval schedule "
-            f"(default: {DEFAULT_SHADOW_EVAL_LEAD_MINUTES})."
-        ),
+        help=(f"Lead minutes for auto-derived shadow-eval schedule (default: {DEFAULT_SHADOW_EVAL_LEAD_MINUTES})."),
     )
     parser.add_argument(
         "--daily-snapshot-time",
@@ -180,9 +175,7 @@ def _derive_shadow_eval_time_from_daily_paper(
     lead_minutes: int,
 ) -> str:
     if lead_minutes <= 0 or lead_minutes >= MINUTES_PER_DAY:
-        raise ValueError(
-            f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}"
-        )
+        raise ValueError(f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}")
     base = datetime.strptime(daily_paper_time, SCHEDULE_TIME_FORMAT)
     derived = base - timedelta(minutes=lead_minutes)
     return derived.strftime(SCHEDULE_TIME_FORMAT)
@@ -214,11 +207,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 
     shadow_eval_time = args.daily_challenger_shadow_eval_time
     auto_shadow_eval = False
-    if (
-        not shadow_eval_time
-        and bool(args.auto_shadow_eval_from_daily_paper)
-        and bool(args.daily_paper_trading_time)
-    ):
+    if not shadow_eval_time and bool(args.auto_shadow_eval_from_daily_paper) and bool(args.daily_paper_trading_time):
         shadow_eval_time = _derive_shadow_eval_time_from_daily_paper(
             args.daily_paper_trading_time,
             lead_minutes=int(args.shadow_eval_lead_minutes),
@@ -226,11 +215,7 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
         auto_shadow_eval = True
 
     if shadow_eval_time:
-        shadow_eval_args = (
-            ("--enable-run",)
-            if args.enable_daily_challenger_shadow_eval or auto_shadow_eval
-            else ()
-        )
+        shadow_eval_args = ("--enable-run",) if args.enable_daily_challenger_shadow_eval or auto_shadow_eval else ()
         tasks.append(
             _scheduled_task(
                 task_name=args.daily_challenger_shadow_eval_task_name,

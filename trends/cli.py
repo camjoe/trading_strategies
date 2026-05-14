@@ -2,9 +2,7 @@ import argparse
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Plot stock trends using yfinance and matplotlib."
-    )
+    parser = argparse.ArgumentParser(description="Plot stock trends using yfinance and matplotlib.")
     parser.add_argument("ticker", nargs="?", default=None, help="Single ticker symbol, e.g. AAPL")
     parser.add_argument("--period", default="1y", help="Data period, e.g. 6mo, 1y, 5y")
     parser.add_argument("--interval", default="1d", help="Data interval, e.g. 1d, 1wk, 1h")

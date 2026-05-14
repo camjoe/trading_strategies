@@ -87,10 +87,12 @@ def test_select_optimal_strategy_hybrid_weighted_falls_back_to_backtest() -> Non
         conn=object(),
         account=account,
         as_of_iso="2026-03-31T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=Mock(return_value=[
-            ("trend", 10.0),
-            ("mean_reversion", 8.0),
-        ]),
+        fetch_strategy_backtest_returns_fn=Mock(
+            return_value=[
+                ("trend", 10.0),
+                ("mean_reversion", 8.0),
+            ]
+        ),
         fetch_closed_rotation_episodes_fn=Mock(return_value=[]),
     )
 
@@ -222,10 +224,13 @@ def test_fetch_rotation_overlay_tickers_unions_holdings_and_watchlist() -> None:
             positions={"AAPL": 5.0, "MSFT": 0.0, "NVDA": 2.0},
         )
     )
-    with patch.object(rotation_service, "list_account_trades", Mock(return_value=[])), patch.object(
-        rotation_service,
-        "compute_account_state",
-        compute_account_state,
+    with (
+        patch.object(rotation_service, "list_account_trades", Mock(return_value=[])),
+        patch.object(
+            rotation_service,
+            "compute_account_state",
+            compute_account_state,
+        ),
     ):
         tickers = rotation_service.fetch_rotation_overlay_tickers(
             conn=object(),

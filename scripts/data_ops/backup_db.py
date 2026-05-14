@@ -49,7 +49,7 @@ def _parse_stamp(path: Path) -> datetime | None:
     stem = path.stem
     if not stem.startswith(_STEM_PREFIX):
         return None
-    raw = stem[len(_STEM_PREFIX):]
+    raw = stem[len(_STEM_PREFIX) :]
     try:
         return datetime.strptime(raw, _STAMP_FMT)
     except ValueError:
@@ -122,4 +122,3 @@ def run_backup(*, verbose: bool = True) -> dict[str, object]:
 
 if __name__ == "__main__":
     run_backup()
-

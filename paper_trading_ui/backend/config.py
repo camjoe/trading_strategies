@@ -29,9 +29,7 @@ LOGS_DIR = (
     PROJECT_LOGS_DIR
     if not logs_dir_raw
     else (
-        (ROOT_DIR / logs_dir_raw).resolve()
-        if not Path(logs_dir_raw).is_absolute()
-        else Path(logs_dir_raw).resolve()
+        (ROOT_DIR / logs_dir_raw).resolve() if not Path(logs_dir_raw).is_absolute() else Path(logs_dir_raw).resolve()
     )
 )
 EXPORTS_DIR = DEFAULT_EXPORTS_DIR

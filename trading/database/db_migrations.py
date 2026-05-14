@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import json
 from dataclasses import dataclass
@@ -19,11 +18,13 @@ DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
     separators=(",", ":"),
 )
 
+
 @dataclass(frozen=True)
 class ColumnMigration:
     column_name: str
     ddl: str
     post_sql: tuple[str, ...] = ()
+
 
 ACCOUNT_MIGRATIONS = (
     ColumnMigration(

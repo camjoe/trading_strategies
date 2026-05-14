@@ -32,6 +32,7 @@ Available tabs
   accounts, compare, trades, backtesting,
   alt-strategies, docs, admin
 """
+
 from __future__ import annotations
 
 import argparse
@@ -147,7 +148,7 @@ def main() -> int:
         "--tab",
         default="accounts",
         help="Tab to open (default: accounts). Options: accounts, "
-             "compare, trades, backtesting, alt-strategies, docs, admin",
+        "compare, trades, backtesting, alt-strategies, docs, admin",
     )
     parser.add_argument(
         "--account",

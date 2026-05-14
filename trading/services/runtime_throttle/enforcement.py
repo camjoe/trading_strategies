@@ -40,8 +40,7 @@ def enforce_runtime_trade_throttles(
         day_count = count_trades_between_fn(conn, as_utc_iso(day_start), trade_time_utc)
         if day_count >= settings.max_trades_per_day:
             raise RuntimeTradeThrottleExceededError(
-                "Global runtime trade throttle reached: "
-                f"runtime_max_trades_per_day={settings.max_trades_per_day}."
+                f"Global runtime trade throttle reached: runtime_max_trades_per_day={settings.max_trades_per_day}."
             )
 
     if settings.max_trades_per_minute is not None:

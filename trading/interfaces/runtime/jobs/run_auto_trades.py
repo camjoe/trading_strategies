@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import argparse
 import random
@@ -20,10 +19,9 @@ from trading.services.profile_source import DEFAULT_TICKERS_FILE
 REPO_ROOT = get_repo_root(__file__)
 __all__ = ["parse_args", "main", "run_for_account"]
 
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Execute 1-5 simulated daily paper trades per account."
-    )
+    parser = argparse.ArgumentParser(description="Execute 1-5 simulated daily paper trades per account.")
     parser.add_argument(
         "--accounts",
         required=True,
@@ -45,6 +43,7 @@ def parse_args() -> argparse.Namespace:
         help="Execution mode: account (current path) or sleeve (increment 3 path).",
     )
     return parser.parse_args()
+
 
 def main() -> None:
     args = parse_args()
@@ -73,6 +72,7 @@ def main() -> None:
             print(f"{account_name}: executed {executed} trades")
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     main()

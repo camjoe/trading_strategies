@@ -35,6 +35,8 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL
 
 JOB_NAME = "monthly_governance_m3_performance_audit"
+
+
 def already_completed_this_month(log_dir: Path, tag: str) -> bool:
     return already_completed_for_period(
         log_dir=log_dir,

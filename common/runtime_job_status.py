@@ -15,9 +15,7 @@ WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL = "COMPLETE: Weekly gove
 WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL = (
     "COMPLETE: Weekly governance W3 allocation review succeeded."
 )
-MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL = (
-    "COMPLETE: Monthly governance M1 risk rebaseline succeeded."
-)
+MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL = "COMPLETE: Monthly governance M1 risk rebaseline succeeded."
 MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL = (
     "COMPLETE: Monthly governance M2 parameter governance succeeded."
 )

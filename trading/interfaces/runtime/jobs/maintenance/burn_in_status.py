@@ -137,10 +137,7 @@ def evaluate_readiness(
         else:
             break
 
-    ready_for_live = (
-        consecutive_successes >= min_consecutive_days
-        and failure_rate_pct <= max_failure_rate_pct
-    )
+    ready_for_live = consecutive_successes >= min_consecutive_days and failure_rate_pct <= max_failure_rate_pct
 
     return {
         "total_runs_in_window": total_runs,

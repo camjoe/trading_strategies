@@ -1,4 +1,5 @@
 """Tests for trading.features.base — ExternalFeatureBundle and ExternalFeatureProvider."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

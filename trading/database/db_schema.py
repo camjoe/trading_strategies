@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from trading.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
 

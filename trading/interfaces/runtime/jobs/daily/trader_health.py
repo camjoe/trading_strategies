@@ -29,10 +29,7 @@ class HealthPayload(TypedDict):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Validate the latest daily paper trading log is recent and contains a "
-            "success sentinel."
-        )
+        description=("Validate the latest daily paper trading log is recent and contains a success sentinel.")
     )
     parser.add_argument(
         "--repo-root",
@@ -53,10 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--notify-webhook-url",
         default=os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, ""),
-        help=(
-            "Optional webhook URL for runtime notifications "
-            f"(default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"
-        ),
+        help=(f"Optional webhook URL for runtime notifications (default: ${RUNTIME_ALERT_WEBHOOK_ENV} if set)"),
     )
     parser.add_argument(
         "--notify-on-ok",
@@ -165,10 +159,7 @@ def main() -> int:
     if age_hours > args.max_age_hours:
         payload = _make_payload(
             status="fail",
-            message=(
-                f"Latest daily trader log is stale ({age_hours:.2f}h old; "
-                f"threshold={args.max_age_hours:.2f}h)"
-            ),
+            message=(f"Latest daily trader log is stale ({age_hours:.2f}h old; threshold={args.max_age_hours:.2f}h)"),
             latest_log=str(latest),
             latest_log_age_hours=age_hours,
             sentinel_found=sentinel_found,

@@ -46,16 +46,14 @@ PURPOSE_BY_PACKAGE = {
         "and order execution flows."
     ),
     "newsapi-python": (
-        "News API client used by alternative strategy features to fetch news inputs for "
-        "sentiment-style signals."
+        "News API client used by alternative strategy features to fetch news inputs for sentiment-style signals."
     ),
     "playwright": "Browser automation library used for UI smoke checks and end-to-end interaction coverage.",
     "praw": "Reddit API client used by alternative strategy features to fetch social discussion inputs.",
     "pytest-xdist": "Parallel test execution plugin used to speed up larger local and CI pytest runs.",
     "pytrends": "Google Trends client used by alternative strategy features to pull search-interest signals.",
     "vadersentiment": (
-        "Rule-based sentiment scoring library used to convert fetched text into lightweight "
-        "sentiment features."
+        "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features."
     ),
 }
 

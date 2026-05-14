@@ -56,13 +56,9 @@ def _compute_score(
     *,
     weights: SleeveRotationScoreWeights,
 ) -> SleeveStrategyScore:
-    weighted_risk_adjusted_return = (
-        weights.risk_adjusted_return_weight * float(metrics.risk_adjusted_return)
-    )
+    weighted_risk_adjusted_return = weights.risk_adjusted_return_weight * float(metrics.risk_adjusted_return)
     weighted_stability = weights.stability_weight * float(metrics.stability)
-    weighted_drawdown_penalty = (
-        weights.drawdown_penalty_weight * float(metrics.drawdown_penalty)
-    )
+    weighted_drawdown_penalty = weights.drawdown_penalty_weight * float(metrics.drawdown_penalty)
     weighted_cost_penalty = weights.cost_penalty_weight * float(metrics.cost_penalty)
     weighted_regime_fit = weights.regime_fit_weight * float(metrics.regime_fit)
 
@@ -101,11 +97,7 @@ def evaluate_champion_challenger_rotation(
 ) -> SleeveRotationDecision:
     incumbent_score = _compute_score(incumbent, weights=weights)
     challenger_scores = [_compute_score(item, weights=weights) for item in challengers]
-    best_challenger = (
-        max(challenger_scores, key=lambda item: item.score)
-        if challenger_scores
-        else None
-    )
+    best_challenger = max(challenger_scores, key=lambda item: item.score) if challenger_scores else None
 
     score_components: dict[str, dict[str, float]] = {
         incumbent_score.strategy_name: incumbent_score.score_components,
@@ -136,9 +128,8 @@ def evaluate_champion_challenger_rotation(
         )
 
     outperformance_bps = (
-        (best_challenger.risk_adjusted_return - incumbent_score.risk_adjusted_return)
-        * PERCENT_TO_BASIS_POINTS
-    )
+        best_challenger.risk_adjusted_return - incumbent_score.risk_adjusted_return
+    ) * PERCENT_TO_BASIS_POINTS
     sample_size_gate_passed = best_challenger.trade_count >= int(min_trades_in_window)
     outperformance_gate_passed = outperformance_bps >= float(outperformance_threshold_bps)
     score_superiority_gate_passed = best_challenger.score > incumbent_score.score
@@ -163,14 +154,8 @@ def evaluate_champion_challenger_rotation(
 
     return SleeveRotationDecision(
         rotation_action="rotate" if should_rotate else "hold",
-        selected_strategy=(
-            best_challenger.strategy_name
-            if should_rotate
-            else incumbent_score.strategy_name
-        ),
-        selected_param_set_id=(
-            best_challenger.param_set_id if should_rotate else incumbent_score.param_set_id
-        ),
+        selected_strategy=(best_challenger.strategy_name if should_rotate else incumbent_score.strategy_name),
+        selected_param_set_id=(best_challenger.param_set_id if should_rotate else incumbent_score.param_set_id),
         incumbent_strategy=incumbent_score.strategy_name,
         challenger_strategy=best_challenger.strategy_name,
         challenger_param_set_id=best_challenger.param_set_id,

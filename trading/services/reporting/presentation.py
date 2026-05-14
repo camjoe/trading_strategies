@@ -186,9 +186,7 @@ def account_report(conn: sqlite3.Connection, account_name: str) -> tuple[dict[st
     initial_cash = row_expect_float(account, "initial_cash")
     created_at = row_expect_str(account, "created_at")
     effective_initial = initial_cash if initial_cash else state.total_deposited
-    benchmark_equity, benchmark_return_pct = benchmark_stats(
-        benchmark_ticker, effective_initial, created_at
-    )
+    benchmark_equity, benchmark_return_pct = benchmark_stats(benchmark_ticker, effective_initial, created_at)
     strategy_return_pct_value = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
 
     _print_account_header(account)
@@ -239,9 +237,7 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
         created_at = account.created_at
         account_id = account.id
         strategy_return_pct_value = strategy_return_pct(equity, initial_cash)
-        bench_equity, bench_return_pct = benchmark_stats(
-            benchmark_ticker, initial_cash, created_at
-        )
+        bench_equity, bench_return_pct = benchmark_stats(benchmark_ticker, initial_cash, created_at)
         trend = infer_overall_trend(conn, account_id, equity, lookback)
 
         position_count, positions_text = positions_summary_text(state.positions)

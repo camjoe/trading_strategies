@@ -144,7 +144,7 @@ class TestApplyRotationFields:
         account = get_account(conn, "rot_new")
         assert int(account["rotation_enabled"]) == 1
         assert int(account["rotation_interval_days"]) == 7
-        assert account["rotation_schedule"] == "[\"trend\",\"mean_reversion\"]"
+        assert account["rotation_schedule"] == '["trend","mean_reversion"]'
         assert int(account["rotation_active_index"]) == 1
         assert account["rotation_last_at"] == "2026-03-01T00:00:00Z"
         assert account["rotation_active_strategy"] == "mean_reversion"
@@ -174,7 +174,7 @@ class TestApplyRotationFields:
         account = get_account(conn, "rot_upd")
         assert int(account["rotation_enabled"]) == 1
         assert int(account["rotation_interval_days"]) == 14
-        assert account["rotation_schedule"] == "[\"trend\",\"breakout\",\"mean_reversion\"]"
+        assert account["rotation_schedule"] == '["trend","breakout","mean_reversion"]'
         assert account["rotation_active_strategy"] == "breakout"
 
     def test_optimal_fields(self, conn):

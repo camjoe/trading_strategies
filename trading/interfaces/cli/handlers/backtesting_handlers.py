@@ -36,9 +36,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any], module_file: st
         f"Max Drawdown: {result.max_drawdown_pct:.2f}%"
     )
     if result.benchmark_return_pct is not None and result.alpha_pct is not None:
-        print(
-            f"Benchmark Return: {result.benchmark_return_pct:.2f}% | Alpha: {result.alpha_pct:.2f}%"
-        )
+        print(f"Benchmark Return: {result.benchmark_return_pct:.2f}% | Alpha: {result.alpha_pct:.2f}%")
     else:
         print("Benchmark comparison unavailable for selected date range.")
     print(
@@ -126,9 +124,7 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any], mod
         calmar_text = "" if row.calmar_ratio is None else f"{float(row.calmar_ratio):.4f}"
         win_rate_text = "" if row.win_rate_pct is None else f"{float(row.win_rate_pct):.4f}"
         profit_factor_text = "" if row.profit_factor is None else f"{float(row.profit_factor):.4f}"
-        avg_trade_return_text = (
-            "" if row.avg_trade_return_pct is None else f"{float(row.avg_trade_return_pct):.4f}"
-        )
+        avg_trade_return_text = "" if row.avg_trade_return_pct is None else f"{float(row.avg_trade_return_pct):.4f}"
         run_name = "" if row.run_name is None else str(row.run_name)
         print(
             f"{row.run_id},{run_name},{row.account_name},{row.strategy},"

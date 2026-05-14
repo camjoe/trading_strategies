@@ -47,9 +47,7 @@ def _config_mtime(config_path: Path) -> float | None:
 def _provider_factory(name: str) -> Callable[[], MarketDataProvider]:
     factory = _PROVIDER_FACTORIES.get(name)
     if factory is None:
-        raise ValueError(
-            f"Unsupported market data provider '{name}'. Supported values: {_supported_provider_text()}"
-        )
+        raise ValueError(f"Unsupported market data provider '{name}'. Supported values: {_supported_provider_text()}")
     return factory
 
 

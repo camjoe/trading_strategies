@@ -6,9 +6,7 @@ from pathlib import Path
 
 
 def _load():
-    return importlib.import_module(
-        "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
-    )
+    return importlib.import_module("trading.interfaces.runtime.jobs.maintenance.weekly_db_backup")
 
 
 class TestWeekTag:

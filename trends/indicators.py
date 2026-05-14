@@ -14,9 +14,9 @@ from common.constants import (
 # ---------------------------------------------------------------------------
 # Moving average window periods (also used as DataFrame column label suffixes)
 # ---------------------------------------------------------------------------
-MA_SHORT_WINDOW = 20    # Short-term SMA; also the default Bollinger / vol window
-MA_MEDIUM_WINDOW = 50   # Medium-term SMA
-MA_LONG_WINDOW = 200    # Long-term SMA
+MA_SHORT_WINDOW = 20  # Short-term SMA; also the default Bollinger / vol window
+MA_MEDIUM_WINDOW = 50  # Medium-term SMA
+MA_LONG_WINDOW = 200  # Long-term SMA
 
 # Default window for annualized volatility rolling calculation
 ANNUALIZED_VOL_DEFAULT_WINDOW = 20
@@ -85,7 +85,7 @@ def calculate_annualized_volatility_pct(close: pd.Series, window: int = ANNUALIZ
     # Coerce inf/-inf to NaN so return calculations stay bounded.
     close_clean = close.replace([math.inf, -math.inf], float("nan"))
     returns = close_clean.pct_change()
-    return returns.rolling(window=window).std(ddof=0) * (TRADING_DAYS_PER_YEAR ** 0.5) * 100.0
+    return returns.rolling(window=window).std(ddof=0) * (TRADING_DAYS_PER_YEAR**0.5) * 100.0
 
 
 def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:

@@ -29,10 +29,13 @@ def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
     choose_buy_qty = Mock(return_value=2)
     choose_buy_ticker = Mock(return_value="AAPL")
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", choose_buy_qty), patch.object(
-        trade_execution_service.auto_trader_policy,
-        "choose_buy_ticker",
-        choose_buy_ticker,
+    with (
+        patch.object(trade_execution_service.auto_trader_policy, "choose_buy_qty", choose_buy_qty),
+        patch.object(
+            trade_execution_service.auto_trader_policy,
+            "choose_buy_ticker",
+            choose_buy_ticker,
+        ),
     ):
         result = trade_execution_service.prepare_buy_trade(
             account=make_auto_trading_account(),
@@ -54,14 +57,18 @@ def test_prepare_buy_trade_leaps(monkeypatch) -> None:
     account = make_auto_trading_account(max_contracts_per_trade=2)
     monkeypatch.setattr(trade_execution_service.random, "choice", lambda seq: seq[0])
     build_candidates = Mock(return_value=[("AAPL", 0.4, 30.0)])
-    with patch.object(trade_execution_service, "build_leaps_candidates", build_candidates), patch.object(
-        trade_execution_service.auto_trader_policy,
-        "estimate_option_premium",
-        Mock(return_value=120.0),
-    ), patch.object(
-        trade_execution_service.auto_trader_policy,
-        "choose_buy_qty",
-        Mock(return_value=4),
+    with (
+        patch.object(trade_execution_service, "build_leaps_candidates", build_candidates),
+        patch.object(
+            trade_execution_service.auto_trader_policy,
+            "estimate_option_premium",
+            Mock(return_value=120.0),
+        ),
+        patch.object(
+            trade_execution_service.auto_trader_policy,
+            "choose_buy_qty",
+            Mock(return_value=4),
+        ),
     ):
         result = trade_execution_service.prepare_buy_trade(
             account=account,
@@ -129,10 +136,13 @@ def test_prepare_trade_selection_uses_forced_sell_path() -> None:
     choose_side = Mock(return_value="sell")
     prepare_sell_trade = Mock(return_value=("AAPL", 1, 95.0))
 
-    with patch.object(trade_execution_service.auto_trader_policy, "choose_side", choose_side), patch.object(
-        trade_execution_service,
-        "prepare_sell_trade",
-        prepare_sell_trade,
+    with (
+        patch.object(trade_execution_service.auto_trader_policy, "choose_side", choose_side),
+        patch.object(
+            trade_execution_service,
+            "prepare_sell_trade",
+            prepare_sell_trade,
+        ),
     ):
         selection = trade_execution_service.prepare_trade_selection(
             account=account,

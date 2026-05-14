@@ -63,9 +63,7 @@ class TestSafeReturnPctNaNAndInfGuards:
         start=st.floats(min_value=1.0, max_value=1_000_000.0, allow_nan=False, allow_infinity=False),
         end=st.floats(min_value=0.01, max_value=1_000_000.0, allow_nan=False, allow_infinity=False),
     )
-    def test_hypothesis_valid_inputs_return_finite_result(
-        self, start: float, end: float
-    ) -> None:
+    def test_hypothesis_valid_inputs_return_finite_result(self, start: float, end: float) -> None:
         result = safe_return_pct(start, end)
         assert result is not None
         assert isinstance(result, float)

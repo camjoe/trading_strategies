@@ -48,10 +48,7 @@ PROVIDER_META: dict[str, dict[str, Any]] = {
             },
             "policy_defensive_tilt": {
                 "label": "Defensive Tilt",
-                "description": (
-                    "Positive = defensives outperforming equities (risk-off). "
-                    "Sell override when >0.02."
-                ),
+                "description": ("Positive = defensives outperforming equities (risk-off). Sell override when >0.02."),
                 "range": "–∞ to +∞ (typically ±0.05)",
             },
         },
@@ -85,8 +82,7 @@ PROVIDER_META: dict[str, dict[str, Any]] = {
             "news_headline_count": {
                 "label": "Headline Count",
                 "description": (
-                    "Number of headlines scored. "
-                    "Signals require ≥3 headlines; fewer = hold regardless of sentiment."
+                    "Number of headlines scored. Signals require ≥3 headlines; fewer = hold regardless of sentiment."
                 ),
                 "range": "0 and up",
             },
@@ -120,10 +116,7 @@ PROVIDER_META: dict[str, dict[str, Any]] = {
             },
             "social_mention_count": {
                 "label": "Reddit Mentions",
-                "description": (
-                    "Number of recent Reddit posts mentioning this ticker "
-                    "across the tracked subreddits."
-                ),
+                "description": ("Number of recent Reddit posts mentioning this ticker across the tracked subreddits."),
                 "range": "0 and up",
             },
             "social_reddit_sentiment": {

@@ -115,12 +115,8 @@ def persist_normalized_sleeve_risk_decisions(
             reason_code=reason_code,
             requested_qty=int(requested_qty_value) if requested_qty_value is not None else None,
             approved_qty=int(approved_qty_value) if approved_qty_value is not None else None,
-            requested_notional=(
-                float(requested_notional_value) if requested_notional_value is not None else None
-            ),
-            approved_notional=(
-                float(approved_notional_value) if approved_notional_value is not None else None
-            ),
+            requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
+            approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
             execution_mode="sleeve",
             risk_payload_json=json.dumps(decision, sort_keys=True),
             created_at=decision_time,

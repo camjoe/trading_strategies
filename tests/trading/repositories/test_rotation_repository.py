@@ -34,9 +34,9 @@ class TestUpdateAccountRotationState:
     def test_does_not_affect_other_accounts(self, conn) -> None:
         acct_a = _account_id(conn, "rot_a")
         acct_b = _account_id(conn, "rot_b")
-        original_strategy = conn.execute(
-            "SELECT strategy FROM accounts WHERE id = ?", (acct_b,)
-        ).fetchone()["strategy"]
+        original_strategy = conn.execute("SELECT strategy FROM accounts WHERE id = ?", (acct_b,)).fetchone()[
+            "strategy"
+        ]
 
         update_account_rotation_state(
             conn,
@@ -47,9 +47,7 @@ class TestUpdateAccountRotationState:
             rotation_last_at="2026-03-30T00:00:00Z",
         )
 
-        unchanged = conn.execute(
-            "SELECT strategy FROM accounts WHERE id = ?", (acct_b,)
-        ).fetchone()
+        unchanged = conn.execute("SELECT strategy FROM accounts WHERE id = ?", (acct_b,)).fetchone()
         assert unchanged["strategy"] == original_strategy
 
     def test_can_be_called_multiple_times_overwriting(self, conn) -> None:

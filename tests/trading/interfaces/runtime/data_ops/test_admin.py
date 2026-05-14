@@ -25,6 +25,7 @@ def configured_backend(tmp_path: Path):
     finally:
         set_backend(original)
 
+
 class TestParseAccountNames:
     def test_parse_account_names_splits_deduplicates_and_strips(self) -> None:
         names = admin._parse_account_names(["acct_a, acct_b", "acct_b", " acct_c ", ""])
@@ -59,6 +60,7 @@ class TestBackupDatabase:
 
         assert backup == destination
         assert backup.exists()
+
 
 class TestCommandValidation:
     def test_cmd_delete_accounts_requires_yes_with_all(self) -> None:

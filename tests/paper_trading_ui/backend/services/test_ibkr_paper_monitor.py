@@ -29,9 +29,7 @@ def test_fetch_ibkr_paper_accounts_list_delegates_to_trading_service(
         },
     ]
 
-    with patch(
-        "paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_db_accounts_list"
-    ) as mock_fetch:
+    with patch("paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_db_accounts_list") as mock_fetch:
         mock_fetch.return_value = expected_accounts
 
         result = service.fetch_ibkr_paper_accounts_list(mock_conn)
@@ -73,9 +71,7 @@ def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
         "min_required_successes": 10,
     }
 
-    with patch(
-        "paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_db_data"
-    ) as mock_db:
+    with patch("paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_db_data") as mock_db:
         with patch(
             "paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_daily_workflow_status"
         ) as mock_workflow:
@@ -90,9 +86,7 @@ def test_fetch_account_ibkr_paper_monitor_data_aggregates_db_and_artifacts(
                     mock_governance.return_value = governance_data
                     mock_burn_in.return_value = burn_in_data
 
-                    result = service.fetch_account_ibkr_paper_monitor_data(
-                        mock_conn, "test_account"
-                    )
+                    result = service.fetch_account_ibkr_paper_monitor_data(mock_conn, "test_account")
 
                     # Check that DB data is present
                     assert result["account"]["name"] == "test_account"
@@ -115,9 +109,7 @@ def test_fetch_account_ibkr_paper_monitor_data_raises_on_missing_account(
     mock_conn: MagicMock,
 ) -> None:
     """Test that ValueError is propagated when account not found."""
-    with patch(
-        "paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_db_data"
-    ) as mock_db:
+    with patch("paper_trading_ui.backend.services.ibkr_paper_monitor.fetch_db_data") as mock_db:
         mock_db.side_effect = ValueError("Account not found: nonexistent")
 
         with pytest.raises(ValueError, match="Account not found"):

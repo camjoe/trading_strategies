@@ -26,6 +26,8 @@ def is_regular_us_equity_market_open(at: datetime | None = None) -> bool:
 
     current_time = eastern.timetz().replace(tzinfo=None)
     return US_EQUITY_MARKET_OPEN_TIME <= current_time < _market_close_time_for_date(current_date)
+
+
 def _is_us_equity_trading_day(current_date: date) -> bool:
     if current_date.weekday() < US_EQUITY_FIRST_TRADING_WEEKDAY:
         return False

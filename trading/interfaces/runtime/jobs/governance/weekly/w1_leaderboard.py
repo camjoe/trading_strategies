@@ -42,6 +42,8 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
 
 JOB_NAME = "weekly_governance_w1_leaderboard"
+
+
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
     return already_completed_for_period(
         log_dir=log_dir,
@@ -186,15 +188,12 @@ def main() -> int:
 
             # Sort by avg_risk_adjusted_score descending; nulls last.
             sleeve_rows.sort(
-                key=lambda r: float(r.avg_risk_adjusted_score)
-                if r.avg_risk_adjusted_score is not None
-                else float("-inf"),
+                key=lambda r: (
+                    float(r.avg_risk_adjusted_score) if r.avg_risk_adjusted_score is not None else float("-inf")
+                ),
                 reverse=True,
             )
-            ranked_sleeves = [
-                replace(sleeve_row, rank=rank)
-                for rank, sleeve_row in enumerate(sleeve_rows, start=1)
-            ]
+            ranked_sleeves = [replace(sleeve_row, rank=rank) for rank, sleeve_row in enumerate(sleeve_rows, start=1)]
 
             account_results.append(
                 WeeklyLeaderboardAccountPayload(

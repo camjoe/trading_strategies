@@ -58,5 +58,6 @@ def list_account_snapshots(
         raise ValueError("limit must be positive.")
     return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
 
+
 def load_runtime_eligible_account_names() -> list[str]:
     return load_all_account_names()

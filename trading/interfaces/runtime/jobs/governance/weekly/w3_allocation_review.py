@@ -36,6 +36,8 @@ LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
 COMPLETE_SENTINEL = WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL
 
 JOB_NAME = "weekly_governance_w3_allocation_review"
+
+
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
     return already_completed_for_period(
         log_dir=log_dir,
@@ -120,10 +122,7 @@ def main() -> int:
             sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
 
             # current_equity already includes cash for each sleeve.
-            current_navs = [
-                float(sleeve["current_equity"])
-                for sleeve in sleeves
-            ]
+            current_navs = [float(sleeve["current_equity"]) for sleeve in sleeves]
             total_nav = sum(current_navs)
 
             # Compute target allocation from original start_equity.

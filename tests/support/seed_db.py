@@ -24,6 +24,7 @@ hard-coding string literals:
     from tests.support.seed_db import ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL
 
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -67,6 +68,7 @@ SLEEVE_METRIC_DATE = "2026-01-03"
 # Seed function
 # ---------------------------------------------------------------------------
 
+
 def seed_session_db(conn: sqlite3.Connection) -> None:
     """Populate *conn* with the canonical session-level dataset.
 
@@ -87,6 +89,7 @@ def seed_session_db(conn: sqlite3.Connection) -> None:
 # Private helpers
 # ---------------------------------------------------------------------------
 
+
 def _account_id(conn: sqlite3.Connection, name: str) -> int:
     row = conn.execute("SELECT id FROM accounts WHERE name = ?", (name,)).fetchone()
     assert row is not None, f"seed account '{name}' not found"
@@ -97,6 +100,7 @@ def _seed_accounts(conn: sqlite3.Connection) -> None:
     create_account(conn, ACCT_TREND, "trend_v1", 10_000.0, "SPY")
     create_account(conn, ACCT_MOMENTUM, "momentum_v1", 8_000.0, "QQQ")
     from trading.models import AccountConfig
+
     create_account(
         conn,
         ACCT_LOCAL,

@@ -35,16 +35,8 @@ def compute_position_analysis(
         market_value = qty * market_price if market_price else 0.0
         unrealized_pnl = (market_price - avg_cost) * qty if market_price else 0.0
         cost_basis = avg_cost * qty
-        unrealized_pnl_pct = (
-            ((market_price / avg_cost) - 1.0) * 100.0
-            if avg_cost > 0 and market_price > 0
-            else 0.0
-        )
-        portfolio_pct = (
-            (market_value / total_equity * 100.0)
-            if total_equity > 0 and market_price > 0
-            else 0.0
-        )
+        unrealized_pnl_pct = ((market_price / avg_cost) - 1.0) * 100.0 if avg_cost > 0 and market_price > 0 else 0.0
+        portfolio_pct = (market_value / total_equity * 100.0) if total_equity > 0 and market_price > 0 else 0.0
         result.append(
             {
                 "ticker": ticker,
@@ -84,13 +76,11 @@ def generate_improvement_notes(
             )
         else:
             notes.append(
-                f"Roughly in line with the benchmark: {account_return_pct:.1f}% vs "
-                f"{benchmark_return_pct:.1f}%."
+                f"Roughly in line with the benchmark: {account_return_pct:.1f}% vs {benchmark_return_pct:.1f}%."
             )
 
     concentrated = [
-        position for position in position_analysis
-        if float(position["portfolioPct"]) > CONCENTRATION_THRESHOLD_PCT
+        position for position in position_analysis if float(position["portfolioPct"]) > CONCENTRATION_THRESHOLD_PCT
     ]
     if concentrated:
         names = ", ".join(str(position["ticker"]) for position in concentrated)
@@ -118,13 +108,10 @@ def generate_improvement_notes(
             "Review options sizing and expiry selection to reduce premium decay drag."
         )
     elif realized_pnl > 0:
-        notes.append(
-            f"${realized_pnl:.2f} in realized gains — good discipline on the exits."
-        )
+        notes.append(f"${realized_pnl:.2f} in realized gains — good discipline on the exits.")
 
     equity_positions = [
-        position for position in position_analysis
-        if ";instrument=option" not in str(position.get("ticker", ""))
+        position for position in position_analysis if ";instrument=option" not in str(position.get("ticker", ""))
     ]
     if equity_positions:
         notes.append(

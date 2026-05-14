@@ -23,6 +23,7 @@ Protocol contract
 -----------------
 Any custom client must implement :class:`IBClientProtocol`.
 """
+
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
@@ -196,8 +197,7 @@ class IbApiClient:
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
         raise NotImplementedError(
-            "IbApiClient is not yet implemented. "
-            "Use IbAsyncClient (ib_async) as the default backend."
+            "IbApiClient is not yet implemented. Use IbAsyncClient (ib_async) as the default backend."
         )
 
     def disconnect(self) -> None:

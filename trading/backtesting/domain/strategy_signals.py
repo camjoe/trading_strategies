@@ -436,11 +436,7 @@ def _policy_regime_signal(
     risk_off_threshold = float(params.get("risk_off_threshold", POLICY_RISK_OFF_SELL_THRESHOLD))
     max_defensive_tilt = float(params.get("max_defensive_tilt", POLICY_MAX_DEFENSIVE_TILT))
 
-    if (
-        close > sma_fast > sma_slow
-        and risk_on_score >= risk_on_threshold
-        and defensive_tilt <= max_defensive_tilt
-    ):
+    if close > sma_fast > sma_slow and risk_on_score >= risk_on_threshold and defensive_tilt <= max_defensive_tilt:
         return "buy"
     if close < sma_slow or risk_on_score < risk_off_threshold:
         return "sell"
@@ -534,11 +530,7 @@ def _social_trend_rotation_signal(
     trend_exit = float(params.get("trend_exit", SOCIAL_TREND_EXIT_THRESHOLD))
     min_reddit_sentiment = float(params.get("min_reddit_sentiment", SOCIAL_MIN_REDDIT_SENTIMENT))
 
-    if (
-        close > sma_fast > sma_slow
-        and trend_score >= trend_threshold
-        and reddit_sentiment >= min_reddit_sentiment
-    ):
+    if close > sma_fast > sma_slow and trend_score >= trend_threshold and reddit_sentiment >= min_reddit_sentiment:
         return "buy"
     if close < sma_slow or trend_score < trend_exit:
         return "sell"

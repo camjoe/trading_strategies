@@ -1,4 +1,5 @@
 """Tests for NewsFeatureProvider and the news_sentiment signal function."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -21,6 +22,7 @@ from trading.backtesting.domain.strategy_signals import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _rss_body(titles: list[str]) -> bytes:
     """Build a minimal RSS XML body with the given item titles."""
@@ -61,6 +63,7 @@ class TestNewsFeatureProviderRss:
 
     def test_rss_failure_returns_empty_list(self):
         from urllib.error import URLError
+
         provider = NewsFeatureProvider()
         with patch(
             "trading.features.news_feature_provider.urllib.request.urlopen",
@@ -141,9 +144,7 @@ class TestNewsFeatureProviderFetch:
     def test_newsapi_called_when_key_present(self):
         provider = NewsFeatureProvider()
         mock_client_instance = MagicMock()
-        mock_client_instance.get_everything.return_value = {
-            "articles": [{"title": f"Article {i}"} for i in range(3)]
-        }
+        mock_client_instance.get_everything.return_value = {"articles": [{"title": f"Article {i}"} for i in range(3)]}
         with patch.dict("os.environ", {"NEWS_API_KEY": "fake-key"}):
             with patch("newsapi.NewsApiClient", return_value=mock_client_instance):
                 result = provider._fetch_newsapi_headlines("AAPL")

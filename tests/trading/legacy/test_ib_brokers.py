@@ -4,6 +4,7 @@ These tests are separated from ``test_brokers.py`` so the current/default broker
 surface reads as paper + IBKR Web API, while the older socket/TWS path remains
 clearly marked as legacy support.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -221,7 +222,9 @@ class TestLegacyInteractiveBrokersAdapter:
         adapter, client = _adapter_with_mock_client()
         mock_ticker = SimpleNamespace(
             contract=SimpleNamespace(symbol="AAPL"),
-            bid=149.0, ask=150.0, last=149.5,
+            bid=149.0,
+            ask=150.0,
+            last=149.5,
         )
         client.req_tickers.return_value = [mock_ticker]
         client.qualify_contracts.return_value = None

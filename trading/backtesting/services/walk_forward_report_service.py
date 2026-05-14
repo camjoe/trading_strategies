@@ -43,9 +43,7 @@ def _resolve_walk_forward_group(
     if group is None:
         if strategy_name is None:
             raise ValueError(f"No walk-forward groups found for account '{account_name}'.")
-        raise ValueError(
-            f"No walk-forward groups found for account '{account_name}' and strategy '{strategy_name}'."
-        )
+        raise ValueError(f"No walk-forward groups found for account '{account_name}' and strategy '{strategy_name}'.")
     return group
 
 

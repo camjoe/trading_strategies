@@ -4,6 +4,7 @@ These types represent the lifecycle of a broker order and its fills.
 Kept in ``trading/models/`` so that repositories and services can use them
 without depending on the ``trading/brokers/`` package.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

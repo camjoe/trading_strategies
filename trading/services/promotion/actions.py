@@ -71,10 +71,7 @@ def _ensure_no_open_review_for_request(
     )
     if open_review is None:
         return
-    raise ValueError(
-        "An open promotion review already exists for "
-        f"{account_name}/{strategy_name}."
-    )
+    raise ValueError(f"An open promotion review already exists for {account_name}/{strategy_name}.")
 
 
 def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:

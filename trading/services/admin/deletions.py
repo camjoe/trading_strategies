@@ -79,11 +79,7 @@ def iter_delete_count_items(counts: dict[str, int]) -> list[tuple[str, int]]:
 
 
 def build_managed_account_delete_counts(counts: dict[str, int]) -> dict[str, int]:
-    return {
-        field.ui_key: int(counts.get(field.key, 0))
-        for field in DELETE_COUNT_FIELDS
-        if field.ui_key is not None
-    }
+    return {field.ui_key: int(counts.get(field.key, 0)) for field in DELETE_COUNT_FIELDS if field.ui_key is not None}
 
 
 def _collect_required_ids(
@@ -92,11 +88,7 @@ def _collect_required_ids(
     key: str,
     label: str,
 ) -> tuple[int, ...]:
-    ids = tuple(
-        account_id
-        for row in rows
-        if (account_id := coerce_int(row[key])) is not None
-    )
+    ids = tuple(account_id for row in rows if (account_id := coerce_int(row[key])) is not None)
     if len(ids) != len(rows):
         raise ValueError(f"Unexpected non-integer {label} id in delete target set.")
     return ids

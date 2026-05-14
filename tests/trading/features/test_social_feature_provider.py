@@ -1,4 +1,5 @@
 """Tests for SocialFeatureProvider and the social_trend_rotation signal function."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -22,6 +23,7 @@ from trading.backtesting.domain.strategy_signals import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_feature_history(trend: float, mentions: float, reddit: float) -> pd.DataFrame:
     return pd.DataFrame(

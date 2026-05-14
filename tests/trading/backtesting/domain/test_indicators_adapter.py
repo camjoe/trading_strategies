@@ -15,6 +15,7 @@ def _close(values: list[float]) -> pd.Series:
 # calculate_macd
 # ---------------------------------------------------------------------------
 
+
 def test_calculate_macd_returns_three_series() -> None:
     history = _close([float(i) for i in range(1, 40)])
     macd, signal, histogram = calculate_macd(history)
@@ -40,6 +41,7 @@ def test_calculate_macd_coerces_inf_to_nan() -> None:
 # ---------------------------------------------------------------------------
 # calculate_rs_rsi
 # ---------------------------------------------------------------------------
+
 
 def test_calculate_rs_rsi_returns_two_series() -> None:
     history = _close([float(i) for i in range(1, 30)])
@@ -78,4 +80,3 @@ def test_calculate_rs_rsi_coerces_inf_to_nan() -> None:
     _rs, rsi = calculate_rs_rsi(history)
     # Should not raise and should return a series of correct length
     assert len(rsi) == len(history)
-

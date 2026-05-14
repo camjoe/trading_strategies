@@ -94,9 +94,8 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
         topic_returns = proxy_close.pct_change(self.topic_lookback)
         topic_trend_gap = (proxy_close / proxy_close.rolling(self.topic_lookback).mean()) - 1.0
 
-        equity_bond_spread = (
-            proxy_close["SPY"].pct_change(self.macro_lookback)
-            - proxy_close["TLT"].pct_change(self.macro_lookback)
+        equity_bond_spread = proxy_close["SPY"].pct_change(self.macro_lookback) - proxy_close["TLT"].pct_change(
+            self.macro_lookback
         )
         vix_pressure = (proxy_close["^VIX"] / proxy_close["^VIX"].rolling(self.macro_lookback).mean()) - 1.0
         macro_risk_on_score = equity_bond_spread - vix_pressure.fillna(0.0)
@@ -127,9 +126,7 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
             ticker_features[ticker] = frame
 
         if unmapped:
-            warnings.append(
-                "Topic proxy mappings were unavailable for: " + ", ".join(sorted(unmapped))
-            )
+            warnings.append("Topic proxy mappings were unavailable for: " + ", ".join(sorted(unmapped)))
 
         warnings.append(
             "Proxy features use sector/theme ETFs plus SPY, TLT, and ^VIX"

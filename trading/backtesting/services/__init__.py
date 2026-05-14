@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from trading.backtesting.services.backtest_data_service import (
     build_monthly_universe,
