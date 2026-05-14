@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from trading.features.base import ExternalFeatureBundle
 from trading.features.social_feature_provider import (
     SOCIAL_MENTION_COUNT,
     SOCIAL_REDDIT_SENTIMENT,

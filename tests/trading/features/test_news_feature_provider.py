@@ -1,13 +1,10 @@
 """Tests for NewsFeatureProvider and the news_sentiment signal function."""
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
-from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import (
     NEWS_HEADLINE_COUNT,
     NEWS_SENTIMENT_SCORE,

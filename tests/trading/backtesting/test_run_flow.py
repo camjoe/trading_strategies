@@ -21,7 +21,9 @@ from tests.support.backtesting import (
 class TestBacktestRunFlow:
     def test_run_backtest_persists_isolated_results(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         create_backtest_account(conn, "acct_bt")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 103.0])
+        install_backtest_market_data(
+            monkeypatch, backtest_module, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 103.0]
+        )
 
         result = backtest_module.run_backtest(
             conn,
@@ -60,7 +62,9 @@ class TestBacktestRunFlow:
             make_backtest_config("acct_leaps_bt"),
         )
         assert any("LEAPs mode is approximated" in warning for warning in result_without_opt_in.warnings)
-        assert any("LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings)
+        assert any(
+            "LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings
+        )
 
         result = backtest_module.run_backtest(
             conn,
@@ -199,7 +203,9 @@ class TestBacktestRunFlow:
         history_dir.mkdir(parents=True, exist_ok=True)
         (history_dir / "2026-01.txt").write_text("AAPL\n", encoding="utf-8")
 
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 101.0])
+        install_backtest_market_data(
+            monkeypatch, backtest_module, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 101.0]
+        )
 
         result = backtest_module.run_backtest(
             conn,

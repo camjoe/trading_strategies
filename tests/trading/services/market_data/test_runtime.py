@@ -57,7 +57,9 @@ def test_reload_provider_from_env_config(restore_market_data_runtime, monkeypatc
     assert isinstance(market_data_runtime.get_provider(), YFinanceProvider)
 
 
-def test_reload_provider_from_file_config(restore_market_data_runtime, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+def test_reload_provider_from_file_config(
+    restore_market_data_runtime, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
     config_path = tmp_path / "market_data_config.json"
     config_path.write_text(json.dumps({"provider": "stooq"}), encoding="utf-8")
     monkeypatch.delenv("TRADING_MARKET_DATA_PROVIDER", raising=False)

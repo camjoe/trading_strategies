@@ -207,7 +207,9 @@ class TestInteractiveBrokersWebClient:
             http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="https://example.test"),
         )
 
-        response = client.submit_order({"conid": 265598, "side": "BUY", "orderType": "MKT", "tif": "DAY", "quantity": 1})
+        response = client.submit_order(
+            {"conid": 265598, "side": "BUY", "orderType": "MKT", "tif": "DAY", "quantity": 1}
+        )
 
         assert response["order_id"] == "42"
         assert seen == [

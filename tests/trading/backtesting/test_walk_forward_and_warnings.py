@@ -68,7 +68,9 @@ class TestBacktestWalkForwardAndWarnings:
         )
 
         monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
-        monkeypatch.setattr(backtest_module, "fetch_close_history", lambda _tickers, _start, _end: make_fake_close_history(_tickers))
+        monkeypatch.setattr(
+            backtest_module, "fetch_close_history", lambda _tickers, _start, _end: make_fake_close_history(_tickers)
+        )
         monkeypatch.setattr(
             backtest_module,
             "fetch_benchmark_close",

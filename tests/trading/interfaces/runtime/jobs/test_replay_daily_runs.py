@@ -27,7 +27,13 @@ from tests.support.runtime_jobs import (
 def _stub_operator_report(monkeypatch):
     monkeypatch.setattr(
         f"{DAILY_PAPER_TRADING_MODULE}._build_daily_operator_report",
-        lambda *_a, **_k: {"report_date": "2020-01-15", "account_count": 0, "account_reports": [], "artifact_path": "", "notify_on_success": False},
+        lambda *_a, **_k: {
+            "report_date": "2020-01-15",
+            "account_count": 0,
+            "account_reports": [],
+            "artifact_path": "",
+            "notify_on_success": False,
+        },
     )
 
 
@@ -171,11 +177,7 @@ def test_replay_executes_missing_dates(monkeypatch, tmp_path: Path) -> None:
         ["--from-date", "2026-05-01", "--to-date", "2026-05-03"],
     )
     assert result == 0
-    replayed_dates = [
-        cmd[cmd.index("--as-of-date") + 1]
-        for cmd in called
-        if "--as-of-date" in cmd
-    ]
+    replayed_dates = [cmd[cmd.index("--as-of-date") + 1] for cmd in called if "--as-of-date" in cmd]
     assert "2026-05-01" in replayed_dates
     assert "2026-05-03" in replayed_dates
     assert "2026-05-02" not in replayed_dates  # already complete
@@ -187,7 +189,8 @@ def test_replay_reports_failure_when_subprocess_fails(monkeypatch, tmp_path: Pat
     logs_dir.mkdir(parents=True)
 
     monkeypatch.setattr(
-        replay_module.subprocess, "run",
+        replay_module.subprocess,
+        "run",
         lambda cmd, *, check: SimpleNamespace(returncode=1),
     )
     result = _run_replay_main(

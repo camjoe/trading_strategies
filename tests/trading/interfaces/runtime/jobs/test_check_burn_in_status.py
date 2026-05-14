@@ -72,6 +72,7 @@ def _load_single_burn_in_artifact(tmp_path: Path) -> dict[str, object]:
 # Test 1: ready_for_live when consecutive threshold met
 # ---------------------------------------------------------------------------
 
+
 class TestReadyForLiveWhenConsecutiveThresholdMet:
     def test_ready_for_live_when_consecutive_threshold_met(self, monkeypatch, tmp_path: Path) -> None:
         export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
@@ -95,6 +96,7 @@ class TestReadyForLiveWhenConsecutiveThresholdMet:
 # ---------------------------------------------------------------------------
 # Test 2: not ready when below consecutive threshold
 # ---------------------------------------------------------------------------
+
 
 class TestNotReadyWhenBelowConsecutiveThreshold:
     def test_not_ready_when_below_consecutive_threshold(self, monkeypatch, tmp_path: Path) -> None:
@@ -120,13 +122,16 @@ class TestNotReadyWhenBelowConsecutiveThreshold:
 # Test 3: not ready when failure rate exceeded
 # ---------------------------------------------------------------------------
 
+
 class TestNotReadyWhenFailureRateExceeded:
     def test_not_ready_when_failure_rate_exceeded(self, monkeypatch, tmp_path: Path) -> None:
         export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
         today = _real_dt.date(2026, 5, 20)
         # Write a failure on day 0 of the window, then 9 ok runs after it.
         failed_date = today - _real_dt.timedelta(days=9)
-        _write_artifact(export_dir, failed_date.strftime("%Y%m%d"), "120000", "failed", failed_step="07_submit_ibkr_orders")
+        _write_artifact(
+            export_dir, failed_date.strftime("%Y%m%d"), "120000", "failed", failed_step="07_submit_ibkr_orders"
+        )
         for i in range(1, 10):
             d = today - _real_dt.timedelta(days=9 - i)
             _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
@@ -147,6 +152,7 @@ class TestNotReadyWhenFailureRateExceeded:
 # ---------------------------------------------------------------------------
 # Test 4: dedup guard skips when already done
 # ---------------------------------------------------------------------------
+
 
 class TestDedupGuardSkipsWhenAlreadyDone:
     def test_dedup_guard_skips_when_already_done(self, monkeypatch, tmp_path: Path, capsys) -> None:
@@ -174,6 +180,7 @@ class TestDedupGuardSkipsWhenAlreadyDone:
 # Test 5: force-run bypasses dedup guard
 # ---------------------------------------------------------------------------
 
+
 class TestForceRunBypassesDedupGuard:
     def test_force_run_bypasses_dedup_guard(self, monkeypatch, tmp_path: Path) -> None:
         mod = _mod()
@@ -199,6 +206,7 @@ class TestForceRunBypassesDedupGuard:
 # Test 6: no artifacts gives zero consecutive successes
 # ---------------------------------------------------------------------------
 
+
 class TestNoArtifactsGivesZeroConsecutiveSuccesses:
     def test_no_artifacts_gives_zero_consecutive_successes(self, monkeypatch, tmp_path: Path) -> None:
         rc = _run_main_at_now(
@@ -216,6 +224,7 @@ class TestNoArtifactsGivesZeroConsecutiveSuccesses:
 # ---------------------------------------------------------------------------
 # Test 7: latest artifact used when multiple on same date
 # ---------------------------------------------------------------------------
+
 
 class TestLatestArtifactUsedWhenMultipleOnSameDate:
     def test_latest_artifact_used_when_multiple_on_same_date(self, monkeypatch, tmp_path: Path) -> None:

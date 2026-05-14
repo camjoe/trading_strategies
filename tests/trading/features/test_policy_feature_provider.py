@@ -1,14 +1,10 @@
 """Tests for PolicyFeatureProvider and the policy_regime signal function."""
 from __future__ import annotations
 
-import math
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
-from trading.features.base import ExternalFeatureBundle
 from trading.features.policy_feature_provider import (
     POLICY_DEFENSIVE_TILT,
     POLICY_RISK_ON_SCORE,
@@ -30,7 +26,6 @@ from trading.backtesting.domain.strategy_signals import (
 
 def _make_close_df(tickers: list[str], rows: int = 20, base: float = 100.0) -> pd.DataFrame:
     """Build a fake multi-ticker Close DataFrame of incrementing prices."""
-    import numpy as np
     data = {t: [base + i * 0.5 for i in range(rows)] for t in tickers}
     return pd.DataFrame(data)
 

@@ -142,7 +142,9 @@ class TestFetchAccountListingRows:
 class TestFetchAccountRows:
     def test_returns_all_accounts_ordered_by_name(self, conn) -> None:
         _insert(conn, "keep_me")
-        insert_account(conn, _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local"))
+        insert_account(
+            conn, _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local")
+        )
         names = [r["name"] for r in fetch_account_rows(conn)]
         assert names == ["keep_me", "local_acct"]
 

@@ -14,7 +14,9 @@ from trading.repositories.promotion import (
 from tests.support.repositories import insert_repository_account
 
 
-def _evaluation(*, account_id: int = 1, account_name: str = "acct_a", strategy_name: str = "Trend") -> StrategyEvaluationArtifact:
+def _evaluation(
+    *, account_id: int = 1, account_name: str = "acct_a", strategy_name: str = "Trend"
+) -> StrategyEvaluationArtifact:
     return StrategyEvaluationArtifact(
         basic=EvaluationBasicScope(
             account_id=account_id,

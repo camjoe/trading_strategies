@@ -61,10 +61,14 @@ def _insert_sleeve_order_for_broker_order(
     conn.execute(
         """
         INSERT INTO sleeve_orders (
-            account_id, sleeve_id, strategy_name, param_set_id, rotation_decision_id, broker_order_id,
-            symbol, side, qty, order_type, time_in_force, requested_price, status, config_version, submitted_at, updated_at
+            account_id, sleeve_id, strategy_name, param_set_id, rotation_decision_id,
+            broker_order_id, symbol, side, qty, order_type, time_in_force,
+            requested_price, status, config_version, submitted_at, updated_at
         )
-        VALUES (?, ?, 'trend', NULL, NULL, ?, 'AAPL', ?, ?, 'market', 'day', ?, 'submitted', NULL, '2024-01-01T00:00:00', '2024-01-01T00:00:00')
+        VALUES (
+            ?, ?, 'trend', NULL, NULL, ?, 'AAPL', ?, ?, 'market', 'day', ?,
+            'submitted', NULL, '2024-01-01T00:00:00', '2024-01-01T00:00:00'
+        )
         """,
         (account_id, sleeve_id, broker_order_id, side, qty, requested_price),
     )
@@ -244,13 +248,13 @@ class TestReconcileOpenBrokerOrders:
         assert first == 0
         assert second == 0
         order_fills = conn.execute("SELECT COUNT(*) FROM order_fills WHERE exec_id = 'exec-partial-001'").fetchone()[0]
-        sleeve_fills = conn.execute("SELECT COUNT(*) FROM sleeve_fills WHERE exec_id = 'exec-partial-001'").fetchone()[0]
+        sleeve_fills = conn.execute("SELECT COUNT(*) FROM sleeve_fills WHERE exec_id = 'exec-partial-001'").fetchone()[
+            0
+        ]
         assert order_fills == 1
         assert sleeve_fills == 1
 
-        sleeve_order = conn.execute(
-            "SELECT status FROM sleeve_orders WHERE broker_order_id = 's-partial'"
-        ).fetchone()
+        sleeve_order = conn.execute("SELECT status FROM sleeve_orders WHERE broker_order_id = 's-partial'").fetchone()
         assert sleeve_order is not None
         assert sleeve_order["status"] == "partially_filled"
 

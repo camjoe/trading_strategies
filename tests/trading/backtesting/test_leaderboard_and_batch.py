@@ -70,8 +70,12 @@ class TestBacktestLeaderboardAndBatch:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         results_map = {
-            "acct_a": make_backtest_result("acct_a", run_id=1, total_return_pct=1.0, ending_equity=10_100.0, trade_count=1),
-            "acct_b": make_backtest_result("acct_b", run_id=2, total_return_pct=8.0, ending_equity=10_800.0, trade_count=2),
+            "acct_a": make_backtest_result(
+                "acct_a", run_id=1, total_return_pct=1.0, ending_equity=10_100.0, trade_count=1
+            ),
+            "acct_b": make_backtest_result(
+                "acct_b", run_id=2, total_return_pct=8.0, ending_equity=10_800.0, trade_count=2
+            ),
         }
 
         seen_run_names: list[str | None] = []

@@ -83,8 +83,12 @@ class TestDeleteAccounts:
             runs = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = 1").fetchone()
             reviews = conn.execute("SELECT COUNT(*) AS n FROM promotion_reviews WHERE account_id = 1").fetchone()
             events = conn.execute("SELECT COUNT(*) AS n FROM promotion_review_events WHERE review_id = 101").fetchone()
-            walk_forward_groups = conn.execute("SELECT COUNT(*) AS n FROM walk_forward_groups WHERE account_id = 1").fetchone()
-            walk_forward_group_runs = conn.execute("SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE run_id = 11").fetchone()
+            walk_forward_groups = conn.execute(
+                "SELECT COUNT(*) AS n FROM walk_forward_groups WHERE account_id = 1"
+            ).fetchone()
+            walk_forward_group_runs = conn.execute(
+                "SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE run_id = 11"
+            ).fetchone()
             assert trades is not None
             assert runs is not None
             assert reviews is not None

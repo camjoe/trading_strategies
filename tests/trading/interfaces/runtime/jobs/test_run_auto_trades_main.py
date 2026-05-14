@@ -37,7 +37,9 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
         fee=1.0,
         execution_mode="sleeve",
     )
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0}))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0})
+    )
     monkeypatch.setattr(module, "ensure_db", lambda: conn)
     run_accounts_mock = Mock(return_value=[("acct1", 2), ("acct2", 2)])
     monkeypatch.setattr(module, "run_accounts", run_accounts_mock)
@@ -65,7 +67,9 @@ def test_main_additional_validation_paths(monkeypatch) -> None:
 
 def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
     install_main_args(monkeypatch)
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p: (_ for _ in ()).throw(ValueError("Ticker universe is empty.")))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p: (_ for _ in ()).throw(ValueError("Ticker universe is empty."))
+    )
 
     with pytest.raises(ValueError, match="Ticker universe is empty"):
         module.main()

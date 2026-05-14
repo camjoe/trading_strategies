@@ -20,7 +20,7 @@ from tests.support.analysis import (
 class TestReturnPct:
     def test_positive_return(self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
         row = make_analysis_account(conn, "acct", initial_cash=1000.0)
-        # Buy AAPL at 100; price rises to 110 → equity = cash(900) + mv(1100) = 2000... 
+        # Buy AAPL at 100; price rises to 110 → equity = cash(900) + mv(1100) = 2000...
         # Actually initial_cash=1000 means cash starts at 1000; buying 1 share at 100 leaves 900 cash
         # market_value at 110 = 110, equity = 1010 → return = 1%
         record_analysis_buy(conn, account_id=row["id"], ticker="AAPL", qty=1.0, price=100.0)

@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 import pandas as pd
-import pytest
 
 from trading.backtesting.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
 

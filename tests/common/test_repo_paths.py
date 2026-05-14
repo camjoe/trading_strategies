@@ -93,7 +93,9 @@ class TestDiscoverRepoRootViaGit:
 
         assert _discover_repo_root_via_git(".") is None
 
-    def test_returns_none_when_git_path_is_not_directory(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_returns_none_when_git_path_is_not_directory(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         file_path = tmp_path / "not_a_dir.txt"
         file_path.write_text("x", encoding="utf-8")
         monkeypatch.setattr(
@@ -104,7 +106,9 @@ class TestDiscoverRepoRootViaGit:
 
         assert _discover_repo_root_via_git(".") is None
 
-    def test_returns_resolved_directory_when_git_succeeds(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_returns_resolved_directory_when_git_succeeds(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         project = tmp_path / "project"
         project.mkdir(parents=True)
         monkeypatch.setattr(

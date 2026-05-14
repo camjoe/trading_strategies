@@ -7,7 +7,6 @@ import pytest
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.database.db_init import ensure_db
 from trading.interfaces.runtime.data_ops import admin
-from tests.support.admin import seed_admin_dataset
 
 
 class FixedDateTime:
