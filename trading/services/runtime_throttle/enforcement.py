@@ -20,7 +20,9 @@ def enforce_runtime_trade_throttles(
     conn: sqlite3.Connection,
     *,
     trade_time_iso: str,
-    fetch_runtime_throttle_settings_fn: Callable[[sqlite3.Connection], RuntimeThrottleSettings] = fetch_runtime_throttle_settings,
+    fetch_runtime_throttle_settings_fn: Callable[
+        [sqlite3.Connection], RuntimeThrottleSettings
+    ] = fetch_runtime_throttle_settings,
     count_trades_between_fn: Callable[[sqlite3.Connection, str, str], int] = count_trades_between,
 ) -> None:
     if not hasattr(conn, "execute"):

@@ -87,7 +87,8 @@ def parse_rotation_config_from_profile(profile: Mapping[str, object]) -> Rotatio
         or (interval_days is not None and interval_days > 0)
     ):
         raise ValueError(
-            "rotation interval must be configured with rotation_interval_minutes or rotation_interval_days when rotation_enabled is true"
+            "rotation interval must be configured with rotation_interval_minutes"
+            " or rotation_interval_days when rotation_enabled is true"
         )
     if lookback_days is not None and lookback_days <= 0:
         raise ValueError("rotation_lookback_days must be > 0")

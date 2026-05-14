@@ -71,7 +71,8 @@ def render_promotion_review_history_lines(entries: list[PromotionReviewHistoryEn
                 f"{event.from_review_state or NONE_TEXT} -> {event.to_review_state or NONE_TEXT}"
             )
             lines.append(
-                f"- [{event.event_seq}] {event.created_at} | {event.event_type} | actor={actor_text} | state={state_text}"
+                f"- [{event.event_seq}] {event.created_at} | {event.event_type}"
+                f" | actor={actor_text} | state={state_text}"
             )
             if event.note is not None:
                 lines.append(f"  note: {event.note}")

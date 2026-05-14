@@ -9,7 +9,6 @@ from scripts.documentation_ui.registry_utils import sort_registry_rows
 SOFTWARE_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/software.json"
 
 
-
 GROUP_ORDER = [
     "Data & Market Access",
     "Analysis & Modeling",
@@ -42,13 +41,22 @@ GROUP_BY_PACKAGE = {
 }
 
 PURPOSE_BY_PACKAGE = {
-    "ib_async": "Async Interactive Brokers client used for broker connectivity, live account queries, and order execution flows.",
-    "newsapi-python": "News API client used by alternative strategy features to fetch news inputs for sentiment-style signals.",
+    "ib_async": (
+        "Async Interactive Brokers client used for broker connectivity, live account queries, "
+        "and order execution flows."
+    ),
+    "newsapi-python": (
+        "News API client used by alternative strategy features to fetch news inputs for "
+        "sentiment-style signals."
+    ),
     "playwright": "Browser automation library used for UI smoke checks and end-to-end interaction coverage.",
     "praw": "Reddit API client used by alternative strategy features to fetch social discussion inputs.",
     "pytest-xdist": "Parallel test execution plugin used to speed up larger local and CI pytest runs.",
     "pytrends": "Google Trends client used by alternative strategy features to pull search-interest signals.",
-    "vadersentiment": "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features.",
+    "vadersentiment": (
+        "Rule-based sentiment scoring library used to convert fetched text into lightweight "
+        "sentiment features."
+    ),
 }
 
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import argparse
 import ast
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root

@@ -164,7 +164,7 @@ def main() -> int:
         "--output",
         default=None,
         metavar="PATH",
-        help=f"Output file path (default: local/screenshots/<tab>_<timestamp>.png)",
+        help="Output file path (default: local/screenshots/<tab>_<timestamp>.png)",
     )
     parser.add_argument(
         "--url",

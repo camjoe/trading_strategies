@@ -338,7 +338,12 @@ def _topic_proxy_rotation_signal(
     proxy_available = _feature_value(feature_history, "topic_proxy_available")
     rel_strength = _feature_value(feature_history, "topic_proxy_rel_strength")
     trend_gap = _feature_value(feature_history, "topic_proxy_trend_gap")
-    if proxy_available is None or proxy_available < PROXY_AVAILABILITY_THRESHOLD or rel_strength is None or trend_gap is None:
+    if (
+        proxy_available is None
+        or proxy_available < PROXY_AVAILABILITY_THRESHOLD
+        or rel_strength is None
+        or trend_gap is None
+    ):
         return "hold"
 
     close = float(history.iloc[-1])

@@ -11,7 +11,9 @@ def handle_promotion_status(conn, args, parser, *, deps: dict[str, Any], module_
     deps["show_promotion_status"](conn, args.account, args.strategy)
 
 
-def handle_promotion_request_review(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_promotion_request_review(
+    conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str
+) -> None:
     review = deps["execute_promotion_review_request"](
         conn,
         account_name=args.account,
@@ -25,7 +27,9 @@ def handle_promotion_request_review(conn, args, parser, *, deps: dict[str, Any],
     )
 
 
-def handle_promotion_review_history(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_promotion_review_history(
+    conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str
+) -> None:
     deps["show_promotion_review_history"](
         conn,
         args.account,
@@ -34,7 +38,9 @@ def handle_promotion_review_history(conn, args, parser, *, deps: dict[str, Any],
     )
 
 
-def handle_promotion_review_action(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_promotion_review_action(
+    conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str
+) -> None:
     review = deps["execute_promotion_review_action"](
         conn,
         review_id=args.review_id,
