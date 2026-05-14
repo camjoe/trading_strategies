@@ -70,7 +70,9 @@ def _nyse_early_close_days(year: int) -> set[date]:
     early_closes.add(thanksgiving + timedelta(days=1))
 
     christmas_eve = date(year, 12, 24)
-    if christmas_eve.weekday() <= 3 and christmas_eve != _observed_fixed_holiday(date(year, 12, 25)):
+    is_weekday_early_close = christmas_eve.weekday() <= 3
+    observed_christmas_is_not_christmas_eve = christmas_eve != _observed_fixed_holiday(date(year, 12, 25))
+    if is_weekday_early_close and observed_christmas_is_not_christmas_eve:
         early_closes.add(christmas_eve)
 
     return early_closes

@@ -44,7 +44,8 @@ def load_trade_caps_config(config_path: Path) -> tuple[tuple[int, int] | None, d
     default_caps: tuple[int, int] | None = None
     raw_default = raw.get("default")
     if raw_default is not None:
-        if not isinstance(raw_default, dict) or "min" not in raw_default or "max" not in raw_default:
+        has_default_bounds = isinstance(raw_default, dict) and "min" in raw_default and "max" in raw_default
+        if not has_default_bounds:
             raise ValueError("Trade caps config 'default' must contain min and max")
         default_caps = _validate_trade_cap_range(
             "default",

@@ -207,7 +207,10 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
 
     shadow_eval_time = args.daily_challenger_shadow_eval_time
     auto_shadow_eval = False
-    if not shadow_eval_time and bool(args.auto_shadow_eval_from_daily_paper) and bool(args.daily_paper_trading_time):
+    should_auto_derive_shadow_eval = (
+        not shadow_eval_time and bool(args.auto_shadow_eval_from_daily_paper) and bool(args.daily_paper_trading_time)
+    )
+    if should_auto_derive_shadow_eval:
         shadow_eval_time = _derive_shadow_eval_time_from_daily_paper(
             args.daily_paper_trading_time,
             lead_minutes=int(args.shadow_eval_lead_minutes),
@@ -293,7 +296,10 @@ def main() -> int:
     if args.health_check_max_age_hours <= 0:
         print("--health-check-max-age-hours must be > 0", file=sys.stderr)
         return 2
-    if args.shadow_eval_lead_minutes <= 0 or args.shadow_eval_lead_minutes >= MINUTES_PER_DAY:
+    shadow_eval_lead_is_invalid = (
+        args.shadow_eval_lead_minutes <= 0 or args.shadow_eval_lead_minutes >= MINUTES_PER_DAY
+    )
+    if shadow_eval_lead_is_invalid:
         print(f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}", file=sys.stderr)
         return 2
 

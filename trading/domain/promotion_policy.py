@@ -127,7 +127,11 @@ def _research_blockers(
             f"{settings.min_research_backtest_return_pct:.2f}% for research validation."
         ),
     )
-    if backtest.max_drawdown_pct is None or backtest.max_drawdown_pct < settings.min_research_max_drawdown_pct:
+    missing_max_drawdown = backtest.max_drawdown_pct is None
+    drawdown_below_threshold = (
+        backtest.max_drawdown_pct is not None and backtest.max_drawdown_pct < settings.min_research_max_drawdown_pct
+    )
+    if missing_max_drawdown or drawdown_below_threshold:
         blockers.append(
             "Backtest max drawdown must be no worse than "
             f"{settings.min_research_max_drawdown_pct:.2f}% for research validation."

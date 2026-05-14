@@ -266,7 +266,8 @@ def _ma_crossover_signal(
     curr_fast = float(fast.iloc[-1])
     curr_slow = float(slow.iloc[-1])
 
-    if pd.isna(prev_fast) or pd.isna(prev_slow) or pd.isna(curr_fast) or pd.isna(curr_slow):
+    has_missing_crossover_inputs = any(pd.isna(value) for value in (prev_fast, prev_slow, curr_fast, curr_slow))
+    if has_missing_crossover_inputs:
         return "hold"
     if not all(math.isfinite(v) for v in (prev_fast, prev_slow, curr_fast, curr_slow)):
         return "hold"
@@ -316,7 +317,8 @@ def _volatility_filtered_trend_signal(
 
     sma_fast = float(history.tail(fast_window).mean())
     sma_slow = float(history.tail(slow_window).mean())
-    if not math.isfinite(close) or not math.isfinite(sma_fast) or not math.isfinite(sma_slow):
+    has_valid_trend_inputs = math.isfinite(close) and math.isfinite(sma_fast) and math.isfinite(sma_slow)
+    if not has_valid_trend_inputs:
         return "hold"
     if close > sma_fast > sma_slow:
         return "buy"
@@ -388,14 +390,22 @@ def _macro_proxy_regime_signal(
     max_vix_pressure = float(params.get("max_vix_pressure", 0.12))
     exit_risk_on_score = float(params.get("exit_risk_on_score", 0.0))
 
-    if (
-        close > sma_fast > sma_slow
-        and risk_on_score >= min_risk_on_score
-        and equity_bond_spread >= min_equity_bond_spread
-        and vix_pressure <= max_vix_pressure
-    ):
+    price_trend_is_bullish = close > sma_fast > sma_slow
+    risk_on_score_is_strong_enough = risk_on_score >= min_risk_on_score
+    equity_bond_spread_is_strong_enough = equity_bond_spread >= min_equity_bond_spread
+    vix_pressure_is_within_limit = vix_pressure <= max_vix_pressure
+    has_macro_buy_setup = (
+        price_trend_is_bullish
+        and risk_on_score_is_strong_enough
+        and equity_bond_spread_is_strong_enough
+        and vix_pressure_is_within_limit
+    )
+    if has_macro_buy_setup:
         return "buy"
-    if close < sma_fast or risk_on_score < exit_risk_on_score or vix_pressure > max_vix_pressure:
+    should_exit_macro_regime = (
+        close < sma_fast or risk_on_score < exit_risk_on_score or vix_pressure > max_vix_pressure
+    )
+    if should_exit_macro_regime:
         return "sell"
     return "hold"
 
@@ -436,7 +446,11 @@ def _policy_regime_signal(
     risk_off_threshold = float(params.get("risk_off_threshold", POLICY_RISK_OFF_SELL_THRESHOLD))
     max_defensive_tilt = float(params.get("max_defensive_tilt", POLICY_MAX_DEFENSIVE_TILT))
 
-    if close > sma_fast > sma_slow and risk_on_score >= risk_on_threshold and defensive_tilt <= max_defensive_tilt:
+    price_trend_is_bullish = close > sma_fast > sma_slow
+    risk_on_score_is_strong_enough = risk_on_score >= risk_on_threshold
+    defensive_tilt_is_within_limit = defensive_tilt <= max_defensive_tilt
+    has_policy_buy_setup = price_trend_is_bullish and risk_on_score_is_strong_enough and defensive_tilt_is_within_limit
+    if has_policy_buy_setup:
         return "buy"
     if close < sma_slow or risk_on_score < risk_off_threshold:
         return "sell"
@@ -530,7 +544,13 @@ def _social_trend_rotation_signal(
     trend_exit = float(params.get("trend_exit", SOCIAL_TREND_EXIT_THRESHOLD))
     min_reddit_sentiment = float(params.get("min_reddit_sentiment", SOCIAL_MIN_REDDIT_SENTIMENT))
 
-    if close > sma_fast > sma_slow and trend_score >= trend_threshold and reddit_sentiment >= min_reddit_sentiment:
+    price_trend_is_bullish = close > sma_fast > sma_slow
+    trend_score_is_strong_enough = trend_score >= trend_threshold
+    reddit_sentiment_is_strong_enough = reddit_sentiment >= min_reddit_sentiment
+    has_social_buy_setup = (
+        price_trend_is_bullish and trend_score_is_strong_enough and reddit_sentiment_is_strong_enough
+    )
+    if has_social_buy_setup:
         return "buy"
     if close < sma_slow or trend_score < trend_exit:
         return "sell"

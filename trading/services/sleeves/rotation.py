@@ -142,7 +142,9 @@ def _normalize_challengers(
 ) -> list[SleeveStrategyMetrics]:
     normalized: list[SleeveStrategyMetrics] = []
     for challenger in challengers:
-        if challenger.strategy_name == incumbent_strategy and challenger.param_set_id == incumbent_param_set_id:
+        is_same_strategy = challenger.strategy_name == incumbent_strategy
+        is_same_param_set = challenger.param_set_id == incumbent_param_set_id
+        if is_same_strategy and is_same_param_set:
             continue
         normalized.append(challenger)
     return normalized
