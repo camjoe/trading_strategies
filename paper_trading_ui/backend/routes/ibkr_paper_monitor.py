@@ -24,7 +24,7 @@ def api_ibkr_paper_accounts() -> dict[str, object]:
 @router.get("/api/ibkr-paper-accounts/{account_name}")
 def api_ibkr_paper_account_detail(account_name: str) -> dict[str, object]:
     """Return comprehensive IBKR paper account dashboard data.
-    
+
     Includes:
     - Account overview (total equity, cash, positions)
     - Sleeve status and performance metrics
@@ -39,5 +39,5 @@ def api_ibkr_paper_account_detail(account_name: str) -> dict[str, object]:
             data = fetch_account_ibkr_paper_monitor_data(conn, account_name)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        
+
         return data

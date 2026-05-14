@@ -12,10 +12,18 @@ WEEKLY_DB_BACKUP_COMPLETE_SENTINEL = "COMPLETE: Weekly database backup succeeded
 
 WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL = "COMPLETE: Weekly governance W1 strategy leaderboard succeeded."
 WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL = "COMPLETE: Weekly governance W2 promotion review succeeded."
-WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL = "COMPLETE: Weekly governance W3 allocation review succeeded."
-MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL = "COMPLETE: Monthly governance M1 risk rebaseline succeeded."
-MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL = "COMPLETE: Monthly governance M2 parameter governance succeeded."
-MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL = "COMPLETE: Monthly governance M3 performance audit succeeded."
+WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL = (
+    "COMPLETE: Weekly governance W3 allocation review succeeded."
+)
+MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL = (
+    "COMPLETE: Monthly governance M1 risk rebaseline succeeded."
+)
+MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL = (
+    "COMPLETE: Monthly governance M2 parameter governance succeeded."
+)
+MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL = (
+    "COMPLETE: Monthly governance M3 performance audit succeeded."
+)
 
 __all__ = [
     "BURN_IN_STATUS_COMPLETE_SENTINEL",

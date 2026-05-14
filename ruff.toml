@@ -1,0 +1,5 @@
+line-length = 119
+
+[lint.per-file-ignores]
+# Pydantic schema fields use camelCase to match the JSON/frontend API contract.
+"paper_trading_ui/backend/schemas/*.py" = ["N815"]
