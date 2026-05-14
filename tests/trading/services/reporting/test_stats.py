@@ -4,6 +4,7 @@ from trading.models import AccountConfig
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import build_account_stats, format_goal_text, infer_overall_trend
 from tests.support.reporting import insert_snapshot, insert_trade
+from tests.support.seed_db import ACCT_MOMENTUM
 
 
 def test_build_account_stats_uses_price_map(conn, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -68,11 +69,10 @@ def test_infer_overall_trend_uses_snapshot_history(conn, history, current_equity
     assert infer_overall_trend(conn, account["id"], current_equity=current_equity, lookback=10) == expected
 
 
-def test_infer_overall_trend_returns_insufficient_data_without_enough_points(conn) -> None:
-    create_account(conn, "acct_short", "Trend", 1000.0, "SPY")
-    account = get_account(conn, "acct_short")
+def test_infer_overall_trend_returns_insufficient_data_without_enough_points(seeded_conn) -> None:
+    account = get_account(seeded_conn, ACCT_MOMENTUM)  # seeded with no snapshots
 
-    assert infer_overall_trend(conn, account["id"], current_equity=1000.0, lookback=10) == "insufficient-data"
+    assert infer_overall_trend(seeded_conn, account["id"], current_equity=1000.0, lookback=10) == "insufficient-data"
 
 
 def test_infer_overall_trend_returns_insufficient_data_when_first_equity_is_zero(conn) -> None:

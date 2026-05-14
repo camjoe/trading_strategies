@@ -60,26 +60,12 @@ from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
 
 
-def _account_id(conn, name: str = "sleeve_repo_acct") -> int:
-    return insert_repository_account(conn, name=name)
-
-
-def _sleeve_id(conn, account_id: int, name: str = "core") -> int:
-    return insert_test_sleeve(
-        conn,
-        account_id=account_id,
-        name=name,
-    )
-
-
 class TestSleevesRepository:
-    def test_insert_fetch_and_update_sleeve(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_base_a")
-        sleeve_id = _sleeve_id(conn, account_id, "alpha")
+    def test_insert_fetch_and_update_sleeve(self, conn, account_id, sleeve_id) -> None:
 
         row = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
         assert row is not None
-        assert row["name"] == "alpha"
+        assert row["name"] == "core"
         assert float(row["current_cash"]) == 10_000.0
 
         update_strategy_sleeve_status(
@@ -105,9 +91,7 @@ class TestSleevesRepository:
         rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
         assert [int(item["id"]) for item in rows] == [sleeve_id]
 
-    def test_param_sets_and_assignments(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_base_b")
-        sleeve_id = _sleeve_id(conn, account_id, "beta")
+    def test_param_sets_and_assignments(self, conn, account_id, sleeve_id) -> None:
 
         param_set_id = insert_strategy_param_set(
             conn,
@@ -180,9 +164,7 @@ class TestSleevesRepository:
 
 
 class TestSleeveOrdersRepository:
-    def test_insert_update_and_query_sleeve_orders(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_orders_a")
-        sleeve_id = _sleeve_id(conn, account_id, "core_orders")
+    def test_insert_update_and_query_sleeve_orders(self, conn, account_id, sleeve_id) -> None:
 
         order_id = insert_sleeve_order(
             conn,
@@ -227,9 +209,7 @@ class TestSleeveOrdersRepository:
         open_rows = fetch_open_sleeve_orders_for_account(conn, account_id=account_id)
         assert len(open_rows) == 0
 
-    def test_fill_insert_is_idempotent_for_exec_id(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_orders_b")
-        sleeve_id = _sleeve_id(conn, account_id, "fills")
+    def test_fill_insert_is_idempotent_for_exec_id(self, conn, account_id, sleeve_id) -> None:
         order_id = insert_sleeve_order(
             conn,
             account_id=account_id,
@@ -278,9 +258,7 @@ class TestSleeveOrdersRepository:
 
 
 class TestSleevePositionsLedgerDecisionsAndMetrics:
-    def test_positions_ledger_decisions_and_metrics(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_combo")
-        sleeve_id = _sleeve_id(conn, account_id, "combo")
+    def test_positions_ledger_decisions_and_metrics(self, conn, account_id, sleeve_id) -> None:
 
         upsert_sleeve_position(
             conn,
@@ -475,8 +453,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
 
 
 class TestPortfolioRiskSnapshotsRepository:
-    def test_upsert_and_fetch_latest_snapshot(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_risk_snap_repo")
+    def test_upsert_and_fetch_latest_snapshot(self, conn, account_id) -> None:
 
         upsert_portfolio_risk_snapshot(
             conn,
@@ -541,9 +518,7 @@ class TestPortfolioRiskSnapshotsRepository:
 
 
 class TestSleeveRiskDecisionsRepository:
-    def test_insert_and_fetch_sleeve_risk_decisions(self, conn) -> None:
-        account_id = _account_id(conn, "sleeve_risk_decisions_repo")
-        sleeve_id = _sleeve_id(conn, account_id, "risk_decisions")
+    def test_insert_and_fetch_sleeve_risk_decisions(self, conn, account_id, sleeve_id) -> None:
 
         insert_sleeve_risk_decision(
             conn,

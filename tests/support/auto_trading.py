@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from types import SimpleNamespace
 from typing import Callable, Mapping, Sequence
 from unittest.mock import Mock
 
+from trading.features.base import ExternalFeatureBundle
+from trading.models.account_state import AccountState
 from trading.models.broker_order import OrderStatus
 import trading.services.auto_trading.execution as execution_service
 from tests.support.account_records import make_account_record
@@ -36,19 +37,16 @@ def make_auto_trading_account(**overrides: object):
     return make_account_record(**values)
 
 
-def make_feature_bundle(*, available: bool = True, **values: object) -> SimpleNamespace:
-    return SimpleNamespace(
-        available=available,
-        get=lambda key, default=None: values.get(key, default),
-    )
+def make_feature_bundle(*, available: bool = True, **features: float) -> ExternalFeatureBundle:
+    return ExternalFeatureBundle(features=dict(features), available=available)
 
 
 def make_feature_fetcher(
-    bundles_by_ticker: Mapping[str, Mapping[str, object]],
+    bundles_by_ticker: Mapping[str, Mapping[str, float]],
     *,
     available: bool = True,
-) -> Callable[[str], SimpleNamespace]:
-    def _fetch(ticker: str) -> SimpleNamespace:
+) -> Callable[[str], ExternalFeatureBundle]:
+    def _fetch(ticker: str) -> ExternalFeatureBundle:
         return make_feature_bundle(available=available, **dict(bundles_by_ticker.get(ticker, {})))
 
     return _fetch
@@ -76,8 +74,8 @@ def make_account_state(
     positions: dict[str, float] | None = None,
     avg_cost: dict[str, float] | None = None,
     realized_pnl: float = 0.0,
-):
-    return SimpleNamespace(
+) -> AccountState:
+    return AccountState(
         cash=cash,
         positions=positions or {},
         avg_cost=avg_cost or {},

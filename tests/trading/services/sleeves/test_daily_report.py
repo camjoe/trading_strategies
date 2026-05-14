@@ -1,61 +1,26 @@
 from __future__ import annotations
 
-import sqlite3
-from pathlib import Path
-from typing import Iterator
-
 import pytest
 
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
-from trading.database.db_init import ensure_db
 from trading.repositories.daily_metrics import upsert_daily_metric
 from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
 from trading.repositories.rotation_decisions import insert_rotation_decision
 from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
-from trading.repositories.sleeves import (
-    insert_sleeve_strategy_assignment,
-)
+from trading.repositories.sleeves import insert_sleeve_strategy_assignment
 from trading.services.sleeves.daily_report import (
     AccountDailyReport,
     account_daily_report_as_dict,
     build_account_daily_report,
 )
 from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_sleeve
-
-
-@pytest.fixture
-def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
-    set_backend(SQLiteBackend(tmp_path / "paper_trading.db"))
-    connection = ensure_db()
-    try:
-        yield connection
-    finally:
-        connection.close()
-
-
-def _insert_sleeve(conn, *, account_id: int, name: str = "sleeve_a", start_equity: float = 10_000.0) -> int:
-    return insert_test_sleeve(
-        conn,
-        account_id=account_id,
-        name=name,
-        start_equity=start_equity,
-        current_cash=start_equity,
-        current_equity=start_equity,
-        created_at="2026-01-01T00:00:00Z",
-        updated_at="2026-01-01T00:00:00Z",
-    )
-
 
 REPORT_DATE = "2026-05-07"
 
 
-def test_build_report_returns_correct_structure(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_report")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id)
+def test_build_report_returns_correct_structure(conn, report_env) -> None:
     insert_sleeve_strategy_assignment(
         conn,
-        sleeve_id=sleeve_id,
+        sleeve_id=report_env.sleeve_id,
         strategy_name="Momentum",
         param_set_id=None,
         effective_from="2026-01-01T00:00:00Z",
@@ -66,8 +31,8 @@ def test_build_report_returns_correct_structure(conn) -> None:
     )
     upsert_daily_metric(
         conn,
-        account_id=account_id,
-        sleeve_id=sleeve_id,
+        account_id=report_env.account_id,
+        sleeve_id=report_env.sleeve_id,
         metric_date=REPORT_DATE,
         return_pct=1.5,
         drawdown_pct=-0.3,
@@ -82,15 +47,15 @@ def test_build_report_returns_correct_structure(conn) -> None:
         updated_at="2026-05-07T20:00:00Z",
     )
 
-    report = build_account_daily_report(conn, account_id=account_id, account_name="acct_report", report_date=REPORT_DATE)
+    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
 
     assert isinstance(report, AccountDailyReport)
-    assert report.account_id == account_id
-    assert report.account_name == "acct_report"
+    assert report.account_id == report_env.account_id
+    assert report.account_name == report_env.account_name
     assert report.report_date == REPORT_DATE
     assert len(report.sleeve_performance) == 1
     sp = report.sleeve_performance[0]
-    assert sp.sleeve_id == sleeve_id
+    assert sp.sleeve_id == report_env.sleeve_id
     assert sp.strategy_name == "Momentum"
     assert sp.return_pct == pytest.approx(1.5)
     assert sp.drawdown_pct == pytest.approx(-0.3)
@@ -108,11 +73,8 @@ def test_build_report_no_sleeves_returns_empty_sections(conn) -> None:
     assert report.risk_violations.total_decisions == 0
 
 
-def test_build_report_sleeve_with_no_metric_returns_none_fields(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_no_metric")
-    _insert_sleeve(conn, account_id=account_id)
-
-    report = build_account_daily_report(conn, account_id=account_id, account_name="acct_no_metric", report_date=REPORT_DATE)
+def test_build_report_sleeve_with_no_metric_returns_none_fields(conn, report_env) -> None:
+    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
 
     assert len(report.sleeve_performance) == 1
     sp = report.sleeve_performance[0]
@@ -121,10 +83,7 @@ def test_build_report_sleeve_with_no_metric_returns_none_fields(conn) -> None:
     assert sp.strategy_name is None
 
 
-def test_build_report_risk_violations_counts(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_risk")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id)
-
+def test_build_report_risk_violations_counts(conn, report_env) -> None:
     for action, reason in [
         ("block", "sleeve_notional_cap"),
         ("block", "sleeve_notional_cap"),
@@ -133,8 +92,8 @@ def test_build_report_risk_violations_counts(conn) -> None:
     ]:
         insert_sleeve_risk_decision(
             conn,
-            account_id=account_id,
-            sleeve_id=sleeve_id,
+            account_id=report_env.account_id,
+            sleeve_id=report_env.sleeve_id,
             decision_time=f"{REPORT_DATE}T10:00:00Z",
             symbol="AAPL",
             side="buy",
@@ -149,7 +108,7 @@ def test_build_report_risk_violations_counts(conn) -> None:
             created_at=f"{REPORT_DATE}T10:00:00Z",
         )
 
-    report = build_account_daily_report(conn, account_id=account_id, account_name="acct_risk", report_date=REPORT_DATE)
+    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
 
     rv = report.risk_violations
     assert rv.total_decisions == 4
@@ -160,14 +119,11 @@ def test_build_report_risk_violations_counts(conn) -> None:
     assert rv.top_reason_codes[0] == "sleeve_notional_cap"
 
 
-def test_build_report_risk_violations_excludes_other_dates(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_risk_date")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id)
-
+def test_build_report_risk_violations_excludes_other_dates(conn, report_env) -> None:
     insert_sleeve_risk_decision(
         conn,
-        account_id=account_id,
-        sleeve_id=sleeve_id,
+        account_id=report_env.account_id,
+        sleeve_id=report_env.sleeve_id,
         decision_time="2026-05-06T10:00:00Z",  # different date
         symbol="AAPL",
         side="buy",
@@ -182,7 +138,7 @@ def test_build_report_risk_violations_excludes_other_dates(conn) -> None:
         created_at="2026-05-06T10:00:00Z",
     )
 
-    report = build_account_daily_report(conn, account_id=account_id, account_name="acct_risk_date", report_date=REPORT_DATE)
+    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
 
     assert report.risk_violations.total_decisions == 0
 
@@ -209,13 +165,10 @@ def test_build_report_kill_switch_from_snapshot(conn) -> None:
     assert report.risk_violations.kill_switch_triggered is True
 
 
-def test_build_report_rotation_decisions(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_rot")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id)
-
+def test_build_report_rotation_decisions(conn, report_env) -> None:
     insert_rotation_decision(
         conn,
-        sleeve_id=sleeve_id,
+        sleeve_id=report_env.sleeve_id,
         decision_time=f"{REPORT_DATE}T09:00:00Z",
         incumbent_strategy="Momentum",
         challenger_strategy="MeanRev",
@@ -232,7 +185,7 @@ def test_build_report_rotation_decisions(conn) -> None:
     # Decision on a different date — should be excluded
     insert_rotation_decision(
         conn,
-        sleeve_id=sleeve_id,
+        sleeve_id=report_env.sleeve_id,
         decision_time="2026-05-06T09:00:00Z",
         incumbent_strategy="Momentum",
         challenger_strategy="MeanRev",
@@ -247,7 +200,7 @@ def test_build_report_rotation_decisions(conn) -> None:
         created_at="2026-05-06T09:00:00Z",
     )
 
-    report = build_account_daily_report(conn, account_id=account_id, account_name="acct_rot", report_date=REPORT_DATE)
+    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
 
     assert len(report.rotation_decisions) == 1
     rd = report.rotation_decisions[0]
