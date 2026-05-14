@@ -43,13 +43,23 @@ python -m pytest --no-cov \
 
 ## Fixture Hierarchy
 
-- `tests/conftest.py`: cross-suite fixtures, including isolated SQLite connection setup via `conn`.
+- `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).
+- Directory-level `conftest.py` files provide subtree-scoped fixtures (e.g. `sleeve_env`, `account_id`).
 - `tests/trading/services/market_data/conftest.py`: market-data service fixtures, including provider reset per test.
 - `tests/paper_trading_ui/conftest.py`: UI backend fixtures, including `api_client` with isolated DB backend.
+
+## Database Fixtures — Which One to Use
+
+**Use `conn`** when the test needs to write data (inserts, updates, deletes). It is function-scoped: each test gets a fresh, empty SQLite DB.
+
+**Use `seeded_conn`** when the test only reads. It is session-scoped and opens the pre-seeded DB read-only (`?mode=ro`). This is faster and does not risk corrupting shared state. The seed covers accounts, trades, snapshots, a sleeve, strategy assignments, daily metrics, backtest runs, and promotion reviews.
+
+Named constants from `tests/support/seed_db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENTUM`, `SLEEVE_TREND`, `SNAPSHOT_T1`) are the shared vocabulary for referencing seeded entities. Always import and use these constants rather than hard-coding string literals.
 
 ## State Isolation
 
 - Database backend is switched to a `tmp_path` SQLite file inside fixtures and restored in a `finally` block.
+- `seeded_conn` is enforced read-only at the OS/VFS layer via `?mode=ro` URI flag — not just `PRAGMA query_only`.
 - Market data provider environment variables are reset before and after each `tests/trading/services/market_data` test.
 - Tests that mutate global state should always restore it in fixture teardown.
 
