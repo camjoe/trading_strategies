@@ -358,3 +358,45 @@ class TestApplyRotationFields:
         assert (created, updated, skipped) == (0, 1, 0)
         account = get_account(conn, "rot_mode_only")
         assert account["rotation_mode"] == "optimal"
+
+    def test_trade_universes_stored_on_create(self, conn) -> None:
+        import json
+
+        apply_account_profiles(
+            conn,
+            [
+                {
+                    "name": "acct_with_universe",
+                    "strategy": "Momentum",
+                    "initial_cash": 5000,
+                    "benchmark_ticker": "SPY",
+                    "trade_universes": ["large_cap", "growth"],
+                }
+            ],
+            create_missing=True,
+        )
+
+        account = get_account(conn, "acct_with_universe")
+        raw = account["trade_universes"]
+        assert raw is not None
+        assert json.loads(raw) == ["large_cap", "growth"]
+
+    def test_trade_universes_updated_on_update(self, conn) -> None:
+        import json
+
+        apply_account_profiles(
+            conn,
+            [{"name": "upd_universe", "strategy": "trend", "initial_cash": 5000}],
+            create_missing=True,
+        )
+
+        apply_account_profiles(
+            conn,
+            [{"name": "upd_universe", "trade_universes": ["dividend"]}],
+            create_missing=False,
+        )
+
+        account = get_account(conn, "upd_universe")
+        raw = account["trade_universes"]
+        assert raw is not None
+        assert json.loads(raw) == ["dividend"]

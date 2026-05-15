@@ -1,0 +1,22 @@
+# Growth universe — high-growth companies across technology and adjacent sectors
+# Cloud & Software
+CRWD
+SNOW
+DDOG
+NET
+HUBS
+# Semiconductors
+NVDA
+AMD
+AVGO
+# E-Commerce & Consumer Tech
+AMZN
+TSLA
+SHOP
+# Healthcare Innovation
+ISRG
+VEEV
+DXCM
+# Fintech
+SQ
+ADYEY

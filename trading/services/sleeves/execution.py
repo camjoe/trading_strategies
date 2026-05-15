@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 import random
 import sqlite3
@@ -13,6 +14,7 @@ from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_strategy_sleeves_for_account,
 )
+from trading.services.universe_resolver import resolve_named_universes
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +98,15 @@ def generate_sleeve_trade_intents(
         if len(intents) >= max_intents:
             break
         sleeve_id = row_expect_int(sleeve_row, "id")
+        raw_sleeve_universes = sleeve_row["trade_universes"] if "trade_universes" in sleeve_row.keys() else None
+        if raw_sleeve_universes:
+            sleeve_names: object = json.loads(str(raw_sleeve_universes))
+            if isinstance(sleeve_names, list) and sleeve_names:
+                effective_universe = resolve_named_universes([str(n) for n in sleeve_names])
+            else:
+                effective_universe = universe
+        else:
+            effective_universe = universe
         state = _build_sleeve_state(
             conn,
             sleeve_id=sleeve_id,
@@ -123,7 +134,7 @@ def generate_sleeve_trade_intents(
             state,
             can_sell,
             forced_sell,
-            universe,
+            effective_universe,
             prices,
             iv_rank_proxy,
             learning_enabled,

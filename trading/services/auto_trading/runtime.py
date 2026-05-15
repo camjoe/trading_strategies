@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import asdict
 
@@ -15,6 +16,7 @@ from trading.brokers.factory import get_broker_for_account
 from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
+from trading.services.universe_resolver import resolve_named_universes
 from trading.repositories.broker_orders import (
     fetch_open_broker_orders,
     insert_broker_order,
@@ -338,6 +340,17 @@ def _run_sleeve_rotation_decisions(
         )
 
 
+def _resolve_account_universe(account: AccountRecord, global_universe: list[str]) -> list[str]:
+    """Return the account-specific universe, falling back to the global one."""
+    raw = account.trade_universes
+    if not raw:
+        return global_universe
+    names: object = json.loads(raw)
+    if not isinstance(names, list) or not names:
+        return global_universe
+    return resolve_named_universes([str(n) for n in names])
+
+
 def _run_sleeve_mode_for_account(
     conn: sqlite3.Connection,
     *,
@@ -352,6 +365,7 @@ def _run_sleeve_mode_for_account(
 ) -> int:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
+    effective_universe = _resolve_account_universe(account, universe)
     _run_sleeve_rotation_decisions(
         conn,
         account=account,
@@ -360,7 +374,7 @@ def _run_sleeve_mode_for_account(
     intents = generate_sleeve_trade_intents(
         conn,
         account=account,
-        universe=universe,
+        universe=effective_universe,
         prices=prices,
         iv_rank_proxy=iv_rank_proxy,
         min_trades=min_trades,
@@ -631,12 +645,13 @@ def run_for_account(
     # are stable within a single run — rotation updates strategy, not broker
     # config — so it is safe to resolve the broker from the initial account row.
     bootstrap_account = get_account(conn, account_name)
+    effective_universe = _resolve_account_universe(bootstrap_account, universe)
     broker = get_broker_for_account(bootstrap_account)
     try:
         return run_for_account_impl(
             conn,
             account_name,
-            universe,
+            effective_universe,
             prices,
             iv_rank_proxy,
             min_trades,

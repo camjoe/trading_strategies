@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 
 from common.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
+
+
+def _coerce_trade_universes(value: object) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [str(v).strip().lower() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            raise ValueError(f"trade_universes must be a JSON array, got: {raw!r}")
+        return [str(v).strip().lower() for v in parsed if str(v).strip()]
+    raise TypeError(f"trade_universes must be a list or JSON string, got {type(value).__name__}")
 
 
 @dataclass(frozen=True)
@@ -35,6 +52,7 @@ class AccountConfig:
     roll_dte_threshold: int | None = None
     profit_take_pct: float | None = None
     max_loss_pct: float | None = None
+    trade_universes: list[str] | None = None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> AccountConfig:
@@ -64,6 +82,7 @@ class AccountConfig:
             roll_dte_threshold=coerce_int(values.get("roll_dte_threshold")),
             profit_take_pct=coerce_float(values.get("profit_take_pct")),
             max_loss_pct=coerce_float(values.get("max_loss_pct")),
+            trade_universes=_coerce_trade_universes(values.get("trade_universes")),
         )
 
     @classmethod

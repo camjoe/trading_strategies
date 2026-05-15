@@ -1,0 +1,25 @@
+# Mid-cap universe — established companies below mega-cap tier
+# Industrials
+WSO
+RBC
+GGG
+WTS
+# Technology
+FTNT
+PAYC
+PTC
+MANH
+# Health Care
+PODD
+IRTC
+ITGR
+# Consumer Discretionary
+FIVE
+TXRH
+BURL
+# Financials
+SF
+PIPR
+# Materials
+RPM
+WLK

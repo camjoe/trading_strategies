@@ -1,0 +1,22 @@
+# Dividend / income universe — established dividend-paying stocks
+# Consumer Staples
+PG
+KO
+PEP
+CL
+# Utilities
+NEE
+SO
+D
+# Healthcare
+JNJ
+ABBV
+MRK
+# Financials
+JPM
+V
+# Energy
+XOM
+CVX
+# Industrials
+MMM
