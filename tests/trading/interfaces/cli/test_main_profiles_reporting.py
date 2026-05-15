@@ -20,13 +20,15 @@ def test_main_apply_account_profiles_passes_create_missing(monkeypatch, capsys) 
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     captured = {}
 
-    monkeypatch.setattr(cli_main, "load_account_profiles", lambda path: captured.update({"path": path}) or [{"name": "acct1"}])
+    monkeypatch.setattr(
+        cli_main, "load_account_profiles", lambda path: captured.update({"path": path}) or [{"name": "acct1"}]
+    )
     monkeypatch.setattr(
         cli_main,
         "apply_account_profiles",
-        lambda conn, profiles, *, create_missing: captured.update(
-            {"conn": conn, "profiles": profiles, "create_missing": create_missing}
-        ) or (1, 2, 3),
+        lambda conn, profiles, *, create_missing: (
+            captured.update({"conn": conn, "profiles": profiles, "create_missing": create_missing}) or (1, 2, 3)
+        ),
     )
 
     cli_main.main()
@@ -42,13 +44,15 @@ def test_main_apply_account_preset_uses_lowercased_filename(monkeypatch, capsys)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)
     captured = {}
 
-    monkeypatch.setattr(cli_main, "load_account_profiles", lambda path: captured.update({"path": path}) or [{"name": "acct1"}])
+    monkeypatch.setattr(
+        cli_main, "load_account_profiles", lambda path: captured.update({"path": path}) or [{"name": "acct1"}]
+    )
     monkeypatch.setattr(
         cli_main,
         "apply_account_profiles",
-        lambda conn, profiles, *, create_missing: captured.update(
-            {"conn": conn, "profiles": profiles, "create_missing": create_missing}
-        ) or (0, 1, 0),
+        lambda conn, profiles, *, create_missing: (
+            captured.update({"conn": conn, "profiles": profiles, "create_missing": create_missing}) or (0, 1, 0)
+        ),
     )
 
     cli_main.main()
@@ -82,9 +86,7 @@ def test_main_snapshot_dispatches(monkeypatch) -> None:
     monkeypatch.setattr(
         cli_main,
         "snapshot_account",
-        lambda conn, account, snap_time: captured.update(
-            {"conn": conn, "account": account, "snap_time": snap_time}
-        ),
+        lambda conn, account, snap_time: captured.update({"conn": conn, "account": account, "snap_time": snap_time}),
     )
 
     cli_main.main()

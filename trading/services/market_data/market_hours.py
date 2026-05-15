@@ -26,6 +26,8 @@ def is_regular_us_equity_market_open(at: datetime | None = None) -> bool:
 
     current_time = eastern.timetz().replace(tzinfo=None)
     return US_EQUITY_MARKET_OPEN_TIME <= current_time < _market_close_time_for_date(current_date)
+
+
 def _is_us_equity_trading_day(current_date: date) -> bool:
     if current_date.weekday() < US_EQUITY_FIRST_TRADING_WEEKDAY:
         return False
@@ -68,7 +70,9 @@ def _nyse_early_close_days(year: int) -> set[date]:
     early_closes.add(thanksgiving + timedelta(days=1))
 
     christmas_eve = date(year, 12, 24)
-    if christmas_eve.weekday() <= 3 and christmas_eve != _observed_fixed_holiday(date(year, 12, 25)):
+    is_weekday_early_close = christmas_eve.weekday() <= 3
+    observed_christmas_is_not_christmas_eve = christmas_eve != _observed_fixed_holiday(date(year, 12, 25))
+    if is_weekday_early_close and observed_christmas_is_not_christmas_eve:
         early_closes.add(christmas_eve)
 
     return early_closes

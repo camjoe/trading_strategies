@@ -16,7 +16,7 @@ class _FakeResponse:
     def __init__(self, status_code: int = 200) -> None:
         self._status_code = status_code
 
-    def __enter__(self) -> "_FakeResponse":
+    def __enter__(self) -> _FakeResponse:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

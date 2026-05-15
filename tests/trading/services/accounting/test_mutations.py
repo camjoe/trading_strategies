@@ -178,6 +178,8 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_global_settings_manual")
-        rows = conn.execute("SELECT COUNT(*) AS trade_count FROM trades WHERE account_id = ?", (account["id"],)).fetchone()
+        rows = conn.execute(
+            "SELECT COUNT(*) AS trade_count FROM trades WHERE account_id = ?", (account["id"],)
+        ).fetchone()
         assert rows is not None
         assert int(rows["trade_count"]) == 2

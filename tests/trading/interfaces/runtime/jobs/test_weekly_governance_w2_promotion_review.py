@@ -92,9 +92,7 @@ class TestArtifactStructure:
         monkeypatch.setattr(
             module,
             "fetch_current_promotion_assessment",
-            lambda conn, *, account_name: _make_assessment(
-                ready_for_live=False, blockers=["missing_data"]
-            ),
+            lambda conn, *, account_name: _make_assessment(ready_for_live=False, blockers=["missing_data"]),
         )
         monkeypatch.setattr(
             module,

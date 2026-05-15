@@ -4,6 +4,8 @@ This package is the stable public admin surface for operator-facing account
 deletion flows.
 """
 
+from __future__ import annotations
+
 from trading.services.admin.deletions import (
     DELETE_COUNT_FIELDS,
     DELETE_COUNT_KEYS,

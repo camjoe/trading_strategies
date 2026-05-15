@@ -3,6 +3,8 @@
 This package is the stable public profile-application surface.
 """
 
+from __future__ import annotations
+
 from trading.services.profiles.application import (
     ROTATION_KEYS,
     apply_account_profiles,

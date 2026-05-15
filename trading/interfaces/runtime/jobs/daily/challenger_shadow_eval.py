@@ -213,10 +213,7 @@ def main() -> int:
             results.append(serialized)
             tee_line(
                 log_path,
-                (
-                    f"[{ts()}] SHADOW_EVAL: account={account_name} "
-                    f"sleeves={len(shadow_run.sleeves)}"
-                ),
+                (f"[{ts()}] SHADOW_EVAL: account={account_name} sleeves={len(shadow_run.sleeves)}"),
             )
 
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")

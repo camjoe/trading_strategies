@@ -4,6 +4,8 @@ This package is the stable public surface for runtime auto-trading
 orchestration, input preparation, and rotation bridge helpers.
 """
 
+from __future__ import annotations
+
 from trading.services.auto_trading.inputs import (
     EXECUTION_MODE_ACCOUNT,
     EXECUTION_MODE_SLEEVE,

@@ -56,8 +56,6 @@ from trading.repositories.sleeves import (
     update_strategy_sleeve_balances,
     update_strategy_sleeve_status,
 )
-from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_sleeve
 
 
 class TestSleevesRepository:

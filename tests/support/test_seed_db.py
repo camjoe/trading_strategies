@@ -6,6 +6,7 @@ with the expected canonical dataset.  They live here — next to the seed module
 — rather than in domain-specific test files, because they're testing the
 test-infrastructure fixture, not any production behaviour.
 """
+
 from __future__ import annotations
 
 from tests.support.seed_db import (
@@ -25,10 +26,7 @@ from tests.support.seed_db import (
 
 class TestSeededAccounts:
     def test_all_named_accounts_are_present(self, seeded_conn) -> None:
-        names = {
-            row["name"]
-            for row in seeded_conn.execute("SELECT name FROM accounts").fetchall()
-        }
+        names = {row["name"] for row in seeded_conn.execute("SELECT name FROM accounts").fetchall()}
         assert {ACCT_TREND, ACCT_MOMENTUM, ACCT_LOCAL}.issubset(names)
 
     def test_account_kinds_are_correct(self, seeded_conn) -> None:
@@ -46,20 +44,16 @@ class TestSeededAccounts:
 
 class TestSeededTrades:
     def test_trend_account_has_three_trades(self, seeded_conn) -> None:
-        acct_id = seeded_conn.execute(
-            "SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)
-        ).fetchone()["id"]
-        count = seeded_conn.execute(
-            "SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (acct_id,)
-        ).fetchone()["n"]
+        acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
+        count = seeded_conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (acct_id,)).fetchone()[
+            "n"
+        ]
         assert count == 3
 
 
 class TestSeededSnapshots:
     def test_trend_account_has_three_snapshots(self, seeded_conn) -> None:
-        acct_id = seeded_conn.execute(
-            "SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)
-        ).fetchone()["id"]
+        acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
         times = {
             row["snapshot_time"]
             for row in seeded_conn.execute(
@@ -78,9 +72,7 @@ class TestSeededGlobalSettings:
 
 class TestSeededBacktestRun:
     def test_backtest_run_linked_to_trend_account(self, seeded_conn) -> None:
-        acct_id = seeded_conn.execute(
-            "SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)
-        ).fetchone()["id"]
+        acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
         row = seeded_conn.execute(
             "SELECT run_name FROM backtest_runs WHERE account_id = ? AND run_name = ?",
             (acct_id, BACKTEST_RUN_NAME),
@@ -100,9 +92,7 @@ class TestSeededPromotionReview:
 
 class TestSeededSleeves:
     def test_sleeve_exists_under_trend_account(self, seeded_conn) -> None:
-        acct_id = seeded_conn.execute(
-            "SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)
-        ).fetchone()["id"]
+        acct_id = seeded_conn.execute("SELECT id FROM accounts WHERE name = ?", (ACCT_TREND,)).fetchone()["id"]
         row = seeded_conn.execute(
             "SELECT name FROM strategy_sleeves WHERE account_id = ? AND name = ?",
             (acct_id, SLEEVE_TREND),
@@ -110,9 +100,9 @@ class TestSeededSleeves:
         assert row is not None
 
     def test_sleeve_has_incumbent_strategy_assignment(self, seeded_conn) -> None:
-        sleeve_id = seeded_conn.execute(
-            "SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)
-        ).fetchone()["id"]
+        sleeve_id = seeded_conn.execute("SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)).fetchone()[
+            "id"
+        ]
         row = seeded_conn.execute(
             "SELECT strategy_name FROM sleeve_strategy_assignments WHERE sleeve_id = ? AND is_incumbent = 1",
             (sleeve_id,),
@@ -121,9 +111,9 @@ class TestSeededSleeves:
         assert row["strategy_name"] == SLEEVE_STRATEGY
 
     def test_sleeve_has_daily_metric_row(self, seeded_conn) -> None:
-        sleeve_id = seeded_conn.execute(
-            "SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)
-        ).fetchone()["id"]
+        sleeve_id = seeded_conn.execute("SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)).fetchone()[
+            "id"
+        ]
         row = seeded_conn.execute(
             "SELECT metric_date FROM daily_metrics WHERE sleeve_id = ? AND metric_date = ?",
             (sleeve_id, SLEEVE_METRIC_DATE),

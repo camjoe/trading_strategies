@@ -1,14 +1,11 @@
 """Tests for PolicyFeatureProvider and the policy_regime signal function."""
+
 from __future__ import annotations
 
-import math
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
-from trading.features.base import ExternalFeatureBundle
 from trading.features.policy_feature_provider import (
     POLICY_DEFENSIVE_TILT,
     POLICY_RISK_ON_SCORE,
@@ -28,9 +25,9 @@ from trading.backtesting.domain.strategy_signals import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_close_df(tickers: list[str], rows: int = 20, base: float = 100.0) -> pd.DataFrame:
     """Build a fake multi-ticker Close DataFrame of incrementing prices."""
-    import numpy as np
     data = {t: [base + i * 0.5 for i in range(rows)] for t in tickers}
     return pd.DataFrame(data)
 
@@ -43,9 +40,7 @@ def _make_raw_download(tickers: list[str], rows: int = 20) -> pd.DataFrame:
 
 
 def _make_feature_history(risk_on: float, def_tilt: float) -> pd.DataFrame:
-    return pd.DataFrame(
-        {POLICY_RISK_ON_SCORE: [risk_on], POLICY_DEFENSIVE_TILT: [def_tilt]}
-    )
+    return pd.DataFrame({POLICY_RISK_ON_SCORE: [risk_on], POLICY_DEFENSIVE_TILT: [def_tilt]})
 
 
 def _make_history(n: int = 60, start: float = 100.0, slope: float = 0.5) -> pd.Series:
@@ -199,7 +194,10 @@ class TestPolicyFeatureProviderCache:
         provider._fetch_etf_returns = MagicMock(
             return_value={
                 _EQUITY_BENCHMARK: 0.03,
-                "TLT": 0.01, "GLD": 0.01, "XLU": 0.01, "UUP": 0.01,
+                "TLT": 0.01,
+                "GLD": 0.01,
+                "XLU": 0.01,
+                "UUP": 0.01,
             }
         )
         b1 = provider.get_features("AAPL")

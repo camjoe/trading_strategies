@@ -3,6 +3,7 @@
 These helpers safely extract and convert values from ``sqlite3.Row`` objects.
 They have no domain dependencies and are usable by any layer.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping

@@ -223,7 +223,8 @@ def choose_sell_ticker_by_risk(
         if risk_policy in {"fixed_stop", "stop_and_target"} and stop_loss_pct is not None:
             if move_pct <= -abs(float(stop_loss_pct)):
                 candidates.append(ticker)
-        if risk_policy in {"take_profit", "stop_and_target"} and take_profit_pct is not None:
+        uses_take_profit_policy = risk_policy in {"take_profit", "stop_and_target"}
+        if uses_take_profit_policy and take_profit_pct is not None:
             if move_pct >= abs(float(take_profit_pct)):
                 candidates.append(ticker)
 

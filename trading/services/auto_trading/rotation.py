@@ -136,7 +136,9 @@ def _classify_news_overlay_vote(
         return None
     score = coerce_float(bundle.get(NEWS_SENTIMENT_SCORE))
     headline_count = coerce_float(bundle.get(NEWS_HEADLINE_COUNT))
-    if score is None or headline_count is None or headline_count < NEWS_MIN_HEADLINES_REQUIRED:
+    missing_news_inputs = score is None or headline_count is None
+    has_minimum_headlines = headline_count is not None and headline_count >= NEWS_MIN_HEADLINES_REQUIRED
+    if missing_news_inputs or not has_minimum_headlines:
         return None
     if score >= NEWS_BUY_SENTIMENT_THRESHOLD:
         return 1
@@ -153,11 +155,17 @@ def _classify_social_overlay_vote(
     trend_score = coerce_float(bundle.get(SOCIAL_TREND_SCORE))
     mention_count = coerce_float(bundle.get(SOCIAL_MENTION_COUNT))
     reddit_sentiment = coerce_float(bundle.get(SOCIAL_REDDIT_SENTIMENT))
-    if trend_score is None or mention_count is None or reddit_sentiment is None:
+    missing_social_inputs = trend_score is None or mention_count is None or reddit_sentiment is None
+    if missing_social_inputs:
         return None
-    if trend_score >= SOCIAL_TREND_BUY_THRESHOLD and mention_count > 0 and reddit_sentiment > 0:
+    has_bullish_trend = trend_score >= SOCIAL_TREND_BUY_THRESHOLD
+    has_social_coverage = mention_count > 0
+    has_positive_reddit_sentiment = reddit_sentiment > 0
+    if has_bullish_trend and has_social_coverage and has_positive_reddit_sentiment:
         return 1
-    if trend_score <= SOCIAL_TREND_EXIT_THRESHOLD and reddit_sentiment <= SOCIAL_MIN_REDDIT_SENTIMENT:
+    has_bearish_trend = trend_score <= SOCIAL_TREND_EXIT_THRESHOLD
+    has_bearish_reddit_sentiment = reddit_sentiment <= SOCIAL_MIN_REDDIT_SENTIMENT
+    if has_bearish_trend and has_bearish_reddit_sentiment:
         return -1
     return 0
 
@@ -177,15 +185,19 @@ def select_rotation_overlay_direction(
     net_votes = 0
     for ticker in tickers:
         source_votes: list[int] = []
-        if overlay_mode in {"news", "news_social"} and fetch_news_features_fn is not None:
+        uses_news_overlay = overlay_mode in {"news", "news_social"}
+        news_overlay_fetcher = fetch_news_features_fn if uses_news_overlay else None
+        if news_overlay_fetcher is not None:
             news_vote = _classify_news_overlay_vote(
-                fetch_news_features_fn(ticker),
+                news_overlay_fetcher(ticker),
             )
             if news_vote is not None:
                 source_votes.append(news_vote)
-        if overlay_mode in {"social", "news_social"} and fetch_social_features_fn is not None:
+        uses_social_overlay = overlay_mode in {"social", "news_social"}
+        social_overlay_fetcher = fetch_social_features_fn if uses_social_overlay else None
+        if social_overlay_fetcher is not None:
             social_vote = _classify_social_overlay_vote(
-                fetch_social_features_fn(ticker),
+                social_overlay_fetcher(ticker),
             )
             if social_vote is not None:
                 source_votes.append(social_vote)
@@ -217,7 +229,9 @@ def select_rotation_overlay_direction(
 
 
 def apply_rotation_overlay_to_regime(regime_state: str, overlay_direction: str | None) -> str:
-    if regime_state not in REGIME_STATE_ORDER or overlay_direction not in ROTATION_OVERLAY_DIRECTIONS:
+    has_known_regime_state = regime_state in REGIME_STATE_ORDER
+    has_known_overlay_direction = overlay_direction in ROTATION_OVERLAY_DIRECTIONS
+    if not has_known_regime_state or not has_known_overlay_direction:
         return regime_state
     current_index = REGIME_STATE_ORDER.index(regime_state)
     step = 1 if overlay_direction == "bullish" else -1
@@ -251,14 +265,12 @@ def select_regime_strategy(
         return active_strategy
 
     overlay_mode = resolve_rotation_overlay_mode(account)
-    if (
-        overlay_mode != "none"
-        and conn is not None
-        and fetch_rotation_overlay_tickers_fn is not None
-    ):
+    overlay_enabled = overlay_mode != "none"
+    overlay_tickers_fetcher = fetch_rotation_overlay_tickers_fn if overlay_enabled else None
+    if conn is not None and overlay_tickers_fetcher is not None:
         overlay_direction = select_rotation_overlay_direction(
             account,
-            fetch_rotation_overlay_tickers_fn(conn, account),
+            overlay_tickers_fetcher(conn, account),
             overlay_mode=overlay_mode,
             fetch_news_features_fn=fetch_news_features_fn,
             fetch_social_features_fn=fetch_social_features_fn,
@@ -305,7 +317,8 @@ def sync_rotation_episode(
     fetch_snapshot_count_between_fn: Callable[..., int],
     compute_live_account_metrics_fn: Callable[[sqlite3.Connection, AccountRecord], dict[str, float]],
 ) -> None:
-    if not bool(int(cast(int | float | str | bytes | bytearray, account["rotation_enabled"] or 0))):
+    rotation_enabled = bool(int(cast(int | float | str | bytes | bytearray, account["rotation_enabled"] or 0)))
+    if not rotation_enabled:
         return
 
     active_strategy = resolve_active_strategy(account)
@@ -481,9 +494,7 @@ def rotate_account_if_due(
         conn,
         account_id=row_expect_int(account, "id"),
         strategy=str(next_state["rotation_active_strategy"]),
-        rotation_active_index=int(
-            cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])
-        ),
+        rotation_active_index=int(cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])),
         rotation_active_strategy=str(next_state["rotation_active_strategy"]),
         rotation_last_at=str(next_state["rotation_last_at"]),
     )

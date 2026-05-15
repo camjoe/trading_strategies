@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any
 
 from trading.database.db_backend import get_backend
@@ -14,6 +15,7 @@ from trading.database.db_schema import SCHEMA_SQL
 
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any
+
 
 def ensure_db() -> DBConnection:
     conn = get_backend().open_connection()

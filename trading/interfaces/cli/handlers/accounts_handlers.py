@@ -27,10 +27,7 @@ def handle_create_account(conn, args, parser, *, deps: dict[str, Any], module_fi
     except ValueError as error:
         parser.error(str(error))
         return
-    print(
-        f"Created account '{args.name}' for strategy '{args.strategy}' "
-        f"with benchmark '{args.benchmark.upper()}'."
-    )
+    print(f"Created account '{args.name}' for strategy '{args.strategy}' with benchmark '{args.benchmark.upper()}'.")
 
 
 def handle_configure_account(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:

@@ -29,7 +29,9 @@ def insert_trade(
 def insert_snapshot(conn, account_id: int, snapshot_time: str, equity: float) -> None:
     conn.execute(
         """
-        INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO equity_snapshots (
+            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (account_id, snapshot_time, equity, 0.0, equity, 0.0, 0.0),

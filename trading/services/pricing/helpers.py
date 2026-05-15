@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
+
 import pandas as pd
+
 from trading.services.market_data import get_provider
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
@@ -37,7 +42,8 @@ def benchmark_stats(
     try:
         close_history = get_provider().fetch_close_history([ticker], start, date.today())
         close = _extract_close_series(close_history, ticker)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to fetch benchmark data for %s: %s", benchmark_ticker, exc, exc_info=True)
         return None, None
 
     if close is None or close.empty:

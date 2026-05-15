@@ -33,12 +33,10 @@ def _validate_weight_sum(
     second_value: float,
 ) -> None:
     total = first_value + second_value
-    if math.isclose(total, EXPECTED_WEIGHT_SUM, rel_tol=0.0, abs_tol=WEIGHT_SUM_TOLERANCE):
+    has_expected_weight_sum = math.isclose(total, EXPECTED_WEIGHT_SUM, rel_tol=0.0, abs_tol=WEIGHT_SUM_TOLERANCE)
+    if has_expected_weight_sum:
         return
-    raise ValueError(
-        f"{first_name} + {second_name} must equal {EXPECTED_WEIGHT_SUM:.1f}; "
-        f"got {total:.6f}."
-    )
+    raise ValueError(f"{first_name} + {second_name} must equal {EXPECTED_WEIGHT_SUM:.1f}; got {total:.6f}.")
 
 
 def set_runtime_throttle_settings(

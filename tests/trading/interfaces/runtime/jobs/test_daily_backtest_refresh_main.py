@@ -59,14 +59,19 @@ def test_main_skips_duplicate_runs(monkeypatch, tmp_path: Path, capsys) -> None:
 
 
 def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), accounts="ghost"))
+    monkeypatch.setattr(
+        module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), accounts="ghost")
+    )
     monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
 
     assert module.main() == 1
     assert "Unknown account" in capsys.readouterr().err
 
+
 def test_main_returns_0_when_disabled(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), enable_run=False))
+    monkeypatch.setattr(
+        module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), enable_run=False)
+    )
     monkeypatch.setattr(module, "is_run_enabled", lambda _args: False)
 
     assert module.main() == 0
@@ -98,10 +103,14 @@ def test_main_stops_on_first_failed_refresh(monkeypatch, tmp_path: Path) -> None
 
 
 def test_main_validates_attempt_and_backoff(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), max_attempts=0))
+    monkeypatch.setattr(
+        module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), max_attempts=0)
+    )
     assert module.main() == 1
     assert "max-attempts" in capsys.readouterr().err
 
-    monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), backoff_seconds=-1.0))
+    monkeypatch.setattr(
+        module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path), backoff_seconds=-1.0)
+    )
     assert module.main() == 1
     assert "backoff-seconds" in capsys.readouterr().err

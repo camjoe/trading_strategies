@@ -47,9 +47,7 @@ class TestInsertTrade:
             note="forced sell",
         )
         # fetch_trades_for_account doesn't project `note`; query directly
-        row = conn.execute(
-            "SELECT note FROM trades WHERE account_id = ?", (acct_id,)
-        ).fetchone()
+        row = conn.execute("SELECT note FROM trades WHERE account_id = ?", (acct_id,)).fetchone()
         assert row["note"] == "forced sell"
 
 
@@ -142,8 +140,11 @@ class TestCountTradesBetween:
             note=None,
         )
 
-        assert count_trades_between(
-            conn,
-            "2026-01-01T00:00:30Z",
-            "2026-01-01T00:01:30Z",
-        ) == 1
+        assert (
+            count_trades_between(
+                conn,
+                "2026-01-01T00:00:30Z",
+                "2026-01-01T00:01:30Z",
+            )
+            == 1
+        )

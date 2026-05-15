@@ -1,6 +1,9 @@
 # Operator Runbooks
 
-Operational procedures for the IBKR Paper Autonomy trading system.
+## Overview
+
+Operational procedures for the IBKR Paper Autonomy trading system. Use these runbooks to monitor
+daily runs, manage the burn-in period, and conduct weekly/monthly governance reviews.
 
 ## Contents
 
@@ -10,7 +13,7 @@ Operational procedures for the IBKR Paper Autonomy trading system.
 | [burn_in_protocol.md](burn_in_protocol.md) | Burn-in period definition, stability thresholds, go-live checklist |
 | [governance_review_guide.md](governance_review_guide.md) | Weekly and monthly governance job procedures |
 
-## Quick Reference
+## Quick Start
 
 ### Check today's run status
 ```bash

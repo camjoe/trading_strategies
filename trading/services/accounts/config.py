@@ -161,8 +161,13 @@ def validate_position_sizing(
             raise ValueError(f"{field_name} must be numeric.")
         if numeric_value <= 0 or numeric_value > 100:
             raise ValueError(f"{field_name} must be greater than 0 and <= 100.")
-    if trade_size_pct is not None and max_position_pct is not None and trade_size_pct > max_position_pct:
-        raise ValueError("trade_size_pct cannot be greater than max_position_pct.")
+    has_position_sizing_inputs = trade_size_pct is not None and max_position_pct is not None
+    if has_position_sizing_inputs:
+        assert trade_size_pct is not None
+        assert max_position_pct is not None
+        trade_size_exceeds_position_limit = trade_size_pct > max_position_pct
+        if trade_size_exceeds_position_limit:
+            raise ValueError("trade_size_pct cannot be greater than max_position_pct.")
 
 
 def validate_position_sizing_from_inputs(

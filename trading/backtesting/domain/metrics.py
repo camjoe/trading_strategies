@@ -165,9 +165,7 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
         if side != "sell":
             raise ValueError(f"Unsupported trade side {side!r} for backtest metrics.")
         if qty > positions[ticker]:
-            raise ValueError(
-                f"Invalid sell for {ticker}: trying to sell {qty}, holding {positions[ticker]}."
-            )
+            raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {positions[ticker]}.")
         cost_basis = avg_cost[ticker] * qty
         pnl = ((price - avg_cost[ticker]) * qty) - fee
         cash, realized_pnl = update_on_sell(
@@ -207,14 +205,8 @@ def summarize_backtest_performance(
             max_drawdown_pct_value=max_drawdown_pct(list(equity_curve)),
         ),
         win_rate_pct=(
-            (float(win_count) / float(closed_trade_count)) * PERCENT_SCALE
-            if closed_trade_count > 0
-            else None
+            (float(win_count) / float(closed_trade_count)) * PERCENT_SCALE if closed_trade_count > 0 else None
         ),
         profit_factor=(gross_profit / gross_loss) if gross_loss > 0 else None,
-        avg_trade_return_pct=(
-            sum(return_values) / float(len(return_values))
-            if return_values
-            else None
-        ),
+        avg_trade_return_pct=(sum(return_values) / float(len(return_values)) if return_values else None),
     )

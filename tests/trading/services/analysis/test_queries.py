@@ -1,4 +1,5 @@
 """Tests for trading.services.analysis.fetch_account_analysis."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -17,10 +18,11 @@ from tests.support.analysis import (
 # Return % and alpha
 # ---------------------------------------------------------------------------
 
+
 class TestReturnPct:
     def test_positive_return(self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
         row = make_analysis_account(conn, "acct", initial_cash=1000.0)
-        # Buy AAPL at 100; price rises to 110 → equity = cash(900) + mv(1100) = 2000... 
+        # Buy AAPL at 100; price rises to 110 → equity = cash(900) + mv(1100) = 2000...
         # Actually initial_cash=1000 means cash starts at 1000; buying 1 share at 100 leaves 900 cash
         # market_value at 110 = 110, equity = 1010 → return = 1%
         record_analysis_buy(conn, account_id=row["id"], ticker="AAPL", qty=1.0, price=100.0)
@@ -66,6 +68,7 @@ class TestAlpha:
 # Deposit-model (initial_cash=0) — effective_initial fallback
 # ---------------------------------------------------------------------------
 
+
 class TestDepositModel:
     def test_uses_total_deposited_when_initial_cash_zero(
         self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
@@ -73,7 +76,7 @@ class TestDepositModel:
         row = make_analysis_account(conn, "acct", initial_cash=0.0)
         # Deposit 1000 via CASH buy trade, then buy AAPL
         record_analysis_buy(conn, account_id=row["id"], ticker="CASH", qty=10.0, price=100.0)  # deposits 1000
-        record_analysis_buy(conn, account_id=row["id"], ticker="AAPL", qty=1.0, price=100.0)   # spends 100
+        record_analysis_buy(conn, account_id=row["id"], ticker="AAPL", qty=1.0, price=100.0)  # spends 100
         # cash = 0 + 1000(deposit) - 100(buy) = 900; mv at 110 = 110; equity = 1010
         # effective_initial = total_deposited = 1000; return = 1%
         patch_analysis_market_data(monkeypatch, prices={"AAPL": 110.0})
@@ -93,6 +96,7 @@ class TestDepositModel:
 # topWinners / topLosers — non-overlap regression
 # ---------------------------------------------------------------------------
 
+
 class TestTopWinnersLosers:
     def _make_prices_and_buys(
         self, conn: sqlite3.Connection, account_id: int, tickers_and_prices: list[tuple[str, float, float]]
@@ -104,9 +108,7 @@ class TestTopWinnersLosers:
             prices[ticker] = current_price
         return prices
 
-    def test_no_overlap_with_seven_positions(
-        self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_overlap_with_seven_positions(self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
         """Regression: with 7 positions, no ticker should appear in both lists."""
         row = make_analysis_account(conn, "acct", initial_cash=10000.0)
         # 7 positions with varied returns (best→worst: +30, +20, +10, 0, -10, -20, -30)
@@ -164,14 +166,23 @@ class TestTopWinnersLosers:
 # Return dict shape
 # ---------------------------------------------------------------------------
 
+
 class TestReturnShape:
     def test_required_keys_present(self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
         row = make_analysis_account(conn, "acct", initial_cash=1000.0)
         patch_analysis_market_data(monkeypatch)
         result = fetch_account_analysis(conn, row)
-        for key in ("accountReturnPct", "benchmarkReturnPct", "alphaPct",
-                    "realizedPnl", "unrealizedPnl", "equity",
-                    "topWinners", "topLosers", "improvementNotes"):
+        for key in (
+            "accountReturnPct",
+            "benchmarkReturnPct",
+            "alphaPct",
+            "realizedPnl",
+            "unrealizedPnl",
+            "equity",
+            "topWinners",
+            "topLosers",
+            "improvementNotes",
+        ):
             assert key in result, f"Missing key: {key}"
 
     def test_improvement_notes_is_list(self, conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:

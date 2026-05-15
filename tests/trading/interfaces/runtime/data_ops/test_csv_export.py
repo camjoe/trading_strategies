@@ -65,9 +65,7 @@ class TestNameAndPathValidation:
 
 
 class TestTableExport:
-    def test_export_table_to_csv_writes_headers_and_orders_by_id(
-        self, sqlite_db_file: Path, tmp_path: Path
-    ) -> None:
+    def test_export_table_to_csv_writes_headers_and_orders_by_id(self, sqlite_db_file: Path, tmp_path: Path) -> None:
         conn = sqlite3.connect(sqlite_db_file)
         try:
             output_path = tmp_path / "accounts.csv"

@@ -21,9 +21,7 @@ class TestInteractiveBrokersWebAdapter:
             sec_type="STK",
             listing_exchange="NASDAQ",
         )
-        client.fetch_trade_accounts.return_value = {
-            "acctProps": {"U1234567": {"allowCustomerTime": False}}
-        }
+        client.fetch_trade_accounts.return_value = {"acctProps": {"U1234567": {"allowCustomerTime": False}}}
         client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
         adapter = InteractiveBrokersWebAdapter(client=client)
 
@@ -53,9 +51,7 @@ class TestInteractiveBrokersWebAdapter:
             sec_type="STK",
             listing_exchange="NASDAQ",
         )
-        client.fetch_trade_accounts.return_value = {
-            "acctProps": {"U1234567": {"allowCustomerTime": True}}
-        }
+        client.fetch_trade_accounts.return_value = {"acctProps": {"U1234567": {"allowCustomerTime": True}}}
         client.submit_order.return_value = {"order_id": "123", "order_status": "Submitted"}
         adapter = InteractiveBrokersWebAdapter(client=client)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from trading.backtesting.domain.metrics import (
@@ -15,6 +16,8 @@ from trading.backtesting.repositories.leaderboard_repository import (
 )
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
 from trading.backtesting.report_models import BacktestLeaderboardEntry
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_backtest_leaderboard_entries(
@@ -66,7 +69,8 @@ def fetch_backtest_leaderboard_entries(
             )
             if benchmark_ret is not None:
                 alpha_pct = total_return_pct - benchmark_ret
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to compute benchmark return for leaderboard entry: %s", exc, exc_info=True)
             benchmark_ret = None
             alpha_pct = None
 

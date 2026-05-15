@@ -23,17 +23,31 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     )
     conn.execute(
         """
-        INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO equity_snapshots (
+            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (account_id, "2026-01-02T00:00:00Z", 900.0, 100.0, 1000.0, 0.0, 0.0),
     )
     conn.execute(
         """
-        INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)
+        INSERT INTO backtest_runs (
+            account_id, run_name, start_date, end_date, created_at,
+            slippage_bps, fee_per_trade, tickers_file
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (account_id, "run-del", "2026-01-01", "2026-01-31", utc_now_iso(), 5.0, 0.0, "trading/config/trade_universe.txt"),
+        (
+            account_id,
+            "run-del",
+            "2026-01-01",
+            "2026-01-31",
+            utc_now_iso(),
+            5.0,
+            0.0,
+            "trading/config/trade_universe.txt",
+        ),
     )
     run = conn.execute("SELECT id FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchone()
     assert run is not None
@@ -48,7 +62,9 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     )
     conn.execute(
         """
-        INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO backtest_equity_snapshots (
+            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (run_id, "2026-01-10T00:00:00Z", 900.0, 110.0, 1010.0, 0.0, 10.0),
@@ -86,7 +102,9 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     assert group is not None
     conn.execute(
         """
-        INSERT INTO walk_forward_group_runs (group_id, run_id, window_index, window_start, window_end, total_return_pct)
+        INSERT INTO walk_forward_group_runs (
+            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        )
         VALUES (?, ?, ?, ?, ?, ?)
         """,
         (int(group["id"]), run_id, 1, "2026-01-01", "2026-01-31", 1.0),
@@ -105,10 +123,24 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
 
     assert conn.execute("SELECT COUNT(*) AS n FROM accounts WHERE id = ?", (account_id,)).fetchone()["n"] == 0
     assert conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
-    assert conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
-    assert conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
-    assert conn.execute("SELECT COUNT(*) AS n FROM walk_forward_groups WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0
-    assert conn.execute("SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE run_id = ?", (run_id,)).fetchone()["n"] == 0
+    assert (
+        conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (account_id,)).fetchone()["n"]
+        == 0
+    )
+    assert (
+        conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchone()["n"]
+        == 0
+    )
+    assert (
+        conn.execute("SELECT COUNT(*) AS n FROM walk_forward_groups WHERE account_id = ?", (account_id,)).fetchone()[
+            "n"
+        ]
+        == 0
+    )
+    assert (
+        conn.execute("SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE run_id = ?", (run_id,)).fetchone()["n"]
+        == 0
+    )
 
 
 def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -> None:

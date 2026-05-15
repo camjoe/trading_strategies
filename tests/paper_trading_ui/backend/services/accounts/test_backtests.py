@@ -19,7 +19,10 @@ def test_fetch_latest_backtest_summary_none_and_present(conn, create_account_row
 
     conn.execute(
         """
-        INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)
+        INSERT INTO backtest_runs (
+            account_id, run_name, start_date, end_date, created_at,
+            slippage_bps, fee_per_trade, tickers_file
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
@@ -45,7 +48,10 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
     account_id = create_account_row("acct_metrics")
     conn.execute(
         """
-        INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)
+        INSERT INTO backtest_runs (
+            account_id, run_name, start_date, end_date, created_at,
+            slippage_bps, fee_per_trade, tickers_file
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (

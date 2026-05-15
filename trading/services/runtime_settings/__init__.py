@@ -4,6 +4,8 @@ This package is the stable public runtime-settings surface. Concrete logic
 lives in focused modules beneath this package root.
 """
 
+from __future__ import annotations
+
 from trading.services.runtime_settings.models import RuntimeThrottleSettings
 from trading.services.runtime_settings.mutations import (
     set_evaluation_confidence_settings,

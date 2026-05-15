@@ -74,25 +74,13 @@ def build_challenger_metrics_from_backtest_returns(
         start_day=start_day,
         end_day=end_day,
     )
-    returns = [
-        float(return_pct)
-        for candidate, return_pct in rows
-        if str(candidate).strip() == strategy_name
-    ]
+    returns = [float(return_pct) for candidate, return_pct in rows if str(candidate).strip() == strategy_name]
     trade_count = len(returns)
     risk_adjusted_return = _mean(returns)
-    stability = (
-        float(sum(1 for value in returns if value > 0.0)) / float(trade_count)
-        if trade_count > 0
-        else 0.0
-    )
+    stability = float(sum(1 for value in returns if value > 0.0)) / float(trade_count) if trade_count > 0 else 0.0
     drawdown_penalty = abs(min(returns)) if returns and min(returns) < 0 else 0.0
     param_set_row = fetch_active_strategy_param_set(conn, strategy_name=strategy_name)
-    param_set_id = (
-        int(param_set_row["id"])
-        if param_set_row is not None and param_set_row["id"] is not None
-        else None
-    )
+    param_set_id = int(param_set_row["id"]) if param_set_row is not None and param_set_row["id"] is not None else None
     return SleeveStrategyMetrics(
         strategy_name=strategy_name,
         param_set_id=param_set_id,

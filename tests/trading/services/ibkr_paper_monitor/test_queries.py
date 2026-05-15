@@ -41,9 +41,7 @@ def test_fetch_ibkr_paper_accounts_list_filters_managed_accounts(mock_conn: Magi
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries.sleeves"
-        ) as mock_sleeves_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
             mock_accounts_repo.fetch_account_rows.return_value = accounts_to_return
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = []
 
@@ -77,9 +75,7 @@ def test_fetch_ibkr_paper_accounts_list_calculates_totals(mock_conn: MagicMock) 
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries.sleeves"
-        ) as mock_sleeves_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
             mock_accounts_repo.fetch_account_rows.return_value = accounts_to_return
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeves_data
 
@@ -102,9 +98,7 @@ def test_fetch_ibkr_paper_accounts_list_handles_zero_initial_cash(mock_conn: Mag
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries.sleeves"
-        ) as mock_sleeves_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
             mock_accounts_repo.fetch_account_rows.return_value = accounts_to_return
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = []
 
@@ -136,9 +130,7 @@ def test_fetch_account_sleeves_with_metrics(mock_conn: MagicMock) -> None:
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries.daily_metrics"
-        ) as mock_metrics_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.daily_metrics") as mock_metrics_repo:
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
             mock_metrics_repo.fetch_daily_metrics_for_sleeve.return_value = metrics_rows
 
@@ -168,9 +160,7 @@ def test_fetch_account_sleeves_without_metrics(mock_conn: MagicMock) -> None:
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries.daily_metrics"
-        ) as mock_metrics_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.daily_metrics") as mock_metrics_repo:
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
             mock_metrics_repo.fetch_daily_metrics_for_sleeve.return_value = []
 
@@ -210,9 +200,7 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries.rotation_decisions"
-        ) as mock_rotation_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.rotation_decisions") as mock_rotation_repo:
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
             mock_rotation_repo.fetch_rotation_decisions_for_sleeve.side_effect = [
                 rotation_rows_1,
@@ -241,9 +229,7 @@ def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
         },
     ]
 
-    with patch(
-        "trading.services.ibkr_paper_monitor.queries.sleeve_risk_decisions"
-    ) as mock_risk_repo:
+    with patch("trading.services.ibkr_paper_monitor.queries.sleeve_risk_decisions") as mock_risk_repo:
         mock_risk_repo.fetch_sleeve_risk_decisions_for_account.return_value = risk_rows
 
         result = queries._fetch_risk_summary(mock_conn, account_id=1)
@@ -271,15 +257,9 @@ def test_fetch_ibkr_paper_account_detail_aggregates_all_data(
     account = MockAccount(id=1, name="test_account", account_kind="managed", initial_cash=50000.0)
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch(
-            "trading.services.ibkr_paper_monitor.queries._fetch_account_sleeves"
-        ) as mock_fetch_sleeves:
-            with patch(
-                "trading.services.ibkr_paper_monitor.queries._fetch_recent_rotations"
-            ) as mock_fetch_rotations:
-                with patch(
-                    "trading.services.ibkr_paper_monitor.queries._fetch_risk_summary"
-                ) as mock_fetch_risk:
+        with patch("trading.services.ibkr_paper_monitor.queries._fetch_account_sleeves") as mock_fetch_sleeves:
+            with patch("trading.services.ibkr_paper_monitor.queries._fetch_recent_rotations") as mock_fetch_rotations:
+                with patch("trading.services.ibkr_paper_monitor.queries._fetch_risk_summary") as mock_fetch_risk:
                     mock_accounts_repo.fetch_account_by_name.return_value = account
                     mock_fetch_sleeves.return_value = [
                         {

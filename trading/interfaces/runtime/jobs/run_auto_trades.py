@@ -1,3 +1,4 @@
+from __future__ import annotations
 import argparse
 import random
 
@@ -20,9 +21,7 @@ __all__ = ["parse_args", "main", "run_for_account"]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Execute 1-5 simulated daily paper trades per account."
-    )
+    parser = argparse.ArgumentParser(description="Execute 1-5 simulated daily paper trades per account.")
     parser.add_argument(
         "--accounts",
         required=True,

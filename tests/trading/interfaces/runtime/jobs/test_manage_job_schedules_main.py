@@ -38,11 +38,14 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path, _run_m
 
     monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
 
-    assert _run_main_with_args(
-        daily_paper_trading_time="13:10",
-        daily_snapshot_time="13:40",
-        enable_daily_snapshot=True,
-    ) == 0
+    assert (
+        _run_main_with_args(
+            daily_paper_trading_time="13:10",
+            daily_snapshot_time="13:40",
+            enable_daily_snapshot=True,
+        )
+        == 0
+    )
     tasks = captured["tasks"]
     assert isinstance(tasks, list)
     assert len(tasks) == 2
@@ -60,11 +63,14 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
 
     monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
 
-    assert _run_main_with_args(
-        daily_paper_trading_time="13:10",
-        weekly_db_backup_time="02:00",
-        weekly_db_backup_day_of_week="Monday",
-    ) == 0
+    assert (
+        _run_main_with_args(
+            daily_paper_trading_time="13:10",
+            weekly_db_backup_time="02:00",
+            weekly_db_backup_day_of_week="Monday",
+        )
+        == 0
+    )
     tasks = captured["tasks"]
     assert len(tasks) == 2
     weekly = tasks[1]

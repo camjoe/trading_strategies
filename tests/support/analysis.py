@@ -1,4 +1,5 @@
 """Shared helpers for analysis service tests."""
+
 from __future__ import annotations
 
 import sqlite3

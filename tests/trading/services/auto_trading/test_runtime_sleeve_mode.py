@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
 
-import pytest
 
 from trading.repositories.snapshots import insert_snapshot_row
 from trading.repositories.sleeves import (
@@ -71,9 +69,10 @@ def _patch_runtime_sleeve_execution(
 # ---------------------------------------------------------------------------
 
 
-def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(rotation_sleeve_env, conn, monkeypatch) -> None:
+def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
+    rotation_sleeve_env, conn, monkeypatch
+) -> None:
     account_name = rotation_sleeve_env.account_name
-    account_id = rotation_sleeve_env.account_id
     sleeve_id = rotation_sleeve_env.sleeve_id
 
     _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
@@ -125,7 +124,6 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(r
 
 def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_env, conn, monkeypatch) -> None:
     account_name = rotation_sleeve_env.account_name
-    account_id = rotation_sleeve_env.account_id
     sleeve_id = rotation_sleeve_env.sleeve_id
     conn.execute(
         """

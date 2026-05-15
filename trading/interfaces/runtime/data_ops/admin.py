@@ -119,7 +119,9 @@ def _cmd_delete_accounts(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Database admin tools (DB path: local/paper_trading.db by default; configurable via TRADING_DB_PATH)",
+        description=(
+            "Database admin tools (DB path: local/paper_trading.db by default; configurable via TRADING_DB_PATH)"
+        ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

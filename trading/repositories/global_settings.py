@@ -70,9 +70,12 @@ def upsert_evaluation_confidence_settings(
         )
         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
-            evaluation_backtest_trade_count_for_full_confidence = excluded.evaluation_backtest_trade_count_for_full_confidence,
-            evaluation_backtest_snapshot_count_for_full_confidence = excluded.evaluation_backtest_snapshot_count_for_full_confidence,
-            evaluation_paper_live_snapshot_count_for_full_confidence = excluded.evaluation_paper_live_snapshot_count_for_full_confidence,
+            evaluation_backtest_trade_count_for_full_confidence
+                = excluded.evaluation_backtest_trade_count_for_full_confidence,
+            evaluation_backtest_snapshot_count_for_full_confidence
+                = excluded.evaluation_backtest_snapshot_count_for_full_confidence,
+            evaluation_paper_live_snapshot_count_for_full_confidence
+                = excluded.evaluation_paper_live_snapshot_count_for_full_confidence,
             evaluation_backtest_trade_confidence_weight = excluded.evaluation_backtest_trade_confidence_weight,
             evaluation_backtest_snapshot_confidence_weight = excluded.evaluation_backtest_snapshot_confidence_weight,
             evaluation_backtest_evidence_weight = excluded.evaluation_backtest_evidence_weight,
@@ -124,7 +127,8 @@ def upsert_promotion_policy_settings(
             promotion_min_research_backtest_snapshot_count = excluded.promotion_min_research_backtest_snapshot_count,
             promotion_min_research_backtest_return_pct = excluded.promotion_min_research_backtest_return_pct,
             promotion_min_research_max_drawdown_pct = excluded.promotion_min_research_max_drawdown_pct,
-            promotion_min_research_walk_forward_average_return_pct = excluded.promotion_min_research_walk_forward_average_return_pct,
+            promotion_min_research_walk_forward_average_return_pct
+                = excluded.promotion_min_research_walk_forward_average_return_pct,
             promotion_min_live_paper_snapshot_count = excluded.promotion_min_live_paper_snapshot_count,
             promotion_min_live_overall_confidence = excluded.promotion_min_live_overall_confidence,
             updated_at = excluded.updated_at

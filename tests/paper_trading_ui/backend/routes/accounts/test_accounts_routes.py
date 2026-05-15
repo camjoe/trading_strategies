@@ -5,6 +5,7 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 import pytest
 
+
 def test_account_config_options_endpoint_returns_canonical_choices(api_client: TestClient) -> None:
     response = api_client.get("/api/accounts/config/options")
     assert response.status_code == 200

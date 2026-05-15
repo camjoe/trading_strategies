@@ -55,8 +55,7 @@ def resolve_profile_file_path(file_path: str | Path) -> Path:
 
 
 class AccountProfileSource(Protocol):
-    def load_profiles(self) -> list[dict[str, object]]:
-        ...
+    def load_profiles(self) -> list[dict[str, object]]: ...
 
 
 class JsonAccountProfileSource:

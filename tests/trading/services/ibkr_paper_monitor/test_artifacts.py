@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -150,16 +149,12 @@ def test_fetch_governance_checks_status_returns_defaults_when_no_artifacts(
 def test_fetch_governance_checks_status_parses_artifacts(mock_repo_root: Path) -> None:
     """Test that governance check status is parsed correctly."""
     export_dir = mock_repo_root / "local" / "exports"
-    
+
     # Create W1 leaderboard artifact
     w1_dir = export_dir / "weekly_governance_2026_05_10"
     w1_dir.mkdir(parents=True, exist_ok=True)
     w1_artifact = w1_dir / "w1_leaderboard_2026_05_10.json"
-    w1_artifact.write_text(
-        __import__("json").dumps(
-            {"success": True, "run_timestamp": "2026-05-10T10:00:00Z"}
-        )
-    )
+    w1_artifact.write_text(__import__("json").dumps({"success": True, "run_timestamp": "2026-05-10T10:00:00Z"}))
 
     result = artifacts.fetch_governance_checks_status(repo_root=mock_repo_root)
 

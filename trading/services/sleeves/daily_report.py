@@ -117,9 +117,7 @@ def _build_risk_violations(
     account_id: int,
     report_date: str,
 ) -> RiskViolationsSummary:
-    decisions = fetch_sleeve_risk_decisions_for_account_date(
-        conn, account_id=account_id, report_date=report_date
-    )
+    decisions = fetch_sleeve_risk_decisions_for_account_date(conn, account_id=account_id, report_date=report_date)
     block_count = sum(1 for d in decisions if d["action"] == "block")
     rescale_count = sum(1 for d in decisions if d["action"] == "rescale")
     allow_count = sum(1 for d in decisions if d["action"] == "allow")
@@ -153,9 +151,7 @@ def _build_rotation_summary(
     for sleeve in sleeves:
         sleeve_id = int(sleeve["id"])
         sleeve_name = str(sleeve["name"])
-        decisions = fetch_rotation_decisions_for_sleeve_date(
-            conn, sleeve_id=sleeve_id, report_date=report_date
-        )
+        decisions = fetch_rotation_decisions_for_sleeve_date(conn, sleeve_id=sleeve_id, report_date=report_date)
         for d in decisions:
             rows.append(
                 RotationDecisionRow(

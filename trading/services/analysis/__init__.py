@@ -4,6 +4,8 @@ This package is the stable public analysis surface. Concrete logic lives in
 focused modules beneath this package root.
 """
 
+from __future__ import annotations
+
 from trading.services.analysis.queries import fetch_account_analysis
 
 __all__ = [

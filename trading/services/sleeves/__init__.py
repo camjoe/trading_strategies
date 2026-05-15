@@ -4,6 +4,8 @@ This package is the stable public sleeve-orchestration surface for sleeve-level
 accounting updates and account-vs-sleeve reconciliation.
 """
 
+from __future__ import annotations
+
 from trading.services.sleeves.accounting import SleeveFillApplicationResult, apply_sleeve_fill
 from trading.services.sleeves.execution import (
     SleeveTradeIntent,

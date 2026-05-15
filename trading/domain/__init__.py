@@ -1,3 +1,4 @@
+from __future__ import annotations
 from trading.domain.accounting import compute_account_state
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.auto_trader_policy import (

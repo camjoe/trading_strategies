@@ -1,4 +1,5 @@
 """Tests for SocialFeatureProvider and the social_trend_rotation signal function."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -6,7 +7,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from trading.features.base import ExternalFeatureBundle
 from trading.features.social_feature_provider import (
     SOCIAL_MENTION_COUNT,
     SOCIAL_REDDIT_SENTIMENT,
@@ -23,6 +23,7 @@ from trading.backtesting.domain.strategy_signals import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_feature_history(trend: float, mentions: float, reddit: float) -> pd.DataFrame:
     return pd.DataFrame(

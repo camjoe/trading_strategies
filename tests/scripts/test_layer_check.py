@@ -24,6 +24,7 @@ def _run_script(repo: Path) -> subprocess.CompletedProcess[str]:
 # Integration test — real repo must be clean
 # ---------------------------------------------------------------------------
 
+
 def test_layer_check_passes_on_real_repo() -> None:
     """The actual codebase must have zero layer violations."""
     result = run_layer_check(repo_root=PROJECT_ROOT)
@@ -33,6 +34,7 @@ def test_layer_check_passes_on_real_repo() -> None:
 # ---------------------------------------------------------------------------
 # Unit tests for check_rule logic
 # ---------------------------------------------------------------------------
+
 
 def _write_py(directory: Path, name: str, source: str) -> Path:
     path = directory / name
@@ -102,6 +104,7 @@ def test_check_rule_skips_syntax_errors_gracefully(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # CLI exit-code tests
 # ---------------------------------------------------------------------------
+
 
 def test_cli_exits_zero_when_no_violations(tmp_path: Path) -> None:
     src = tmp_path / "services"

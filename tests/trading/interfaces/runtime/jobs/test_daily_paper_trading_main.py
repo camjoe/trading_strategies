@@ -80,6 +80,7 @@ def test_duplicate_run_guard_skips_when_already_done(monkeypatch, tmp_path: Path
     assert code == 0
     assert "skipping duplicate run" in capsys.readouterr().out
 
+
 def test_force_run_bypasses_duplicate_guard(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     today = dt.date.today().strftime("%Y%m%d")
     write_completed_runtime_log(
@@ -189,6 +190,7 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
     assert summary["sleeve_count"] == 2
     assert summary["challenger_count"] == 3
 
+
 def test_unknown_account_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
     set_runtime_eligible_accounts(monkeypatch, DAILY_PAPER_TRADING_MODULE, ["real_acct"])
 
@@ -216,6 +218,7 @@ def test_no_accounts_returns_1(monkeypatch, tmp_path: Path, capsys, _runtime_har
     assert code == 1
     assert "No accounts" in capsys.readouterr().err
 
+
 def test_invalid_primary_trade_cap_returns_1(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
@@ -238,6 +241,7 @@ def test_invalid_shadow_eval_window_returns_1(monkeypatch, tmp_path: Path, capsy
 
     assert code == 1
     assert "shadow-eval-rolling-window-days" in capsys.readouterr().err
+
 
 def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     _runtime_harness.stream_error = RuntimeError("step failed")
@@ -276,6 +280,7 @@ def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_h
     ordered_steps = [step["step"] for step in payload["step_results"]]
     assert ordered_steps == [step_id for step_id, _name in module.DAILY_DAG_STEPS]
 
+
 def test_success_notification_requires_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
@@ -286,6 +291,7 @@ def test_success_notification_requires_flag(monkeypatch, tmp_path: Path, _runtim
 
     assert code == 0
     assert _runtime_harness.notifications == []
+
 
 def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
@@ -306,6 +312,7 @@ def test_success_notification_sent_when_enabled(monkeypatch, tmp_path: Path, _ru
     sent = _runtime_harness.notifications[0]
     assert sent["status"] == "ok"
     assert sent["event"] == "daily-paper-trading"
+
 
 def test_failure_notification_sent_when_run_fails(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     _runtime_harness.stream_error = RuntimeError("step failed")

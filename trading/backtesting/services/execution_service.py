@@ -118,7 +118,9 @@ def run_backtest(
 
         for ticker in strategy_tickers:
             history = close.loc[:signal_date, ticker].dropna()
-            feature_history = None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+            feature_history = (
+                None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+            )
             if feature_history is None:
                 signal = resolve_signal(strategy_name, history)
             else:

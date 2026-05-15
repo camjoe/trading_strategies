@@ -47,7 +47,9 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
         updated_at="2026-05-07T20:00:00Z",
     )
 
-    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
+    report = build_account_daily_report(
+        conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
+    )
 
     assert isinstance(report, AccountDailyReport)
     assert report.account_id == report_env.account_id
@@ -66,7 +68,9 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
 def test_build_report_no_sleeves_returns_empty_sections(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_no_sleeves")
 
-    report = build_account_daily_report(conn, account_id=account_id, account_name="acct_no_sleeves", report_date=REPORT_DATE)
+    report = build_account_daily_report(
+        conn, account_id=account_id, account_name="acct_no_sleeves", report_date=REPORT_DATE
+    )
 
     assert report.sleeve_performance == []
     assert report.rotation_decisions == []
@@ -74,7 +78,9 @@ def test_build_report_no_sleeves_returns_empty_sections(conn) -> None:
 
 
 def test_build_report_sleeve_with_no_metric_returns_none_fields(conn, report_env) -> None:
-    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
+    report = build_account_daily_report(
+        conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
+    )
 
     assert len(report.sleeve_performance) == 1
     sp = report.sleeve_performance[0]
@@ -108,7 +114,9 @@ def test_build_report_risk_violations_counts(conn, report_env) -> None:
             created_at=f"{REPORT_DATE}T10:00:00Z",
         )
 
-    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
+    report = build_account_daily_report(
+        conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
+    )
 
     rv = report.risk_violations
     assert rv.total_decisions == 4
@@ -138,7 +146,9 @@ def test_build_report_risk_violations_excludes_other_dates(conn, report_env) -> 
         created_at="2026-05-06T10:00:00Z",
     )
 
-    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
+    report = build_account_daily_report(
+        conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
+    )
 
     assert report.risk_violations.total_decisions == 0
 
@@ -200,7 +210,9 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
         created_at="2026-05-06T09:00:00Z",
     )
 
-    report = build_account_daily_report(conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE)
+    report = build_account_daily_report(
+        conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
+    )
 
     assert len(report.rotation_decisions) == 1
     rd = report.rotation_decisions[0]

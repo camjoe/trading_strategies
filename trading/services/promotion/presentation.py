@@ -27,10 +27,8 @@ def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
         f"Ready for Live: {render_bool(assessment.ready_for_live)}",
         f"Live Trading Enabled: {render_bool(assessment.live_trading_enabled)}",
         f"Overall Confidence: {assessment.overall_confidence:.2f}",
-        "Evaluation Generated At: "
-        f"{assessment.evaluation_generated_at or NONE_TEXT}",
-        "Data Gaps: "
-        + (", ".join(assessment.data_gaps) if assessment.data_gaps else NONE_TEXT),
+        f"Evaluation Generated At: {assessment.evaluation_generated_at or NONE_TEXT}",
+        "Data Gaps: " + (", ".join(assessment.data_gaps) if assessment.data_gaps else NONE_TEXT),
         f"Next Action: {assessment.next_action}",
     ]
     lines.extend(render_section("Blockers", assessment.blockers))
@@ -67,11 +65,10 @@ def render_promotion_review_history_lines(entries: list[PromotionReviewHistoryEn
             continue
         for event in entry.events:
             actor_text = event.actor_name or NONE_TEXT
-            state_text = (
-                f"{event.from_review_state or NONE_TEXT} -> {event.to_review_state or NONE_TEXT}"
-            )
+            state_text = f"{event.from_review_state or NONE_TEXT} -> {event.to_review_state or NONE_TEXT}"
             lines.append(
-                f"- [{event.event_seq}] {event.created_at} | {event.event_type} | actor={actor_text} | state={state_text}"
+                f"- [{event.event_seq}] {event.created_at} | {event.event_type}"
+                f" | actor={actor_text} | state={state_text}"
             )
             if event.note is not None:
                 lines.append(f"  note: {event.note}")

@@ -40,7 +40,4 @@ def get_repo_root(start: Path | str | None = None) -> Path:
     git_root = _discover_repo_root_via_git(str(start_dir))
     if git_root is not None:
         return git_root
-    raise RuntimeError(
-        "Unable to determine repository root via git from "
-        f"{start_dir}."
-    )
+    raise RuntimeError(f"Unable to determine repository root via git from {start_dir}.")

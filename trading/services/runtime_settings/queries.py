@@ -52,9 +52,7 @@ def fetch_evaluation_confidence_settings(conn: sqlite3.Connection) -> Evaluation
             or defaults.paper_live_snapshot_count_for_full_confidence
         ),
         backtest_trade_confidence_weight=(
-            backtest_trade_weight
-            if backtest_trade_weight is not None
-            else defaults.backtest_trade_confidence_weight
+            backtest_trade_weight if backtest_trade_weight is not None else defaults.backtest_trade_confidence_weight
         ),
         backtest_snapshot_confidence_weight=(
             backtest_snapshot_weight
@@ -62,9 +60,7 @@ def fetch_evaluation_confidence_settings(conn: sqlite3.Connection) -> Evaluation
             else defaults.backtest_snapshot_confidence_weight
         ),
         backtest_evidence_weight=(
-            backtest_evidence_weight
-            if backtest_evidence_weight is not None
-            else defaults.backtest_evidence_weight
+            backtest_evidence_weight if backtest_evidence_weight is not None else defaults.backtest_evidence_weight
         ),
         paper_live_evidence_weight=(
             paper_live_evidence_weight
@@ -81,20 +77,15 @@ def fetch_promotion_policy_settings(conn: sqlite3.Connection) -> PromotionPolicy
     row = fetch_global_settings_row(conn)
     if row is None:
         return defaults
-    min_research_backtest_return_pct = row_float(
-        row, "promotion_min_research_backtest_return_pct"
-    )
-    min_research_max_drawdown_pct = row_float(
-        row, "promotion_min_research_max_drawdown_pct"
-    )
+    min_research_backtest_return_pct = row_float(row, "promotion_min_research_backtest_return_pct")
+    min_research_max_drawdown_pct = row_float(row, "promotion_min_research_max_drawdown_pct")
     min_research_walk_forward_average_return_pct = row_float(
         row, "promotion_min_research_walk_forward_average_return_pct"
     )
     min_live_overall_confidence = row_float(row, "promotion_min_live_overall_confidence")
     return PromotionPolicySettings(
         min_research_backtest_trade_count=(
-            row_int(row, "promotion_min_research_backtest_trade_count")
-            or defaults.min_research_backtest_trade_count
+            row_int(row, "promotion_min_research_backtest_trade_count") or defaults.min_research_backtest_trade_count
         ),
         min_research_backtest_snapshot_count=(
             row_int(row, "promotion_min_research_backtest_snapshot_count")
@@ -116,8 +107,7 @@ def fetch_promotion_policy_settings(conn: sqlite3.Connection) -> PromotionPolicy
             else defaults.min_research_walk_forward_average_return_pct
         ),
         min_live_paper_snapshot_count=(
-            row_int(row, "promotion_min_live_paper_snapshot_count")
-            or defaults.min_live_paper_snapshot_count
+            row_int(row, "promotion_min_live_paper_snapshot_count") or defaults.min_live_paper_snapshot_count
         ),
         min_live_overall_confidence=(
             min_live_overall_confidence

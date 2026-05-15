@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from collections.abc import Callable
 from typing import Any
 
 from common.time import parse_utc_iso
 from trading.services.sleeves.risk_gate import DEFAULT_SYMBOL_SECTOR_MAP, resolve_sector_for_symbol
+
+logger = logging.getLogger(__name__)
 
 
 def compute_current_exposure_snapshot(
@@ -112,12 +115,8 @@ def persist_normalized_sleeve_risk_decisions(
             reason_code=reason_code,
             requested_qty=int(requested_qty_value) if requested_qty_value is not None else None,
             approved_qty=int(approved_qty_value) if approved_qty_value is not None else None,
-            requested_notional=(
-                float(requested_notional_value) if requested_notional_value is not None else None
-            ),
-            approved_notional=(
-                float(approved_notional_value) if approved_notional_value is not None else None
-            ),
+            requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
+            approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
             execution_mode="sleeve",
             risk_payload_json=json.dumps(decision, sort_keys=True),
             created_at=decision_time,
@@ -135,7 +134,8 @@ def is_snapshot_time_stale(
     try:
         snapshot_dt = parse_utc_iso(snapshot_time)
         now_dt = parse_utc_iso(now_iso)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to parse snapshot staleness timestamps: %s", exc, exc_info=True)
         return True
     age_seconds = (now_dt - snapshot_dt).total_seconds()
     return age_seconds > float(max_age_seconds)

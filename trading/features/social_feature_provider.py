@@ -21,6 +21,7 @@ Features emitted:
                               titles in [-1, 1].  0.0 when Reddit is
                               unavailable.
 """
+
 from __future__ import annotations
 
 import logging

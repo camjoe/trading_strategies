@@ -7,15 +7,24 @@ def test_list_account_trades_orders_by_trade_time_then_id(conn) -> None:
     account = get_account(conn, "acct_order")
 
     conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
         (account["id"], "MSFT", "buy", 1.0, 10.0, 0.0, "2026-01-01T00:00:01Z", "second"),
     )
     conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
         (account["id"], "AAPL", "buy", 1.0, 10.0, 0.0, "2026-01-01T00:00:00Z", "first"),
     )
     conn.execute(
-        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
         (account["id"], "GOOG", "buy", 1.0, 10.0, 0.0, "2026-01-01T00:00:01Z", "third"),
     )
     conn.commit()

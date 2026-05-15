@@ -10,9 +10,7 @@ from fastapi.testclient import TestClient
 def test_api_ibkr_paper_accounts_returns_list(api_client: TestClient) -> None:
     """Test that /api/ibkr-paper-accounts returns accounts list."""
     with patch("paper_trading_ui.backend.routes.ibkr_paper_monitor.db_conn") as mock_db:
-        with patch(
-            "paper_trading_ui.backend.routes.ibkr_paper_monitor.fetch_ibkr_paper_accounts_list"
-        ) as mock_fetch:
+        with patch("paper_trading_ui.backend.routes.ibkr_paper_monitor.fetch_ibkr_paper_accounts_list") as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
             mock_fetch.return_value = [

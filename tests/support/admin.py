@@ -18,7 +18,10 @@ def seed_admin_dataset() -> None:
                 (1, 'SPY', 'buy', 1, 100, 0, '2026-01-02T00:00:00Z', ''),
                 (2, 'QQQ', 'buy', 2, 200, 0, '2026-01-02T00:00:00Z', '');
 
-            INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+            INSERT INTO equity_snapshots (
+                account_id, snapshot_time, cash, market_value, equity, realized_pnl,
+                unrealized_pnl
+            )
             VALUES
                 (1, '2026-01-02T00:00:00Z', 900, 100, 1000, 0, 0),
                 (2, '2026-01-02T00:00:00Z', 1300, 200, 1500, 0, 0);
@@ -33,7 +36,10 @@ def seed_admin_dataset() -> None:
                 (11, '2025-01-10T00:00:00Z', 'SPY', 'buy', 1, 100, 0, 0, ''),
                 (22, '2025-01-10T00:00:00Z', 'QQQ', 'buy', 1, 200, 0, 0, '');
 
-            INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+            INSERT INTO backtest_equity_snapshots (
+                run_id, snapshot_time, cash, market_value, equity, realized_pnl,
+                unrealized_pnl
+            )
             VALUES
                 (11, '2025-01-10T00:00:00Z', 900, 100, 1000, 0, 0),
                 (22, '2025-01-10T00:00:00Z', 1300, 200, 1500, 0, 0);
@@ -44,10 +50,18 @@ def seed_admin_dataset() -> None:
                 best_return_pct, worst_return_pct, created_at
             )
             VALUES
-                (301, 'acct_a_wf', 1, 'Trend', 'wf_a', '2025-01-01', '2025-06-01', 1, 1, 1, 2.0, 2.0, 2.0, 2.0, '2026-01-03T00:00:00Z'),
-                (302, 'acct_b_wf', 2, 'Trend', 'wf_b', '2025-01-01', '2025-06-01', 1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-01-03T00:00:00Z');
+                (
+                    301, 'acct_a_wf', 1, 'Trend', 'wf_a', '2025-01-01', '2025-06-01',
+                    1, 1, 1, 2.0, 2.0, 2.0, 2.0, '2026-01-03T00:00:00Z'
+                ),
+                (
+                    302, 'acct_b_wf', 2, 'Trend', 'wf_b', '2025-01-01', '2025-06-01',
+                    1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-01-03T00:00:00Z'
+                );
 
-            INSERT INTO walk_forward_group_runs (group_id, run_id, window_index, window_start, window_end, total_return_pct)
+            INSERT INTO walk_forward_group_runs (
+                group_id, run_id, window_index, window_start, window_end, total_return_pct
+            )
             VALUES
                 (301, 11, 1, '2025-01-01', '2025-06-01', 2.0),
                 (302, 22, 1, '2025-01-01', '2025-06-01', 3.0);
@@ -80,8 +94,14 @@ def seed_admin_dataset() -> None:
                 from_review_state, to_review_state, note, event_payload, created_at
             )
             VALUES
-                (101, 1, 'requested', 'operator', 'alice', NULL, 'requested', 'initial request', '{}', '2026-01-04T00:00:00Z'),
-                (202, 1, 'requested', 'operator', 'bob', NULL, 'requested', 'initial request', '{}', '2026-01-04T00:00:00Z');
+                (
+                    101, 1, 'requested', 'operator', 'alice', NULL, 'requested',
+                    'initial request', '{}', '2026-01-04T00:00:00Z'
+                ),
+                (
+                    202, 1, 'requested', 'operator', 'bob', NULL, 'requested',
+                    'initial request', '{}', '2026-01-04T00:00:00Z'
+                );
             """
         )
         conn.commit()

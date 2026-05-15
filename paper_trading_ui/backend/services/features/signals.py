@@ -29,42 +29,48 @@ def get_signals(ticker: str) -> list[dict[str, Any]]:
 
         if provider is None:
             unavailable = build_unavailable_entry(name, label)
-            signals.append({
-                "strategy": strategy_id,
-                "signal": "hold",
-                "available": False,
-                "features": unavailable["key_scores"],
-                "signal_logic": signal_logic,
-                "feature_descriptions": feature_descriptions,
-                "interpretation": "",
-            })
+            signals.append(
+                {
+                    "strategy": strategy_id,
+                    "signal": "hold",
+                    "available": False,
+                    "features": unavailable["key_scores"],
+                    "signal_logic": signal_logic,
+                    "feature_descriptions": feature_descriptions,
+                    "interpretation": "",
+                }
+            )
             continue
 
         try:
             bundle = provider.get_features(ticker)
         except Exception as exc:
             _LOG.warning("features: get_features failed for %s/%s: %s", strategy_id, ticker, exc)
-            signals.append({
-                "strategy": strategy_id,
-                "signal": "hold",
-                "available": False,
-                "features": {},
-                "signal_logic": signal_logic,
-                "feature_descriptions": feature_descriptions,
-                "interpretation": "",
-            })
+            signals.append(
+                {
+                    "strategy": strategy_id,
+                    "signal": "hold",
+                    "available": False,
+                    "features": {},
+                    "signal_logic": signal_logic,
+                    "feature_descriptions": feature_descriptions,
+                    "interpretation": "",
+                }
+            )
             continue
 
         if not bundle.available:
-            signals.append({
-                "strategy": strategy_id,
-                "signal": "hold",
-                "available": False,
-                "features": {},
-                "signal_logic": signal_logic,
-                "feature_descriptions": feature_descriptions,
-                "interpretation": "",
-            })
+            signals.append(
+                {
+                    "strategy": strategy_id,
+                    "signal": "hold",
+                    "available": False,
+                    "features": {},
+                    "signal_logic": signal_logic,
+                    "feature_descriptions": feature_descriptions,
+                    "interpretation": "",
+                }
+            )
             continue
 
         try:
@@ -73,15 +79,17 @@ def get_signals(ticker: str) -> list[dict[str, Any]]:
             _LOG.warning("features: signal fn failed for %s/%s: %s", strategy_id, ticker, exc)
             signal = "hold"
 
-        signals.append({
-            "strategy": strategy_id,
-            "signal": signal,
-            "available": False,
-            "reason": "no_price_history",
-            "features": bundle.features,
-            "signal_logic": signal_logic,
-            "feature_descriptions": feature_descriptions,
-            "interpretation": interpret_signal(strategy_id, bundle.features),
-        })
+        signals.append(
+            {
+                "strategy": strategy_id,
+                "signal": signal,
+                "available": False,
+                "reason": "no_price_history",
+                "features": bundle.features,
+                "signal_logic": signal_logic,
+                "feature_descriptions": feature_descriptions,
+                "interpretation": interpret_signal(strategy_id, bundle.features),
+            }
+        )
 
     return signals

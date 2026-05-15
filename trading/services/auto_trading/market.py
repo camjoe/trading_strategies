@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from common.constants import ANNUALIZATION_FACTOR
 from trading.services.market_data import get_provider
+
+logger = logging.getLogger(__name__)
 
 
 def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
@@ -19,7 +23,8 @@ def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
                 continue
             vol_annual = float(daily_ret.std() * ANNUALIZATION_FACTOR)
             vols[ticker] = vol_annual
-        except Exception:
+        except Exception as exc:
+            logger.debug("Skipping volatility for %s: %s", ticker, exc, exc_info=True)
             continue
 
     if not vols:

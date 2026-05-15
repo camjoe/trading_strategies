@@ -30,7 +30,9 @@ def _seed_run(conn, *, account_id: int, strategy_name: str, end_date: str, start
     )
     conn.execute(
         """
-        INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO backtest_equity_snapshots (
+            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)
         """,
         (
@@ -58,7 +60,9 @@ def test_history_repository_fetches_rows_with_filters(conn) -> None:
     create_account(conn, "acct_hist", "trend_v1", 10000.0, "SPY")
     account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_hist",)).fetchone()["id"])
 
-    _seed_run(conn, account_id=account_id, strategy_name="trend", end_date="2026-02-01", start_eq=1000.0, end_eq=1100.0)
+    _seed_run(
+        conn, account_id=account_id, strategy_name="trend", end_date="2026-02-01", start_eq=1000.0, end_eq=1100.0
+    )
     _seed_run(conn, account_id=account_id, strategy_name="mean", end_date="2026-02-10", start_eq=1000.0, end_eq=900.0)
 
     rows = fetch_strategy_backtest_rows(

@@ -38,9 +38,7 @@ def test_build_scheduled_tasks_includes_requested_jobs() -> None:
 
 
 def test_build_scheduled_tasks_omits_optional_jobs_without_times() -> None:
-    tasks = module.build_scheduled_tasks(
-        make_manage_job_schedules_args(daily_paper_trading_time="13:10")
-    )
+    tasks = module.build_scheduled_tasks(make_manage_job_schedules_args(daily_paper_trading_time="13:10"))
 
     assert len(tasks) == 1
     assert tasks[0].module == module.DAILY_PAPER_TRADING_MODULE

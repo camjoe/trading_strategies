@@ -31,14 +31,18 @@ def test_get_latest_account_snapshot_prefers_latest_id_for_same_timestamp(conn, 
     account_id = create_account_row("acct_snapshots")
     conn.execute(
         """
-        INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO equity_snapshots (
+            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (account_id, "2026-01-01T00:00:00Z", 1000.0, 100.0, 1100.0, 0.0, 0.0),
     )
     conn.execute(
         """
-        INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO equity_snapshots (
+            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (account_id, "2026-01-01T00:00:00Z", 1000.0, 250.0, 1250.0, 0.0, 0.0),

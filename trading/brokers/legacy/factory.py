@@ -4,6 +4,7 @@ This module isolates backend-selection and adapter construction for the older
 socket/TWS-based IBKR integration so the top-level broker factory can stay
 focused on the current/default Web API path.
 """
+
 from __future__ import annotations
 
 from trading.brokers.base import BrokerConnection
@@ -22,6 +23,7 @@ _IB_BACKEND_NATIVE = "ibapi"
 
 # Switch this to _IB_BACKEND_NATIVE to use the native IBKR API client instead.
 IB_CLIENT_BACKEND: str = _IB_BACKEND_ASYNC
+
 
 def build_legacy_ib_broker(account: AccountRecord) -> BrokerConnection:
     """Build the legacy socket/TWS Interactive Brokers adapter for *account*."""

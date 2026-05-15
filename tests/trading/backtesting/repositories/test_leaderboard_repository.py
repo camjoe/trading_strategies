@@ -30,7 +30,9 @@ def _seed_run(conn, *, account_id: int, strategy_name: str, run_name: str, creat
     )
     conn.execute(
         """
-        INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO backtest_equity_snapshots (
+            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)
         """,
         (

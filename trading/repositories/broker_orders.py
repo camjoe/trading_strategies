@@ -4,6 +4,7 @@ Follows the repository naming convention:
   - reads:  fetch_*
   - writes: insert_*, update_*
 """
+
 from __future__ import annotations
 
 import sqlite3

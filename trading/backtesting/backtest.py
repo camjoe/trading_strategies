@@ -36,6 +36,7 @@ from trading.backtesting.services import (
     run_backtest as run_backtest_impl,
 )
 
+
 def build_walk_forward_windows(
     start_date: date,
     end_date: date,

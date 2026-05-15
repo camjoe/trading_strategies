@@ -56,11 +56,7 @@ def test_handle_snapshot_calls_snapshot_account_dep() -> None:
 
 def test_handle_promotion_status_calls_show_promotion_status_dep() -> None:
     calls: list = []
-    deps = {
-        "show_promotion_status": (
-            lambda _conn, account, strategy: calls.append((account, strategy))
-        )
-    }
+    deps = {"show_promotion_status": (lambda _conn, account, strategy: calls.append((account, strategy)))}
 
     handle_promotion_status(
         object(),
@@ -80,7 +76,9 @@ def test_handle_promotion_request_review_calls_request_dep() -> None:
         "execute_promotion_review_request": (
             lambda _conn, **kwargs: (
                 calls.append(kwargs)
-                or types.SimpleNamespace(id=7, account_name_snapshot="alice", strategy_name="trend_v1", review_state="requested")
+                or types.SimpleNamespace(
+                    id=7, account_name_snapshot="alice", strategy_name="trend_v1", review_state="requested"
+                )
             )
         )
     }
@@ -111,7 +109,11 @@ def test_handle_promotion_request_review_calls_request_dep() -> None:
 
 def test_handle_promotion_review_history_calls_history_dep() -> None:
     calls: list = []
-    deps = {"show_promotion_review_history": lambda _conn, account, strategy, *, limit: calls.append((account, strategy, limit))}
+    deps = {
+        "show_promotion_review_history": lambda _conn, account, strategy, *, limit: calls.append(
+            (account, strategy, limit)
+        )
+    }
 
     handle_promotion_review_history(
         object(),
@@ -142,9 +144,7 @@ def test_handle_promotion_review_action_calls_action_dep() -> None:
         db_path="",
     )
 
-    assert calls == [
-        {"review_id": 7, "action": "approve", "actor_name": "cam", "note": "ship it"}
-    ]
+    assert calls == [{"review_id": 7, "action": "approve", "actor_name": "cam", "note": "ship it"}]
 
 
 def test_handle_snapshot_history_calls_show_snapshots_dep() -> None:

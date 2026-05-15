@@ -10,6 +10,7 @@ from scripts.checks.layer_check import run_layer_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
+from scripts.checks.ruff_check import run_ruff
 from scripts.documentation_ui.check import run_reference_docs_check
 from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
 
@@ -63,6 +64,7 @@ def run_quick(
             reference_doc_exit = run_reference_docs_check(repo_root=repo_root)
             if reference_doc_exit != 0:
                 return reference_doc_exit
+        run_ruff(repo_root=repo_root, python_exe=python_exe)
         run_mypy(repo_root=repo_root, python_exe=python_exe)
         run_pytest(repo_root=repo_root, python_exe=python_exe)
 

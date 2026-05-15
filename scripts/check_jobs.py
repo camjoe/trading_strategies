@@ -34,6 +34,7 @@ WEEKLY_SCRIPT = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _log_has_sentinel(path: Path, sentinel: str) -> bool:
     try:
         return sentinel in path.read_text(encoding="utf-8", errors="replace")
@@ -57,6 +58,7 @@ def _days_ago(d: dt.date) -> str:
 # ---------------------------------------------------------------------------
 # Daily trading job
 # ---------------------------------------------------------------------------
+
 
 def _check_daily_job(
     *,
@@ -130,6 +132,7 @@ def _check_daily_backtest_refresh() -> dict:
 # ---------------------------------------------------------------------------
 # Weekly backup job
 # ---------------------------------------------------------------------------
+
 
 def _check_weekly() -> dict:
     """Return status dict for the weekly database backup job."""
@@ -242,6 +245,7 @@ def _print_weekly(s: dict) -> bool:
 # Optional run-missing
 # ---------------------------------------------------------------------------
 
+
 def _trigger(run_cmd: list[str], label: str) -> None:
     print(f"\n  ▶  Triggering {label}…")
     try:
@@ -258,6 +262,7 @@ def _trigger(run_cmd: list[str], label: str) -> None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check status of scheduled automation jobs.")

@@ -38,7 +38,10 @@ def seed_backtest_run() -> Callable[[str, str], None]:
             assert account is not None
             conn.execute(
                 """
-                INSERT INTO backtest_runs (account_id, run_name, start_date, end_date, created_at, slippage_bps, fee_per_trade, tickers_file)
+                INSERT INTO backtest_runs (
+                    account_id, run_name, start_date, end_date, created_at,
+                    slippage_bps, fee_per_trade, tickers_file
+                )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (

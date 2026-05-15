@@ -142,6 +142,7 @@ def _record_runtime_trade(
     _owns_broker = _injected_broker is None
     broker = _injected_broker if _injected_broker is not None else get_broker_for_account(account)
     try:
+
         def _broker_aware_record_trade(
             conn: sqlite3.Connection,
             *,

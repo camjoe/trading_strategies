@@ -93,42 +93,16 @@ def _build_incumbent_metrics(
     rows: list[sqlite3.Row],
 ) -> SleeveStrategyMetrics:
     risk_adjusted_scores = [
-        float(row["risk_adjusted_score"])
-        for row in rows
-        if row["risk_adjusted_score"] is not None
+        float(row["risk_adjusted_score"]) for row in rows if row["risk_adjusted_score"] is not None
     ]
-    return_pcts = [
-        float(row["return_pct"])
-        for row in rows
-        if row["return_pct"] is not None
-    ]
-    hit_rates = [
-        float(row["hit_rate"])
-        for row in rows
-        if row["hit_rate"] is not None
-    ]
-    drawdown_values = [
-        float(row["drawdown_pct"])
-        for row in rows
-        if row["drawdown_pct"] is not None
-    ]
-    slippage_bps_values = [
-        float(row["slippage_bps"])
-        for row in rows
-        if row["slippage_bps"] is not None
-    ]
-    trade_count = sum(
-        int(row["trade_count"])
-        for row in rows
-        if row["trade_count"] is not None
-    )
+    return_pcts = [float(row["return_pct"]) for row in rows if row["return_pct"] is not None]
+    hit_rates = [float(row["hit_rate"]) for row in rows if row["hit_rate"] is not None]
+    drawdown_values = [float(row["drawdown_pct"]) for row in rows if row["drawdown_pct"] is not None]
+    slippage_bps_values = [float(row["slippage_bps"]) for row in rows if row["slippage_bps"] is not None]
+    trade_count = sum(int(row["trade_count"]) for row in rows if row["trade_count"] is not None)
     drawdown_penalty = abs(min(drawdown_values)) if drawdown_values else 0.0
 
-    risk_adjusted_return = (
-        _average(risk_adjusted_scores)
-        if risk_adjusted_scores
-        else _average(return_pcts)
-    )
+    risk_adjusted_return = _average(risk_adjusted_scores) if risk_adjusted_scores else _average(return_pcts)
     stability = _average(hit_rates)
     cost_penalty = _average(slippage_bps_values) * BASIS_POINTS_TO_PERCENT
     return SleeveStrategyMetrics(
@@ -168,10 +142,9 @@ def _normalize_challengers(
 ) -> list[SleeveStrategyMetrics]:
     normalized: list[SleeveStrategyMetrics] = []
     for challenger in challengers:
-        if (
-            challenger.strategy_name == incumbent_strategy
-            and challenger.param_set_id == incumbent_param_set_id
-        ):
+        is_same_strategy = challenger.strategy_name == incumbent_strategy
+        is_same_param_set = challenger.param_set_id == incumbent_param_set_id
+        if is_same_strategy and is_same_param_set:
             continue
         normalized.append(challenger)
     return normalized

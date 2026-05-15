@@ -32,7 +32,6 @@ GROUP_BY_MODULE = {
 }
 
 
-
 def endpoint_key(method: str, path: str) -> str:
     return f"{method.upper()} {path}"
 

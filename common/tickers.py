@@ -56,9 +56,7 @@ def load_ticker_categories(file_path: str) -> dict[str, list[str]]:
             continue
 
         if current_category is None:
-            raise ValueError(
-                "Invalid category file format: ticker entries must be inside [category] sections."
-            )
+            raise ValueError("Invalid category file format: ticker entries must be inside [category] sections.")
 
         categories[current_category].extend(parse_ticker_tokens(line))
 

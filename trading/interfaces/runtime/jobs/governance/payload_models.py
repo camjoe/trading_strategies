@@ -83,4 +83,3 @@ class WeeklyAllocationArtifactPayload:
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
-

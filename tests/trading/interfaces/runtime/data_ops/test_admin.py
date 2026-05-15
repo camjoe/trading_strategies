@@ -7,7 +7,6 @@ import pytest
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.database.db_init import ensure_db
 from trading.interfaces.runtime.data_ops import admin
-from tests.support.admin import seed_admin_dataset
 
 
 class FixedDateTime:
@@ -25,6 +24,7 @@ def configured_backend(tmp_path: Path):
         yield backend
     finally:
         set_backend(original)
+
 
 class TestParseAccountNames:
     def test_parse_account_names_splits_deduplicates_and_strips(self) -> None:
@@ -60,6 +60,7 @@ class TestBackupDatabase:
 
         assert backup == destination
         assert backup.exists()
+
 
 class TestCommandValidation:
     def test_cmd_delete_accounts_requires_yes_with_all(self) -> None:

@@ -138,10 +138,7 @@ def evaluate_sleeve_risk_gate(
     symbol_sector_map = {key.upper().strip(): value for key, value in config.symbol_sector_map.items()}
 
     sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=int(account_id))
-    sleeve_equity_by_id = {
-        row_expect_int(row, "id"): row_expect_float(row, "current_equity")
-        for row in sleeve_rows
-    }
+    sleeve_equity_by_id = {row_expect_int(row, "id"): row_expect_float(row, "current_equity") for row in sleeve_rows}
     total_equity = sum(sleeve_equity_by_id.values())
     gross_cap_notional = total_equity * max_portfolio_gross_exposure
     symbol_cap_notional = total_equity * max_symbol_concentration_pct
@@ -205,9 +202,7 @@ def evaluate_sleeve_risk_gate(
             if sector is not None:
                 sector_exposure[sector] = max(0.0, sector_exposure.get(sector, 0.0) - exposure_delta)
             sleeve_key = (int(intent.sleeve_id), symbol)
-            sleeve_symbol_exposure[sleeve_key] = max(
-                0.0, sleeve_symbol_exposure.get(sleeve_key, 0.0) - exposure_delta
-            )
+            sleeve_symbol_exposure[sleeve_key] = max(0.0, sleeve_symbol_exposure.get(sleeve_key, 0.0) - exposure_delta)
             decisions.append(
                 SleeveRiskDecision(
                     sleeve_id=int(intent.sleeve_id),
@@ -231,9 +226,7 @@ def evaluate_sleeve_risk_gate(
         remaining_gross_notional = max(0.0, gross_cap_notional - gross_exposure)
         sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
         remaining_sector_notional = (
-            max(0.0, sector_cap_notional - sector_exposure.get(sector, 0.0))
-            if sector is not None
-            else float("inf")
+            max(0.0, sector_cap_notional - sector_exposure.get(sector, 0.0)) if sector is not None else float("inf")
         )
         max_notional = min(
             requested_notional,

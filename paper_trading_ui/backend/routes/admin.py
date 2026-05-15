@@ -60,8 +60,8 @@ def api_operations_overview() -> dict[str, object]:
 
 @router.get("/api/admin/promotion/overview")
 def api_promotion_overview(
-    accountName: str = Query(..., min_length=1),
-    strategyName: str | None = Query(default=None),
+    accountName: str = Query(..., min_length=1),  # noqa: N803
+    strategyName: str | None = Query(default=None),  # noqa: N803
     limit: int = Query(default=5, ge=1, le=20),
 ) -> dict[str, object]:
     """Return promotion readiness plus persisted review history for one account."""
@@ -80,8 +80,8 @@ def api_promotion_overview(
 
 @router.get("/api/admin/exports/csv/preview")
 def api_csv_export_preview(
-    exportName: str = Query(..., min_length=1),
-    fileName: str = Query(..., min_length=1),
+    exportName: str = Query(..., min_length=1),  # noqa: N803
+    fileName: str = Query(..., min_length=1),  # noqa: N803
     limit: int = Query(default=200, ge=1, le=2000),
 ) -> dict[str, object]:
     return preview_csv_export(exportName, fileName, limit)

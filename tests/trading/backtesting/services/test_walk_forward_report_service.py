@@ -14,10 +14,18 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
             fee_per_trade, tickers_file, notes, warnings, created_at
         )
         VALUES
-            (11, 1, 'Trend', 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0, 'tickers.txt', '', '', '2026-02-01T00:00:00Z'),
-            (12, 1, 'Trend', 'wf_02', '2026-02-01', '2026-02-28', 5.0, 0.0, 'tickers.txt', '', '', '2026-03-01T00:00:00Z');
+            (
+                11, 1, 'Trend', 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0,
+                'tickers.txt', '', '', '2026-02-01T00:00:00Z'
+            ),
+            (
+                12, 1, 'Trend', 'wf_02', '2026-02-01', '2026-02-28', 5.0, 0.0,
+                'tickers.txt', '', '', '2026-03-01T00:00:00Z'
+            );
 
-        INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO backtest_equity_snapshots (
+            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES
             (11, '2026-01-01T00:00:00Z', 1000, 0, 1000, 0, 0),
             (11, '2026-01-31T00:00:00Z', 1000, 20, 1020, 0, 20),
@@ -34,7 +42,9 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
             1, 1, 2, 0.5, 0.5, 2.0, -1.0, '2026-03-15T00:00:00Z'
         );
 
-        INSERT INTO walk_forward_group_runs (group_id, run_id, window_index, window_start, window_end, total_return_pct)
+        INSERT INTO walk_forward_group_runs (
+            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        )
         VALUES
             (7, 11, 1, '2026-01-01', '2026-01-31', 2.0),
             (7, 12, 2, '2026-02-01', '2026-02-28', -1.0);
@@ -62,9 +72,14 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
             id, account_id, strategy_name, run_name, start_date, end_date, slippage_bps,
             fee_per_trade, tickers_file, notes, warnings, created_at
         )
-        VALUES (11, 1, 'Trend', 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0, 'tickers.txt', '', '', '2026-02-01T00:00:00Z');
+        VALUES (
+            11, 1, 'Trend', 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0,
+            'tickers.txt', '', '', '2026-02-01T00:00:00Z'
+        );
 
-        INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO backtest_equity_snapshots (
+            run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES
             (11, '2026-01-01T00:00:00Z', 1000, 0, 1000, 0, 0),
             (11, '2026-01-31T00:00:00Z', 1000, 30, 1030, 0, 30);
@@ -79,7 +94,9 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
             1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-03-15T00:00:00Z'
         );
 
-        INSERT INTO walk_forward_group_runs (group_id, run_id, window_index, window_start, window_end, total_return_pct)
+        INSERT INTO walk_forward_group_runs (
+            group_id, run_id, window_index, window_start, window_end, total_return_pct
+        )
         VALUES (9, 11, 1, '2026-01-01', '2026-01-31', 3.0);
         """
     )

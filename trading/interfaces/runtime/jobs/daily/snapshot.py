@@ -126,10 +126,7 @@ def run_snapshot_with_retry(
         delay_seconds = retry_delay_seconds(base_backoff_seconds, attempt)
         tee_line(
             log_path,
-            (
-                f"[{ts()}] RETRY: "
-                f"account={account} attempt={attempt} delay_seconds={delay_seconds:.2f}"
-            ),
+            (f"[{ts()}] RETRY: account={account} attempt={attempt} delay_seconds={delay_seconds:.2f}"),
         )
         sleep_fn(delay_seconds)
 

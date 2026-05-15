@@ -96,14 +96,10 @@ def evaluate_style(path: Path, repo_root: Path, headings: list[tuple[int, str]],
             "Documentation Index",
         }
         missing = [
-            section
-            for section in sorted(recommended_root_sections)
-            if not has_any_heading(headings, {section})
+            section for section in sorted(recommended_root_sections) if not has_any_heading(headings, {section})
         ]
         if missing:
-            issues.append(
-                "Missing recommended root sections: " + ", ".join(missing)
-            )
+            issues.append("Missing recommended root sections: " + ", ".join(missing))
     else:
         if not has_any_heading(headings, {"Purpose", "Overview"}):
             issues.append("Missing context section: add '## Purpose' or '## Overview'.")
@@ -188,9 +184,7 @@ def run_readme_consistency(
                 print(f"- {rel}")
                 print(f"  stale: {report.staleness_issue}")
 
-    should_fail = (enforce_style and style_issue_count > 0) or (
-        enforce_staleness and stale_count > 0
-    )
+    should_fail = (enforce_style and style_issue_count > 0) or (enforce_staleness and stale_count > 0)
     if should_fail:
         print("\nFAIL: README consistency audit failed in enforce mode.")
         return 1

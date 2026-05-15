@@ -97,9 +97,7 @@ def apply_sleeve_fill_transition(
         commission=fill_commission,
     )
     if normalized_side == "sell" and fill_qty > starting_qty:
-        raise ValueError(
-            f"Invalid sell for {normalized_symbol}: trying to sell {fill_qty}, holding {starting_qty}."
-        )
+        raise ValueError(f"Invalid sell for {normalized_symbol}: trying to sell {fill_qty}, holding {starting_qty}.")
 
     if normalized_side == "buy":
         trade_value = fill_qty * fill_px + fill_commission

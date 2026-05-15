@@ -22,9 +22,7 @@ def _settlement_corrected_equity(state: object, prices: object) -> float:
 
     if not isinstance(state, AccountState) or not isinstance(prices, dict):
         return 0.0
-    return state.cash + sum(
-        state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
-    )
+    return state.cash + sum(state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions)
 
 
 def build_account_summary(conn: sqlite3.Connection, row: AccountRecord) -> dict[str, object]:
@@ -125,12 +123,8 @@ def _build_summary_from_stats(
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
         "stopLossPct": row.stop_loss_pct,
         "takeProfitPct": row.take_profit_pct,
-        "tradeSizePct": (
-            row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
-        ),
-        "maxPositionPct": (
-            row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
-        ),
+        "tradeSizePct": (row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT),
+        "maxPositionPct": (row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT),
         "goalMinReturnPct": row.goal_min_return_pct,
         "goalMaxReturnPct": row.goal_max_return_pct,
         "goalPeriod": row.goal_period,
@@ -168,9 +162,7 @@ def _build_summary_from_stats(
     }
 
 
-def _build_positions_from_stats(
-    state: object, prices: dict[str, float]
-) -> list[dict[str, object]]:
+def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list[dict[str, object]]:
     from trading.models.account_state import AccountState
 
     if not isinstance(state, AccountState):

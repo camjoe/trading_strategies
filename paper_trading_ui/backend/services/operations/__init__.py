@@ -17,15 +17,11 @@ from ._jobs import build_job_status
 DAILY_PAPER_TRADING_RUN_HINT = (
     "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual"
 )
-DAILY_SNAPSHOT_RUN_HINT = (
-    "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.snapshot --enable-run"
-)
+DAILY_SNAPSHOT_RUN_HINT = "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.snapshot --enable-run"
 DAILY_BACKTEST_REFRESH_RUN_HINT = (
     "./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run"
 )
-WEEKLY_DB_BACKUP_RUN_HINT = (
-    "./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
-)
+WEEKLY_DB_BACKUP_RUN_HINT = "./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 
 def list_operations_overview() -> dict[str, object]:

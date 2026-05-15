@@ -111,9 +111,7 @@ def build_monthly_universe(
 
         tickers = load_tickers_from_file(str(month_file))
         if not tickers:
-            warnings.append(
-                f"Universe snapshot {month_file.name} is empty; falling back to default universe."
-            )
+            warnings.append(f"Universe snapshot {month_file.name} is empty; falling back to default universe.")
             month_to_tickers[month_key] = list(default_tickers)
             continue
 
