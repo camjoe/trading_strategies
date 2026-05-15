@@ -1,0 +1,27 @@
+# Large-cap universe — top names by market cap across major sectors
+# Information Technology
+AAPL
+MSFT
+NVDA
+AVGO
+# Communication Services
+GOOGL
+META
+# Consumer Discretionary
+AMZN
+TSLA
+# Consumer Staples
+WMT
+PG
+KO
+# Financials
+JPM
+V
+MA
+BAC
+# Health Care
+UNH
+JNJ
+LLY
+# Energy
+XOM

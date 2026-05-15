@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable
 
@@ -38,6 +39,10 @@ def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
     if row is None:
         raise ValueError(f"Account '{name}' not found.")
     return row
+
+
+def _serialize_trade_universes(names: list[str]) -> str:
+    return json.dumps(names, separators=(",", ":"))
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
@@ -126,6 +131,9 @@ def create_account(
                 roll_dte_threshold=cfg.roll_dte_threshold,
                 profit_take_pct=cfg.profit_take_pct,
                 max_loss_pct=cfg.max_loss_pct,
+                trade_universes=(
+                    _serialize_trade_universes(cfg.trade_universes) if cfg.trade_universes is not None else None
+                ),
             ),
         )
     except sqlite3.IntegrityError as exc:
@@ -194,6 +202,10 @@ def configure_account(
         ("max_loss_pct", cfg.max_loss_pct, expect_float),
     ]
     append_numeric_updates(updates, params, numeric_fields)
+
+    if cfg.trade_universes is not None:
+        updates.append("trade_universes = ?")
+        params.append(_serialize_trade_universes(cfg.trade_universes))
     validate_goal_range_from_inputs(account, cfg.goal_min_return_pct, cfg.goal_max_return_pct)
     validate_position_sizing_from_inputs(account, cfg.trade_size_pct, cfg.max_position_pct)
     validate_option_settings_from_inputs(

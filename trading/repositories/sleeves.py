@@ -15,6 +15,7 @@ def insert_strategy_sleeve(
     current_equity: float,
     created_at: str,
     updated_at: str,
+    trade_universes: str | None = None,
 ) -> int:
     cursor = conn.execute(
         """
@@ -27,9 +28,10 @@ def insert_strategy_sleeve(
             current_cash,
             current_equity,
             created_at,
-            updated_at
+            updated_at,
+            trade_universes
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             int(account_id),
@@ -41,12 +43,32 @@ def insert_strategy_sleeve(
             float(current_equity),
             created_at,
             updated_at,
+            trade_universes,
         ),
     )
     conn.commit()
     if cursor.lastrowid is None:
         raise ValueError("Expected strategy_sleeves id after insert.")
     return int(cursor.lastrowid)
+
+
+def update_sleeve_trade_universes(
+    conn: sqlite3.Connection,
+    *,
+    sleeve_id: int,
+    trade_universes: str | None,
+    updated_at: str,
+) -> None:
+    """Persist the trade_universes JSON string for a sleeve (NULL clears the override)."""
+    conn.execute(
+        """
+        UPDATE strategy_sleeves
+        SET trade_universes = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (trade_universes, updated_at, int(sleeve_id)),
+    )
+    conn.commit()
 
 
 def fetch_strategy_sleeve_by_id(

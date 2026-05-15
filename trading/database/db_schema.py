@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}',
     rotation_active_index INTEGER NOT NULL DEFAULT 0,
     rotation_last_at TEXT,
-    rotation_active_strategy TEXT
+    rotation_active_strategy TEXT,
+    trade_universes TEXT
 );
 """
 
@@ -263,6 +264,7 @@ CREATE TABLE IF NOT EXISTS strategy_sleeves (
     current_equity REAL NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    trade_universes TEXT,
     FOREIGN KEY (account_id) REFERENCES accounts(id),
     UNIQUE(account_id, name)
 );

@@ -151,6 +151,7 @@ ACCOUNT_MIGRATIONS = (
     ),
     ColumnMigration("trade_size_pct", "ALTER TABLE accounts ADD COLUMN trade_size_pct REAL"),
     ColumnMigration("max_position_pct", "ALTER TABLE accounts ADD COLUMN max_position_pct REAL"),
+    ColumnMigration("trade_universes", "ALTER TABLE accounts ADD COLUMN trade_universes TEXT"),
 )
 
 BACKTEST_RUN_MIGRATIONS = (
@@ -247,7 +248,9 @@ GLOBAL_SETTINGS_MIGRATIONS = (
 # Placeholder hooks for future additive sleeve-table column migrations.
 # New ColumnMigration entries for these tables should be appended in place.
 SLEEVE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
-    "strategy_sleeves": (),
+    "strategy_sleeves": (
+        ColumnMigration("trade_universes", "ALTER TABLE strategy_sleeves ADD COLUMN trade_universes TEXT"),
+    ),
     "strategy_param_sets": (),
     "sleeve_strategy_assignments": (),
     "rotation_decisions": (),

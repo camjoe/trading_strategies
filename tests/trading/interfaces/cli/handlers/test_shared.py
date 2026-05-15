@@ -96,6 +96,7 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
         "roll_dte_threshold",
         "profit_take_pct",
         "max_loss_pct",
+        "trade_universes",
     }
 
 

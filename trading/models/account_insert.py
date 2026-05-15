@@ -37,3 +37,4 @@ class AccountInsert:
     roll_dte_threshold: int | None
     profit_take_pct: float | None
     max_loss_pct: float | None
+    trade_universes: str | None = None
