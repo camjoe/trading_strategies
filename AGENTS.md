@@ -129,6 +129,50 @@ These phrases are repo conventions for common tasks.
 - Follow `.github/skills/docs-sync/SKILL.md`.
 - After edits, run `python -m scripts.checks.readme_check`.
 
+### `run suite`
+
+Run a focused subset of tests by suite name or individual file path.
+
+- `run suite trading/services` — run all trading services tests
+- `run suite trading/services/market_data` — run tests for one service
+- `run suite trading/services/market_data trading/services/promotion` — combine suites
+- `run suite trading/services/market_data/test_features.py` — target a single file
+- `run suite all` — run the full test suite
+- `run suite --changed` — auto-detect suites from uncommitted changes
+- `run suite --base main` — auto-detect suites from changes vs a branch (PR workflow)
+- `run suite --list` — show all available suite names
+
+Suite names mirror the `tests/` directory tree. After editing files under a
+source area, run the matching suite to validate before committing:
+
+| Changed source area | Run suite |
+|---|---|
+| `trading/services/accounting/` | `trading/services/accounting` |
+| `trading/services/accounts/` | `trading/services/accounts` |
+| `trading/services/admin/` | `trading/services/admin` |
+| `trading/services/analysis/` | `trading/services/analysis` |
+| `trading/services/auto_trading/` | `trading/services/auto_trading` |
+| `trading/services/evaluation/` | `trading/services/evaluation` |
+| `trading/services/ibkr_paper_monitor/` | `trading/services/ibkr_paper_monitor` |
+| `trading/services/market_data/` | `trading/services/market_data` |
+| `trading/services/pricing/` | `trading/services/pricing` |
+| `trading/services/profiles/` | `trading/services/profiles` |
+| `trading/services/promotion/` | `trading/services/promotion` |
+| `trading/services/reporting/` | `trading/services/reporting` |
+| `trading/services/runtime_settings/` | `trading/services` _(no dedicated subdir yet)_ |
+| `trading/services/runtime_throttle/` | `trading/services` _(no dedicated subdir yet)_ |
+| `trading/services/sleeves/` | `trading/services/sleeves` |
+| `trading/services/` (multiple) | `trading/services` |
+| `trading/backtesting/` | `trading/backtesting` |
+| `trading/repositories/` | `trading/repositories` |
+| `trading/interfaces/` | `trading/interfaces` |
+| `paper_trading_ui/backend/` | `paper_trading_ui` |
+| Any area | `all` |
+
+Command: `python -m scripts.checks.run_suite <suite> [extra pytest flags]`
+
+Pass `--no-cov` for fast iteration without coverage overhead.
+
 ### `run checks`
 
 - Run `python -m scripts.run_checks --profile quick`.
