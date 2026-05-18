@@ -1,22 +1,9 @@
-from pathlib import Path
-
 import pytest
 
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from trading.database.db_backend import SQLiteBackend
 from trading.database.db_init import ensure_db
 from trading.services import admin as admin_service
 from tests.support.admin import seed_admin_dataset
-
-
-@pytest.fixture
-def configured_backend(tmp_path: Path):
-    original = get_backend()
-    backend = SQLiteBackend(tmp_path / "paper_trading.db")
-    set_backend(backend)
-    try:
-        yield backend
-    finally:
-        set_backend(original)
 
 
 class TestDeleteAccounts:
