@@ -10,6 +10,7 @@ from scripts.checks.layer_check import run_layer_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
+from scripts.checks.run_suite import run_suite_targeted
 from scripts.checks.ruff_check import run_ruff
 from scripts.documentation_ui.check import run_reference_docs_check
 from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
@@ -35,6 +36,27 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also run all Financial & Market, Software, and API reference sync checks.",
     )
+    parser.add_argument(
+        "--suite",
+        nargs="+",
+        metavar="SUITE",
+        dest="suite_names",
+        default=None,
+        help="Run only the specified test suite(s) instead of the full suite.",
+    )
+    parser.add_argument(
+        "--changed",
+        action="store_true",
+        dest="suite_changed",
+        help="Run only suites with uncommitted changed files (staged + unstaged).",
+    )
+    parser.add_argument(
+        "--base",
+        metavar="REF",
+        dest="suite_base",
+        default=None,
+        help="Run only suites with changes vs a git ref (e.g. 'main', 'origin/main').",
+    )
     return parser.parse_args()
 
 
@@ -51,7 +73,13 @@ def run_quick(
     readme_max_age_days: int = 90,
     with_frontend: bool = False,
     with_reference_doc_checks: bool = False,
+    suite_names: list[str] | None = None,
+    suite_changed: bool = False,
+    suite_base: str | None = None,
 ) -> int:
+    """Run quick checks. When suite targeting args are provided, only those
+    test suites run instead of the full test suite."""
+    use_suite_targeting = bool(suite_names or suite_changed or suite_base)
     try:
         run_readme_consistency(
             repo_root=repo_root,
@@ -66,7 +94,16 @@ def run_quick(
                 return reference_doc_exit
         run_ruff(repo_root=repo_root, python_exe=python_exe)
         run_mypy(repo_root=repo_root, python_exe=python_exe)
-        run_pytest(repo_root=repo_root, python_exe=python_exe)
+        if use_suite_targeting:
+            run_suite_targeted(
+                repo_root=repo_root,
+                python_exe=python_exe,
+                suite_names=suite_names,
+                changed=suite_changed,
+                base_ref=suite_base,
+            )
+        else:
+            run_pytest(repo_root=repo_root, python_exe=python_exe)
 
         if with_frontend:
             frontend_dir = repo_root / "paper_trading_ui" / "frontend"
@@ -90,6 +127,9 @@ def main() -> int:
         readme_max_age_days=args.readme_max_age_days,
         with_frontend=args.with_frontend,
         with_reference_doc_checks=args.with_reference_doc_checks,
+        suite_names=args.suite_names,
+        suite_changed=args.suite_changed,
+        suite_base=args.suite_base,
     )
 
 

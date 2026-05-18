@@ -130,6 +130,21 @@ def _best_suite_for_file(rel_path: str, tests_root: Path) -> str | None:
     return None
 
 
+def _deduplicate_suites(suites: list[str]) -> list[str]:
+    """Remove suites that are already covered by an ancestor suite in the list.
+
+    If both ``trading/services`` and ``trading/services/market_data`` are
+    present, the child is redundant — ``trading/services`` covers it.
+    """
+    sorted_suites = sorted(suites)
+    kept: list[str] = []
+    for suite in sorted_suites:
+        # Keep this suite only if no already-kept suite is a prefix of it
+        if not any(suite == kept_s or suite.startswith(kept_s + "/") for kept_s in kept):
+            kept.append(suite)
+    return kept
+
+
 def detect_suites_from_changes(
     repo_root: Path,
     tests_root: Path,
@@ -148,7 +163,49 @@ def detect_suites_from_changes(
             seen.add(suite)
             suites.append(suite)
 
-    return sorted(suites)
+    return _deduplicate_suites(sorted(suites))
+
+
+def run_suite_targeted(
+    repo_root: Path,
+    python_exe: str,
+    suite_names: list[str] | None = None,
+    changed: bool = False,
+    base_ref: str | None = None,
+    extra_args: list[str] | None = None,
+) -> None:
+    """Run targeted tests; raise ``subprocess.CalledProcessError`` on failure.
+
+    Handles all three selection modes:
+    - Explicit ``suite_names``
+    - ``changed=True`` for uncommitted changes
+    - ``base_ref`` for diff vs a git ref
+
+    Intended for use by other check scripts (e.g. ``quick.py``).
+    """
+    tests_root = repo_root / "tests"
+
+    if changed or base_ref is not None:
+        names = detect_suites_from_changes(repo_root, tests_root, base_ref=base_ref)
+        if not names:
+            source = f"vs {base_ref!r}" if base_ref else "in working tree"
+            print(f"\n==> Python tests: no changed suites found {source} — skipping.")
+            return
+        label = f"--base {base_ref}" if base_ref else "--changed"
+        print(f"Detected suites from {label}: {', '.join(names)}", flush=True)
+    else:
+        names = list(suite_names or [])
+
+    if not names:
+        raise ValueError("run_suite_targeted: no suite names provided")
+
+    exit_code = run_suite(
+        names, repo_root, python_exe, extra_args=["--override-ini", "addopts=-q -n auto", *(extra_args or [])]
+    )
+    if exit_code != 0:
+        import subprocess
+
+        raise subprocess.CalledProcessError(exit_code, ["pytest"])
 
 
 def resolve_targets(names: list[str], repo_root: Path, tests_root: Path) -> list[Path]:
@@ -181,10 +238,7 @@ def resolve_targets(names: list[str], repo_root: Path, tests_root: Path) -> list
                 except OSError:
                     continue
             else:
-                errors.append(
-                    f"  '{name}' — file not found "
-                    f"(tried repo-relative and tests/-relative paths)"
-                )
+                errors.append(f"  '{name}' — file not found (tried repo-relative and tests/-relative paths)")
             continue
 
         # Directory suite name — treated as relative to tests/
@@ -256,6 +310,14 @@ def parse_args() -> argparse.Namespace:
         help="List all available suite names and exit.",
     )
     parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Print which suites would run without actually running them. "
+            "Works with explicit suite names, --changed, and --base."
+        ),
+    )
+    parser.add_argument(
         "--changed",
         action="store_true",
         help=(
@@ -299,16 +361,19 @@ def main() -> int:
     if args.list:
         suites = discover_suites(tests_root)
         print(f"Available suites ({len(suites)} total):\n")
-        print(f"  all  →  tests/  (entire test suite)\n")
+        print("  all  →  tests/  (entire test suite)\n")
         for suite in suites:
             print(f"  {suite}")
         return 0
 
     # Separate suite names from pytest pass-through args.
     suite_names: list[str] = []
-    pytest_extra: list[str] = list(args.extra or [])
-    for token in args.suites or []:
-        if token.startswith("-"):
+    pytest_extra: list[str] = []
+    dry_run = args.dry_run
+    for token in list(args.suites or []) + list(args.extra or []):
+        if token == "--dry-run":
+            dry_run = True  # captured by REMAINDER when placed after positionals
+        elif token.startswith("-"):
             pytest_extra.append(token)
         else:
             suite_names.append(token)
@@ -331,6 +396,8 @@ def main() -> int:
             return 0
         label = f"--base {args.base}" if args.base else "--changed"
         print(f"Detected suites from {label}: {', '.join(suite_names)}")
+    else:
+        suite_names = _deduplicate_suites(suite_names)
 
     if not suite_names:
         print(
@@ -343,6 +410,12 @@ def main() -> int:
         )
         return 1
 
+    if args.dry_run or dry_run:
+        print(f"Suites that would run ({len(suite_names)}):")
+        for name in suite_names:
+            print(f"  {name}")
+        return 0
+
     python_exe = resolve_python_exe(repo_root)
     return run_suite(
         suite_names=suite_names,
@@ -354,4 +427,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
