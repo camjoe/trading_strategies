@@ -2,7 +2,7 @@ import trading.services.auto_trading as auto_trading_service
 from trading.services.accounts import create_account, get_account
 from trading.repositories.rotation import update_account_rotation_state
 from trading.services.auto_trading import RotationDeps
-from tests.support.auto_trading import make_auto_trading_account, make_feature_bundle
+from tests.trading.services.auto_trading.helpers import make_auto_trading_account, make_feature_bundle
 
 
 def _insert_backtest_run(

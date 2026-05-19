@@ -5,7 +5,7 @@ from trading.services.accounts import (
     format_account_policy_text,
     format_goal_text,
 )
-from tests.support.accounts import make_accounts_service_row
+from tests.trading.services.accounts.helpers import make_accounts_service_row
 
 
 class TestFormatGoalText:

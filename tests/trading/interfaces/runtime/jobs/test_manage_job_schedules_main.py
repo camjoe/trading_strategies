@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.runtime_jobs import make_manage_job_schedules_args, manage_job_schedules as module
+from tests.trading.interfaces.runtime.jobs.helpers import (
+    make_manage_job_schedules_args,
+    manage_job_schedules as module,
+)
 
 
 @pytest.fixture

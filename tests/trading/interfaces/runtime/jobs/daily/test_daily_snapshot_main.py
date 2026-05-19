@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.support.runtime_jobs import daily_snapshot as module, make_daily_snapshot_args
+from tests.trading.interfaces.runtime.jobs.helpers import daily_snapshot as module, make_daily_snapshot_args
 
 
 def test_is_run_enabled_true_when_flag_set(monkeypatch) -> None:

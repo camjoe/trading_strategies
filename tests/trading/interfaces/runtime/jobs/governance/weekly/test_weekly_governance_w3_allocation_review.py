@@ -4,7 +4,7 @@ import datetime as dt
 from pathlib import Path
 
 import trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review as module
-from tests.support.runtime_jobs import (
+from tests.trading.interfaces.runtime.jobs.helpers import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
     run_runtime_job_with_args,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from tests.support.runtime_jobs import check_daily_trader_health as module
+from tests.trading.interfaces.runtime.jobs.helpers import check_daily_trader_health as module
 
 
 def test_emit_human_readable_output(capsys) -> None:

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.runtime_jobs import (
+from tests.trading.interfaces.runtime.jobs.helpers import (
     DAILY_PAPER_TRADING_MODULE,
     daily_paper_trading as module,
     load_single_artifact_json,

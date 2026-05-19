@@ -12,7 +12,7 @@ from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
-from tests.support.auto_trading import FakeBroker
+from tests.trading.services.auto_trading.helpers import FakeBroker
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
 

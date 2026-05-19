@@ -6,7 +6,7 @@ from trading.services.promotion import (
     show_promotion_status,
 )
 from trading.services.promotion import presentation as promotion_presentation
-from tests.support.promotion import make_observing_assessment
+from tests.trading.services.promotion.helpers import make_observing_assessment
 
 
 def test_render_promotion_status_lines_returns_read_only_summary() -> None:
@@ -63,7 +63,7 @@ def test_render_promotion_review_history_lines_includes_closure_event_note(
     conn.commit()
     from trading.services.promotion import actions as promotion_actions
     from trading.services.promotion import fetch_promotion_review_history
-    from tests.support.promotion import make_ready_evaluation
+    from tests.trading.services.promotion.helpers import make_ready_evaluation
 
     monkeypatch.setattr(
         promotion_actions,

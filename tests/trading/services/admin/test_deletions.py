@@ -3,7 +3,7 @@ import pytest
 from trading.database.db_backend import SQLiteBackend
 from trading.database.db_init import ensure_db
 from trading.services import admin as admin_service
-from tests.support.admin import seed_admin_dataset
+from tests.trading.services.admin.helpers import seed_admin_dataset
 
 
 class TestDeleteAccounts:

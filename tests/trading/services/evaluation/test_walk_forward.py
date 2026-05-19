@@ -2,7 +2,7 @@ import pytest
 
 from trading.services.accounts import create_account, get_account
 from trading.services.evaluation import fetch_strategy_evaluation
-from tests.support.evaluation import (
+from tests.trading.services.evaluation.helpers import (
     insert_backtest_run,
     insert_backtest_snapshot,
     insert_walk_forward_grouping,

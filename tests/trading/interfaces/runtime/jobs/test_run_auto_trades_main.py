@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from tests.support.runtime_jobs import make_run_auto_trades_args, run_auto_trades as module
+from tests.trading.interfaces.runtime.jobs.helpers import make_run_auto_trades_args, run_auto_trades as module
 
 
 class FakeConn:

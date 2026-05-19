@@ -4,7 +4,7 @@ from pathlib import Path
 
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation
-from tests.support.runtime_jobs import (
+from tests.trading.interfaces.runtime.jobs.helpers import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     daily_challenger_shadow_eval as module,
     load_single_artifact_json,

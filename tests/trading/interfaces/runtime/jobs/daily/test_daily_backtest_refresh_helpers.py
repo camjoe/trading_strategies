@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from tests.support.runtime_jobs import daily_backtest_refresh as module, make_daily_backtest_refresh_args
+from tests.trading.interfaces.runtime.jobs.helpers import (
+    daily_backtest_refresh as module,
+    make_daily_backtest_refresh_args,
+)
 
 
 def test_already_completed_today_detects_sentinel(tmp_path: Path) -> None:

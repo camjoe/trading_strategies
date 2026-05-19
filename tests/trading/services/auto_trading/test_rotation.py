@@ -5,7 +5,11 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import trading.services.auto_trading.rotation as rotation_service
-from tests.support.auto_trading import make_auto_trading_account, make_feature_bundle, make_feature_fetcher
+from tests.trading.services.auto_trading.helpers import (
+    make_auto_trading_account,
+    make_feature_bundle,
+    make_feature_fetcher,
+)
 
 
 def _account(**overrides):

@@ -7,7 +7,11 @@ import sqlite3
 import pytest
 
 from trading.services.analysis import fetch_account_analysis
-from tests.support.analysis import make_analysis_account, patch_analysis_market_data, record_analysis_buy
+from tests.trading.services.analysis.helpers import (
+    make_analysis_account,
+    patch_analysis_market_data,
+    record_analysis_buy,
+)
 
 
 # ---------------------------------------------------------------------------
