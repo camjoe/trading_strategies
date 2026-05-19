@@ -8,7 +8,7 @@ from trading.services.accounts import (
     list_account_names,
     list_account_records,
 )
-from tests.support.seed_db import ACCT_TREND
+from tests.support.seed.db import ACCT_TREND
 
 
 class TestAccountQueries:

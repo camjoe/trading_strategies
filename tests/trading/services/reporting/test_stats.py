@@ -4,7 +4,7 @@ from trading.models import AccountConfig
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import build_account_stats, format_goal_text, infer_overall_trend
 from tests.support.reporting import insert_snapshot, insert_trade
-from tests.support.seed_db import ACCT_MOMENTUM
+from tests.support.seed.db import ACCT_MOMENTUM
 
 
 def test_build_account_stats_uses_price_map(conn, monkeypatch: pytest.MonkeyPatch) -> None:

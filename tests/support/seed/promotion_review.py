@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from tests.support.seed_accounts import ACCT_TREND, PROMOTION_STRATEGY, seed_account_id
+from tests.support.seed.accounts import ACCT_TREND, PROMOTION_STRATEGY, seed_account_id
 
 
 def seed_promotion_review(conn: sqlite3.Connection) -> None:

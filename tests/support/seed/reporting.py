@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from tests.support.seed_accounts import ACCT_TREND, seed_account_id
+from tests.support.seed.accounts import ACCT_TREND, seed_account_id
 
 # ---------------------------------------------------------------------------
 # Public name constants

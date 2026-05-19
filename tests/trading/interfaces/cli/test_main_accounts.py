@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from trading.interfaces.cli import main as cli_main
-from tests.support.cli_main import configure_account_args, install_main_harness
+from tests.support.cli.main import configure_account_args, install_main_harness
 
 
 def test_main_trade_dispatches_and_closes_connection(monkeypatch, capsys) -> None:

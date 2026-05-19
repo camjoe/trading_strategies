@@ -9,7 +9,7 @@ test-infrastructure fixture, not any production behaviour.
 
 from __future__ import annotations
 
-from tests.support.seed_db import (
+from tests.support.seed.db import (
     ACCT_LOCAL,
     ACCT_MOMENTUM,
     ACCT_TREND,
