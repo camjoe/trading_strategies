@@ -187,3 +187,35 @@ class TestSourceLabel:
         provider = _StubProvider(raises=True)
         bundle = provider.get_features("AAPL")
         assert bundle.source == "stub"
+
+
+# ---------------------------------------------------------------------------
+# ExternalFeatureBundle — as_dataframe
+# ---------------------------------------------------------------------------
+
+
+class TestExternalFeatureBundleAsDataframe:
+    def test_to_feature_row_returns_none_when_unavailable(self):
+        bundle = ExternalFeatureBundle.unavailable()
+        assert bundle.to_feature_row() is None
+
+    def test_to_feature_row_returns_dataframe_when_available(self):
+        import pandas as pd
+
+        bundle = ExternalFeatureBundle(features={"x": 1.0, "y": 2.0}, available=True, source="t")
+        df = bundle.to_feature_row()
+        assert df is not None
+        assert isinstance(df, pd.DataFrame)
+        assert df["x"].iloc[0] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# ExternalFeatureProvider — base _feature_names
+# ---------------------------------------------------------------------------
+
+
+class TestFeatureNamesBase:
+    def test_base_feature_names_returns_empty_tuple(self):
+        """The default _feature_names on a provider that does not override it."""
+        provider = _StubProvider()
+        assert provider._feature_names == ()
