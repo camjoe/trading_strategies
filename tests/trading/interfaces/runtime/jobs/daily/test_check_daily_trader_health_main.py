@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from tests.trading.interfaces.runtime.jobs.helpers import check_daily_trader_health as module
+from tests.trading.interfaces.runtime.jobs.loaders import check_daily_trader_health as module
 
 
 def run_main(monkeypatch, argv: list[str]) -> int:

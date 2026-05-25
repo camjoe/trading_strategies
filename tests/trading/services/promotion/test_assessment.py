@@ -3,7 +3,7 @@ import pytest
 from trading.domain.promotion_models import PromotionAssessment
 from trading.services.promotion import fetch_current_promotion_assessment, fetch_promotion_assessment
 from trading.services.promotion import assessment as promotion_assessment
-from tests.trading.services.promotion.helpers import make_ready_evaluation
+from tests.support.promotion import make_ready_evaluation
 
 
 def test_fetch_current_promotion_assessment_uses_evaluation_service(

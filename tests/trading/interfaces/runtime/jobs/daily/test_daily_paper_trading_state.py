@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from pathlib import Path
 
-from tests.trading.interfaces.runtime.jobs.helpers import daily_paper_trading as module
+from tests.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
 
 
 def test_already_completed_today_returns_false_when_no_logs(tmp_path: Path) -> None:

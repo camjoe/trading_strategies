@@ -3,7 +3,7 @@ import pytest
 from trading.models import AccountConfig
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import build_account_stats, format_goal_text, infer_overall_trend
-from tests.trading.services.reporting.helpers import insert_snapshot, insert_trade
+from tests.support.reporting import insert_snapshot, insert_trade
 from tests.support.seed.db import ACCT_MOMENTUM
 
 

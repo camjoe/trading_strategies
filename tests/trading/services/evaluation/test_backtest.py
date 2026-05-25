@@ -3,7 +3,7 @@ import sqlite3
 import pytest
 
 from trading.services.evaluation import fetch_strategy_evaluation
-from tests.trading.services.evaluation.helpers import (
+from tests.support.evaluation import (
     insert_account_snapshot,
     insert_backtest_run,
     insert_backtest_snapshot,

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 import trading.interfaces.runtime.jobs.maintenance.replay_daily_runs as replay_module
-from tests.trading.interfaces.runtime.jobs.helpers import (
+from tests.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
     DAILY_PAPER_TRADING_REPORTING_MODULE,
     daily_paper_trading as daily_module,

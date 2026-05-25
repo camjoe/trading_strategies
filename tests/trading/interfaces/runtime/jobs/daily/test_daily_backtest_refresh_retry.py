@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from tests.trading.interfaces.runtime.jobs.helpers import (
+from tests.trading.interfaces.runtime.jobs.loaders import (
     daily_backtest_refresh as module,
     make_daily_backtest_refresh_args,
 )

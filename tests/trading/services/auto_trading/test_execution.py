@@ -3,7 +3,7 @@ from unittest.mock import patch
 from unittest.mock import Mock
 
 import trading.services.auto_trading.execution as trade_execution_service
-from tests.trading.services.auto_trading.helpers import make_auto_trading_account
+from tests.trading.services.auto_trading.factories import make_auto_trading_account
 
 
 def test_build_leaps_candidates_filters() -> None:

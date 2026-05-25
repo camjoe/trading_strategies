@@ -5,7 +5,7 @@ from pathlib import Path
 
 from trading.domain.promotion_models import PromotionAssessment
 import trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review as module
-from tests.trading.interfaces.runtime.jobs.helpers import (
+from tests.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
     run_runtime_job_with_args,

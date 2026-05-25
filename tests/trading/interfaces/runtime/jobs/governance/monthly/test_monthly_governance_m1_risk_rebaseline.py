@@ -4,7 +4,7 @@ import datetime as dt
 from pathlib import Path
 
 import trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline as module
-from tests.trading.interfaces.runtime.jobs.helpers import (
+from tests.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
     run_runtime_job_with_args,

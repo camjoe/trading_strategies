@@ -1,7 +1,7 @@
 from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
-from tests.trading.services.auto_trading.helpers import (
+from tests.trading.services.auto_trading.factories import (
     FakeBroker,
     RuntimeScenario,
     make_account_state,

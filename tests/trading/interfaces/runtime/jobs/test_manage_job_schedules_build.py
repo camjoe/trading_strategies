@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tests.trading.interfaces.runtime.jobs.helpers import (
+from tests.trading.interfaces.runtime.jobs.loaders import (
     make_manage_job_schedules_args,
     manage_job_schedules as module,
 )

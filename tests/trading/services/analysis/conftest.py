@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from tests.trading.services.analysis.helpers import make_analysis_account
+from tests.support.analysis import make_analysis_account
 
 
 @pytest.fixture
