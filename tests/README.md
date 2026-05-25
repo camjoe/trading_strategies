@@ -132,23 +132,27 @@ Use `-o addopts=` when local environments do not have coverage plugins required 
 
 Daily snapshot scheduler coverage lives in:
 
-- `tests/trading/interfaces/runtime/jobs/test_daily_snapshot_helpers.py`
-- `tests/trading/interfaces/runtime/jobs/test_daily_snapshot_main.py`
+- `tests/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_helpers.py`
+- `tests/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_main.py`
 
 Run only this test slice:
 
 ```sh
-python -m pytest --no-cov \
-  tests/trading/interfaces/runtime/jobs/test_daily_snapshot_helpers.py \
-  tests/trading/interfaces/runtime/jobs/test_daily_snapshot_main.py
+python -m scripts.checks.run_suite trading/interfaces/runtime/jobs/daily
 ```
 
 ## Fixture Hierarchy
 
 - `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).
-- Directory-level `conftest.py` files provide subtree-scoped fixtures (e.g. `sleeve_env`, `account_id`).
-- `tests/trading/services/market_data/conftest.py`: market-data service fixtures, including provider reset per test.
-- `tests/paper_trading_ui/conftest.py`: UI backend fixtures, including `api_client` with isolated DB backend.
+- Suite-level `conftest.py` files provide scoped fixtures for their subtree. Key examples:
+  - `tests/trading/services/analysis/conftest.py` — `analysis_account`
+  - `tests/trading/services/evaluation/conftest.py` — `eval_account`
+  - `tests/trading/services/promotion/conftest.py` — `promotion_account`
+  - `tests/trading/services/admin/conftest.py` — `configured_backend`
+  - `tests/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
+  - `tests/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
+  - `tests/trading/services/market_data/conftest.py` — provider reset per test
+  - `tests/paper_trading_ui/conftest.py` — `api_client` with isolated DB backend
 
 ## Database Fixtures — Which One to Use
 
@@ -156,7 +160,7 @@ python -m pytest --no-cov \
 
 **Use `seeded_conn`** when the test only reads. It is session-scoped and opens the pre-seeded DB read-only (`?mode=ro`). This is faster and does not risk corrupting shared state. The seed covers accounts, trades, snapshots, a sleeve, strategy assignments, daily metrics, backtest runs, and promotion reviews.
 
-Named constants from `tests/support/seed_db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENTUM`, `SLEEVE_TREND`, `SNAPSHOT_T1`) are the shared vocabulary for referencing seeded entities. Always import and use these constants rather than hard-coding string literals.
+Named constants from `tests/support/seed/db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENTUM`, `SLEEVE_TREND`, `SNAPSHOT_T1`) are the shared vocabulary for referencing seeded entities. Always import and use these constants rather than hard-coding string literals.
 
 ## State Isolation
 
@@ -170,3 +174,35 @@ Named constants from `tests/support/seed_db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENT
 - Full repository validation remains `python -m pytest` from repo root.
 - Cross-stack smoke validation is `python -m scripts.run_checks --profile ci`.
 - For parser/default-path changes, include focused checks for CLI parser/handler coverage under `tests/trading/interfaces/cli/` and runtime-job coverage under `tests/trading/interfaces/runtime/jobs/`.
+
+## Test Support Layout
+
+`tests/support/` holds shared test utilities used across multiple test suites.
+
+```
+tests/support/
+  seed/                    # DB population helpers (session-scoped shared DB)
+    db.py                  # orchestrator — called by tests/conftest.py
+    accounts.py, backtesting.py, promotion_review.py,
+    reporting.py, sleeve_data.py
+  cli/                     # CLI test infrastructure
+    backtesting.py, main.py
+  account_records.py       # make_account_record() — used everywhere
+  accounts.py              # make_accounts_service_row()
+  analysis.py              # make_analysis_account(), record_analysis_buy(), patch_analysis_market_data()
+  backtesting.py           # make_backtest_config(), install_backtest_market_data(), etc.
+  brokers.py               # make_broker_account(), make_broker_order()
+  evaluation.py            # insert_backtest_run(), insert_backtest_snapshot(), etc.
+  promotion.py             # make_ready_evaluation(), make_observing_assessment()
+  reporting.py             # insert_trade(), insert_snapshot(), make_evaluation_artifact()
+  repositories.py          # insert_repository_account()
+  sleeves.py               # insert_test_sleeve(), build_sleeve_env()
+```
+
+Helpers that are exclusively used by a single suite live co-located with that suite rather than in `tests/support/`:
+
+- `tests/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders
+- `tests/trading/services/auto_trading/factories.py` — auto-trading fakes and builders
+- `tests/trading/services/admin/factories.py` — admin dataset seeding
+
+**Convention:** if a co-located `factories.py` is imported from outside its own directory, move it to `tests/support/` under a domain-based name.

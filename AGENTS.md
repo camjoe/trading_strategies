@@ -163,6 +163,10 @@ source area, run the matching suite to validate before committing:
 | `trading/services/runtime_throttle/` | `trading/services` _(no dedicated subdir yet)_ |
 | `trading/services/sleeves/` | `trading/services/sleeves` |
 | `trading/services/` (multiple) | `trading/services` |
+| `trading/interfaces/runtime/jobs/daily/` | `trading/interfaces/runtime/jobs/daily` |
+| `trading/interfaces/runtime/jobs/governance/` | `trading/interfaces/runtime/jobs/governance` |
+| `trading/interfaces/runtime/jobs/maintenance/` | `trading/interfaces/runtime/jobs/maintenance` |
+| `trading/brokers/legacy/` | `trading/brokers/legacy` |
 | `trading/backtesting/` | `trading/backtesting` |
 | `trading/repositories/` | `trading/repositories` |
 | `trading/interfaces/` | `trading/interfaces` |
