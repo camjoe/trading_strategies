@@ -1,6 +1,17 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+import pytest
+
+import trading.brokers.ib_web_adapter as ib_web_adapter_module
+from trading.brokers.ib_web_adapter import (
+    InteractiveBrokersWebAdapter,
+    _coerce_bool_flag,
+    _coerce_number,
+    _normalize_fill_time,
+    _requires_manual_order_time,
+    _select_ledger_row,
+    _summary_amount,
+)
 from trading.brokers.ib_web_client import IbWebApiContract
 from trading.models.broker_order import OrderStatus, OrderType
 from tests.support.brokers import make_broker_order
@@ -11,6 +22,14 @@ class TestInteractiveBrokersWebAdapter:
         client = MagicMock()
         client.is_connected.return_value = True
         return client
+
+    def test_connect_delegates_to_client(self):
+        client = self._make_client()
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        adapter.connect()
+
+        client.connect.assert_called_once_with()
 
     def test_place_order_submits_web_order(self):
         client = self._make_client()
@@ -122,3 +141,143 @@ class TestInteractiveBrokersWebAdapter:
         assert len(result) == 1
         assert result[0].status == OrderStatus.FILLED
         assert result[0].fills[0].exec_id == "web-55-10.0-231211180049"
+
+    def test_disconnect_and_cancel_order_delegate_to_client(self):
+        client = self._make_client()
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        adapter.disconnect()
+        adapter.cancel_order("123")
+
+        client.disconnect.assert_called_once_with()
+        client.cancel_order.assert_called_once_with("123")
+
+    def test_cancel_order_requires_connection(self):
+        client = self._make_client()
+        client.is_connected.return_value = False
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        with pytest.raises(RuntimeError, match="not connected"):
+            adapter.cancel_order("123")
+
+    def test_get_open_trades_skips_incomplete_rows_and_marks_partial_fill(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {"ticker": "AAPL"},
+            {"orderId": 1},
+            {
+                "order_id": "77",
+                "description1": "MSFT",
+                "side": "SELL",
+                "quantity": "10",
+                "filledQuantity": "5",
+                "avgPrice": "101.5",
+                "order_status": "Submitted",
+                "limitPrice": "102.0",
+                "commission": "1.25",
+                "lastExecutionTime_r": "2024-01-02T03:04:05Z",
+            },
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_open_trades()
+
+        assert len(result) == 1
+        trade = result[0]
+        assert trade.ticker == "MSFT"
+        assert trade.side == "sell"
+        assert trade.status == OrderStatus.PARTIALLY_FILLED
+        assert trade.price == 102.0
+        assert trade.commission == 1.25
+        assert trade.fills[0].exec_id == "web-77-5.0-2024-01-02T03:04:05Z"
+
+    def test_get_open_trades_does_not_create_fill_without_average_price(self):
+        client = self._make_client()
+        client.fetch_orders.return_value = [
+            {
+                "order_id": "77",
+                "description1": "MSFT",
+                "side": "SELL",
+                "quantity": "10",
+                "filledQuantity": "5",
+                "order_status": "Submitted",
+                "limitPrice": "102.0",
+            },
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        result = adapter.get_open_trades()
+
+        assert len(result) == 1
+        assert result[0].status == OrderStatus.PARTIALLY_FILLED
+        assert result[0].fills == []
+
+    def test_get_positions_skips_blank_symbols_and_unparseable_quantities(self):
+        client = self._make_client()
+        client.fetch_positions.return_value = [
+            {"description": "  ", "position": "1"},
+            {"contractDesc": "AAPL", "position": "5"},
+            {"ticker": "MSFT", "position": " "},
+        ]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_positions() == {"AAPL": 5.0}
+
+    def test_get_account_info_uses_fallback_ledger_and_summary_values(self):
+        client = self._make_client()
+        client.fetch_ledger.return_value = {
+            "EUR": {
+                "cashbalance": "1234.5",
+                "stockmarketvalue": "50",
+                "netliquidationvalue": "1500",
+            }
+        }
+        client.fetch_summary.return_value = {
+            "buyingpower": "skip",
+            "availablefunds": {"value": "2222.0"},
+        }
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_account_info() == {
+            "TotalCashValue": 1234.5,
+            "BuyingPower": 2222.0,
+            "GrossPositionValue": 50.0,
+            "NetLiquidation": 1500.0,
+        }
+
+    def test_get_quotes_skips_rows_for_unknown_conids(self):
+        client = self._make_client()
+        client.resolve_conid.return_value = "265598"
+        client.fetch_marketdata_snapshot.return_value = [{"conid": "999", "31": "1"}]
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_quotes(["AAPL"]) == {}
+
+
+class TestIbWebAdapterHelpers:
+    def test_normalize_fill_time_uses_current_time_for_missing_values(self):
+        with patch.object(ib_web_adapter_module, "utc_now_iso", return_value="2024-01-01T00:00:00Z"):
+            assert _normalize_fill_time(None) == "2024-01-01T00:00:00Z"
+            assert _normalize_fill_time("   ") == "2024-01-01T00:00:00Z"
+
+    def test_select_ledger_row_returns_first_available_mapping_or_empty_dict(self):
+        assert _select_ledger_row({"EUR": {"cashbalance": 1}}) == {"cashbalance": 1}
+        assert _select_ledger_row({"EUR": "skip", "JPY": []}) == {}
+
+    def test_summary_amount_returns_none_for_non_mapping_entry(self):
+        assert _summary_amount({"buyingpower": "bad"}, "buyingpower") is None
+
+    def test_requires_manual_order_time_handles_missing_account_properties(self):
+        assert _requires_manual_order_time({}, "U1") is False
+        assert _requires_manual_order_time({"acctProps": {"U1": "bad"}}, "U1") is False
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(" ", None), ("1,234.5", 1234.5)],
+    )
+    def test_coerce_number_handles_blank_and_numeric_strings(self, value, expected):
+        assert _coerce_number(value) == expected
+
+    @pytest.mark.parametrize(("value", "expected"), [("maybe", False), ("true", True), (None, False)])
+    def test_coerce_bool_flag_handles_invalid_values(self, value, expected):
+        assert _coerce_bool_flag(value) is expected
