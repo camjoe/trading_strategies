@@ -1,11 +1,14 @@
 import pytest
 
+from trading.domain.promotion_models import PromotionReviewEvent, PromotionReviewRecord
 from trading.services.promotion import (
     render_promotion_review_history_lines,
     render_promotion_status_lines,
+    show_promotion_review_history,
     show_promotion_status,
 )
 from trading.services.promotion import presentation as promotion_presentation
+from trading.services.promotion.history import PromotionReviewHistoryEntry
 from tests.support.promotion import make_observing_assessment
 
 
@@ -48,6 +51,82 @@ def test_show_promotion_status_prints_read_only_summary(
     assert "Ready for Live: no" in out
     assert "Data Gaps: missing_paper_live_evidence" in out
     assert "- Paper evidence is required before manual promotion review." in out
+
+
+def test_render_promotion_review_history_lines_includes_none_when_no_entries() -> None:
+    assert render_promotion_review_history_lines([]) == ["Promotion Review History:", "- none"]
+
+
+
+def test_render_promotion_review_history_lines_includes_none_when_entry_has_no_events() -> None:
+    lines = render_promotion_review_history_lines(
+        [
+            PromotionReviewHistoryEntry(
+                review=PromotionReviewRecord(
+                    id=4,
+                    account_name_snapshot="acct_service",
+                    strategy_name="trend_v1",
+                    review_state="requested",
+                    ready_for_live=False,
+                    created_at="2026-01-01T00:00:00Z",
+                    updated_at="2026-01-02T00:00:00Z",
+                ),
+                events=[],
+            )
+        ]
+    )
+
+    assert "Events:" in lines
+    assert "- none" in lines
+
+
+
+def test_show_promotion_review_history_prints_and_returns_entries(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    entries = [
+        PromotionReviewHistoryEntry(
+            review=PromotionReviewRecord(
+                id=9,
+                account_name_snapshot="acct_service",
+                strategy_name="trend_v1",
+                review_state="approved",
+                ready_for_live=True,
+                requested_by="cam",
+                reviewed_by="reviewer",
+                operator_summary_note="approved for manual promotion",
+                created_at="2026-01-01T00:00:00Z",
+                updated_at="2026-01-02T00:00:00Z",
+                closed_at="2026-01-02T00:00:00Z",
+            ),
+            events=[
+                PromotionReviewEvent(
+                    event_seq=1,
+                    event_type="approved",
+                    actor_name="reviewer",
+                    from_review_state="requested",
+                    to_review_state="approved",
+                    note="approved for manual promotion",
+                    created_at="2026-01-02T00:00:00Z",
+                )
+            ],
+        )
+    ]
+    monkeypatch.setattr(
+        promotion_presentation,
+        "fetch_promotion_review_history",
+        lambda _conn, *, account_name, strategy_name=None, limit=10: entries,
+    )
+
+    returned = show_promotion_review_history(object(), "acct_service", "trend_v1", limit=5)
+    out = capsys.readouterr().out
+
+    assert returned == entries
+    assert "Promotion Review History:" in out
+    assert "Review #9: acct_service/trend_v1" in out
+    assert "approved for manual promotion" in out
+
 
 
 def test_render_promotion_review_history_lines_includes_closure_event_note(

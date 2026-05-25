@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import pytest
+
 from trading.repositories.sleeve_positions import upsert_sleeve_position
 from trading.services.sleeves.execution import SleeveTradeIntent
+from trading.services.sleeves import risk_gate as sleeve_risk_gate
 from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
@@ -141,3 +144,114 @@ def test_evaluate_sleeve_risk_gate_blocks_when_sector_cap_is_exhausted(conn) -> 
     assert result.blocked_count == 1
     assert result.decisions[0].action == "block"
     assert result.decisions[0].reason_code == "sector_concentration_cap"
+
+
+
+def test_evaluate_sleeve_risk_gate_returns_empty_result_for_no_intents(conn) -> None:
+    result = evaluate_sleeve_risk_gate(conn, account_id=1, intents=[])
+
+    assert result.approved_intents == []
+    assert result.decisions == []
+    assert result.allowed_count == 0
+    assert result.rescaled_count == 0
+    assert result.blocked_count == 0
+    assert result.gross_exposure_before == 0.0
+    assert result.gross_exposure_after == 0.0
+
+
+
+def test_evaluate_sleeve_risk_gate_rejects_non_positive_config(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_risk_bad_config")
+    sleeve_id = _insert_sleeve(conn, account_id=account_id, sleeve_id=7, equity=1_000.0)
+    intent = SleeveTradeIntent(
+        account_id=account_id,
+        sleeve_id=sleeve_id,
+        strategy_name="trend",
+        param_set_id=None,
+        side="buy",
+        symbol="AAPL",
+        qty=1,
+        requested_price=100.0,
+        forced_sell=None,
+        delta_est=None,
+        iv_est=None,
+    )
+
+    with pytest.raises(ValueError, match="max_sleeve_notional_pct must be > 0"):
+        evaluate_sleeve_risk_gate(
+            conn,
+            account_id=account_id,
+            intents=[intent],
+            config=sleeve_risk_gate.SleeveRiskGateConfig(max_sleeve_notional_pct=0.0),
+        )
+
+
+
+def test_resolve_sector_for_symbol_returns_none_for_blank_mapping() -> None:
+    assert sleeve_risk_gate.resolve_sector_for_symbol("AAPL", symbol_sector_map={"AAPL": "   "}) is None
+    assert sleeve_risk_gate.resolve_sector_for_symbol("MSFT", symbol_sector_map={}) is None
+
+
+
+def test_evaluate_sleeve_risk_gate_blocks_non_positive_qty(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_risk_non_positive_qty")
+    sleeve_id = _insert_sleeve(conn, account_id=account_id, sleeve_id=8, equity=1_000.0)
+    intent = SleeveTradeIntent(
+        account_id=account_id,
+        sleeve_id=sleeve_id,
+        strategy_name="trend",
+        param_set_id=None,
+        side="buy",
+        symbol="AAPL",
+        qty=0,
+        requested_price=100.0,
+        forced_sell=None,
+        delta_est=None,
+        iv_est=None,
+    )
+
+    result = evaluate_sleeve_risk_gate(conn, account_id=account_id, intents=[intent])
+
+    assert result.approved_intents == []
+    assert result.blocked_count == 1
+    assert result.decisions[0].action == "block"
+    assert result.decisions[0].reason_code == "non_positive_qty"
+    assert result.decisions[0].approved_qty == 0
+
+
+
+def test_evaluate_sleeve_risk_gate_allows_sell_and_reduces_exposure(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_risk_sell")
+    sleeve_id = _insert_sleeve(conn, account_id=account_id, sleeve_id=9, equity=1_000.0)
+    upsert_sleeve_position(
+        conn,
+        sleeve_id=sleeve_id,
+        symbol="AAPL",
+        qty=3.0,
+        avg_cost=100.0,
+        market_value=300.0,
+        unrealized_pnl=0.0,
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    intent = SleeveTradeIntent(
+        account_id=account_id,
+        sleeve_id=sleeve_id,
+        strategy_name="trend",
+        param_set_id=None,
+        side="sell",
+        symbol="AAPL",
+        qty=2,
+        requested_price=100.0,
+        forced_sell=None,
+        delta_est=None,
+        iv_est=None,
+    )
+
+    result = evaluate_sleeve_risk_gate(conn, account_id=account_id, intents=[intent])
+
+    assert len(result.approved_intents) == 1
+    assert result.allowed_count == 1
+    assert result.decisions[0].action == "allow"
+    assert result.decisions[0].reason_code == "risk_reducing_sell"
+    assert result.gross_exposure_before == 300.0
+    assert result.gross_exposure_after == 100.0

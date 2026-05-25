@@ -74,7 +74,34 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     assert seen_modes == ["sleeve", "sleeve"]
 
 
-def test_parse_runtime_as_of_iso_handles_supported_formats() -> None:
+def test_resolve_market_inputs_raises_when_universe_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: [])
+
+    with pytest.raises(ValueError, match="Ticker universe is empty"):
+        auto_trading_inputs.resolve_market_inputs("tickers.txt")
+
+
+def test_resolve_market_inputs_raises_when_prices_are_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
+    monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe: {})
+
+    with pytest.raises(ValueError, match="Could not fetch any prices"):
+        auto_trading_inputs.resolve_market_inputs("tickers.txt")
+
+
+def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+    fake_runtime = types.ModuleType("trading.services.auto_trading.runtime")
+    fake_runtime.run_for_account = lambda **kwargs: kwargs["min_trades"]  # type: ignore[attr-defined]
+    import sys
+    monkeypatch.setitem(sys.modules, "trading.services.auto_trading.runtime", fake_runtime)
+
+    result = auto_trading_inputs._run_account_trade_loop(
+        conn=object(), account_name="acct1", universe=["AAPL"],
+        prices={"AAPL": 100.0}, iv_rank_proxy={},
+        min_trades=3, max_trades=5, fee=0.0, execution_mode="account",
+    )
+    assert result == 3
     from common.time import parse_utc_iso
 
     naive = parse_utc_iso("2026-03-21T12:00:00")
