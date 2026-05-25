@@ -14,69 +14,61 @@ def run_main(monkeypatch, argv: list[str]) -> int:
     return module.main()
 
 
-def log_dir(tmp_path: Path) -> Path:
-    path = tmp_path / "local" / "logs"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def write_execution_log(tmp_path: Path, text: str) -> Path:
-    path = log_dir(tmp_path) / "daily_paper_trading_20260417_120000.log"
+def write_execution_log(job_root: Path, text: str) -> Path:
+    path = job_root / "local" / "logs" / "daily_paper_trading_20260417_120000.log"
     path.write_text(text, encoding="utf-8")
     return path
 
 
-def test_no_logs_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    log_dir(tmp_path)
-
-    code = run_main(monkeypatch, ["--repo-root", str(tmp_path)])
+def test_no_logs_returns_1(monkeypatch, job_root: Path, capsys) -> None:
+    code = run_main(monkeypatch, ["--repo-root", str(job_root)])
 
     assert code == 1
     assert "No daily trader logs found" in capsys.readouterr().out
 
 
-def test_stale_log_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    log = write_execution_log(tmp_path, "anything\n")
+def test_stale_log_returns_1(monkeypatch, job_root: Path, capsys) -> None:
+    log = write_execution_log(job_root, "anything\n")
     old_time = time.time() - 48 * 3600
     os.utime(log, (old_time, old_time))
 
-    code = run_main(monkeypatch, ["--repo-root", str(tmp_path), "--max-age-hours", "24"])
+    code = run_main(monkeypatch, ["--repo-root", str(job_root), "--max-age-hours", "24"])
 
     assert code == 1
     assert "stale" in capsys.readouterr().out
 
 
-def test_recent_log_missing_sentinel_returns_1(monkeypatch, tmp_path: Path, capsys) -> None:
-    write_execution_log(tmp_path, "partial run\n")
+def test_recent_log_missing_sentinel_returns_1(monkeypatch, job_root: Path, capsys) -> None:
+    write_execution_log(job_root, "partial run\n")
 
-    code = run_main(monkeypatch, ["--repo-root", str(tmp_path), "--max-age-hours", "9999"])
+    code = run_main(monkeypatch, ["--repo-root", str(job_root), "--max-age-hours", "9999"])
 
     assert code == 1
     assert "sentinel" in capsys.readouterr().out
 
 
-def test_recent_log_with_sentinel_returns_0(monkeypatch, tmp_path: Path) -> None:
-    write_execution_log(tmp_path, f"run started\n{module.COMPLETE_SENTINEL}\n")
+def test_recent_log_with_sentinel_returns_0(monkeypatch, job_root: Path) -> None:
+    write_execution_log(job_root, f"run started\n{module.COMPLETE_SENTINEL}\n")
 
-    assert run_main(monkeypatch, ["--repo-root", str(tmp_path), "--max-age-hours", "9999"]) == 0
+    assert run_main(monkeypatch, ["--repo-root", str(job_root), "--max-age-hours", "9999"]) == 0
 
 
-def test_startup_log_is_ignored_when_execution_log_exists(monkeypatch, tmp_path: Path) -> None:
-    write_execution_log(tmp_path, f"run started\n{module.COMPLETE_SENTINEL}\n")
-    startup_log = log_dir(tmp_path) / "daily_paper_trading_startup_20260417.log"
+def test_startup_log_is_ignored_when_execution_log_exists(monkeypatch, job_root: Path) -> None:
+    write_execution_log(job_root, f"run started\n{module.COMPLETE_SENTINEL}\n")
+    startup_log = job_root / "local" / "logs" / "daily_paper_trading_startup_20260417.log"
     startup_log.write_text("later startup without sentinel\n", encoding="utf-8")
     now = time.time()
     os.utime(startup_log, (now, now))
 
-    assert run_main(monkeypatch, ["--repo-root", str(tmp_path), "--max-age-hours", "9999"]) == 0
+    assert run_main(monkeypatch, ["--repo-root", str(job_root), "--max-age-hours", "9999"]) == 0
 
 
-def test_json_flag_emits_json(monkeypatch, tmp_path: Path, capsys) -> None:
-    write_execution_log(tmp_path, f"{module.COMPLETE_SENTINEL}\n")
+def test_json_flag_emits_json(monkeypatch, job_root: Path, capsys) -> None:
+    write_execution_log(job_root, f"{module.COMPLETE_SENTINEL}\n")
 
     code = run_main(
         monkeypatch,
-        ["--repo-root", str(tmp_path), "--max-age-hours", "9999", "--json"],
+        ["--repo-root", str(job_root), "--max-age-hours", "9999", "--json"],
     )
 
     assert code == 0
@@ -85,8 +77,8 @@ def test_json_flag_emits_json(monkeypatch, tmp_path: Path, capsys) -> None:
     assert data["sentinel_found"] is True
 
 
-def test_failure_sends_notification_when_webhook_configured(monkeypatch, tmp_path: Path) -> None:
-    write_execution_log(tmp_path, "partial run\n")
+def test_failure_sends_notification_when_webhook_configured(monkeypatch, job_root: Path) -> None:
+    write_execution_log(job_root, "partial run\n")
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
         module,
@@ -98,7 +90,7 @@ def test_failure_sends_notification_when_webhook_configured(monkeypatch, tmp_pat
         monkeypatch,
         [
             "--repo-root",
-            str(tmp_path),
+            str(job_root),
             "--max-age-hours",
             "9999",
             "--notify-webhook-url",
@@ -112,8 +104,8 @@ def test_failure_sends_notification_when_webhook_configured(monkeypatch, tmp_pat
     assert sent[0]["event"] == "daily-trader-health"
 
 
-def test_success_does_not_send_notification_without_notify_on_ok(monkeypatch, tmp_path: Path) -> None:
-    write_execution_log(tmp_path, f"{module.COMPLETE_SENTINEL}\n")
+def test_success_does_not_send_notification_without_notify_on_ok(monkeypatch, job_root: Path) -> None:
+    write_execution_log(job_root, f"{module.COMPLETE_SENTINEL}\n")
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
         module,
@@ -125,7 +117,7 @@ def test_success_does_not_send_notification_without_notify_on_ok(monkeypatch, tm
         monkeypatch,
         [
             "--repo-root",
-            str(tmp_path),
+            str(job_root),
             "--max-age-hours",
             "9999",
             "--notify-webhook-url",
@@ -137,8 +129,8 @@ def test_success_does_not_send_notification_without_notify_on_ok(monkeypatch, tm
     assert sent == []
 
 
-def test_success_sends_notification_with_notify_on_ok(monkeypatch, tmp_path: Path) -> None:
-    write_execution_log(tmp_path, f"{module.COMPLETE_SENTINEL}\n")
+def test_success_sends_notification_with_notify_on_ok(monkeypatch, job_root: Path) -> None:
+    write_execution_log(job_root, f"{module.COMPLETE_SENTINEL}\n")
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
         module,
@@ -150,7 +142,7 @@ def test_success_sends_notification_with_notify_on_ok(monkeypatch, tmp_path: Pat
         monkeypatch,
         [
             "--repo-root",
-            str(tmp_path),
+            str(job_root),
             "--max-age-hours",
             "9999",
             "--notify-webhook-url",

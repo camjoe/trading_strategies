@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from tests.support.cli.backtesting import (
+from tests.trading.interfaces.cli.factories import (
     make_backtest_args,
     make_backtest_batch_args,
     make_backtest_result,

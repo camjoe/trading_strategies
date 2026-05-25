@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from tests.support.cli.backtesting import (
+from tests.trading.interfaces.cli.factories import (
     make_backtest_args,
     make_backtest_batch_args,
     make_backtest_result,
     make_walk_forward_args,
     make_walk_forward_summary,
 )
-from tests.support.cli.main import install_main_harness
+from tests.trading.interfaces.cli.helpers import install_main_harness
 from trading.interfaces.cli import main as cli_main
 
 

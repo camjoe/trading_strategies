@@ -7,11 +7,8 @@ from tests.support.reporting import insert_snapshot, insert_trade
 from tests.support.seed.db import ACCT_MOMENTUM
 
 
-def test_build_account_stats_uses_price_map(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_report", "Trend", 1000.0, "SPY")
-    account = get_account(conn, "acct_report")
-
-    insert_trade(conn, account["id"], "AAPL", 2.0, 100.0)
+def test_build_account_stats_uses_price_map(reporting_account, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    insert_trade(conn, reporting_account["id"], "AAPL", 2.0, 100.0)
     conn.commit()
 
     monkeypatch.setattr(
@@ -19,7 +16,7 @@ def test_build_account_stats_uses_price_map(conn, monkeypatch: pytest.MonkeyPatc
         lambda _tickers: {"AAPL": 120.0},
     )
 
-    state, prices, market_value, unrealized, equity = build_account_stats(conn, account)
+    state, prices, market_value, unrealized, equity = build_account_stats(conn, reporting_account)
 
     assert state.cash == pytest.approx(800.0)
     assert prices == {"AAPL": 120.0}
@@ -28,12 +25,9 @@ def test_build_account_stats_uses_price_map(conn, monkeypatch: pytest.MonkeyPatc
     assert equity == pytest.approx(1040.0)
 
 
-def test_build_account_stats_ignores_positions_without_price(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_missing_px", "Trend", 1000.0, "SPY")
-    account = get_account(conn, "acct_missing_px")
-
-    insert_trade(conn, account["id"], "AAPL", 2.0, 100.0)
-    insert_trade(conn, account["id"], "MSFT", 1.0, 50.0, trade_time="2026-01-01T00:00:01Z")
+def test_build_account_stats_ignores_positions_without_price(reporting_account, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    insert_trade(conn, reporting_account["id"], "AAPL", 2.0, 100.0)
+    insert_trade(conn, reporting_account["id"], "MSFT", 1.0, 50.0, trade_time="2026-01-01T00:00:01Z")
     conn.commit()
 
     monkeypatch.setattr(
@@ -41,7 +35,7 @@ def test_build_account_stats_ignores_positions_without_price(conn, monkeypatch: 
         lambda _tickers: {"AAPL": 120.0},
     )
 
-    state, prices, market_value, unrealized, equity = build_account_stats(conn, account)
+    state, prices, market_value, unrealized, equity = build_account_stats(conn, reporting_account)
 
     assert state.cash == pytest.approx(750.0)
     assert prices == {"AAPL": 120.0}
@@ -58,15 +52,12 @@ def test_build_account_stats_ignores_positions_without_price(conn, monkeypatch: 
         ([1000.0, 995.0, 990.0], 991.0, "flat"),
     ],
 )
-def test_infer_overall_trend_uses_snapshot_history(conn, history, current_equity: float, expected: str) -> None:
-    create_account(conn, "acct_trend", "Trend", 1000.0, "SPY")
-    account = get_account(conn, "acct_trend")
-
+def test_infer_overall_trend_uses_snapshot_history(reporting_account, conn, history, current_equity: float, expected: str) -> None:
     for index, equity in enumerate(history, start=1):
-        insert_snapshot(conn, account["id"], f"2026-01-0{index}T00:00:00Z", equity)
+        insert_snapshot(conn, reporting_account["id"], f"2026-01-0{index}T00:00:00Z", equity)
     conn.commit()
 
-    assert infer_overall_trend(conn, account["id"], current_equity=current_equity, lookback=10) == expected
+    assert infer_overall_trend(conn, reporting_account["id"], current_equity=current_equity, lookback=10) == expected
 
 
 def test_infer_overall_trend_returns_insufficient_data_without_enough_points(seeded_conn) -> None:

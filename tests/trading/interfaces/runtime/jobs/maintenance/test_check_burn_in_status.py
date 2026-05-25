@@ -155,25 +155,22 @@ class TestNotReadyWhenFailureRateExceeded:
 
 
 class TestDedupGuardSkipsWhenAlreadyDone:
-    def test_dedup_guard_skips_when_already_done(self, monkeypatch, tmp_path: Path, capsys) -> None:
+    def test_dedup_guard_skips_when_already_done(self, monkeypatch, job_root: Path, capsys) -> None:
         mod = _mod()
-        logs_dir = tmp_path / "local" / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-
         today_tag = "20260520"
-        sentinel_log = logs_dir / f"check_burn_in_status_{today_tag}_120000.log"
+        sentinel_log = job_root / "local" / "logs" / f"check_burn_in_status_{today_tag}_120000.log"
         sentinel_log.write_text(f"previous run\n{mod.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
         rc = _run_main_at_now(
             monkeypatch,
-            tmp_path,
+            job_root,
         )
         assert rc == 0
         out = capsys.readouterr().out
         assert "skipping" in out.lower() or "already" in out.lower()
 
         # No new artifact should have been written.
-        assert _burn_in_artifacts(tmp_path) == []
+        assert _burn_in_artifacts(job_root) == []
 
 
 # ---------------------------------------------------------------------------
@@ -182,24 +179,21 @@ class TestDedupGuardSkipsWhenAlreadyDone:
 
 
 class TestForceRunBypassesDedupGuard:
-    def test_force_run_bypasses_dedup_guard(self, monkeypatch, tmp_path: Path) -> None:
+    def test_force_run_bypasses_dedup_guard(self, monkeypatch, job_root: Path) -> None:
         mod = _mod()
-        logs_dir = tmp_path / "local" / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-
         today_tag = "20260520"
-        sentinel_log = logs_dir / f"check_burn_in_status_{today_tag}_120000.log"
+        sentinel_log = job_root / "local" / "logs" / f"check_burn_in_status_{today_tag}_120000.log"
         sentinel_log.write_text(f"previous run\n{mod.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
         rc = _run_main_at_now(
             monkeypatch,
-            tmp_path,
+            job_root,
             extra_args=["--force-run"],
         )
         assert rc == 0
 
         # Artifact must have been written (job actually ran).
-        assert len(_burn_in_artifacts(tmp_path)) == 1
+        assert len(_burn_in_artifacts(job_root)) == 1
 
 
 # ---------------------------------------------------------------------------
