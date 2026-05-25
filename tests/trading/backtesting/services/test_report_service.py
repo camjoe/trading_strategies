@@ -3,53 +3,21 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from trading.services.accounts import create_account
-from trading.backtesting.backtest import BacktestConfig, run_backtest
+from trading.backtesting.backtest import run_backtest
 import trading.backtesting.services.report_service as report_service
 from trading.backtesting.report_models import BacktestFullReport
+from tests.support.backtesting import create_backtest_account, make_backtest_config
 
 
-def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
-    idx = pd.date_range("2026-01-01", periods=40, freq="B")
-    data: dict[str, list[float]] = {}
-    for i, ticker in enumerate(tickers):
-        base = 100.0 + (i * 5.0)
-        values = [base + (j * 0.8) for j in range(30)] + [base + 24.0 - ((j - 30) * 0.9) for j in range(30, 40)]
-        data[ticker] = values
-    return pd.DataFrame(data, index=idx)
+def test_report_service_contract_builds_typed_model(
+    conn,
+    bt_market_data,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    create_backtest_account(conn, "acct_report_service")
+    bt_market_data(["AAPL"], [100.0, 102.0])
 
-
-def _backtest_config(account_name: str) -> BacktestConfig:
-    return BacktestConfig(
-        account_name=account_name,
-        tickers_file="trading/config/trade_universe.txt",
-        universe_history_dir=None,
-        start="2026-01-01",
-        end="2026-03-01",
-        lookback_months=None,
-        slippage_bps=1.0,
-        fee_per_trade=0.0,
-        run_name="contract",
-        allow_approximate_leaps=False,
-    )
-
-
-def test_report_service_contract_builds_typed_model(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_report_service", "trend_v1", 10000.0, "SPY")
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_close_history",
-        lambda _tickers, _start, _end: _fake_close_history(_tickers),
-    )
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series(
-            [100.0, 102.0],
-            index=pd.date_range("2026-01-01", periods=2, freq="B"),
-        ),
-    )
-
-    result = run_backtest(conn, _backtest_config("acct_report_service"))
+    result = run_backtest(conn, make_backtest_config("acct_report_service", slippage_bps=1.0, run_name="contract"))
 
     monkeypatch.setattr(
         report_service,
@@ -66,22 +34,15 @@ def test_report_service_contract_builds_typed_model(conn, monkeypatch: pytest.Mo
     assert report.summary.calmar_ratio is not None
 
 
-def test_report_service_contract_handles_benchmark_fetch_error(conn, monkeypatch: pytest.MonkeyPatch) -> None:
-    create_account(conn, "acct_report_error", "trend_v1", 10000.0, "SPY")
-    monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_close_history",
-        lambda _tickers, _start, _end: _fake_close_history(_tickers),
-    )
-    monkeypatch.setattr(
-        "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series(
-            [100.0, 102.0],
-            index=pd.date_range("2026-01-01", periods=2, freq="B"),
-        ),
-    )
+def test_report_service_contract_handles_benchmark_fetch_error(
+    conn,
+    bt_market_data,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    create_backtest_account(conn, "acct_report_error")
+    bt_market_data(["AAPL"], [100.0, 102.0])
 
-    result = run_backtest(conn, _backtest_config("acct_report_error"))
+    result = run_backtest(conn, make_backtest_config("acct_report_error", slippage_bps=1.0, run_name="contract"))
 
     monkeypatch.setattr(
         report_service,
