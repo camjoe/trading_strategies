@@ -60,3 +60,23 @@ def test_run_snapshot_with_retry_stops_on_non_transient(tmp_path: Path) -> None:
     assert result["status"] == "failed"
     assert result["attempts"] == 1
     assert result["transient"] is False
+
+
+def test_run_snapshot_with_retry_reports_transient_failure_after_last_attempt(tmp_path: Path) -> None:
+    run_command = Mock(return_value=(1, "temporary failure while fetching prices; try again"))
+    sleep = Mock()
+
+    result = module.run_snapshot_with_retry(
+        log_path=tmp_path / "run.log",
+        repo_root=tmp_path,
+        account="acct1",
+        max_attempts=2,
+        base_backoff_seconds=2.0,
+        run_command_fn=run_command,
+        sleep_fn=sleep,
+    )
+
+    assert result["status"] == "failed"
+    assert result["attempts"] == 2
+    assert result["transient"] is True
+    sleep.assert_called_once_with(2.0)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import runpy
+import sys
 
 import pytest
 
@@ -112,3 +114,33 @@ def test_main_rejects_non_positive_health_check_threshold(_run_main_with_args, c
 def test_main_rejects_invalid_shadow_eval_lead_minutes(_run_main_with_args, capsys) -> None:
     assert _run_main_with_args(shadow_eval_lead_minutes=0) == 2
     assert "--shadow-eval-lead-minutes" in capsys.readouterr().err
+
+
+def test_main_returns_one_when_scheduler_raises(monkeypatch, tmp_path: Path, _run_main_with_args, capsys) -> None:
+    monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
+    monkeypatch.setattr(
+        module,
+        "register_tasks_for_platform",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    assert _run_main_with_args(daily_paper_trading_time="13:10") == 1
+    assert "Error: boom" in capsys.readouterr().err
+
+
+def test_main_returns_nonzero_scheduler_code(monkeypatch, tmp_path: Path, _run_main_with_args, capsys) -> None:
+    monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
+    monkeypatch.setattr(module, "register_tasks_for_platform", lambda *args, **kwargs: 7)
+
+    assert _run_main_with_args(daily_paper_trading_time="13:10") == 7
+    assert "Scheduler command returned a non-zero exit code." in capsys.readouterr().err
+
+
+def test_manage_job_schedules_module_main_entrypoint(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["manage_job_schedules"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_module(module.__name__, run_name="__main__")
+
+    assert excinfo.value.code == 2
+    assert "Provide at least one schedule time" in capsys.readouterr().err

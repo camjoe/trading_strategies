@@ -154,3 +154,64 @@ def test_handle_backtest_walk_forward_routes_value_error_to_parser_error() -> No
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
         handle_backtest_walk_forward(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
+class _RecordingParser:
+    def __init__(self) -> None:
+        self.message: str | None = None
+
+    def error(self, msg: str) -> None:
+        self.message = msg
+
+
+def test_handle_backtest_records_parser_error_without_printing_success(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {
+        "BacktestConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad backtest")),
+    }
+
+    handle_backtest(object(), make_backtest_args(), parser, deps=deps, module_file="", db_path="")
+
+    assert parser.message == "bad backtest"
+    assert "Backtest complete" not in capsys.readouterr().out
+
+
+def test_handle_backtest_batch_records_parser_error_without_printing_success(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {
+        "BacktestBatchConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_backtest_batch": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad batch")),
+    }
+
+    handle_backtest_batch(
+        object(),
+        make_backtest_batch_args(accounts="acct_a", tickers_file="tickers.txt"),
+        parser,
+        deps=deps,
+        module_file="",
+        db_path="",
+    )
+
+    assert parser.message == "bad batch"
+    assert "Backtest batch complete" not in capsys.readouterr().out
+
+
+def test_handle_backtest_walk_forward_records_parser_error_without_printing_success(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {
+        "WalkForwardConfig": lambda **kw: types.SimpleNamespace(**kw),
+        "run_walk_forward_backtest": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad walk-forward")),
+    }
+
+    handle_backtest_walk_forward(
+        object(),
+        make_walk_forward_args(account="acct", tickers_file="tickers.txt"),
+        parser,
+        deps=deps,
+        module_file="",
+        db_path="",
+    )
+
+    assert parser.message == "bad walk-forward"
+    assert "Walk-forward complete" not in capsys.readouterr().out

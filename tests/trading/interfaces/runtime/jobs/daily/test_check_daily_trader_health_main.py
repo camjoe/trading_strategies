@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import sys
 import time
 from pathlib import Path
+
+import pytest
 
 from tests.trading.interfaces.runtime.jobs.loaders import check_daily_trader_health as module
 
@@ -154,3 +157,29 @@ def test_success_sends_notification_with_notify_on_ok(monkeypatch, job_root: Pat
     assert code == 0
     assert len(sent) == 1
     assert sent[0]["status"] == "ok"
+
+
+def test_read_error_returns_1(monkeypatch, job_root: Path, capsys) -> None:
+    log = write_execution_log(job_root, f"{module.COMPLETE_SENTINEL}\n")
+    original_read_text = Path.read_text
+
+    def _broken_read_text(self, *args, **kwargs):
+        if self == log:
+            raise OSError("boom")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _broken_read_text)
+
+    code = run_main(monkeypatch, ["--repo-root", str(job_root), "--max-age-hours", "9999"])
+
+    assert code == 1
+    assert "Unable to read latest log" in capsys.readouterr().out
+
+
+def test_daily_trader_health_module_main_entrypoint(monkeypatch, job_root: Path) -> None:
+    monkeypatch.setattr(sys, "argv", ["check_daily_trader_health", "--repo-root", str(job_root)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_module(module.__name__, run_name="__main__")
+
+    assert excinfo.value.code == 1

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import runpy
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -195,3 +196,35 @@ def test_replay_from_date_after_to_date_returns_1(monkeypatch, job_root: Path) -
         ["--from-date", "2026-05-05", "--to-date", "2026-05-01"],
     )
     assert result == 1
+
+
+def test_replay_invalid_date_returns_1(monkeypatch, job_root: Path, capsys) -> None:
+    result = _run_replay_main(
+        monkeypatch,
+        job_root,
+        ["--from-date", "not-a-date", "--to-date", "2026-05-01"],
+    )
+
+    assert result == 1
+    assert "Invalid date" in capsys.readouterr().err
+
+
+def test_replay_module_main_entrypoint(monkeypatch, job_root: Path) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "replay_daily_runs",
+            "--from-date",
+            "not-a-date",
+            "--to-date",
+            "2026-05-01",
+            "--repo-root",
+            str(job_root),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_module(replay_module.__name__, run_name="__main__")
+
+    assert excinfo.value.code == 1

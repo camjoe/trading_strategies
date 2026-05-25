@@ -3,6 +3,8 @@ from __future__ import annotations
 import datetime as dt
 from pathlib import Path
 
+import pytest
+import trading.interfaces.runtime.jobs.daily.paper_trading_dag as dag_module
 from tests.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
 
 
@@ -52,3 +54,12 @@ def test_group_accounts_by_caps_preserves_insertion_order_within_group() -> None
 
 def test_group_accounts_by_caps_empty_accounts_returns_empty() -> None:
     assert module.group_accounts_by_caps([], {}) == {}
+
+
+def test_step_result_raises_for_unknown_step_id() -> None:
+    with pytest.raises(ValueError, match="Unknown DAG step id"):
+        dag_module.step_result(dag_module.new_step_results(), "missing_step")
+
+
+def test_failed_step_id_returns_none_when_all_steps_pending() -> None:
+    assert dag_module.failed_step_id(dag_module.new_step_results()) is None

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import runpy
 from unittest.mock import Mock
 
 import pytest
@@ -97,5 +98,28 @@ def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="boom"):
         module.main()
+
+    assert conn.closed is True
+
+
+def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
+    import sys
+    import trading.database.db_init as db_init_module
+    import trading.services.auto_trading as auto_trading_module
+
+    conn = FakeConn()
+    monkeypatch.setattr(db_init_module, "ensure_db", lambda: conn)
+    monkeypatch.setattr(auto_trading_module, "validate_trade_count_range", lambda *_a: None)
+    monkeypatch.setattr(auto_trading_module, "validate_execution_mode", lambda value: value)
+    monkeypatch.setattr(auto_trading_module, "resolve_account_names", lambda _accounts: ["acct1"])
+    monkeypatch.setattr(
+        auto_trading_module,
+        "resolve_market_inputs",
+        lambda _path: (["AAPL"], {"AAPL": 100.0}, {"AAPL": 40.0}),
+    )
+    monkeypatch.setattr(auto_trading_module, "run_accounts", lambda *_a, **_kw: [("acct1", 1)])
+    monkeypatch.setattr(sys, "argv", ["run_auto_trades", "--accounts", "acct1", "--seed", "7"])
+
+    runpy.run_module(module.__name__, run_name="__main__")
 
     assert conn.closed is True

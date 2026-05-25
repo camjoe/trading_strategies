@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import runpy
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -382,3 +383,153 @@ def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Pat
     assert details["account_count"] == 1
     assert len(details["account_reports"]) == 1
     assert details["account_reports"][0]["account_name"] == "acct_a"
+
+
+def test_startup_log_swallows_os_errors(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(Path, "open", lambda *_a, **_kw: (_ for _ in ()).throw(OSError("boom")))
+
+    module._startup_log("hello", tmp_path)
+
+
+def test_run_auto_trader_group_skips_empty_groups(monkeypatch, tmp_path: Path) -> None:
+    stream = pytest.MonkeyPatch()
+    try:
+        called: list[tuple[str, list[str]]] = []
+        stream.setattr(module, "stream_command", lambda log_path, label, args, repo_root: called.append((label, args)))
+        module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", [], 1, 5, 0.0, None)
+    finally:
+        stream.undo()
+
+    assert called == []
+
+
+def test_run_auto_trader_group_includes_seed_when_present(monkeypatch, tmp_path: Path) -> None:
+    called: list[list[str]] = []
+    monkeypatch.setattr(module, "stream_command", lambda _log, _label, args, _root: called.append(args))
+
+    module.run_auto_trader_group(tmp_path / "run.log", tmp_path, "Auto Trader", ["acct_a"], 1, 5, 0.0, 7)
+
+    assert "--seed" in called[0]
+    assert called[0][called[0].index("--seed") + 1] == "7"
+
+
+def test_main_validates_other_trade_ranges(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--other-min-trades", "0"],
+    )
+    assert code == 1
+    assert "other-min-trades" in capsys.readouterr().err
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--other-min-trades", "2", "--other-max-trades", "1"],
+    )
+    assert code == 1
+    assert "other-max-trades" in capsys.readouterr().err
+
+
+def test_main_rejects_invalid_trade_caps_config(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+    config_path = tmp_path / "caps.json"
+    config_path.write_text('{"accounts": []}', encoding="utf-8")
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--trade-caps-config", str(config_path)],
+    )
+
+    assert code == 1
+    assert "Invalid trade caps config" in capsys.readouterr().err
+
+
+def test_main_rejects_invalid_account_trade_caps_override(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--account-trade-caps", "acct_a:bad"],
+    )
+
+    assert code == 1
+    assert "account:min-max" in capsys.readouterr().err
+
+
+def test_main_rejects_unknown_account_trade_cap_overrides(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--account-trade-caps", "ghost:1-2"],
+    )
+
+    assert code == 1
+    assert "Unknown account(s) in --account-trade-caps: ghost" in capsys.readouterr().err
+
+
+def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, tmp_path: Path) -> None:
+    import builtins
+    import common.paths.repo_paths as repo_paths_module
+
+    original_import = builtins.__import__
+
+    def _fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "trading.services.accounts" and "load_runtime_eligible_account_names" in fromlist:
+            raise ImportError("boom")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(repo_paths_module, "get_repo_root", lambda _file: tmp_path)
+    monkeypatch.setattr(builtins, "__import__", _fake_import)
+
+    with pytest.raises(ImportError, match="boom"):
+        runpy.run_module(module.__name__, run_name="__main__")
+
+
+def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["daily_paper_trading", "--accounts", "acct_a", "--primary-min-trades", "0", "--repo-root", str(tmp_path)],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_module(module.__name__, run_name="__main__")
+
+    assert excinfo.value.code == 1
+
+
+def test_main_rejects_non_positive_primary_min_trades(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--primary-min-trades", "0"],
+    )
+
+    assert code == 1
+    assert "--primary-min-trades must be >= 1" in capsys.readouterr().err
+
+
+def test_main_resolves_relative_trade_caps_config_from_repo_root(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    captured: dict[str, Path] = {}
+
+    def _capture_config_path(path: Path):
+        captured["path"] = path
+        return None, {}
+
+    monkeypatch.setattr(module, "load_trade_caps_config", _capture_config_path)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--trade-caps-config", "caps.json"],
+    )
+
+    assert code == 0
+    assert captured["path"] == tmp_path / "caps.json"

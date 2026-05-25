@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import runpy
+import sys
 from pathlib import Path
 from unittest.mock import Mock
+
+import pytest
 
 from tests.trading.interfaces.runtime.jobs.loaders import (
     daily_backtest_refresh as module,
@@ -117,3 +121,71 @@ def test_main_validates_attempt_and_backoff(monkeypatch, tmp_path: Path, capsys)
     )
     assert module.main() == 1
     assert "backoff-seconds" in capsys.readouterr().err
+
+
+def test_parse_args_reads_cli_overrides_for_backtest_refresh(monkeypatch) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "backtest_refresh",
+            "--accounts",
+            "acct1,acct2",
+            "--force-run",
+            "--run-source",
+            "manual",
+            "--enable-run",
+            "--max-attempts",
+            "5",
+            "--backoff-seconds",
+            "1.5",
+            "--tickers-file",
+            "tickers.txt",
+            "--universe-history-dir",
+            "history",
+            "--start",
+            "2026-01-01",
+            "--end",
+            "2026-02-01",
+            "--lookback-months",
+            "3",
+            "--slippage-bps",
+            "7.5",
+            "--fee",
+            "1.25",
+            "--run-name-prefix",
+            "custom",
+            "--allow-approximate-leaps",
+            "--repo-root",
+            "/repo",
+        ],
+    )
+
+    args = module.parse_args()
+
+    assert args.accounts == "acct1,acct2"
+    assert args.force_run is True
+    assert args.run_source == "manual"
+    assert args.max_attempts == 5
+    assert args.backoff_seconds == 1.5
+    assert args.allow_approximate_leaps is True
+    assert args.repo_root == "/repo"
+
+
+def test_main_returns_1_when_no_accounts_after_resolution(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(module, "parse_args", lambda: make_daily_backtest_refresh_args(repo_root=str(tmp_path)))
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+    monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+
+    assert module.main() == 1
+    assert "No accounts specified." in capsys.readouterr().err
+
+
+def test_backtest_refresh_module_main_entrypoint(monkeypatch) -> None:
+    monkeypatch.delenv(module.BACKTEST_REFRESH_ENABLED_ENV, raising=False)
+    monkeypatch.setattr(sys, "argv", ["backtest_refresh"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_module(module.__name__, run_name="__main__")
+
+    assert excinfo.value.code == 0

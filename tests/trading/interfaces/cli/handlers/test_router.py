@@ -69,3 +69,27 @@ def test_dispatch_command_calls_parser_error_for_unknown_command() -> None:
             module_file="",
             db_path="",
         )
+
+
+class _RecordingParser:
+    def __init__(self) -> None:
+        self.message: str | None = None
+
+    def error(self, msg: str) -> None:
+        self.message = msg
+
+
+def test_dispatch_command_records_parser_error_then_returns() -> None:
+    parser = _RecordingParser()
+
+    result = dispatch_command(
+        None,
+        types.SimpleNamespace(command="not-a-command"),
+        parser,
+        deps={},
+        module_file="",
+        db_path="",
+    )
+
+    assert result is None
+    assert parser.message == "Unsupported command: not-a-command"

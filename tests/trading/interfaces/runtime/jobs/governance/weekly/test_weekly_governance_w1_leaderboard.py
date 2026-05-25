@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
+import runpy
+import sys
+
+import pytest
 
 import trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard as module
 from tests.trading.interfaces.runtime.jobs.loaders import (
@@ -140,3 +144,49 @@ class TestArtifactStructure:
         assert result == 0
         assert captured["start_date"] == "2026-01-15"
         assert captured["end_date"] == "2026-01-15"
+
+
+def test_main_rejects_invalid_window_days(monkeypatch, tmp_path: Path, capsys) -> None:
+    result = _run_job(monkeypatch, tmp_path, (*RUN_ALL_FORCE_ARGS, "--window-days", "0"))
+    assert result == 1
+    assert "window-days" in capsys.readouterr().err
+
+
+def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "No accounts specified." in capsys.readouterr().err
+
+
+def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module, account_lookup=lambda _name: None)
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
+    payload = load_single_artifact_json(tmp_path / "local" / "artifacts", "weekly_governance_w1_leaderboard_*.json")
+    assert payload["accounts"] == []
+
+
+def test_main_returns_1_when_repository_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom")))
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+
+
+def test_weekly_leaderboard_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(sys, "argv", ["w1_leaderboard", "--repo-root", str(tmp_path), "--window-days", "0"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_module(module.__name__, run_name="__main__")
+
+    assert excinfo.value.code == 1
+
+
+def test_main_returns_1_when_account_resolution_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "bad accounts" in capsys.readouterr().err
