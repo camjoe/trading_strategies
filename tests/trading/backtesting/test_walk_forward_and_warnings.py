@@ -4,7 +4,6 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 from tests.support.backtesting import (
     create_backtest_account,
-    install_backtest_market_data,
     make_backtest_config,
     make_fake_close_history,
     make_walk_forward_config,
@@ -12,9 +11,9 @@ from tests.support.backtesting import (
 
 
 class TestBacktestWalkForwardAndWarnings:
-    def test_run_walk_forward_backtest_creates_multiple_runs(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_walk_forward_backtest_creates_multiple_runs(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_wf")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         summary = backtest_module.run_walk_forward_backtest(
             conn,

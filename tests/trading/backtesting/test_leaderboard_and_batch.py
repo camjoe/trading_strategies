@@ -3,24 +3,19 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 from trading.backtesting.models import BacktestBatchConfig
 from trading.backtesting.report_models import BacktestLeaderboardEntry
-from tests.support.backtesting import (
-    create_backtest_account,
-    install_backtest_market_data,
-    make_backtest_config,
-    make_backtest_result,
-)
+from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
 
 
 class TestBacktestLeaderboardAndBatch:
     def test_backtest_leaderboard_sorts_by_total_return_and_supports_filters(
         self,
         conn,
-        monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_lb_trend")
         create_backtest_account(conn, "acct_lb_mean", strategy="mean_reversion")
 
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         backtest_module.run_backtest(
             conn,
@@ -47,10 +42,10 @@ class TestBacktestLeaderboardAndBatch:
     def test_backtest_leaderboard_entries_returns_models(
         self,
         conn,
-        monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_lb_entries")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         result = backtest_module.run_backtest(
             conn,

@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from tests.support.cli_backtesting import (
+from tests.support.cli.backtesting import (
     make_backtest_args,
     make_backtest_batch_args,
     make_backtest_result,

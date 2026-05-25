@@ -40,6 +40,27 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Quick/CI profile: run Financial & Market, Software, and API reference sync checks.",
     )
+    parser.add_argument(
+        "--suite",
+        nargs="+",
+        metavar="SUITE",
+        dest="suite_names",
+        default=None,
+        help="Quick profile: run only the specified test suite(s) instead of the full suite.",
+    )
+    parser.add_argument(
+        "--changed",
+        action="store_true",
+        dest="suite_changed",
+        help="Quick profile: run only suites with uncommitted changed files (staged + unstaged).",
+    )
+    parser.add_argument(
+        "--base",
+        metavar="REF",
+        dest="suite_base",
+        default=None,
+        help="Quick profile: run only suites with changes vs a git ref (e.g. 'main', 'origin/main').",
+    )
 
     # CI profile options
     parser.add_argument("--skip-python", action="store_true", help="CI profile: skip Python checks.")
@@ -73,6 +94,9 @@ def main() -> int:
             readme_max_age_days=args.readme_max_age_days,
             with_frontend=args.with_frontend,
             with_reference_doc_checks=args.with_reference_doc_checks,
+            suite_names=args.suite_names,
+            suite_changed=args.suite_changed,
+            suite_base=args.suite_base,
         )
 
     return run_ci(

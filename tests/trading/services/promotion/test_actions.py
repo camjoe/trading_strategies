@@ -21,15 +21,9 @@ def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str 
 
 def test_execute_promotion_review_request_persists_frozen_snapshot(
     conn,
+    promotion_account: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_service', 'trend_v1', 1000, 'SPY', '2026-01-01T00:00:00Z')
-        """
-    )
-    conn.commit()
     monkeypatch.setattr(
         promotion_actions,
         "_fetch_current_promotion_snapshot",
@@ -66,15 +60,9 @@ def test_execute_promotion_review_request_persists_frozen_snapshot(
 
 def test_execute_promotion_review_action_closes_open_review(
     conn,
+    promotion_account: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_service', 'trend_v1', 1000, 'SPY', '2026-01-01T00:00:00Z')
-        """
-    )
-    conn.commit()
     monkeypatch.setattr(
         promotion_actions,
         "_fetch_current_promotion_snapshot",
@@ -106,15 +94,9 @@ def test_execute_promotion_review_action_closes_open_review(
 
 def test_execute_promotion_review_request_canonicalizes_strategy_for_open_review_dedup(
     conn,
+    promotion_account: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_service', 'trend', 1000, 'SPY', '2026-01-01T00:00:00Z')
-        """
-    )
-    conn.commit()
     monkeypatch.setattr(
         promotion_actions,
         "_fetch_current_promotion_snapshot",

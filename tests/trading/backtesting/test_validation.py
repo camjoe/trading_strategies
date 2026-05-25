@@ -3,19 +3,15 @@ import pytest
 
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.leaderboard_service as leaderboard_service
-from tests.support.backtesting import (
-    create_backtest_account,
-    install_backtest_market_data,
-    make_backtest_config,
-)
+from tests.support.backtesting import create_backtest_account, make_backtest_config
 
 
 class TestBacktestValidationAndFailurePaths:
-    def test_run_backtest_rejects_unknown_account_strategy(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_backtest_rejects_unknown_account_strategy(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_invalid_strategy")
         conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mystery_strategy", "acct_invalid_strategy"))
         conn.commit()
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         with pytest.raises(ValueError, match="Unknown strategy 'mystery_strategy'"):
             backtest_module.run_backtest(conn, make_backtest_config("acct_invalid_strategy"))
@@ -80,9 +76,10 @@ class TestBacktestValidationAndFailurePaths:
         self,
         conn,
         monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_lb_bench")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         backtest_module.run_backtest(
             conn,

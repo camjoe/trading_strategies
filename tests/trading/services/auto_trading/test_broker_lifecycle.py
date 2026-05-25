@@ -1,7 +1,12 @@
 from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
-from tests.support.auto_trading import FakeBroker, RuntimeScenario, make_account_state, make_auto_trading_account
+from tests.trading.services.auto_trading.factories import (
+    FakeBroker,
+    RuntimeScenario,
+    make_account_state,
+    make_auto_trading_account,
+)
 
 
 def test_multi_trade_run_creates_one_broker_and_disconnects_once(monkeypatch) -> None:
