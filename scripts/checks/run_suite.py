@@ -345,16 +345,13 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         help="Suite names or .py file paths to run.",
     )
-    parser.add_argument(
-        "extra",
-        nargs=argparse.REMAINDER,
-        help="Extra arguments passed through to pytest.",
-    )
-    return parser.parse_args()
+    # parse_known_args lets unrecognized flags (e.g. --no-cov, -v) pass through
+    # to pytest regardless of where they appear on the command line.
+    return parser.parse_known_args()
 
 
 def main() -> int:
-    args = parse_args()
+    args, pytest_passthrough = parse_args()
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
     tests_root = repo_root / "tests"
 
@@ -370,9 +367,9 @@ def main() -> int:
     suite_names: list[str] = []
     pytest_extra: list[str] = []
     dry_run = args.dry_run
-    for token in list(args.suites or []) + list(args.extra or []):
+    for token in list(args.suites or []) + list(pytest_passthrough or []):
         if token == "--dry-run":
-            dry_run = True  # captured by REMAINDER when placed after positionals
+            dry_run = True
         elif token.startswith("-"):
             pytest_extra.append(token)
         else:
