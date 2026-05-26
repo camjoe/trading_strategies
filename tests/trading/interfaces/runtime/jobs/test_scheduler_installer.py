@@ -174,7 +174,9 @@ def test_register_tasks_for_platform_windows_stops_on_first_nonzero(monkeypatch,
     assert commands[0][0:2] == ["powershell", "-Command"]
 
 
-def test_register_tasks_for_platform_windows_returns_zero_when_all_commands_succeed(monkeypatch, tmp_path: Path) -> None:
+def test_register_tasks_for_platform_windows_returns_zero_when_all_commands_succeed(
+    monkeypatch, tmp_path: Path
+) -> None:
     commands: list[list[str]] = []
     monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Windows")
 

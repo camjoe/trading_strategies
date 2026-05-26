@@ -101,7 +101,9 @@ def test_send_webhook_notification_raises_for_http_error_status() -> None:
     )
 
     with pytest.raises(RuntimeError, match="HTTP 500"):
-        send_webhook_notification("https://example.test/webhook", payload, urlopen_fn=lambda *_a, **_k: _FakeResponse(500))
+        send_webhook_notification(
+            "https://example.test/webhook", payload, urlopen_fn=lambda *_a, **_k: _FakeResponse(500)
+        )
 
 
 def test_notify_webhook_best_effort_returns_true_on_success() -> None:

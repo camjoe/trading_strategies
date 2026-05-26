@@ -160,24 +160,36 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module, account_lookup=lambda _name: None)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
-    payload = load_single_artifact_json(tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json")
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json"
+    )
     assert payload["accounts"] == []
 
 
 def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> None:
     sleeve_row = {"id": 7, "name": "sleeve_q"}
     stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-    monkeypatch.setattr(module, "fetch_active_sleeve_strategy_assignment", lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 42})
-    monkeypatch.setattr(module, "fetch_strategy_param_set_by_id", lambda conn, *, param_set_id: {"params_json": "{bad json"})
+    monkeypatch.setattr(
+        module,
+        "fetch_active_sleeve_strategy_assignment",
+        lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 42},
+    )
+    monkeypatch.setattr(
+        module, "fetch_strategy_param_set_by_id", lambda conn, *, param_set_id: {"params_json": "{bad json"}
+    )
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
-    payload = load_single_artifact_json(tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json")
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json"
+    )
     assert payload["accounts"][0]["sleeves"][0]["params"] is None
 
 
 def test_main_returns_1_when_param_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

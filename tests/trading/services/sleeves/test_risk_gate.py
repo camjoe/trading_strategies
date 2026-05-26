@@ -146,7 +146,6 @@ def test_evaluate_sleeve_risk_gate_blocks_when_sector_cap_is_exhausted(conn) -> 
     assert result.decisions[0].reason_code == "sector_concentration_cap"
 
 
-
 def test_evaluate_sleeve_risk_gate_returns_empty_result_for_no_intents(conn) -> None:
     result = evaluate_sleeve_risk_gate(conn, account_id=1, intents=[])
 
@@ -157,7 +156,6 @@ def test_evaluate_sleeve_risk_gate_returns_empty_result_for_no_intents(conn) -> 
     assert result.blocked_count == 0
     assert result.gross_exposure_before == 0.0
     assert result.gross_exposure_after == 0.0
-
 
 
 def test_evaluate_sleeve_risk_gate_rejects_non_positive_config(conn) -> None:
@@ -186,11 +184,9 @@ def test_evaluate_sleeve_risk_gate_rejects_non_positive_config(conn) -> None:
         )
 
 
-
 def test_resolve_sector_for_symbol_returns_none_for_blank_mapping() -> None:
     assert sleeve_risk_gate.resolve_sector_for_symbol("AAPL", symbol_sector_map={"AAPL": "   "}) is None
     assert sleeve_risk_gate.resolve_sector_for_symbol("MSFT", symbol_sector_map={}) is None
-
 
 
 def test_evaluate_sleeve_risk_gate_blocks_non_positive_qty(conn) -> None:
@@ -217,7 +213,6 @@ def test_evaluate_sleeve_risk_gate_blocks_non_positive_qty(conn) -> None:
     assert result.decisions[0].action == "block"
     assert result.decisions[0].reason_code == "non_positive_qty"
     assert result.decisions[0].approved_qty == 0
-
 
 
 def test_evaluate_sleeve_risk_gate_allows_sell_and_reduces_exposure(conn) -> None:

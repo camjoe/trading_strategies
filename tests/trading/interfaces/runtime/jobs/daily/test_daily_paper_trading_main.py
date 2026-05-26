@@ -448,7 +448,9 @@ def test_main_rejects_invalid_trade_caps_config(monkeypatch, tmp_path: Path, cap
     assert "Invalid trade caps config" in capsys.readouterr().err
 
 
-def test_main_rejects_invalid_account_trade_caps_override(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+def test_main_rejects_invalid_account_trade_caps_override(
+    monkeypatch, tmp_path: Path, capsys, _runtime_harness
+) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -460,7 +462,9 @@ def test_main_rejects_invalid_account_trade_caps_override(monkeypatch, tmp_path:
     assert "account:min-max" in capsys.readouterr().err
 
 
-def test_main_rejects_unknown_account_trade_cap_overrides(monkeypatch, tmp_path: Path, capsys, _runtime_harness) -> None:
+def test_main_rejects_unknown_account_trade_cap_overrides(
+    monkeypatch, tmp_path: Path, capsys, _runtime_harness
+) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -515,7 +519,9 @@ def test_main_rejects_non_positive_primary_min_trades(monkeypatch, tmp_path: Pat
     assert "--primary-min-trades must be >= 1" in capsys.readouterr().err
 
 
-def test_main_resolves_relative_trade_caps_config_from_repo_root(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_main_resolves_relative_trade_caps_config_from_repo_root(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
     captured: dict[str, Path] = {}
 
     def _capture_config_path(path: Path):

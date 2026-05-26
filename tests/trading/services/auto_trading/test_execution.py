@@ -187,7 +187,9 @@ def test_prepare_buy_trade_returns_none_when_equity_price_missing() -> None:
 
 
 def test_build_leaps_candidates_skips_missing_or_non_positive_prices() -> None:
-    with patch.object(trade_execution_service.auto_trader_policy, "option_candidate_allowed", Mock(return_value=(True, 0.5, 20.0))):
+    with patch.object(
+        trade_execution_service.auto_trader_policy, "option_candidate_allowed", Mock(return_value=(True, 0.5, 20.0))
+    ):
         candidates = trade_execution_service.build_leaps_candidates(
             make_auto_trading_account(),
             ["AAPL", "MSFT"],

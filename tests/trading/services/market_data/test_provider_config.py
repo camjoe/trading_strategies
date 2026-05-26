@@ -215,7 +215,6 @@ def test_yfinance_fetch_ohlcv_flattens_multiindex_without_ticker_names(
     assert list(result.columns) == ["Close", "Volume"]
 
 
-
 def test_yfinance_fetch_ohlcv_raises_when_download_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: pd.DataFrame())
@@ -224,11 +223,9 @@ def test_yfinance_fetch_ohlcv_raises_when_download_is_empty(tmp_path: Path, monk
         market_data.YFinanceProvider().fetch_ohlcv("SPY", "1mo", "1d")
 
 
-
 def test_yfinance_close_history_requires_at_least_one_ticker() -> None:
     with pytest.raises(ValueError, match="At least one ticker is required"):
         market_data.YFinanceProvider().fetch_close_history([], date(2026, 1, 1), date(2026, 1, 2))
-
 
 
 def test_yfinance_close_history_raises_when_download_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -237,7 +234,6 @@ def test_yfinance_close_history_raises_when_download_is_empty(tmp_path: Path, mo
 
     with pytest.raises(ValueError, match="No historical price data returned"):
         market_data.YFinanceProvider().fetch_close_history(["AAPL"], date(2026, 1, 1), date(2026, 1, 2))
-
 
 
 def test_yfinance_close_history_raises_when_close_column_is_missing(
@@ -259,7 +255,6 @@ def test_yfinance_close_history_raises_when_close_column_is_missing(
         market_data.YFinanceProvider().fetch_close_history(["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 2))
 
 
-
 def test_yfinance_close_history_raises_when_cleaned_history_is_empty(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -273,7 +268,6 @@ def test_yfinance_close_history_raises_when_cleaned_history_is_empty(
 
     with pytest.raises(ValueError, match="Close price history is empty after cleaning"):
         market_data.YFinanceProvider().fetch_close_history(["AAPL"], date(2026, 1, 1), date(2026, 1, 2))
-
 
 
 def test_yfinance_close_history_raises_when_requested_ticker_is_missing(
@@ -320,7 +314,6 @@ def test_yfinance_close_series_returns_none_for_empty_history(
     monkeypatch.setattr(provider_module.yf, "Ticker", _FakeTicker)
 
     assert market_data.YFinanceProvider().fetch_close_series("SPY", "5d") is None
-
 
 
 def test_yfinance_close_series_returns_none_when_ticker_history_raises(

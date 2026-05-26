@@ -91,15 +91,23 @@ def test_resolve_market_inputs_raises_when_prices_are_empty(monkeypatch: pytest.
 
 def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     import types
+
     fake_runtime = types.ModuleType("trading.services.auto_trading.runtime")
     fake_runtime.run_for_account = lambda **kwargs: kwargs["min_trades"]  # type: ignore[attr-defined]
     import sys
+
     monkeypatch.setitem(sys.modules, "trading.services.auto_trading.runtime", fake_runtime)
 
     result = auto_trading_inputs._run_account_trade_loop(
-        conn=object(), account_name="acct1", universe=["AAPL"],
-        prices={"AAPL": 100.0}, iv_rank_proxy={},
-        min_trades=3, max_trades=5, fee=0.0, execution_mode="account",
+        conn=object(),
+        account_name="acct1",
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        min_trades=3,
+        max_trades=5,
+        fee=0.0,
+        execution_mode="account",
     )
     assert result == 3
     from common.time import parse_utc_iso

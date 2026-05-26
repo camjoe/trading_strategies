@@ -381,10 +381,7 @@ class TestSleeveOrdersRepository:
         assert row is not None
         assert row["broker_order_id"] == "ib-300"
         assert int(row["account_id"]) == account_id
-        assert (
-            fetch_sleeve_order_by_broker_order_id(conn, account_id=account_id, broker_order_id="missing")
-            is None
-        )
+        assert fetch_sleeve_order_by_broker_order_id(conn, account_id=account_id, broker_order_id="missing") is None
 
     def test_insert_sleeve_order_raises_when_lastrowid_missing(self) -> None:
         with pytest.raises(ValueError, match="Expected sleeve_orders id after insert"):
@@ -828,11 +825,14 @@ class TestSleeveRiskDecisionsRepository:
         )
         assert [row["reason_code"] for row in risk_rows] == ["in-window"]
 
-        assert fetch_sleeve_ledger_sum_by_type(
-            _StaticConnection(_StaticCursor(row=None)),
-            sleeve_id=1,
-            entry_type="fee",
-        ) == 0.0
+        assert (
+            fetch_sleeve_ledger_sum_by_type(
+                _StaticConnection(_StaticCursor(row=None)),
+                sleeve_id=1,
+                entry_type="fee",
+            )
+            == 0.0
+        )
 
         with pytest.raises(ValueError, match="Expected sleeve_ledger id after insert"):
             insert_sleeve_ledger_entry(
@@ -861,7 +861,7 @@ class TestSleeveRiskDecisionsRepository:
                 requested_notional=None,
                 approved_notional=None,
                 execution_mode="account",
-                risk_payload_json='{}',
+                risk_payload_json="{}",
                 created_at="2026-05-03T00:00:00Z",
             )
 
@@ -875,8 +875,8 @@ class TestSleeveRiskDecisionsRepository:
                 selected_strategy=None,
                 rotation_action="hold",
                 cooldown_active=0,
-                score_components_json='{}',
-                gate_results_json='{}',
+                score_components_json="{}",
+                gate_results_json="{}",
                 decision_reason=None,
                 config_version=None,
                 param_set_id=None,

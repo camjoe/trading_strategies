@@ -288,14 +288,14 @@ def test_select_rotation_overlay_direction_returns_bearish_with_confident_negati
         ["AAPL", "MSFT", "NVDA"],
         overlay_mode="news",
         fetch_news_features_fn=make_feature_fetcher(
-                {
-                    "AAPL": {"news_sentiment_score": -0.40, "news_headline_count": 6.0},
-                    "MSFT": {"news_sentiment_score": -0.35, "news_headline_count": 5.0},
-                    "NVDA": {"news_sentiment_score": 0.00, "news_headline_count": 5.0},
-                }
-            ),
-            fetch_social_features_fn=None,
-        )
+            {
+                "AAPL": {"news_sentiment_score": -0.40, "news_headline_count": 6.0},
+                "MSFT": {"news_sentiment_score": -0.35, "news_headline_count": 5.0},
+                "NVDA": {"news_sentiment_score": 0.00, "news_headline_count": 5.0},
+            }
+        ),
+        fetch_social_features_fn=None,
+    )
 
     assert direction == "bearish"
 
@@ -361,26 +361,38 @@ def test_coercion_and_classification_helpers_cover_invalid_inputs() -> None:
     assert rotation_service.classify_policy_regime(risk_on_score=None, defensive_tilt=0.0) is None
     assert rotation_service.classify_policy_regime(risk_on_score=0.7, defensive_tilt=None) is None
     assert rotation_service._classify_news_overlay_vote(make_feature_bundle(available=False)) is None
-    assert rotation_service._classify_news_overlay_vote(
-        make_feature_bundle(news_sentiment_score=0.5, news_headline_count=1.0)
-    ) is None
-    assert rotation_service._classify_social_overlay_vote(
-        make_feature_bundle(social_trend_score=-0.5, social_mention_count=3.0, social_reddit_sentiment=-0.2)
-    ) == -1
+    assert (
+        rotation_service._classify_news_overlay_vote(
+            make_feature_bundle(news_sentiment_score=0.5, news_headline_count=1.0)
+        )
+        is None
+    )
+    assert (
+        rotation_service._classify_social_overlay_vote(
+            make_feature_bundle(social_trend_score=-0.5, social_mention_count=3.0, social_reddit_sentiment=-0.2)
+        )
+        == -1
+    )
     assert rotation_service._classify_social_overlay_vote(make_feature_bundle(available=False)) is None
 
 
 def test_classify_social_overlay_vote_handles_missing_and_neutral_inputs() -> None:
-    assert rotation_service._classify_social_overlay_vote(
-        make_feature_bundle(social_trend_score=0.2, social_mention_count=5.0),
-    ) is None
-    assert rotation_service._classify_social_overlay_vote(
-        make_feature_bundle(
-            social_trend_score=0.0,
-            social_mention_count=5.0,
-            social_reddit_sentiment=0.1,
-        ),
-    ) == 0
+    assert (
+        rotation_service._classify_social_overlay_vote(
+            make_feature_bundle(social_trend_score=0.2, social_mention_count=5.0),
+        )
+        is None
+    )
+    assert (
+        rotation_service._classify_social_overlay_vote(
+            make_feature_bundle(
+                social_trend_score=0.0,
+                social_mention_count=5.0,
+                social_reddit_sentiment=0.1,
+            ),
+        )
+        == 0
+    )
 
 
 def test_select_rotation_overlay_direction_returns_none_for_none_mode_or_empty_tickers() -> None:
@@ -390,7 +402,9 @@ def test_select_rotation_overlay_direction_returns_none_for_none_mode_or_empty_t
             account,
             [],
             overlay_mode="news",
-            fetch_news_features_fn=lambda _ticker: make_feature_bundle(news_sentiment_score=0.4, news_headline_count=5.0),
+            fetch_news_features_fn=lambda _ticker: make_feature_bundle(
+                news_sentiment_score=0.4, news_headline_count=5.0
+            ),
             fetch_social_features_fn=None,
         )
         is None
@@ -400,7 +414,9 @@ def test_select_rotation_overlay_direction_returns_none_for_none_mode_or_empty_t
             account,
             ["AAPL"],
             overlay_mode="none",
-            fetch_news_features_fn=lambda _ticker: make_feature_bundle(news_sentiment_score=0.4, news_headline_count=5.0),
+            fetch_news_features_fn=lambda _ticker: make_feature_bundle(
+                news_sentiment_score=0.4, news_headline_count=5.0
+            ),
             fetch_social_features_fn=None,
         )
         is None
@@ -433,7 +449,9 @@ def test_select_regime_strategy_returns_none_or_active_for_schedule_and_regime_e
     assert (
         rotation_service.select_regime_strategy(
             _account(rotation_schedule="[]"),
-            fetch_policy_features_fn=lambda _ticker: make_feature_bundle(policy_risk_on_score=0.8, policy_defensive_tilt=0.0),
+            fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
+                policy_risk_on_score=0.8, policy_defensive_tilt=0.0
+            ),
         )
         is None
     )
@@ -441,7 +459,9 @@ def test_select_regime_strategy_returns_none_or_active_for_schedule_and_regime_e
     assert (
         rotation_service.select_regime_strategy(
             account,
-            fetch_policy_features_fn=lambda _ticker: make_feature_bundle(policy_risk_on_score=None, policy_defensive_tilt=0.0),
+            fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
+                policy_risk_on_score=None, policy_defensive_tilt=0.0
+            ),
         )
         == "trend"
     )
@@ -451,7 +471,9 @@ def test_select_regime_strategy_returns_none_or_active_for_schedule_and_regime_e
                 rotation_active_strategy="trend",
                 rotation_regime_strategy_risk_on=None,
             ),
-            fetch_policy_features_fn=lambda _ticker: make_feature_bundle(policy_risk_on_score=0.8, policy_defensive_tilt=0.0),
+            fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
+                policy_risk_on_score=0.8, policy_defensive_tilt=0.0
+            ),
         )
         == "trend"
     )
@@ -477,7 +499,12 @@ def test_sync_rotation_episode_open_and_same_strategy_paths() -> None:
         account=_account(rotation_active_strategy="trend"),
         as_of_iso="2026-03-20T00:00:00Z",
         fetch_open_rotation_episode_fn=Mock(
-            return_value={"id": 1, "strategy_name": "trend", "started_at": "2026-03-01T00:00:00Z", "starting_realized_pnl": 0.0}
+            return_value={
+                "id": 1,
+                "strategy_name": "trend",
+                "started_at": "2026-03-01T00:00:00Z",
+                "starting_realized_pnl": 0.0,
+            }
         ),
         insert_rotation_episode_fn=Mock(),
         close_rotation_episode_fn=close_rotation_episode,
@@ -523,7 +550,9 @@ def test_select_optimal_strategy_average_return_mode() -> None:
 
 
 def test_rotate_account_if_due_uses_index_fallback_when_selected_not_in_schedule() -> None:
-    account = _account(rotation_mode="optimal", rotation_active_index=1, rotation_schedule='["trend","mean_reversion"]')
+    account = _account(
+        rotation_mode="optimal", rotation_active_index=1, rotation_schedule='["trend","mean_reversion"]'
+    )
     updated_rows: list[dict[str, object]] = []
     updated = rotation_service.rotate_account_if_due(
         conn=object(),
@@ -559,7 +588,9 @@ def test_select_optimal_strategy_hybrid_weighted_uses_live_score_when_backtest_m
     assert selected == "mean_reversion"
 
 
-def test_select_optimal_strategy_hybrid_weighted_returns_none_when_truthy_empty_returns_and_invalid_live_rows() -> None:
+def test_select_optimal_strategy_hybrid_weighted_returns_none_when_truthy_empty_returns_and_invalid_live_rows() -> (
+    None
+):
     class _TruthyEmptyReturns:
         def __bool__(self):
             return True

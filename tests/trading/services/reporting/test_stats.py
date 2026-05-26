@@ -25,7 +25,9 @@ def test_build_account_stats_uses_price_map(reporting_account, conn, monkeypatch
     assert equity == pytest.approx(1040.0)
 
 
-def test_build_account_stats_ignores_positions_without_price(reporting_account, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_account_stats_ignores_positions_without_price(
+    reporting_account, conn, monkeypatch: pytest.MonkeyPatch
+) -> None:
     insert_trade(conn, reporting_account["id"], "AAPL", 2.0, 100.0)
     insert_trade(conn, reporting_account["id"], "MSFT", 1.0, 50.0, trade_time="2026-01-01T00:00:01Z")
     conn.commit()
@@ -52,7 +54,9 @@ def test_build_account_stats_ignores_positions_without_price(reporting_account, 
         ([1000.0, 995.0, 990.0], 991.0, "flat"),
     ],
 )
-def test_infer_overall_trend_uses_snapshot_history(reporting_account, conn, history, current_equity: float, expected: str) -> None:
+def test_infer_overall_trend_uses_snapshot_history(
+    reporting_account, conn, history, current_equity: float, expected: str
+) -> None:
     for index, equity in enumerate(history, start=1):
         insert_snapshot(conn, reporting_account["id"], f"2026-01-0{index}T00:00:00Z", equity)
     conn.commit()

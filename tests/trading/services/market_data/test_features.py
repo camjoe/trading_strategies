@@ -81,7 +81,6 @@ def test_proxy_feature_provider_builds_features_for_known_proxy_ticker(
     assert float(features["topic_proxy_available"].iloc[-1]) == 1.0
 
 
-
 def test_proxy_feature_provider_loads_category_proxy_mappings(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
@@ -102,7 +101,6 @@ def test_proxy_feature_provider_loads_category_proxy_mappings(
     assert warnings == []
 
 
-
 def test_proxy_feature_provider_returns_empty_bundle_for_empty_close_history() -> None:
     bundle = ProxyFeatureDataProvider(category_file="missing_categories.txt").build_feature_bundle(
         ["AAPL"],
@@ -114,7 +112,6 @@ def test_proxy_feature_provider_returns_empty_bundle_for_empty_close_history() -
     assert bundle.ticker_features == {}
     assert bundle.market_features is None
     assert bundle.warnings == ()
-
 
 
 def test_proxy_feature_provider_marks_unmapped_tickers_and_normalizes_timezone(

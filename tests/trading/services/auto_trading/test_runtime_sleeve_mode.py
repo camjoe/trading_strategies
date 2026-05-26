@@ -628,14 +628,14 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
     order_count = conn.execute("SELECT COUNT(*) AS n FROM broker_orders").fetchone()
     assert order_count is not None
     assert int(order_count["n"]) == 0
-    sleeve_order = conn.execute("SELECT status FROM sleeve_orders WHERE account_id = ? ORDER BY id DESC LIMIT 1", (account_id,)).fetchone()
+    sleeve_order = conn.execute(
+        "SELECT status FROM sleeve_orders WHERE account_id = ? ORDER BY id DESC LIMIT 1", (account_id,)
+    ).fetchone()
     assert sleeve_order is not None
     assert sleeve_order["status"] == "submitted"
 
 
-def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(
-    sleeve_env, conn, monkeypatch
-) -> None:
+def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_env, conn, monkeypatch) -> None:
     account_name = sleeve_env.account_name
     account_id = sleeve_env.account_id
     sleeve_id = sleeve_env.sleeve_id

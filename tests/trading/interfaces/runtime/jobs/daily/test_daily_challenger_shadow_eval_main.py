@@ -149,7 +149,9 @@ def test_run_shadow_eval_for_account_uses_account_lookup_and_builder(monkeypatch
 
     monkeypatch.setattr(module, "build_sleeve_shadow_evaluation", _fake_builder)
 
-    result = module.run_shadow_eval_for_account(object(), account_name="acct1", rolling_window_days=45, as_of_iso="2026-05-07")
+    result = module.run_shadow_eval_for_account(
+        object(), account_name="acct1", rolling_window_days=45, as_of_iso="2026-05-07"
+    )
 
     assert result == "shadow-run"
     assert captured == {"account": {"name": "acct1"}, "as_of_iso": "2026-05-07", "rolling_window_days": 45}
@@ -181,7 +183,9 @@ def test_main_skips_duplicate_run_and_writes_skipped_artifact(monkeypatch, tmp_p
 def test_main_writes_failure_artifact_when_eval_raises(monkeypatch, tmp_path: Path) -> None:
     set_runtime_eligible_accounts(monkeypatch, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["acct1"])
     monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
-    monkeypatch.setattr(module, "run_shadow_eval_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        module, "run_shadow_eval_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     class _Conn:
         def close(self):

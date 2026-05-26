@@ -176,7 +176,9 @@ def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
     monkeypatch.setattr(
         router_module,
         "dispatch_command",
-        lambda conn, args, parser, **kwargs: dispatched.update({"command": args.command, "db_path": kwargs["db_path"]}),
+        lambda conn, args, parser, **kwargs: dispatched.update(
+            {"command": args.command, "db_path": kwargs["db_path"]}
+        ),
     )
 
     runpy.run_module(cli_main.__name__, run_name="__main__")

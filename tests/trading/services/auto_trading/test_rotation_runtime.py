@@ -113,7 +113,9 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
     assert calls["fetch_policy_features_fn"] is rotation_runtime_service.fetch_policy_rotation_bundle
     assert calls["fetch_news_features_fn"] is rotation_runtime_service.fetch_news_rotation_bundle
     assert calls["fetch_social_features_fn"] is rotation_runtime_service.fetch_social_rotation_bundle
-    assert calls["fetch_rotation_overlay_tickers_fn"] is rotation_runtime_service.fetch_runtime_rotation_overlay_tickers
+    assert (
+        calls["fetch_rotation_overlay_tickers_fn"] is rotation_runtime_service.fetch_runtime_rotation_overlay_tickers
+    )
 
 
 def test_sync_runtime_rotation_episode_requires_connection_execute(monkeypatch: pytest.MonkeyPatch) -> None:

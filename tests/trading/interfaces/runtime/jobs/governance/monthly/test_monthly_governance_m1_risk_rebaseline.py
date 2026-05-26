@@ -135,13 +135,17 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module, account_lookup=lambda _name: None)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
-    payload = load_single_artifact_json(tmp_path / "local" / "artifacts", "monthly_governance_m1_risk_rebaseline_*.json")
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "monthly_governance_m1_risk_rebaseline_*.json"
+    )
     assert payload["accounts"] == []
 
 
 def test_main_returns_1_when_snapshot_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(module, "fetch_latest_portfolio_risk_snapshot", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        module, "fetch_latest_portfolio_risk_snapshot", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

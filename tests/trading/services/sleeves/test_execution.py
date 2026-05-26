@@ -91,7 +91,6 @@ def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch
     recorder.assert_called_once_with("account", "trend")
 
 
-
 def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_state")
     sleeve_id = _insert_sleeve(conn, account_id=account_id, name="stateful", current_cash=750.0)
@@ -133,7 +132,6 @@ def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
     assert state.avg_cost == {"AAPL": 100.0}
 
 
-
 def test_generate_sleeve_trade_intents_returns_empty_without_active_sleeves(conn) -> None:
     account_name = "acct_sleeve_none"
     account_id = insert_repository_account(conn, name=account_name)
@@ -152,7 +150,6 @@ def test_generate_sleeve_trade_intents_returns_empty_without_active_sleeves(conn
     )
 
     assert intents == []
-
 
 
 def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_universes(
@@ -201,7 +198,6 @@ def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_u
 
     assert intents == []
     assert captured_universes == [["SPY", "QQQ"]]
-
 
 
 def test_run_sleeve_mode_for_account_returns_generated_intent_count(conn, monkeypatch) -> None:

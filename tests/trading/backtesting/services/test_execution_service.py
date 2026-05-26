@@ -128,9 +128,7 @@ def _patched_run_backtest(
         warnings_for_config_fn=lambda _account, _allow: [],
         resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
         fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(close_data, index=idx),
-        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series(
-            [100.0] * len(idx), index=idx
-        ),
+        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
         insert_run_fn=lambda *_args, **_kwargs: 1,
         insert_trade_fn=lambda *_args, **_kwargs: None,
         insert_snapshot_fn=lambda *_args, **_kwargs: None,

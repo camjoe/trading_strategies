@@ -20,22 +20,28 @@ from trading.services.runtime_settings.mutations import (
 class TestValidateWeightSum:
     def test_valid_weights_do_not_raise(self) -> None:
         _validate_weight_sum(
-            first_name="a", first_value=0.6,
-            second_name="b", second_value=0.4,
+            first_name="a",
+            first_value=0.6,
+            second_name="b",
+            second_value=0.4,
         )
 
     def test_invalid_weights_raise_value_error(self) -> None:
         with pytest.raises(ValueError, match="must equal 1.0"):
             _validate_weight_sum(
-                first_name="a", first_value=0.8,
-                second_name="b", second_value=0.8,
+                first_name="a",
+                first_value=0.8,
+                second_name="b",
+                second_value=0.8,
             )
 
     def test_error_message_includes_field_names(self) -> None:
         with pytest.raises(ValueError, match="trade_weight"):
             _validate_weight_sum(
-                first_name="trade_weight", first_value=0.5,
-                second_name="snapshot_weight", second_value=0.3,
+                first_name="trade_weight",
+                first_value=0.5,
+                second_name="snapshot_weight",
+                second_value=0.3,
             )
 
 

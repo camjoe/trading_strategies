@@ -168,7 +168,7 @@ def test_row_json_and_require_helpers_raise_on_invalid_payloads(monkeypatch) -> 
     assert _row_json_object({"payload": None}, "payload") == {}
 
     with pytest.raises(ValueError, match="Expected JSON object in column 'payload'"):
-        _row_json_object({"payload": '[1, 2, 3]'}, "payload")
+        _row_json_object({"payload": "[1, 2, 3]"}, "payload")
 
     monkeypatch.setattr(promotion_repository, "fetch_promotion_review_by_id", lambda *_args, **_kwargs: None)
     with pytest.raises(ValueError, match="Promotion review 7 not found after update"):

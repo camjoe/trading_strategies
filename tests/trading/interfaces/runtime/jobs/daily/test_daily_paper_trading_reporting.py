@@ -57,7 +57,11 @@ def test_latest_shadow_eval_summary_counts_valid_sleeves_and_challengers(tmp_pat
 
 
 def test_build_daily_operator_report_skips_missing_accounts(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(module.dt, "date", type("FakeDate", (), {"today": classmethod(lambda cls: cls()), "isoformat": lambda self: "2026-03-27"}))
+    monkeypatch.setattr(
+        module.dt,
+        "date",
+        type("FakeDate", (), {"today": classmethod(lambda cls: cls()), "isoformat": lambda self: "2026-03-27"}),
+    )
     monkeypatch.setattr(module, "ensure_db", lambda: object())
     monkeypatch.setattr(
         module,

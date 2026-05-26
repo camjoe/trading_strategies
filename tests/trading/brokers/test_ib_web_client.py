@@ -520,10 +520,12 @@ class TestInteractiveBrokersWebClient:
 
     def test_fetch_positions_accepts_list_and_object_positions_list(self, monkeypatch):
         client = InteractiveBrokersWebClient(settings=_make_settings(), http_client=MagicMock())
-        responses = iter([
-            [{"ticker": "AAPL"}, "skip"],
-            {"positions": [{"ticker": "MSFT"}, "skip"]},
-        ])
+        responses = iter(
+            [
+                [{"ticker": "AAPL"}, "skip"],
+                {"positions": [{"ticker": "MSFT"}, "skip"]},
+            ]
+        )
         monkeypatch.setattr(client, "_request_json", lambda *args, **kwargs: next(responses))
 
         assert client.fetch_positions() == [{"ticker": "AAPL"}]
@@ -625,7 +627,9 @@ class TestInteractiveBrokersWebClient:
 
     def test_submit_order_rejects_confirmation_loops_and_error_payloads(self, monkeypatch):
         client = InteractiveBrokersWebClient(settings=_make_settings(), http_client=MagicMock())
-        monkeypatch.setattr(client, "_request_json", lambda *args, **kwargs: [{"id": "reply-1", "message": ["confirm"]}])
+        monkeypatch.setattr(
+            client, "_request_json", lambda *args, **kwargs: [{"id": "reply-1", "message": ["confirm"]}]
+        )
 
         with pytest.raises(RuntimeError, match="safety limit"):
             client.submit_order({"ticker": "AAPL"})
@@ -727,7 +731,9 @@ class TestInteractiveBrokersWebClient:
         assert alive_thread.started is False
 
     def test_run_keepalive_loop_stops_when_disconnected_or_tickle_fails(self, monkeypatch):
-        client = InteractiveBrokersWebClient(settings=_make_settings(keepalive_interval_seconds=0.01), http_client=MagicMock())
+        client = InteractiveBrokersWebClient(
+            settings=_make_settings(keepalive_interval_seconds=0.01), http_client=MagicMock()
+        )
 
         class _WaitOnce:
             def __init__(self) -> None:

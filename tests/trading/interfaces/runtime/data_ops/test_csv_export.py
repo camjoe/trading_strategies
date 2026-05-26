@@ -169,6 +169,7 @@ def test_export_tables_to_csv_falls_back_to_get_db_path_for_non_sqlite_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(csv_export, "datetime", FixedDateTime)
+
     class _Backend:
         def open_connection(self):
             return sqlite3.connect(sqlite_db_file)

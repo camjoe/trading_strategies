@@ -161,11 +161,9 @@ def test_require_request_context_validates_missing_fields(
         promotion_actions._require_request_context(artifact, assessment)
 
 
-
 def test_execute_promotion_review_action_raises_when_review_is_missing(conn) -> None:
     with pytest.raises(ValueError, match="Promotion review 999 not found"):
         execute_promotion_review_action(conn, review_id=999, action="approve")
-
 
 
 def test_execute_promotion_review_request_raises_when_created_review_cannot_be_reloaded(
@@ -180,13 +178,16 @@ def test_execute_promotion_review_request_raises_when_created_review_cannot_be_r
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
         ),
     )
-    monkeypatch.setattr(promotion_actions, "insert_promotion_review", lambda *_args, **_kwargs: promotion_actions.PromotionReviewRecord(id=77))
+    monkeypatch.setattr(
+        promotion_actions,
+        "insert_promotion_review",
+        lambda *_args, **_kwargs: promotion_actions.PromotionReviewRecord(id=77),
+    )
     monkeypatch.setattr(promotion_actions, "_record_review_event", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(promotion_actions, "fetch_promotion_review_by_id", lambda *_args, **_kwargs: None)
 
     with pytest.raises(ValueError, match="Promotion review 77 not found after request creation"):
         execute_promotion_review_request(conn, account_name="acct_service", strategy_name="trend_v1")
-
 
 
 def test_execute_promotion_review_action_adds_note_without_closing_review(
@@ -221,7 +222,6 @@ def test_execute_promotion_review_action_adds_note_without_closing_review(
     assert entries[0].events[-1].note == "follow up needed"
 
 
-
 def test_execute_promotion_review_action_rejects_non_ready_review(
     conn,
     promotion_account: None,
@@ -247,7 +247,6 @@ def test_execute_promotion_review_action_rejects_non_ready_review(
     assert rejected.closed_at is not None
 
 
-
 def test_execute_promotion_review_action_blocks_approval_when_not_ready_for_live(
     conn,
     promotion_account: None,
@@ -270,7 +269,6 @@ def test_execute_promotion_review_action_blocks_approval_when_not_ready_for_live
         execute_promotion_review_action(conn, review_id=int(review.id), action="approve")
 
 
-
 def test_execute_promotion_review_action_raises_for_closed_review(
     conn,
     promotion_account: None,
@@ -289,7 +287,6 @@ def test_execute_promotion_review_action_raises_for_closed_review(
 
     with pytest.raises(ValueError, match="already closed with state 'approved'"):
         execute_promotion_review_action(conn, review_id=int(review.id), action="note", note="late note")
-
 
 
 def test_resolve_review_closure_rejects_unsupported_action() -> None:

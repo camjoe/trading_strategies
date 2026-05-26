@@ -185,9 +185,7 @@ def test_fetch_latest_backtest_run_id_for_account_strategy_returns_none_for_no_m
     conn: sqlite3.Connection,
 ) -> None:
     _insert_account_and_runs(conn, "acct_strat_nomatch", 1)
-    account_id = int(
-        conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_strat_nomatch",)).fetchone()["id"]
-    )
+    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_strat_nomatch",)).fetchone()["id"])
 
     result = fetch_latest_backtest_run_id_for_account_strategy(
         conn,

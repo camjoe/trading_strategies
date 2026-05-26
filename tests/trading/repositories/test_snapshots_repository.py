@@ -136,12 +136,15 @@ class TestSnapshotCountsAndDetails:
         _insert(conn, acct_a, snapshot_time="2026-01-04T00:00:00", equity=400.0)
         _insert(conn, acct_b, snapshot_time="2026-01-02T00:00:00", equity=999.0)
 
-        assert fetch_snapshot_count_between(
-            conn,
-            account_id=acct_a,
-            start_iso="2026-01-01T00:00:00",
-            end_iso="2026-01-02T23:59:59",
-        ) == 2
+        assert (
+            fetch_snapshot_count_between(
+                conn,
+                account_id=acct_a,
+                start_iso="2026-01-01T00:00:00",
+                end_iso="2026-01-02T23:59:59",
+            )
+            == 2
+        )
         assert fetch_snapshot_count_for_account(conn, account_id=acct_a) == 3
         assert fetch_snapshot_count_for_account(conn, account_id=acct_b) == 1
 
