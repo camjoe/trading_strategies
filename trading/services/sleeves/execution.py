@@ -14,7 +14,7 @@ from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_strategy_sleeves_for_account,
 )
-from trading.services.universe_resolver import resolve_named_universes
+from trading.services.universe.resolver import resolve_named_universes
 
 
 @dataclass(frozen=True, slots=True)

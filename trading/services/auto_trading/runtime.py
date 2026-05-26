@@ -16,7 +16,7 @@ from trading.brokers.factory import get_broker_for_account
 from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
-from trading.services.universe_resolver import resolve_named_universes
+from trading.services.universe.resolver import resolve_named_universes
 from trading.repositories.broker_orders import (
     fetch_open_broker_orders,
     insert_broker_order,

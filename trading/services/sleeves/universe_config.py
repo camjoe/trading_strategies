@@ -12,7 +12,7 @@ import sqlite3
 
 from common.time import utc_now_iso
 from trading.repositories.sleeves import update_sleeve_trade_universes
-from trading.services.universe_resolver import list_available_universes
+from trading.services.universe.resolver import list_available_universes
 
 
 def configure_sleeve_trade_universes(

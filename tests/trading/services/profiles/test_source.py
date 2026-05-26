@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from trading.services.profile_source import (
+from trading.services.profiles.source import (
     JsonAccountProfileSource,
     get_builtin_profile_preset_path,
     resolve_profile_file_path,
