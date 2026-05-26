@@ -6,7 +6,7 @@ import random
 import sqlite3
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_int
-import trading.domain.auto_trader_policy as auto_trader_policy
+import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.repositories.sleeve_positions import fetch_sleeve_positions

@@ -32,7 +32,7 @@ from trading.services.accounts.queries import (
     load_runtime_eligible_account_names,
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.domain.auto_trader_policy import (
+from trading.domain.auto_trading_policy import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
 )
