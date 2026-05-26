@@ -15,7 +15,7 @@ from trading.repositories.promotion import (
     fetch_promotion_reviews_for_account,
 )
 from trading.services.accounts import get_account
-from trading.services.promotion._shared import normalize_optional_text
+from trading.services.promotion.helpers import normalize_optional_text
 
 
 @dataclass(frozen=True)

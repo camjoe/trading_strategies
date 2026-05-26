@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.services.sleeves._shared import mean, resolve_window_bounds
+from trading.services.sleeves.helpers import mean, resolve_window_bounds
 
 
 def test_mean_returns_zero_for_empty_list() -> None:

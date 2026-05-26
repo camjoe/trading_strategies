@@ -8,8 +8,8 @@ import sqlite3
 from common.coercion import row_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
-from trading.services.sleeves._shared import mean as _sleeve_mean
-from trading.services.sleeves._shared import resolve_window_bounds as _resolve_window_bounds_shared
+from trading.services.sleeves.helpers import mean as _sleeve_mean
+from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 from trading.domain.sleeve_rotation import (
     SleeveRotationDecision,
     SleeveRotationScoreWeights,
