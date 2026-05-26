@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+import trading.repositories.accounts as accounts_repository
 from trading.models import AccountInsert
 from trading.repositories.accounts import (
     fetch_account_by_name,
-    fetch_account_rows,
     fetch_account_listing_rows,
+    fetch_account_rows,
     fetch_all_account_names,
     insert_account,
+    load_all_account_names,
     update_account_benchmark,
     update_account_fields,
 )
@@ -193,3 +197,30 @@ class TestFetchAllAccountNames:
 
     def test_empty_table_returns_empty(self, conn) -> None:
         assert fetch_all_account_names(conn) == []
+
+
+class TestLoadAllAccountNames:
+    def test_opens_and_closes_backend_connection(self, conn, monkeypatch) -> None:
+        _insert(conn, "zulu")
+        _insert(conn, "alpha")
+
+        class _ConnectionProxy:
+            def __init__(self, wrapped_conn) -> None:
+                self._wrapped_conn = wrapped_conn
+                self.closed = False
+
+            def execute(self, *args, **kwargs):
+                return self._wrapped_conn.execute(*args, **kwargs)
+
+            def close(self) -> None:
+                self.closed = True
+
+        proxy = _ConnectionProxy(conn)
+        monkeypatch.setattr(
+            accounts_repository,
+            "get_backend",
+            lambda: SimpleNamespace(open_connection=lambda: proxy),
+        )
+
+        assert load_all_account_names() == ["alpha", "zulu"]
+        assert proxy.closed is True

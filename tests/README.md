@@ -169,6 +169,51 @@ Named constants from `tests/support/seed/db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENT
 - Market data provider environment variables are reset before and after each `tests/trading/services/market_data` test.
 - Tests that mutate global state should always restore it in fixture teardown.
 
+## Interfaces Layer: `__main__` Entrypoint Tests
+
+`tests/trading/interfaces/` tests cover modules that own `if __name__ == "__main__":` blocks — CLI scripts, runtime jobs, and scheduled tasks. These are the only modules in the codebase that are executed directly as processes, so they are the only test files that use `runpy.run_module`.
+
+### The double-import problem
+
+Interface test files typically do two things:
+
+1. **Import the module at top level** so that other tests in the same file can call `module.some_function()` or read `module.SOME_CONSTANT`.
+2. **Run the module as `__main__`** in a dedicated entrypoint smoke test to verify the `if __name__ == "__main__":` wiring.
+
+When the module is already in `sys.modules` from step 1, a bare `runpy.run_module(name, run_name="__main__")` triggers a Python `RuntimeWarning`:
+
+```
+'trading.interfaces...<module>' found in sys.modules after import of package
+'trading.interfaces...', but prior to execution of '...<module>';
+this may result in unpredictable behaviour
+```
+
+### The fix: `run_module_as_main`
+
+Use `run_module_as_main(module.__name__)` from `loaders.py` instead of calling `runpy.run_module` directly. It temporarily pops the module from `sys.modules`, runs it as `__main__`, then restores it — so subsequent tests in the same worker see the original (monkeypatched) module object:
+
+```python
+from tests.trading.interfaces.runtime.jobs.loaders import (
+    some_module as module,
+    run_module_as_main,
+)
+
+def test_module_main_entrypoint(monkeypatch, tmp_path):
+    monkeypatch.setattr(module, "some_dep", ...)
+    run_module_as_main(module.__name__)
+```
+
+### When you need this pattern
+
+You need `run_module_as_main` when **both** of these are true:
+
+- The module is imported at the top of the test file (or transitively via `loaders.py`)
+- That same module is passed to `runpy.run_module` in a test
+
+All other layers (`services/`, `repositories/`, `domain/`) never have `__main__` entrypoints, so `runpy.run_module` — and therefore this pattern — only appears under `tests/trading/interfaces/`.
+
+
+
 ## Audit Notes
 
 - Full repository validation remains `python -m pytest` from repo root.
@@ -201,8 +246,8 @@ tests/support/
 
 Helpers that are exclusively used by a single suite live co-located with that suite rather than in `tests/support/`:
 
-- `tests/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders
+- `tests/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders and `run_module_as_main` (see [Interfaces Layer: `__main__` Entrypoint Tests](#interfaces-layer-__main__-entrypoint-tests))
 - `tests/trading/services/auto_trading/factories.py` — auto-trading fakes and builders
-- `tests/trading/services/admin/factories.py` — admin dataset seeding
+- `tests/trading/services/admin/seed.py` — admin dataset seeding
 
 **Convention:** if a co-located `factories.py` is imported from outside its own directory, move it to `tests/support/` under a domain-based name.

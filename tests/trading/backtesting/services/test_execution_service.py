@@ -88,3 +88,125 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
     assert result.max_drawdown_pct == -2.0
     assert result.sharpe_ratio is None
     assert result.win_rate_pct is None
+
+
+# ---------------------------------------------------------------------------
+# _row_optional_float unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_row_optional_float_missing_key_returns_none() -> None:
+    """KeyError path — column absent from account row (lines 29-31)."""
+    assert execution_service._row_optional_float({"a": 1.0}, "b") is None
+
+
+def test_row_optional_float_none_value_returns_none() -> None:
+    """None-value path — column present but value is None (lines 32-33)."""
+    assert execution_service._row_optional_float({"trade_size_pct": None}, "trade_size_pct") is None
+
+
+# ---------------------------------------------------------------------------
+# Buy-path skip guards (require patching resolve_signal to return "buy")
+# ---------------------------------------------------------------------------
+
+
+def _patched_run_backtest(
+    idx: pd.DatetimeIndex,
+    close_data: dict,
+    resolve_signal_fn,
+    choose_buy_qty_fn=None,
+    account: dict | None = None,
+):
+    """Run a minimal backtest with all I/O patched; returns BacktestResult."""
+    if account is None:
+        account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0}
+    kwargs = dict(
+        conn=SimpleNamespace(commit=lambda: None),
+        cfg=_base_cfg(),
+        get_account_fn=lambda _conn, _name: account,
+        resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
+        warnings_for_config_fn=lambda _account, _allow: [],
+        resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
+        fetch_close_history_fn=lambda _tickers, _start, _end: pd.DataFrame(close_data, index=idx),
+        fetch_benchmark_close_fn=lambda _ticker, _start, _end: pd.Series([100.0] * len(idx), index=idx),
+        insert_run_fn=lambda *_args, **_kwargs: 1,
+        insert_trade_fn=lambda *_args, **_kwargs: None,
+        insert_snapshot_fn=lambda *_args, **_kwargs: None,
+    )
+    if choose_buy_qty_fn is not None:
+        kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn
+
+    with (
+        patch.object(execution_service, "resolve_active_strategy", lambda _account: "trend"),
+        patch.object(
+            execution_service,
+            "resolve_strategy",
+            lambda _name: SimpleNamespace(required_features=()),
+        ),
+        patch.object(execution_service, "resolve_signal", resolve_signal_fn),
+        patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),
+        patch.object(execution_service, "max_drawdown_pct", lambda _curve: -2.0),
+    ):
+        return execution_service.run_backtest(**kwargs)
+
+
+def test_execution_service_buy_skip_when_price_is_zero() -> None:
+    """Buy signal is ignored when trade price is zero (line 135)."""
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    result = _patched_run_backtest(
+        idx,
+        {"AAPL": [0.0, 0.0, 0.0]},
+        lambda *_args, **_kwargs: "buy",
+    )
+    assert result.trade_count == 0
+
+
+def test_execution_service_buy_skip_when_qty_less_than_one() -> None:
+    """Buy signal is ignored when choose_buy_qty returns zero (line 151).
+
+    Also exercises _row_optional_float with a missing key (lines 29-31), since
+    the account row does not contain 'trade_size_pct'.
+    """
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    result = _patched_run_backtest(
+        idx,
+        {"AAPL": [100.0, 100.0, 100.0]},
+        lambda *_args, **_kwargs: "buy",
+        choose_buy_qty_fn=lambda *_args, **_kwargs: 0,
+    )
+    assert result.trade_count == 0
+
+
+def test_execution_service_buy_skip_when_required_exceeds_cash() -> None:
+    """Buy signal is ignored when required cost exceeds available cash (line 155)."""
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    result = _patched_run_backtest(
+        idx,
+        {"AAPL": [100.0, 100.0, 100.0]},
+        lambda *_args, **_kwargs: "buy",
+        # 1000 shares × $100 = $100 000, far exceeds the $1 000 starting cash.
+        choose_buy_qty_fn=lambda *_args, **_kwargs: 1000,
+    )
+    assert result.trade_count == 0
+
+
+# ---------------------------------------------------------------------------
+# Sell-path skip guard
+# ---------------------------------------------------------------------------
+
+
+def test_execution_service_sell_skip_when_price_is_zero() -> None:
+    """Sell signal is ignored when trade price is zero after a prior buy (line 184)."""
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+
+    # Day 1 → buy at 100.0; Day 2 → sell attempt at 0.0 (skipped).
+    signals = iter(["buy", "sell"])
+
+    result = _patched_run_backtest(
+        idx,
+        {"AAPL": [100.0, 100.0, 0.0]},
+        lambda *_args, **_kwargs: next(signals, "hold"),
+        choose_buy_qty_fn=lambda *_args, **_kwargs: 5,
+    )
+    # The buy on day 1 executed; the sell on day 2 was skipped.
+    assert result.trade_count == 1

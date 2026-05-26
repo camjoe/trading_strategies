@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import sys
+import pytest
+
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     daily_challenger_shadow_eval as module,
@@ -123,3 +127,86 @@ def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys)
 
 def test_main_registered_in_support_module_constant() -> None:
     assert DAILY_CHALLENGER_SHADOW_EVAL_MODULE.endswith("daily.challenger_shadow_eval")
+
+
+def test_already_completed_today_detects_sentinel(tmp_path: Path) -> None:
+    log = tmp_path / "daily_challenger_shadow_eval_20260507_120000.log"
+    log.write_text(f"ok\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
+
+    assert module.already_completed_today(tmp_path, "20260507") is True
+
+
+def test_run_shadow_eval_for_account_uses_account_lookup_and_builder(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(module, "get_account", lambda _conn, name: {"name": name})
+
+    def _fake_builder(_conn, *, account, as_of_iso, rolling_window_days):
+        captured["account"] = account
+        captured["as_of_iso"] = as_of_iso
+        captured["rolling_window_days"] = rolling_window_days
+        return "shadow-run"
+
+    monkeypatch.setattr(module, "build_sleeve_shadow_evaluation", _fake_builder)
+
+    result = module.run_shadow_eval_for_account(
+        object(), account_name="acct1", rolling_window_days=45, as_of_iso="2026-05-07"
+    )
+
+    assert result == "shadow-run"
+    assert captured == {"account": {"name": "acct1"}, "as_of_iso": "2026-05-07", "rolling_window_days": 45}
+
+
+def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(module, "parse_args", lambda: make_daily_challenger_shadow_eval_args(repo_root=str(tmp_path)))
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+    monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: ["acct1"])
+
+    assert module.main() == 1
+    assert "No accounts specified." in capsys.readouterr().err
+
+
+def test_main_skips_duplicate_run_and_writes_skipped_artifact(monkeypatch, tmp_path: Path) -> None:
+    set_runtime_eligible_accounts(monkeypatch, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["acct1"])
+    monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: True)
+
+    assert run_runtime_job_main(monkeypatch, tmp_path, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["--enable-run"]) == 0
+
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_challenger_shadow_eval",
+        "daily_challenger_shadow_eval_*.json",
+    )
+    assert payload["status"] == "skipped"
+    assert payload["results"] == []
+
+
+def test_main_writes_failure_artifact_when_eval_raises(monkeypatch, tmp_path: Path) -> None:
+    set_runtime_eligible_accounts(monkeypatch, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["acct1"])
+    monkeypatch.setattr(module, "already_completed_today", lambda _log_dir, _day_tag: False)
+    monkeypatch.setattr(
+        module, "run_shadow_eval_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+
+    class _Conn:
+        def close(self):
+            return None
+
+    monkeypatch.setattr(module, "ensure_db", lambda: _Conn())
+
+    assert run_runtime_job_main(monkeypatch, tmp_path, DAILY_CHALLENGER_SHADOW_EVAL_MODULE, ["--enable-run"]) == 1
+
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_challenger_shadow_eval",
+        "daily_challenger_shadow_eval_*.json",
+    )
+    assert payload["status"] == "failed"
+    assert payload["error"] == "boom"
+
+
+def test_challenger_shadow_eval_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(sys, "argv", ["challenger_shadow_eval", "--repo-root", str(tmp_path)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_module_as_main(module.__name__)
+
+    assert excinfo.value.code == 0

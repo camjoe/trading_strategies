@@ -152,3 +152,50 @@ class TestBatchExport:
 
         assert archive.exists()
         assert archive.suffix == ".zip"
+
+
+def test_ordered_select_sql_skips_ordering_when_table_has_no_id(sqlite_db_file: Path) -> None:
+    conn = sqlite3.connect(sqlite_db_file)
+    try:
+        conn.execute("CREATE TABLE notes (body TEXT NOT NULL)")
+        assert csv_export._ordered_select_sql(conn, "notes") == "SELECT * FROM notes"
+    finally:
+        conn.close()
+
+
+def test_export_tables_to_csv_falls_back_to_get_db_path_for_non_sqlite_backend(
+    sqlite_db_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(csv_export, "datetime", FixedDateTime)
+
+    class _Backend:
+        def open_connection(self):
+            return sqlite3.connect(sqlite_db_file)
+
+    monkeypatch.setattr(csv_export, "get_backend", lambda: _Backend())
+    monkeypatch.setattr(csv_export, "get_db_path", lambda: sqlite_db_file)
+
+    result = csv_export.export_tables_to_csv(tables=["accounts"], output_base_dir=tmp_path)
+
+    assert result.db_path == sqlite_db_file.resolve()
+
+
+def test_print_export_summary_lists_all_tables(capsys, tmp_path: Path) -> None:
+    result = csv_export.ExportBatchResult(
+        db_path=tmp_path / "paper_trading.db",
+        output_dir=tmp_path / "exports",
+        started_at_utc="2026-03-27T12:34:56Z",
+        tables=(
+            csv_export.TableExportResult(table="accounts", output_path=tmp_path / "accounts.csv", row_count=2),
+            csv_export.TableExportResult(table="trades", output_path=tmp_path / "trades.csv", row_count=1),
+        ),
+    )
+
+    csv_export.print_export_summary(result)
+
+    out = capsys.readouterr().out
+    assert "[export] Database:" in out
+    assert "accounts: 2 row(s)" in out
+    assert "trades: 1 row(s)" in out

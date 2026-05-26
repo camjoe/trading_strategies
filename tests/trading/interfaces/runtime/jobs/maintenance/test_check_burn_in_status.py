@@ -8,6 +8,10 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
+from tests.trading.interfaces.helpers import run_module_as_main
+
 MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
 DEFAULT_FAKE_NOW = _real_dt.datetime(2026, 5, 20, 14, 0, 0)
 
@@ -155,25 +159,22 @@ class TestNotReadyWhenFailureRateExceeded:
 
 
 class TestDedupGuardSkipsWhenAlreadyDone:
-    def test_dedup_guard_skips_when_already_done(self, monkeypatch, tmp_path: Path, capsys) -> None:
+    def test_dedup_guard_skips_when_already_done(self, monkeypatch, job_root: Path, capsys) -> None:
         mod = _mod()
-        logs_dir = tmp_path / "local" / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-
         today_tag = "20260520"
-        sentinel_log = logs_dir / f"check_burn_in_status_{today_tag}_120000.log"
+        sentinel_log = job_root / "local" / "logs" / f"check_burn_in_status_{today_tag}_120000.log"
         sentinel_log.write_text(f"previous run\n{mod.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
         rc = _run_main_at_now(
             monkeypatch,
-            tmp_path,
+            job_root,
         )
         assert rc == 0
         out = capsys.readouterr().out
         assert "skipping" in out.lower() or "already" in out.lower()
 
         # No new artifact should have been written.
-        assert _burn_in_artifacts(tmp_path) == []
+        assert _burn_in_artifacts(job_root) == []
 
 
 # ---------------------------------------------------------------------------
@@ -182,24 +183,21 @@ class TestDedupGuardSkipsWhenAlreadyDone:
 
 
 class TestForceRunBypassesDedupGuard:
-    def test_force_run_bypasses_dedup_guard(self, monkeypatch, tmp_path: Path) -> None:
+    def test_force_run_bypasses_dedup_guard(self, monkeypatch, job_root: Path) -> None:
         mod = _mod()
-        logs_dir = tmp_path / "local" / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-
         today_tag = "20260520"
-        sentinel_log = logs_dir / f"check_burn_in_status_{today_tag}_120000.log"
+        sentinel_log = job_root / "local" / "logs" / f"check_burn_in_status_{today_tag}_120000.log"
         sentinel_log.write_text(f"previous run\n{mod.COMPLETE_SENTINEL}\n", encoding="utf-8")
 
         rc = _run_main_at_now(
             monkeypatch,
-            tmp_path,
+            job_root,
             extra_args=["--force-run"],
         )
         assert rc == 0
 
         # Artifact must have been written (job actually ran).
-        assert len(_burn_in_artifacts(tmp_path)) == 1
+        assert len(_burn_in_artifacts(job_root)) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -248,3 +246,35 @@ class TestLatestArtifactUsedWhenMultipleOnSameDate:
         assert data["total_runs_in_window"] == 1
         assert data["entries"][0]["status"] == "failed"
         assert data["entries"][0]["artifact_file"].endswith("150000.json")
+
+
+def test_scan_artifacts_ignores_invalid_names_and_handles_corrupt_json(tmp_path: Path) -> None:
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    (export_dir / "ignore_me.json").write_text("{}", encoding="utf-8")
+    (export_dir / "daily_paper_trading_20261301_120000.json").write_text("{}", encoding="utf-8")
+    (export_dir / "daily_paper_trading_20260530_120000.json").write_text("{}", encoding="utf-8")
+    (export_dir / "daily_paper_trading_20260520_120000.json").write_text("{not json", encoding="utf-8")
+
+    entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+    assert entries == [
+        {
+            "date": "2026-05-20",
+            "status": "failed",
+            "artifact_file": "daily_paper_trading_20260520_120000.json",
+        }
+    ]
+
+
+def test_burn_in_status_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [MODULE, "--repo-root", str(tmp_path), "--force-run"],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_module_as_main(MODULE)
+
+    assert excinfo.value.code == 0

@@ -144,3 +144,16 @@ def test_resolve_trade_caps_non_primary_uses_other_limits() -> None:
         other_max_trades=9,
     )
     assert result["other_acct"] == (1, 9)
+
+
+def test_parse_account_trade_caps_ignores_empty_items_between_commas() -> None:
+    result = module.parse_account_trade_caps("acct_a:1-2, , acct_b:3-4")
+    assert result == {"acct_a": (1, 2), "acct_b": (3, 4)}
+
+
+def test_load_trade_caps_config_account_missing_bounds_raises(tmp_path: Path) -> None:
+    path = tmp_path / "caps.json"
+    path.write_text(json.dumps({"accounts": {"acct_a": {"min": 1}}}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must contain min and max"):
+        module.load_trade_caps_config(path)

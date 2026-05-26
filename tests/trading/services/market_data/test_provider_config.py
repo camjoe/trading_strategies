@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 import trading.services.market_data as market_data
+import trading.services.market_data.providers as provider_module
 
 
 def test_default_provider_is_yfinance() -> None:
@@ -159,3 +161,189 @@ def test_cache_write_failure_does_not_break_close_history(tmp_path: Path, monkey
 
     assert list(result.columns) == ["AAPL"]
     assert float(result.iloc[-1]["AAPL"]) == 101.0
+
+
+def test_yfinance_fetch_ohlcv_normalizes_multiindex_columns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    provider = market_data.YFinanceProvider()
+    index = pd.date_range("2026-01-01", periods=2)
+    hist = pd.DataFrame(
+        {
+            ("Close", "MSFT"): [200.0, 201.0],
+            ("Volume", "MSFT"): [20.0, 21.0],
+            ("Close", "AAPL"): [100.0, 101.0],
+            ("Volume", "AAPL"): [10.0, 11.0],
+        },
+        index=index,
+    )
+    hist.columns = pd.MultiIndex.from_tuples(hist.columns, names=["Field", "Ticker"])
+    calls: list[object] = []
+
+    def _fake_download(*args, **kwargs):
+        calls.append((args, kwargs))
+        return hist
+
+    monkeypatch.setattr(provider_module.yf, "download", _fake_download)
+
+    first = provider.fetch_ohlcv("AAPL", "1mo", "1d")
+    second = provider.fetch_ohlcv(" aapl ", "1mo", "1d")
+
+    assert len(calls) == 1
+    assert list(first.columns) == ["Close", "Volume"]
+    assert float(first.iloc[-1]["Close"]) == 101.0
+    pd.testing.assert_frame_equal(first, second)
+
+
+def test_yfinance_fetch_ohlcv_flattens_multiindex_without_ticker_names(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    provider = market_data.YFinanceProvider()
+    hist = pd.DataFrame(
+        {
+            ("Close", "raw"): [100.0],
+            ("Volume", "raw"): [10.0],
+        },
+        index=pd.date_range("2026-01-01", periods=1),
+    )
+    hist.columns = pd.MultiIndex.from_tuples(hist.columns)
+    monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: hist)
+
+    result = provider.fetch_ohlcv("SPY", "5d", "1d")
+
+    assert list(result.columns) == ["Close", "Volume"]
+
+
+def test_yfinance_fetch_ohlcv_raises_when_download_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: pd.DataFrame())
+
+    with pytest.raises(ValueError, match="No data returned for ticker"):
+        market_data.YFinanceProvider().fetch_ohlcv("SPY", "1mo", "1d")
+
+
+def test_yfinance_close_history_requires_at_least_one_ticker() -> None:
+    with pytest.raises(ValueError, match="At least one ticker is required"):
+        market_data.YFinanceProvider().fetch_close_history([], date(2026, 1, 1), date(2026, 1, 2))
+
+
+def test_yfinance_close_history_raises_when_download_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: pd.DataFrame())
+
+    with pytest.raises(ValueError, match="No historical price data returned"):
+        market_data.YFinanceProvider().fetch_close_history(["AAPL"], date(2026, 1, 1), date(2026, 1, 2))
+
+
+def test_yfinance_close_history_raises_when_close_column_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    hist = pd.DataFrame(
+        {
+            ("Open", "AAPL"): [100.0],
+            ("Open", "MSFT"): [200.0],
+        },
+        index=pd.date_range("2026-01-01", periods=1),
+    )
+    hist.columns = pd.MultiIndex.from_tuples(hist.columns)
+    monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: hist)
+
+    with pytest.raises(ValueError, match="missing Close column"):
+        market_data.YFinanceProvider().fetch_close_history(["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 2))
+
+
+def test_yfinance_close_history_raises_when_cleaned_history_is_empty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    hist = pd.DataFrame(
+        {"Close": [float("nan"), float("nan")]},
+        index=pd.date_range("2026-01-01", periods=2),
+    )
+    monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: hist)
+
+    with pytest.raises(ValueError, match="Close price history is empty after cleaning"):
+        market_data.YFinanceProvider().fetch_close_history(["AAPL"], date(2026, 1, 1), date(2026, 1, 2))
+
+
+def test_yfinance_close_history_raises_when_requested_ticker_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+    hist = pd.DataFrame(
+        {
+            ("Close", "AAPL"): [100.0, 101.0],
+        },
+        index=pd.date_range("2026-01-01", periods=2),
+    )
+    hist.columns = pd.MultiIndex.from_tuples(hist.columns)
+    monkeypatch.setattr(provider_module.yf, "download", lambda *args, **kwargs: hist)
+
+    with pytest.raises(ValueError, match="Missing close history for tickers: MSFT"):
+        market_data.YFinanceProvider().fetch_close_history(["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 2))
+
+
+@pytest.mark.parametrize(
+    "history",
+    [
+        pd.DataFrame(),
+        pd.DataFrame({"Close": [float("nan"), float("nan")]}, index=pd.date_range("2026-01-01", periods=2)),
+    ],
+)
+def test_yfinance_close_series_returns_none_for_empty_history(
+    history: pd.DataFrame,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+
+    class _FakeTicker:
+        def __init__(self, _ticker: str) -> None:
+            self.ticker = _ticker
+
+        def history(self, *, period: str, auto_adjust: bool) -> pd.DataFrame:
+            assert period == "5d"
+            assert auto_adjust is True
+            return history
+
+    monkeypatch.setattr(provider_module.yf, "Ticker", _FakeTicker)
+
+    assert market_data.YFinanceProvider().fetch_close_series("SPY", "5d") is None
+
+
+def test_yfinance_close_series_returns_none_when_ticker_history_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
+
+    class _FakeTicker:
+        def __init__(self, _ticker: str) -> None:
+            self.ticker = _ticker
+
+        def history(self, *, period: str, auto_adjust: bool) -> pd.DataFrame:
+            raise RuntimeError(f"failed for {period}:{auto_adjust}")
+
+    monkeypatch.setattr(provider_module.yf, "Ticker", _FakeTicker)
+
+    assert market_data.YFinanceProvider().fetch_close_series("SPY", "5d") is None
+
+
+@pytest.mark.parametrize(
+    ("method_name", "args"),
+    [
+        ("fetch_ohlcv", ("SPY", "1mo", "1d")),
+        ("fetch_close_history", (["SPY"], date(2026, 1, 1), date(2026, 1, 2))),
+        ("fetch_close_series", ("SPY", "1mo")),
+    ],
+)
+def test_unavailable_provider_methods_raise_not_implemented(method_name: str, args: tuple[object, ...]) -> None:
+    provider = provider_module.UnavailableProvider("ccxt")
+
+    with pytest.raises(NotImplementedError, match="not implemented yet"):
+        getattr(provider, method_name)(*args)

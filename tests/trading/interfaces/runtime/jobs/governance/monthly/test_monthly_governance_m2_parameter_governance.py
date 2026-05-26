@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
+import sys
+import pytest
 
 import trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance as module
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
@@ -142,3 +145,69 @@ class TestArtifactStructure:
         assert sleeve["strategy_name"] is None
         assert sleeve["param_set_id"] is None
         assert sleeve["params"] is None
+
+
+def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "No accounts specified." in capsys.readouterr().err
+
+
+def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module, account_lookup=lambda _name: None)
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json"
+    )
+    assert payload["accounts"] == []
+
+
+def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> None:
+    sleeve_row = {"id": 7, "name": "sleeve_q"}
+    stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+    monkeypatch.setattr(
+        module,
+        "fetch_active_sleeve_strategy_assignment",
+        lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 42},
+    )
+    monkeypatch.setattr(
+        module, "fetch_strategy_param_set_by_id", lambda conn, *, param_set_id: {"params_json": "{bad json"}
+    )
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json"
+    )
+    assert payload["accounts"][0]["sleeves"][0]["params"] is None
+
+
+def test_main_returns_1_when_param_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(
+        module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+
+
+def test_monthly_parameter_governance_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    import trading.services.accounts as accounts_module
+
+    monkeypatch.setattr(accounts_module, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(sys, "argv", ["m2_parameter_governance", "--repo-root", str(tmp_path)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_module_as_main(module.__name__)
+
+    assert excinfo.value.code == 1
+
+
+def test_main_returns_1_when_account_resolution_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "bad accounts" in capsys.readouterr().err

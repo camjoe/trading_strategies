@@ -12,6 +12,7 @@ from trading.features.policy_feature_provider import (
     PolicyFeatureProvider,
     _DEFENSIVE_ETFS,
     _EQUITY_BENCHMARK,
+    _ALL_ETFS,
     POLICY_MIN_OBSERVATIONS,
 )
 from trading.backtesting.domain.strategy_signals import (
@@ -91,6 +92,50 @@ class TestPolicyFeatureProviderFetchReturns:
         ):
             result = provider._fetch_etf_returns()
         assert result is None
+
+    def test_fetch_etf_returns_skips_missing_etf_column(self):
+        """ETF absent from the Close columns is skipped (line 163-164)."""
+        # Only download SPY + 3 of 4 defensive ETFs (exclude "GLD").
+        partial_tickers = ["TLT", "XLU", "UUP", _EQUITY_BENCHMARK]
+        raw = _make_raw_download(partial_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
+        provider = PolicyFeatureProvider()
+        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+            result = provider._fetch_etf_returns()
+        # GLD is missing; the others should still produce results (no None return).
+        assert result is not None
+        assert "GLD" not in result
+        assert _EQUITY_BENCHMARK in result
+
+    def test_fetch_etf_returns_skips_series_shorter_than_2(self):
+        """ETF column with only 1 non-NaN row is skipped (line 167)."""
+        import numpy as np
+
+        all_tickers = list(_ALL_ETFS)
+        raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
+        # Replace "GLD" column under Close with all-NaN values (dropna gives length 0).
+        raw[("Close", "GLD")] = np.nan
+        provider = PolicyFeatureProvider()
+        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+            result = provider._fetch_etf_returns()
+        assert result is not None
+        assert "GLD" not in result
+
+    def test_fetch_etf_returns_skips_zero_first_price(self):
+        """ETF column whose first price is 0.0 is skipped (line 170)."""
+        all_tickers = list(_ALL_ETFS)
+        raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
+        # Set the first row of "GLD" to 0.0.
+        raw[("Close", "GLD")] = [0.0] + [100.0] * (POLICY_MIN_OBSERVATIONS + 1)
+        provider = PolicyFeatureProvider()
+        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+            result = provider._fetch_etf_returns()
+        assert result is not None
+        assert "GLD" not in result
+
+    def test_feature_names_contains_expected_keys(self):
+        provider = PolicyFeatureProvider()
+        assert POLICY_RISK_ON_SCORE in provider._feature_names
+        assert POLICY_DEFENSIVE_TILT in provider._feature_names
 
 
 # ---------------------------------------------------------------------------

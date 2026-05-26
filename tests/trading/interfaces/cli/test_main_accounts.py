@@ -2,8 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.trading.interfaces.helpers import run_module_as_main
 from trading.interfaces.cli import main as cli_main
-from tests.support.cli.main import configure_account_args, install_main_harness
+from tests.trading.interfaces.cli.helpers import configure_account_args, install_main_harness
 
 
 def test_main_trade_dispatches_and_closes_connection(monkeypatch, capsys) -> None:
@@ -152,3 +153,34 @@ def test_main_list_accounts_dispatches(monkeypatch) -> None:
 
     assert captured["conn"] is fake_conn
     assert fake_conn.closed is True
+
+
+def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
+    import trading.database.db_config as db_config_module
+    import trading.database.db_init as db_init_module
+    import trading.interfaces.cli.commands as commands_module
+    import trading.interfaces.cli.handlers.router as router_module
+
+    class _FakeParser:
+        def parse_args(self):
+            return SimpleNamespace(command="list-accounts")
+
+    class _FakeConn:
+        def close(self) -> None:
+            return None
+
+    dispatched: dict[str, object] = {}
+    monkeypatch.setattr(commands_module, "build_parser", lambda: _FakeParser())
+    monkeypatch.setattr(db_init_module, "ensure_db", lambda: _FakeConn())
+    monkeypatch.setattr(db_config_module, "get_db_path", lambda: "paper.db")
+    monkeypatch.setattr(
+        router_module,
+        "dispatch_command",
+        lambda conn, args, parser, **kwargs: dispatched.update(
+            {"command": args.command, "db_path": kwargs["db_path"]}
+        ),
+    )
+
+    run_module_as_main(cli_main.__name__)
+
+    assert dispatched == {"command": "list-accounts", "db_path": "paper.db"}

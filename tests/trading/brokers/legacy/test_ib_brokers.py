@@ -7,6 +7,7 @@ clearly marked as legacy support.
 
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +15,7 @@ import pytest
 
 from trading.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
 from trading.brokers.legacy.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
-from trading.brokers.legacy.ib_client import IBClientProtocol, IbApiClient
+from trading.brokers.legacy.ib_client import IBClientProtocol, IbApiClient, IbAsyncClient
 from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType
 from tests.support.account_records import make_account_record
 
@@ -189,6 +190,18 @@ class TestLegacyInteractiveBrokersAdapter:
         adapter.cancel_order("99")
         client.cancel_order.assert_called_once_with(mock_trade.order)
 
+    def test_cancel_order_skips_non_matching_trade_before_match(self):
+        adapter, client = _adapter_with_mock_client()
+        wrong_trade = MagicMock()
+        wrong_trade.order.orderId = 1
+        target_trade = MagicMock()
+        target_trade.order.orderId = 99
+        client.trades.return_value = [wrong_trade, target_trade]
+
+        adapter.cancel_order("99")
+
+        client.cancel_order.assert_called_once_with(target_trade.order)
+
     def test_cancel_order_raises_when_not_found(self):
         adapter, client = _adapter_with_mock_client()
         client.trades.return_value = []
@@ -254,6 +267,45 @@ class TestLegacyInteractiveBrokersAdapter:
         assert len(result[0].fills) == 1
 
 
+class TestLegacyIbAsyncClient:
+    def test_async_client_delegates_to_ib_async_backend(self, monkeypatch):
+        backend = MagicMock()
+        backend.isConnected.return_value = True
+        backend.placeOrder.return_value = "trade"
+        backend.trades.return_value = ["trade-1"]
+        backend.positions.return_value = ["pos-1"]
+        backend.accountSummary.return_value = ["summary-1"]
+        backend.qualifyContracts.return_value = ["qualified"]
+        backend.reqTickers.return_value = ["ticker"]
+        fake_module = SimpleNamespace(
+            IB=MagicMock(return_value=backend),
+            Stock=MagicMock(return_value="stock-contract"),
+            Order=MagicMock(return_value="order-object"),
+        )
+        monkeypatch.setitem(sys.modules, "ib_async", fake_module)
+
+        client = IbAsyncClient()
+
+        client.connect("127.0.0.1", 7497, client_id=7)
+        client.disconnect()
+        assert client.is_connected() is True
+        assert client.place_order("contract", "order") == "trade"
+        client.cancel_order("order")
+        assert client.trades() == ["trade-1"]
+        assert client.positions() == ["pos-1"]
+        assert client.account_summary() == ["summary-1"]
+        assert client.qualify_contracts("contract") == ["qualified"]
+        assert client.req_tickers("contract") == ["ticker"]
+        assert client.make_stock("AAPL") == "stock-contract"
+        assert client.make_order(action="BUY") == "order-object"
+
+        backend.connect.assert_called_once_with("127.0.0.1", 7497, clientId=7)
+        backend.disconnect.assert_called_once_with()
+        backend.cancelOrder.assert_called_once_with("order")
+        fake_module.Stock.assert_called_once_with("AAPL", "SMART", "USD")
+        fake_module.Order.assert_called_once_with(action="BUY")
+
+
 class TestLegacyIbApiClient:
     def test_all_methods_raise_not_implemented(self):
         client = IbApiClient()
@@ -264,7 +316,19 @@ class TestLegacyIbApiClient:
         with pytest.raises(NotImplementedError):
             client.is_connected()
         with pytest.raises(NotImplementedError):
+            client.place_order("contract", "order")
+        with pytest.raises(NotImplementedError):
+            client.cancel_order("order")
+        with pytest.raises(NotImplementedError):
             client.trades()
+        with pytest.raises(NotImplementedError):
+            client.positions()
+        with pytest.raises(NotImplementedError):
+            client.account_summary()
+        with pytest.raises(NotImplementedError):
+            client.qualify_contracts("contract")
+        with pytest.raises(NotImplementedError):
+            client.req_tickers("contract")
 
     def test_make_stock_raises_not_implemented(self):
         with pytest.raises(NotImplementedError):

@@ -77,6 +77,37 @@ class TestSocialFeatureProviderGoogleTrends:
         val = provider._fetch_google_trend("AAPL")
         assert 0.0 <= val <= 1.0
 
+    def test_empty_df_returns_none(self):
+        """interest_over_time() returning empty DataFrame → None (line 132)."""
+        provider = SocialFeatureProvider()
+        mock_pt = MagicMock()
+        mock_pt.interest_over_time.return_value = pd.DataFrame()
+        with patch("pytrends.request.TrendReq", return_value=mock_pt):
+            result = provider._fetch_google_trend("AAPL")
+        assert result is None
+
+    def test_ticker_column_missing_returns_none(self):
+        """DataFrame returned but missing the requested ticker column → None (line 132)."""
+        provider = SocialFeatureProvider()
+        mock_pt = MagicMock()
+        # Return a df with wrong ticker column.
+        mock_pt.interest_over_time.return_value = _make_gtrends_df("MSFT", last_value=60)
+        with patch("pytrends.request.TrendReq", return_value=mock_pt):
+            result = provider._fetch_google_trend("AAPL")
+        assert result is None
+
+    def test_short_series_returns_none(self):
+        """Series shorter than _GTRENDS_MIN_OBSERVATIONS → None (line 136)."""
+        from trading.features.social_feature_provider import _GTRENDS_MIN_OBSERVATIONS
+
+        provider = SocialFeatureProvider()
+        mock_pt = MagicMock()
+        # Return fewer rows than the minimum.
+        mock_pt.interest_over_time.return_value = _make_gtrends_df("AAPL", rows=max(1, _GTRENDS_MIN_OBSERVATIONS - 1))
+        with patch("pytrends.request.TrendReq", return_value=mock_pt):
+            result = provider._fetch_google_trend("AAPL")
+        assert result is None
+
 
 # ---------------------------------------------------------------------------
 # SocialFeatureProvider — Reddit
@@ -116,6 +147,31 @@ class TestSocialFeatureProviderReddit:
                 count, sentiment = provider._fetch_reddit("AAPL")
         assert count == 0
         assert sentiment == 0.0
+
+    def test_reddit_no_matching_titles_returns_zero(self):
+        """Posts found but none mention the ticker → returns (0, 0.0) (line 175)."""
+        mock_post = MagicMock()
+        mock_post.title = "General market discussion without specific ticker"
+
+        mock_subreddit = MagicMock()
+        mock_subreddit.search.return_value = [mock_post] * 3
+
+        mock_reddit = MagicMock()
+        mock_reddit.subreddit.return_value = mock_subreddit
+
+        provider = SocialFeatureProvider()
+        with patch.dict("os.environ", {"REDDIT_CLIENT_ID": "id", "REDDIT_CLIENT_SECRET": "secret"}):
+            with patch("praw.Reddit", return_value=mock_reddit):
+                count, sentiment = provider._fetch_reddit("AAPL")
+
+        assert count == 0
+        assert sentiment == 0.0
+
+    def test_feature_names_contains_expected_keys(self):
+        provider = SocialFeatureProvider()
+        assert SOCIAL_TREND_SCORE in provider._feature_names
+        assert SOCIAL_MENTION_COUNT in provider._feature_names
+        assert SOCIAL_REDDIT_SENTIMENT in provider._feature_names
 
 
 # ---------------------------------------------------------------------------

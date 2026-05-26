@@ -8,7 +8,8 @@ The package is intentionally organized by test area rather than as one large uti
 
 - `tests.support.auto_trading`
 - `tests.support.backtesting`
-- `tests.support.cli_main`
+- `tests.trading.interfaces.cli.helpers` — `FakeConn`, `FakeParser`, `install_main_harness`, `configure_account_args`
+- `tests.trading.interfaces.cli.factories` — backtest and walk-forward arg/result factories
 - `tests.support.runtime_jobs`
 - `tests.support.seed_db`
 

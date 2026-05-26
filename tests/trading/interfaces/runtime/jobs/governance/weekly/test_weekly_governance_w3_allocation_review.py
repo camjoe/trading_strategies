@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
+import sys
+import pytest
 
 import trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review as module
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
@@ -113,3 +116,50 @@ class TestArtifactStructure:
         assert abs(sleeves["sleeve_b"]["target_pct"] - 40.0) < 0.01
         assert abs(sleeves["sleeve_b"]["drift_pct"] - 0.0) < 0.01
         assert sleeves["sleeve_b"]["reweight_suggested"] is False
+
+
+def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "No accounts specified." in capsys.readouterr().err
+
+
+def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module, account_lookup=lambda _name: None)
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "weekly_governance_w3_allocation_review_*.json"
+    )
+    assert payload["accounts"] == []
+
+
+def test_main_returns_1_when_sleeve_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(
+        module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+
+
+def test_weekly_allocation_review_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    import trading.services.accounts as accounts_module
+
+    monkeypatch.setattr(accounts_module, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(sys, "argv", ["w3_allocation_review", "--repo-root", str(tmp_path)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_module_as_main(module.__name__)
+
+    assert excinfo.value.code == 1
+
+
+def test_main_returns_1_when_account_resolution_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "bad accounts" in capsys.readouterr().err

@@ -41,3 +41,45 @@ class TestAccountQueries:
 
         assert names == ["acct_local", "acct_managed"]
         assert list_account_names(conn) == ["acct_local", "acct_managed"]
+
+
+# ---------------------------------------------------------------------------
+# Guard validation paths (previously uncovered)
+# ---------------------------------------------------------------------------
+
+
+class TestAccountQueryGuards:
+    def test_find_account_empty_name_raises(self, conn) -> None:
+        from trading.services.accounts.queries import find_account as _find_account
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            _find_account(conn, "   ")
+
+    def test_get_latest_snapshot_invalid_id_raises(self, conn) -> None:
+        from trading.services.accounts.queries import get_latest_account_snapshot
+
+        with pytest.raises(ValueError, match="must be positive"):
+            get_latest_account_snapshot(conn, 0)
+
+    def test_list_account_snapshots_invalid_id_raises(self, conn) -> None:
+        from trading.services.accounts.queries import list_account_snapshots
+
+        with pytest.raises(ValueError, match="must be positive"):
+            list_account_snapshots(conn, -1, limit=10)
+
+    def test_list_account_snapshots_invalid_limit_raises(self, conn) -> None:
+        from trading.services.accounts.queries import list_account_snapshots
+        from trading.services.accounts import create_account
+
+        create_account(conn, "snap_acct", "Trend", 1000.0, "SPY")
+        acct = conn.execute("SELECT id FROM accounts WHERE name='snap_acct'").fetchone()
+        with pytest.raises(ValueError, match="limit must be positive"):
+            list_account_snapshots(conn, acct["id"], limit=0)
+
+    def test_load_runtime_eligible_account_names_returns_list(self, conn) -> None:
+        # conn sets the global backend to a test DB so load_runtime_eligible_account_names
+        # does not hit the real on-disk database.
+        from trading.services.accounts.queries import load_runtime_eligible_account_names
+
+        result = load_runtime_eligible_account_names()
+        assert isinstance(result, list)

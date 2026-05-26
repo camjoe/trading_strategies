@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from trading.repositories.daily_metrics import (
     fetch_daily_metrics_for_account,
     fetch_daily_metrics_for_sleeve,
@@ -10,14 +12,11 @@ from trading.repositories.portfolio_risk_snapshots import (
     fetch_latest_portfolio_risk_snapshot,
     upsert_portfolio_risk_snapshot,
 )
-from trading.repositories.sleeve_risk_decisions import (
-    fetch_sleeve_risk_decisions_for_account,
-    insert_sleeve_risk_decision,
-)
 from trading.repositories.rotation_decisions import (
-    fetch_latest_rotation_decision_for_sleeve,
     fetch_latest_rotate_decision_for_sleeve,
+    fetch_latest_rotation_decision_for_sleeve,
     fetch_rotation_decisions_for_sleeve,
+    fetch_rotation_decisions_for_sleeve_date,
     insert_rotation_decision,
 )
 from trading.repositories.sleeve_ledger import (
@@ -29,6 +28,7 @@ from trading.repositories.sleeve_orders import (
     attach_sleeve_order_broker_order_id,
     fetch_open_sleeve_orders_for_account,
     fetch_sleeve_fills_for_order,
+    fetch_sleeve_order_by_broker_order_id,
     fetch_sleeve_order_by_id,
     fetch_sleeve_orders_for_sleeve,
     insert_sleeve_fill,
@@ -42,6 +42,11 @@ from trading.repositories.sleeve_positions import (
     fetch_sleeve_positions_for_account,
     upsert_sleeve_position,
 )
+from trading.repositories.sleeve_risk_decisions import (
+    fetch_sleeve_risk_decisions_for_account,
+    fetch_sleeve_risk_decisions_for_account_date,
+    insert_sleeve_risk_decision,
+)
 from trading.repositories.sleeves import (
     close_active_sleeve_strategy_assignment,
     fetch_active_sleeve_strategy_assignment,
@@ -52,10 +57,38 @@ from trading.repositories.sleeves import (
     fetch_strategy_sleeves_for_account,
     insert_sleeve_strategy_assignment,
     insert_strategy_param_set,
+    insert_strategy_sleeve,
     set_strategy_param_set_activation,
+    update_sleeve_trade_universes,
     update_strategy_sleeve_balances,
     update_strategy_sleeve_status,
 )
+
+
+class _StaticCursor:
+    def __init__(self, *, lastrowid=None, row=None) -> None:
+        self.lastrowid = lastrowid
+        self._row = row
+
+    def fetchone(self):
+        return self._row
+
+    def fetchall(self):
+        return []
+
+
+class _StaticConnection:
+    def __init__(self, *results) -> None:
+        self._results = list(results)
+        self.commits = 0
+
+    def execute(self, *_args, **_kwargs):
+        if not self._results:
+            raise AssertionError("Unexpected execute call")
+        return self._results.pop(0)
+
+    def commit(self) -> None:
+        self.commits += 1
 
 
 class TestSleevesRepository:
@@ -88,6 +121,45 @@ class TestSleevesRepository:
 
         rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
         assert [int(item["id"]) for item in rows] == [sleeve_id]
+
+    def test_update_trade_universes_can_set_and_clear_override(self, conn, sleeve_id) -> None:
+        update_sleeve_trade_universes(
+            conn,
+            sleeve_id=sleeve_id,
+            trade_universes='["SPY","QQQ"]',
+            updated_at="2026-05-05T00:00:00Z",
+        )
+        updated = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        assert updated is not None
+        assert updated["trade_universes"] == '["SPY","QQQ"]'
+
+        update_sleeve_trade_universes(
+            conn,
+            sleeve_id=sleeve_id,
+            trade_universes=None,
+            updated_at="2026-05-05T01:00:00Z",
+        )
+        cleared = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        assert cleared is not None
+        assert cleared["trade_universes"] is None
+        assert cleared["updated_at"] == "2026-05-05T01:00:00Z"
+
+    def test_insert_strategy_sleeve_raises_when_lastrowid_missing(self) -> None:
+        conn = _StaticConnection(_StaticCursor(lastrowid=None))
+
+        with pytest.raises(ValueError, match="Expected strategy_sleeves id after insert"):
+            insert_strategy_sleeve(
+                conn,
+                account_id=1,
+                name="core",
+                status="active",
+                base_ccy="USD",
+                start_equity=1000.0,
+                current_cash=1000.0,
+                current_equity=1000.0,
+                created_at="2026-05-03T00:00:00Z",
+                updated_at="2026-05-03T00:00:00Z",
+            )
 
     def test_param_sets_and_assignments(self, conn, account_id, sleeve_id) -> None:
 
@@ -159,6 +231,35 @@ class TestSleevesRepository:
 
         all_assignments = fetch_sleeve_strategy_assignments(conn, sleeve_id=sleeve_id)
         assert len(all_assignments) == 2
+
+    def test_insert_param_set_and_assignment_raise_when_lastrowid_missing(self) -> None:
+        with pytest.raises(ValueError, match="Expected strategy_param_sets id after insert"):
+            insert_strategy_param_set(
+                _StaticConnection(_StaticCursor(lastrowid=None)),
+                strategy_name="trend",
+                version="v1",
+                params_json='{"lookback": 20}',
+                config_version=None,
+                is_active=0,
+                created_at="2026-05-03T00:00:00Z",
+                updated_at="2026-05-03T00:00:00Z",
+                activated_at=None,
+                deactivated_at=None,
+                notes=None,
+            )
+
+        with pytest.raises(ValueError, match="Expected sleeve_strategy_assignments id after insert"):
+            insert_sleeve_strategy_assignment(
+                _StaticConnection(_StaticCursor(lastrowid=None)),
+                sleeve_id=1,
+                strategy_name="trend",
+                param_set_id=None,
+                effective_from="2026-05-03T00:00:00Z",
+                effective_to=None,
+                is_incumbent=1,
+                created_at="2026-05-03T00:00:00Z",
+                updated_at="2026-05-03T00:00:00Z",
+            )
 
 
 class TestSleeveOrdersRepository:
@@ -253,6 +354,56 @@ class TestSleeveOrdersRepository:
         )
         fills = fetch_sleeve_fills_for_order(conn, sleeve_order_id=order_id)
         assert len(fills) == 1
+
+    def test_fetch_by_broker_order_id_returns_matching_account_row(self, conn, account_id, sleeve_id) -> None:
+        insert_sleeve_order(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            strategy_name="trend",
+            param_set_id=None,
+            rotation_decision_id=None,
+            broker_order_id="ib-300",
+            symbol="SPY",
+            side="buy",
+            qty=1,
+            order_type="market",
+            time_in_force="day",
+            requested_price=500.0,
+            status="Submitted",
+            config_version=None,
+            submitted_at="2026-05-03T09:00:00Z",
+            updated_at="2026-05-03T09:00:00Z",
+        )
+
+        row = fetch_sleeve_order_by_broker_order_id(conn, account_id=account_id, broker_order_id="ib-300")
+
+        assert row is not None
+        assert row["broker_order_id"] == "ib-300"
+        assert int(row["account_id"]) == account_id
+        assert fetch_sleeve_order_by_broker_order_id(conn, account_id=account_id, broker_order_id="missing") is None
+
+    def test_insert_sleeve_order_raises_when_lastrowid_missing(self) -> None:
+        with pytest.raises(ValueError, match="Expected sleeve_orders id after insert"):
+            insert_sleeve_order(
+                _StaticConnection(_StaticCursor(lastrowid=None)),
+                account_id=1,
+                sleeve_id=1,
+                strategy_name="trend",
+                param_set_id=None,
+                rotation_decision_id=None,
+                broker_order_id=None,
+                symbol="SPY",
+                side="buy",
+                qty=1,
+                order_type="market",
+                time_in_force="day",
+                requested_price=500.0,
+                status="Submitted",
+                config_version=None,
+                submitted_at="2026-05-03T09:00:00Z",
+                updated_at="2026-05-03T09:00:00Z",
+            )
 
 
 class TestSleevePositionsLedgerDecisionsAndMetrics:
@@ -557,3 +708,196 @@ class TestSleeveRiskDecisionsRepository:
         assert len(rows) == 2
         assert rows[0]["reason_code"] == "stale_price_data"
         assert rows[1]["reason_code"] == "sleeve_notional_cap"
+
+    def test_date_scoped_fetches_and_guard_paths(self, conn, account_id, sleeve_id) -> None:
+        insert_rotation_decision(
+            conn,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-02T23:59:00Z",
+            incumbent_strategy="trend",
+            challenger_strategy="meanrev",
+            selected_strategy="trend",
+            rotation_action="hold",
+            cooldown_active=0,
+            score_components_json='{"a":0}',
+            gate_results_json='{"ok":true}',
+            decision_reason="before-window",
+            config_version=None,
+            param_set_id=None,
+            created_at="2026-05-02T23:59:00Z",
+        )
+        insert_rotation_decision(
+            conn,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-03T09:00:00Z",
+            incumbent_strategy="trend",
+            challenger_strategy="meanrev",
+            selected_strategy="meanrev",
+            rotation_action="rotate",
+            cooldown_active=0,
+            score_components_json='{"a":1}',
+            gate_results_json='{"ok":true}',
+            decision_reason="in-window",
+            config_version=None,
+            param_set_id=None,
+            created_at="2026-05-03T09:00:00Z",
+        )
+        insert_rotation_decision(
+            conn,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-04T00:00:00Z",
+            incumbent_strategy="meanrev",
+            challenger_strategy="trend",
+            selected_strategy="meanrev",
+            rotation_action="hold",
+            cooldown_active=0,
+            score_components_json='{"a":2}',
+            gate_results_json='{"ok":true}',
+            decision_reason="after-window",
+            config_version=None,
+            param_set_id=None,
+            created_at="2026-05-04T00:00:00Z",
+        )
+
+        rotation_rows = fetch_rotation_decisions_for_sleeve_date(
+            conn,
+            sleeve_id=sleeve_id,
+            report_date="2026-05-03",
+        )
+        assert [row["decision_reason"] for row in rotation_rows] == ["in-window"]
+
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=sleeve_id,
+            decision_time="2026-05-02T23:59:00Z",
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code="before-window",
+            requested_qty=1,
+            approved_qty=0,
+            requested_notional=100.0,
+            approved_notional=0.0,
+            execution_mode="sleeve",
+            risk_payload_json='{"k":0}',
+            created_at="2026-05-02T23:59:00Z",
+        )
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=None,
+            decision_time="2026-05-03T10:30:00Z",
+            symbol=None,
+            side=None,
+            action="rescale",
+            reason_code="in-window",
+            requested_qty=None,
+            approved_qty=None,
+            requested_notional=None,
+            approved_notional=None,
+            execution_mode="account",
+            risk_payload_json='{"k":1}',
+            created_at="2026-05-03T10:30:00Z",
+        )
+        insert_sleeve_risk_decision(
+            conn,
+            account_id=account_id,
+            sleeve_id=None,
+            decision_time="2026-05-04T00:00:00Z",
+            symbol=None,
+            side=None,
+            action="block",
+            reason_code="after-window",
+            requested_qty=None,
+            approved_qty=None,
+            requested_notional=None,
+            approved_notional=None,
+            execution_mode="account",
+            risk_payload_json='{"k":2}',
+            created_at="2026-05-04T00:00:00Z",
+        )
+
+        risk_rows = fetch_sleeve_risk_decisions_for_account_date(
+            conn,
+            account_id=account_id,
+            report_date="2026-05-03",
+        )
+        assert [row["reason_code"] for row in risk_rows] == ["in-window"]
+
+        assert (
+            fetch_sleeve_ledger_sum_by_type(
+                _StaticConnection(_StaticCursor(row=None)),
+                sleeve_id=1,
+                entry_type="fee",
+            )
+            == 0.0
+        )
+
+        with pytest.raises(ValueError, match="Expected sleeve_ledger id after insert"):
+            insert_sleeve_ledger_entry(
+                _StaticConnection(_StaticCursor(lastrowid=None)),
+                sleeve_id=1,
+                entry_type="fee",
+                amount=-1.0,
+                reference_type="order",
+                reference_id="1",
+                entry_time="2026-05-03T00:00:00Z",
+                created_at="2026-05-03T00:00:00Z",
+            )
+
+        with pytest.raises(ValueError, match="Expected sleeve_risk_decisions id after insert"):
+            insert_sleeve_risk_decision(
+                _StaticConnection(_StaticCursor(lastrowid=None)),
+                account_id=1,
+                sleeve_id=None,
+                decision_time="2026-05-03T00:00:00Z",
+                symbol=None,
+                side=None,
+                action="block",
+                reason_code="guard",
+                requested_qty=None,
+                approved_qty=None,
+                requested_notional=None,
+                approved_notional=None,
+                execution_mode="account",
+                risk_payload_json="{}",
+                created_at="2026-05-03T00:00:00Z",
+            )
+
+        with pytest.raises(ValueError, match="Expected rotation_decisions id after insert"):
+            insert_rotation_decision(
+                _StaticConnection(_StaticCursor(lastrowid=None)),
+                sleeve_id=1,
+                decision_time="2026-05-03T00:00:00Z",
+                incumbent_strategy=None,
+                challenger_strategy=None,
+                selected_strategy=None,
+                rotation_action="hold",
+                cooldown_active=0,
+                score_components_json="{}",
+                gate_results_json="{}",
+                decision_reason=None,
+                config_version=None,
+                param_set_id=None,
+                created_at="2026-05-03T00:00:00Z",
+            )
+
+        with pytest.raises(ValueError, match="Expected daily_metrics id after insert"):
+            upsert_daily_metric(
+                _StaticConnection(_StaticCursor(row=None), _StaticCursor(lastrowid=None)),
+                account_id=1,
+                sleeve_id=None,
+                metric_date="2026-05-03",
+                return_pct=None,
+                drawdown_pct=None,
+                turnover_pct=None,
+                slippage_bps=None,
+                hit_rate=None,
+                expectancy=None,
+                risk_adjusted_score=None,
+                trade_count=None,
+                fees_total=None,
+                created_at="2026-05-03T00:00:00Z",
+                updated_at="2026-05-03T00:00:00Z",
+            )

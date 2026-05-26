@@ -1,33 +1,50 @@
+from __future__ import annotations
+
+import sqlite3
+
+from trading.repositories import insert_trade
 from trading.services.accounting import list_account_trades
-from trading.services.accounts import create_account, get_account
 
 
-def test_list_account_trades_orders_by_trade_time_then_id(conn) -> None:
-    create_account(conn, "acct_order", "Trend", 1000.0, "SPY")
-    account = get_account(conn, "acct_order")
+def test_list_account_trades_orders_by_trade_time_then_id(
+    conn: sqlite3.Connection, accounting_account: sqlite3.Row
+) -> None:
+    account_id = int(accounting_account["id"])
 
-    conn.execute(
-        (
-            "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        ),
-        (account["id"], "MSFT", "buy", 1.0, 10.0, 0.0, "2026-01-01T00:00:01Z", "second"),
+    insert_trade(
+        conn,
+        account_id=account_id,
+        ticker="MSFT",
+        side="buy",
+        qty=1.0,
+        price=10.0,
+        fee=0.0,
+        trade_time="2026-01-01T00:00:01Z",
+        note="second",
     )
-    conn.execute(
-        (
-            "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        ),
-        (account["id"], "AAPL", "buy", 1.0, 10.0, 0.0, "2026-01-01T00:00:00Z", "first"),
+    insert_trade(
+        conn,
+        account_id=account_id,
+        ticker="AAPL",
+        side="buy",
+        qty=1.0,
+        price=10.0,
+        fee=0.0,
+        trade_time="2026-01-01T00:00:00Z",
+        note="first",
     )
-    conn.execute(
-        (
-            "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        ),
-        (account["id"], "GOOG", "buy", 1.0, 10.0, 0.0, "2026-01-01T00:00:01Z", "third"),
+    insert_trade(
+        conn,
+        account_id=account_id,
+        ticker="GOOG",
+        side="buy",
+        qty=1.0,
+        price=10.0,
+        fee=0.0,
+        trade_time="2026-01-01T00:00:01Z",
+        note="third",
     )
     conn.commit()
 
-    rows = list_account_trades(conn, account["id"])
+    rows = list_account_trades(conn, account_id)
     assert [row["ticker"] for row in rows] == ["AAPL", "MSFT", "GOOG"]

@@ -205,3 +205,82 @@ def test_handle_trade_delegates_all_fields_to_record_trade_dep() -> None:
     assert calls[0]["account_name"] == "alice"
     assert calls[0]["ticker"] == "AAPL"
     assert calls[0]["side"] == "buy"
+
+
+class _RecordingParser:
+    def __init__(self) -> None:
+        self.message: str | None = None
+
+    def error(self, msg: str) -> None:
+        self.message = msg
+
+
+def test_handle_create_account_records_parser_error_without_printing_success(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {"create_account": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad create"))}
+    args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
+
+    handle_create_account(object(), args, parser, deps=deps, module_file="", db_path="")
+
+    assert parser.message == "bad create"
+    assert "Created account" not in capsys.readouterr().out
+
+
+def test_handle_configure_account_records_parser_error_without_printing_success(capsys) -> None:
+    parser = _RecordingParser()
+    args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)
+
+    handle_configure_account(object(), args, parser, deps={}, module_file="", db_path="")
+
+    assert parser.message == "Use only one of --learning-enabled or --learning-disabled"
+    assert "Updated account configuration" not in capsys.readouterr().out
+
+
+def test_handle_apply_account_profiles_records_parser_error_without_printing_summary(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {
+        "load_account_profiles": lambda _f: [{"name": "acct"}],
+        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad profiles")),
+    }
+
+    handle_apply_account_profiles(
+        object(),
+        types.SimpleNamespace(file="profiles.yaml", no_create_missing=False),
+        parser,
+        deps=deps,
+        module_file="",
+        db_path="",
+    )
+
+    assert parser.message == "bad profiles"
+    assert "Applied account profiles" not in capsys.readouterr().out
+
+
+def test_handle_apply_account_preset_records_parser_error_without_printing_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    parser = _RecordingParser()
+    preset_path = tmp_path / "starter.yaml"
+    preset_path.write_text("", encoding="utf-8")
+    monkeypatch.setattr(
+        "trading.interfaces.cli.handlers.accounts_handlers.get_builtin_profile_preset_path",
+        lambda _preset: preset_path,
+    )
+    deps = {
+        "load_account_profiles": lambda _f: [{"name": "acct"}],
+        "apply_account_profiles": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad preset")),
+    }
+
+    handle_apply_account_preset(
+        object(),
+        types.SimpleNamespace(preset="starter", no_create_missing=True),
+        parser,
+        deps=deps,
+        module_file="",
+        db_path="",
+    )
+
+    assert parser.message == "bad preset"
+    assert "Applied preset" not in capsys.readouterr().out

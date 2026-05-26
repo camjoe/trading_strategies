@@ -7,6 +7,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     logs_dir_for_repo,
     resolve_accounts,
     run_command,
+    skip_if_already_completed_for_period,
     stream_command,
     tee_line,
 )
@@ -104,3 +105,35 @@ def test_resolve_accounts_rejects_unknown_accounts() -> None:
 
     with pytest.raises(ValueError, match="Unknown account\\(s\\): ghost"):
         resolve_accounts("ghost", ["acct_a"])
+
+
+def test_skip_if_already_completed_for_period_returns_false_without_matching_log(tmp_path: Path, capsys):
+    log_path = tmp_path / "task.log"
+
+    skipped = skip_if_already_completed_for_period(
+        log_path=log_path,
+        log_dir=tmp_path,
+        job_name="job",
+        period_name="day",
+        period_tag="20260520",
+        sentinel="COMPLETE",
+        force_run=False,
+    )
+
+    assert skipped is False
+    assert capsys.readouterr().out == ""
+
+
+def test_latest_log_contains_sentinel_returns_false_when_latest_read_fails(monkeypatch, tmp_path: Path):
+    log = tmp_path / "job_latest.log"
+    log.write_text("COMPLETE\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def _broken_read_text(self, *args, **kwargs):
+        if self == log:
+            raise OSError("boom")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _broken_read_text)
+
+    assert latest_log_contains_sentinel(tmp_path, "job_*.log", "COMPLETE") is False

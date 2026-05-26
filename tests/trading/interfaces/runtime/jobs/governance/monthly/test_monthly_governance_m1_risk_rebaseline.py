@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
+import sys
+import pytest
 
 import trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline as module
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
@@ -117,3 +120,50 @@ class TestArtifactStructure:
         assert acct["snapshot_time"] == "2026-06-01T10:00:00"
         assert acct["kill_switch_triggered"] is False
         assert acct["gross_exposure"] == 50000.0
+
+
+def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "No accounts specified." in capsys.readouterr().err
+
+
+def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module, account_lookup=lambda _name: None)
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "artifacts", "monthly_governance_m1_risk_rebaseline_*.json"
+    )
+    assert payload["accounts"] == []
+
+
+def test_main_returns_1_when_snapshot_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(
+        module, "fetch_latest_portfolio_risk_snapshot", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+
+
+def test_monthly_risk_rebaseline_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    import trading.services.accounts as accounts_module
+
+    monkeypatch.setattr(accounts_module, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(sys, "argv", ["m1_risk_rebaseline", "--repo-root", str(tmp_path)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_module_as_main(module.__name__)
+
+    assert excinfo.value.code == 1
+
+
+def test_main_returns_1_when_account_resolution_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    stub_runtime_job_basics(monkeypatch, module)
+    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
+
+    assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
+    assert "bad accounts" in capsys.readouterr().err
