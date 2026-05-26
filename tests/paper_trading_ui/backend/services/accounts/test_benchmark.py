@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+import trading.services.reporting.benchmark as reporting_benchmark
 from paper_trading_ui.backend.services.accounts import benchmark as account_benchmark
 
 
@@ -10,13 +11,13 @@ def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> Non
     close_index = pd.to_datetime(["2026-01-02", "2026-01-03", "2026-01-04"])
     close_series = pd.Series([100.0, 105.0, 110.0], index=close_index)
     monkeypatch.setattr(
-        account_benchmark,
+        reporting_benchmark,
         "fetch_benchmark_close_history",
         lambda _ticker, *, start_date, end_date: close_series,
     )
 
     overlay = account_benchmark.build_live_benchmark_overlay(
-        {"benchmark": "SPY", "equity": 1200.0},
+        "SPY",
         [
             {"snapshot_time": "2026-01-04T00:00:00Z", "equity": 1200.0},
             {"snapshot_time": "2026-01-02T00:00:00Z", "equity": 1000.0},

@@ -56,7 +56,9 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
         for row in fetch_visible_account_rows(conn):
             summary = build_account_summary(conn, row)
             snapshots = list_account_snapshots(conn, row.id, limit=100)
-            attach_live_benchmark_summary(summary, build_live_benchmark_overlay(summary, snapshots))
+            attach_live_benchmark_summary(
+                summary, build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots)
+            )
             latest_backtest = fetch_latest_backtest_metrics(conn, row.name)
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
         comparison.sort(key=lambda item: str(item["name"]))
@@ -70,7 +72,7 @@ def api_account_detail(account_name: str) -> dict[str, object]:
         summary, positions = build_account_summary_and_positions(conn, account)
 
         snapshots = list_account_snapshots(conn, account.id, limit=100)
-        overlay = build_live_benchmark_overlay(summary, snapshots)
+        overlay = build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots)
         attach_live_benchmark_summary(summary, overlay)
         trades = list_account_trades(conn, account.id)
         latest_backtest = fetch_latest_backtest_summary(conn, account.name)
