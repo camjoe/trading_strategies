@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.interfaces.cli.commands import build_parser
-from trading.services.profile_source import DEFAULT_ACCOUNT_PROFILES_FILE
+from trading.services.profiles.source import DEFAULT_ACCOUNT_PROFILES_FILE
 
 
 def test_create_account_defaults_and_required_fields() -> None:
