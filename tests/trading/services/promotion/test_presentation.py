@@ -57,7 +57,6 @@ def test_render_promotion_review_history_lines_includes_none_when_no_entries() -
     assert render_promotion_review_history_lines([]) == ["Promotion Review History:", "- none"]
 
 
-
 def test_render_promotion_review_history_lines_includes_none_when_entry_has_no_events() -> None:
     lines = render_promotion_review_history_lines(
         [
@@ -78,7 +77,6 @@ def test_render_promotion_review_history_lines_includes_none_when_entry_has_no_e
 
     assert "Events:" in lines
     assert "- none" in lines
-
 
 
 def test_show_promotion_review_history_prints_and_returns_entries(
@@ -128,18 +126,11 @@ def test_show_promotion_review_history_prints_and_returns_entries(
     assert "approved for manual promotion" in out
 
 
-
 def test_render_promotion_review_history_lines_includes_closure_event_note(
     conn,
+    promotion_account,  # noqa: ARG001
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    conn.execute(
-        """
-        INSERT INTO accounts (id, name, strategy, initial_cash, benchmark_ticker, created_at)
-        VALUES (1, 'acct_service', 'trend_v1', 1000, 'SPY', '2026-01-01T00:00:00Z')
-        """
-    )
-    conn.commit()
     from trading.services.promotion import actions as promotion_actions
     from trading.services.promotion import fetch_promotion_review_history
     from tests.support.promotion import make_ready_evaluation

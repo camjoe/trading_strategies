@@ -29,6 +29,20 @@ def configured_backend(tmp_path: Path) -> Iterator[SQLiteBackend]:
 
 
 @pytest.fixture
+def empty_conn(configured_backend: SQLiteBackend) -> Iterator[sqlite3.Connection]:
+    """Schema-initialised backend connection with no seeded rows.
+
+    Use this when the test needs a configured backend but should start with an
+    empty database (e.g. testing behaviour when no accounts exist).
+    """
+    conn = ensure_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+@pytest.fixture
 def seeded_conn(configured_backend: SQLiteBackend) -> Iterator[sqlite3.Connection]:
     """Fresh backend pre-populated with the canonical admin test dataset.
 

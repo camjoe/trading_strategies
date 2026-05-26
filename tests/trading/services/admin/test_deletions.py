@@ -5,7 +5,6 @@ import sqlite3
 import pytest
 
 from trading.services import admin as admin_service
-from trading.database.db_init import ensure_db
 
 
 class TestDeleteAccounts:
@@ -84,19 +83,13 @@ class TestDeleteAccounts:
                 dry_run=True,
             )
 
-    def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(
-        self, configured_backend
-    ) -> None:
-        conn = ensure_db()
-        try:
-            counts = admin_service.delete_accounts(
-                conn,
-                account_names=[],
-                delete_all=True,
-                dry_run=False,
-            )
-        finally:
-            conn.close()
+    def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(self, empty_conn: sqlite3.Connection) -> None:
+        counts = admin_service.delete_accounts(
+            empty_conn,
+            account_names=[],
+            delete_all=True,
+            dry_run=False,
+        )
 
         assert counts == {
             "accounts": 0,
