@@ -2,6 +2,7 @@ import pytest
 
 import trading.services.accounting.mutations as accounting_mutations
 from common.time import utc_now_iso
+from trading.repositories import fetch_trades_for_account
 from trading.services.accounting import record_trade
 from trading.services.accounts import create_account, get_account
 from trading.services.runtime_settings import set_runtime_throttle_settings
@@ -40,10 +41,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_roundtrip")
-        rows = conn.execute(
-            "SELECT ticker, side, qty, price, note FROM trades WHERE account_id = ?",
-            (account["id"],),
-        ).fetchall()
+        rows = fetch_trades_for_account(conn, account_id=account["id"])
 
         assert len(rows) == 1
         row = rows[0]
@@ -97,7 +95,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_sell")
-        rows = conn.execute("SELECT side FROM trades WHERE account_id = ? ORDER BY id", (account["id"],)).fetchall()
+        rows = fetch_trades_for_account(conn, account_id=account["id"])
         assert [row["side"] for row in rows] == ["buy", "sell"]
 
     def test_uses_default_trade_time_when_missing(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -117,8 +115,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_default_time")
-        row = conn.execute("SELECT trade_time FROM trades WHERE account_id = ?", (account["id"],)).fetchone()
-        assert row is not None
+        row = fetch_trades_for_account(conn, account_id=account["id"])[0]
         assert row["trade_time"] == "2099-01-01T00:00:00Z"
 
     def test_normalizes_side_and_ticker(self, conn) -> None:
@@ -137,11 +134,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_norm_order")
-        row = conn.execute(
-            "SELECT side, ticker FROM trades WHERE account_id = ?",
-            (account["id"],),
-        ).fetchone()
-        assert row is not None
+        row = fetch_trades_for_account(conn, account_id=account["id"])[0]
         assert row["side"] == "buy"
         assert row["ticker"] == "MSFT"
 
@@ -178,6 +171,4 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_global_settings_manual")
-        rows = conn.execute("SELECT COUNT(*) AS trade_count FROM trades WHERE account_id = ?", (account["id"],)).fetchone()
-        assert rows is not None
-        assert int(rows["trade_count"]) == 2
+        assert len(fetch_trades_for_account(conn, account_id=account["id"])) == 2

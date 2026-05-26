@@ -11,7 +11,7 @@ import sqlite3
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER
 from trading.services.accounting import load_account_state
-from trading.services.analysis.calculations import (
+from trading.services.analysis.position import (
     TOP_POSITIONS_COUNT,
     compute_position_analysis,
     generate_improvement_notes,
@@ -37,9 +37,7 @@ def fetch_account_analysis(
     state = load_account_state(conn, account_id=account_id, initial_cash=initial_cash)
     tickers = sorted(state.positions.keys())
     prices = fetch_latest_prices(tickers) if tickers else {}
-    market_value, unrealized = compute_market_value_and_unrealized(
-        state.positions, state.avg_cost, prices
-    )
+    market_value, unrealized = compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
     equity = state.cash + market_value
 
     effective_initial = initial_cash if initial_cash else state.total_deposited
@@ -50,7 +48,8 @@ def fetch_account_analysis(
     position_analysis = compute_position_analysis(state, prices, equity)
     ranked = sorted(
         [
-            position for position in position_analysis
+            position
+            for position in position_analysis
             if float(position["marketPrice"]) > 0 and str(position["ticker"]) != SETTLEMENT_TICKER
         ],
         key=lambda position: float(position["unrealizedPnlPct"]),
@@ -69,10 +68,7 @@ def fetch_account_analysis(
     winner_tickers = {str(position["ticker"]) for position in winners}
     losers = list(
         reversed(
-            [
-                position for position in ranked
-                if str(position["ticker"]) not in winner_tickers
-            ][-TOP_POSITIONS_COUNT:]
+            [position for position in ranked if str(position["ticker"]) not in winner_tickers][-TOP_POSITIONS_COUNT:]
         )
     )
 

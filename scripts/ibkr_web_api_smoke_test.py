@@ -12,6 +12,7 @@ It performs a read-only smoke test:
 
 Optionally, it can also run a paper-order lifecycle check behind explicit flags.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -141,9 +142,7 @@ def _validate_paper_order_args(args: argparse.Namespace) -> None:
     if args.paper_order_qty is None or float(args.paper_order_qty) <= 0:
         raise ValueError("--paper-order-qty must be a positive number.")
     if args.paper_order_limit_price is None or float(args.paper_order_limit_price) <= 0:
-        raise ValueError(
-            "--paper-order-limit-price must be a positive number when --paper-order-check is set."
-        )
+        raise ValueError("--paper-order-limit-price must be a positive number when --paper-order-check is set.")
 
 
 def _find_order_status(rows: list[dict[str, object]], broker_order_id: str) -> str | None:

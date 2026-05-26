@@ -27,17 +27,19 @@ def get_provider_status() -> list[dict[str, Any]]:
         meta = PROVIDER_META.get(name, {})
         try:
             bundle = provider.get_features(HEALTH_PROBE_TICKER)
-            results.append({
-                "name": name,
-                "source_label": provider.source_label,
-                "available": bundle.available,
-                "fetched_at": bundle.fetched_at.isoformat(),
-                "key_scores": bundle.features if bundle.available else {},
-                "description": meta.get("description"),
-                "data_sources": meta.get("data_sources"),
-                "feature_descriptions": meta.get("feature_descriptions"),
-                "signal_logic": meta.get("signal_logic"),
-            })
+            results.append(
+                {
+                    "name": name,
+                    "source_label": provider.source_label,
+                    "available": bundle.available,
+                    "fetched_at": bundle.fetched_at.isoformat(),
+                    "key_scores": bundle.features if bundle.available else {},
+                    "description": meta.get("description"),
+                    "data_sources": meta.get("data_sources"),
+                    "feature_descriptions": meta.get("feature_descriptions"),
+                    "signal_logic": meta.get("signal_logic"),
+                }
+            )
         except Exception as exc:
             _LOG.warning("features: status probe failed for %s: %s", name, exc)
             results.append(build_unavailable_entry(name, label))

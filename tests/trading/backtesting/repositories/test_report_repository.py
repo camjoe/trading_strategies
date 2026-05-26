@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+
 import pandas as pd
 import pytest
 
@@ -9,6 +11,10 @@ from trading.backtesting.repositories.report_repository import (
     fetch_backtest_report_run,
     fetch_backtest_report_snapshots,
     fetch_backtest_report_trades,
+    fetch_latest_backtest_run_for_account,
+    fetch_latest_backtest_run_id_for_account,
+    fetch_latest_backtest_run_id_for_account_strategy,
+    fetch_recent_backtest_runs,
 )
 
 
@@ -61,3 +67,130 @@ def test_report_repository_contract_returns_rows(conn, monkeypatch: pytest.Monke
     assert run_row is not None
     assert len(snapshot_rows) >= 2
     assert isinstance(trade_rows, list)
+
+
+# ---------------------------------------------------------------------------
+# fetch_recent_backtest_runs
+# ---------------------------------------------------------------------------
+
+
+def _insert_account_and_runs(conn: sqlite3.Connection, account_name: str, run_count: int) -> list[int]:
+    """Insert a fresh account plus *run_count* backtest_runs; returns list of run ids."""
+    create_account(conn, account_name, "trend_v1", 10_000.0, "SPY")
+    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", (account_name,)).fetchone()["id"])
+    run_ids = []
+    for i in range(run_count):
+        row = conn.execute(
+            """
+            INSERT INTO backtest_runs (
+                account_id, strategy_name, run_name, start_date, end_date,
+                slippage_bps, fee_per_trade, tickers_file, notes, warnings, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                account_id,
+                "trend_v1",
+                f"run_{i}",
+                "2026-01-01",
+                "2026-01-31",
+                0.0,
+                0.0,
+                "trading/config/trade_universe.txt",
+                "",
+                "",
+                f"2026-02-0{i + 1}T00:00:00Z",
+            ),
+        )
+        run_ids.append(int(row.lastrowid))
+    conn.commit()
+    return run_ids
+
+
+def test_fetch_recent_backtest_runs_respects_limit(conn: sqlite3.Connection) -> None:
+    _insert_account_and_runs(conn, "acct_recent", 3)
+
+    rows = fetch_recent_backtest_runs(conn, limit=2)
+
+    assert len(rows) == 2
+    # Results are ordered newest-first (DESC by id).
+    assert rows[0]["run_name"] == "run_2"
+    assert rows[1]["run_name"] == "run_1"
+
+
+# ---------------------------------------------------------------------------
+# fetch_latest_backtest_run_for_account
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_latest_backtest_run_for_account_returns_latest_row(conn: sqlite3.Connection) -> None:
+    _insert_account_and_runs(conn, "acct_latest_row", 2)
+
+    row = fetch_latest_backtest_run_for_account(conn, account_name="acct_latest_row")
+
+    assert row is not None
+    assert row["run_name"] == "run_1"
+    assert row["account_name"] == "acct_latest_row"
+
+
+def test_fetch_latest_backtest_run_for_account_returns_none_when_no_runs(conn: sqlite3.Connection) -> None:
+    create_account(conn, "acct_empty_runs", "trend_v1", 1_000.0, "SPY")
+    conn.commit()
+
+    row = fetch_latest_backtest_run_for_account(conn, account_name="acct_empty_runs")
+
+    assert row is None
+
+
+# ---------------------------------------------------------------------------
+# fetch_latest_backtest_run_id_for_account
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_latest_backtest_run_id_for_account_returns_int(conn: sqlite3.Connection) -> None:
+    run_ids = _insert_account_and_runs(conn, "acct_run_id", 2)
+
+    result = fetch_latest_backtest_run_id_for_account(conn, account_name="acct_run_id")
+
+    assert result == run_ids[-1]
+
+
+def test_fetch_latest_backtest_run_id_for_account_returns_none_when_no_runs(conn: sqlite3.Connection) -> None:
+    create_account(conn, "acct_no_runs_id", "trend_v1", 1_000.0, "SPY")
+    conn.commit()
+
+    result = fetch_latest_backtest_run_id_for_account(conn, account_name="acct_no_runs_id")
+
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# fetch_latest_backtest_run_id_for_account_strategy
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_latest_backtest_run_id_for_account_strategy_returns_id(conn: sqlite3.Connection) -> None:
+    run_ids = _insert_account_and_runs(conn, "acct_strat_id", 2)
+    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_strat_id",)).fetchone()["id"])
+
+    result = fetch_latest_backtest_run_id_for_account_strategy(
+        conn,
+        account_id=account_id,
+        strategy_name="trend_v1",
+    )
+
+    assert result == run_ids[-1]
+
+
+def test_fetch_latest_backtest_run_id_for_account_strategy_returns_none_for_no_match(
+    conn: sqlite3.Connection,
+) -> None:
+    _insert_account_and_runs(conn, "acct_strat_nomatch", 1)
+    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_strat_nomatch",)).fetchone()["id"])
+
+    result = fetch_latest_backtest_run_id_for_account_strategy(
+        conn,
+        account_id=account_id,
+        strategy_name="nonexistent_strategy_v99",
+    )
+
+    assert result is None

@@ -13,7 +13,7 @@ def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytes
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.stats.fetch_latest_prices",
+        "trading.services.reporting.portfolio.fetch_latest_prices",
         lambda _tickers: {"AAPL": 120.0},
     )
     monkeypatch.setattr(
@@ -46,7 +46,9 @@ def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytes
     assert "Evaluation Summary: backtest=12.50% (18 trades) | paper=4.00% (6 snapshots)" in out
 
 
-def test_account_report_prints_unavailable_benchmark_and_leaps_fields(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
+    conn, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
     create_account(
         conn,
         "acct_leaps",
@@ -70,7 +72,7 @@ def test_account_report_prints_unavailable_benchmark_and_leaps_fields(conn, monk
             max_loss_pct=20.0,
         ),
     )
-    monkeypatch.setattr("trading.services.reporting.stats.fetch_latest_prices", lambda _tickers: {})
+    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers: {})
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_args: (None, None))
 
     account_report(conn, "acct_leaps")
@@ -94,7 +96,7 @@ def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest
     )
     conn.commit()
 
-    monkeypatch.setattr("trading.services.reporting.stats.fetch_latest_prices", lambda _tickers: {})
+    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers: {})
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_args: (None, None))
 
     account_report(conn, "acct_rot")
@@ -102,7 +104,9 @@ def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest
     assert "base_strategy=Trend | active_strategy=mean_reversion" in out
 
 
-def test_compare_strategies_outputs_summary_and_truncates_positions(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+def test_compare_strategies_outputs_summary_and_truncates_positions(
+    conn, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
     create_account(conn, "acct_many", "Trend", 10000.0, "SPY", config=AccountConfig(descriptive_name="Many"))
     account = get_account(conn, "acct_many")
 
@@ -112,7 +116,7 @@ def test_compare_strategies_outputs_summary_and_truncates_positions(conn, monkey
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.stats.fetch_latest_prices",
+        "trading.services.reporting.portfolio.fetch_latest_prices",
         lambda symbols: {symbol: 110.0 for symbol in symbols},
     )
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_args: (10100.0, 1.0))
@@ -132,7 +136,9 @@ def test_compare_strategies_outputs_summary_and_truncates_positions(conn, monkey
     assert "positions: AAPL:1.00, AMZN:1.00, GOOG:1.00, META:1.00, MSFT:1.00, ..." in out
 
 
-def test_compare_strategies_handles_empty_accounts_and_no_positions(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+def test_compare_strategies_handles_empty_accounts_and_no_positions(
+    conn, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
     compare_strategies(conn, lookback=5)
     assert "No paper accounts found." in capsys.readouterr().out
 
@@ -182,7 +188,9 @@ def test_show_snapshots_handles_empty_and_rows(conn, capsys) -> None:
     account = get_account(conn, "acct_show")
     conn.execute(
         """
-        INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
+        INSERT INTO equity_snapshots (
+            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (account["id"], "2026-03-01T00:00:00Z", 900.0, 100.0, 1000.0, 10.0, 15.0),

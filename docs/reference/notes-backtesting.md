@@ -46,7 +46,7 @@ python -m trading.interfaces.cli.main backtest-leaderboard --limit 10
 
 Recurring refreshes for persisted account backtests are handled by:
 
-- `python -m trading.interfaces.runtime.jobs.daily_backtest_refresh`
+- `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh`
 
 Key behavior:
 

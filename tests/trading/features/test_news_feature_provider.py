@@ -1,18 +1,17 @@
 """Tests for NewsFeatureProvider and the news_sentiment signal function."""
+
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
-from trading.features.base import ExternalFeatureBundle
 from trading.features.news_feature_provider import (
     NEWS_HEADLINE_COUNT,
     NEWS_SENTIMENT_SCORE,
     NewsFeatureProvider,
     _MIN_HEADLINE_THRESHOLD,
+    _MAX_TOTAL_RSS_HEADLINES,
 )
 from trading.backtesting.domain.strategy_signals import (
     STRATEGY_REGISTRY,
@@ -24,6 +23,7 @@ from trading.backtesting.domain.strategy_signals import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _rss_body(titles: list[str]) -> bytes:
     """Build a minimal RSS XML body with the given item titles."""
@@ -64,6 +64,7 @@ class TestNewsFeatureProviderRss:
 
     def test_rss_failure_returns_empty_list(self):
         from urllib.error import URLError
+
         provider = NewsFeatureProvider()
         with patch(
             "trading.features.news_feature_provider.urllib.request.urlopen",
@@ -71,6 +72,30 @@ class TestNewsFeatureProviderRss:
         ):
             result = provider._fetch_rss_headlines("AAPL")
         assert result == []
+
+    def test_rss_breaks_at_headline_cap_per_feed(self):
+        """Headline collection stops at _MAX_TOTAL_RSS_HEADLINES for a single feed."""
+        many_titles = [f"Headline {i}" for i in range(_MAX_TOTAL_RSS_HEADLINES + 10)]
+        provider = NewsFeatureProvider()
+        # Raise on the second template so all collected items come from the first URL.
+        from urllib.error import URLError
+
+        call_count = {"n": 0}
+
+        def _mock_urlopen(url, timeout):
+            call_count["n"] += 1
+            if call_count["n"] > 1:
+                raise URLError("skip second template")
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = _rss_body(many_titles)
+            mock_resp.__enter__ = lambda s: s
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            return mock_resp
+
+        with patch("trading.features.news_feature_provider.urllib.request.urlopen", _mock_urlopen):
+            result = provider._fetch_rss_headlines("AAPL")
+
+        assert len(result) == _MAX_TOTAL_RSS_HEADLINES
 
 
 # ---------------------------------------------------------------------------
@@ -144,13 +169,33 @@ class TestNewsFeatureProviderFetch:
     def test_newsapi_called_when_key_present(self):
         provider = NewsFeatureProvider()
         mock_client_instance = MagicMock()
-        mock_client_instance.get_everything.return_value = {
-            "articles": [{"title": f"Article {i}"} for i in range(3)]
-        }
+        mock_client_instance.get_everything.return_value = {"articles": [{"title": f"Article {i}"} for i in range(3)]}
         with patch.dict("os.environ", {"NEWS_API_KEY": "fake-key"}):
             with patch("newsapi.NewsApiClient", return_value=mock_client_instance):
                 result = provider._fetch_newsapi_headlines("AAPL")
         assert len(result) == 3
+
+    def test_newsapi_exception_returns_empty_list(self):
+        """NewsAPI fetch failure logs a warning and returns []."""
+        provider = NewsFeatureProvider()
+        mock_client_instance = MagicMock()
+        mock_client_instance.get_everything.side_effect = RuntimeError("api quota exceeded")
+        with patch.dict("os.environ", {"NEWS_API_KEY": "fake-key"}):
+            with patch("newsapi.NewsApiClient", return_value=mock_client_instance):
+                result = provider._fetch_newsapi_headlines("AAPL")
+        assert result == []
+
+    def test_feature_names_contains_expected_keys(self):
+        provider = NewsFeatureProvider()
+        assert NEWS_SENTIMENT_SCORE in provider._feature_names
+        assert NEWS_HEADLINE_COUNT in provider._feature_names
+
+    def test_collect_headlines_aggregates_rss_and_newsapi(self):
+        provider = NewsFeatureProvider()
+        provider._fetch_rss_headlines = MagicMock(return_value=["rss1", "rss2"])
+        provider._fetch_newsapi_headlines = MagicMock(return_value=["api1"])
+        result = provider._collect_headlines("AAPL")
+        assert result == ["rss1", "rss2", "api1"]
 
 
 # ---------------------------------------------------------------------------

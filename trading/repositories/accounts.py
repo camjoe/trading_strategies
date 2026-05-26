@@ -37,6 +37,7 @@ _ACCOUNT_INSERT_COLUMNS = (
     "roll_dte_threshold",
     "profit_take_pct",
     "max_loss_pct",
+    "trade_universes",
 )
 _ACCOUNT_INSERT_SQL = (
     f"INSERT INTO accounts ({', '.join(_ACCOUNT_INSERT_COLUMNS)}) "

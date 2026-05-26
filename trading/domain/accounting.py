@@ -1,4 +1,6 @@
 """Pure ledger computation — no I/O, no repository calls."""
+
+from __future__ import annotations
 from collections import defaultdict
 
 from common.coercion import row_float

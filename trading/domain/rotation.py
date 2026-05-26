@@ -186,7 +186,8 @@ def resolve_active_strategy(account: Mapping[str, object]) -> str:
 
 
 def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
-    if not bool(_coerce_default_int(_account_field(account, "rotation_enabled"), default=0)):
+    rotation_enabled = bool(_coerce_default_int(_account_field(account, "rotation_enabled"), default=0))
+    if not rotation_enabled:
         return False
 
     schedule = _rotation_schedule(account)

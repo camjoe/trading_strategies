@@ -14,13 +14,13 @@ Re-exports:
   callers that need signal dispatch should import from here rather than the
   domain module directly, keeping the service-layer boundary intact.
 """
+
 from __future__ import annotations
 
+import logging
 from datetime import date
 
-# Re-exported so callers never reach into trading.backtesting.domain directly.
 from trading.backtesting.domain.strategy_signals import resolve_signal  # noqa: F401
-
 from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,
@@ -42,6 +42,8 @@ from trading.backtesting.report_models import (
     BacktestReportSummary,
     BacktestReportTrade,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_backtest_report_data(
@@ -128,7 +130,8 @@ def fetch_backtest_report_data(
         benchmark_ret = benchmark_return_pct(benchmark_series, row_expect_float(run, "initial_cash"))
         if benchmark_ret is not None:
             alpha_pct = summary.total_return_pct - benchmark_ret
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to compute benchmark return for backtest run: %s", exc, exc_info=True)
         benchmark_ret = None
         alpha_pct = None
 
@@ -176,4 +179,5 @@ def fetch_recent_backtest_runs(conn, *, limit: int) -> list[dict[str, object]]:
 
 def fetch_backtest_report_summary(conn, run_id: int) -> BacktestReportSummary:
     from trading.backtesting.backtest import backtest_report_summary  # deferred to avoid circular import
+
     return backtest_report_summary(conn, run_id)

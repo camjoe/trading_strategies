@@ -4,6 +4,8 @@ import json
 import urllib.error
 from types import SimpleNamespace
 
+import pytest
+
 from trading.interfaces.runtime.notifications import (
     WEBHOOK_TIMEOUT_SECONDS,
     build_runtime_notification_payload,
@@ -16,7 +18,7 @@ class _FakeResponse:
     def __init__(self, status_code: int = 200) -> None:
         self._status_code = status_code
 
-    def __enter__(self) -> "_FakeResponse":
+    def __enter__(self) -> _FakeResponse:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -78,3 +80,39 @@ def test_notify_webhook_best_effort_returns_false_and_warns_on_failure(capsys) -
 
     assert sent is False
     assert "Failed to send runtime notification" in capsys.readouterr().err
+
+
+def test_send_webhook_notification_rejects_blank_url() -> None:
+    payload = build_runtime_notification_payload(
+        event="daily-paper-trading",
+        status="ok",
+        message="Completed",
+    )
+
+    with pytest.raises(ValueError, match="must not be blank"):
+        send_webhook_notification("   ", payload)
+
+
+def test_send_webhook_notification_raises_for_http_error_status() -> None:
+    payload = build_runtime_notification_payload(
+        event="daily-paper-trading",
+        status="fail",
+        message="Broken",
+    )
+
+    with pytest.raises(RuntimeError, match="HTTP 500"):
+        send_webhook_notification(
+            "https://example.test/webhook", payload, urlopen_fn=lambda *_a, **_k: _FakeResponse(500)
+        )
+
+
+def test_notify_webhook_best_effort_returns_true_on_success() -> None:
+    sent = notify_webhook_best_effort(
+        webhook_url="https://example.test/webhook",
+        event="daily-paper-trading",
+        status="ok",
+        message="Completed",
+        urlopen_fn=lambda *_a, **_k: _FakeResponse(204),
+    )
+
+    assert sent is True

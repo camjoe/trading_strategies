@@ -15,7 +15,9 @@ class _FakeBundle:
 
 
 class _FakeProvider:
-    def __init__(self, *, bundle: _FakeBundle | None = None, source_label: str = "fake", error: Exception | None = None):
+    def __init__(
+        self, *, bundle: _FakeBundle | None = None, source_label: str = "fake", error: Exception | None = None
+    ):
         self._bundle = bundle
         self.source_label = source_label
         self._error = error

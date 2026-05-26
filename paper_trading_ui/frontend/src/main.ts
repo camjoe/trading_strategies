@@ -2,6 +2,7 @@ import "./styles.css";
 import { find, findAll } from "./lib/dom";
 import { createAccountsFeature } from "./features/accounts";
 import { createAdminFeature } from "./features/admin";
+import { init as initIBKRPaperMonitor } from "./components/ibkr-paper-monitor";
 import { applyAccountConfigOptionsToAdminForm, loadAccountConfigOptions } from "./lib/account-config-options";
 import { createAltStrategiesFeature } from "./features/alt-strategies";
 import { createBacktestingFeature } from "./features/backtesting";
@@ -22,6 +23,7 @@ import accountsTemplate from "./views/accounts.html?raw";
 import adminTemplate from "./views/admin.html?raw";
 import compareTemplate from "./views/compare.html?raw";
 import altStrategiesTemplate from "./views/alt-strategies.html?raw";
+import ibkrPaperMonitorTemplate from "./views/ibkr-paper-monitor.html?raw";
 import { errorMessage } from "./lib/http";
 
 const appRoot = find<HTMLDivElement>("#app");
@@ -54,6 +56,7 @@ function renderShell(): void {
     .replace("<!-- LOGS_TAB_PARTIAL -->", logsTemplate)
     .replace("<!-- BACKTESTING_TAB_PARTIAL -->", backtestingTemplate)
     .replace("<!-- ACCOUNTS_TAB_PARTIAL -->", accountsTemplate)
+    .replace("<!-- IBKR_PAPER_MONITOR_TAB_PARTIAL -->", ibkrPaperMonitorTemplate)
     .replace("<!-- ADMIN_TAB_PARTIAL -->", resolvedAdminTemplate)
     .replace("<!-- COMPARE_TAB_PARTIAL -->", compareTemplate)
     .replace("<!-- ALT_STRATEGIES_TAB_PARTIAL -->", altStrategiesTemplate)
@@ -86,6 +89,7 @@ const altStrategiesFeature = createAltStrategiesFeature();
 async function bootstrap(): Promise<void> {
   renderShell();
   initTabs();
+  openTab("accounts");  // Set initial active tab
   initDocsFeature(openTab);
   accountsFeature.wireActions();
   adminFeature.wireActions();
@@ -93,6 +97,7 @@ async function bootstrap(): Promise<void> {
   compareFeature.wireActions();
   backtestingFeature.wireActions();
   altStrategiesFeature.wireActions();
+  initIBKRPaperMonitor();
 
   try {
     await loadAccountConfigOptions();

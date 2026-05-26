@@ -3,8 +3,11 @@ from __future__ import annotations
 import pytest
 
 from trading.repositories.snapshots import (
+    fetch_latest_snapshot_details_row,
     fetch_latest_snapshot_row,
     fetch_recent_equity_rows,
+    fetch_snapshot_count_between,
+    fetch_snapshot_count_for_account,
     fetch_snapshot_history_rows,
     insert_snapshot_row,
 )
@@ -122,3 +125,50 @@ class TestFetchLatestSnapshotRow:
         _insert(conn, acct_id, snapshot_time="2026-01-02T00:00:00", equity=200.0)
         row = fetch_latest_snapshot_row(conn, account_id=acct_id)
         assert float(row["equity"]) == pytest.approx(300.0)
+
+
+class TestSnapshotCountsAndDetails:
+    def test_fetch_snapshot_count_queries_apply_account_and_window_filters(self, conn) -> None:
+        acct_a = _account_id(conn, "count_a")
+        acct_b = _account_id(conn, "count_b")
+        _insert(conn, acct_a, snapshot_time="2026-01-01T00:00:00", equity=100.0)
+        _insert(conn, acct_a, snapshot_time="2026-01-02T00:00:00", equity=200.0)
+        _insert(conn, acct_a, snapshot_time="2026-01-04T00:00:00", equity=400.0)
+        _insert(conn, acct_b, snapshot_time="2026-01-02T00:00:00", equity=999.0)
+
+        assert (
+            fetch_snapshot_count_between(
+                conn,
+                account_id=acct_a,
+                start_iso="2026-01-01T00:00:00",
+                end_iso="2026-01-02T23:59:59",
+            )
+            == 2
+        )
+        assert fetch_snapshot_count_for_account(conn, account_id=acct_a) == 3
+        assert fetch_snapshot_count_for_account(conn, account_id=acct_b) == 1
+
+    def test_fetch_latest_snapshot_details_row_handles_empty_and_populated_accounts(self, conn) -> None:
+        acct_id = _account_id(conn, "details_acct")
+
+        assert fetch_latest_snapshot_details_row(conn, account_id=acct_id) is None
+
+        insert_snapshot_row(
+            conn,
+            account_id=acct_id,
+            snapshot_time="2026-02-01T12:00:00",
+            cash=1250.0,
+            market_value=750.0,
+            equity=2000.0,
+            realized_pnl=120.0,
+            unrealized_pnl=30.0,
+        )
+
+        row = fetch_latest_snapshot_details_row(conn, account_id=acct_id)
+
+        assert row is not None
+        assert row["snapshot_time"] == "2026-02-01T12:00:00"
+        assert float(row["cash"]) == pytest.approx(1250.0)
+        assert float(row["market_value"]) == pytest.approx(750.0)
+        assert float(row["realized_pnl"]) == pytest.approx(120.0)
+        assert float(row["unrealized_pnl"]) == pytest.approx(30.0)

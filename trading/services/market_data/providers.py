@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import NoReturn
 
@@ -10,7 +11,9 @@ from .cache import _CACHE_MISS
 from .cache import market_data_cache_key
 from .cache import read_market_data_cache
 from .cache import write_market_data_cache
-from .interfaces import MarketDataProvider
+from .protocols import MarketDataProvider
+
+logger = logging.getLogger(__name__)
 
 
 class YFinanceProvider(MarketDataProvider):
@@ -29,10 +32,7 @@ class YFinanceProvider(MarketDataProvider):
 
         df = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
         if df.empty:
-            raise ValueError(
-                f"No data returned for ticker '{ticker}' "
-                f"(period={period}, interval={interval})."
-            )
+            raise ValueError(f"No data returned for ticker '{ticker}' (period={period}, interval={interval}).")
         if isinstance(df.columns, pd.MultiIndex):
             if "Ticker" in df.columns.names:
                 tickers_in_df = df.columns.get_level_values("Ticker")
@@ -119,7 +119,8 @@ class YFinanceProvider(MarketDataProvider):
                 return None
             write_market_data_cache(cache_key, close)
             return close
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to fetch close history for %s: %s", ticker, exc, exc_info=True)
             return None
 
 
@@ -131,8 +132,7 @@ class UnavailableProvider(MarketDataProvider):
 
     def _raise_unavailable(self) -> NoReturn:
         raise NotImplementedError(
-            f"Market data provider '{self.provider_name}' is not implemented yet. "
-            "Use provider 'yfinance' for now."
+            f"Market data provider '{self.provider_name}' is not implemented yet. Use provider 'yfinance' for now."
         )
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:

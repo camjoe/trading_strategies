@@ -32,6 +32,7 @@ Available tabs
   accounts, compare, trades, backtesting,
   alt-strategies, docs, admin
 """
+
 from __future__ import annotations
 
 import argparse
@@ -147,7 +148,7 @@ def main() -> int:
         "--tab",
         default="accounts",
         help="Tab to open (default: accounts). Options: accounts, "
-             "compare, trades, backtesting, alt-strategies, docs, admin",
+        "compare, trades, backtesting, alt-strategies, docs, admin",
     )
     parser.add_argument(
         "--account",
@@ -164,7 +165,7 @@ def main() -> int:
         "--output",
         default=None,
         metavar="PATH",
-        help=f"Output file path (default: local/screenshots/<tab>_<timestamp>.png)",
+        help="Output file path (default: local/screenshots/<tab>_<timestamp>.png)",
     )
     parser.add_argument(
         "--url",

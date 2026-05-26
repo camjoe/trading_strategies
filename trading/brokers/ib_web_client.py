@@ -5,6 +5,7 @@ All HTTP transport details, session handling, and account identifier lookup stay
 inside ``trading/brokers/`` so higher layers continue to depend only on
 ``BrokerConnection``.
 """
+
 from __future__ import annotations
 
 import json
@@ -537,12 +538,10 @@ class InteractiveBrokersWebClient:
             detail = response.text.strip()
             if response.status_code == 429:
                 raise RuntimeError(
-                    f"IBKR Web API pacing limit exceeded for {method} {path}: "
-                    f"{response.status_code} {detail}"
+                    f"IBKR Web API pacing limit exceeded for {method} {path}: {response.status_code} {detail}"
                 ) from exc
             raise RuntimeError(
-                f"IBKR Web API request failed for {method} {path}: "
-                f"{response.status_code} {detail}"
+                f"IBKR Web API request failed for {method} {path}: {response.status_code} {detail}"
             ) from exc
         if not response.content:
             return {}
@@ -575,9 +574,7 @@ class InteractiveBrokersWebClient:
             try:
                 self.tickle()
             except RuntimeError as exc:
-                self._background_error = RuntimeError(
-                    f"IBKR Web API keepalive failed: {exc}"
-                )
+                self._background_error = RuntimeError(f"IBKR Web API keepalive failed: {exc}")
                 self._connected = False
                 return
 

@@ -94,6 +94,7 @@ def _schedule_expression(task: ScheduledTaskSpec) -> tuple[int, int, str | None]
         return hour, minute, validate_day(task.day_of_week)
     return hour, minute, None
 
+
 def build_windows_register_command(task: ScheduledTaskSpec, repo_root: Path, python_exe: Path) -> str:
     _schedule_expression(task)
     argument = subprocess.list2cmdline(["-m", task.module, *task.args])
@@ -127,8 +128,7 @@ def build_linux_cron_line(task: ScheduledTaskSpec, repo_root: Path, python_exe: 
     command = " ".join(shlex.quote(part) for part in command_parts)
     marker = f"# {task.task_name}"
     return (
-        f"{schedule_expr} cd {shlex.quote(str(repo_root))} && "
-        f"{command} >> {shlex.quote(str(log_path))} 2>&1 {marker}"
+        f"{schedule_expr} cd {shlex.quote(str(repo_root))} && {command} >> {shlex.quote(str(log_path))} 2>&1 {marker}"
     )
 
 
@@ -144,10 +144,7 @@ def register_tasks_for_platform(
     resolved_python = Path(python_exe).expanduser().resolve()
 
     if resolved_system == "windows":
-        commands = [
-            build_windows_register_command(task, resolved_repo_root, resolved_python)
-            for task in tasks
-        ]
+        commands = [build_windows_register_command(task, resolved_repo_root, resolved_python) for task in tasks]
         if dry_run:
             for command in commands:
                 print("DRY RUN powershell command:")
@@ -168,9 +165,7 @@ def register_tasks_for_platform(
             marker = f"# {task.task_name}"
             updated_lines = [line for line in updated_lines if marker not in line]
             log_path = logs_dir_for_repo(resolved_repo_root) / task.log_name
-            updated_lines.append(
-                build_linux_cron_line(task, resolved_repo_root, resolved_python, log_path)
-            )
+            updated_lines.append(build_linux_cron_line(task, resolved_repo_root, resolved_python, log_path))
         return write_crontab_lines(updated_lines, dry_run)
 
     raise RuntimeError(f"Unsupported OS for scheduler registration: {platform.system()}")

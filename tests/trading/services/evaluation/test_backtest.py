@@ -1,6 +1,7 @@
+import sqlite3
+
 import pytest
 
-from trading.services.accounts import create_account, get_account
 from trading.services.evaluation import fetch_strategy_evaluation
 from tests.support.evaluation import (
     insert_account_snapshot,
@@ -10,11 +11,11 @@ from tests.support.evaluation import (
 )
 
 
-def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(conn) -> None:
-    create_account(conn, "acct_eval", "trend_v1", 1000.0, "SPY")
-    account = get_account(conn, "acct_eval")
-
-    run_id = insert_backtest_run(conn, account_id=account["id"], strategy_name="trend_v1")
+def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(
+    conn,
+    eval_account: sqlite3.Row,
+) -> None:
+    run_id = insert_backtest_run(conn, account_id=eval_account["id"], strategy_name="trend_v1")
     insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-01T00:00:00Z", equity=1000.0)
     insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-15T00:00:00Z", equity=1100.0)
     insert_backtest_snapshot(conn, run_id=run_id, snapshot_time="2026-01-31T00:00:00Z", equity=1050.0)
@@ -23,7 +24,7 @@ def test_fetch_strategy_evaluation_assembles_backtest_and_snapshot_evidence(conn
 
     insert_account_snapshot(
         conn,
-        account_id=account["id"],
+        account_id=eval_account["id"],
         snapshot_time="2026-02-01T00:00:00Z",
         cash=800.0,
         market_value=220.0,

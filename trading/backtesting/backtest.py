@@ -4,7 +4,7 @@ import sqlite3
 from datetime import date
 
 from trading.models import AccountRecord
-from trading.domain.auto_trader_policy import choose_buy_qty
+from trading.domain.auto_trading_policy import choose_buy_qty
 from trading.backtesting.trading_bridge import get_account
 from trading.backtesting.models import (
     BacktestBatchConfig,
@@ -35,6 +35,7 @@ from trading.backtesting.services import (
     resolve_backtest_dates,
     run_backtest as run_backtest_impl,
 )
+
 
 def build_walk_forward_windows(
     start_date: date,

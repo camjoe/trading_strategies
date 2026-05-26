@@ -12,6 +12,7 @@ Legacy IB path
 ``interactive_brokers`` remains wired as a legacy socket/TWS alternative. It is
 kept available, but it is not the primary IBKR path for current development.
 """
+
 from __future__ import annotations
 
 from trading.brokers.base import BrokerConnection
@@ -25,6 +26,7 @@ from trading.models import AccountRecord
 _BROKER_TYPE_PAPER = "paper"
 _BROKER_TYPE_INTERACTIVE_BROKERS = "interactive_brokers"
 _BROKER_TYPE_INTERACTIVE_BROKERS_WEB = "interactive_brokers_web"
+
 
 def get_broker_for_account(account: AccountRecord) -> BrokerConnection:
     """Return the appropriate :class:`BrokerConnection` for *account*.

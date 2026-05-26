@@ -36,6 +36,7 @@ class DatabaseBackend(ABC):
     def get_table_columns(self, conn: Any, table: str) -> set[str]:
         """Return the set of column names that currently exist in *table*."""
 
+
 class SQLiteBackend(DatabaseBackend):
     """Concrete backend backed by SQLite via the stdlib ``sqlite3`` module.
     Args:
@@ -44,11 +45,7 @@ class SQLiteBackend(DatabaseBackend):
     """
 
     def __init__(self, db_path: Path | None = None) -> None:
-        self.db_path: Path = (
-            db_path
-            if db_path is not None
-            else get_db_path()
-        )
+        self.db_path: Path = db_path if db_path is not None else get_db_path()
 
     def open_connection(self) -> sqlite3.Connection:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,11 +61,14 @@ class SQLiteBackend(DatabaseBackend):
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
         return {str(row[1]) for row in rows}
 
+
 _backend: DatabaseBackend = SQLiteBackend()
+
 
 def get_backend() -> DatabaseBackend:
     """Return the active database backend."""
     return _backend
+
 
 def set_backend(backend: DatabaseBackend) -> None:
     """Replace the active database backend.

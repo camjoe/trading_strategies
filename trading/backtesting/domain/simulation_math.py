@@ -24,8 +24,7 @@ def update_on_buy(
     new_qty = old_qty + qty
     if new_qty <= 0:
         raise ValueError(
-            f"update_on_buy: resulting position for {ticker!r} is non-positive ({new_qty}). "
-            "qty must be positive."
+            f"update_on_buy: resulting position for {ticker!r} is non-positive ({new_qty}). qty must be positive."
         )
     old_value = old_qty * avg_cost[ticker]
     trade_value = (qty * price) + fee

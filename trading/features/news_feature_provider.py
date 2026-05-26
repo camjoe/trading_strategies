@@ -20,6 +20,7 @@ Features emitted:
                               compatibility with feature_history DataFrames).
                               Zero indicates no usable headlines were found.
 """
+
 from __future__ import annotations
 
 import logging
@@ -88,6 +89,7 @@ class NewsFeatureProvider(ExternalFeatureProvider):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
         self._analyzer = SentimentIntensityAnalyzer()
 
     @property
@@ -103,7 +105,9 @@ class NewsFeatureProvider(ExternalFeatureProvider):
         if len(headlines) < _MIN_HEADLINE_THRESHOLD:
             _LOG.debug(
                 "NewsFeatureProvider: only %d headlines for %s (min %d)",
-                len(headlines), ticker, _MIN_HEADLINE_THRESHOLD,
+                len(headlines),
+                ticker,
+                _MIN_HEADLINE_THRESHOLD,
             )
             return ExternalFeatureBundle.unavailable(source=self.source_label)
 

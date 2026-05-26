@@ -4,6 +4,8 @@ This package is an explicit bounded context with internal layering
 (`domain/services/repositories`) and stable convenience exports.
 """
 
+from __future__ import annotations
+
 from trading.backtesting.backtest import (
     BacktestBatchConfig,
     BacktestConfig,

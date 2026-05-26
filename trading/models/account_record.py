@@ -63,6 +63,7 @@ class AccountRecord(Mapping[str, object]):
     broker_port: int | None = None
     broker_client_id: int | None = None
     live_trading_enabled: int | None = None
+    trade_universes: str | None = None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, object]) -> AccountRecord:
@@ -120,6 +121,7 @@ class AccountRecord(Mapping[str, object]):
             broker_port=coerce_int(values.get("broker_port")),
             broker_client_id=coerce_int(values.get("broker_client_id")),
             live_trading_enabled=coerce_int(values.get("live_trading_enabled")),
+            trade_universes=coerce_str(values.get("trade_universes")),
         )
 
     def __getitem__(self, key: str) -> object:

@@ -4,6 +4,7 @@ Uses the Client Portal / Campus Web API through ``InteractiveBrokersWebClient``.
 Account identifiers and session headers are loaded from env or ignored local
 config via ``load_ib_web_api_settings`` — they are not stored in the app DB.
 """
+
 from __future__ import annotations
 
 import time
@@ -122,12 +123,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
         self._require_connected()
         positions: dict[str, float] = {}
         for row in self._client.fetch_positions():
-            ticker = str(
-                row.get("ticker")
-                or row.get("contractDesc")
-                or row.get("description")
-                or ""
-            ).strip()
+            ticker = str(row.get("ticker") or row.get("contractDesc") or row.get("description") or "").strip()
             if not ticker:
                 continue
             quantity = _coerce_number(row.get("position"))
@@ -178,9 +174,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
 
     def _require_connected(self) -> None:
         if not self._client.is_connected():
-            raise RuntimeError(
-                "InteractiveBrokersWebAdapter is not connected. Call connect() first."
-            )
+            raise RuntimeError("InteractiveBrokersWebAdapter is not connected. Call connect() first.")
 
 
 _IB_WEB_STATUS_MAP: dict[str, OrderStatus] = {

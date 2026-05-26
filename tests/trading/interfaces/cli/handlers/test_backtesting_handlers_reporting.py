@@ -157,3 +157,37 @@ def test_handle_backtest_walk_forward_report_routes_value_error_to_parser_error(
 
     with pytest.raises(SystemExit, match="Walk-forward group 7 not found."):
         handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")
+
+
+class _RecordingParser:
+    def __init__(self) -> None:
+        self.message: str | None = None
+
+    def error(self, msg: str) -> None:
+        self.message = msg
+
+
+def test_handle_backtest_leaderboard_records_parser_error_without_printing_header(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {
+        "backtest_leaderboard_entries": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad leaderboard")),
+    }
+    args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
+
+    handle_backtest_leaderboard(object(), args, parser, deps=deps, module_file="", db_path="")
+
+    assert parser.message == "bad leaderboard"
+    assert "run_id,run_name" not in capsys.readouterr().out
+
+
+def test_handle_backtest_walk_forward_report_records_parser_error_without_printing_rows(capsys) -> None:
+    parser = _RecordingParser()
+    deps = {
+        "walk_forward_report": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad report")),
+    }
+    args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
+
+    handle_backtest_walk_forward_report(object(), args, parser, deps=deps, module_file="", db_path="")
+
+    assert parser.message == "bad report"
+    assert "window,range,run_id" not in capsys.readouterr().out

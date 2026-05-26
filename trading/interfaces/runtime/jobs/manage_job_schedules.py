@@ -4,27 +4,37 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta
 import sys
 
 from common.paths.repo_paths import get_repo_root
+from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
 from trading.interfaces.runtime.jobs.scheduler_installer import (
     ScheduledTaskSpec,
     register_tasks_for_platform,
     unregister_tasks_for_platform,
 )
 
-DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily_paper_trading"
-DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily_snapshot"
-DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily_backtest_refresh"
-DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.check_daily_trader_health"
-WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.weekly_db_backup"
+DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
+DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
+DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
+DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
+WEEKLY_DB_BACKUP_MODULE = "trading.interfaces.runtime.jobs.maintenance.weekly_db_backup"
 
 DEFAULT_DAILY_PAPER_TRADING_TASK_NAME = r"Trading\DailyPaperTrading"
 DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME = r"Trading\DailyPaperTradingFallback"
+DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME = r"Trading\DailyChallengerShadowEval"
 DEFAULT_DAILY_SNAPSHOT_TASK_NAME = r"Trading\DailySnapshot"
 DEFAULT_DAILY_BACKTEST_REFRESH_TASK_NAME = r"Trading\DailyBacktestRefresh"
 DEFAULT_DAILY_TRADER_HEALTH_CHECK_TASK_NAME = r"Trading\DailyTraderHealthCheck"
 DEFAULT_WEEKLY_DB_BACKUP_TASK_NAME = r"Trading\WeeklyDbBackup"
+
+# Time format used by scheduler CLI for daily task registration.
+SCHEDULE_TIME_FORMAT = "%H:%M"
+# Number of minutes in a day for wrap-around validation.
+MINUTES_PER_DAY = 24 * 60
+# Default lead time to run shadow evaluation before daily paper trading.
+DEFAULT_SHADOW_EVAL_LEAD_MINUTES = 20
 
 
 def _scheduled_task(
@@ -49,9 +59,7 @@ def _scheduled_task(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Manage job schedules for paper trading operations."
-    )
+    parser = argparse.ArgumentParser(description="Manage job schedules for paper trading operations.")
     parser.add_argument(
         "--daily-paper-trading-time",
         default="",
@@ -69,6 +77,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--daily-paper-trading-fallback-task-name",
         default=DEFAULT_DAILY_PAPER_TRADING_FALLBACK_TASK_NAME,
+    )
+    parser.add_argument(
+        "--daily-challenger-shadow-eval-time",
+        default="",
+        help="Optional HH:MM for the daily challenger shadow-evaluation entry",
+    )
+    parser.add_argument(
+        "--daily-challenger-shadow-eval-task-name",
+        default=DEFAULT_DAILY_CHALLENGER_SHADOW_EVAL_TASK_NAME,
+    )
+    parser.add_argument(
+        "--enable-daily-challenger-shadow-eval",
+        action="store_true",
+        help="Append --enable-run to the challenger shadow-evaluation scheduler command",
+    )
+    parser.add_argument(
+        "--auto-shadow-eval-from-daily-paper",
+        action="store_true",
+        help=(
+            "Derive shadow-eval task time from --daily-paper-trading-time when "
+            "--daily-challenger-shadow-eval-time is not provided."
+        ),
+    )
+    parser.add_argument(
+        "--shadow-eval-lead-minutes",
+        type=int,
+        default=DEFAULT_SHADOW_EVAL_LEAD_MINUTES,
+        help=(f"Lead minutes for auto-derived shadow-eval schedule (default: {DEFAULT_SHADOW_EVAL_LEAD_MINUTES})."),
     )
     parser.add_argument(
         "--daily-snapshot-time",
@@ -133,6 +169,18 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _derive_shadow_eval_time_from_daily_paper(
+    daily_paper_time: str,
+    *,
+    lead_minutes: int,
+) -> str:
+    if lead_minutes <= 0 or lead_minutes >= MINUTES_PER_DAY:
+        raise ValueError(f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}")
+    base = datetime.strptime(daily_paper_time, SCHEDULE_TIME_FORMAT)
+    derived = base - timedelta(minutes=lead_minutes)
+    return derived.strftime(SCHEDULE_TIME_FORMAT)
+
+
 def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
     tasks: list[ScheduledTaskSpec] = []
 
@@ -154,6 +202,30 @@ def build_scheduled_tasks(args: argparse.Namespace) -> list[ScheduledTaskSpec]:
                 time=args.daily_paper_trading_fallback_time,
                 args=("--run-source", "scheduled-daily-fallback"),
                 log_name="daily_paper_trading_fallback_scheduler.log",
+            )
+        )
+
+    shadow_eval_time = args.daily_challenger_shadow_eval_time
+    auto_shadow_eval = False
+    should_auto_derive_shadow_eval = (
+        not shadow_eval_time and bool(args.auto_shadow_eval_from_daily_paper) and bool(args.daily_paper_trading_time)
+    )
+    if should_auto_derive_shadow_eval:
+        shadow_eval_time = _derive_shadow_eval_time_from_daily_paper(
+            args.daily_paper_trading_time,
+            lead_minutes=int(args.shadow_eval_lead_minutes),
+        )
+        auto_shadow_eval = True
+
+    if shadow_eval_time:
+        shadow_eval_args = ("--enable-run",) if args.enable_daily_challenger_shadow_eval or auto_shadow_eval else ()
+        tasks.append(
+            _scheduled_task(
+                task_name=args.daily_challenger_shadow_eval_task_name,
+                module=DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+                time=shadow_eval_time,
+                args=shadow_eval_args,
+                log_name="daily_challenger_shadow_eval_scheduler.log",
             )
         )
 
@@ -211,6 +283,7 @@ def default_task_names(args: argparse.Namespace) -> list[str]:
     return [
         args.daily_paper_trading_task_name,
         args.daily_paper_trading_fallback_task_name,
+        args.daily_challenger_shadow_eval_task_name,
         args.daily_snapshot_task_name,
         args.daily_backtest_refresh_task_name,
         args.health_check_task_name,
@@ -222,6 +295,12 @@ def main() -> int:
     args = parse_args()
     if args.health_check_max_age_hours <= 0:
         print("--health-check-max-age-hours must be > 0", file=sys.stderr)
+        return 2
+    shadow_eval_lead_is_invalid = (
+        args.shadow_eval_lead_minutes <= 0 or args.shadow_eval_lead_minutes >= MINUTES_PER_DAY
+    )
+    if shadow_eval_lead_is_invalid:
+        print(f"--shadow-eval-lead-minutes must be > 0 and < {MINUTES_PER_DAY}", file=sys.stderr)
         return 2
 
     repo_root = get_repo_root(__file__)

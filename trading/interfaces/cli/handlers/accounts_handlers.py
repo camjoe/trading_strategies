@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
-from trading.services.profile_source import get_builtin_profile_preset_path
+from trading.services.profiles.source import get_builtin_profile_preset_path
 
 
 def _print_profiles_result(prefix: str, created: int, updated: int, skipped: int) -> None:
@@ -27,10 +27,7 @@ def handle_create_account(conn, args, parser, *, deps: dict[str, Any], module_fi
     except ValueError as error:
         parser.error(str(error))
         return
-    print(
-        f"Created account '{args.name}' for strategy '{args.strategy}' "
-        f"with benchmark '{args.benchmark.upper()}'."
-    )
+    print(f"Created account '{args.name}' for strategy '{args.strategy}' with benchmark '{args.benchmark.upper()}'.")
 
 
 def handle_configure_account(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:

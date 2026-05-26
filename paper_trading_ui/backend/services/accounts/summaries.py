@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
-from trading.models import AccountRecord
+from trading.models import AccountRecord, AccountState
 from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
@@ -11,31 +11,21 @@ from trading.services.accounts import (
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
-from trading.services.reporting import build_account_stats
-
-_SETTLEMENT_PRICE = 1.0
-
-
-def _settlement_corrected_equity(state: object, prices: object) -> float:
-    """Equity including the settlement position (cash-equivalent held as a ticker)."""
-    from trading.models.account_state import AccountState
-
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
-        return 0.0
-    return state.cash + sum(
-        state.positions.get(t, 0.0) * prices.get(t, 0.0) for t in state.positions
-    )
+from trading.services.reporting import (
+    build_account_stats,
+    inject_settlement_price,
+    settlement_cash,
+    settlement_corrected_equity,
+)
 
 
 def build_account_summary(conn: sqlite3.Connection, row: AccountRecord) -> dict[str, object]:
-    from trading.models.account_state import AccountState
-
     state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
-    _inject_settlement_price(state, prices)
+    inject_settlement_price(state, prices)
     if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = _settlement_corrected_equity(state, prices)
+        equity = settlement_corrected_equity(state, prices)
     total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
-    return _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
+    return _build_summary_from_stats(conn, row, equity, settlement_cash(state, prices), total_deposited)
 
 
 def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
@@ -58,33 +48,14 @@ def build_account_summary_and_positions(
     conn: sqlite3.Connection, row: AccountRecord
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     """Call build_account_stats once and return both summary and open positions."""
-    from trading.models.account_state import AccountState
-
     state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
-    _inject_settlement_price(state, prices)
+    inject_settlement_price(state, prices)
     if isinstance(state, AccountState) and isinstance(prices, dict):
-        equity = _settlement_corrected_equity(state, prices)
+        equity = settlement_corrected_equity(state, prices)
     total_deposited = state.total_deposited if isinstance(state, AccountState) else 0.0
-    summary = _build_summary_from_stats(conn, row, equity, _settlement_cash(state, prices), total_deposited)
+    summary = _build_summary_from_stats(conn, row, equity, settlement_cash(state, prices), total_deposited)
     positions = _build_positions_from_stats(state, prices)
     return summary, positions
-
-
-def _inject_settlement_price(state: object, prices: object) -> None:
-    from trading.models.account_state import AccountState
-
-    if not isinstance(state, AccountState) or not isinstance(prices, dict):
-        return
-    if _SETTLEMENT_TICKER in state.positions and _SETTLEMENT_TICKER not in prices:
-        prices[_SETTLEMENT_TICKER] = _SETTLEMENT_PRICE
-
-
-def _settlement_cash(state: object, prices: object) -> float:
-    from trading.models.account_state import AccountState
-
-    if not isinstance(state, AccountState):
-        return 0.0
-    return state.cash
 
 
 def _build_summary_from_stats(
@@ -125,12 +96,8 @@ def _build_summary_from_stats(
         "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
         "stopLossPct": row.stop_loss_pct,
         "takeProfitPct": row.take_profit_pct,
-        "tradeSizePct": (
-            row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
-        ),
-        "maxPositionPct": (
-            row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
-        ),
+        "tradeSizePct": (row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT),
+        "maxPositionPct": (row.max_position_pct if row.max_position_pct is not None else DEFAULT_MAX_POSITION_PCT),
         "goalMinReturnPct": row.goal_min_return_pct,
         "goalMaxReturnPct": row.goal_max_return_pct,
         "goalPeriod": row.goal_period,
@@ -168,9 +135,7 @@ def _build_summary_from_stats(
     }
 
 
-def _build_positions_from_stats(
-    state: object, prices: dict[str, float]
-) -> list[dict[str, object]]:
+def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list[dict[str, object]]:
     from trading.models.account_state import AccountState
 
     if not isinstance(state, AccountState):

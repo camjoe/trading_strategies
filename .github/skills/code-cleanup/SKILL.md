@@ -30,6 +30,8 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 ## Repo references
 
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `.github/BOT_STYLE_GUIDE.md`
+- `docs/style/python-style-guide.md`
 - `trading/`
 - `paper_trading_ui/backend/`
 - `paper_trading_ui/frontend/`

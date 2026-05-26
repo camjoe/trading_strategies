@@ -1,6 +1,7 @@
+from __future__ import annotations
 from trading.domain.accounting import compute_account_state
 from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.domain.auto_trader_policy import (
+from trading.domain.auto_trading_policy import (
     apply_leaps_buy_qty_limits,
     build_trade_note,
     choose_buy_qty,
@@ -24,6 +25,12 @@ from trading.domain.rotation import (
     resolve_active_strategy,
     resolve_optimality_mode,
     resolve_rotation_mode,
+)
+from trading.domain.sleeve_accounting import (
+    SleeveFillTransition,
+    apply_sleeve_fill_transition,
+    compute_sleeve_equity,
+    normalize_sleeve_order_input,
 )
 
 __all__ = [
@@ -50,4 +57,8 @@ __all__ = [
     "resolve_active_strategy",
     "resolve_optimality_mode",
     "resolve_rotation_mode",
+    "SleeveFillTransition",
+    "apply_sleeve_fill_transition",
+    "compute_sleeve_equity",
+    "normalize_sleeve_order_input",
 ]

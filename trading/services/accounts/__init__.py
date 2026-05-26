@@ -5,6 +5,8 @@ mutation helpers. Prefer ``trading.services.accounts`` as the stable public
 import surface unless a tightly scoped internal import is clearer.
 """
 
+from __future__ import annotations
+
 from trading.services.accounts.listing import (
     GOAL_NOT_SET_TEXT,
     HEURISTIC_EXPLORATION_LABEL,
@@ -30,7 +32,7 @@ from trading.services.accounts.queries import (
     load_runtime_eligible_account_names,
 )
 from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.domain.auto_trader_policy import (
+from trading.domain.auto_trading_policy import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
 )

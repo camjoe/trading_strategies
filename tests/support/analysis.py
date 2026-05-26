@@ -1,4 +1,5 @@
 """Shared helpers for analysis service tests."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -12,7 +13,7 @@ def make_analysis_account(
     name: str,
     *,
     initial_cash: float = 1000.0,
-) -> dict[str, object]:
+) -> sqlite3.Row:
     if initial_cash > 0:
         create_account(conn, name, "trend", initial_cash, "SPY")
     else:
@@ -24,7 +25,8 @@ def make_analysis_account(
         )
         conn.commit()
     row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
-    return dict(row)
+    assert row is not None
+    return row
 
 
 def record_analysis_buy(

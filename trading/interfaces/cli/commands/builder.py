@@ -9,9 +9,7 @@ from trading.interfaces.cli.commands.reporting import add_reporting_commands
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Paper trading accounts per strategy with trade and equity tracking."
-    )
+    parser = argparse.ArgumentParser(description="Paper trading accounts per strategy with trade and equity tracking.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     add_account_commands(sub, add_option_args)

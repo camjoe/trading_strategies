@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import pytest
+
+import trading.repositories.promotion as promotion_repository
 from trading.domain.evaluation_models import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.domain.promotion_models import PromotionAssessment
 from trading.repositories.promotion import (
+    _require_event,
+    _require_review,
+    _row_json_object,
     fetch_open_promotion_review,
     fetch_promotion_review_by_id,
     fetch_promotion_review_events,
@@ -14,7 +20,28 @@ from trading.repositories.promotion import (
 from tests.support.repositories import insert_repository_account
 
 
-def _evaluation(*, account_id: int = 1, account_name: str = "acct_a", strategy_name: str = "Trend") -> StrategyEvaluationArtifact:
+class _StaticCursor:
+    def __init__(self, *, lastrowid=None, row=None) -> None:
+        self.lastrowid = lastrowid
+        self._row = row
+
+    def fetchone(self):
+        return self._row
+
+
+class _StaticConnection:
+    def __init__(self, *results) -> None:
+        self._results = list(results)
+
+    def execute(self, *_args, **_kwargs):
+        if not self._results:
+            raise AssertionError("Unexpected execute call")
+        return self._results.pop(0)
+
+
+def _evaluation(
+    *, account_id: int = 1, account_name: str = "acct_a", strategy_name: str = "Trend"
+) -> StrategyEvaluationArtifact:
     return StrategyEvaluationArtifact(
         basic=EvaluationBasicScope(
             account_id=account_id,
@@ -135,3 +162,75 @@ def test_fetch_open_history_and_update_review_state(conn) -> None:
     assert fetch_open_promotion_review(conn, account_id=1, strategy_name="Trend") is None
     history = fetch_promotion_reviews_for_account(conn, account_id=1, strategy_name="Trend", limit=10)
     assert [item.review_state for item in history] == ["approved"]
+
+
+def test_row_json_and_require_helpers_raise_on_invalid_payloads(monkeypatch) -> None:
+    assert _row_json_object({"payload": None}, "payload") == {}
+
+    with pytest.raises(ValueError, match="Expected JSON object in column 'payload'"):
+        _row_json_object({"payload": "[1, 2, 3]"}, "payload")
+
+    monkeypatch.setattr(promotion_repository, "fetch_promotion_review_by_id", lambda *_args, **_kwargs: None)
+    with pytest.raises(ValueError, match="Promotion review 7 not found after update"):
+        _require_review(object(), review_id=7, context="update")
+
+    with pytest.raises(ValueError, match="Promotion review event 3 not found after insert"):
+        _require_event(_StaticConnection(_StaticCursor(row=None)), event_id=3)
+
+
+@pytest.mark.parametrize(
+    ("evaluation", "message"),
+    [
+        (_evaluation(account_id=None), "Promotion review requires evaluation.basic.account_id."),
+        (_evaluation(account_name=None), "Promotion review requires evaluation.basic.account_name."),
+        (_evaluation(strategy_name=None), "Promotion review requires evaluation.basic.requested_strategy."),
+    ],
+)
+def test_insert_promotion_review_validates_required_evaluation_fields(evaluation, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        insert_promotion_review(
+            _StaticConnection(),
+            assessment=_assessment(),
+            evaluation=evaluation,
+            requested_by=None,
+            operator_summary_note=None,
+            created_at="2026-03-01T00:00:00Z",
+        )
+
+
+def test_insert_promotion_review_guard_paths_raise_when_ids_cannot_be_materialized() -> None:
+    with pytest.raises(ValueError, match="Expected integer promotion review id after insert"):
+        insert_promotion_review(
+            _StaticConnection(_StaticCursor(lastrowid=None)),
+            assessment=_assessment(),
+            evaluation=_evaluation(),
+            requested_by="alice",
+            operator_summary_note=None,
+            created_at="2026-03-01T00:00:00Z",
+        )
+
+    with pytest.raises(ValueError, match="Unable to compute next event sequence for review 1"):
+        insert_promotion_review_event(
+            _StaticConnection(_StaticCursor(row=None)),
+            review_id=1,
+            event_type="requested",
+            actor_name="alice",
+            from_review_state=None,
+            to_review_state="requested",
+            note=None,
+            event_payload={},
+            created_at="2026-03-01T00:00:00Z",
+        )
+
+    with pytest.raises(ValueError, match="Expected integer promotion review event id after insert"):
+        insert_promotion_review_event(
+            _StaticConnection(_StaticCursor(row={"next_seq": 1}), _StaticCursor(lastrowid=None)),
+            review_id=1,
+            event_type="requested",
+            actor_name="alice",
+            from_review_state=None,
+            to_review_state="requested",
+            note=None,
+            event_payload={},
+            created_at="2026-03-01T00:00:00Z",
+        )

@@ -1,65 +1,29 @@
 from __future__ import annotations
 
-from trading.services.accounts import create_account
 from trading.backtesting.repositories.history_repository import fetch_strategy_backtest_rows
 
 
-def _seed_run(conn, *, account_id: int, strategy_name: str, end_date: str, start_eq: float, end_eq: float) -> int:
-    run_id = int(
-        conn.execute(
-            """
-            INSERT INTO backtest_runs (
-                account_id, strategy_name, run_name, start_date, end_date,
-                created_at, slippage_bps, fee_per_trade, tickers_file, notes, warnings
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                account_id,
-                strategy_name,
-                f"{strategy_name}-{end_date}",
-                "2026-01-01",
-                end_date,
-                f"{end_date}T00:00:00Z",
-                0.0,
-                0.0,
-                "trading/config/trade_universe.txt",
-                "",
-                "",
-            ),
-        ).lastrowid
+def test_history_repository_fetches_rows_with_filters(bt_repo_account, seed_bt_run, conn) -> None:
+    _account_name, account_id = bt_repo_account
+
+    seed_bt_run(
+        account_id,
+        strategy_name="trend",
+        run_name="trend-2026-02-01",
+        created_at="2026-02-01T00:00:00Z",
+        start_equity=1000.0,
+        end_equity=1100.0,
+        end_date="2026-02-01",
     )
-    conn.execute(
-        """
-        INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
-        VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            run_id,
-            "2026-01-01T00:00:00Z",
-            start_eq,
-            0.0,
-            start_eq,
-            0.0,
-            0.0,
-            run_id,
-            f"{end_date}T00:00:00Z",
-            end_eq,
-            0.0,
-            end_eq,
-            0.0,
-            0.0,
-        ),
+    seed_bt_run(
+        account_id,
+        strategy_name="mean",
+        run_name="mean-2026-02-10",
+        created_at="2026-02-10T00:00:00Z",
+        start_equity=1000.0,
+        end_equity=900.0,
+        end_date="2026-02-10",
     )
-    conn.commit()
-    return run_id
-
-
-def test_history_repository_fetches_rows_with_filters(conn) -> None:
-    create_account(conn, "acct_hist", "trend_v1", 10000.0, "SPY")
-    account_id = int(conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_hist",)).fetchone()["id"])
-
-    _seed_run(conn, account_id=account_id, strategy_name="trend", end_date="2026-02-01", start_eq=1000.0, end_eq=1100.0)
-    _seed_run(conn, account_id=account_id, strategy_name="mean", end_date="2026-02-10", start_eq=1000.0, end_eq=900.0)
 
     rows = fetch_strategy_backtest_rows(
         conn,

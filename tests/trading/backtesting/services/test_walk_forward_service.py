@@ -49,18 +49,23 @@ def test_walk_forward_service_builds_summary_and_run_names() -> None:
     def fake_insert_group_run(_conn, **kwargs) -> None:
         persisted_group_runs.append(kwargs)
 
-    with patch.object(walk_forward_service, "insert_walk_forward_group", fake_insert_group), patch.object(
-        walk_forward_service,
-        "insert_walk_forward_group_run",
-        fake_insert_group_run,
-    ), patch.object(
-        walk_forward_service,
-        "_build_grouping_key",
-        lambda: "wf-group-1",
-    ), patch.object(
-        walk_forward_service,
-        "_commit_connection",
-        lambda _conn: None,
+    with (
+        patch.object(walk_forward_service, "insert_walk_forward_group", fake_insert_group),
+        patch.object(
+            walk_forward_service,
+            "insert_walk_forward_group_run",
+            fake_insert_group_run,
+        ),
+        patch.object(
+            walk_forward_service,
+            "_build_grouping_key",
+            lambda: "wf-group-1",
+        ),
+        patch.object(
+            walk_forward_service,
+            "_commit_connection",
+            lambda _conn: None,
+        ),
     ):
         summary = walk_forward_service.execute_walk_forward_backtest(
             conn=object(),

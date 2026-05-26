@@ -11,17 +11,13 @@ from trading.backtesting.report_models import (
     BacktestReportSummary,
     BacktestReportTrade,
 )
-from tests.support.backtesting import (
-    create_backtest_account,
-    install_backtest_market_data,
-    make_backtest_config,
-)
+from tests.support.backtesting import create_backtest_account, make_backtest_config
 
 
 class TestBacktestRunFlow:
-    def test_run_backtest_persists_isolated_results(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_backtest_persists_isolated_results(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_bt")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 103.0])
+        bt_market_data(["AAPL", "MSFT"], [100.0, 103.0])
 
         result = backtest_module.run_backtest(
             conn,
@@ -42,7 +38,7 @@ class TestBacktestRunFlow:
         paper_trades = conn.execute("SELECT COUNT(*) AS n FROM trades").fetchone()
         assert paper_trades is not None and int(paper_trades["n"]) == 0
 
-    def test_run_backtest_leaps_adds_financial_risk_warnings(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_backtest_leaps_adds_financial_risk_warnings(self, conn, bt_market_data) -> None:
         create_backtest_account(
             conn,
             "acct_leaps_bt",
@@ -53,14 +49,16 @@ class TestBacktestRunFlow:
             option_max_dte=365,
             option_type="call",
         )
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 102.0])
+        bt_market_data(["AAPL"], [100.0, 102.0])
 
         result_without_opt_in = backtest_module.run_backtest(
             conn,
             make_backtest_config("acct_leaps_bt"),
         )
         assert any("LEAPs mode is approximated" in warning for warning in result_without_opt_in.warnings)
-        assert any("LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings)
+        assert any(
+            "LEAPs approximation opt-in was not enabled" in warning for warning in result_without_opt_in.warnings
+        )
 
         result = backtest_module.run_backtest(
             conn,
@@ -69,9 +67,9 @@ class TestBacktestRunFlow:
         assert any("LEAPs mode is approximated" in warning for warning in result.warnings)
         assert not any("opt-in was not enabled" in warning for warning in result.warnings)
 
-    def test_backtest_report_returns_summary(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_backtest_report_returns_summary(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_report_bt")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 105.0])
+        bt_market_data(["AAPL"])
 
         result = backtest_module.run_backtest(
             conn,
@@ -84,10 +82,10 @@ class TestBacktestRunFlow:
         assert summary["trade_count"] >= 0
         assert isinstance(summary["total_return_pct"], float)
 
-    def test_run_backtest_uses_account_trade_size_pct(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_backtest_uses_account_trade_size_pct(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_bt_size_small", trade_size_pct=5.0, max_position_pct=10.0)
         create_backtest_account(conn, "acct_bt_size_large", trade_size_pct=15.0, max_position_pct=30.0)
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 105.0])
+        bt_market_data(["AAPL"])
 
         small = backtest_module.run_backtest(conn, make_backtest_config("acct_bt_size_small", run_name="small"))
         large = backtest_module.run_backtest(conn, make_backtest_config("acct_bt_size_large", run_name="large"))
@@ -107,9 +105,9 @@ class TestBacktestRunFlow:
 
         assert small_qty < large_qty
 
-    def test_backtest_report_summary_returns_model(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_backtest_report_summary_returns_model(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_report_model")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+        bt_market_data(["AAPL"], [100.0, 104.0])
 
         result = backtest_module.run_backtest(
             conn,
@@ -121,9 +119,9 @@ class TestBacktestRunFlow:
         assert summary.run_id == result.run_id
         assert summary.account_name == "acct_report_model"
 
-    def test_backtest_report_full_returns_typed_model_and_payload(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_backtest_report_full_returns_typed_model_and_payload(self, conn, bt_market_data) -> None:
         create_backtest_account(conn, "acct_report_full")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+        bt_market_data(["AAPL"], [100.0, 104.0])
 
         result = backtest_module.run_backtest(
             conn,
@@ -149,10 +147,10 @@ class TestBacktestRunFlow:
     def test_backtest_report_and_leaderboard_use_run_strategy_snapshot(
         self,
         conn,
-        monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_strategy_snapshot")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 104.0])
+        bt_market_data(["AAPL"], [100.0, 104.0])
 
         result = backtest_module.run_backtest(
             conn,
@@ -168,7 +166,9 @@ class TestBacktestRunFlow:
         filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend_v1")
         assert any(row["run_id"] == result.run_id for row in filtered)
 
-    def test_run_backtest_uses_strategy_signal_resolver(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_backtest_uses_strategy_signal_resolver(
+        self, conn, monkeypatch: pytest.MonkeyPatch, bt_market_data
+    ) -> None:
         create_backtest_account(conn, "acct_sig", strategy="macd_trend")
 
         call_count = {"n": 0}
@@ -177,7 +177,7 @@ class TestBacktestRunFlow:
             call_count["n"] += 1
             return "hold"
 
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
         monkeypatch.setattr(execution_service, "resolve_signal", fake_signal)
 
         backtest_module.run_backtest(
@@ -191,7 +191,7 @@ class TestBacktestRunFlow:
         self,
         conn,
         tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_universe")
 
@@ -199,7 +199,7 @@ class TestBacktestRunFlow:
         history_dir.mkdir(parents=True, exist_ok=True)
         (history_dir / "2026-01.txt").write_text("AAPL\n", encoding="utf-8")
 
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL", "MSFT"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL", "MSFT"], [100.0, 101.0])
 
         result = backtest_module.run_backtest(
             conn,

@@ -30,9 +30,7 @@ def sqlite_backend(backend_file: Path):
 def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
     conn = ensure_db()
     try:
-        table_rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name ASC"
-        ).fetchall()
+        table_rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name ASC").fetchall()
         names = {str(row["name"]) for row in table_rows}
 
         assert "accounts" in names
@@ -94,7 +92,8 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         assert "promotion_min_live_overall_confidence" in global_settings_columns
 
         row = conn.execute(
-            "SELECT name, descriptive_name, benchmark_ticker, rotation_overlay_watchlist FROM accounts WHERE name = 'acct_legacy'"
+            "SELECT name, descriptive_name, benchmark_ticker, rotation_overlay_watchlist "
+            "FROM accounts WHERE name = 'acct_legacy'"
         ).fetchone()
         assert row is not None
         assert row["descriptive_name"] == "acct_legacy"
@@ -165,9 +164,7 @@ def test_ensure_column_applies_post_sql_for_new_column(sqlite_backend: SQLiteBac
             """
         )
 
-        migration = next(
-            item for item in ACCOUNT_MIGRATIONS if item.column_name == "descriptive_name"
-        )
+        migration = next(item for item in ACCOUNT_MIGRATIONS if item.column_name == "descriptive_name")
         _ensure_column(conn, "accounts", migration)
 
         row = conn.execute("SELECT descriptive_name FROM accounts WHERE name = 'acct_post'").fetchone()
@@ -195,14 +192,10 @@ def test_overlay_watchlist_migration_backfills_existing_accounts(sqlite_backend:
             """
         )
 
-        migration = next(
-            item for item in ACCOUNT_MIGRATIONS if item.column_name == "rotation_overlay_watchlist"
-        )
+        migration = next(item for item in ACCOUNT_MIGRATIONS if item.column_name == "rotation_overlay_watchlist")
         _ensure_column(conn, "accounts", migration)
 
-        row = conn.execute(
-            "SELECT rotation_overlay_watchlist FROM accounts WHERE name = 'acct_watchlist'"
-        ).fetchone()
+        row = conn.execute("SELECT rotation_overlay_watchlist FROM accounts WHERE name = 'acct_watchlist'").fetchone()
         assert row is not None
         assert row["rotation_overlay_watchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
     finally:

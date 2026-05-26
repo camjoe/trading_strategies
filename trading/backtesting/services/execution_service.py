@@ -18,7 +18,7 @@ from trading.backtesting.domain.simulation_math import (
 from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.trading_bridge import resolve_active_strategy
-from trading.domain.auto_trader_policy import choose_buy_qty as default_choose_buy_qty
+from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
 from trading.services.market_data import get_feature_provider
 
 AccountRow = Mapping[str, object]
@@ -118,7 +118,9 @@ def run_backtest(
 
         for ticker in strategy_tickers:
             history = close.loc[:signal_date, ticker].dropna()
-            feature_history = None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+            feature_history = (
+                None if feature_bundle is None else feature_bundle.history_for_ticker(ticker, signal_date)
+            )
             if feature_history is None:
                 signal = resolve_signal(strategy_name, history)
             else:

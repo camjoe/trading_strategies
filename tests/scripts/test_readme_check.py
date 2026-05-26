@@ -85,7 +85,8 @@ def test_readme_consistency_ignores_virtualenv_readmes(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "README.md").write_text(
-        "# Repo\n\n## Project Overview\n\n## Directory Structure\n\n## Quick Start\n\n## Testing\n\n## Documentation Index\n",
+        "# Repo\n\n## Project Overview\n\n## Directory Structure\n\n"
+        "## Quick Start\n\n## Testing\n\n## Documentation Index\n",
         encoding="utf-8",
     )
     venv_readme = repo / "venv" / "lib" / "python3.12" / "site-packages" / "pkg" / "README.md"

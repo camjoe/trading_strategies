@@ -33,6 +33,7 @@ The `trading/` module handles:
 `trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
 For the concise package map, see `docs/architecture/trading-package-map.md`.
+For a task-oriented API reference ("what do I call to do X?"), see `docs/architecture/service-cookbook.md`.
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
@@ -151,19 +152,19 @@ The direct job scripts are the source of truth. Keep operations simple: run the 
 
 ```sh
 # Daily paper trading
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_paper_trading --run-source manual
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source manual
 
 # Daily snapshot
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_snapshot --run-source manual --enable-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.snapshot --run-source manual --enable-run
 
 # Daily backtest refresh
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily_backtest_refresh --accounts all --enable-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.backtest_refresh --accounts all --enable-run
 
 # Weekly DB backup
-./.venv/bin/python -m trading.interfaces.runtime.jobs.weekly_db_backup
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
 
 # Health check
-./.venv/bin/python -m trading.interfaces.runtime.jobs.check_daily_trader_health --max-age-hours 24
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health --max-age-hours 24
 
 # Register runtime jobs on scheduler with the active venv interpreter
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \

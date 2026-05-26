@@ -1,4 +1,5 @@
 """Analysis routes — per-account performance analysis endpoint."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter

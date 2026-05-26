@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 from dataclasses import dataclass
 
@@ -16,6 +17,7 @@ DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON = json.dumps(
     DEFAULT_ROTATION_OVERLAY_WATCHLIST,
     separators=(",", ":"),
 )
+
 
 @dataclass(frozen=True)
 class ColumnMigration:
@@ -134,7 +136,10 @@ ACCOUNT_MIGRATIONS = (
     ),
     ColumnMigration(
         "rotation_overlay_watchlist",
-        f"ALTER TABLE accounts ADD COLUMN rotation_overlay_watchlist TEXT NOT NULL DEFAULT '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}'",
+        (
+            "ALTER TABLE accounts ADD COLUMN rotation_overlay_watchlist TEXT NOT NULL DEFAULT "
+            f"'{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}'"
+        ),
         (
             f"UPDATE accounts SET rotation_overlay_watchlist = '{DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON}' "
             "WHERE rotation_overlay_watchlist IS NULL OR TRIM(rotation_overlay_watchlist) = ''",
@@ -151,6 +156,7 @@ ACCOUNT_MIGRATIONS = (
     ),
     ColumnMigration("trade_size_pct", "ALTER TABLE accounts ADD COLUMN trade_size_pct REAL"),
     ColumnMigration("max_position_pct", "ALTER TABLE accounts ADD COLUMN max_position_pct REAL"),
+    ColumnMigration("trade_universes", "ALTER TABLE accounts ADD COLUMN trade_universes TEXT"),
 )
 
 BACKTEST_RUN_MIGRATIONS = (
@@ -188,15 +194,24 @@ ORDER_FILL_MIGRATIONS = (
 GLOBAL_SETTINGS_MIGRATIONS = (
     ColumnMigration(
         "evaluation_backtest_trade_count_for_full_confidence",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_trade_count_for_full_confidence INTEGER NOT NULL DEFAULT 50",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_backtest_trade_count_for_full_confidence INTEGER NOT NULL DEFAULT 50"
+        ),
     ),
     ColumnMigration(
         "evaluation_backtest_snapshot_count_for_full_confidence",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 60",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_backtest_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 60"
+        ),
     ),
     ColumnMigration(
         "evaluation_paper_live_snapshot_count_for_full_confidence",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_paper_live_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 30",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_paper_live_snapshot_count_for_full_confidence INTEGER NOT NULL DEFAULT 30"
+        ),
     ),
     ColumnMigration(
         "evaluation_backtest_trade_confidence_weight",
@@ -204,7 +219,10 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
     ColumnMigration(
         "evaluation_backtest_snapshot_confidence_weight",
-        "ALTER TABLE global_settings ADD COLUMN evaluation_backtest_snapshot_confidence_weight REAL NOT NULL DEFAULT 0.3",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " evaluation_backtest_snapshot_confidence_weight REAL NOT NULL DEFAULT 0.3"
+        ),
     ),
     ColumnMigration(
         "evaluation_backtest_evidence_weight",
@@ -216,11 +234,17 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
     ColumnMigration(
         "promotion_min_research_backtest_trade_count",
-        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_trade_count INTEGER NOT NULL DEFAULT 10",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " promotion_min_research_backtest_trade_count INTEGER NOT NULL DEFAULT 10"
+        ),
     ),
     ColumnMigration(
         "promotion_min_research_backtest_snapshot_count",
-        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_backtest_snapshot_count INTEGER NOT NULL DEFAULT 20",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " promotion_min_research_backtest_snapshot_count INTEGER NOT NULL DEFAULT 20"
+        ),
     ),
     ColumnMigration(
         "promotion_min_research_backtest_return_pct",
@@ -232,7 +256,10 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
     ColumnMigration(
         "promotion_min_research_walk_forward_average_return_pct",
-        "ALTER TABLE global_settings ADD COLUMN promotion_min_research_walk_forward_average_return_pct REAL NOT NULL DEFAULT 0.0",
+        (
+            "ALTER TABLE global_settings ADD COLUMN"
+            " promotion_min_research_walk_forward_average_return_pct REAL NOT NULL DEFAULT 0.0"
+        ),
     ),
     ColumnMigration(
         "promotion_min_live_paper_snapshot_count",
@@ -243,3 +270,21 @@ GLOBAL_SETTINGS_MIGRATIONS = (
         "ALTER TABLE global_settings ADD COLUMN promotion_min_live_overall_confidence REAL NOT NULL DEFAULT 0.6",
     ),
 )
+
+# Placeholder hooks for future additive sleeve-table column migrations.
+# New ColumnMigration entries for these tables should be appended in place.
+SLEEVE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
+    "strategy_sleeves": (
+        ColumnMigration("trade_universes", "ALTER TABLE strategy_sleeves ADD COLUMN trade_universes TEXT"),
+    ),
+    "strategy_param_sets": (),
+    "sleeve_strategy_assignments": (),
+    "rotation_decisions": (),
+    "sleeve_orders": (),
+    "sleeve_fills": (),
+    "sleeve_positions": (),
+    "sleeve_ledger": (),
+    "portfolio_risk_snapshots": (),
+    "sleeve_risk_decisions": (),
+    "daily_metrics": (),
+}

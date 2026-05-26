@@ -216,12 +216,16 @@ def build_paper_live_evidence(
     rotation_enabled = bool(account.rotation_enabled)
     initial_cash = account.initial_cash
     latest_snapshot = fetch_latest_snapshot_details_row(conn, account_id=account_id)
-    evidence = _latest_rotation_episode_evidence(
-        conn,
-        account_id=account_id,
-        requested_strategy=requested_strategy,
-        latest_snapshot=latest_snapshot,
-    ) if rotation_enabled else EvaluationPaperLiveEvidence()
+    evidence = (
+        _latest_rotation_episode_evidence(
+            conn,
+            account_id=account_id,
+            requested_strategy=requested_strategy,
+            latest_snapshot=latest_snapshot,
+        )
+        if rotation_enabled
+        else EvaluationPaperLiveEvidence()
+    )
     if evidence.available:
         return replace(evidence, mode=_evidence_mode(account))
 

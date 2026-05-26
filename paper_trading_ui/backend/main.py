@@ -12,6 +12,7 @@ from .routes import (
     backtests_router,
     features_router,
     health_router,
+    ibkr_paper_monitor_router,
     logs_router,
 )
 
@@ -28,6 +29,7 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(accounts_router)
+app.include_router(ibkr_paper_monitor_router)
 app.include_router(analysis_router)
 app.include_router(admin_router)
 app.include_router(logs_router)

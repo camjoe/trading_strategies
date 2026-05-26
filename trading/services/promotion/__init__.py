@@ -4,6 +4,8 @@ This package is the stable public promotion surface. Concrete logic lives in
 focused promotion modules beneath this package root.
 """
 
+from __future__ import annotations
+
 from trading.services.promotion.actions import (
     PROMOTION_REVIEW_ACTION_APPROVE,
     PROMOTION_REVIEW_ACTION_NOTE,

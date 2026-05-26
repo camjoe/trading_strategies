@@ -18,10 +18,12 @@ All trading scripts should be run as Python modules from the repository root, pr
 
 - `reference/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
 - `reference/adr-cross-platform-paths.md`: decision record for always using pathlib; lessons from a Windows/Linux CI failure.
+- `reference/adr-sleeve-virtualization-architecture.md`: architecture decision for sleeve virtualization on a single broker account and layering boundaries for autonomy implementation.
 - `reference/notes-backtesting.md`: backtesting commands, safeguards, layering overview, and operational notes.
 - `reference/notes-accounts-schema-usage.md`: living audit of `accounts` table field usage, write paths, and runtime relevance to support evidence-based schema cleanup.
 - `reference/notes-broker-integration.md`: broker abstraction layer — architecture, account configuration, IB connection setup, live trading safety guard, fill reconciliation, and extension guide.
 - `reference/notes-db-migration-system.md`: active reference guide for the hand-rolled SQLite migration system.
+- `reference/notes-sleeve-schema-contract.md`: draft sleeve table/index contract and migration approach for Increment 0.
 - `reference/readme-layout-standard.md`: standard section layouts for repo root, module/package, and utility READMEs.
 - `reference/notes-sentiment-signals.md`: current-state reference for alternative-data signal architecture (`policy_regime`, `news_sentiment`, `social_trend_rotation`) and extension boundaries.
 - `reference/notes-strategies.md`: strategy catalog, resolution behavior, data/dependency notes, and evaluation checklist.

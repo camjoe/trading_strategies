@@ -2,7 +2,7 @@ import trading.services.auto_trading as auto_trading_service
 from trading.services.accounts import create_account, get_account
 from trading.repositories.rotation import update_account_rotation_state
 from trading.services.auto_trading import RotationDeps
-from tests.support.auto_trading import make_auto_trading_account, make_feature_bundle
+from tests.trading.services.auto_trading.factories import make_auto_trading_account, make_feature_bundle
 
 
 def _insert_backtest_run(
@@ -153,8 +153,22 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
     conn.commit()
 
     account = get_account(conn, "acct_opt_prev")
-    _insert_backtest_run(conn, account_id=int(account["id"]), strategy_name="trend", end_date="2026-03-08", start_equity=10000.0, end_equity=10600.0)
-    _insert_backtest_run(conn, account_id=int(account["id"]), strategy_name="mean_reversion", end_date="2026-03-15", start_equity=10000.0, end_equity=11200.0)
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="trend",
+        end_date="2026-03-08",
+        start_equity=10000.0,
+        end_equity=10600.0,
+    )
+    _insert_backtest_run(
+        conn,
+        account_id=int(account["id"]),
+        strategy_name="mean_reversion",
+        end_date="2026-03-15",
+        start_equity=10000.0,
+        end_equity=11200.0,
+    )
 
     rotated = auto_trading_service.rotate_runtime_account_if_due(
         conn,
@@ -163,15 +177,17 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
         "2026-03-20T00:00:00Z",
         RotationDeps(
             is_rotation_due_fn=lambda _row: True,
-            select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: auto_trading_service.select_account_rotation_strategy(
-                inner_conn,
-                inner_account,
-                inner_as_of,
-                fetch_strategy_backtest_returns_fn=__import__(
-                    "trading.backtesting.services.history_service",
-                    fromlist=["fetch_strategy_backtest_returns"],
-                ).fetch_strategy_backtest_returns,
-                fetch_policy_features_fn=None,
+            select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: (
+                auto_trading_service.select_account_rotation_strategy(
+                    inner_conn,
+                    inner_account,
+                    inner_as_of,
+                    fetch_strategy_backtest_returns_fn=__import__(
+                        "trading.backtesting.services.history_service",
+                        fromlist=["fetch_strategy_backtest_returns"],
+                    ).fetch_strategy_backtest_returns,
+                    fetch_policy_features_fn=None,
+                )
             ),
             update_account_rotation_state_fn=update_account_rotation_state,
             get_account_fn=get_account,
@@ -208,25 +224,31 @@ def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
 def test_select_account_rotation_strategy_returns_none_when_no_runs(conn) -> None:
     account = make_auto_trading_account(id=123, rotation_schedule='["trend","mean_reversion"]')
 
-    assert auto_trading_service.select_account_rotation_strategy(
-        conn,
-        account,
-        "2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-        fetch_policy_features_fn=None,
-    ) is None
+    assert (
+        auto_trading_service.select_account_rotation_strategy(
+            conn,
+            account,
+            "2026-03-21T00:00:00Z",
+            fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
+            fetch_policy_features_fn=None,
+        )
+        is None
+    )
 
 
 def test_select_account_rotation_strategy_returns_none_when_schedule_empty(conn) -> None:
     account = make_auto_trading_account(id=123, rotation_schedule="[]")
 
-    assert auto_trading_service.select_account_rotation_strategy(
-        conn,
-        account,
-        "2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-        fetch_policy_features_fn=None,
-    ) is None
+    assert (
+        auto_trading_service.select_account_rotation_strategy(
+            conn,
+            account,
+            "2026-03-21T00:00:00Z",
+            fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
+            fetch_policy_features_fn=None,
+        )
+        is None
+    )
 
 
 def test_select_account_rotation_strategy_uses_regime_mapping() -> None:

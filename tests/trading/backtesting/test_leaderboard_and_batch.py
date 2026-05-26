@@ -1,25 +1,21 @@
 import pytest
 
 import trading.backtesting.backtest as backtest_module
-from trading.backtesting.models import BacktestBatchConfig, BacktestResult
+from trading.backtesting.models import BacktestBatchConfig
 from trading.backtesting.report_models import BacktestLeaderboardEntry
-from tests.support.backtesting import (
-    create_backtest_account,
-    install_backtest_market_data,
-    make_backtest_config,
-)
+from tests.support.backtesting import create_backtest_account, make_backtest_config, make_backtest_result
 
 
 class TestBacktestLeaderboardAndBatch:
     def test_backtest_leaderboard_sorts_by_total_return_and_supports_filters(
         self,
         conn,
-        monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_lb_trend")
         create_backtest_account(conn, "acct_lb_mean", strategy="mean_reversion")
 
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         backtest_module.run_backtest(
             conn,
@@ -46,10 +42,10 @@ class TestBacktestLeaderboardAndBatch:
     def test_backtest_leaderboard_entries_returns_models(
         self,
         conn,
-        monkeypatch: pytest.MonkeyPatch,
+        bt_market_data,
     ) -> None:
         create_backtest_account(conn, "acct_lb_entries")
-        install_backtest_market_data(monkeypatch, backtest_module, tickers=["AAPL"], benchmark_values=[100.0, 101.0])
+        bt_market_data(["AAPL"], [100.0, 101.0])
 
         result = backtest_module.run_backtest(
             conn,
@@ -69,51 +65,17 @@ class TestBacktestLeaderboardAndBatch:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         results_map = {
-            "acct_a": BacktestResult(
-                run_id=1,
-                account_name="acct_a",
-                start_date="2026-01-01",
-                end_date="2026-02-01",
-                tickers=["AAPL"],
-                trade_count=1,
-                ending_equity=10100.0,
-                total_return_pct=1.0,
-                benchmark_return_pct=0.5,
-                alpha_pct=0.5,
-                max_drawdown_pct=-1.0,
-                warnings=[],
-                sharpe_ratio=0.7,
-                sortino_ratio=0.9,
-                calmar_ratio=0.5,
-                win_rate_pct=50.0,
-                profit_factor=1.1,
-                avg_trade_return_pct=0.8,
+            "acct_a": make_backtest_result(
+                "acct_a", run_id=1, total_return_pct=1.0, ending_equity=10_100.0, trade_count=1
             ),
-            "acct_b": BacktestResult(
-                run_id=2,
-                account_name="acct_b",
-                start_date="2026-01-01",
-                end_date="2026-02-01",
-                tickers=["AAPL"],
-                trade_count=2,
-                ending_equity=10800.0,
-                total_return_pct=8.0,
-                benchmark_return_pct=0.5,
-                alpha_pct=7.5,
-                max_drawdown_pct=-2.0,
-                warnings=[],
-                sharpe_ratio=1.3,
-                sortino_ratio=1.8,
-                calmar_ratio=0.9,
-                win_rate_pct=62.5,
-                profit_factor=1.9,
-                avg_trade_return_pct=2.2,
+            "acct_b": make_backtest_result(
+                "acct_b", run_id=2, total_return_pct=8.0, ending_equity=10_800.0, trade_count=2
             ),
         }
 
         seen_run_names: list[str | None] = []
 
-        def _fake_run_backtest(_conn, cfg) -> BacktestResult:
+        def _fake_run_backtest(_conn, cfg):
             seen_run_names.append(cfg.run_name)
             return results_map[cfg.account_name]
 

@@ -41,10 +41,10 @@ Your job is to work on runtime execution flows across the trading CLI, scheduler
 Run only the commands listed below. Do not run git commands.
 
 - `python -m trading.interfaces.cli.main --help`
-- `python -m trading.interfaces.runtime.jobs.daily_paper_trading --help`
-- `python -m trading.interfaces.runtime.jobs.daily_snapshot --help`
-- `python -m trading.interfaces.runtime.jobs.check_daily_trader_health --help`
-- `python -m trading.interfaces.runtime.jobs.weekly_db_backup --help`
+- `python -m trading.interfaces.runtime.jobs.daily.paper_trading --help`
+- `python -m trading.interfaces.runtime.jobs.daily.snapshot --help`
+- `python -m trading.interfaces.runtime.jobs.daily.trader_health --help`
+- `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup --help`
 - `python -m scripts.run_checks --profile quick`
 - `python -m pytest tests/ -k "runtime or scheduler or snapshot or backup"`
 

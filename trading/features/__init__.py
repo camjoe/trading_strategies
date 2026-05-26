@@ -12,3 +12,5 @@ Submodules (added per phase):
     news_feature_provider    — Phase 3: news headline sentiment via VADER
     social_feature_provider  — Phase 4: Reddit + Google Trends momentum
 """
+
+from __future__ import annotations

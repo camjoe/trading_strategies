@@ -98,7 +98,9 @@ def test_get_signals_returns_hold_when_signal_resolution_raises(monkeypatch) -> 
         "load_providers",
         lambda: [(provider, "Social", "reddit+gtrends", "social_trend_rotation", "SocialFeatureProvider")],
     )
-    monkeypatch.setattr(features_signals, "resolve_signal", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")))
+    monkeypatch.setattr(
+        features_signals, "resolve_signal", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom"))
+    )
     monkeypatch.setattr(features_signals, "interpret_signal", lambda *_args, **_kwargs: "Trend interest 72%")
 
     signals = features_signals.get_signals("TSLA")

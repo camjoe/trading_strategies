@@ -8,3 +8,5 @@ Concrete adapters live alongside this package:
 
 Legacy socket/TWS support lives under ``trading/brokers/legacy/``.
 """
+
+from __future__ import annotations

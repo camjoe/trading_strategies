@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from trading.services.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 
 
 class BacktestBaseRequest(BaseModel):

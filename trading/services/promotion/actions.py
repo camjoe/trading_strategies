@@ -30,7 +30,7 @@ from trading.repositories.promotion import (
     insert_promotion_review_event,
     update_promotion_review_record,
 )
-from trading.services.promotion._shared import normalize_optional_text
+from trading.services.promotion.helpers import normalize_optional_text
 from trading.services.promotion.assessment import _fetch_current_promotion_snapshot
 
 PROMOTION_REVIEW_ACTION_APPROVE = "approve"
@@ -71,10 +71,7 @@ def _ensure_no_open_review_for_request(
     )
     if open_review is None:
         return
-    raise ValueError(
-        "An open promotion review already exists for "
-        f"{account_name}/{strategy_name}."
-    )
+    raise ValueError(f"An open promotion review already exists for {account_name}/{strategy_name}.")
 
 
 def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:

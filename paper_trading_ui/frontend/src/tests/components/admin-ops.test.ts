@@ -17,7 +17,7 @@ describe("renderOperationsOverview", () => {
           currentRunComplete: true,
           currentLog: { name: "daily_paper_trading_20260417_131001.log", modifiedAt: "2026-04-17T13:10:01Z" },
           lastSuccess: { name: "daily_paper_trading_20260417_131001.log", modifiedAt: "2026-04-17T13:10:01Z" },
-          runHint: "python3 -m trading.interfaces.runtime.jobs.daily_paper_trading",
+          runHint: "python3 -m trading.interfaces.runtime.jobs.daily.paper_trading",
         },
       ],
       dailyBacktestRefreshArtifacts: [

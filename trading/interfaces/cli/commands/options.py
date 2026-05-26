@@ -21,11 +21,7 @@ def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False)
     p.add_argument(
         "--learning-enabled",
         action="store_true",
-        help=(
-            f"Turn on {EXPLORATION_MODE_HELP}"
-            if configure_mode
-            else f"Enable {EXPLORATION_MODE_HELP}"
-        ),
+        help=(f"Turn on {EXPLORATION_MODE_HELP}" if configure_mode else f"Enable {EXPLORATION_MODE_HELP}"),
     )
     if configure_mode:
         p.add_argument(

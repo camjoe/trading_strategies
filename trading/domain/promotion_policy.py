@@ -48,6 +48,7 @@ class PromotionPolicySettings:
     min_live_paper_snapshot_count: int = MIN_LIVE_PAPER_SNAPSHOT_COUNT
     min_live_overall_confidence: float = MIN_LIVE_OVERALL_CONFIDENCE
 
+
 RESEARCH_EVIDENCE_REQUIRED = "Backtest evidence is required for promotion assessment."
 GROUPED_WALK_FORWARD_REQUIRED = "Grouped walk-forward evidence is required for research validation."
 PAPER_EVIDENCE_REQUIRED = "Paper evidence is required before manual promotion review."
@@ -69,9 +70,7 @@ LIVE_ACTIVE_NEXT_ACTION = (
 LIVE_ALREADY_ENABLED_WARNING = (
     "Live trading is already enabled. This workflow remains read-only and will not change live status."
 )
-ROTATION_MANUAL_WARNING = (
-    "Rotating accounts remain manual-only for final promotion, even when automated checks pass."
-)
+ROTATION_MANUAL_WARNING = "Rotating accounts remain manual-only for final promotion, even when automated checks pass."
 BACKTEST_WARNING_PREFIX = "Backtest warnings: "
 
 
@@ -128,10 +127,11 @@ def _research_blockers(
             f"{settings.min_research_backtest_return_pct:.2f}% for research validation."
         ),
     )
-    if (
-        backtest.max_drawdown_pct is None
-        or backtest.max_drawdown_pct < settings.min_research_max_drawdown_pct
-    ):
+    missing_max_drawdown = backtest.max_drawdown_pct is None
+    drawdown_below_threshold = (
+        backtest.max_drawdown_pct is not None and backtest.max_drawdown_pct < settings.min_research_max_drawdown_pct
+    )
+    if missing_max_drawdown or drawdown_below_threshold:
         blockers.append(
             "Backtest max drawdown must be no worse than "
             f"{settings.min_research_max_drawdown_pct:.2f}% for research validation."
@@ -182,10 +182,7 @@ def _live_readiness_blockers(
         ),
     )
     if artifact.diagnostics.data_gaps:
-        blockers.append(
-            "Required evaluation data gaps must be resolved: "
-            + ", ".join(artifact.diagnostics.data_gaps)
-        )
+        blockers.append("Required evaluation data gaps must be resolved: " + ", ".join(artifact.diagnostics.data_gaps))
     return blockers
 
 
@@ -259,11 +256,7 @@ def assess_promotion_readiness(
         account_name=artifact.basic.account_name,
         strategy_name=artifact.basic.requested_strategy,
         evaluation_generated_at=artifact.meta.generated_at,
-        stage=(
-            PROMOTION_STAGE_PAPER_OBSERVING
-            if has_paper_evidence
-            else PROMOTION_STAGE_RESEARCH_VALIDATED
-        ),
+        stage=(PROMOTION_STAGE_PAPER_OBSERVING if has_paper_evidence else PROMOTION_STAGE_RESEARCH_VALIDATED),
         status=PROMOTION_STATUS_OBSERVING,
         ready_for_live=False,
         live_trading_enabled=False,
@@ -271,9 +264,5 @@ def assess_promotion_readiness(
         data_gaps=list(artifact.diagnostics.data_gaps),
         blockers=live_blockers,
         warnings=warnings,
-        next_action=(
-            PAPER_OBSERVATION_NEXT_ACTION
-            if has_paper_evidence
-            else PAPER_EVIDENCE_NEXT_ACTION
-        ),
+        next_action=(PAPER_OBSERVATION_NEXT_ACTION if has_paper_evidence else PAPER_EVIDENCE_NEXT_ACTION),
     )

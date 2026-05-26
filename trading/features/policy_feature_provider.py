@@ -17,6 +17,7 @@ Features emitted (all float, available in a successful bundle):
     policy_defensive_tilt  — Signed float; positive = defensives outperforming
                              equities over the lookback window.
 """
+
 from __future__ import annotations
 
 import logging

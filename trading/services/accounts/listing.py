@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models import AccountRecord
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
+from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.repositories.accounts import fetch_account_listing_rows
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
@@ -42,9 +42,7 @@ def format_account_policy_text(row: AccountRecord) -> str:
     risk_policy = row.risk_policy
     instrument_mode = row.instrument_mode
     resolved_trade_size_pct = trade_size_pct if trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT
-    resolved_max_position_pct = (
-        max_position_pct if max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
-    )
+    resolved_max_position_pct = max_position_pct if max_position_pct is not None else DEFAULT_MAX_POSITION_PCT
     return (
         f"base_strategy={base_strategy} | active_strategy={active_strategy} | "
         f"benchmark={benchmark_ticker} | "

@@ -61,12 +61,7 @@ def make_observing_assessment(
         overall_confidence=0.55,
         data_gaps=["missing_paper_live_evidence"],
         blockers=["Paper evidence is required before manual promotion review."],
-        warnings=[
-            (
-                "Rotating accounts remain manual-only for final promotion, even "
-                "when automated checks pass."
-            )
-        ],
+        warnings=[("Rotating accounts remain manual-only for final promotion, even when automated checks pass.")],
         next_action="Collect paper evidence before requesting manual promotion review.",
     )
 
