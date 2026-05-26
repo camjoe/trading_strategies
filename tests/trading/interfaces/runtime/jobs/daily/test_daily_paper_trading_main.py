@@ -494,7 +494,11 @@ def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, t
         run_module_as_main(module.__name__)
 
 
-def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, conn, _runtime_harness) -> None:
+    # conn sets the global backend to a test DB. When run_module_as_main re-executes
+    # the module fresh via runpy, the local import of load_runtime_eligible_account_names
+    # bypasses the _runtime_harness patch — conn ensures get_backend() doesn't hit
+    # the real on-disk database.
     monkeypatch.setattr(
         sys,
         "argv",
