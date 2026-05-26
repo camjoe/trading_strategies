@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from trading.services.market_data.features import ProxyFeatureDataProvider
-from trading.services.market_data.interfaces import FeatureBundle
+from trading.services.market_data.protocols import FeatureBundle
 import trading.services.market_data as market_data
 
 

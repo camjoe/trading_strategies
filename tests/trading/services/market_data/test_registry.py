@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-import trading.services.market_data.runtime as market_data_runtime
+import trading.services.market_data.registry as market_data_runtime
 from trading.services.market_data.features import ProxyFeatureDataProvider
 from trading.services.market_data.providers import UnavailableProvider, YFinanceProvider
 
