@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
-from trading.database.db_init import ensure_db
+from trading.services.accounts import get_account
 
 
 class TestActionsRoutes:
     def test_snapshot_endpoint_real_account_saves_snapshot(
         self,
         api_client: TestClient,
+        api_conn: sqlite3.Connection,
         seed_account: Callable[..., None],
     ) -> None:
         seed_account("acct_snapshot")
@@ -18,17 +20,11 @@ class TestActionsRoutes:
         response = api_client.post("/api/actions/snapshot/acct_snapshot")
         assert response.status_code == 200
 
-        conn = ensure_db()
-        try:
-            account = conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_snapshot",)).fetchone()
-            assert account is not None
-            count = conn.execute(
-                "SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?",
-                (int(account["id"]),),
-            ).fetchone()["n"]
-        finally:
-            conn.close()
-
+        account = get_account(api_conn, "acct_snapshot")
+        count = api_conn.execute(
+            "SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?",
+            (account["id"],),
+        ).fetchone()["n"]
         assert int(count) == 1
 
     def test_snapshot_endpoint_unknown_account_returns_404(self, api_client: TestClient) -> None:

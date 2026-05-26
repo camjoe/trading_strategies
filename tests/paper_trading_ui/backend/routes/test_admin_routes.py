@@ -10,6 +10,8 @@ from trading.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST
 _CREATE_ACCOUNT = "paper_trading_ui.backend.routes.admin.create_account_with_rotation"
 _LIST_CSV_EXPORTS = "paper_trading_ui.backend.routes.admin.list_csv_exports"
 _PREVIEW_CSV_EXPORT = "paper_trading_ui.backend.routes.admin.preview_csv_export"
+_BUILD_PROMOTION_OVERVIEW = "paper_trading_ui.backend.routes.admin.build_promotion_overview"
+_LIST_OPERATIONS_OVERVIEW = "paper_trading_ui.backend.routes.admin.list_operations_overview"
 
 
 class TestAdminRoutes:
@@ -175,3 +177,47 @@ class TestAdminRoutes:
 
         list_exports_mock.assert_called_once_with()
         preview_export_mock.assert_called_once_with("db_csv_1", "accounts.csv", 10)
+
+    def test_operations_overview_delegates_to_service(self, api_client: TestClient) -> None:
+        expected = {"jobs": [], "artifacts": [], "backups": []}
+        with patch(_LIST_OPERATIONS_OVERVIEW, Mock(return_value=expected)):
+            response = api_client.get("/api/admin/operations/overview")
+
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_promotion_overview_happy_path(self, api_client: TestClient, seed_account) -> None:
+        seed_account("acct_promo_overview")
+        expected = {"assessment": {"status": "ok"}, "history": []}
+        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(return_value=expected)):
+            response = api_client.get(
+                "/api/admin/promotion/overview",
+                params={"accountName": "acct_promo_overview"},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_promotion_overview_missing_account_name_returns_422(self, api_client: TestClient) -> None:
+        response = api_client.get("/api/admin/promotion/overview")
+        assert response.status_code == 422
+
+    def test_promotion_overview_not_found_error_returns_404(self, api_client: TestClient) -> None:
+        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(side_effect=ValueError("account not found"))):
+            response = api_client.get(
+                "/api/admin/promotion/overview",
+                params={"accountName": "missing_acct"},
+            )
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+    def test_promotion_overview_other_value_error_returns_400(self, api_client: TestClient) -> None:
+        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(side_effect=ValueError("bad strategy"))):
+            response = api_client.get(
+                "/api/admin/promotion/overview",
+                params={"accountName": "acct_any", "strategyName": "???"},
+            )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "bad strategy"
