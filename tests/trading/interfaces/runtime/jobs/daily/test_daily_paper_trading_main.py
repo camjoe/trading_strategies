@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import runpy
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
     daily_paper_trading as module,
@@ -491,7 +491,7 @@ def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, t
     monkeypatch.setattr(builtins, "__import__", _fake_import)
 
     with pytest.raises(ImportError, match="boom"):
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
 
 def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -502,7 +502,7 @@ def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, _runt
     )
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 1
 

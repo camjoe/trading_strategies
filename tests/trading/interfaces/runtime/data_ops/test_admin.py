@@ -1,10 +1,11 @@
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
-import runpy
 from types import SimpleNamespace
 
 import pytest
+
+from tests.trading.interfaces.helpers import run_module_as_main
 
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.database.db_init import ensure_db
@@ -251,6 +252,6 @@ def test_admin_module_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["admin", "list-accounts"])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(admin.__name__, run_name="__main__")
+        run_module_as_main(admin.__name__)
 
     assert excinfo.value.code == 0

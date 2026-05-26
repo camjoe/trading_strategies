@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-import runpy
 from unittest.mock import Mock
 
 import pytest
 
-from tests.trading.interfaces.runtime.jobs.loaders import make_run_auto_trades_args, run_auto_trades as module
+from tests.trading.interfaces.helpers import run_module_as_main
+from tests.trading.interfaces.runtime.jobs.loaders import (
+    make_run_auto_trades_args,
+    run_auto_trades as module,
+)
 
 
 class FakeConn:
@@ -120,6 +123,6 @@ def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     monkeypatch.setattr(auto_trading_module, "run_accounts", lambda *_a, **_kw: [("acct1", 1)])
     monkeypatch.setattr(sys, "argv", ["run_auto_trades", "--accounts", "acct1", "--seed", "7"])
 
-    runpy.run_module(module.__name__, run_name="__main__")
+    run_module_as_main(module.__name__)
 
     assert conn.closed is True

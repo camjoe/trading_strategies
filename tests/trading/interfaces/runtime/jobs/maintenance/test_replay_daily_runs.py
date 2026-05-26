@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import runpy
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import sys
 import pytest
 
 import trading.interfaces.runtime.jobs.maintenance.replay_daily_runs as replay_module
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
     DAILY_PAPER_TRADING_REPORTING_MODULE,
@@ -225,6 +225,6 @@ def test_replay_module_main_entrypoint(monkeypatch, job_root: Path) -> None:
     )
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(replay_module.__name__, run_name="__main__")
+        run_module_as_main(replay_module.__name__)
 
     assert excinfo.value.code == 1

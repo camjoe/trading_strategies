@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib
-import runpy
 import sys
 from argparse import Namespace
 from pathlib import Path
 
 import pytest
+
+from tests.trading.interfaces.helpers import run_module_as_main
 
 
 def _load():
@@ -143,6 +144,6 @@ def test_weekly_db_backup_module_main_entrypoint(monkeypatch, tmp_path: Path) ->
     monkeypatch.setattr(sys, "argv", ["weekly_db_backup", "--force-run"])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 0

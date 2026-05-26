@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import runpy
-import sys
 from pathlib import Path
 from unittest.mock import Mock
 
+import sys
 import pytest
 
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     daily_backtest_refresh as module,
     make_daily_backtest_refresh_args,
@@ -186,6 +186,6 @@ def test_backtest_refresh_module_main_entrypoint(monkeypatch) -> None:
     monkeypatch.setattr(sys, "argv", ["backtest_refresh"])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 0

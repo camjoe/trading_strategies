@@ -5,11 +5,12 @@ from __future__ import annotations
 import datetime as _real_dt
 import importlib
 import json
-import runpy
 import sys
 from pathlib import Path
 
 import pytest
+
+from tests.trading.interfaces.helpers import run_module_as_main
 
 MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
 DEFAULT_FAKE_NOW = _real_dt.datetime(2026, 5, 20, 14, 0, 0)
@@ -274,6 +275,6 @@ def test_burn_in_status_module_main_entrypoint(monkeypatch, tmp_path: Path) -> N
     )
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(MODULE, run_name="__main__")
+        run_module_as_main(MODULE)
 
     assert excinfo.value.code == 0

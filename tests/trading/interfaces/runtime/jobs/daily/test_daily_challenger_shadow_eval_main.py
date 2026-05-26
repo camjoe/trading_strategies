@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-import runpy
-import sys
 
+import sys
 import pytest
 
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     daily_challenger_shadow_eval as module,
@@ -207,6 +207,6 @@ def test_challenger_shadow_eval_module_main_entrypoint(monkeypatch, tmp_path: Pa
     monkeypatch.setattr(sys, "argv", ["challenger_shadow_eval", "--repo-root", str(tmp_path)])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 0

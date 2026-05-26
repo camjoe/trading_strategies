@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-import runpy
 import sys
-
 import pytest
 
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     make_manage_job_schedules_args,
     manage_job_schedules as module,
@@ -140,7 +139,7 @@ def test_manage_job_schedules_module_main_entrypoint(monkeypatch, capsys) -> Non
     monkeypatch.setattr(sys, "argv", ["manage_job_schedules"])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 2
     assert "Provide at least one schedule time" in capsys.readouterr().err

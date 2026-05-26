@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
-import runpy
 import sys
-
 import pytest
 
 import trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard as module
+from tests.trading.interfaces.helpers import run_module_as_main
 from tests.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
     load_single_artifact_json,
@@ -181,7 +180,7 @@ def test_weekly_leaderboard_module_main_entrypoint(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr(sys, "argv", ["w1_leaderboard", "--repo-root", str(tmp_path), "--window-days", "0"])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 1
 

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
-import runpy
 import sys
 from pathlib import Path
 
 import pytest
-from tests.trading.interfaces.runtime.jobs.loaders import daily_snapshot as module, make_daily_snapshot_args
+from tests.trading.interfaces.helpers import run_module_as_main
+from tests.trading.interfaces.runtime.jobs.loaders import (
+    daily_snapshot as module,
+    make_daily_snapshot_args,
+)
 
 
 def test_parse_args_reads_cli_overrides(monkeypatch) -> None:
@@ -205,6 +208,6 @@ def test_daily_snapshot_module_main_entrypoint(monkeypatch) -> None:
     monkeypatch.setattr(sys, "argv", ["snapshot"])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 0

@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
 import pytest
-import runpy
 
+from tests.trading.interfaces.helpers import run_module_as_main
 from trading.interfaces.cli import main as cli_main
 from tests.trading.interfaces.cli.helpers import configure_account_args, install_main_harness
 
@@ -181,6 +181,6 @@ def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
         ),
     )
 
-    runpy.run_module(cli_main.__name__, run_name="__main__")
+    run_module_as_main(cli_main.__name__)
 
     assert dispatched == {"command": "list-accounts", "db_path": "paper.db"}

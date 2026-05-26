@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import json
 import os
-import runpy
 import sys
 import time
 from pathlib import Path
 
 import pytest
 
-from tests.trading.interfaces.runtime.jobs.loaders import check_daily_trader_health as module
+from tests.trading.interfaces.helpers import run_module_as_main
+from tests.trading.interfaces.runtime.jobs.loaders import (
+    check_daily_trader_health as module,
+)
 
 
 def run_main(monkeypatch, argv: list[str]) -> int:
@@ -180,6 +182,6 @@ def test_daily_trader_health_module_main_entrypoint(monkeypatch, job_root: Path)
     monkeypatch.setattr(sys, "argv", ["check_daily_trader_health", "--repo-root", str(job_root)])
 
     with pytest.raises(SystemExit) as excinfo:
-        runpy.run_module(module.__name__, run_name="__main__")
+        run_module_as_main(module.__name__)
 
     assert excinfo.value.code == 1
