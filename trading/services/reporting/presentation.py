@@ -22,14 +22,14 @@ from trading.services.accounts import (
     list_account_snapshots,
 )
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.reporting.calculations import (
+from trading.services.reporting.math import (
     alpha_pct,
     benchmark_available,
     positions_summary_text,
     strategy_return_pct,
 )
 from trading.services.pricing import benchmark_stats
-from trading.services.reporting.stats import build_account_stats, infer_overall_trend
+from trading.services.reporting.portfolio import build_account_stats, infer_overall_trend
 
 
 def _print_leaps_params(account: AccountRecord) -> None:

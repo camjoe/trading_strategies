@@ -28,7 +28,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     CLI_MAIN_MODULE,
 )
 from trading.services.accounts import load_runtime_eligible_account_names
-from trading.services.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 REPO_ROOT = get_repo_root(__file__)

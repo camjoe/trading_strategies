@@ -3,19 +3,19 @@ from pathlib import Path
 
 from .cache import _MARKET_DATA_CACHE_TTL_SECONDS
 from .features import ProxyFeatureDataProvider
-from .interfaces import FeatureBundle
-from .interfaces import FeatureDataProvider
-from .interfaces import MarketDataProvider
+from .protocols import FeatureBundle
+from .protocols import FeatureDataProvider
+from .protocols import MarketDataProvider
 from .providers import YFinanceProvider
 from .providers import yf
-from .runtime import get_feature_provider
-from .runtime import get_provider
-from .runtime import get_provider_name
-from .runtime import reload_provider_from_config
-from .runtime import set_feature_provider
-from .runtime import set_provider
-from .runtime import set_provider_by_name
-from .runtime import supported_provider_names
+from .registry import get_feature_provider
+from .registry import get_provider
+from .registry import get_provider_name
+from .registry import reload_provider_from_config
+from .registry import set_feature_provider
+from .registry import set_provider
+from .registry import set_provider_by_name
+from .registry import supported_provider_names
 
 __all__ = [
     "FeatureBundle",

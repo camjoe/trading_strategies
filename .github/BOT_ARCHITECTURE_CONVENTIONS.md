@@ -176,7 +176,31 @@ Domain naming:
 4. Avoid reliance on case-insensitive path behavior.
 5. Make type narrowing explicit where mypy/platform inference may differ.
 
-## Bot Placement Checklist
+## UI Backend Boundary Rule
+
+`paper_trading_ui/backend/services/` is a **transport-only** layer.
+
+It must contain only:
+- HTTP request → domain model conversion
+- FastAPI-specific error handling (`raise HTTPException`)
+- Response payload shaping (producing camelCase dicts for the frontend)
+
+It must **not** contain:
+- Domain calculations (equity math, return computations, benchmark overlays)
+- Business rules or policy logic
+- Data assembly that could be useful to CLI or runtime job consumers
+
+Domain logic belongs in `trading/`.  If a calculation is needed by any interface
+(FastAPI, CLI, or runtime jobs), it must live in `trading/services/` or
+`trading/domain/`.  The UI backend then delegates to those functions and shapes
+the result for the HTTP response.
+
+Violation example: settlement-corrected equity math or benchmark return
+calculations in `paper_trading_ui/backend/services/accounts/` — these were
+migrated to `trading/services/reporting/` and must not be re-introduced into
+the UI backend layer.
+
+
 
 Before creating or moving code in `trading/`:
 

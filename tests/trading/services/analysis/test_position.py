@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from trading.models import AccountState
-from trading.services.analysis.calculations import (
+from trading.services.analysis.position import (
     ALPHA_COMMENT_THRESHOLD_PCT,
     CONCENTRATION_THRESHOLD_PCT,
     compute_position_analysis,

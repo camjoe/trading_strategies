@@ -8,8 +8,8 @@ from pathlib import Path
 from common.paths.repo_paths import get_repo_root
 
 from .features import ProxyFeatureDataProvider
-from .interfaces import FeatureDataProvider
-from .interfaces import MarketDataProvider
+from .protocols import FeatureDataProvider
+from .protocols import MarketDataProvider
 from .providers import UnavailableProvider
 from .providers import YFinanceProvider
 

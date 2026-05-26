@@ -30,7 +30,7 @@ from trading.repositories.promotion import (
     insert_promotion_review_event,
     update_promotion_review_record,
 )
-from trading.services.promotion._shared import normalize_optional_text
+from trading.services.promotion.helpers import normalize_optional_text
 from trading.services.promotion.assessment import _fetch_current_promotion_snapshot
 
 PROMOTION_REVIEW_ACTION_APPROVE = "approve"

@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-import trading.services.pricing.helpers as pricing_helpers
+import trading.services.pricing.lookups as pricing_helpers
 from trading.services.pricing import benchmark_stats, fetch_latest_prices
 
 

@@ -1,4 +1,4 @@
-"""Tests for trading.services.universe_resolver."""
+"""Tests for trading.services.universe.resolver."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from trading.services.universe_resolver import list_available_universes, resolve_named_universes
+from trading.services.universe.resolver import list_available_universes, resolve_named_universes
 
 
 def _write_universe(tmp_path: Path, name: str, tickers: list[str]) -> None:
@@ -15,7 +15,7 @@ def _write_universe(tmp_path: Path, name: str, tickers: list[str]) -> None:
 
 def test_resolve_single_universe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_universe(tmp_path, "large_cap", ["AAPL", "MSFT", "NVDA"])
-    monkeypatch.setattr("trading.services.universe_resolver.TRADE_UNIVERSES_DIR", tmp_path)
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
     result = resolve_named_universes(["large_cap"])
 
@@ -25,7 +25,7 @@ def test_resolve_single_universe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 def test_resolve_multiple_universes_union(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_universe(tmp_path, "large_cap", ["AAPL", "MSFT"])
     _write_universe(tmp_path, "growth", ["NVDA", "MSFT", "CRWD"])
-    monkeypatch.setattr("trading.services.universe_resolver.TRADE_UNIVERSES_DIR", tmp_path)
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
     result = resolve_named_universes(["large_cap", "growth"])
 
@@ -35,7 +35,7 @@ def test_resolve_multiple_universes_union(tmp_path: Path, monkeypatch: pytest.Mo
 def test_resolve_deduplicates_preserving_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_universe(tmp_path, "a", ["TSLA", "AMZN"])
     _write_universe(tmp_path, "b", ["AMZN", "GOOGL"])
-    monkeypatch.setattr("trading.services.universe_resolver.TRADE_UNIVERSES_DIR", tmp_path)
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
     result = resolve_named_universes(["a", "b"])
 
@@ -45,7 +45,7 @@ def test_resolve_deduplicates_preserving_order(tmp_path: Path, monkeypatch: pyte
 
 def test_resolve_raises_for_unknown_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_universe(tmp_path, "large_cap", ["AAPL"])
-    monkeypatch.setattr("trading.services.universe_resolver.TRADE_UNIVERSES_DIR", tmp_path)
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
     with pytest.raises(FileNotFoundError, match="Universe 'bogus' not found"):
         resolve_named_universes(["large_cap", "bogus"])
@@ -60,7 +60,7 @@ def test_list_available_universes(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     _write_universe(tmp_path, "large_cap", ["AAPL"])
     _write_universe(tmp_path, "growth", ["NVDA"])
     (tmp_path / "notes.md").write_text("ignored", encoding="utf-8")
-    monkeypatch.setattr("trading.services.universe_resolver.TRADE_UNIVERSES_DIR", tmp_path)
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
     result = list_available_universes()
 
@@ -69,7 +69,7 @@ def test_list_available_universes(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 def test_list_available_universes_missing_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "trading.services.universe_resolver.TRADE_UNIVERSES_DIR",
+        "trading.services.universe.resolver.TRADE_UNIVERSES_DIR",
         tmp_path / "nonexistent",
     )
 
@@ -81,7 +81,7 @@ def test_resolve_ignores_comments_and_blanks(tmp_path: Path, monkeypatch: pytest
         "# comment\nAAPL\n\nMSFT\n# another\nGOOGL\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("trading.services.universe_resolver.TRADE_UNIVERSES_DIR", tmp_path)
+    monkeypatch.setattr("trading.services.universe.resolver.TRADE_UNIVERSES_DIR", tmp_path)
 
     result = resolve_named_universes(["mixed"])
 

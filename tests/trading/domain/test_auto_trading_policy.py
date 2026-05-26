@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import trading.domain.auto_trader_policy as auto_trader_policy
+import trading.domain.auto_trading_policy as auto_trader_policy
 
 
 def _base_account(**overrides):

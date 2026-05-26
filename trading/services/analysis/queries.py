@@ -11,7 +11,7 @@ import sqlite3
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER
 from trading.services.accounting import load_account_state
-from trading.services.analysis.calculations import (
+from trading.services.analysis.position import (
     TOP_POSITIONS_COUNT,
     compute_position_analysis,
     generate_improvement_notes,

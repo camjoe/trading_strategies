@@ -1,7 +1,7 @@
 from __future__ import annotations
 from trading.domain.accounting import compute_account_state
 from trading.domain.exceptions import AccountAlreadyExistsError
-from trading.domain.auto_trader_policy import (
+from trading.domain.auto_trading_policy import (
     apply_leaps_buy_qty_limits,
     build_trade_note,
     choose_buy_qty,

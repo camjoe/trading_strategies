@@ -13,8 +13,8 @@ from trading.repositories.sleeves import (
     fetch_active_strategy_param_set,
     fetch_strategy_sleeves_for_account,
 )
-from trading.services.sleeves._shared import mean as _sleeve_mean
-from trading.services.sleeves._shared import resolve_window_bounds as _resolve_window_bounds_shared
+from trading.services.sleeves.helpers import mean as _sleeve_mean
+from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 
 # Default historical lookback window for challenger shadow evaluation.
 DEFAULT_SHADOW_ROLLING_WINDOW_DAYS = 30

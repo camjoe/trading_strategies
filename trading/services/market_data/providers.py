@@ -11,7 +11,7 @@ from .cache import _CACHE_MISS
 from .cache import market_data_cache_key
 from .cache import read_market_data_cache
 from .cache import write_market_data_cache
-from .interfaces import MarketDataProvider
+from .protocols import MarketDataProvider
 
 logger = logging.getLogger(__name__)
 

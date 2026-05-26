@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models import AccountRecord
-from trading.domain.auto_trader_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
+from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.repositories.accounts import fetch_account_listing_rows
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"

@@ -18,7 +18,7 @@ from trading.backtesting.domain.simulation_math import (
 from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.trading_bridge import resolve_active_strategy
-from trading.domain.auto_trader_policy import choose_buy_qty as default_choose_buy_qty
+from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
 from trading.services.market_data import get_feature_provider
 
 AccountRow = Mapping[str, object]

@@ -13,7 +13,7 @@ def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytes
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.stats.fetch_latest_prices",
+        "trading.services.reporting.portfolio.fetch_latest_prices",
         lambda _tickers: {"AAPL": 120.0},
     )
     monkeypatch.setattr(
@@ -72,7 +72,7 @@ def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
             max_loss_pct=20.0,
         ),
     )
-    monkeypatch.setattr("trading.services.reporting.stats.fetch_latest_prices", lambda _tickers: {})
+    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers: {})
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_args: (None, None))
 
     account_report(conn, "acct_leaps")
@@ -96,7 +96,7 @@ def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest
     )
     conn.commit()
 
-    monkeypatch.setattr("trading.services.reporting.stats.fetch_latest_prices", lambda _tickers: {})
+    monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers: {})
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_args: (None, None))
 
     account_report(conn, "acct_rot")
@@ -116,7 +116,7 @@ def test_compare_strategies_outputs_summary_and_truncates_positions(
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.stats.fetch_latest_prices",
+        "trading.services.reporting.portfolio.fetch_latest_prices",
         lambda symbols: {symbol: 110.0 for symbol in symbols},
     )
     monkeypatch.setattr("trading.services.reporting.presentation.benchmark_stats", lambda *_args: (10100.0, 1.0))

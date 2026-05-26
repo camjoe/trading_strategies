@@ -14,7 +14,7 @@ from trading.services.auto_trading import (
     validate_execution_mode,
     validate_trade_count_range,
 )
-from trading.services.profile_source import DEFAULT_TICKERS_FILE
+from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 
 REPO_ROOT = get_repo_root(__file__)
 __all__ = ["parse_args", "main", "run_for_account"]
