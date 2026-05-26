@@ -34,5 +34,6 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 
 ## Related References
 
+- [service-cookbook.md](service-cookbook.md) — task-oriented API reference ("what function do I call to do X?")
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - `docs/reference/adr-backtesting-layering.md`
