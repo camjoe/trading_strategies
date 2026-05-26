@@ -12,7 +12,7 @@ from trading.services.accounts import (
     format_goal_text,
 )
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
-from trading.services.reporting.calculations import (
+from trading.services.reporting.math import (
     alpha_pct,
     benchmark_available,
     compute_market_value_and_unrealized,
@@ -30,7 +30,7 @@ from trading.services.reporting.benchmark import (
     build_live_benchmark_overlay,
     fetch_benchmark_close_history,
 )
-from trading.services.reporting.stats import (
+from trading.services.reporting.portfolio import (
     build_account_stats,
     infer_overall_trend,
     inject_settlement_price,

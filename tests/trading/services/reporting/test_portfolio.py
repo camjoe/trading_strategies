@@ -12,7 +12,7 @@ def test_build_account_stats_uses_price_map(reporting_account, conn, monkeypatch
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.stats.fetch_latest_prices",
+        "trading.services.reporting.portfolio.fetch_latest_prices",
         lambda _tickers: {"AAPL": 120.0},
     )
 
@@ -33,7 +33,7 @@ def test_build_account_stats_ignores_positions_without_price(
     conn.commit()
 
     monkeypatch.setattr(
-        "trading.services.reporting.stats.fetch_latest_prices",
+        "trading.services.reporting.portfolio.fetch_latest_prices",
         lambda _tickers: {"AAPL": 120.0},
     )
 
