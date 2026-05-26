@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
 import trading.services.auto_trading.rotation as rotation_service
 from tests.trading.services.auto_trading.factories import (
     make_auto_trading_account,

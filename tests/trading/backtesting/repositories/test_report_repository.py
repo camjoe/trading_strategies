@@ -107,7 +107,7 @@ def _insert_account_and_runs(conn: sqlite3.Connection, account_name: str, run_co
 
 
 def test_fetch_recent_backtest_runs_respects_limit(conn: sqlite3.Connection) -> None:
-    run_ids = _insert_account_and_runs(conn, "acct_recent", 3)
+    _insert_account_and_runs(conn, "acct_recent", 3)
 
     rows = fetch_recent_backtest_runs(conn, limit=2)
 
@@ -184,7 +184,7 @@ def test_fetch_latest_backtest_run_id_for_account_strategy_returns_id(conn: sqli
 def test_fetch_latest_backtest_run_id_for_account_strategy_returns_none_for_no_match(
     conn: sqlite3.Connection,
 ) -> None:
-    run_ids = _insert_account_and_runs(conn, "acct_strat_nomatch", 1)
+    _insert_account_and_runs(conn, "acct_strat_nomatch", 1)
     account_id = int(
         conn.execute("SELECT id FROM accounts WHERE name = ?", ("acct_strat_nomatch",)).fetchone()["id"]
     )

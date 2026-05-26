@@ -8,7 +8,6 @@ from trading.models import AccountState
 from trading.services.analysis.calculations import (
     ALPHA_COMMENT_THRESHOLD_PCT,
     CONCENTRATION_THRESHOLD_PCT,
-    NOTABLE_LOSS_THRESHOLD_PCT,
     compute_position_analysis,
     generate_improvement_notes,
 )

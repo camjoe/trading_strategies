@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from trading.services.runtime_settings.mutations import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
@@ -76,7 +78,6 @@ class TestFetchEvaluationConfidenceSettings:
 
     def test_null_weights_fall_back_to_defaults(self, conn) -> None:
         """Rows with NULL float weights fall back to domain defaults."""
-        import pytest
         defaults = fetch_evaluation_confidence_settings(conn)
         # Set numeric counts only, leave weights as defaults by using valid sums.
         set_evaluation_confidence_settings(
@@ -124,6 +125,3 @@ class TestFetchPromotionPolicySettings:
         assert result.min_research_backtest_trade_count == 30
         assert result.min_research_backtest_return_pct == pytest.approx(8.0)
         assert result.min_live_overall_confidence == pytest.approx(0.65)
-
-
-import pytest

@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from trading.services.runtime_settings.mutations import (
-    EXPECTED_WEIGHT_SUM,
     _validate_weight_sum,
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,

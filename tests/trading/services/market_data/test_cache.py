@@ -1,24 +1,18 @@
 from __future__ import annotations
 
-import io
-import os
 import pickle
-import time
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-import trading.services.market_data.cache as cache_module
 from trading.services.market_data.cache import (
     market_data_cache_dir,
     market_data_cache_disabled,
     market_data_cache_key,
-    market_data_cache_path,
     read_market_data_cache,
     write_market_data_cache,
     _CACHE_MISS,
-    _MARKET_DATA_CACHE_TTL_SECONDS,
 )
 
 
