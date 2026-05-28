@@ -33,7 +33,7 @@ from trading.repositories.sleeve_orders import (
     insert_sleeve_order,
     update_sleeve_order_status,
 )
-from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
+from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.repositories.rotation import update_account_rotation_state
 from trading.repositories.rotation import (
     close_rotation_episode,

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.backtesting.repositories.history_repository import fetch_strategy_backtest_rows
-from trading.backtesting.trading_bridge import safe_return_pct
+from trading.domain.returns import safe_return_pct
+from trading.repositories.backtest_history import fetch_strategy_backtest_rows
 
 
 def fetch_strategy_backtest_returns(

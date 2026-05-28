@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from trading.backtesting.services.report_service import resolve_signal
+from trading.domain.strategy_signals import resolve_signal
 
 from .interpretation import interpret_signal
 from .shared import PROVIDER_META, build_unavailable_entry, load_providers

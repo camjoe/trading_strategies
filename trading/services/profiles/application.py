@@ -8,7 +8,7 @@ from trading.repositories.accounts import update_account_fields
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
-from trading.backtesting.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategy_signals import validate_strategy_name
 
 ROTATION_KEYS = {
     "rotation_enabled",

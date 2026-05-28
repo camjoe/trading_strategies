@@ -10,7 +10,7 @@ import sqlite3
 from dataclasses import replace
 
 from common.time import utc_now_iso
-from trading.backtesting.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategy_signals import validate_strategy_name
 from trading.domain.evaluation_models import StrategyEvaluationArtifact
 from trading.domain.promotion_models import (
     PROMOTION_REVIEW_EVENT_APPROVED,

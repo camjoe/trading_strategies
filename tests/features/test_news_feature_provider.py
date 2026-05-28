@@ -13,7 +13,7 @@ from features.news_feature_provider import (
     _MIN_HEADLINE_THRESHOLD,
     _MAX_TOTAL_RSS_HEADLINES,
 )
-from trading.backtesting.domain.strategy_signals import (
+from trading.domain.strategy_signals import (
     STRATEGY_REGISTRY,
     _news_sentiment_signal,
     resolve_strategy,

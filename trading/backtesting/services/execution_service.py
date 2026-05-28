@@ -15,7 +15,7 @@ from trading.backtesting.domain.simulation_math import (
     update_on_buy,
     update_on_sell,
 )
-from trading.backtesting.domain.strategy_signals import resolve_signal, resolve_strategy
+from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.trading_bridge import resolve_active_strategy
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty

@@ -87,6 +87,7 @@ from trading.repositories.sleeve_risk_decisions import (
     fetch_sleeve_risk_decisions_for_account,
     insert_sleeve_risk_decision,
 )
+from trading.repositories.backtest_history import fetch_strategy_backtest_rows
 
 __all__ = [
     "fetch_account_by_name",
@@ -154,4 +155,5 @@ __all__ = [
     "fetch_latest_portfolio_risk_snapshot",
     "insert_sleeve_risk_decision",
     "fetch_sleeve_risk_decisions_for_account",
+    "fetch_strategy_backtest_rows",
 ]

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import sqlite3
 
 from common.coercion import row_expect_int
-from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
+from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.domain.rotation import parse_rotation_schedule
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.models import AccountRecord

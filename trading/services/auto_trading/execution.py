@@ -9,7 +9,7 @@ from typing import Callable, Mapping, Protocol, cast
 
 from common.coercion import row_expect_int, row_float, row_int
 from common.time import utc_now_iso
-from trading.backtesting.domain.strategy_signals import resolve_strategy
+from trading.domain.strategy_signals import resolve_strategy
 from trading.domain.accounting import compute_account_state
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
