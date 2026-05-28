@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-import trading.brokers.ib_web_client as ib_web_client_module
-from trading.brokers.ib_web_client import (
+import brokers.ib_web_client as ib_web_client_module
+from brokers.ib_web_client import (
     IbWebApiPacingLimiter,
     IbWebApiSettings,
     InteractiveBrokersWebClient,

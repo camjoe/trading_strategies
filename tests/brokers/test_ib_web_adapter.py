@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import trading.brokers.ib_web_adapter as ib_web_adapter_module
-from trading.brokers.ib_web_adapter import (
+import brokers.ib_web_adapter as ib_web_adapter_module
+from brokers.ib_web_adapter import (
     InteractiveBrokersWebAdapter,
     _coerce_bool_flag,
     _coerce_number,
@@ -12,7 +12,7 @@ from trading.brokers.ib_web_adapter import (
     _select_ledger_row,
     _summary_amount,
 )
-from trading.brokers.ib_web_client import IbWebApiContract
+from brokers.ib_web_client import IbWebApiContract
 from trading.models.broker_order import OrderStatus, OrderType
 from tests.support.brokers import make_broker_order
 

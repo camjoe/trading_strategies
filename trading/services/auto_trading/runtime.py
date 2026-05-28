@@ -9,10 +9,11 @@ from dataclasses import asdict
 from common.coercion import row_expect_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
+from collections.abc import Callable
+
 from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
-from trading.brokers.base import BrokerConnection
-from trading.brokers.factory import get_broker_for_account
+from trading.domain.broker_connection import BrokerConnection
 from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
@@ -138,69 +139,63 @@ def _record_runtime_trade(
     *,
     _injected_broker: BrokerConnection | None = None,
 ) -> None:
-    # When a broker is injected by the caller (e.g. run_for_account) we reuse
-    # that shared connection and let the caller own the disconnect lifecycle.
-    # When called standalone the function creates and disconnects its own broker.
-    _owns_broker = _injected_broker is None
-    broker = _injected_broker if _injected_broker is not None else get_broker_for_account(account)
-    try:
+    # The caller always supplies the broker and owns the disconnect lifecycle.
+    broker = _injected_broker
+    assert broker is not None, "_record_runtime_trade requires an injected broker"
 
-        def _broker_aware_record_trade(
-            conn: sqlite3.Connection,
-            *,
-            account_name: str,
-            side: str,
-            ticker: str,
-            qty: float,
-            price: float,
-            fee: float,
-            trade_time: str,
-            note: str | None,
-        ) -> None:
-            order = BrokerOrder(
-                account_id=row_expect_int(account, "id"),
-                ticker=ticker,
-                side=side,
-                qty=qty,
-                price=price,
-            )
-            filled = broker.place_order(order)
-
-            if filled.broker_order_id:
-                insert_broker_order(conn, filled)
-                for fill in filled.fills:
-                    insert_order_fill(conn, filled.broker_order_id, fill)
-
-            if filled.status == OrderStatus.FILLED:
-                record_trade(
-                    conn,
-                    account_name=account_name,
-                    side=side,
-                    ticker=ticker,
-                    qty=qty,
-                    price=filled.avg_fill_price if filled.avg_fill_price is not None else price,
-                    fee=fee,
-                    trade_time=trade_time,
-                    note=note,
-                )
-
-        record_prepared_trade_impl(
-            conn,
-            account_name,
-            account,
-            learning_enabled,
-            risk_policy,
-            instrument_mode,
-            active_strategy,
-            fee,
-            selection,
-            forced_sell,
-            record_trade_fn=_broker_aware_record_trade,
-            trade_time_iso=trade_time_iso,
+    def _broker_aware_record_trade(
+        conn: sqlite3.Connection,
+        *,
+        account_name: str,
+        side: str,
+        ticker: str,
+        qty: float,
+        price: float,
+        fee: float,
+        trade_time: str,
+        note: str | None,
+    ) -> None:
+        order = BrokerOrder(
+            account_id=row_expect_int(account, "id"),
+            ticker=ticker,
+            side=side,
+            qty=qty,
+            price=price,
         )
-    finally:
-        if _owns_broker:
-            broker.disconnect()
+        filled = broker.place_order(order)
+
+        if filled.broker_order_id:
+            insert_broker_order(conn, filled)
+            for fill in filled.fills:
+                insert_order_fill(conn, filled.broker_order_id, fill)
+
+        if filled.status == OrderStatus.FILLED:
+            record_trade(
+                conn,
+                account_name=account_name,
+                side=side,
+                ticker=ticker,
+                qty=qty,
+                price=filled.avg_fill_price if filled.avg_fill_price is not None else price,
+                fee=fee,
+                trade_time=trade_time,
+                note=note,
+            )
+
+    record_prepared_trade_impl(
+        conn,
+        account_name,
+        account,
+        learning_enabled,
+        risk_policy,
+        instrument_mode,
+        active_strategy,
+        fee,
+        selection,
+        forced_sell,
+        record_trade_fn=_broker_aware_record_trade,
+        trade_time_iso=trade_time_iso,
+    )
 
 
 def _is_runtime_submission_window_open(now_iso: str) -> bool:
@@ -362,6 +357,7 @@ def _run_sleeve_mode_for_account(
     min_trades: int,
     max_trades: int,
     fee: float,
+    broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> int:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
@@ -489,7 +485,7 @@ def _run_sleeve_mode_for_account(
         )
         return 0
 
-    broker = get_broker_for_account(account)
+    broker = broker_factory(account)
     try:
         submitted_count = 0
         for intent in approved_intents:
@@ -620,6 +616,8 @@ def run_for_account(
     max_trades: int,
     fee: float,
     execution_mode: str = EXECUTION_MODE_ACCOUNT,
+    *,
+    broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> int:
     now_iso = utc_now_iso()
     if not _is_runtime_submission_window_open(now_iso):
@@ -638,6 +636,7 @@ def run_for_account(
             min_trades=min_trades,
             max_trades=max_trades,
             fee=fee,
+            broker_factory=broker_factory,
         )
     # Open one broker connection for the entire account trade loop so that
     # keepalive (e.g. IBKR Web API /tickle) remains effective across all
@@ -646,7 +645,7 @@ def run_for_account(
     # config — so it is safe to resolve the broker from the initial account row.
     bootstrap_account = get_account(conn, account_name)
     effective_universe = _resolve_account_universe(bootstrap_account, universe)
-    broker = get_broker_for_account(bootstrap_account)
+    broker = broker_factory(bootstrap_account)
     try:
         return run_for_account_impl(
             conn,
@@ -674,6 +673,8 @@ def reconcile_open_broker_orders(
     account_name: str,
     account: AccountRecord,
     fee: float,
+    *,
+    broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> int:
     """Poll the account broker for fill updates on all open persisted broker orders.
 
@@ -695,7 +696,7 @@ def reconcile_open_broker_orders(
         account_name,
         account,
         fee,
-        get_broker_for_account_fn=get_broker_for_account,
+        get_broker_for_account_fn=broker_factory,
         fetch_open_broker_orders_fn=fetch_open_broker_orders,
         fetch_sleeve_order_by_broker_order_id_fn=fetch_sleeve_order_by_broker_order_id,
         insert_order_fill_fn=insert_order_fill,
@@ -710,6 +711,8 @@ def reconcile_open_ib_orders(
     account_name: str,
     account: AccountRecord,
     fee: float,
+    *,
+    broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> int:
     """Compatibility alias for the old broker reconciliation name."""
-    return reconcile_open_broker_orders(conn, account_name, account, fee)
+    return reconcile_open_broker_orders(conn, account_name, account, fee, broker_factory=broker_factory)

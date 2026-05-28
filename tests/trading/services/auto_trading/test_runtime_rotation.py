@@ -268,6 +268,7 @@ def test_run_for_account_uses_rotated_active_strategy(monkeypatch) -> None:
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=Mock(return_value=scenario.broker),
     )
 
     assert executed == 1

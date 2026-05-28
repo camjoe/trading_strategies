@@ -69,6 +69,7 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         max_trades=2,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _: None,
     )
     assert results == [("acct1", 2), ("acct2", 1)]
     assert seen_modes == ["sleeve", "sleeve"]
@@ -108,6 +109,7 @@ def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyP
         max_trades=5,
         fee=0.0,
         execution_mode="account",
+        broker_factory=lambda _: None,
     )
     assert result == 3
     from common.time import parse_utc_iso

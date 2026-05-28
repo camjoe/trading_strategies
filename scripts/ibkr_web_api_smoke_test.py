@@ -23,8 +23,8 @@ from typing import TextIO
 
 import httpx
 
-from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
-from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
+from brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
 from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType, TimeInForce
 from common.coercion import coerce_float
 

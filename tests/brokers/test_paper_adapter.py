@@ -1,6 +1,6 @@
 import pytest
 
-from trading.brokers.paper_adapter import PaperBrokerAdapter
+from brokers.paper_adapter import PaperBrokerAdapter
 from trading.models.broker_order import OrderFill, OrderStatus
 from tests.support.brokers import make_broker_order
 

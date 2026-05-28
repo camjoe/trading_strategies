@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse
 import random
 
+from brokers.factory import get_broker_for_account
 from common.paths.repo_paths import get_repo_root
 from trading.database.db_init import ensure_db
 from trading.services.auto_trading import (
@@ -68,6 +69,7 @@ def main() -> None:
             max_trades=args.max_trades,
             fee=args.fee,
             execution_mode=execution_mode,
+            broker_factory=get_broker_for_account,
         ):
             print(f"{account_name}: executed {executed} trades")
     finally:

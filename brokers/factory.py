@@ -1,6 +1,6 @@
 """Broker factory — resolves the correct :class:`BrokerConnection` for an account.
 
-Called by the runtime service layer.  New broker types are registered here.
+Called by the interface layer.  New broker types are registered here.
 
 Current IBKR path
 -----------------
@@ -15,11 +15,11 @@ kept available, but it is not the primary IBKR path for current development.
 
 from __future__ import annotations
 
-from trading.brokers.base import BrokerConnection
-from trading.brokers.paper_adapter import PaperBrokerAdapter
-from trading.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
-from trading.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
-from trading.brokers.legacy.factory import build_legacy_ib_broker
+from trading.domain.broker_connection import BrokerConnection
+from brokers.paper_adapter import PaperBrokerAdapter
+from brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
+from brokers.legacy.factory import build_legacy_ib_broker
 from trading.models import AccountRecord
 
 # Broker type identifiers stored in accounts.broker_type column.

@@ -4,8 +4,8 @@ Legacy status
 -------------
 This module supports the older Interactive Brokers socket/TWS or IB Gateway
 flow. The repository's current local-gateway path is the Client Portal / Web
-API implementation in ``trading.brokers.ib_web_adapter`` and
-``trading.brokers.ib_web_client``.
+API implementation in ``brokers.ib_web_adapter`` and
+``brokers.ib_web_client``.
 
 This module is retained so the older socket-based flow remains available if the
 team decides to return to it, but it is no longer the primary IBKR integration
@@ -14,9 +14,9 @@ surface for active development.
 Requires TWS or IB Gateway to be running with the API enabled.
 
 The adapter itself is backend-agnostic — it depends on :class:`IBClientProtocol`
-from ``trading.brokers.legacy.ib_client``. The concrete client
+from ``brokers.legacy.ib_client``. The concrete client
 (``IbAsyncClient`` or ``IbApiClient``) is injected by the factory. To switch
-backends, change ``IB_CLIENT_BACKEND`` in ``trading/brokers/legacy/factory.py``.
+backends, change ``IB_CLIENT_BACKEND`` in ``brokers/legacy/factory.py``.
 
 Prerequisites:
     1. Install the chosen client backend:
@@ -42,14 +42,14 @@ Async fill note:
 from __future__ import annotations
 
 from common.time import utc_now_iso
-from trading.brokers.base import (
-    BrokerConnection,
+from trading.domain.broker_connection import BrokerConnection
+from trading.models.broker_order import (
     BrokerOrder,
     OrderFill,
     OrderStatus,
     OrderType,
 )
-from trading.brokers.legacy.ib_client import IBClientProtocol
+from brokers.legacy.ib_client import IBClientProtocol
 
 # Default IB TWS paper trading port.
 _IB_DEFAULT_HOST = "127.0.0.1"
@@ -63,9 +63,9 @@ _ACCOUNT_TAGS = frozenset(("TotalCashValue", "BuyingPower", "GrossPositionValue"
 class InteractiveBrokersAdapter(BrokerConnection):
     """Legacy live broker adapter for Interactive Brokers socket/TWS flows.
 
-    Depends on :class:`~trading.brokers.legacy.ib_client.IBClientProtocol` — the
+    Depends on :class:`~brokers.legacy.ib_client.IBClientProtocol` — the
     concrete backend (``IbAsyncClient`` or ``IbApiClient``) is injected by
-    :func:`trading.brokers.factory.get_broker_for_account`.
+    :func:`brokers.factory.get_broker_for_account`.
 
     Instantiated only when ``broker_type = 'interactive_brokers'`` and
     ``live_trading_enabled = 1`` on the account row.

@@ -2,7 +2,7 @@
 
 The Web API path is kept separate from the existing TWS / Gateway socket client.
 All HTTP transport details, session handling, and account identifier lookup stay
-inside ``trading/brokers/`` so higher layers continue to depend only on
+inside ``brokers/`` so higher layers continue to depend only on
 ``BrokerConnection``.
 """
 

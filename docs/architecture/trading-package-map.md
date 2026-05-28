@@ -22,7 +22,7 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 ### Bounded Contexts
 
 - `trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
-- `trading/brokers/`: broker adapters and factory boundary (paper + live integrations)
+- `brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`trading/interfaces/`); `trading/` must never import from `brokers/` except at the interface layer
 - `trading/features/`: external-data feature-provider boundary for alternative strategies
 
 ## Placement Rules

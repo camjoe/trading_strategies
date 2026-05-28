@@ -118,7 +118,6 @@ def test_fetch_benchmark_close_history_uses_first_column_for_multi_level_result(
     pdt.assert_series_equal(result, expected)
 
 
-
 def test_build_live_benchmark_overlay_returns_none_when_too_few_snapshots() -> None:
     result = benchmark.build_live_benchmark_overlay(
         "SPY",
@@ -126,7 +125,6 @@ def test_build_live_benchmark_overlay_returns_none_when_too_few_snapshots() -> N
     )
 
     assert result is None
-
 
 
 def test_build_live_benchmark_overlay_returns_none_for_blank_ticker(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -167,7 +165,6 @@ def test_build_live_benchmark_overlay_returns_none_for_non_positive_starting_equ
     )
 
     assert result is None
-
 
 
 def test_build_live_benchmark_overlay_returns_none_when_fetch_raises(
@@ -213,7 +210,6 @@ def test_build_live_benchmark_overlay_returns_none_for_missing_or_empty_close_hi
     assert result is None
 
 
-
 def test_build_live_benchmark_overlay_returns_none_when_fewer_than_two_points_match(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -235,7 +231,6 @@ def test_build_live_benchmark_overlay_returns_none_when_fewer_than_two_points_ma
     )
 
     assert result is None
-
 
 
 def test_build_live_benchmark_overlay_computes_sorted_overlay_and_returns_expected_values(
@@ -304,7 +299,6 @@ def test_build_live_benchmark_overlay_computes_sorted_overlay_and_returns_expect
     ]
 
 
-
 def test_attach_live_benchmark_summary_sets_none_fields_and_returns_same_summary() -> None:
     summary = {"name": "acct"}
 
@@ -319,7 +313,6 @@ def test_attach_live_benchmark_summary_sets_none_fields_and_returns_same_summary
         "liveBenchmarkStartTime": None,
         "liveBenchmarkEndTime": None,
     }
-
 
 
 def test_attach_live_benchmark_summary_maps_overlay_fields_and_returns_same_summary() -> None:

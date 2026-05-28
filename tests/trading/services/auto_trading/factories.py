@@ -143,7 +143,6 @@ class RuntimeScenario:
             Mock(return_value=self.forced_sell_ticker),
         )
         monkeypatch.setattr(runtime_module, "_record_runtime_trade", self.trade_recorder)
-        monkeypatch.setattr(runtime_module, "get_broker_for_account", Mock(return_value=self.broker))
 
 
 __all__ = [

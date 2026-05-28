@@ -19,7 +19,7 @@ Top-level package shape is intentionally **hybrid**:
 
 1. The layered backbone above applies to main runtime behavior.
 2. Selected bounded contexts remain top-level when their ownership is distinct
-   (`trading/backtesting`, `trading/brokers`, `trading/features`).
+   (`trading/backtesting`, `trading/features`); broker adapters live at the repo-root `brokers/` package.
 3. See `docs/architecture/trading-package-map.md` for the concise package map.
 
 ## Allowed and Disallowed Dependencies
@@ -78,11 +78,12 @@ Disallowed:
       consume feature bundles from this package — they must never call external
       APIs directly.
       
-11. `trading/brokers/`: broker connection adapters and factory
+11. `brokers/` (repo root): broker connection adapters and factory
    - Keep all broker SDK imports (ib_async, ibapi) inside this package.
-   - Service and domain layers must depend only on `BrokerConnection` from `base.py`.
-   - The factory (`factory.py`) is the sole location for `broker_type` routing logic.
+   - Service and domain layers must depend only on `BrokerConnection` from `trading/domain/broker_connection.py`.
+   - The factory (`brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
+   - `trading/` must never import from `brokers/`; the interface layer (`trading/interfaces/`) is the sole wiring point.
 
 ## External Data Strategies
 

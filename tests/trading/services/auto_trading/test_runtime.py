@@ -25,6 +25,7 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
         window_open_fn=lambda _now: False,
     )
     scenario.install(monkeypatch, runtime_service)
+    broker_factory = Mock()
 
     executed = run_for_account(
         conn=object(),
@@ -35,10 +36,11 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=broker_factory,
     )
 
     assert executed == 0
-    runtime_service.get_broker_for_account.assert_not_called()
+    broker_factory.assert_not_called()
 
 
 def test_run_for_account_executes_buy_and_records_trade(monkeypatch) -> None:
@@ -60,6 +62,7 @@ def test_run_for_account_executes_buy_and_records_trade(monkeypatch) -> None:
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     assert executed == 1
@@ -98,6 +101,7 @@ def test_run_for_account_forced_sell_passes_risk_selection(monkeypatch) -> None:
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     assert executed == 1
@@ -126,6 +130,7 @@ def test_run_for_account_skips_iteration_when_trade_not_preparable(monkeypatch) 
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     assert executed == 0
@@ -166,6 +171,7 @@ def test_run_for_account_stops_cleanly_when_global_runtime_day_cap_is_hit(monkey
         min_trades=2,
         max_trades=2,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     assert executed == 0
@@ -196,6 +202,7 @@ def test_run_for_account_breaks_only_on_runtime_throttle_exception(monkeypatch) 
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     assert executed == 0
@@ -211,6 +218,7 @@ def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> No
     scenario.install(monkeypatch, runtime_service)
     sleeve_runner = Mock(return_value=3)
     monkeypatch.setattr(runtime_service, "_run_sleeve_mode_for_account", sleeve_runner)
+    broker_factory = Mock()
 
     executed = run_for_account(
         conn=object(),
@@ -222,10 +230,11 @@ def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> No
         max_trades=3,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=broker_factory,
     )
 
     assert executed == 3
-    runtime_service.get_broker_for_account.assert_not_called()
+    broker_factory.assert_not_called()
     scenario.trade_recorder.assert_not_called()
     assert sleeve_runner.call_count == 1
 
@@ -252,6 +261,7 @@ def test_run_for_account_uses_account_specific_universe_for_account_mode(monkeyp
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     runtime_service.resolve_named_universes.assert_called_once_with(["tech", "growth"])
@@ -280,6 +290,7 @@ def test_run_for_account_falls_back_to_global_universe_when_account_universe_is_
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=lambda _: scenario.broker,
     )
 
     args = impl.call_args.args
@@ -296,6 +307,7 @@ def test_reconcile_open_ib_orders_delegates_to_broker_reconciliation(monkeypatch
         account_name="acct",
         account=make_auto_trading_account(id=1),
         fee=1.5,
+        broker_factory=Mock(),
     )
 
     assert count == 3

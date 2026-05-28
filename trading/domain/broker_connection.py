@@ -11,20 +11,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from trading.models.broker_order import (  # noqa: F401 — re-exported for broker adapters
-    BrokerOrder,
-    OrderFill,
-    OrderStatus,
-    OrderType,
-    TimeInForce,
-)
+from trading.models.broker_order import BrokerOrder  # noqa: F401 — re-exported for broker adapters
 
 
 class BrokerConnection(ABC):
     """Abstract interface over a broker connection.
 
     Implement this class to add a new broker.  Register the adapter in
-    :func:`trading.brokers.factory.get_broker_for_account`.
+    :func:`brokers.factory.get_broker_for_account`.
     """
 
     @abstractmethod
