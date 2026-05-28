@@ -1,12 +1,12 @@
 """News sentiment feature provider.
 
 Fetches recent news headlines for a ticker and scores them with VADER
-sentiment analysis.  Two headline sources are supported:
+sentiment analysis. Two headline sources are supported:
 
 Primary (no API key required):
-    RSS feeds from Yahoo Finance, Google News, and Reuters/MarketWatch
-    are fetched with urllib and parsed with the standard-library ``xml``
-    module to extract ``<title>`` elements.
+    RSS feeds from Yahoo Finance and Google News are fetched with urllib
+    and parsed with the standard-library ``xml`` module to extract
+    ``<title>`` elements.
 
 Optional (requires NEWS_API_KEY env var):
     NewsAPI (newsapi.org) is used as a supplementary source when the key
@@ -14,7 +14,7 @@ Optional (requires NEWS_API_KEY env var):
 
 Features emitted:
     news_sentiment_score    — Mean VADER compound score across recent
-                              headlines, in [-1, 1].  Positive = bullish,
+                              headlines, in [-1, 1]. Positive = bullish,
                               negative = bearish.
     news_headline_count     — Number of headlines scored (float for
                               compatibility with feature_history DataFrames).
@@ -29,20 +29,17 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.error import URLError
 
-from trading.features.base import ExternalFeatureBundle, ExternalFeatureProvider
+from trading.domain.feature_provider import (
+    ExternalFeatureBundle,
+    ExternalFeatureProvider,
+    NEWS_BUY_SENTIMENT_THRESHOLD,
+    NEWS_HEADLINE_COUNT,
+    NEWS_MIN_HEADLINES_REQUIRED,
+    NEWS_SELL_SENTIMENT_THRESHOLD,
+    NEWS_SENTIMENT_SCORE,
+)
 
 _LOG = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Feature name constants
-# ---------------------------------------------------------------------------
-
-NEWS_SENTIMENT_SCORE = "news_sentiment_score"
-NEWS_HEADLINE_COUNT = "news_headline_count"
-
-# ---------------------------------------------------------------------------
-# RSS feed templates
-# ---------------------------------------------------------------------------
 
 # {ticker} is replaced at fetch time.
 _RSS_TEMPLATES: tuple[str, ...] = (
@@ -65,26 +62,9 @@ _NEWS_API_KEY_ENV = "NEWS_API_KEY"
 # Maximum NewsAPI articles to fetch per ticker.
 _NEWS_API_MAX_ARTICLES = 20
 
-# ---------------------------------------------------------------------------
-# Signal thresholds — imported by strategy_signals._news_sentiment_signal
-# ---------------------------------------------------------------------------
-
-NEWS_BUY_SENTIMENT_THRESHOLD = 0.10
-NEWS_SELL_SENTIMENT_THRESHOLD = -0.10
-NEWS_MIN_HEADLINES_REQUIRED = 3.0
-
 
 class NewsFeatureProvider(ExternalFeatureProvider):
-    """Score recent news sentiment for a given ticker using VADER.
-
-    Example usage::
-
-        provider = NewsFeatureProvider()
-        bundle = provider.get_features("AAPL")
-        if not bundle.available:
-            return "hold"
-        score = bundle.get(NEWS_SENTIMENT_SCORE, 0.0)
-    """
+    """Score recent news sentiment for a given ticker using VADER."""
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -122,10 +102,6 @@ class NewsFeatureProvider(ExternalFeatureProvider):
             available=True,
             source=self.source_label,
         )
-
-    # ------------------------------------------------------------------
-    # Headline collection
-    # ------------------------------------------------------------------
 
     def _collect_headlines(self, ticker: str) -> list[str]:
         headlines: list[str] = []
@@ -167,10 +143,20 @@ class NewsFeatureProvider(ExternalFeatureProvider):
             )
             articles = response.get("articles") or []
             return [
-                a.get("title") or a.get("description") or ""
-                for a in articles
-                if a.get("title") or a.get("description")
+                article.get("title") or article.get("description") or ""
+                for article in articles
+                if article.get("title") or article.get("description")
             ]
         except Exception as exc:
             _LOG.warning("NewsFeatureProvider: NewsAPI fetch failed: %s", exc)
             return []
+
+
+__all__ = [
+    "NEWS_BUY_SENTIMENT_THRESHOLD",
+    "NEWS_HEADLINE_COUNT",
+    "NEWS_MIN_HEADLINES_REQUIRED",
+    "NEWS_SELL_SENTIMENT_THRESHOLD",
+    "NEWS_SENTIMENT_SCORE",
+    "NewsFeatureProvider",
+]

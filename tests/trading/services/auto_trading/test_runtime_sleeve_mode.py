@@ -14,7 +14,7 @@ from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
-from tests.trading.services.auto_trading.factories import FakeBroker
+from tests.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
 
@@ -61,7 +61,7 @@ def _patch_runtime_sleeve_execution(
     monkeypatch.setattr(
         runtime_service,
         "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
+        lambda _conn, _account_name, account_row, _now_iso, **_kwargs: account_row,
     )
 
 
@@ -103,6 +103,7 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=Mock(),
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -176,6 +177,7 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=Mock(),
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -216,6 +218,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -306,6 +309,7 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -356,6 +360,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -416,6 +421,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -473,6 +479,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -541,6 +548,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -582,6 +590,7 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -630,6 +639,7 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -683,6 +693,7 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1

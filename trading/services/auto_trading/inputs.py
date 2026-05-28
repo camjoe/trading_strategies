@@ -7,13 +7,12 @@ from collections.abc import Callable
 
 from common.tickers import load_tickers_from_file
 from trading.domain.broker_connection import BrokerConnection
+from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
-from trading.services.pricing import fetch_latest_prices
 from trading.services.auto_trading.market import build_iv_rank_proxy
+from trading.services.pricing import fetch_latest_prices
 
-# Default execution mode keeps existing account-scoped behavior.
 EXECUTION_MODE_ACCOUNT = "account"
-# New sleeve mode enables sleeve intent generation.
 EXECUTION_MODE_SLEEVE = "sleeve"
 SUPPORTED_EXECUTION_MODES = {
     EXECUTION_MODE_ACCOUNT,
@@ -56,10 +55,15 @@ def resolve_market_inputs(tickers_file: str) -> tuple[list[str], dict[str, float
     return universe, prices, iv_rank_proxy
 
 
-def _run_account_trade_loop(*, broker_factory: Callable[[AccountRecord], BrokerConnection], **kwargs) -> int:
+def _run_account_trade_loop(
+    *,
+    broker_factory: Callable[[AccountRecord], BrokerConnection],
+    feature_fetchers: FeatureFetcherSet,
+    **kwargs,
+) -> int:
     from trading.services.auto_trading.runtime import run_for_account
 
-    return run_for_account(**kwargs, broker_factory=broker_factory)
+    return run_for_account(**kwargs, broker_factory=broker_factory, feature_fetchers=feature_fetchers)
 
 
 def run_accounts(
@@ -74,12 +78,14 @@ def run_accounts(
     fee: float,
     execution_mode: str = EXECUTION_MODE_ACCOUNT,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
+    feature_fetchers: FeatureFetcherSet,
 ) -> list[tuple[str, int]]:
     resolved_execution_mode = validate_execution_mode(execution_mode)
     results: list[tuple[str, int]] = []
     for account_name in account_names:
         executed = _run_account_trade_loop(
             broker_factory=broker_factory,
+            feature_fetchers=feature_fetchers,
             conn=conn,
             account_name=account_name,
             universe=universe,

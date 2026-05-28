@@ -7,6 +7,7 @@ from tests.trading.services.auto_trading.factories import (
     FakeBroker,
     RuntimeScenario,
     make_account_state,
+    make_feature_fetchers,
     make_auto_trading_account,
 )
 
@@ -38,6 +39,7 @@ def test_multi_trade_run_creates_one_broker_and_disconnects_once(monkeypatch) ->
         max_trades=3,
         fee=0.0,
         broker_factory=broker_factory,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 3
@@ -69,6 +71,7 @@ def test_broker_disconnects_once_even_when_no_trades_execute(monkeypatch) -> Non
         max_trades=2,
         fee=0.0,
         broker_factory=broker_factory,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0

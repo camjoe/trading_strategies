@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from trading.features.social_feature_provider import (
+from features.social_feature_provider import (
     SOCIAL_MENTION_COUNT,
     SOCIAL_REDDIT_SENTIMENT,
     SOCIAL_TREND_SCORE,
@@ -98,7 +98,7 @@ class TestSocialFeatureProviderGoogleTrends:
 
     def test_short_series_returns_none(self):
         """Series shorter than _GTRENDS_MIN_OBSERVATIONS → None (line 136)."""
-        from trading.features.social_feature_provider import _GTRENDS_MIN_OBSERVATIONS
+        from features.social_feature_provider import _GTRENDS_MIN_OBSERVATIONS
 
         provider = SocialFeatureProvider()
         mock_pt = MagicMock()

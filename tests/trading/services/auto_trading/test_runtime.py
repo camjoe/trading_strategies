@@ -13,6 +13,7 @@ from tests.trading.services.auto_trading.factories import (
     MARKET_OPEN_TIME_ISO,
     RuntimeScenario,
     make_account_state,
+    make_feature_fetchers,
     make_auto_trading_account,
 )
 
@@ -37,6 +38,7 @@ def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
         max_trades=1,
         fee=0.0,
         broker_factory=broker_factory,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -63,6 +65,7 @@ def test_run_for_account_executes_buy_and_records_trade(monkeypatch) -> None:
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -102,6 +105,7 @@ def test_run_for_account_forced_sell_passes_risk_selection(monkeypatch) -> None:
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -131,6 +135,7 @@ def test_run_for_account_skips_iteration_when_trade_not_preparable(monkeypatch) 
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -172,6 +177,7 @@ def test_run_for_account_stops_cleanly_when_global_runtime_day_cap_is_hit(monkey
         max_trades=2,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -203,6 +209,7 @@ def test_run_for_account_breaks_only_on_runtime_throttle_exception(monkeypatch) 
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -231,6 +238,7 @@ def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> No
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=broker_factory,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 3
@@ -262,6 +270,7 @@ def test_run_for_account_uses_account_specific_universe_for_account_mode(monkeyp
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     runtime_service.resolve_named_universes.assert_called_once_with(["tech", "growth"])
@@ -291,6 +300,7 @@ def test_run_for_account_falls_back_to_global_universe_when_account_universe_is_
         max_trades=1,
         fee=0.0,
         broker_factory=lambda _: scenario.broker,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     args = impl.call_args.args
@@ -325,7 +335,16 @@ def test_runtime_wrapper_delegates(monkeypatch) -> None:
     monkeypatch.setattr(runtime_service, "compute_current_exposure_snapshot", computed_snapshot)
 
     account = make_auto_trading_account(id=42)
-    assert runtime_service._rotate_runtime_account(object(), "acct", account, "now") == "rotated"
+    assert (
+        runtime_service._rotate_runtime_account(
+            object(),
+            "acct",
+            account,
+            "now",
+            feature_fetchers=make_feature_fetchers(),
+        )
+        == "rotated"
+    )
     assert runtime_service._refresh_runtime_account_state(object(), account) == "state"
     assert (
         runtime_service._resolve_reconciliation_exec_id(

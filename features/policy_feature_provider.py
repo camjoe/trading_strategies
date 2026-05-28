@@ -1,22 +1,4 @@
-"""Policy regime feature provider — ETF market proxies.
-
-Uses publicly available ETF price data (via yfinance) to derive a
-market-based policy/macro regime score.  No API key is required.
-
-Proxy ETFs used:
-    TLT  — 20+ yr US Treasuries (risk-off / flight-to-safety indicator)
-    GLD  — Gold (flight-to-safety / inflation hedge)
-    XLU  — Utilities sector (defensive equity rotation signal)
-    UUP  — USD Index ETF (USD strength = risk-off for global markets)
-    SPY  — S&P 500 (equity risk benchmark)
-
-Features emitted (all float, available in a successful bundle):
-    policy_risk_on_score   — 0–1 composite; higher = more risk-on environment.
-                             Derived from SPY trailing return minus mean
-                             defensive ETF return, sigmoid-normalised.
-    policy_defensive_tilt  — Signed float; positive = defensives outperforming
-                             equities over the lookback window.
-"""
+"""Policy regime feature provider — ETF market proxies."""
 
 from __future__ import annotations
 
@@ -27,29 +9,21 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import yfinance as yf
 
-from trading.features.base import ExternalFeatureBundle, ExternalFeatureProvider
+from trading.domain.feature_provider import (
+    ExternalFeatureBundle,
+    ExternalFeatureProvider,
+    POLICY_DEFENSIVE_TILT,
+    POLICY_MAX_DEFENSIVE_TILT,
+    POLICY_RISK_OFF_SELL_THRESHOLD,
+    POLICY_RISK_ON_BUY_THRESHOLD,
+    POLICY_RISK_ON_SCORE,
+)
 
 _LOG = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Feature name constants — import these in signal functions and
-# StrategySpec.required_features to avoid fragile string literals.
-# ---------------------------------------------------------------------------
-
-POLICY_RISK_ON_SCORE = "policy_risk_on_score"
-POLICY_DEFENSIVE_TILT = "policy_defensive_tilt"
-
-# ---------------------------------------------------------------------------
-# ETF universe
-# ---------------------------------------------------------------------------
 
 _DEFENSIVE_ETFS: tuple[str, ...] = ("TLT", "GLD", "XLU", "UUP")
 _EQUITY_BENCHMARK: str = "SPY"
 _ALL_ETFS: tuple[str, ...] = _DEFENSIVE_ETFS + (_EQUITY_BENCHMARK,)
-
-# ---------------------------------------------------------------------------
-# Lookback / data-quality thresholds
-# ---------------------------------------------------------------------------
 
 # Calendar days fetched from yfinance (~21 trading days within this window).
 POLICY_LOOKBACK_CALENDAR_DAYS = 45
@@ -60,33 +34,16 @@ POLICY_MIN_OBSERVATIONS = 15
 # Sigmoid scale factor: maps ±10 % equity/defensive spread to ≈ 0.73 / 0.27.
 _SIGMOID_SCALE = 10.0
 
-# ---------------------------------------------------------------------------
-# Signal thresholds — imported by strategy_signals._policy_regime_signal
-# ---------------------------------------------------------------------------
-
-POLICY_RISK_ON_BUY_THRESHOLD = 0.55
-POLICY_RISK_OFF_SELL_THRESHOLD = 0.45
-POLICY_MAX_DEFENSIVE_TILT = 0.02
-
 
 class PolicyFeatureProvider(ExternalFeatureProvider):
     """Derive policy/macro regime features from ETF price relatives.
 
     The provider is ticker-agnostic: the same market-wide regime features are
-    returned regardless of which ticker is queried.  The ``ticker`` parameter
+    returned regardless of which ticker is queried. The ``ticker`` parameter
     is accepted to satisfy the
-    :class:`~trading.features.base.ExternalFeatureProvider` interface.
-
-    Example usage::
-
-        provider = PolicyFeatureProvider()
-        bundle = provider.get_features("AAPL")
-        if not bundle.available:
-            return "hold"
-        risk_on = bundle.get(POLICY_RISK_ON_SCORE, 0.5)
+    :class:`~trading.domain.feature_provider.ExternalFeatureProvider` interface.
     """
 
-    # All tickers share one cache entry since this is a market-wide signal.
     _REGIME_CACHE_KEY = "__regime__"
 
     @property
@@ -110,13 +67,12 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
         if spy_ret is None:
             return ExternalFeatureBundle.unavailable(source=self.source_label)
 
-        defensive_rets = [returns[e] for e in _DEFENSIVE_ETFS if e in returns]
+        defensive_rets = [returns[etf] for etf in _DEFENSIVE_ETFS if etf in returns]
         if not defensive_rets:
             return ExternalFeatureBundle.unavailable(source=self.source_label)
 
         mean_defensive = sum(defensive_rets) / len(defensive_rets)
         raw_spread = float(spy_ret) - mean_defensive
-
         risk_on_score = 1.0 / (1.0 + math.exp(-_SIGMOID_SCALE * raw_spread))
 
         return ExternalFeatureBundle(
@@ -129,11 +85,7 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
         )
 
     def _fetch_etf_returns(self) -> dict[str, float] | None:
-        """Download trailing returns for all proxy ETFs.
-
-        Returns a ``{ticker: trailing_return_fraction}`` dict, or ``None``
-        if the download fails or there is insufficient data.
-        """
+        """Download trailing returns for all proxy ETFs."""
         end = datetime.now(timezone.utc)
         start = end - timedelta(days=POLICY_LOOKBACK_CALENDAR_DAYS)
 
@@ -152,7 +104,6 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
         if raw.empty:
             return None
 
-        # yfinance returns a MultiIndex when multiple tickers are requested.
         close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw.get("Close")
         if close is None or close.empty or len(close) < POLICY_MIN_OBSERVATIONS:
             return None
@@ -171,3 +122,13 @@ class PolicyFeatureProvider(ExternalFeatureProvider):
             results[etf] = (last - first) / first
 
         return results or None
+
+
+__all__ = [
+    "POLICY_DEFENSIVE_TILT",
+    "POLICY_MAX_DEFENSIVE_TILT",
+    "POLICY_RISK_OFF_SELL_THRESHOLD",
+    "POLICY_RISK_ON_BUY_THRESHOLD",
+    "POLICY_RISK_ON_SCORE",
+    "PolicyFeatureProvider",
+]

@@ -20,22 +20,18 @@ from trading.domain.rotation import (
     resolve_rotation_mode,
     resolve_rotation_regime_strategy,
 )
-from trading.features.base import ExternalFeatureBundle
-from trading.features.news_feature_provider import (
+from trading.domain.feature_provider import (
+    ExternalFeatureBundle,
     NEWS_BUY_SENTIMENT_THRESHOLD,
     NEWS_HEADLINE_COUNT,
     NEWS_MIN_HEADLINES_REQUIRED,
     NEWS_SELL_SENTIMENT_THRESHOLD,
     NEWS_SENTIMENT_SCORE,
-)
-from trading.features.policy_feature_provider import (
+    POLICY_DEFENSIVE_TILT,
     POLICY_MAX_DEFENSIVE_TILT,
     POLICY_RISK_OFF_SELL_THRESHOLD,
     POLICY_RISK_ON_BUY_THRESHOLD,
-    POLICY_DEFENSIVE_TILT,
     POLICY_RISK_ON_SCORE,
-)
-from trading.features.social_feature_provider import (
     SOCIAL_MENTION_COUNT,
     SOCIAL_MIN_REDDIT_SENTIMENT,
     SOCIAL_REDDIT_SENTIMENT,

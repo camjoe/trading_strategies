@@ -1,10 +1,15 @@
 from __future__ import annotations
+
 import argparse
 import random
 
 from brokers.factory import get_broker_for_account
 from common.paths.repo_paths import get_repo_root
+from features.news_feature_provider import NewsFeatureProvider
+from features.policy_feature_provider import PolicyFeatureProvider
+from features.social_feature_provider import SocialFeatureProvider
 from trading.database.db_init import ensure_db
+from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
     EXECUTION_MODE_ACCOUNT,
     EXECUTION_MODE_SLEEVE,
@@ -56,6 +61,14 @@ def main() -> None:
 
     accounts = resolve_account_names(args.accounts)
     universe, prices, iv_rank_proxy = resolve_market_inputs(args.tickers_file)
+    policy_provider = PolicyFeatureProvider()
+    news_provider = NewsFeatureProvider()
+    social_provider = SocialFeatureProvider()
+    feature_fetchers = FeatureFetcherSet(
+        fetch_policy=policy_provider.get_features,
+        fetch_news=news_provider.get_features,
+        fetch_social=social_provider.get_features,
+    )
 
     conn = ensure_db()
     try:
@@ -70,6 +83,7 @@ def main() -> None:
             fee=args.fee,
             execution_mode=execution_mode,
             broker_factory=get_broker_for_account,
+            feature_fetchers=feature_fetchers,
         ):
             print(f"{account_name}: executed {executed} trades")
     finally:

@@ -14,6 +14,7 @@ from collections.abc import Callable
 from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.domain.broker_connection import BrokerConnection
+from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.market_data.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
@@ -102,12 +103,15 @@ def _rotate_runtime_account(
     account_name: str,
     account: AccountRecord,
     now_iso: str,
+    *,
+    feature_fetchers: FeatureFetcherSet,
 ) -> AccountRecord:
     return rotate_runtime_account(
         conn,
         account_name,
         account,
         now_iso,
+        feature_fetchers=feature_fetchers,
         is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=update_account_rotation_state,
         get_account_fn=get_account,
@@ -358,6 +362,7 @@ def _run_sleeve_mode_for_account(
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
+    feature_fetchers: FeatureFetcherSet,
 ) -> int:
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
@@ -618,6 +623,7 @@ def run_for_account(
     execution_mode: str = EXECUTION_MODE_ACCOUNT,
     *,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
+    feature_fetchers: FeatureFetcherSet,
 ) -> int:
     now_iso = utc_now_iso()
     if not _is_runtime_submission_window_open(now_iso):
@@ -625,7 +631,13 @@ def run_for_account(
     resolved_execution_mode = validate_execution_mode(execution_mode)
     if resolved_execution_mode == EXECUTION_MODE_SLEEVE:
         account = get_account(conn, account_name)
-        rotated_account = _rotate_runtime_account(conn, account_name, account, now_iso)
+        rotated_account = _rotate_runtime_account(
+            conn,
+            account_name,
+            account,
+            now_iso,
+            feature_fetchers=feature_fetchers,
+        )
         return _run_sleeve_mode_for_account(
             conn,
             account_name=account_name,
@@ -637,6 +649,7 @@ def run_for_account(
             max_trades=max_trades,
             fee=fee,
             broker_factory=broker_factory,
+            feature_fetchers=feature_fetchers,
         )
     # Open one broker connection for the entire account trade loop so that
     # keepalive (e.g. IBKR Web API /tickle) remains effective across all
@@ -658,7 +671,13 @@ def run_for_account(
             fee,
             get_account_fn=get_account,
             utc_now_iso_fn=utc_now_iso,
-            rotate_account_if_due_fn=_rotate_runtime_account,
+            rotate_account_if_due_fn=lambda c, n, a, i: _rotate_runtime_account(
+                c,
+                n,
+                a,
+                i,
+                feature_fetchers=feature_fetchers,
+            ),
             record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
                 *args, **kwargs, _injected_broker=broker
             ),

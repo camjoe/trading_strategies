@@ -14,7 +14,7 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 - `trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
 - `trading/services/`: orchestration/composition workflows
 - `trading/repositories/`: SQL persistence adapters
-- `trading/domain/`: side-effect-free policy/math/state-transition logic
+- `trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
 - `trading/database/`: DB infrastructure/config/coercion
 - `trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
 - `trading/config/`: static file-backed configuration assets
@@ -23,7 +23,7 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 
 - `trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
 - `brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`trading/interfaces/`); `trading/` must never import from `brokers/` except at the interface layer
-- `trading/features/`: external-data feature-provider boundary for alternative strategies
+- `features/` (repo root): external-data feature-provider boundary for alternative strategies
 
 ## Placement Rules
 

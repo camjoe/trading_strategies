@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from trading.features.policy_feature_provider import (
+from features.policy_feature_provider import (
     POLICY_DEFENSIVE_TILT,
     POLICY_RISK_ON_SCORE,
     PolicyFeatureProvider,
@@ -59,7 +59,7 @@ class TestPolicyFeatureProviderFetchReturns:
         raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
 
         provider = PolicyFeatureProvider()
-        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+        with patch("features.policy_feature_provider.yf.download", return_value=raw):
             result = provider._fetch_etf_returns()
 
         assert result is not None
@@ -69,7 +69,7 @@ class TestPolicyFeatureProviderFetchReturns:
     def test_returns_none_when_download_raises(self):
         provider = PolicyFeatureProvider()
         with patch(
-            "trading.features.policy_feature_provider.yf.download",
+            "features.policy_feature_provider.yf.download",
             side_effect=RuntimeError("network error"),
         ):
             result = provider._fetch_etf_returns()
@@ -80,14 +80,14 @@ class TestPolicyFeatureProviderFetchReturns:
         raw = _make_raw_download(all_tickers, rows=POLICY_MIN_OBSERVATIONS - 1)
 
         provider = PolicyFeatureProvider()
-        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+        with patch("features.policy_feature_provider.yf.download", return_value=raw):
             result = provider._fetch_etf_returns()
         assert result is None
 
     def test_returns_none_on_empty_download(self):
         provider = PolicyFeatureProvider()
         with patch(
-            "trading.features.policy_feature_provider.yf.download",
+            "features.policy_feature_provider.yf.download",
             return_value=pd.DataFrame(),
         ):
             result = provider._fetch_etf_returns()
@@ -99,7 +99,7 @@ class TestPolicyFeatureProviderFetchReturns:
         partial_tickers = ["TLT", "XLU", "UUP", _EQUITY_BENCHMARK]
         raw = _make_raw_download(partial_tickers, rows=POLICY_MIN_OBSERVATIONS + 2)
         provider = PolicyFeatureProvider()
-        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+        with patch("features.policy_feature_provider.yf.download", return_value=raw):
             result = provider._fetch_etf_returns()
         # GLD is missing; the others should still produce results (no None return).
         assert result is not None
@@ -115,7 +115,7 @@ class TestPolicyFeatureProviderFetchReturns:
         # Replace "GLD" column under Close with all-NaN values (dropna gives length 0).
         raw[("Close", "GLD")] = np.nan
         provider = PolicyFeatureProvider()
-        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+        with patch("features.policy_feature_provider.yf.download", return_value=raw):
             result = provider._fetch_etf_returns()
         assert result is not None
         assert "GLD" not in result
@@ -127,7 +127,7 @@ class TestPolicyFeatureProviderFetchReturns:
         # Set the first row of "GLD" to 0.0.
         raw[("Close", "GLD")] = [0.0] + [100.0] * (POLICY_MIN_OBSERVATIONS + 1)
         provider = PolicyFeatureProvider()
-        with patch("trading.features.policy_feature_provider.yf.download", return_value=raw):
+        with patch("features.policy_feature_provider.yf.download", return_value=raw):
             result = provider._fetch_etf_returns()
         assert result is not None
         assert "GLD" not in result

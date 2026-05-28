@@ -6,6 +6,7 @@ import pytest
 import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
 import trading.services.auto_trading.market as auto_trading_market
+from tests.trading.services.auto_trading.factories import make_feature_fetchers
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -70,6 +71,7 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         fee=0.0,
         execution_mode="sleeve",
         broker_factory=lambda _: None,
+        feature_fetchers=make_feature_fetchers(),
     )
     assert results == [("acct1", 2), ("acct2", 1)]
     assert seen_modes == ["sleeve", "sleeve"]
@@ -110,6 +112,7 @@ def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyP
         fee=0.0,
         execution_mode="account",
         broker_factory=lambda _: None,
+        feature_fetchers=make_feature_fetchers(),
     )
     assert result == 3
     from common.time import parse_utc_iso
