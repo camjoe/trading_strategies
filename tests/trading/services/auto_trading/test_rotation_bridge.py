@@ -183,7 +183,7 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
                     inner_account,
                     inner_as_of,
                     fetch_strategy_backtest_returns_fn=__import__(
-                        "trading.backtesting.services.history_service",
+                        "trading.services.reporting.backtest_returns",
                         fromlist=["fetch_strategy_backtest_returns"],
                     ).fetch_strategy_backtest_returns,
                     fetch_policy_features_fn=None,

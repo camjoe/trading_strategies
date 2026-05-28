@@ -4,7 +4,7 @@ import math
 
 import pandas as pd
 
-from trading.backtesting.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
+from trading.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
 
 
 def _close(values: list[float]) -> pd.Series:

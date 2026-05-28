@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.services.accounts import create_account, get_account
-from trading.backtesting.services.history_service import fetch_strategy_backtest_returns
+from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 
 
 def test_returns_rows_for_selected_strategies_within_date_range(conn, seed_history_run) -> None:

@@ -1,4 +1,4 @@
-"""Report service: full backtest report assembly and re-export facade.
+"""Report service: full backtest report assembly.
 
 This service module owns:
 
@@ -7,12 +7,6 @@ This service module owns:
   calculation.
 - Thin wrappers around ``report_repository`` reads for latest-run and
   recent-run lookups.
-
-Re-exports:
-
-- ``resolve_signal`` from ``trading.backtesting.domain.strategy_signals`` —
-  callers that need signal dispatch should import from here rather than the
-  domain module directly, keeping the service-layer boundary intact.
 """
 
 from __future__ import annotations
@@ -20,7 +14,6 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from trading.backtesting.domain.strategy_signals import resolve_signal  # noqa: F401
 from trading.backtesting.services.backtest_data_service import fetch_benchmark_close
 from trading.backtesting.domain.metrics import (
     benchmark_return_pct,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.backtesting.repositories.history_repository import fetch_strategy_backtest_rows
+from trading.repositories.backtest_history import fetch_strategy_backtest_rows
 
 
 def test_history_repository_fetches_rows_with_filters(bt_repo_account, seed_bt_run, conn) -> None:
