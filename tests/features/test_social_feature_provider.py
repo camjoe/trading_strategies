@@ -13,7 +13,7 @@ from features.social_feature_provider import (
     SOCIAL_TREND_SCORE,
     SocialFeatureProvider,
 )
-from trading.backtesting.domain.strategy_signals import (
+from trading.domain.strategy_signals import (
     STRATEGY_REGISTRY,
     _social_trend_rotation_signal,
     resolve_strategy,

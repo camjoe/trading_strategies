@@ -46,7 +46,7 @@ def _serialize_trade_universes(names: list[str]) -> str:
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
-    from trading.backtesting.domain.strategy_signals import validate_strategy_name
+    from trading.domain.strategy_signals import validate_strategy_name
 
     normalized_strategy = strategy.strip()
     if not normalized_strategy:
@@ -69,7 +69,7 @@ def create_account(
     benchmark_ticker: str,
     config: AccountConfig | None = None,
 ) -> None:
-    from trading.backtesting.domain.strategy_signals import validate_strategy_name
+    from trading.domain.strategy_signals import validate_strategy_name
 
     cfg = config or AccountConfig()
     if initial_cash <= 0:

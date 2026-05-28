@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from trading.backtesting.domain import strategy_signals
+from trading.domain import strategy_signals
 
 
 def _series_range(start: int, stop: int) -> pd.Series:

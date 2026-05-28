@@ -37,6 +37,7 @@ from trading.services.reporting.portfolio import (
     settlement_cash,
     settlement_corrected_equity,
 )
+from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.services.pricing import benchmark_stats, fetch_latest_prices
 
 __all__ = [
@@ -63,4 +64,5 @@ __all__ = [
     "show_snapshots",
     "snapshot_account",
     "strategy_return_pct",
+    "fetch_strategy_backtest_returns",
 ]

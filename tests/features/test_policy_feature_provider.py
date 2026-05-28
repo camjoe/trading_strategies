@@ -15,7 +15,7 @@ from features.policy_feature_provider import (
     _ALL_ETFS,
     POLICY_MIN_OBSERVATIONS,
 )
-from trading.backtesting.domain.strategy_signals import (
+from trading.domain.strategy_signals import (
     STRATEGY_REGISTRY,
     resolve_strategy,
     _policy_regime_signal,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from common.coercion import coerce_bool, coerce_float, coerce_int, coerce_str
-from trading.backtesting.domain.strategy_signals import validate_strategy_name
+from trading.domain.strategy_signals import validate_strategy_name
 from trading.domain.rotation import (
     OPTIMALITY_MODES,
     ROTATION_MODES,
