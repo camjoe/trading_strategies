@@ -57,7 +57,7 @@ class StrategySpec:
     # Used by policy layers to set sell bias and other style-dependent behavior
     # without resorting to fragile string matching on strategy names.
     # "alternative" = external-data-driven strategies (news, social, policy);
-    # see trading/features/ for the provider infrastructure.
+    # see repo-root features/ for the provider infrastructure.
     strategy_style: str = "neutral"
 
 
@@ -419,7 +419,7 @@ def _policy_regime_signal(
 
     Buys when price momentum aligns with a risk-on macro environment (SPY
     outperforming defensive ETFs).  Falls back to ``"hold"`` when features
-    from :class:`~trading.features.policy_feature_provider.PolicyFeatureProvider`
+    from :class:`~features.policy_feature_provider.PolicyFeatureProvider`
     are unavailable.
 
     Required features (from ``feature_history``):
@@ -467,7 +467,7 @@ def _news_sentiment_signal(
     Buys when price is in a short-term uptrend and recent news sentiment
     is bullish.  Sells when sentiment turns negative and price is below
     the short SMA.  Falls back to ``"hold"`` when features from
-    :class:`~trading.features.news_feature_provider.NewsFeatureProvider`
+    :class:`~features.news_feature_provider.NewsFeatureProvider`
     are unavailable or headline volume is too low.
 
     Required features (from ``feature_history``):
@@ -515,7 +515,7 @@ def _social_trend_rotation_signal(
     alongside positive Reddit sentiment and an upward price trend.  Sells
     when social interest is fading and price weakens.  Falls back to
     ``"hold"`` when features from
-    :class:`~trading.features.social_feature_provider.SocialFeatureProvider`
+    :class:`~features.social_feature_provider.SocialFeatureProvider`
     are unavailable.
 
     Required features (from ``feature_history``):

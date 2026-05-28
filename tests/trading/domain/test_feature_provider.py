@@ -1,14 +1,11 @@
-"""Tests for trading.features.base — ExternalFeatureBundle and ExternalFeatureProvider."""
+"""Tests for trading.domain.feature_provider contracts."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
 
-from trading.features.base import (
-    ExternalFeatureBundle,
-    ExternalFeatureProvider,
-)
+from trading.domain.feature_provider import ExternalFeatureBundle, ExternalFeatureProvider
 
 
 # ---------------------------------------------------------------------------

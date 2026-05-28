@@ -10,7 +10,8 @@ from __future__ import annotations
 import uuid
 
 from common.time import utc_now_iso
-from trading.brokers.base import BrokerConnection, BrokerOrder, OrderFill, OrderStatus
+from trading.domain.broker_connection import BrokerConnection
+from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 
 
 class PaperBrokerAdapter(BrokerConnection):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from unittest.mock import Mock
 
 from trading.repositories.snapshots import insert_snapshot_row
 from trading.repositories.sleeves import (
@@ -13,7 +14,7 @@ from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
-from tests.trading.services.auto_trading.factories import FakeBroker
+from tests.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
 
@@ -54,17 +55,14 @@ def _patch_runtime_sleeve_execution(
     monkeypatch,
     *,
     now_iso: str = DEFAULT_RUNTIME_NOW_ISO,
-    broker=None,
 ) -> None:
     monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
     monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: now_iso)
     monkeypatch.setattr(
         runtime_service,
         "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso: account_row,
+        lambda _conn, _account_name, account_row, _now_iso, **_kwargs: account_row,
     )
-    if broker is not None:
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", lambda _account: broker)
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +102,8 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=Mock(),
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -176,6 +176,8 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=Mock(),
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -202,7 +204,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     sleeve_id = sleeve_env.sleeve_id
     broker = FakeBroker()
 
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -215,6 +217,8 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -291,7 +295,7 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
     sleeve_id = sleeve_env.sleeve_id
     broker = FakeBroker()
 
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id, qty=5)
 
     executed = run_for_account(
@@ -304,6 +308,8 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -340,7 +346,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     sleeve_id = sleeve_env.sleeve_id
 
     broker = FakeBroker()
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -353,6 +359,8 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -386,7 +394,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     sleeve_id = sleeve_env.sleeve_id
     broker = FakeBroker()
 
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     monkeypatch.setattr(
         runtime_service,
         "reconcile_sleeves_vs_latest_snapshot",
@@ -412,6 +420,8 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -455,7 +465,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
             self.disconnect_calls += 1
 
     broker = _FailingBroker()
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -468,6 +478,8 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -522,7 +534,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
     )
 
     broker = FakeBroker()
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -535,6 +547,8 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -557,7 +571,7 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
     sleeve_id = sleeve_env.sleeve_id
 
     broker = FakeBroker()
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
     monkeypatch.setattr(
         runtime_service,
@@ -575,6 +589,8 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
@@ -609,7 +625,7 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
             return None
 
     broker = _NoBrokerIdBroker()
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -622,6 +638,8 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
@@ -661,7 +679,7 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
             return None
 
     broker = _BrokerWithFill()
-    _patch_runtime_sleeve_execution(monkeypatch, broker=broker)
+    _patch_runtime_sleeve_execution(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -674,6 +692,8 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
         max_trades=1,
         fee=0.0,
         execution_mode="sleeve",
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1

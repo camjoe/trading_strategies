@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from typing import Callable, Mapping, Sequence
 from unittest.mock import Mock
 
-from trading.features.base import ExternalFeatureBundle
+import trading.services.auto_trading.execution as execution_service
+from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.account_state import AccountState
 from trading.models.broker_order import OrderStatus
-import trading.services.auto_trading.execution as execution_service
 from tests.support.account_records import make_account_record
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"
@@ -50,6 +50,19 @@ def make_feature_fetcher(
         return make_feature_bundle(available=available, **dict(bundles_by_ticker.get(ticker, {})))
 
     return _fetch
+
+
+def make_feature_fetchers(
+    *,
+    fetch_policy: Callable[[str], ExternalFeatureBundle] | None = None,
+    fetch_news: Callable[[str], ExternalFeatureBundle] | None = None,
+    fetch_social: Callable[[str], ExternalFeatureBundle] | None = None,
+) -> FeatureFetcherSet:
+    return FeatureFetcherSet(
+        fetch_policy=fetch_policy or Mock(return_value=make_feature_bundle()),
+        fetch_news=fetch_news or Mock(return_value=make_feature_bundle()),
+        fetch_social=fetch_social or Mock(return_value=make_feature_bundle()),
+    )
 
 
 class FakeBroker:
@@ -143,7 +156,6 @@ class RuntimeScenario:
             Mock(return_value=self.forced_sell_ticker),
         )
         monkeypatch.setattr(runtime_module, "_record_runtime_trade", self.trade_recorder)
-        monkeypatch.setattr(runtime_module, "get_broker_for_account", Mock(return_value=self.broker))
 
 
 __all__ = [
@@ -155,4 +167,5 @@ __all__ = [
     "make_auto_trading_account",
     "make_feature_bundle",
     "make_feature_fetcher",
+    "make_feature_fetchers",
 ]

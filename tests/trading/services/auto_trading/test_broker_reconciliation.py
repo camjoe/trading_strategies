@@ -1,7 +1,7 @@
 import sqlite3
 from unittest.mock import Mock
 
-from trading.brokers.paper_adapter import PaperBrokerAdapter
+from brokers.paper_adapter import PaperBrokerAdapter
 from trading.database.db_init import init_schema
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 import trading.services.auto_trading.runtime as runtime_service
@@ -80,9 +80,10 @@ class TestReconcileOpenBrokerOrders:
         conn = _make_db()
         account = make_broker_account(broker_type="paper")
         mock_factory = Mock(return_value=PaperBrokerAdapter())
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", mock_factory)
 
-        result = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
+        result = runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=mock_factory
+        )
 
         assert result == 0
         mock_factory.assert_called_once_with(account)
@@ -122,10 +123,11 @@ class TestReconcileOpenBrokerOrders:
                 pass
 
         recorded: list[dict[str, object]] = []
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=_FakeBroker()))
         monkeypatch.setattr(runtime_service, "record_trade", lambda _conn, **kw: recorded.append(kw))
 
-        count = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=1.0)
+        count = runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=1.0, broker_factory=Mock(return_value=_FakeBroker())
+        )
 
         assert count == 1
         assert len(recorded) == 1
@@ -166,10 +168,13 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=_FakeBroker()))
-
-        runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
-        runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
+        fake_broker = _FakeBroker()
+        runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+        )
+        runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+        )
 
         fills_count = conn.execute("SELECT COUNT(*) FROM order_fills WHERE exec_id = 'exec-dup'").fetchone()[0]
         assert fills_count == 1
@@ -189,9 +194,10 @@ class TestReconcileOpenBrokerOrders:
                 _FakeBroker._disconnect_calls += 1
 
         fake_broker = _FakeBroker()
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=fake_broker))
 
-        result = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
+        result = runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+        )
 
         assert result == 0
         assert _FakeBroker._disconnect_calls == 1
@@ -240,10 +246,13 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=_FakeBroker()))
-
-        first = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
-        second = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
+        fake_broker = _FakeBroker()
+        first = runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+        )
+        second = runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=fake_broker)
+        )
 
         assert first == 0
         assert second == 0
@@ -315,9 +324,9 @@ class TestReconcileOpenBrokerOrders:
             def disconnect(self):
                 pass
 
-        monkeypatch.setattr(runtime_service, "get_broker_for_account", Mock(return_value=_FakeBroker()))
-
-        count = runtime_service.reconcile_open_broker_orders(conn, "acct-sample", account, fee=0.0)
+        count = runtime_service.reconcile_open_broker_orders(
+            conn, "acct-sample", account, fee=0.0, broker_factory=Mock(return_value=_FakeBroker())
+        )
         assert count == 0
 
         statuses = conn.execute(

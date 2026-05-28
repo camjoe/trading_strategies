@@ -17,7 +17,7 @@ Two concrete clients are provided:
                     Documented stub; implement when you prefer zero third-party dependencies.
 
 The factory decides which client to inject.  To switch backends, change
-``IB_CLIENT_BACKEND`` in ``trading/brokers/legacy/factory.py`` — no other code needs to change.
+``IB_CLIENT_BACKEND`` in ``brokers/legacy/factory.py`` — no other code needs to change.
 
 Protocol contract
 -----------------

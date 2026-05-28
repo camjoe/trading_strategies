@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from trading.domain.feature_provider import FeatureFetcherSet
 from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
@@ -10,50 +11,7 @@ from tests.trading.services.auto_trading.factories import (
     RuntimeScenario,
     make_account_state,
     make_auto_trading_account,
-    make_feature_bundle,
 )
-
-
-@pytest.mark.parametrize(
-    ("provider_class_name", "provider_attr", "fetcher_name", "source"),
-    [
-        ("PolicyFeatureProvider", "_policy_rotation_provider", "fetch_policy_rotation_bundle", "etf-proxies"),
-        ("NewsFeatureProvider", "_news_rotation_provider", "fetch_news_rotation_bundle", "rss+vader"),
-        ("SocialFeatureProvider", "_social_rotation_provider", "fetch_social_rotation_bundle", "reddit+gtrends"),
-    ],
-)
-def test_rotation_feature_bundle_helpers_cache_provider_and_fallback(
-    monkeypatch: pytest.MonkeyPatch,
-    provider_class_name: str,
-    provider_attr: str,
-    fetcher_name: str,
-    source: str,
-) -> None:
-    created: list[object] = []
-
-    class _FakeProvider:
-        def __init__(self) -> None:
-            created.append(self)
-            self.calls = 0
-
-        def get_features(self, ticker: str):
-            self.calls += 1
-            if self.calls == 1:
-                return make_feature_bundle(signal=float(len(ticker)))
-            raise RuntimeError("provider unavailable")
-
-    monkeypatch.setattr(rotation_runtime_service, provider_class_name, _FakeProvider)
-    monkeypatch.setattr(rotation_runtime_service, provider_attr, None)
-    fetcher = getattr(rotation_runtime_service, fetcher_name)
-
-    first = fetcher("AAPL")
-    second = fetcher("AAPL")
-
-    assert len(created) == 1
-    assert first.available is True
-    assert first.get("signal") == 4.0
-    assert second.available is False
-    assert second.source == source
 
 
 def test_runtime_rotation_passthrough_helpers_delegate(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,6 +42,7 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
     calls: dict[str, object] = {}
     fetch_backtests = Mock(return_value=[])
     fetch_closed_episodes = Mock(return_value=[])
+    feature_fetchers = FeatureFetcherSet(fetch_policy=Mock(), fetch_news=Mock(), fetch_social=Mock())
 
     def _fake_select(conn, selected_account, as_of_iso, **kwargs):
         calls.update(
@@ -102,6 +61,7 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
         conn=object(),
         account=account,
         as_of_iso="2026-03-21T00:00:00Z",
+        feature_fetchers=feature_fetchers,
         fetch_strategy_backtest_returns_fn=fetch_backtests,
         fetch_closed_rotation_episodes_fn=fetch_closed_episodes,
     )
@@ -110,9 +70,9 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
     assert calls["account"] == account
     assert calls["fetch_strategy_backtest_returns_fn"] is fetch_backtests
     assert calls["fetch_closed_rotation_episodes_fn"] is fetch_closed_episodes
-    assert calls["fetch_policy_features_fn"] is rotation_runtime_service.fetch_policy_rotation_bundle
-    assert calls["fetch_news_features_fn"] is rotation_runtime_service.fetch_news_rotation_bundle
-    assert calls["fetch_social_features_fn"] is rotation_runtime_service.fetch_social_rotation_bundle
+    assert calls["fetch_policy_features_fn"] is feature_fetchers.fetch_policy
+    assert calls["fetch_news_features_fn"] is feature_fetchers.fetch_news
+    assert calls["fetch_social_features_fn"] is feature_fetchers.fetch_social
     assert (
         calls["fetch_rotation_overlay_tickers_fn"] is rotation_runtime_service.fetch_runtime_rotation_overlay_tickers
     )
@@ -207,6 +167,7 @@ def test_rotate_runtime_account_syncs_before_and_after_rotation(monkeypatch: pyt
         account_name="acct_runtime",
         account=account,
         now_iso="2026-03-23T00:00:00Z",
+        feature_fetchers=FeatureFetcherSet(fetch_policy=Mock(), fetch_news=Mock(), fetch_social=Mock()),
         is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=update_rotation_state,
         get_account_fn=get_account,
@@ -268,6 +229,8 @@ def test_run_for_account_uses_rotated_active_strategy(monkeypatch) -> None:
         min_trades=1,
         max_trades=1,
         fee=0.0,
+        broker_factory=Mock(return_value=scenario.broker),
+        feature_fetchers=FeatureFetcherSet(fetch_policy=Mock()),
     )
 
     assert executed == 1

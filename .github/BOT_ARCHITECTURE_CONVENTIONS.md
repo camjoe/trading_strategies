@@ -19,7 +19,8 @@ Top-level package shape is intentionally **hybrid**:
 
 1. The layered backbone above applies to main runtime behavior.
 2. Selected bounded contexts remain top-level when their ownership is distinct
-   (`trading/backtesting`, `trading/brokers`, `trading/features`).
+   (`trading/backtesting`); broker adapters live at the repo-root `brokers/` package and
+   external feature providers live at the repo-root `features/` package.
 3. See `docs/architecture/trading-package-map.md` for the concise package map.
 
 ## Allowed and Disallowed Dependencies
@@ -69,28 +70,32 @@ Disallowed:
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
-10. `trading/features/`: external-data feature providers for alternative strategies
-    - Houses `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
+10. `features/` (repo root): external-data feature providers for alternative strategies
+    - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
     - This package is the **only** place that may import external API libraries
       (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
       network calls to third-party services.
+    - Shared contracts and signal keys live in `trading/domain/feature_provider.py`.
+    - `trading/` must never import from `features/`; the interface layer (`trading/interfaces/`)
+      is the sole wiring point.
     - Signal functions in `trading/backtesting/domain/strategy_signals.py` must
-      consume feature bundles from this package — they must never call external
+      consume feature bundles via injected callables — they must never call external
       APIs directly.
-      
-11. `trading/brokers/`: broker connection adapters and factory
+
+11. `brokers/` (repo root): broker connection adapters and factory
    - Keep all broker SDK imports (ib_async, ibapi) inside this package.
-   - Service and domain layers must depend only on `BrokerConnection` from `base.py`.
-   - The factory (`factory.py`) is the sole location for `broker_type` routing logic.
+   - Service and domain layers must depend only on `BrokerConnection` from `trading/domain/broker_connection.py`.
+   - The factory (`brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
+   - `trading/` must never import from `brokers/`; the interface layer (`trading/interfaces/`) is the sole wiring point.
 
 ## External Data Strategies
 
 Rules for all alternative-strategy development (strategy_style = "alternative"):
 
-1. **External calls are isolated in `trading/features/`** — no direct imports of
+1. **External calls are isolated in `features/`** — no direct imports of
    `praw`, `pytrends`, `vaderSentiment`, `newsapi`, or any other third-party
-   external-data library outside of `trading/features/` submodules.
+   external-data library outside of `features/` submodules.
 
 2. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
    must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
@@ -101,8 +106,8 @@ Rules for all alternative-strategy development (strategy_style = "alternative"):
    commit secrets to source.
 
 4. **Use the base class** — all external providers must subclass
-   `trading.features.base.ExternalFeatureProvider`. Do not create ad-hoc
-   fetch functions that bypass the caching/TTL/degradation contract.
+   `trading.domain.feature_provider.ExternalFeatureProvider`. Do not create
+   ad-hoc fetch functions that bypass the caching/TTL/degradation contract.
 
 ## Constants and Magic Numbers
 
