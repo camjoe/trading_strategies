@@ -126,7 +126,7 @@ class TestHelpersAndCommands:
         closed = {"value": False}
         conn = SimpleNamespace(close=lambda: closed.__setitem__("value", True))
         monkeypatch.setattr(admin, "ensure_db", lambda: conn)
-        monkeypatch.setattr(admin, "fetch_account_listing_rows", lambda _conn: [])
+        monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
 
         assert admin._cmd_list_accounts(Namespace()) == 0
         assert closed["value"] is True
@@ -134,18 +134,13 @@ class TestHelpersAndCommands:
 
     def test_cmd_list_accounts_prints_rows(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         conn = SimpleNamespace(close=lambda: None)
-        row = SimpleNamespace(
-            id=7,
-            name="acct1",
-            strategy="paper",
-            initial_cash=123.45,
-            benchmark_ticker="SPY",
-        )
         monkeypatch.setattr(admin, "ensure_db", lambda: conn)
-        monkeypatch.setattr(admin, "fetch_account_listing_rows", lambda _conn: [row])
+        monkeypatch.setattr(admin, "list_accounts", lambda _conn: ["[1] acct1", "[2] acct2"])
 
         assert admin._cmd_list_accounts(Namespace()) == 0
-        assert "[7] acct1 | strategy=paper | initial_cash=123.45 | benchmark=SPY" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "[1] acct1" in out
+        assert "[2] acct2" in out
 
     def test_cmd_delete_accounts_runs_backup_and_delete(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         captured: dict[str, object] = {}
@@ -244,11 +239,10 @@ class TestParserAndMain:
 def test_admin_module_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
     import trading.database.db_init as db_init_module
-    import trading.repositories.accounts as accounts_module
 
     conn = SimpleNamespace(close=lambda: None)
     monkeypatch.setattr(db_init_module, "ensure_db", lambda: conn)
-    monkeypatch.setattr(accounts_module, "fetch_account_listing_rows", lambda _conn: [])
+    monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
     monkeypatch.setattr(sys, "argv", ["admin", "list-accounts"])
 
     with pytest.raises(SystemExit) as excinfo:

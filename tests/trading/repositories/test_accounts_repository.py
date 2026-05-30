@@ -1,21 +1,9 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
-import trading.repositories.accounts as accounts_repository
 from trading.models import AccountInsert
-from trading.repositories.accounts import (
-    fetch_account_by_name,
-    fetch_account_listing_rows,
-    fetch_account_rows,
-    fetch_all_account_names,
-    insert_account,
-    load_all_account_names,
-    update_account_benchmark,
-    update_account_fields,
-)
+from trading.repositories.accounts import AccountRepository
 
 
 def _make_account_insert(**overrides: object) -> AccountInsert:
@@ -56,24 +44,23 @@ def _make_account_insert(**overrides: object) -> AccountInsert:
 
 
 def _insert(conn, name: str, strategy: str = "Trend") -> None:
-    insert_account(conn, _make_account_insert(name=name, descriptive_name=name, strategy=strategy))
+    AccountRepository(conn).insert(_make_account_insert(name=name, descriptive_name=name, strategy=strategy))
 
 
 class TestFetchAccountByName:
     def test_returns_row_for_existing_account(self, conn) -> None:
         _insert(conn, "acct_a")
-        row = fetch_account_by_name(conn, "acct_a")
+        row = AccountRepository(conn).fetch_by_name("acct_a")
         assert row is not None
         assert row["name"] == "acct_a"
 
     def test_returns_none_for_missing_account(self, conn) -> None:
-        assert fetch_account_by_name(conn, "ghost") is None
+        assert AccountRepository(conn).fetch_by_name("ghost") is None
 
 
 class TestInsertAccount:
     def test_round_trip_stores_all_fields(self, conn) -> None:
-        insert_account(
-            conn,
+        AccountRepository(conn).insert(
             _make_account_insert(
                 name="full_acct",
                 account_kind="local",
@@ -107,7 +94,7 @@ class TestInsertAccount:
                 max_loss_pct=15.0,
             ),
         )
-        row = fetch_account_by_name(conn, "full_acct")
+        row = AccountRepository(conn).fetch_by_name("full_acct")
         assert row is not None
         assert row["strategy"] == "Momentum"
         assert row["account_kind"] == "local"
@@ -124,9 +111,10 @@ class TestInsertAccount:
 class TestUpdateAccountBenchmark:
     def test_updates_benchmark_ticker(self, conn) -> None:
         _insert(conn, "bench_acct")
-        row = fetch_account_by_name(conn, "bench_acct")
-        update_account_benchmark(conn, account_id=row["id"], benchmark_ticker="QQQ")
-        updated = fetch_account_by_name(conn, "bench_acct")
+        repo = AccountRepository(conn)
+        row = repo.fetch_by_name("bench_acct")
+        repo.update_benchmark(account_id=row["id"], benchmark_ticker="QQQ")
+        updated = repo.fetch_by_name("bench_acct")
         assert updated["benchmark_ticker"] == "QQQ"
 
 
@@ -135,28 +123,30 @@ class TestFetchAccountListingRows:
         _insert(conn, "z_acct", strategy="A_Strategy")
         _insert(conn, "a_acct", strategy="A_Strategy")
         _insert(conn, "m_acct", strategy="B_Strategy")
-        rows = fetch_account_listing_rows(conn)
+        rows = AccountRepository(conn).fetch_listing()
         names = [r["name"] for r in rows]
         assert names == ["a_acct", "z_acct", "m_acct"]
 
     def test_empty_table_returns_empty_list(self, conn) -> None:
-        assert fetch_account_listing_rows(conn) == []
+        assert AccountRepository(conn).fetch_listing() == []
 
 
 class TestFetchAccountRows:
     def test_returns_all_accounts_ordered_by_name(self, conn) -> None:
         _insert(conn, "keep_me")
-        insert_account(
-            conn, _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local")
+        AccountRepository(conn).insert(
+            _make_account_insert(name="local_acct", descriptive_name="local_acct", account_kind="local")
         )
-        names = [r["name"] for r in fetch_account_rows(conn)]
+        names = [r["name"] for r in AccountRepository(conn).fetch_all()]
         assert names == ["keep_me", "local_acct"]
 
     def test_ordered_by_name(self, conn) -> None:
         _insert(conn, "bravo")
         _insert(conn, "alpha")
-        insert_account(conn, _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="local"))
-        rows = fetch_account_rows(conn)
+        AccountRepository(conn).insert(
+            _make_account_insert(name="skip_me", descriptive_name="skip_me", account_kind="local")
+        )
+        rows = AccountRepository(conn).fetch_all()
         names = [r["name"] for r in rows]
         assert names == ["alpha", "bravo", "skip_me"]
 
@@ -164,26 +154,22 @@ class TestFetchAccountRows:
 class TestUpdateAccountFields:
     def test_updates_single_field(self, conn) -> None:
         _insert(conn, "upd_acct")
-        row = fetch_account_by_name(conn, "upd_acct")
-        update_account_fields(
-            conn,
-            account_id=row["id"],
-            updates=["strategy = ?"],
-            params=["NewStrategy"],
-        )
-        updated = fetch_account_by_name(conn, "upd_acct")
+        repo = AccountRepository(conn)
+        row = repo.fetch_by_name("upd_acct")
+        repo.update(account_id=row["id"], updates=["strategy = ?"], params=["NewStrategy"])
+        updated = repo.fetch_by_name("upd_acct")
         assert updated["strategy"] == "NewStrategy"
 
     def test_updates_multiple_fields(self, conn) -> None:
         _insert(conn, "multi_upd")
-        row = fetch_account_by_name(conn, "multi_upd")
-        update_account_fields(
-            conn,
+        repo = AccountRepository(conn)
+        row = repo.fetch_by_name("multi_upd")
+        repo.update(
             account_id=row["id"],
             updates=["risk_policy = ?", "stop_loss_pct = ?"],
             params=["fixed_stop", 7.5],
         )
-        updated = fetch_account_by_name(conn, "multi_upd")
+        updated = repo.fetch_by_name("multi_upd")
         assert updated["risk_policy"] == "fixed_stop"
         assert float(updated["stop_loss_pct"]) == pytest.approx(7.5)
 
@@ -193,34 +179,7 @@ class TestFetchAllAccountNames:
         _insert(conn, "zulu")
         _insert(conn, "alpha")
         _insert(conn, "mike")
-        assert fetch_all_account_names(conn) == ["alpha", "mike", "zulu"]
+        assert AccountRepository(conn).fetch_names() == ["alpha", "mike", "zulu"]
 
     def test_empty_table_returns_empty(self, conn) -> None:
-        assert fetch_all_account_names(conn) == []
-
-
-class TestLoadAllAccountNames:
-    def test_opens_and_closes_backend_connection(self, conn, monkeypatch) -> None:
-        _insert(conn, "zulu")
-        _insert(conn, "alpha")
-
-        class _ConnectionProxy:
-            def __init__(self, wrapped_conn) -> None:
-                self._wrapped_conn = wrapped_conn
-                self.closed = False
-
-            def execute(self, *args, **kwargs):
-                return self._wrapped_conn.execute(*args, **kwargs)
-
-            def close(self) -> None:
-                self.closed = True
-
-        proxy = _ConnectionProxy(conn)
-        monkeypatch.setattr(
-            accounts_repository,
-            "get_backend",
-            lambda: SimpleNamespace(open_connection=lambda: proxy),
-        )
-
-        assert load_all_account_names() == ["alpha", "zulu"]
-        assert proxy.closed is True
+        assert AccountRepository(conn).fetch_names() == []

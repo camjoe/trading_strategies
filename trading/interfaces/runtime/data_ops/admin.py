@@ -9,7 +9,7 @@ from typing import Callable, cast
 from common.paths.project_paths import DB_BACKUPS_DIR
 from trading.database.db_init import ensure_db
 from trading.database.db_backend import SQLiteBackend, get_backend
-from trading.repositories.accounts import fetch_account_listing_rows
+from trading.services.accounts.listing import list_accounts
 from trading.services.admin import delete_accounts, iter_delete_count_items
 
 
@@ -72,19 +72,14 @@ def _cmd_backup_db(args: argparse.Namespace) -> int:
 def _cmd_list_accounts(_args: argparse.Namespace) -> int:
     conn = ensure_db()
     try:
-        rows = fetch_account_listing_rows(conn)
+        lines = list_accounts(conn)
     finally:
         conn.close()
-
-    if not rows:
+    if not lines:
         print("No accounts found.")
         return 0
-
-    for row in rows:
-        print(
-            f"[{row.id}] {row.name} | strategy={row.strategy} | "
-            f"initial_cash={row.initial_cash:.2f} | benchmark={row.benchmark_ticker}"
-        )
+    for line in lines:
+        print(line)
     return 0
 
 

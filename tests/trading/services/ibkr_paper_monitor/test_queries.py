@@ -42,7 +42,7 @@ def test_fetch_ibkr_paper_accounts_list_filters_managed_accounts(mock_conn: Magi
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
         with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-            mock_accounts_repo.fetch_account_rows.return_value = accounts_to_return
+            mock_accounts_repo.get.return_value = accounts_to_return
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = []
 
             result = queries.fetch_ibkr_paper_accounts_list(mock_conn)
@@ -76,7 +76,7 @@ def test_fetch_ibkr_paper_accounts_list_calculates_totals(mock_conn: MagicMock) 
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
         with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-            mock_accounts_repo.fetch_account_rows.return_value = accounts_to_return
+            mock_accounts_repo.get.return_value = accounts_to_return
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeves_data
 
             result = queries.fetch_ibkr_paper_accounts_list(mock_conn)
@@ -99,7 +99,7 @@ def test_fetch_ibkr_paper_accounts_list_handles_zero_initial_cash(mock_conn: Mag
 
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
         with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-            mock_accounts_repo.fetch_account_rows.return_value = accounts_to_return
+            mock_accounts_repo.get.return_value = accounts_to_return
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = []
 
             result = queries.fetch_ibkr_paper_accounts_list(mock_conn)
@@ -244,7 +244,7 @@ def test_fetch_ibkr_paper_account_detail_raises_on_missing_account(
 ) -> None:
     """Test that ValueError is raised when account not found."""
     with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        mock_accounts_repo.fetch_account_by_name.return_value = None
+        mock_accounts_repo.get_by_name.return_value = None
 
         with pytest.raises(ValueError, match="Account not found"):
             queries.fetch_ibkr_paper_account_detail(mock_conn, "nonexistent")
@@ -260,7 +260,7 @@ def test_fetch_ibkr_paper_account_detail_aggregates_all_data(
         with patch("trading.services.ibkr_paper_monitor.queries._fetch_account_sleeves") as mock_fetch_sleeves:
             with patch("trading.services.ibkr_paper_monitor.queries._fetch_recent_rotations") as mock_fetch_rotations:
                 with patch("trading.services.ibkr_paper_monitor.queries._fetch_risk_summary") as mock_fetch_risk:
-                    mock_accounts_repo.fetch_account_by_name.return_value = account
+                    mock_accounts_repo.get_by_name.return_value = account
                     mock_fetch_sleeves.return_value = [
                         {
                             "sleeve_id": 1,

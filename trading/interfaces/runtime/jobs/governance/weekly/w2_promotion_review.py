@@ -26,12 +26,12 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
-from trading.repositories.accounts import fetch_account_by_name
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_strategy_sleeves_for_account,
 )
 from trading.services.accounts import load_runtime_eligible_account_names
+from trading.services.accounts.queries import find_account
 from trading.services.promotion.assessment import fetch_current_promotion_assessment
 
 REPO_ROOT = get_repo_root(__file__)
@@ -110,7 +110,7 @@ def main() -> int:
     try:
         account_results: list[WeeklyPromotionAccountPayload] = []
         for account_name in accounts:
-            account = fetch_account_by_name(conn, account_name)
+            account = find_account(conn, account_name)
             if account is None:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue

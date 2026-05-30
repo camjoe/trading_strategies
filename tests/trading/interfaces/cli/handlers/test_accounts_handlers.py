@@ -183,14 +183,24 @@ def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
     assert calls == [("alice", "qqq")]
 
 
-def test_handle_list_accounts_calls_dep_with_conn() -> None:
-    calls: list = []
+def test_handle_list_accounts_prints_lines(capsys) -> None:
     conn = object()
-    deps = {"list_accounts": lambda c: calls.append(c)}
+    deps = {"list_accounts": lambda c: ["[1] acct1", "[2] acct2"]}
 
     handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps, module_file="", db_path="")
 
-    assert calls == [conn]
+    out = capsys.readouterr().out
+    assert "[1] acct1" in out
+    assert "[2] acct2" in out
+
+
+def test_handle_list_accounts_prints_empty_message(capsys) -> None:
+    conn = object()
+    deps = {"list_accounts": lambda c: []}
+
+    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps, module_file="", db_path="")
+
+    assert "No accounts found." in capsys.readouterr().out
 
 
 def test_handle_trade_delegates_all_fields_to_record_trade_dep() -> None:

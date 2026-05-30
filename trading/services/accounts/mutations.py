@@ -9,11 +9,7 @@ from common.time import utc_now_iso
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
-from trading.repositories.accounts import (
-    insert_account,
-    update_account_benchmark,
-    update_account_fields,
-)
+from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.queries import find_account
 from trading.services.accounts.config import (
     ACCOUNT_KIND_MANAGED,
@@ -53,8 +49,7 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
         raise ValueError("strategy cannot be empty.")
     validate_strategy_name(normalized_strategy)
     account = get_account(conn, account_name)
-    update_account_fields(
-        conn,
+    AccountRepository(conn).update(
         account_id=account.id,
         updates=["strategy = ?"],
         params=[normalized_strategy],
@@ -98,8 +93,7 @@ def create_account(
     )
 
     try:
-        insert_account(
-            conn,
+        AccountRepository(conn).insert(
             AccountInsert(
                 name=name,
                 account_kind=account_kind,
@@ -142,8 +136,7 @@ def create_account(
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
     account = get_account(conn, account_name)
-    update_account_benchmark(
-        conn,
+    AccountRepository(conn).update_benchmark(
         account_id=account.id,
         benchmark_ticker=benchmark_ticker.upper().strip(),
     )
@@ -222,8 +215,7 @@ def configure_account(
     if not updates:
         return
 
-    update_account_fields(
-        conn,
+    AccountRepository(conn).update(
         account_id=account.id,
         updates=updates,
         params=params,

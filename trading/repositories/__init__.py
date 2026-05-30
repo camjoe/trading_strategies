@@ -1,13 +1,5 @@
 from __future__ import annotations
-from trading.repositories.accounts import (
-    fetch_account_by_name,
-    fetch_account_rows,
-    fetch_account_listing_rows,
-    fetch_all_account_names,
-    insert_account,
-    update_account_benchmark,
-    update_account_fields,
-)
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import (
     fetch_recent_equity_rows,
     fetch_snapshot_count_between,
@@ -90,13 +82,7 @@ from trading.repositories.sleeve_risk_decisions import (
 from trading.repositories.backtest_history import fetch_strategy_backtest_rows
 
 __all__ = [
-    "fetch_account_by_name",
-    "fetch_account_rows",
-    "fetch_account_listing_rows",
-    "fetch_all_account_names",
-    "insert_account",
-    "update_account_benchmark",
-    "update_account_fields",
+    "AccountRepository",
     "fetch_recent_equity_rows",
     "fetch_snapshot_count_between",
     "fetch_snapshot_history_rows",

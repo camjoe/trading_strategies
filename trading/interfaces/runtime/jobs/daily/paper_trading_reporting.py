@@ -6,7 +6,7 @@ from pathlib import Path
 from collections.abc import Callable
 
 from trading.database.db_init import ensure_db
-from trading.repositories.accounts import fetch_account_by_name
+from trading.services.accounts.queries import find_account
 from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
 
 SHADOW_EVAL_EXPORT_DIR = Path("local") / "exports" / "daily_challenger_shadow_eval"
@@ -58,12 +58,12 @@ def build_daily_operator_report(
     conn = ensure_db()
     account_reports = []
     for account_name in accounts:
-        account_row = fetch_account_by_name(conn, account_name)
+        account_row = find_account(conn, account_name)
         if account_row is None:
             continue
         report = build_account_daily_report(
             conn,
-            account_id=int(account_row["id"]),
+            account_id=int(account_row.id),
             account_name=account_name,
             report_date=report_date,
         )

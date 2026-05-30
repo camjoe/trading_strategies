@@ -220,10 +220,10 @@ def stub_runtime_job_basics(
     monkeypatch.setattr(module, "ensure_db", lambda: resolved_conn)
     if hasattr(module, "load_runtime_eligible_account_names"):
         monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
-    if hasattr(module, "fetch_account_by_name"):
+    if hasattr(module, "find_account"):
         monkeypatch.setattr(
             module,
-            "fetch_account_by_name",
+            "find_account",
             lambda conn, name: lookup(name),
         )
     if sleeves_for_account is not None and hasattr(module, "fetch_strategy_sleeves_for_account"):

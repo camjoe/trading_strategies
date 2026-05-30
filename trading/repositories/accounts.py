@@ -3,7 +3,6 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import astuple
 
-from trading.database.db_backend import get_backend
 from trading.models import AccountInsert, AccountRecord
 
 _ACCOUNT_INSERT_COLUMNS = (
@@ -45,60 +44,45 @@ _ACCOUNT_INSERT_SQL = (
 )
 
 
-def _account_record_from_row(row: sqlite3.Row) -> AccountRecord:
-    return AccountRecord.from_mapping(dict(row))
+class AccountRepository:
 
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
 
-def fetch_account_by_name(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    row = conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
-    return _account_record_from_row(row) if row is not None else None
+    def _row_to_record(self, row: sqlite3.Row) -> AccountRecord:
+        return AccountRecord.from_mapping(dict(row))
 
+    def fetch_all(self) -> list[AccountRecord]:
+        rows = self._conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
+        return [self._row_to_record(row) for row in rows]
 
-def insert_account(conn: sqlite3.Connection, account: AccountInsert) -> None:
-    conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
-    conn.commit()
+    def fetch_by_name(self, name: str) -> AccountRecord | None:
+        row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
+        return self._row_to_record(row) if row is not None else None
 
+    def fetch_listing(self) -> list[AccountRecord]:
+        rows = self._conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
+        return [self._row_to_record(row) for row in rows]
 
-def update_account_benchmark(conn: sqlite3.Connection, *, account_id: int, benchmark_ticker: str) -> None:
-    conn.execute(
-        "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",
-        (benchmark_ticker, account_id),
-    )
-    conn.commit()
+    def fetch_names(self) -> list[str]:
+        rows = self._conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
+        return [str(row["name"]) for row in rows]
 
+    def insert(self, account: AccountInsert) -> None:
+        self._conn.execute(_ACCOUNT_INSERT_SQL, astuple(account))
+        self._conn.commit()
 
-def fetch_account_listing_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
-    return [
-        _account_record_from_row(row)
-        for row in conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
-    ]
+    def update(self, *, account_id: int, updates: list[str], params: list[object]) -> None:
+        query_params = [*params, account_id]
+        self._conn.execute(
+            f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?",
+            tuple(query_params),
+        )
+        self._conn.commit()
 
-
-def fetch_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
-    rows = conn.execute("SELECT * FROM accounts ORDER BY name").fetchall()
-    return [_account_record_from_row(row) for row in rows]
-
-
-def update_account_fields(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-    updates: list[str],
-    params: list[object],
-) -> None:
-    query_params = [*params, account_id]
-    conn.execute(f"UPDATE accounts SET {', '.join(updates)} WHERE id = ?", tuple(query_params))
-    conn.commit()
-
-
-def fetch_all_account_names(conn: sqlite3.Connection) -> list[str]:
-    rows = conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
-    return [str(row["name"]) for row in rows]
-
-
-def load_all_account_names() -> list[str]:
-    conn = get_backend().open_connection()
-    try:
-        return fetch_all_account_names(conn)
-    finally:
-        conn.close()
+    def update_benchmark(self, *, account_id: int, benchmark_ticker: str) -> None:
+        self._conn.execute(
+            "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",
+            (benchmark_ticker, account_id),
+        )
+        self._conn.commit()

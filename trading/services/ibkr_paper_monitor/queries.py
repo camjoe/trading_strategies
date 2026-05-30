@@ -9,13 +9,14 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from trading.repositories import accounts, sleeves, daily_metrics, rotation_decisions, sleeve_risk_decisions
+from trading.repositories import sleeves, daily_metrics, rotation_decisions, sleeve_risk_decisions
+from trading.repositories.accounts import AccountRepository
 
 
 def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Fetch list of IBKR paper accounts with sleeve summary."""
     # Get all accounts
-    all_accounts = accounts.fetch_account_rows(conn)
+    all_accounts = AccountRepository(conn).fetch_all()
 
     result = []
     for account in all_accounts:
@@ -171,7 +172,7 @@ def fetch_ibkr_paper_account_detail(
     Raises ValueError if account not found.
     """
     # Get account using repository
-    account = accounts.fetch_account_by_name(conn, account_name)
+    account = AccountRepository(conn).fetch_by_name(account_name)
     if account is None:
         raise ValueError(f"Account not found: {account_name}")
 

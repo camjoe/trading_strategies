@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.database.db_backend import get_backend
 from trading.models import AccountRecord
-from trading.repositories.accounts import (
-    fetch_account_by_name,
-    fetch_account_rows,
-    fetch_all_account_names,
-    load_all_account_names,
-)
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import (
     fetch_latest_snapshot_row,
     fetch_snapshot_history_rows,
@@ -28,15 +24,15 @@ def _require_positive_account_id(account_id: int) -> None:
 
 
 def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    return fetch_account_by_name(conn, _normalize_account_name(name))
+    return AccountRepository(conn).fetch_by_name(_normalize_account_name(name))
 
 
 def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
-    return fetch_account_rows(conn)
+    return AccountRepository(conn).fetch_all()
 
 
 def list_account_names(conn: sqlite3.Connection) -> list[str]:
-    return fetch_all_account_names(conn)
+    return AccountRepository(conn).fetch_names()
 
 
 def get_latest_account_snapshot(
@@ -60,4 +56,8 @@ def list_account_snapshots(
 
 
 def load_runtime_eligible_account_names() -> list[str]:
-    return load_all_account_names()
+    conn = get_backend().open_connection()
+    try:
+        return AccountRepository(conn).fetch_names()
+    finally:
+        conn.close()
