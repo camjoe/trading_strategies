@@ -59,7 +59,7 @@ class TestArtifactStructure:
         stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,
-            "fetch_latest_portfolio_risk_snapshot",
+            "fetch_latest_risk_snapshot",
             lambda conn, *, account_id: None,
         )
 
@@ -79,7 +79,7 @@ class TestArtifactStructure:
         stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,
-            "fetch_latest_portfolio_risk_snapshot",
+            "fetch_latest_risk_snapshot",
             lambda conn, *, account_id: None,
         )
 
@@ -107,7 +107,7 @@ class TestArtifactStructure:
         stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,
-            "fetch_latest_portfolio_risk_snapshot",
+            "fetch_latest_risk_snapshot",
             lambda conn, *, account_id: snapshot,
         )
 
@@ -143,7 +143,7 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 def test_main_returns_1_when_snapshot_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module)
     monkeypatch.setattr(
-        module, "fetch_latest_portfolio_risk_snapshot", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
+        module, "fetch_latest_risk_snapshot", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
     )
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1

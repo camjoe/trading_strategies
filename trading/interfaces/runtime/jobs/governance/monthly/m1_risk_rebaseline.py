@@ -21,7 +21,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL
-from trading.repositories.portfolio_risk_snapshots import fetch_latest_portfolio_risk_snapshot
+from trading.services.risk_snapshots import fetch_latest_risk_snapshot
 from trading.services.accounts.queries import find_account
 from trading.services.accounts import load_runtime_eligible_account_names
 
@@ -106,7 +106,7 @@ def main() -> int:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue
 
-            snapshot = fetch_latest_portfolio_risk_snapshot(conn, account_id=account.id)
+            snapshot = fetch_latest_risk_snapshot(conn, account_id=account.id)
             if snapshot is None:
                 account_results.append(
                     {
