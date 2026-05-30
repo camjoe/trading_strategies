@@ -28,7 +28,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
+from trading.services.performance import fetch_sleeve_performance_window
 from trading.services.accounts.queries import find_account
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
@@ -166,7 +166,7 @@ def main() -> int:
                 assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
                 strategy_name = str(assignment["strategy_name"]) if assignment is not None else None
 
-                metrics = fetch_daily_metrics_for_sleeve_window(
+                metrics = fetch_sleeve_performance_window(
                     conn,
                     sleeve_id=sleeve_id,
                     start_date=start_str,

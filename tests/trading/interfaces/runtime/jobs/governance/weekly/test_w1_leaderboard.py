@@ -86,7 +86,7 @@ class TestArtifactStructure:
         )
         monkeypatch.setattr(
             module,
-            "fetch_daily_metrics_for_sleeve_window",
+            "fetch_sleeve_performance_window",
             lambda conn, *, sleeve_id, start_date, end_date: [
                 {
                     "return_pct": 1.5,
@@ -133,7 +133,7 @@ class TestArtifactStructure:
             captured["end_date"] = end_date
             return []
 
-        monkeypatch.setattr(module, "fetch_daily_metrics_for_sleeve_window", _capture_metrics)
+        monkeypatch.setattr(module, "fetch_sleeve_performance_window", _capture_metrics)
 
         result = _run_job(
             monkeypatch,
