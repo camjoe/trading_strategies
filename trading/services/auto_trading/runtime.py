@@ -19,12 +19,7 @@ from trading.services.market_data.market_hours import is_regular_us_equity_marke
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
 from trading.services.universe.resolver import resolve_named_universes
-from trading.repositories.broker_orders import (
-    fetch_open_broker_orders,
-    insert_broker_order,
-    insert_order_fill,
-    update_broker_order_status,
-)
+from trading.repositories.broker_orders import BrokerOrderRepository
 from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
 from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
 from trading.repositories.sleeve_orders import (
@@ -169,9 +164,10 @@ def _record_runtime_trade(
         filled = broker.place_order(order)
 
         if filled.broker_order_id:
-            insert_broker_order(conn, filled)
+            repo = BrokerOrderRepository(conn)
+            repo.insert_order(filled)
             for fill in filled.fills:
-                insert_order_fill(conn, filled.broker_order_id, fill)
+                repo.insert_fill(filled.broker_order_id, fill)
 
         if filled.status == OrderStatus.FILLED:
             record_trade(
@@ -540,9 +536,10 @@ def _run_sleeve_mode_for_account(
                     broker_order_id=broker_order.broker_order_id,
                     updated_at=updated_at,
                 )
-                insert_broker_order(conn, broker_order)
+                repo = BrokerOrderRepository(conn)
+                repo.insert_order(broker_order)
                 for fill in broker_order.fills:
-                    insert_order_fill(conn, broker_order.broker_order_id, fill)
+                    repo.insert_fill(broker_order.broker_order_id, fill)
 
             update_sleeve_order_status(
                 conn,
@@ -716,10 +713,10 @@ def reconcile_open_broker_orders(
         account,
         fee,
         get_broker_for_account_fn=broker_factory,
-        fetch_open_broker_orders_fn=fetch_open_broker_orders,
+        fetch_open_broker_orders_fn=BrokerOrderRepository(conn).fetch_open,
         fetch_sleeve_order_by_broker_order_id_fn=fetch_sleeve_order_by_broker_order_id,
-        insert_order_fill_fn=insert_order_fill,
-        update_broker_order_status_fn=update_broker_order_status,
+        insert_order_fill_fn=BrokerOrderRepository(conn).insert_fill,
+        update_broker_order_status_fn=BrokerOrderRepository(conn).update_status,
         update_sleeve_order_status_fn=update_sleeve_order_status,
         record_trade_fn=record_trade,
     )

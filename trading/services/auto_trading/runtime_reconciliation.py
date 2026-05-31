@@ -40,7 +40,7 @@ def reconcile_open_broker_orders_impl(
 ) -> int:
     broker = get_broker_for_account_fn(account)
 
-    open_rows = fetch_open_broker_orders_fn(conn, account_id=row_expect_int(account, "id"))
+    open_rows = fetch_open_broker_orders_fn(account_id=row_expect_int(account, "id"))
     if not open_rows:
         broker.disconnect()
         return 0
@@ -63,7 +63,7 @@ def reconcile_open_broker_orders_impl(
             )
 
             for fill_index, fill in enumerate(live.fills):
-                insert_order_fill_fn(conn, live.broker_order_id, fill)
+                insert_order_fill_fn(live.broker_order_id, fill)
                 if sleeve_order_row is not None:
                     apply_sleeve_fill(
                         conn,
@@ -82,7 +82,6 @@ def reconcile_open_broker_orders_impl(
                     )
 
             update_broker_order_status_fn(
-                conn,
                 broker_order_id=live.broker_order_id,
                 status=live.status,
                 filled_qty=live.filled_qty,

@@ -382,8 +382,8 @@ def test_record_runtime_trade_skips_broker_order_inserts_when_broker_id_missing(
         filled_qty=1.0,
         avg_fill_price=101.0,
     )
-    monkeypatch.setattr(runtime_service, "insert_broker_order", Mock())
-    monkeypatch.setattr(runtime_service, "insert_order_fill", Mock())
+    mock_repo = Mock()
+    monkeypatch.setattr(runtime_service, "BrokerOrderRepository", lambda conn: mock_repo)
     monkeypatch.setattr(runtime_service, "record_trade", Mock())
 
     runtime_service._record_runtime_trade(
@@ -400,8 +400,8 @@ def test_record_runtime_trade_skips_broker_order_inserts_when_broker_id_missing(
         _injected_broker=broker,
     )
 
-    runtime_service.insert_broker_order.assert_not_called()
-    runtime_service.insert_order_fill.assert_not_called()
+    mock_repo.insert_order.assert_not_called()
+    mock_repo.insert_fill.assert_not_called()
     runtime_service.record_trade.assert_called_once()
     broker.disconnect.assert_not_called()
 
@@ -420,8 +420,8 @@ def test_record_runtime_trade_does_not_record_when_order_not_filled(monkeypatch)
         filled_qty=0.0,
         avg_fill_price=None,
     )
-    monkeypatch.setattr(runtime_service, "insert_broker_order", Mock())
-    monkeypatch.setattr(runtime_service, "insert_order_fill", Mock())
+    mock_repo = Mock()
+    monkeypatch.setattr(runtime_service, "BrokerOrderRepository", lambda conn: mock_repo)
     monkeypatch.setattr(runtime_service, "record_trade", Mock())
 
     runtime_service._record_runtime_trade(
@@ -438,7 +438,7 @@ def test_record_runtime_trade_does_not_record_when_order_not_filled(monkeypatch)
         _injected_broker=broker,
     )
 
-    runtime_service.insert_broker_order.assert_called_once()
+    mock_repo.insert_order.assert_called_once()
     runtime_service.record_trade.assert_not_called()
 
 
@@ -465,8 +465,8 @@ def test_record_runtime_trade_inserts_order_fills_when_present(monkeypatch) -> N
             )
         ],
     )
-    monkeypatch.setattr(runtime_service, "insert_broker_order", Mock())
-    monkeypatch.setattr(runtime_service, "insert_order_fill", Mock())
+    mock_repo = Mock()
+    monkeypatch.setattr(runtime_service, "BrokerOrderRepository", lambda conn: mock_repo)
     monkeypatch.setattr(runtime_service, "record_trade", Mock())
 
     runtime_service._record_runtime_trade(
@@ -483,4 +483,4 @@ def test_record_runtime_trade_inserts_order_fills_when_present(monkeypatch) -> N
         _injected_broker=broker,
     )
 
-    runtime_service.insert_order_fill.assert_called_once()
+    mock_repo.insert_fill.assert_called_once()
