@@ -31,12 +31,7 @@ from trading.repositories.sleeves import (
     update_strategy_sleeve_balances,
     update_strategy_sleeve_status,
 )
-from trading.repositories.rotation_decisions import (
-    fetch_latest_rotation_decision_for_sleeve,
-    fetch_latest_rotate_decision_for_sleeve,
-    fetch_rotation_decisions_for_sleeve,
-    insert_rotation_decision,
-)
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_orders import (
     attach_sleeve_order_broker_order_id,
     fetch_open_sleeve_orders_for_account,
@@ -96,10 +91,7 @@ __all__ = [
     "insert_sleeve_strategy_assignment",
     "fetch_active_sleeve_strategy_assignment",
     "fetch_sleeve_strategy_assignments",
-    "insert_rotation_decision",
-    "fetch_latest_rotation_decision_for_sleeve",
-    "fetch_latest_rotate_decision_for_sleeve",
-    "fetch_rotation_decisions_for_sleeve",
+    "RotationDecisionRepository",
     "insert_sleeve_order",
     "attach_sleeve_order_broker_order_id",
     "update_sleeve_order_status",

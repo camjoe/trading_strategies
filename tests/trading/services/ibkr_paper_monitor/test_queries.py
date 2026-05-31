@@ -200,9 +200,9 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.rotation_decisions") as mock_rotation_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.RotationDecisionRepository") as mock_repo_class:
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
-            mock_rotation_repo.fetch_rotation_decisions_for_sleeve.side_effect = [
+            mock_repo_class.return_value.fetch_for_sleeve.side_effect = [
                 rotation_rows_1,
                 rotation_rows_2,
             ]

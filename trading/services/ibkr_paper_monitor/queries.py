@@ -9,7 +9,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from trading.repositories import sleeves, rotation_decisions, sleeve_risk_decisions
+from trading.repositories import sleeves, sleeve_risk_decisions
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.accounts import AccountRepository
 
@@ -111,7 +112,7 @@ def _fetch_recent_rotations(conn: sqlite3.Connection, account_id: int) -> list[d
     for sleeve_row in sleeve_rows:
         sleeve_id = sleeve_row["id"]
         # Get rotation decisions for this sleeve
-        rotation_rows = rotation_decisions.fetch_rotation_decisions_for_sleeve(conn, sleeve_id=sleeve_id, limit=20)
+        rotation_rows = RotationDecisionRepository(conn).fetch_for_sleeve(sleeve_id=sleeve_id, limit=20)
 
         for rotation_row in rotation_rows:
             all_rotations.append(

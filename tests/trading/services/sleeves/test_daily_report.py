@@ -4,7 +4,7 @@ import pytest
 
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
-from trading.repositories.rotation_decisions import insert_rotation_decision
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
 from trading.repositories.sleeves import insert_sleeve_strategy_assignment
 from trading.services.sleeves.daily_report import (
@@ -174,8 +174,7 @@ def test_build_report_kill_switch_from_snapshot(conn) -> None:
 
 
 def test_build_report_rotation_decisions(conn, report_env) -> None:
-    insert_rotation_decision(
-        conn,
+    RotationDecisionRepository(conn).insert(
         sleeve_id=report_env.sleeve_id,
         decision_time=f"{REPORT_DATE}T09:00:00Z",
         incumbent_strategy="Momentum",
@@ -191,8 +190,7 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
         created_at=f"{REPORT_DATE}T09:00:00Z",
     )
     # Decision on a different date — should be excluded
-    insert_rotation_decision(
-        conn,
+    RotationDecisionRepository(conn).insert(
         sleeve_id=report_env.sleeve_id,
         decision_time="2026-05-06T09:00:00Z",
         incumbent_strategy="Momentum",

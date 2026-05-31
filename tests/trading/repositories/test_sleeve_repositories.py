@@ -4,13 +4,7 @@ import pytest
 
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
-from trading.repositories.rotation_decisions import (
-    fetch_latest_rotate_decision_for_sleeve,
-    fetch_latest_rotation_decision_for_sleeve,
-    fetch_rotation_decisions_for_sleeve,
-    fetch_rotation_decisions_for_sleeve_date,
-    insert_rotation_decision,
-)
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_ledger import (
     fetch_sleeve_ledger_entries,
     fetch_sleeve_ledger_sum_by_type,
@@ -460,8 +454,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         )
         assert fee_total == -3.5
 
-        decision_id = insert_rotation_decision(
-            conn,
+        decision_id = RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-03T15:00:00Z",
             incumbent_strategy="trend",
@@ -477,15 +470,15 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             created_at="2026-05-03T15:00:00Z",
         )
         assert decision_id > 0
-        latest = fetch_latest_rotation_decision_for_sleeve(conn, sleeve_id=sleeve_id)
+        repo = RotationDecisionRepository(conn)
+        latest = repo.fetch_latest(sleeve_id=sleeve_id)
         assert latest is not None
         assert latest["rotation_action"] == "hold"
-        history = fetch_rotation_decisions_for_sleeve(conn, sleeve_id=sleeve_id, limit=5)
+        history = repo.fetch_for_sleeve(sleeve_id=sleeve_id, limit=5)
         assert len(history) == 1
-        assert fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=sleeve_id) is None
+        assert repo.fetch_latest_rotate_action(sleeve_id=sleeve_id) is None
 
-        insert_rotation_decision(
-            conn,
+        RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-03T16:00:00Z",
             incumbent_strategy="trend",
@@ -500,7 +493,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             param_set_id=None,
             created_at="2026-05-03T16:00:00Z",
         )
-        latest_rotate = fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=sleeve_id)
+        latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=sleeve_id)
         assert latest_rotate is not None
         assert latest_rotate["rotation_action"] == "rotate"
 
@@ -695,8 +688,7 @@ class TestSleeveRiskDecisionsRepository:
         assert rows[1]["reason_code"] == "sleeve_notional_cap"
 
     def test_date_scoped_fetches_and_guard_paths(self, conn, account_id, sleeve_id) -> None:
-        insert_rotation_decision(
-            conn,
+        RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-02T23:59:00Z",
             incumbent_strategy="trend",
@@ -711,8 +703,7 @@ class TestSleeveRiskDecisionsRepository:
             param_set_id=None,
             created_at="2026-05-02T23:59:00Z",
         )
-        insert_rotation_decision(
-            conn,
+        RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-03T09:00:00Z",
             incumbent_strategy="trend",
@@ -727,8 +718,7 @@ class TestSleeveRiskDecisionsRepository:
             param_set_id=None,
             created_at="2026-05-03T09:00:00Z",
         )
-        insert_rotation_decision(
-            conn,
+        RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-04T00:00:00Z",
             incumbent_strategy="meanrev",
@@ -744,8 +734,7 @@ class TestSleeveRiskDecisionsRepository:
             created_at="2026-05-04T00:00:00Z",
         )
 
-        rotation_rows = fetch_rotation_decisions_for_sleeve_date(
-            conn,
+        rotation_rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(
             sleeve_id=sleeve_id,
             report_date="2026-05-03",
         )
@@ -851,8 +840,9 @@ class TestSleeveRiskDecisionsRepository:
             )
 
         with pytest.raises(ValueError, match="Expected rotation_decisions id after insert"):
-            insert_rotation_decision(
-                _StaticConnection(_StaticCursor(lastrowid=None)),
+            RotationDecisionRepository(
+                _StaticConnection(_StaticCursor(lastrowid=None))
+            ).insert(
                 sleeve_id=1,
                 decision_time="2026-05-03T00:00:00Z",
                 incumbent_strategy=None,

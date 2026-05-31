@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.rotation_decisions import (
-    fetch_latest_rotation_decision_for_sleeve,
-    insert_rotation_decision,
-)
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_sleeve_strategy_assignments,
@@ -116,7 +113,7 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
     assignments = fetch_sleeve_strategy_assignments(conn, sleeve_id=sleeve_id)
     assert len(assignments) == 2
 
-    latest_decision = fetch_latest_rotation_decision_for_sleeve(conn, sleeve_id=sleeve_id)
+    latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
     assert latest_decision is not None
     assert latest_decision["rotation_action"] == "rotate"
     assert latest_decision["config_version"] == "cfg-rot-a"
@@ -137,8 +134,7 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         updated_at="2026-05-01T00:00:00Z",
     )
     _seed_incumbent_metrics(conn, account_id=account_id, sleeve_id=sleeve_id)
-    insert_rotation_decision(
-        conn,
+    RotationDecisionRepository(conn).insert(
         sleeve_id=sleeve_id,
         decision_time="2026-05-04T18:00:00Z",
         incumbent_strategy="trend",

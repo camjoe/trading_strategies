@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
-from trading.repositories.rotation_decisions import fetch_rotation_decisions_for_sleeve_date
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_risk_decisions import fetch_sleeve_risk_decisions_for_account_date
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
@@ -146,7 +146,7 @@ def _build_rotation_summary(
     for sleeve in sleeves:
         sleeve_id = int(sleeve["id"])
         sleeve_name = str(sleeve["name"])
-        decisions = fetch_rotation_decisions_for_sleeve_date(conn, sleeve_id=sleeve_id, report_date=report_date)
+        decisions = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(sleeve_id=sleeve_id, report_date=report_date)
         for d in decisions:
             rows.append(
                 RotationDecisionRow(

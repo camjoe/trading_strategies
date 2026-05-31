@@ -18,10 +18,7 @@ from trading.domain.sleeve_rotation import (
 )
 from trading.models.daily_metric_record import DailyMetricRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.rotation_decisions import (
-    fetch_latest_rotate_decision_for_sleeve,
-    insert_rotation_decision,
-)
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import (
     close_active_sleeve_strategy_assignment,
     fetch_active_sleeve_strategy_assignment,
@@ -178,7 +175,7 @@ def evaluate_and_apply_sleeve_rotation(
         param_set_id=incumbent_param_set_id,
         rows=metric_rows,
     )
-    latest_rotate = fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=int(sleeve_id))
+    latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=int(sleeve_id))
     latest_rotate_time = (
         str(latest_rotate["decision_time"]).strip()
         if latest_rotate is not None and latest_rotate["decision_time"] is not None
@@ -203,8 +200,7 @@ def evaluate_and_apply_sleeve_rotation(
         cooldown_active=cooldown_active,
         weights=_weights_from_config(config),
     )
-    decision_id = insert_rotation_decision(
-        conn,
+    decision_id = RotationDecisionRepository(conn).insert(
         sleeve_id=int(sleeve_id),
         decision_time=now_iso,
         incumbent_strategy=decision.incumbent_strategy,
