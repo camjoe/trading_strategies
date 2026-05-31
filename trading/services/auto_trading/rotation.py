@@ -339,7 +339,6 @@ def sync_rotation_episode(
         return
 
     snapshot_count = fetch_snapshot_count_between_fn(
-        conn,
         account_id=row_expect_int(account, "id"),
         start_iso=str(open_episode["started_at"]),
         end_iso=as_of_iso,

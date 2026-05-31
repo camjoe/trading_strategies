@@ -12,7 +12,7 @@ from common.coercion import row_expect_float, row_expect_str, row_float
 from common.time import utc_now_iso
 from trading.domain.evaluation_models import StrategyEvaluationArtifact
 from trading.models import AccountRecord
-from trading.repositories.snapshots import insert_snapshot_row
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import (
     GOAL_NOT_SET_TEXT,
     format_account_policy_text,
@@ -259,8 +259,7 @@ def compare_strategies(conn: sqlite3.Connection, lookback: int) -> None:
 def snapshot_account(conn: sqlite3.Connection, account_name: str, snapshot_time: str | None) -> None:
     account = get_account(conn, account_name)
     stats, _ = account_report(conn, account_name)
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account.id,
         snapshot_time=snapshot_time or utc_now_iso(),
         cash=stats["cash"],

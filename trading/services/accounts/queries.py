@@ -5,10 +5,7 @@ import sqlite3
 from trading.database.db_backend import get_backend
 from trading.models import AccountRecord
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.snapshots import (
-    fetch_latest_snapshot_row,
-    fetch_snapshot_history_rows,
-)
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 
 def _normalize_account_name(name: str) -> str:
@@ -40,7 +37,7 @@ def get_latest_account_snapshot(
     account_id: int,
 ) -> dict[str, object] | None:
     _require_positive_account_id(account_id)
-    return fetch_latest_snapshot_row(conn, account_id=account_id)
+    return EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
 
 
 def list_account_snapshots(
@@ -52,7 +49,7 @@ def list_account_snapshots(
     _require_positive_account_id(account_id)
     if limit <= 0:
         raise ValueError("limit must be positive.")
-    return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
+    return EquitySnapshotRepository(conn).fetch_history(account_id=account_id, limit=limit)
 
 
 def load_runtime_eligible_account_names() -> list[str]:

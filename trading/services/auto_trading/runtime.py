@@ -31,7 +31,7 @@ from trading.repositories.sleeve_orders import (
 from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.rotation import RotationEpisodeRepository
-from trading.repositories.snapshots import fetch_snapshot_count_between
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.domain.rotation import (
     is_rotation_due,
 )
@@ -110,7 +110,7 @@ def _rotate_runtime_account(
         fetch_open_rotation_episode_fn=RotationEpisodeRepository(conn).fetch_open,
         insert_rotation_episode_fn=RotationEpisodeRepository(conn).insert,
         close_rotation_episode_fn=RotationEpisodeRepository(conn).close_episode,
-        fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
+        fetch_snapshot_count_between_fn=EquitySnapshotRepository(conn).fetch_count_between,
     )
 
 

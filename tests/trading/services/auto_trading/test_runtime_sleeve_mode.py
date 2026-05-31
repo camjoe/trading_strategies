@@ -4,7 +4,7 @@ import json
 
 from unittest.mock import Mock
 
-from trading.repositories.snapshots import insert_snapshot_row
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.sleeves import (
     fetch_active_sleeve_strategy_assignment,
     fetch_strategy_sleeve_by_id,
@@ -522,8 +522,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
         created_at="2026-05-01T00:00:00Z",
         updated_at="2026-05-01T00:00:00Z",
     )
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time="2026-05-01T00:00:00Z",
         cash=1_000.0,

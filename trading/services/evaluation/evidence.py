@@ -34,11 +34,7 @@ from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.repositories.rotation import RotationEpisodeRepository
-from trading.repositories.snapshots import (
-    fetch_latest_snapshot_details_row,
-    fetch_snapshot_count_between,
-    fetch_snapshot_count_for_account,
-)
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -149,9 +145,8 @@ def _latest_rotation_episode_evidence(
         and row_str(open_episode, "strategy_name") == requested_strategy
     ):
         started_at = row_expect_str(open_episode, "started_at")
-        latest_snapshot_time = row_expect_str(latest_snapshot, "snapshot_time")
-        snapshot_count = fetch_snapshot_count_between(
-            conn,
+        latest_snapshot_time = latest_snapshot.snapshot_time
+        snapshot_count = EquitySnapshotRepository(conn).fetch_count_between(
             account_id=account_id,
             start_iso=started_at,
             end_iso=latest_snapshot_time,
@@ -211,7 +206,7 @@ def build_paper_live_evidence(
     account_id = account.id
     rotation_enabled = bool(account.rotation_enabled)
     initial_cash = account.initial_cash
-    latest_snapshot = fetch_latest_snapshot_details_row(conn, account_id=account_id)
+    latest_snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
     evidence = (
         _latest_rotation_episode_evidence(
             conn,
@@ -235,7 +230,7 @@ def build_paper_live_evidence(
         source_level=ACCOUNT_SNAPSHOT_SOURCE_LEVEL,
         strategy_isolated=True,
         latest_snapshot_time=row_str(latest_snapshot, "snapshot_time"),
-        snapshot_count=fetch_snapshot_count_for_account(conn, account_id=account_id),
+        snapshot_count=EquitySnapshotRepository(conn).fetch_count(account_id=account_id),
         starting_equity=initial_cash,
         latest_equity=latest_equity,
         return_pct=safe_return_pct(initial_cash, latest_equity),

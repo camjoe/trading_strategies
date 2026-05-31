@@ -1,11 +1,6 @@
 from __future__ import annotations
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.snapshots import (
-    fetch_recent_equity_rows,
-    fetch_snapshot_count_between,
-    fetch_snapshot_history_rows,
-    insert_snapshot_row,
-)
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.trades import fetch_trades_for_account, insert_trade
 from trading.repositories.trades import count_trades_between
 from trading.repositories.global_settings import GlobalSettingsRepository
@@ -59,10 +54,7 @@ from trading.repositories.backtest_history import BacktestRunRepository
 
 __all__ = [
     "AccountRepository",
-    "fetch_recent_equity_rows",
-    "fetch_snapshot_count_between",
-    "fetch_snapshot_history_rows",
-    "insert_snapshot_row",
+    "EquitySnapshotRepository",
     "fetch_trades_for_account",
     "count_trades_between",
     "insert_trade",

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from trading.domain.rotation import dump_rotation_schedule
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.sleeves import insert_sleeve_strategy_assignment, insert_strategy_sleeve
-from trading.repositories.snapshots import insert_snapshot_row
+from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
 
 DEFAULT_SLEEVE_TIMESTAMP = "2026-05-03T00:00:00Z"
@@ -56,8 +56,7 @@ def build_sleeve_env(
     """
     account_id = insert_repository_account(conn, name=account_name)
     sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=start_equity)
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time=snapshot_time,
         cash=start_equity,
@@ -125,8 +124,7 @@ def build_rotation_sleeve_env(
             updated_at=created_at,
         )
 
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time=snapshot_time,
         cash=start_equity,
