@@ -65,6 +65,7 @@ def make_account_record(**overrides: object) -> AccountRecord:
         "broker_client_id": None,
         # SAFETY: tests must never opt into live trading by default.
         "live_trading_enabled": 0,
+        "trade_universes": None,
     }
     values.update(overrides)
     return AccountRecord.from_mapping(values)
