@@ -4,93 +4,30 @@ from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.trades import TradeRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.rotation import RotationEpisodeRepository
-from trading.repositories.sleeves import (
-    close_active_sleeve_strategy_assignment,
-    fetch_active_sleeve_strategy_assignment,
-    fetch_active_strategy_param_set,
-    fetch_sleeve_strategy_assignments,
-    fetch_strategy_param_set_by_id,
-    fetch_strategy_sleeve_by_id,
-    fetch_strategy_sleeves_for_account,
-    insert_sleeve_strategy_assignment,
-    insert_strategy_param_set,
-    insert_strategy_sleeve,
-    set_strategy_param_set_activation,
-    update_strategy_sleeve_balances,
-    update_strategy_sleeve_status,
-)
+from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeve_orders import (
-    attach_sleeve_order_broker_order_id,
-    fetch_open_sleeve_orders_for_account,
-    fetch_sleeve_fills_for_order,
-    fetch_sleeve_order_by_broker_order_id,
-    fetch_sleeve_order_by_id,
-    fetch_sleeve_orders_for_sleeve,
-    insert_sleeve_fill,
-    insert_sleeve_order,
-    update_sleeve_order_status,
-)
-from trading.repositories.sleeve_positions import (
-    delete_sleeve_position,
-    fetch_sleeve_position,
-    fetch_sleeve_positions,
-    fetch_sleeve_positions_for_account,
-    upsert_sleeve_position,
-)
-from trading.repositories.sleeve_ledger import (
-    fetch_sleeve_ledger_entries,
-    fetch_sleeve_ledger_sum_by_type,
-    insert_sleeve_ledger_entry,
-)
+from trading.repositories.sleeve_orders import SleeveOrderRepository
+from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.sleeve_ledger import SleeveLedgerRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
-from trading.repositories.sleeve_risk_decisions import (
-    fetch_sleeve_risk_decisions_for_account,
-    insert_sleeve_risk_decision,
-)
+from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
 from trading.repositories.backtest_history import BacktestRunRepository
 
 __all__ = [
     "AccountRepository",
-    "EquitySnapshotRepository",
-    "TradeRepository",
-    "GlobalSettingsRepository",
-    "RotationEpisodeRepository",
-    "insert_strategy_sleeve",
-    "fetch_strategy_sleeve_by_id",
-    "fetch_strategy_sleeves_for_account",
-    "update_strategy_sleeve_status",
-    "update_strategy_sleeve_balances",
-    "insert_strategy_param_set",
-    "fetch_strategy_param_set_by_id",
-    "fetch_active_strategy_param_set",
-    "set_strategy_param_set_activation",
-    "close_active_sleeve_strategy_assignment",
-    "insert_sleeve_strategy_assignment",
-    "fetch_active_sleeve_strategy_assignment",
-    "fetch_sleeve_strategy_assignments",
-    "RotationDecisionRepository",
-    "insert_sleeve_order",
-    "attach_sleeve_order_broker_order_id",
-    "update_sleeve_order_status",
-    "fetch_sleeve_order_by_id",
-    "fetch_sleeve_order_by_broker_order_id",
-    "fetch_sleeve_orders_for_sleeve",
-    "fetch_open_sleeve_orders_for_account",
-    "insert_sleeve_fill",
-    "fetch_sleeve_fills_for_order",
-    "upsert_sleeve_position",
-    "delete_sleeve_position",
-    "fetch_sleeve_position",
-    "fetch_sleeve_positions",
-    "fetch_sleeve_positions_for_account",
-    "insert_sleeve_ledger_entry",
-    "fetch_sleeve_ledger_entries",
-    "fetch_sleeve_ledger_sum_by_type",
-    "DailyMetricsRepository",
-    "PortfolioRiskSnapshotRepository",
-    "insert_sleeve_risk_decision",
-    "fetch_sleeve_risk_decisions_for_account",
     "BacktestRunRepository",
+    "DailyMetricsRepository",
+    "EquitySnapshotRepository",
+    "GlobalSettingsRepository",
+    "PortfolioRiskSnapshotRepository",
+    "RotationDecisionRepository",
+    "RotationEpisodeRepository",
+    "SleeveLedgerRepository",
+    "SleeveOrderRepository",
+    "SleevePositionRepository",
+    "SleeveRepository",
+    "SleeveRiskDecisionRepository",
+    "StrategyParamSetRepository",
+    "TradeRepository",
 ]

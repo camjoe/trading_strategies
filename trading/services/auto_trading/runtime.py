@@ -21,13 +21,8 @@ from trading.services.accounting import record_trade
 from trading.services.universe.resolver import resolve_named_universes
 from trading.repositories.broker_orders import BrokerOrderRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
-from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
-from trading.repositories.sleeve_orders import (
-    attach_sleeve_order_broker_order_id,
-    fetch_sleeve_order_by_broker_order_id,
-    insert_sleeve_order,
-    update_sleeve_order_status,
-)
+from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.sleeve_orders import SleeveOrderRepository
 from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.rotation import RotationEpisodeRepository
@@ -70,8 +65,8 @@ from trading.services.sleeves.shadow_evaluation import (
     build_sleeve_shadow_evaluation,
 )
 from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
-from trading.repositories.sleeve_positions import fetch_sleeve_positions_for_account
-from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
+from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.sleeves import SleeveRepository
 
 # Kill-switch reason when required price marks are unavailable or invalid.
 KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
@@ -216,8 +211,7 @@ def _insert_submitted_sleeve_order(
     intent: SleeveTradeIntent,
     now_iso: str,
 ) -> int:
-    return insert_sleeve_order(
-        conn,
+    return SleeveOrderRepository(conn).insert(
         account_id=intent.account_id,
         sleeve_id=intent.sleeve_id,
         strategy_name=intent.strategy_name,
@@ -245,8 +239,8 @@ def _compute_current_exposure_snapshot(
     return compute_current_exposure_snapshot(
         conn,
         account_id=account_id,
-        fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account,
-        fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account,
+        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(account_id=account_id),
+        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(account_id=account_id),
     )
 
 
@@ -264,8 +258,8 @@ def _persist_sleeve_risk_snapshot(
         snapshot_time=snapshot_time,
         kill_switch_triggered=kill_switch_triggered,
         payload=payload,
-        fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account,
-        fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account,
+        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(account_id=account_id),
+        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(account_id=account_id),
         upsert_portfolio_risk_snapshot_fn=PortfolioRiskSnapshotRepository(conn).upsert,
     )
 
@@ -282,7 +276,7 @@ def _persist_normalized_sleeve_risk_decisions(
         account_id=account_id,
         decision_time=decision_time,
         risk_decisions=risk_decisions,
-        insert_sleeve_risk_decision_fn=insert_sleeve_risk_decision,
+        insert_sleeve_risk_decision_fn=lambda c, **kwargs: SleeveRiskDecisionRepository(c).insert(**kwargs),
     )
 
 
@@ -511,8 +505,7 @@ def _run_sleeve_mode_for_account(
                         "error": str(exc),
                     }
                 )
-                update_sleeve_order_status(
-                    conn,
+                SleeveOrderRepository(conn).update_status(
                     sleeve_order_id=sleeve_order_id,
                     status=OrderStatus.REJECTED.value,
                     updated_at=utc_now_iso(),
@@ -525,8 +518,7 @@ def _run_sleeve_mode_for_account(
                     broker_order.submitted_at = submitted_at
                 if broker_order.updated_at is None:
                     broker_order.updated_at = updated_at
-                attach_sleeve_order_broker_order_id(
-                    conn,
+                SleeveOrderRepository(conn).attach_broker_order_id(
                     sleeve_order_id=sleeve_order_id,
                     broker_order_id=broker_order.broker_order_id,
                     updated_at=updated_at,
@@ -536,8 +528,7 @@ def _run_sleeve_mode_for_account(
                 for fill in broker_order.fills:
                     repo.insert_fill(broker_order.broker_order_id, fill)
 
-            update_sleeve_order_status(
-                conn,
+            SleeveOrderRepository(conn).update_status(
                 sleeve_order_id=sleeve_order_id,
                 status=broker_order.status.value,
                 updated_at=updated_at,
@@ -709,10 +700,10 @@ def reconcile_open_broker_orders(
         fee,
         get_broker_for_account_fn=broker_factory,
         fetch_open_broker_orders_fn=BrokerOrderRepository(conn).fetch_open,
-        fetch_sleeve_order_by_broker_order_id_fn=fetch_sleeve_order_by_broker_order_id,
+        fetch_sleeve_order_by_broker_order_id_fn=lambda c, *, account_id, broker_order_id: SleeveOrderRepository(c).fetch_by_broker_order_id(account_id=account_id, broker_order_id=broker_order_id),
         insert_order_fill_fn=BrokerOrderRepository(conn).insert_fill,
         update_broker_order_status_fn=BrokerOrderRepository(conn).update_status,
-        update_sleeve_order_status_fn=update_sleeve_order_status,
+        update_sleeve_order_status_fn=lambda c, *, sleeve_order_id, status, updated_at: SleeveOrderRepository(c).update_status(sleeve_order_id=sleeve_order_id, status=status, updated_at=updated_at),
         record_trade_fn=record_trade,
     )
 

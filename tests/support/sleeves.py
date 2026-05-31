@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from trading.domain.rotation import dump_rotation_schedule
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.sleeves import insert_sleeve_strategy_assignment, insert_strategy_sleeve
+from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
 
@@ -26,8 +26,7 @@ def insert_test_sleeve(
 ) -> int:
     resolved_cash = start_equity if current_cash is None else current_cash
     resolved_equity = start_equity if current_equity is None else current_equity
-    return insert_strategy_sleeve(
-        conn,
+    return SleeveRepository(conn).insert(
         account_id=account_id,
         name=name,
         status=status,
@@ -92,9 +91,9 @@ def build_rotation_sleeve_env(
     )
     conn.commit()
 
+    sleeve_repo = SleeveRepository(conn)
     sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=start_equity)
-    insert_sleeve_strategy_assignment(
-        conn,
+    sleeve_repo.insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=None,

@@ -3,11 +3,9 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from common.coercion import row_expect_float, row_expect_str
-from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
+from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
-# Default absolute equity tolerance for sleeve-to-account reconciliation.
 DEFAULT_EQUITY_TOLERANCE = 0.01
 
 
@@ -30,8 +28,8 @@ def reconcile_sleeves_vs_account_equity(
     tolerance: float = DEFAULT_EQUITY_TOLERANCE,
     snapshot_time: str | None = None,
 ) -> SleeveEquityReconciliationResult:
-    sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=int(account_id))
-    total_sleeve_equity = sum(row_expect_float(row, "current_equity") for row in sleeve_rows)
+    sleeves = SleeveRepository(conn).fetch_for_account(account_id=int(account_id))
+    total_sleeve_equity = sum(s.current_equity for s in sleeves)
     difference = total_sleeve_equity - float(account_equity)
     abs_tolerance = abs(float(tolerance))
     return SleeveEquityReconciliationResult(

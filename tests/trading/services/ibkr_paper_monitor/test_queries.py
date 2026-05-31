@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,97 +11,110 @@ import pytest
 from trading.services.ibkr_paper_monitor import queries
 
 
-class MockAccount:
-    """Mock account row."""
+def _make_sleeve(
+    *,
+    id: int = 1,
+    name: str = "Sleeve 1",
+    status: str = "active",
+    start_equity: float = 50_000.0,
+    current_equity: float = 52_000.0,
+    current_cash: float = 10_000.0,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=id,
+        name=name,
+        status=status,
+        start_equity=start_equity,
+        current_equity=current_equity,
+        current_cash=current_cash,
+    )
 
-    def __init__(
-        self,
-        id: int,
-        name: str,
-        account_kind: str,
-        initial_cash: float,
-    ):
-        self.id = id
-        self.name = name
-        self.account_kind = account_kind
-        self.initial_cash = initial_cash
+
+def _make_account(
+    *,
+    id: int = 1,
+    name: str = "paper_account",
+    account_kind: str = "managed",
+    initial_cash: float = 50_000.0,
+) -> SimpleNamespace:
+    return SimpleNamespace(id=id, name=name, account_kind=account_kind, initial_cash=initial_cash)
+
+
+def _make_risk_decision(
+    *,
+    id: int = 1,
+    symbol: str = "AAPL",
+    side: str = "buy",
+    action: str = "allow",
+    reason_code: str = "ok",
+    approved_notional: float = 1000.0,
+    requested_notional: float = 1000.0,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=id,
+        symbol=symbol,
+        side=side,
+        action=action,
+        reason_code=reason_code,
+        approved_notional=approved_notional,
+        requested_notional=requested_notional,
+    )
 
 
 @pytest.fixture
 def mock_conn() -> MagicMock:
-    """Create a mock database connection."""
     return MagicMock(spec=sqlite3.Connection)
 
 
 def test_fetch_ibkr_paper_accounts_list_filters_managed_accounts(mock_conn: MagicMock) -> None:
-    """Test that only managed accounts are included."""
-    accounts_to_return = [
-        MockAccount(id=1, name="live_account", account_kind="live", initial_cash=100000.0),
-        MockAccount(id=2, name="paper_account", account_kind="managed", initial_cash=50000.0),
-        MockAccount(id=3, name="another_paper", account_kind="managed", initial_cash=75000.0),
+    accounts = [
+        _make_account(id=1, name="live_account", account_kind="live"),
+        _make_account(id=2, name="paper_account", account_kind="managed"),
+        _make_account(id=3, name="another_paper", account_kind="managed"),
     ]
 
-    with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-            mock_accounts_repo.get.return_value = accounts_to_return
-            mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = []
+    with patch("trading.services.ibkr_paper_monitor.queries.AccountRepository") as mock_acct_cls:
+        with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
+            mock_acct_cls.return_value.fetch_all.return_value = accounts
+            mock_sleeve_cls.return_value.fetch_for_account.return_value = []
 
             result = queries.fetch_ibkr_paper_accounts_list(mock_conn)
 
-            # Should only include managed accounts
             assert len(result) == 2
             assert result[0]["name"] == "paper_account"
             assert result[1]["name"] == "another_paper"
 
 
 def test_fetch_ibkr_paper_accounts_list_calculates_totals(mock_conn: MagicMock) -> None:
-    """Test that totals are calculated correctly."""
-    accounts_to_return = [
-        MockAccount(id=1, name="paper_account", account_kind="managed", initial_cash=50000.0),
+    accounts = [_make_account(id=1, name="paper_account", initial_cash=50_000.0)]
+    sleeves = [
+        _make_sleeve(id=1, current_equity=52_000.0, current_cash=10_000.0),
+        _make_sleeve(id=2, current_equity=48_000.0, current_cash=5_000.0),
     ]
 
-    sleeves_data = [
-        {
-            "id": 1,
-            "name": "Sleeve 1",
-            "current_equity": 52000.0,
-            "current_cash": 10000.0,
-        },
-        {
-            "id": 2,
-            "name": "Sleeve 2",
-            "current_equity": 48000.0,
-            "current_cash": 5000.0,
-        },
-    ]
-
-    with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-            mock_accounts_repo.get.return_value = accounts_to_return
-            mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeves_data
+    with patch("trading.services.ibkr_paper_monitor.queries.AccountRepository") as mock_acct_cls:
+        with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
+            mock_acct_cls.return_value.fetch_all.return_value = accounts
+            mock_sleeve_cls.return_value.fetch_for_account.return_value = sleeves
 
             result = queries.fetch_ibkr_paper_accounts_list(mock_conn)
 
             assert len(result) == 1
             account = result[0]
-            assert account["total_equity"] == 100000.0  # 52000 + 48000
-            assert account["total_cash"] == 15000.0  # 10000 + 5000
-            assert account["positions_market_value"] == 85000.0  # 100000 - 15000
+            assert account["total_equity"] == 100_000.0
+            assert account["total_cash"] == 15_000.0
+            assert account["positions_market_value"] == 85_000.0
             assert account["sleeve_count"] == 2
-            # return_pct: (100000 - 50000) / 50000 * 100 = 100%
             assert account["return_pct"] == 100.0
 
 
 def test_fetch_ibkr_paper_accounts_list_handles_zero_initial_cash(mock_conn: MagicMock) -> None:
-    """Test that return_pct is 0 when initial_cash is zero."""
-    accounts_to_return = [
-        MockAccount(id=1, name="zero_account", account_kind="managed", initial_cash=0.0),
-    ]
+    accounts = [_make_account(id=1, name="zero_account", initial_cash=0.0)]
 
-    with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-            mock_accounts_repo.get.return_value = accounts_to_return
-            mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = []
+    with patch("trading.services.ibkr_paper_monitor.queries.AccountRepository") as mock_acct_cls:
+        with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
+            mock_acct_cls.return_value.fetch_all.return_value = accounts
+            mock_sleeve_cls.return_value.fetch_for_account.return_value = []
 
             result = queries.fetch_ibkr_paper_accounts_list(mock_conn)
 
@@ -108,61 +122,33 @@ def test_fetch_ibkr_paper_accounts_list_handles_zero_initial_cash(mock_conn: Mag
 
 
 def test_fetch_account_sleeves_with_metrics(mock_conn: MagicMock) -> None:
-    """Test that sleeve metrics are fetched and formatted correctly."""
-    sleeve_rows = [
-        {
-            "id": 1,
-            "name": "Growth Sleeve",
-            "status": "active",
-            "start_equity": 50000.0,
-            "current_equity": 55000.0,
-            "current_cash": 5000.0,
-        },
-    ]
+    sleeves = [_make_sleeve(id=1, name="Growth Sleeve", start_equity=50_000.0, current_equity=55_000.0, current_cash=5_000.0)]
 
-    metrics_rows = [
-        {
-            "hit_rate": 0.65,
-            "drawdown_pct": -10.5,
-            "trade_count": 25,
-            "metric_date": "2026-05-10",
-        },
-    ]
+    metric = SimpleNamespace(hit_rate=0.65, drawdown_pct=-10.5, trade_count=25, metric_date="2026-05-10")
 
-    with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_repo_class:
-            mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
-            mock_repo_class.return_value.fetch_for_sleeve.return_value = metrics_rows
+    with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
+        with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
+            mock_sleeve_cls.return_value.fetch_for_account.return_value = sleeves
+            mock_metrics_cls.return_value.fetch_for_sleeve.return_value = [metric]
 
             result = queries._fetch_account_sleeves(mock_conn, account_id=1)
 
             assert len(result) == 1
             sleeve = result[0]
             assert sleeve["name"] == "Growth Sleeve"
-            assert sleeve["current_equity"] == 55000.0
+            assert sleeve["current_equity"] == 55_000.0
             assert sleeve["latest_metrics"]["hit_rate"] == 0.65
             assert sleeve["latest_metrics"]["trade_count"] == 25
-            # return_pct: (55000 - 50000) / 50000 * 100 = 10%
             assert sleeve["return_pct"] == 10.0
 
 
 def test_fetch_account_sleeves_without_metrics(mock_conn: MagicMock) -> None:
-    """Test that missing metrics are handled gracefully."""
-    sleeve_rows = [
-        {
-            "id": 1,
-            "name": "New Sleeve",
-            "status": "active",
-            "start_equity": 50000.0,
-            "current_equity": 50000.0,
-            "current_cash": 50000.0,
-        },
-    ]
+    sleeves = [_make_sleeve(id=1, name="New Sleeve", start_equity=50_000.0, current_equity=50_000.0, current_cash=50_000.0)]
 
-    with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_repo_class:
-            mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
-            mock_repo_class.return_value.fetch_for_sleeve.return_value = []
+    with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
+        with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
+            mock_sleeve_cls.return_value.fetch_for_account.return_value = sleeves
+            mock_metrics_cls.return_value.fetch_for_sleeve.return_value = []
 
             result = queries._fetch_account_sleeves(mock_conn, account_id=1)
 
@@ -173,64 +159,34 @@ def test_fetch_account_sleeves_without_metrics(mock_conn: MagicMock) -> None:
 
 
 def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
-    """Test that recent rotations are fetched and sorted correctly."""
-    sleeve_rows = [
-        {"id": 1, "name": "Growth Sleeve"},
-        {"id": 2, "name": "Value Sleeve"},
+    sleeves = [
+        _make_sleeve(id=1, name="Growth Sleeve"),
+        _make_sleeve(id=2, name="Value Sleeve"),
     ]
 
-    rotation_rows_1 = [
-        {
-            "id": 101,
-            "incumbent_strategy": "momentum",
-            "challenger_strategy": "mean_reversion",
-            "decision_time": "2026-05-10T10:00:00",
-            "decision_reason": "Underperformance",
-        },
-    ]
+    rotation_1 = {"id": 101, "incumbent_strategy": "momentum", "challenger_strategy": "mean_reversion",
+                  "decision_time": "2026-05-10T10:00:00", "decision_reason": "Underperformance"}
+    rotation_2 = {"id": 102, "incumbent_strategy": "div_yield", "challenger_strategy": "growth",
+                  "decision_time": "2026-05-11T14:00:00", "decision_reason": "Better alpha"}
 
-    rotation_rows_2 = [
-        {
-            "id": 102,
-            "incumbent_strategy": "div_yield",
-            "challenger_strategy": "growth",
-            "decision_time": "2026-05-11T14:00:00",
-            "decision_reason": "Better alpha",
-        },
-    ]
-
-    with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.RotationDecisionRepository") as mock_repo_class:
-            mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
-            mock_repo_class.return_value.fetch_for_sleeve.side_effect = [
-                rotation_rows_1,
-                rotation_rows_2,
-            ]
+    with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
+        with patch("trading.services.ibkr_paper_monitor.queries.RotationDecisionRepository") as mock_rot_cls:
+            mock_sleeve_cls.return_value.fetch_for_account.return_value = sleeves
+            mock_rot_cls.return_value.fetch_for_sleeve.side_effect = [[rotation_1], [rotation_2]]
 
             result = queries._fetch_recent_rotations(mock_conn, account_id=1)
 
-            # Should be sorted by decision_time descending
             assert len(result) == 2
             assert result[0]["decision_time"] == "2026-05-11T14:00:00"
             assert result[1]["decision_time"] == "2026-05-10T10:00:00"
 
 
 def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
-    """Test that kill switch is detected when action is 'block'."""
-    risk_rows = [
-        {
-            "id": 1,
-            "symbol": "AAPL",
-            "side": "BUY",
-            "action": "block",
-            "reason_code": "risk_limit_exceeded",
-            "approved_notional": 0.0,
-            "requested_notional": 10000.0,
-        },
-    ]
+    decisions = [_make_risk_decision(id=1, symbol="AAPL", side="buy", action="block",
+                                     reason_code="risk_limit_exceeded", approved_notional=0.0, requested_notional=10_000.0)]
 
-    with patch("trading.services.ibkr_paper_monitor.queries.sleeve_risk_decisions") as mock_risk_repo:
-        mock_risk_repo.fetch_sleeve_risk_decisions_for_account.return_value = risk_rows
+    with patch("trading.services.ibkr_paper_monitor.queries.SleeveRiskDecisionRepository") as mock_risk_cls:
+        mock_risk_cls.return_value.fetch_for_account.return_value = decisions
 
         result = queries._fetch_risk_summary(mock_conn, account_id=1)
 
@@ -239,43 +195,31 @@ def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
         assert result["violations"][0]["action"] == "block"
 
 
-def test_fetch_ibkr_paper_account_detail_raises_on_missing_account(
-    mock_conn: MagicMock,
-) -> None:
-    """Test that ValueError is raised when account not found."""
-    with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
-        mock_accounts_repo.get_by_name.return_value = None
+def test_fetch_ibkr_paper_account_detail_raises_on_missing_account(mock_conn: MagicMock) -> None:
+    with patch("trading.services.ibkr_paper_monitor.queries.AccountRepository") as mock_acct_cls:
+        mock_acct_cls.return_value.fetch_by_name.return_value = None
 
         with pytest.raises(ValueError, match="Account not found"):
             queries.fetch_ibkr_paper_account_detail(mock_conn, "nonexistent")
 
 
-def test_fetch_ibkr_paper_account_detail_aggregates_all_data(
-    mock_conn: MagicMock,
-) -> None:
-    """Test that account detail aggregates sleeves, rotations, and risk data."""
-    account = MockAccount(id=1, name="test_account", account_kind="managed", initial_cash=50000.0)
+def test_fetch_ibkr_paper_account_detail_aggregates_all_data(mock_conn: MagicMock) -> None:
+    account = _make_account(id=1, name="test_account", initial_cash=50_000.0)
 
-    with patch("trading.services.ibkr_paper_monitor.queries.accounts") as mock_accounts_repo:
+    with patch("trading.services.ibkr_paper_monitor.queries.AccountRepository") as mock_acct_cls:
         with patch("trading.services.ibkr_paper_monitor.queries._fetch_account_sleeves") as mock_fetch_sleeves:
             with patch("trading.services.ibkr_paper_monitor.queries._fetch_recent_rotations") as mock_fetch_rotations:
                 with patch("trading.services.ibkr_paper_monitor.queries._fetch_risk_summary") as mock_fetch_risk:
-                    mock_accounts_repo.get_by_name.return_value = account
-                    mock_fetch_sleeves.return_value = [
-                        {
-                            "sleeve_id": 1,
-                            "name": "Sleeve 1",
-                            "current_equity": 55000.0,
-                            "current_cash": 10000.0,
-                        },
-                    ]
+                    mock_acct_cls.return_value.fetch_by_name.return_value = account
+                    mock_fetch_sleeves.return_value = [{"sleeve_id": 1, "name": "Sleeve 1",
+                                                        "current_equity": 55_000.0, "current_cash": 10_000.0}]
                     mock_fetch_rotations.return_value = []
                     mock_fetch_risk.return_value = {"kill_switch_triggered": False}
 
                     result = queries.fetch_ibkr_paper_account_detail(mock_conn, "test_account")
 
                     assert result["account"]["name"] == "test_account"
-                    assert result["account"]["total_equity"] == 55000.0
+                    assert result["account"]["total_equity"] == 55_000.0
                     assert result["account"]["sleeve_count"] == 1
                     assert result["sleeves"] == mock_fetch_sleeves.return_value
                     assert result["recent_rotations"] == []

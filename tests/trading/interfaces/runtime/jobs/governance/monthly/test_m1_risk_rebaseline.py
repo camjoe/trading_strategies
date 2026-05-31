@@ -94,16 +94,17 @@ class TestArtifactStructure:
         assert "note" in acct
 
     def test_snapshot_fields_present_when_snapshot_exists(self, monkeypatch, tmp_path: Path) -> None:
-        snapshot = {
-            "snapshot_time": "2026-06-01T10:00:00",
-            "gross_exposure": 50000.0,
-            "net_exposure": 30000.0,
-            "drawdown_pct": -3.5,
-            "daily_loss_pct": -1.2,
-            "kill_switch_triggered": 0,
-            "max_symbol_concentration_pct": 15.0,
-            "max_sector_concentration_pct": 30.0,
-        }
+        from types import SimpleNamespace
+        snapshot = SimpleNamespace(
+            snapshot_time="2026-06-01T10:00:00",
+            gross_exposure=50000.0,
+            net_exposure=30000.0,
+            drawdown_pct=-3.5,
+            daily_loss_pct=-1.2,
+            kill_switch_triggered=False,
+            max_symbol_concentration_pct=15.0,
+            max_sector_concentration_pct=30.0,
+        )
         stub_runtime_job_basics(monkeypatch, module)
         monkeypatch.setattr(
             module,

@@ -18,6 +18,14 @@ from trading.models.equity_snapshot_record import EquitySnapshotRecord
 from trading.models.global_settings_record import GlobalSettingsRecord
 from trading.models.portfolio_risk_snapshot_record import PortfolioRiskSnapshotRecord
 from trading.models.rotation_config import RotationConfig
+from trading.models.sleeve_fill_record import SleeveFillRecord
+from trading.models.sleeve_ledger_record import SleeveLedgerRecord
+from trading.models.sleeve_order_record import SleeveOrderRecord
+from trading.models.sleeve_position_record import SleevePositionRecord
+from trading.models.sleeve_record import SleeveRecord
+from trading.models.sleeve_risk_decision_record import SleeveRiskDecisionRecord
+from trading.models.sleeve_strategy_assignment_record import SleeveStrategyAssignmentRecord
+from trading.models.strategy_param_set_record import StrategyParamSetRecord
 
 __all__ = [
     "AccountConfig",
@@ -29,10 +37,18 @@ __all__ = [
     "DailyMetricRecord",
     "EquitySnapshotRecord",
     "GlobalSettingsRecord",
-    "PortfolioRiskSnapshotRecord",
     "OrderFill",
     "OrderStatus",
     "OrderType",
+    "PortfolioRiskSnapshotRecord",
     "RotationConfig",
+    "SleeveFillRecord",
+    "SleeveLedgerRecord",
+    "SleeveOrderRecord",
+    "SleevePositionRecord",
+    "SleeveRecord",
+    "SleeveRiskDecisionRecord",
+    "SleeveStrategyAssignmentRecord",
+    "StrategyParamSetRecord",
     "TimeInForce",
 ]

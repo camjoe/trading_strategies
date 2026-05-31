@@ -91,16 +91,13 @@ class TestArtifactStructure:
             "name": "sleeve_alpha",
             "status": "active",
         }
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        from types import SimpleNamespace as _NS
+        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=None)
         monkeypatch.setattr(
             module,
             "fetch_current_promotion_assessment",
             lambda conn, *, account_name: _make_assessment(ready_for_live=False, blockers=["missing_data"]),
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: {"strategy_name": "mean_rev"},
         )
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)

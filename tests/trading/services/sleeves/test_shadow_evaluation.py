@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 from trading.domain.rotation import dump_rotation_schedule
-from trading.repositories.sleeves import (
-    insert_sleeve_strategy_assignment,
-    insert_strategy_sleeve,
-    insert_strategy_param_set,
-    set_strategy_param_set_activation,
-)
+from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
 from trading.services.accounts import get_account
 from trading.services.sleeves.shadow_evaluation import (
     build_challenger_metrics_from_backtest_returns,
@@ -17,8 +12,8 @@ from tests.support.repositories import insert_repository_account
 
 def test_build_challenger_metrics_from_backtest_returns_uses_active_param_set(conn, monkeypatch) -> None:
     account_id = insert_repository_account(conn, name="acct_shadow_metrics")
-    param_set_id = insert_strategy_param_set(
-        conn,
+    param_repo = StrategyParamSetRepository(conn)
+    param_set_id = param_repo.insert(
         strategy_name="meanrev",
         version="v1",
         params_json='{"lookback":20}',
@@ -30,8 +25,7 @@ def test_build_challenger_metrics_from_backtest_returns_uses_active_param_set(co
         deactivated_at=None,
         notes=None,
     )
-    set_strategy_param_set_activation(
-        conn,
+    param_repo.set_activation(
         param_set_id=param_set_id,
         is_active=1,
         updated_at="2026-05-01T01:00:00Z",
@@ -71,8 +65,8 @@ def test_build_sleeve_shadow_evaluation_returns_active_sleeve_candidates(conn, m
         (dump_rotation_schedule(["trend", "meanrev", "breakout"]), account_id),
     )
     conn.commit()
-    sleeve_id = insert_strategy_sleeve(
-        conn,
+    sleeve_repo = SleeveRepository(conn)
+    sleeve_id = sleeve_repo.insert(
         account_id=account_id,
         name="core",
         status="active",
@@ -83,8 +77,7 @@ def test_build_sleeve_shadow_evaluation_returns_active_sleeve_candidates(conn, m
         created_at="2026-05-01T00:00:00Z",
         updated_at="2026-05-01T00:00:00Z",
     )
-    insert_sleeve_strategy_assignment(
-        conn,
+    sleeve_repo.insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=None,

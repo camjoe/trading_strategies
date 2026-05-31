@@ -26,7 +26,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL
-from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import load_runtime_eligible_account_names
 from trading.services.accounts.queries import find_account
 
@@ -119,14 +119,14 @@ def main() -> int:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue
 
-            sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
+            sleeves = SleeveRepository(conn).fetch_for_account(account_id=account.id)
 
             # current_equity already includes cash for each sleeve.
-            current_navs = [float(sleeve["current_equity"]) for sleeve in sleeves]
+            current_navs = [s.current_equity for s in sleeves]
             total_nav = sum(current_navs)
 
             # Compute target allocation from original start_equity.
-            start_equities = [float(sleeve["start_equity"]) for sleeve in sleeves]
+            start_equities = [s.start_equity for s in sleeves]
             total_start_equity = sum(start_equities)
 
             sleeve_rows: list[WeeklyAllocationSleevePayload] = []
@@ -138,7 +138,7 @@ def main() -> int:
 
                 sleeve_rows.append(
                     WeeklyAllocationSleevePayload(
-                        sleeve_name=str(sleeve["name"]),
+                        sleeve_name=sleeve.name,
                         current_nav=current_nav,
                         current_pct=current_pct,
                         target_pct=target_pct,

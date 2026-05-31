@@ -5,50 +5,11 @@ import pytest
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeve_ledger import (
-    fetch_sleeve_ledger_entries,
-    fetch_sleeve_ledger_sum_by_type,
-    insert_sleeve_ledger_entry,
-)
-from trading.repositories.sleeve_orders import (
-    attach_sleeve_order_broker_order_id,
-    fetch_open_sleeve_orders_for_account,
-    fetch_sleeve_fills_for_order,
-    fetch_sleeve_order_by_broker_order_id,
-    fetch_sleeve_order_by_id,
-    fetch_sleeve_orders_for_sleeve,
-    insert_sleeve_fill,
-    insert_sleeve_order,
-    update_sleeve_order_status,
-)
-from trading.repositories.sleeve_positions import (
-    delete_sleeve_position,
-    fetch_sleeve_position,
-    fetch_sleeve_positions,
-    fetch_sleeve_positions_for_account,
-    upsert_sleeve_position,
-)
-from trading.repositories.sleeve_risk_decisions import (
-    fetch_sleeve_risk_decisions_for_account,
-    fetch_sleeve_risk_decisions_for_account_date,
-    insert_sleeve_risk_decision,
-)
-from trading.repositories.sleeves import (
-    close_active_sleeve_strategy_assignment,
-    fetch_active_sleeve_strategy_assignment,
-    fetch_active_strategy_param_set,
-    fetch_sleeve_strategy_assignments,
-    fetch_strategy_param_set_by_id,
-    fetch_strategy_sleeve_by_id,
-    fetch_strategy_sleeves_for_account,
-    insert_sleeve_strategy_assignment,
-    insert_strategy_param_set,
-    insert_strategy_sleeve,
-    set_strategy_param_set_activation,
-    update_sleeve_trade_universes,
-    update_strategy_sleeve_balances,
-    update_strategy_sleeve_status,
-)
+from trading.repositories.sleeve_ledger import SleeveLedgerRepository
+from trading.repositories.sleeve_orders import SleeveOrderRepository
+from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
 
 
 class _StaticCursor:
@@ -79,63 +40,54 @@ class _StaticConnection:
 
 class TestSleevesRepository:
     def test_insert_fetch_and_update_sleeve(self, conn, account_id, sleeve_id) -> None:
+        repo = SleeveRepository(conn)
 
-        row = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
-        assert row is not None
-        assert row["name"] == "core"
-        assert float(row["current_cash"]) == 10_000.0
+        sleeve = repo.fetch_by_id(sleeve_id=sleeve_id)
+        assert sleeve is not None
+        assert sleeve.name == "core"
+        assert sleeve.current_cash == 10_000.0
 
-        update_strategy_sleeve_status(
-            conn,
-            sleeve_id=sleeve_id,
-            status="paused",
-            updated_at="2026-05-04T00:00:00Z",
-        )
-        update_strategy_sleeve_balances(
-            conn,
+        repo.update_status(sleeve_id=sleeve_id, status="paused", updated_at="2026-05-04T00:00:00Z")
+        repo.update_balances(
             sleeve_id=sleeve_id,
             current_cash=9_100.0,
             current_equity=9_500.0,
             updated_at="2026-05-04T00:00:00Z",
         )
 
-        updated = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        updated = repo.fetch_by_id(sleeve_id=sleeve_id)
         assert updated is not None
-        assert updated["status"] == "paused"
-        assert float(updated["current_cash"]) == 9_100.0
-        assert float(updated["current_equity"]) == 9_500.0
+        assert updated.status == "paused"
+        assert updated.current_cash == 9_100.0
+        assert updated.current_equity == 9_500.0
 
-        rows = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
-        assert [int(item["id"]) for item in rows] == [sleeve_id]
+        all_sleeves = repo.fetch_for_account(account_id=account_id)
+        assert [s.id for s in all_sleeves] == [sleeve_id]
 
     def test_update_trade_universes_can_set_and_clear_override(self, conn, sleeve_id) -> None:
-        update_sleeve_trade_universes(
-            conn,
+        repo = SleeveRepository(conn)
+        repo.update_trade_universes(
             sleeve_id=sleeve_id,
             trade_universes='["SPY","QQQ"]',
             updated_at="2026-05-05T00:00:00Z",
         )
-        updated = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        updated = repo.fetch_by_id(sleeve_id=sleeve_id)
         assert updated is not None
-        assert updated["trade_universes"] == '["SPY","QQQ"]'
+        assert updated.trade_universes == '["SPY","QQQ"]'
 
-        update_sleeve_trade_universes(
-            conn,
+        repo.update_trade_universes(
             sleeve_id=sleeve_id,
             trade_universes=None,
             updated_at="2026-05-05T01:00:00Z",
         )
-        cleared = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+        cleared = repo.fetch_by_id(sleeve_id=sleeve_id)
         assert cleared is not None
-        assert cleared["trade_universes"] is None
-        assert cleared["updated_at"] == "2026-05-05T01:00:00Z"
+        assert cleared.trade_universes is None
+        assert cleared.updated_at == "2026-05-05T01:00:00Z"
 
-    def test_insert_strategy_sleeve_raises_when_lastrowid_missing(self) -> None:
-        conn = _StaticConnection(_StaticCursor(lastrowid=None))
-
+    def test_insert_sleeve_raises_when_lastrowid_missing(self) -> None:
         with pytest.raises(ValueError, match="Expected strategy_sleeves id after insert"):
-            insert_strategy_sleeve(
-                conn,
+            SleeveRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
                 account_id=1,
                 name="core",
                 status="active",
@@ -148,9 +100,10 @@ class TestSleevesRepository:
             )
 
     def test_param_sets_and_assignments(self, conn, account_id, sleeve_id) -> None:
+        sleeve_repo = SleeveRepository(conn)
+        param_repo = StrategyParamSetRepository(conn)
 
-        param_set_id = insert_strategy_param_set(
-            conn,
+        param_set_id = param_repo.insert(
             strategy_name="trend",
             version="v1",
             params_json='{"lookback":20}',
@@ -162,8 +115,7 @@ class TestSleevesRepository:
             deactivated_at=None,
             notes=None,
         )
-        set_strategy_param_set_activation(
-            conn,
+        param_repo.set_activation(
             param_set_id=param_set_id,
             is_active=1,
             updated_at="2026-05-03T01:00:00Z",
@@ -171,16 +123,15 @@ class TestSleevesRepository:
             deactivated_at=None,
         )
 
-        active = fetch_active_strategy_param_set(conn, strategy_name="trend")
+        active = param_repo.fetch_active(strategy_name="trend")
         assert active is not None
-        assert int(active["id"]) == param_set_id
+        assert active.id == param_set_id
 
-        inserted = fetch_strategy_param_set_by_id(conn, param_set_id=param_set_id)
+        inserted = param_repo.fetch_by_id(param_set_id=param_set_id)
         assert inserted is not None
-        assert inserted["version"] == "v1"
+        assert inserted.version == "v1"
 
-        first_assignment_id = insert_sleeve_strategy_assignment(
-            conn,
+        first_assignment_id = sleeve_repo.insert_assignment(
             sleeve_id=sleeve_id,
             strategy_name="trend",
             param_set_id=param_set_id,
@@ -192,15 +143,13 @@ class TestSleevesRepository:
         )
         assert first_assignment_id > 0
 
-        close_active_sleeve_strategy_assignment(
-            conn,
+        sleeve_repo.close_active_assignment(
             sleeve_id=sleeve_id,
             effective_to="2026-05-04T00:00:00Z",
             updated_at="2026-05-04T00:00:00Z",
         )
 
-        insert_sleeve_strategy_assignment(
-            conn,
+        sleeve_repo.insert_assignment(
             sleeve_id=sleeve_id,
             strategy_name="meanrev",
             param_set_id=None,
@@ -211,17 +160,18 @@ class TestSleevesRepository:
             updated_at="2026-05-04T00:00:00Z",
         )
 
-        active_assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+        active_assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve_id)
         assert active_assignment is not None
-        assert active_assignment["strategy_name"] == "meanrev"
+        assert active_assignment.strategy_name == "meanrev"
 
-        all_assignments = fetch_sleeve_strategy_assignments(conn, sleeve_id=sleeve_id)
+        all_assignments = sleeve_repo.fetch_assignments(sleeve_id=sleeve_id)
         assert len(all_assignments) == 2
 
     def test_insert_param_set_and_assignment_raise_when_lastrowid_missing(self) -> None:
         with pytest.raises(ValueError, match="Expected strategy_param_sets id after insert"):
-            insert_strategy_param_set(
-                _StaticConnection(_StaticCursor(lastrowid=None)),
+            StrategyParamSetRepository(
+                _StaticConnection(_StaticCursor(lastrowid=None))
+            ).insert(
                 strategy_name="trend",
                 version="v1",
                 params_json='{"lookback": 20}',
@@ -235,8 +185,9 @@ class TestSleevesRepository:
             )
 
         with pytest.raises(ValueError, match="Expected sleeve_strategy_assignments id after insert"):
-            insert_sleeve_strategy_assignment(
-                _StaticConnection(_StaticCursor(lastrowid=None)),
+            SleeveRepository(
+                _StaticConnection(_StaticCursor(lastrowid=None))
+            ).insert_assignment(
                 sleeve_id=1,
                 strategy_name="trend",
                 param_set_id=None,
@@ -250,9 +201,9 @@ class TestSleevesRepository:
 
 class TestSleeveOrdersRepository:
     def test_insert_update_and_query_sleeve_orders(self, conn, account_id, sleeve_id) -> None:
+        repo = SleeveOrderRepository(conn)
 
-        order_id = insert_sleeve_order(
-            conn,
+        order_id = repo.insert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             strategy_name="trend",
@@ -270,33 +221,31 @@ class TestSleeveOrdersRepository:
             submitted_at="2026-05-03T10:00:00Z",
             updated_at="2026-05-03T10:00:00Z",
         )
-        attach_sleeve_order_broker_order_id(
-            conn,
+        repo.attach_broker_order_id(
             sleeve_order_id=order_id,
             broker_order_id="ib-100",
             updated_at="2026-05-03T10:01:00Z",
         )
-        update_sleeve_order_status(
-            conn,
+        repo.update_status(
             sleeve_order_id=order_id,
             status="Filled",
             updated_at="2026-05-03T10:02:00Z",
         )
 
-        row = fetch_sleeve_order_by_id(conn, sleeve_order_id=order_id)
-        assert row is not None
-        assert row["broker_order_id"] == "ib-100"
-        assert row["status"] == "Filled"
+        order = repo.fetch_by_id(sleeve_order_id=order_id)
+        assert order is not None
+        assert order.broker_order_id == "ib-100"
+        assert order.status == "Filled"
 
-        sleeve_rows = fetch_sleeve_orders_for_sleeve(conn, sleeve_id=sleeve_id)
-        assert len(sleeve_rows) == 1
+        sleeve_orders = repo.fetch_for_sleeve(sleeve_id=sleeve_id)
+        assert len(sleeve_orders) == 1
 
-        open_rows = fetch_open_sleeve_orders_for_account(conn, account_id=account_id)
-        assert len(open_rows) == 0
+        open_orders = repo.fetch_open_for_account(account_id=account_id)
+        assert len(open_orders) == 0
 
     def test_fill_insert_is_idempotent_for_exec_id(self, conn, account_id, sleeve_id) -> None:
-        order_id = insert_sleeve_order(
-            conn,
+        repo = SleeveOrderRepository(conn)
+        order_id = repo.insert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             strategy_name="trend",
@@ -314,8 +263,7 @@ class TestSleeveOrdersRepository:
             submitted_at="2026-05-03T11:00:00Z",
             updated_at="2026-05-03T11:00:00Z",
         )
-        insert_sleeve_fill(
-            conn,
+        repo.insert_fill(
             sleeve_order_id=order_id,
             sleeve_id=sleeve_id,
             broker_fill_id="fill-1",
@@ -326,8 +274,7 @@ class TestSleeveOrdersRepository:
             commission=1.2,
             fill_time="2026-05-03T11:01:00Z",
         )
-        insert_sleeve_fill(
-            conn,
+        repo.insert_fill(
             sleeve_order_id=order_id,
             sleeve_id=sleeve_id,
             broker_fill_id="fill-1",
@@ -338,12 +285,12 @@ class TestSleeveOrdersRepository:
             commission=1.2,
             fill_time="2026-05-03T11:01:00Z",
         )
-        fills = fetch_sleeve_fills_for_order(conn, sleeve_order_id=order_id)
+        fills = repo.fetch_fills_for_order(sleeve_order_id=order_id)
         assert len(fills) == 1
 
     def test_fetch_by_broker_order_id_returns_matching_account_row(self, conn, account_id, sleeve_id) -> None:
-        insert_sleeve_order(
-            conn,
+        repo = SleeveOrderRepository(conn)
+        repo.insert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             strategy_name="trend",
@@ -362,17 +309,17 @@ class TestSleeveOrdersRepository:
             updated_at="2026-05-03T09:00:00Z",
         )
 
-        row = fetch_sleeve_order_by_broker_order_id(conn, account_id=account_id, broker_order_id="ib-300")
-
-        assert row is not None
-        assert row["broker_order_id"] == "ib-300"
-        assert int(row["account_id"]) == account_id
-        assert fetch_sleeve_order_by_broker_order_id(conn, account_id=account_id, broker_order_id="missing") is None
+        order = repo.fetch_by_broker_order_id(account_id=account_id, broker_order_id="ib-300")
+        assert order is not None
+        assert order.broker_order_id == "ib-300"
+        assert order.account_id == account_id
+        assert repo.fetch_by_broker_order_id(account_id=account_id, broker_order_id="missing") is None
 
     def test_insert_sleeve_order_raises_when_lastrowid_missing(self) -> None:
         with pytest.raises(ValueError, match="Expected sleeve_orders id after insert"):
-            insert_sleeve_order(
-                _StaticConnection(_StaticCursor(lastrowid=None)),
+            SleeveOrderRepository(
+                _StaticConnection(_StaticCursor(lastrowid=None))
+            ).insert(
                 account_id=1,
                 sleeve_id=1,
                 strategy_name="trend",
@@ -394,9 +341,10 @@ class TestSleeveOrdersRepository:
 
 class TestSleevePositionsLedgerDecisionsAndMetrics:
     def test_positions_ledger_decisions_and_metrics(self, conn, account_id, sleeve_id) -> None:
+        position_repo = SleevePositionRepository(conn)
+        ledger_repo = SleeveLedgerRepository(conn)
 
-        upsert_sleeve_position(
-            conn,
+        position_repo.upsert(
             sleeve_id=sleeve_id,
             symbol="IWM",
             qty=4,
@@ -405,8 +353,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             unrealized_pnl=10.0,
             updated_at="2026-05-03T12:00:00Z",
         )
-        upsert_sleeve_position(
-            conn,
+        position_repo.upsert(
             sleeve_id=sleeve_id,
             symbol="IWM",
             qty=6,
@@ -416,17 +363,16 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             updated_at="2026-05-03T13:00:00Z",
         )
 
-        one = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
-        assert one is not None
-        assert float(one["qty"]) == 6.0
+        pos = position_repo.fetch(sleeve_id=sleeve_id, symbol="IWM")
+        assert pos is not None
+        assert pos.qty == 6.0
 
-        many = fetch_sleeve_positions(conn, sleeve_id=sleeve_id)
+        many = position_repo.fetch_for_sleeve(sleeve_id=sleeve_id)
         assert len(many) == 1
-        joined = fetch_sleeve_positions_for_account(conn, account_id=account_id)
+        joined = position_repo.fetch_for_account(account_id=account_id)
         assert len(joined) == 1
 
-        insert_sleeve_ledger_entry(
-            conn,
+        ledger_repo.insert(
             sleeve_id=sleeve_id,
             entry_type="fee",
             amount=-1.5,
@@ -435,8 +381,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             entry_time="2026-05-03T13:30:00Z",
             created_at="2026-05-03T13:30:00Z",
         )
-        insert_sleeve_ledger_entry(
-            conn,
+        ledger_repo.insert(
             sleeve_id=sleeve_id,
             entry_type="fee",
             amount=-2.0,
@@ -445,13 +390,9 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             entry_time="2026-05-03T14:00:00Z",
             created_at="2026-05-03T14:00:00Z",
         )
-        entries = fetch_sleeve_ledger_entries(conn, sleeve_id=sleeve_id, limit=10)
+        entries = ledger_repo.fetch_for_sleeve(sleeve_id=sleeve_id, limit=10)
         assert len(entries) == 2
-        fee_total = fetch_sleeve_ledger_sum_by_type(
-            conn,
-            sleeve_id=sleeve_id,
-            entry_type="fee",
-        )
+        fee_total = ledger_repo.fetch_sum_by_type(sleeve_id=sleeve_id, entry_type="fee")
         assert fee_total == -3.5
 
         decision_id = RotationDecisionRepository(conn).insert(
@@ -565,20 +506,20 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         )
         assert portfolio_metric_id_updated == portfolio_metric_id
 
-        repo = DailyMetricsRepository(conn)
-        account_metrics = repo.fetch_for_account(account_id=account_id, limit=10)
+        metrics_repo = DailyMetricsRepository(conn)
+        account_metrics = metrics_repo.fetch_for_account(account_id=account_id, limit=10)
         assert len(account_metrics) == 2
-        sleeve_metrics = repo.fetch_for_sleeve(sleeve_id=sleeve_id, limit=10)
+        sleeve_metrics = metrics_repo.fetch_for_sleeve(sleeve_id=sleeve_id, limit=10)
         assert len(sleeve_metrics) == 1
-        sleeve_window_metrics = repo.fetch_for_sleeve_window(
+        sleeve_window_metrics = metrics_repo.fetch_for_sleeve_window(
             sleeve_id=sleeve_id,
             start_date="2026-05-03",
             end_date="2026-05-03",
         )
         assert len(sleeve_window_metrics) == 1
 
-        delete_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
-        removed = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="IWM")
+        position_repo.delete(sleeve_id=sleeve_id, symbol="IWM")
+        removed = position_repo.fetch(sleeve_id=sleeve_id, symbol="IWM")
         assert removed is None
 
 
@@ -646,9 +587,9 @@ class TestPortfolioRiskSnapshotsRepository:
 
 class TestSleeveRiskDecisionsRepository:
     def test_insert_and_fetch_sleeve_risk_decisions(self, conn, account_id, sleeve_id) -> None:
+        repo = SleeveRiskDecisionRepository(conn)
 
-        insert_sleeve_risk_decision(
-            conn,
+        repo.insert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             decision_time="2026-05-03T10:00:00Z",
@@ -664,8 +605,7 @@ class TestSleeveRiskDecisionsRepository:
             risk_payload_json='{"x":1}',
             created_at="2026-05-03T10:00:00Z",
         )
-        insert_sleeve_risk_decision(
-            conn,
+        repo.insert(
             account_id=account_id,
             sleeve_id=None,
             decision_time="2026-05-03T11:00:00Z",
@@ -682,12 +622,14 @@ class TestSleeveRiskDecisionsRepository:
             created_at="2026-05-03T11:00:00Z",
         )
 
-        rows = fetch_sleeve_risk_decisions_for_account(conn, account_id=account_id, limit=10)
+        rows = repo.fetch_for_account(account_id=account_id, limit=10)
         assert len(rows) == 2
-        assert rows[0]["reason_code"] == "stale_price_data"
-        assert rows[1]["reason_code"] == "sleeve_notional_cap"
+        assert rows[0].reason_code == "stale_price_data"
+        assert rows[1].reason_code == "sleeve_notional_cap"
 
     def test_date_scoped_fetches_and_guard_paths(self, conn, account_id, sleeve_id) -> None:
+        risk_repo = SleeveRiskDecisionRepository(conn)
+
         RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-02T23:59:00Z",
@@ -740,8 +682,7 @@ class TestSleeveRiskDecisionsRepository:
         )
         assert [row["decision_reason"] for row in rotation_rows] == ["in-window"]
 
-        insert_sleeve_risk_decision(
-            conn,
+        risk_repo.insert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             decision_time="2026-05-02T23:59:00Z",
@@ -757,8 +698,7 @@ class TestSleeveRiskDecisionsRepository:
             risk_payload_json='{"k":0}',
             created_at="2026-05-02T23:59:00Z",
         )
-        insert_sleeve_risk_decision(
-            conn,
+        risk_repo.insert(
             account_id=account_id,
             sleeve_id=None,
             decision_time="2026-05-03T10:30:00Z",
@@ -774,8 +714,7 @@ class TestSleeveRiskDecisionsRepository:
             risk_payload_json='{"k":1}',
             created_at="2026-05-03T10:30:00Z",
         )
-        insert_sleeve_risk_decision(
-            conn,
+        risk_repo.insert(
             account_id=account_id,
             sleeve_id=None,
             decision_time="2026-05-04T00:00:00Z",
@@ -792,25 +731,20 @@ class TestSleeveRiskDecisionsRepository:
             created_at="2026-05-04T00:00:00Z",
         )
 
-        risk_rows = fetch_sleeve_risk_decisions_for_account_date(
-            conn,
-            account_id=account_id,
-            report_date="2026-05-03",
-        )
-        assert [row["reason_code"] for row in risk_rows] == ["in-window"]
+        risk_rows = risk_repo.fetch_for_account_date(account_id=account_id, report_date="2026-05-03")
+        assert [row.reason_code for row in risk_rows] == ["in-window"]
 
         assert (
-            fetch_sleeve_ledger_sum_by_type(
-                _StaticConnection(_StaticCursor(row=None)),
-                sleeve_id=1,
-                entry_type="fee",
-            )
+            SleeveLedgerRepository(
+                _StaticConnection(_StaticCursor(row=None))
+            ).fetch_sum_by_type(sleeve_id=1, entry_type="fee")
             == 0.0
         )
 
         with pytest.raises(ValueError, match="Expected sleeve_ledger id after insert"):
-            insert_sleeve_ledger_entry(
-                _StaticConnection(_StaticCursor(lastrowid=None)),
+            SleeveLedgerRepository(
+                _StaticConnection(_StaticCursor(lastrowid=None))
+            ).insert(
                 sleeve_id=1,
                 entry_type="fee",
                 amount=-1.0,
@@ -821,8 +755,9 @@ class TestSleeveRiskDecisionsRepository:
             )
 
         with pytest.raises(ValueError, match="Expected sleeve_risk_decisions id after insert"):
-            insert_sleeve_risk_decision(
-                _StaticConnection(_StaticCursor(lastrowid=None)),
+            SleeveRiskDecisionRepository(
+                _StaticConnection(_StaticCursor(lastrowid=None))
+            ).insert(
                 account_id=1,
                 sleeve_id=None,
                 decision_time="2026-05-03T00:00:00Z",

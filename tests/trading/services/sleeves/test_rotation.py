@@ -3,11 +3,7 @@ from __future__ import annotations
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_sleeve_strategy_assignments,
-    insert_sleeve_strategy_assignment,
-)
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.rotation import (
     SleeveRotationConfig,
     evaluate_and_apply_sleeve_rotation,
@@ -64,8 +60,7 @@ def _seed_incumbent_metrics(conn, *, account_id: int, sleeve_id: int) -> None:
 def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_rotate")
     sleeve_id = _insert_sleeve(conn, account_id=account_id)
-    insert_sleeve_strategy_assignment(
-        conn,
+    SleeveRepository(conn).insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=101,
@@ -105,12 +100,13 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
     assert result.decision.rotation_action == "rotate"
     assert result.decision.selected_strategy == "meanrev"
 
-    active_assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+    sleeve_repo = SleeveRepository(conn)
+    active_assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve_id)
     assert active_assignment is not None
-    assert active_assignment["strategy_name"] == "meanrev"
-    assert int(active_assignment["param_set_id"]) == 202
+    assert active_assignment.strategy_name == "meanrev"
+    assert active_assignment.param_set_id == 202
 
-    assignments = fetch_sleeve_strategy_assignments(conn, sleeve_id=sleeve_id)
+    assignments = sleeve_repo.fetch_assignments(sleeve_id=sleeve_id)
     assert len(assignments) == 2
 
     latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
@@ -122,8 +118,7 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
 def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_cooldown")
     sleeve_id = _insert_sleeve(conn, account_id=account_id)
-    insert_sleeve_strategy_assignment(
-        conn,
+    SleeveRepository(conn).insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=111,
@@ -172,6 +167,6 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
     assert result.decision.rotation_action == "hold"
     assert result.decision.decision_reason == "cooldown_active"
 
-    active_assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+    active_assignment = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
     assert active_assignment is not None
-    assert active_assignment["strategy_name"] == "trend"
+    assert active_assignment.strategy_name == "trend"

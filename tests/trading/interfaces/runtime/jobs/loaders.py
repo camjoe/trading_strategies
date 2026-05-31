@@ -211,8 +211,16 @@ def stub_runtime_job_basics(
     db_conn=None,
     account_lookup: Callable[[str], object | None] | None = None,
     sleeves_for_account: list[dict[str, object]] | None = None,
-) -> object:
-    """Apply common runtime-job test stubs for DB/account surfaces."""
+) -> SimpleNamespace:
+    """Apply common runtime-job test stubs for DB/account surfaces.
+
+    Returns a SimpleNamespace with:
+      - conn: the stubbed DB connection
+      - sleeve_repo: the MagicMock SleeveRepository instance (if patched)
+      - param_set_repo: the MagicMock StrategyParamSetRepository instance (if patched)
+    """
+    from unittest.mock import MagicMock
+
     resolved_accounts = list(runtime_accounts or ["acct1"])
     resolved_conn = db_conn or SimpleNamespace(close=lambda: None)
     lookup = account_lookup or (lambda name: SimpleNamespace(id=1, name=name))
@@ -221,18 +229,29 @@ def stub_runtime_job_basics(
     if hasattr(module, "load_runtime_eligible_account_names"):
         monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
     if hasattr(module, "find_account"):
-        monkeypatch.setattr(
-            module,
-            "find_account",
-            lambda conn, name: lookup(name),
-        )
-    if sleeves_for_account is not None and hasattr(module, "fetch_strategy_sleeves_for_account"):
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_sleeves_for_account",
-            lambda conn, *, account_id: list(sleeves_for_account),
-        )
-    return resolved_conn
+        monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
+
+    mock_sleeve_repo = None
+    mock_param_repo = None
+
+    if sleeves_for_account is not None and hasattr(module, "SleeveRepository"):
+        sleeve_records = [
+            SimpleNamespace(**row) if isinstance(row, dict) else row
+            for row in sleeves_for_account
+        ]
+        mock_sleeve_repo = MagicMock()
+        mock_sleeve_repo.fetch_for_account.return_value = sleeve_records
+        mock_sleeve_repo.fetch_active_assignment.return_value = None
+        mock_sleeve_repo.fetch_assignments.return_value = []
+        monkeypatch.setattr(module, "SleeveRepository", lambda conn: mock_sleeve_repo)
+
+    if hasattr(module, "StrategyParamSetRepository"):
+        mock_param_repo = MagicMock()
+        mock_param_repo.fetch_by_id.return_value = None
+        mock_param_repo.fetch_active.return_value = None
+        monkeypatch.setattr(module, "StrategyParamSetRepository", lambda conn: mock_param_repo)
+
+    return SimpleNamespace(conn=resolved_conn, sleeve_repo=mock_sleeve_repo, param_set_repo=mock_param_repo)
 
 
 __all__ = [

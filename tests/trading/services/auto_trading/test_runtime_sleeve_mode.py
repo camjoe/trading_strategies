@@ -5,10 +5,7 @@ import json
 from unittest.mock import Mock
 
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_strategy_sleeve_by_id,
-)
+from trading.repositories.sleeves import SleeveRepository
 from trading.models.broker_order import OrderFill, OrderStatus
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
@@ -82,10 +79,10 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
     captured = {"active_strategy": None}
 
     def _capture_intents(*_args, **_kwargs):
-        assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+        assignment = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
         captured["active_strategy"] = (
-            str(assignment["strategy_name"]).strip()
-            if assignment is not None and assignment["strategy_name"] is not None
+            assignment.strategy_name.strip()
+            if assignment is not None and assignment.strategy_name is not None
             else None
         )
         return []
@@ -156,10 +153,10 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
     captured = {"active_strategy": None}
 
     def _capture_intents(*_args, **_kwargs):
-        assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
+        assignment = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
         captured["active_strategy"] = (
-            str(assignment["strategy_name"]).strip()
-            if assignment is not None and assignment["strategy_name"] is not None
+            assignment.strategy_name.strip()
+            if assignment is not None and assignment.strategy_name is not None
             else None
         )
         return []
@@ -255,10 +252,10 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     assert trade_count is not None
     assert int(trade_count["n"]) == 1
 
-    sleeve_row = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+    sleeve_row = SleeveRepository(conn).fetch_by_id(sleeve_id=sleeve_id)
     assert sleeve_row is not None
-    assert float(sleeve_row["current_cash"]) == 900.0
-    assert float(sleeve_row["current_equity"]) == 1_000.0
+    assert sleeve_row.current_cash == 900.0
+    assert sleeve_row.current_equity == 1_000.0
 
     risk_snapshot = conn.execute(
         """

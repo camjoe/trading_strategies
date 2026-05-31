@@ -75,26 +75,14 @@ class TestArtifactStructure:
         sleeve_row = {"id": 5, "name": "sleeve_m"}
         # Two metric rows: +2% and +3%
         # compound = (1.02 * 1.03 - 1) * 100 = 5.06%
+        from types import SimpleNamespace as _NS
         metrics = [
-            {
-                "return_pct": 2.0,
-                "drawdown_pct": -1.0,
-                "hit_rate": 0.6,
-                "trade_count": 3,
-            },
-            {
-                "return_pct": 3.0,
-                "drawdown_pct": -2.0,
-                "hit_rate": 0.7,
-                "trade_count": 4,
-            },
+            _NS(return_pct=2.0, drawdown_pct=-1.0, hit_rate=0.6, trade_count=3),
+            _NS(return_pct=3.0, drawdown_pct=-2.0, hit_rate=0.7, trade_count=4),
         ]
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: {"strategy_name": "trend_v2"},
-        )
+        from types import SimpleNamespace as _NS
+        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="trend_v2", param_set_id=None)
         monkeypatch.setattr(
             module,
             "fetch_sleeve_performance_window",
@@ -121,11 +109,7 @@ class TestArtifactStructure:
     def test_empty_metrics_produces_null_stats(self, monkeypatch, tmp_path: Path) -> None:
         sleeve_row = {"id": 9, "name": "sleeve_empty"}
         stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: None,
-        )
+        # fetch_active_assignment returns None by default from stub
         monkeypatch.setattr(
             module,
             "fetch_sleeve_performance_window",
@@ -157,11 +141,7 @@ class TestArtifactStructure:
         sleeve_row = {"id": 5, "name": "sleeve_m"}
         monkeypatch.setattr(module.dt, "datetime", _FixedDateTime)
         stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: None,
-        )
+        # fetch_active_assignment returns None by default from stub
 
         def _capture_metrics(conn, *, sleeve_id, start_date, end_date):
             captured["start_date"] = start_date
@@ -204,10 +184,11 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_main_returns_1_when_metric_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    from unittest.mock import MagicMock
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(
-        module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
-    )
+    boom_repo = MagicMock()
+    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
+    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

@@ -30,10 +30,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
 from trading.services.performance import fetch_sleeve_performance_window
 from trading.services.accounts.queries import find_account
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_strategy_sleeves_for_account,
-)
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import load_runtime_eligible_account_names
 
 REPO_ROOT = get_repo_root(__file__)
@@ -156,26 +153,24 @@ def main() -> int:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue
 
-            sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
+            sleeve_repo = SleeveRepository(conn)
+            sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
             sleeve_rows: list[WeeklyLeaderboardSleevePayload] = []
 
             for sleeve in sleeves:
-                sleeve_id = int(sleeve["id"])
-                sleeve_name = str(sleeve["name"])
-
-                assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
-                strategy_name = str(assignment["strategy_name"]) if assignment is not None else None
+                assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+                strategy_name = assignment.strategy_name if assignment is not None else None
 
                 metrics = fetch_sleeve_performance_window(
                     conn,
-                    sleeve_id=sleeve_id,
+                    sleeve_id=sleeve.id,
                     start_date=start_str,
                     end_date=today_str,
                 )
                 stats = _compute_sleeve_stats(metrics)
                 sleeve_rows.append(
                     WeeklyLeaderboardSleevePayload(
-                        sleeve_name=sleeve_name,
+                        sleeve_name=sleeve.name,
                         strategy_name=strategy_name,
                         avg_return_pct=stats["avg_return_pct"],
                         avg_risk_adjusted_score=stats["avg_risk_adjusted_score"],

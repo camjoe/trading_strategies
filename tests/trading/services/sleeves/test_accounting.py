@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.sleeve_ledger import fetch_sleeve_ledger_sum_by_type
-from trading.repositories.sleeve_orders import fetch_sleeve_fills_for_order, insert_sleeve_order
-from trading.repositories.sleeve_positions import fetch_sleeve_position
-from trading.repositories.sleeves import fetch_strategy_sleeve_by_id
+from trading.repositories.sleeve_ledger import SleeveLedgerRepository
+from trading.repositories.sleeve_orders import SleeveOrderRepository
+from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.accounting import apply_sleeve_fill
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
@@ -32,8 +32,7 @@ def _seed_sleeve_order(
     requested_price: float,
     symbol: str = "SPY",
 ) -> int:
-    return insert_sleeve_order(
-        conn,
+    return SleeveOrderRepository(conn).insert(
         account_id=account_id,
         sleeve_id=sleeve_id,
         strategy_name="trend",
@@ -81,31 +80,24 @@ def test_apply_sleeve_fill_buy_updates_fill_position_ledger_and_balances(conn) -
     assert result.transition is not None
     assert result.transition.slippage_amount == pytest.approx(10.0)
 
-    fills = fetch_sleeve_fills_for_order(conn, sleeve_order_id=sleeve_order_id)
+    fills = SleeveOrderRepository(conn).fetch_fills_for_order(sleeve_order_id=sleeve_order_id)
     assert len(fills) == 1
 
-    position = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="SPY")
+    position = SleevePositionRepository(conn).fetch(sleeve_id=sleeve_id, symbol="SPY")
     assert position is not None
-    assert float(position["qty"]) == pytest.approx(10.0)
-    assert float(position["avg_cost"]) == pytest.approx(501.1)
-    assert float(position["market_value"]) == pytest.approx(5_010.0)
-    assert float(position["unrealized_pnl"]) == pytest.approx(-1.0)
+    assert position.qty == pytest.approx(10.0)
+    assert position.avg_cost == pytest.approx(501.1)
+    assert position.market_value == pytest.approx(5_010.0)
+    assert position.unrealized_pnl == pytest.approx(-1.0)
 
-    sleeve = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+    sleeve = SleeveRepository(conn).fetch_by_id(sleeve_id=sleeve_id)
     assert sleeve is not None
-    assert float(sleeve["current_cash"]) == pytest.approx(4_989.0)
-    assert float(sleeve["current_equity"]) == pytest.approx(9_999.0)
+    assert sleeve.current_cash == pytest.approx(4_989.0)
+    assert sleeve.current_equity == pytest.approx(9_999.0)
 
-    cash_total = fetch_sleeve_ledger_sum_by_type(
-        conn,
-        sleeve_id=sleeve_id,
-        entry_type="cash_movement",
-    )
-    fee_total = fetch_sleeve_ledger_sum_by_type(
-        conn,
-        sleeve_id=sleeve_id,
-        entry_type="fee",
-    )
+    ledger = SleeveLedgerRepository(conn)
+    cash_total = ledger.fetch_sum_by_type(sleeve_id=sleeve_id, entry_type="cash_movement")
+    fee_total = ledger.fetch_sum_by_type(sleeve_id=sleeve_id, entry_type="fee")
     assert cash_total == pytest.approx(-5_011.0)
     assert fee_total == pytest.approx(-1.0)
 
@@ -160,24 +152,21 @@ def test_apply_sleeve_fill_sell_updates_realized_and_handles_duplicates(conn) ->
     assert second.applied is False
     assert second.reason == "duplicate_exec_id"
 
-    fills = fetch_sleeve_fills_for_order(conn, sleeve_order_id=sleeve_order_id)
+    fills = SleeveOrderRepository(conn).fetch_fills_for_order(sleeve_order_id=sleeve_order_id)
     assert len(fills) == 1
 
-    position = fetch_sleeve_position(conn, sleeve_id=sleeve_id, symbol="QQQ")
+    position = SleevePositionRepository(conn).fetch(sleeve_id=sleeve_id, symbol="QQQ")
     assert position is not None
-    assert float(position["qty"]) == pytest.approx(6.0)
-    assert float(position["avg_cost"]) == pytest.approx(100.0)
-    assert float(position["market_value"]) == pytest.approx(660.0)
-    assert float(position["unrealized_pnl"]) == pytest.approx(60.0)
+    assert position.qty == pytest.approx(6.0)
+    assert position.avg_cost == pytest.approx(100.0)
+    assert position.market_value == pytest.approx(660.0)
+    assert position.unrealized_pnl == pytest.approx(60.0)
 
-    realized_total = fetch_sleeve_ledger_sum_by_type(
-        conn,
-        sleeve_id=sleeve_id,
-        entry_type="realized_pnl",
-    )
+    ledger = SleeveLedgerRepository(conn)
+    realized_total = ledger.fetch_sum_by_type(sleeve_id=sleeve_id, entry_type="realized_pnl")
     assert realized_total == pytest.approx(38.0)
 
-    sleeve = fetch_strategy_sleeve_by_id(conn, sleeve_id=sleeve_id)
+    sleeve = SleeveRepository(conn).fetch_by_id(sleeve_id=sleeve_id)
     assert sleeve is not None
-    assert float(sleeve["current_cash"]) == pytest.approx(638.0)
-    assert float(sleeve["current_equity"]) == pytest.approx(1_298.0)
+    assert sleeve.current_cash == pytest.approx(638.0)
+    assert sleeve.current_equity == pytest.approx(1_298.0)

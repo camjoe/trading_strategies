@@ -19,25 +19,13 @@ from trading.domain.sleeve_rotation import (
 from trading.models.daily_metric_record import DailyMetricRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeves import (
-    close_active_sleeve_strategy_assignment,
-    fetch_active_sleeve_strategy_assignment,
-    insert_sleeve_strategy_assignment,
-)
+from trading.repositories.sleeves import SleeveRepository
 
-# Convert basis points to percentage points for cost-penalty normalization.
 BASIS_POINTS_TO_PERCENT = 0.01
 
-# Default rolling window for incumbent/challenger comparison.
 DEFAULT_ROLLING_WINDOW_DAYS = 30
-
-# Require this minimum observed trade count before a challenger can rotate in.
 DEFAULT_MIN_TRADES_IN_WINDOW = 20
-
-# Challenger must beat incumbent by this many basis points to rotate.
 DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS = 25.0
-
-# Cooldown period after a successful rotate decision.
 DEFAULT_ROTATION_COOLDOWN_DAYS = 7
 
 
@@ -155,12 +143,13 @@ def evaluate_and_apply_sleeve_rotation(
     decision_time: str | None = None,
 ) -> SleeveRotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=int(sleeve_id))
+    sleeve_repo = SleeveRepository(conn)
+    assignment = sleeve_repo.fetch_active_assignment(sleeve_id=int(sleeve_id))
     if assignment is None:
         raise ValueError(f"No incumbent assignment found for sleeve_id={sleeve_id}.")
 
-    incumbent_strategy = str(assignment["strategy_name"]).strip()
-    incumbent_param_set_id = row_int(assignment, "param_set_id")
+    incumbent_strategy = assignment.strategy_name.strip()
+    incumbent_param_set_id = assignment.param_set_id
     window_start_date, window_end_date = _resolve_window_bounds(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
@@ -218,14 +207,12 @@ def evaluate_and_apply_sleeve_rotation(
 
     rotated = False
     if decision.rotation_action == "rotate":
-        close_active_sleeve_strategy_assignment(
-            conn,
+        sleeve_repo.close_active_assignment(
             sleeve_id=int(sleeve_id),
             effective_to=now_iso,
             updated_at=now_iso,
         )
-        insert_sleeve_strategy_assignment(
-            conn,
+        sleeve_repo.insert_assignment(
             sleeve_id=int(sleeve_id),
             strategy_name=decision.selected_strategy,
             param_set_id=decision.selected_param_set_id,
