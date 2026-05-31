@@ -5,7 +5,6 @@ from datetime import timedelta
 import json
 import sqlite3
 
-from common.coercion import row_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.services.sleeves.helpers import mean as _sleeve_mean
