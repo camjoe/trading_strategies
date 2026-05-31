@@ -22,7 +22,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
-from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
+from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.accounts import load_runtime_eligible_account_names
 from trading.services.accounts.queries import find_account
 

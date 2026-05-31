@@ -9,7 +9,8 @@ from trading.repositories.sleeve_ledger import SleeveLedgerRepository
 from trading.repositories.sleeve_orders import SleeveOrderRepository
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
-from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
+from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 
 
 class _StaticCursor:

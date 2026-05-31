@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from trading.domain.rotation import dump_rotation_schedule
-from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
+from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.accounts import get_account
 from trading.services.sleeves.shadow_evaluation import (
     build_challenger_metrics_from_backtest_returns,

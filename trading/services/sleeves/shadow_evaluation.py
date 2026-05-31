@@ -8,7 +8,8 @@ from trading.services.reporting.backtest_returns import fetch_strategy_backtest_
 from trading.domain.rotation import parse_rotation_schedule
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
 from trading.models import AccountRecord
-from trading.repositories.sleeves import SleeveRepository, StrategyParamSetRepository
+from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.sleeves.helpers import mean as _sleeve_mean
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 
