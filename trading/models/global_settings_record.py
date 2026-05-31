@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from common.coercion import row_expect_float, row_expect_int, row_float, row_int, row_str
+from common.coercion import row_expect_float, row_expect_int, row_int, row_str
 
 
 @dataclass(frozen=True, slots=True)
