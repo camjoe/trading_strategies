@@ -120,22 +120,22 @@ def main() -> int:
                 account_results.append(
                     {
                         "account_name": account_name,
-                        "snapshot_time": snapshot["snapshot_time"],
-                        "gross_exposure": snapshot["gross_exposure"],
-                        "net_exposure": snapshot["net_exposure"],
-                        "drawdown_pct": snapshot["drawdown_pct"],
-                        "daily_loss_pct": snapshot["daily_loss_pct"],
-                        "kill_switch_triggered": bool(snapshot["kill_switch_triggered"]),
-                        "max_symbol_concentration_pct": snapshot["max_symbol_concentration_pct"],
-                        "max_sector_concentration_pct": snapshot["max_sector_concentration_pct"],
+                        "snapshot_time": snapshot.snapshot_time,
+                        "gross_exposure": snapshot.gross_exposure,
+                        "net_exposure": snapshot.net_exposure,
+                        "drawdown_pct": snapshot.drawdown_pct,
+                        "daily_loss_pct": snapshot.daily_loss_pct,
+                        "kill_switch_triggered": snapshot.kill_switch_triggered,
+                        "max_symbol_concentration_pct": snapshot.max_symbol_concentration_pct,
+                        "max_sector_concentration_pct": snapshot.max_sector_concentration_pct,
                     }
                 )
                 tee_line(
                     log_path,
                     (
                         f"[{ts()}] RISK_REBASELINE: account={account_name} "
-                        f"snapshot_time={snapshot['snapshot_time']} "
-                        f"kill_switch={bool(snapshot['kill_switch_triggered'])}"
+                        f"snapshot_time={snapshot.snapshot_time} "
+                        f"kill_switch={snapshot.kill_switch_triggered}"
                     ),
                 )
 

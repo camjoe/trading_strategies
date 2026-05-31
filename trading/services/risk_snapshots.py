@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.portfolio_risk_snapshots import fetch_latest_portfolio_risk_snapshot
+from trading.models.portfolio_risk_snapshot_record import PortfolioRiskSnapshotRecord
+from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 
 
 def fetch_latest_risk_snapshot(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-) -> sqlite3.Row | None:
+) -> PortfolioRiskSnapshotRecord | None:
     if account_id <= 0:
         raise ValueError("account_id must be positive.")
-    return fetch_latest_portfolio_risk_snapshot(conn, account_id=account_id)
+    return PortfolioRiskSnapshotRepository(conn).fetch_latest(account_id=account_id)

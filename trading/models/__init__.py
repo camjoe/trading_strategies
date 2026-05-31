@@ -15,6 +15,7 @@ from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus, Ord
 from trading.models.broker_order_record import BrokerOrderRecord
 from trading.models.daily_metric_record import DailyMetricRecord
 from trading.models.global_settings_record import GlobalSettingsRecord
+from trading.models.portfolio_risk_snapshot_record import PortfolioRiskSnapshotRecord
 from trading.models.rotation_config import RotationConfig
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "BrokerOrderRecord",
     "DailyMetricRecord",
     "GlobalSettingsRecord",
+    "PortfolioRiskSnapshotRecord",
     "OrderFill",
     "OrderStatus",
     "OrderType",

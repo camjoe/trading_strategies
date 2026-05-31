@@ -15,7 +15,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.portfolio_risk_snapshots import fetch_latest_portfolio_risk_snapshot
+from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import fetch_rotation_decisions_for_sleeve_date
 from trading.repositories.sleeve_risk_decisions import fetch_sleeve_risk_decisions_for_account_date
 from trading.repositories.sleeves import (
@@ -124,8 +124,8 @@ def _build_risk_violations(
             reason_counts[str(code)] = reason_counts.get(str(code), 0) + 1
     top_reason_codes = sorted(reason_counts, key=lambda k: reason_counts[k], reverse=True)[:5]
 
-    snapshot = fetch_latest_portfolio_risk_snapshot(conn, account_id=account_id)
-    kill_switch = bool(snapshot and snapshot["kill_switch_triggered"])
+    snapshot = PortfolioRiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
+    kill_switch = snapshot is not None and snapshot.kill_switch_triggered
 
     return RiskViolationsSummary(
         total_decisions=len(decisions),

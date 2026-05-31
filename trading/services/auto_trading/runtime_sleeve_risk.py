@@ -68,7 +68,6 @@ def persist_sleeve_risk_snapshot(
         )
     )
     upsert_portfolio_risk_snapshot_fn(
-        conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
         gross_exposure=gross_exposure,

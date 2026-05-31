@@ -3,10 +3,7 @@ from __future__ import annotations
 import pytest
 
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.portfolio_risk_snapshots import (
-    fetch_latest_portfolio_risk_snapshot,
-    upsert_portfolio_risk_snapshot,
-)
+from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotate_decision_for_sleeve,
     fetch_latest_rotation_decision_for_sleeve,
@@ -595,8 +592,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
 class TestPortfolioRiskSnapshotsRepository:
     def test_upsert_and_fetch_latest_snapshot(self, conn, account_id) -> None:
 
-        upsert_portfolio_risk_snapshot(
-            conn,
+        PortfolioRiskSnapshotRepository(conn).upsert(
             account_id=account_id,
             snapshot_time="2026-05-03T10:00:00Z",
             gross_exposure=1000.0,
@@ -609,8 +605,7 @@ class TestPortfolioRiskSnapshotsRepository:
             kill_switch_triggered=0,
             risk_payload_json='{"a":1}',
         )
-        upsert_portfolio_risk_snapshot(
-            conn,
+        PortfolioRiskSnapshotRepository(conn).upsert(
             account_id=account_id,
             snapshot_time="2026-05-03T10:00:00Z",
             gross_exposure=1100.0,
@@ -623,8 +618,7 @@ class TestPortfolioRiskSnapshotsRepository:
             kill_switch_triggered=1,
             risk_payload_json='{"a":2}',
         )
-        upsert_portfolio_risk_snapshot(
-            conn,
+        PortfolioRiskSnapshotRepository(conn).upsert(
             account_id=account_id,
             snapshot_time="2026-05-03T11:00:00Z",
             gross_exposure=1200.0,
@@ -638,10 +632,10 @@ class TestPortfolioRiskSnapshotsRepository:
             risk_payload_json='{"a":3}',
         )
 
-        latest = fetch_latest_portfolio_risk_snapshot(conn, account_id=account_id)
+        latest = PortfolioRiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
         assert latest is not None
-        assert latest["snapshot_time"] == "2026-05-03T11:00:00Z"
-        assert float(latest["gross_exposure"]) == 1200.0
+        assert latest.snapshot_time == "2026-05-03T11:00:00Z"
+        assert latest.gross_exposure == 1200.0
 
         updated_same_time = conn.execute(
             """

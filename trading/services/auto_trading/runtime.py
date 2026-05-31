@@ -20,7 +20,7 @@ from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
 from trading.services.universe.resolver import resolve_named_universes
 from trading.repositories.broker_orders import BrokerOrderRepository
-from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
+from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
 from trading.repositories.sleeve_orders import (
     attach_sleeve_order_broker_order_id,
@@ -271,7 +271,7 @@ def _persist_sleeve_risk_snapshot(
         payload=payload,
         fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account,
         fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account,
-        upsert_portfolio_risk_snapshot_fn=upsert_portfolio_risk_snapshot,
+        upsert_portfolio_risk_snapshot_fn=PortfolioRiskSnapshotRepository(conn).upsert,
     )
 
 
