@@ -1,8 +1,7 @@
 from __future__ import annotations
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.trades import fetch_trades_for_account, insert_trade
-from trading.repositories.trades import count_trades_between
+from trading.repositories.trades import TradeRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.rotation import RotationEpisodeRepository
 from trading.repositories.sleeves import (
@@ -55,9 +54,7 @@ from trading.repositories.backtest_history import BacktestRunRepository
 __all__ = [
     "AccountRepository",
     "EquitySnapshotRepository",
-    "fetch_trades_for_account",
-    "count_trades_between",
-    "insert_trade",
+    "TradeRepository",
     "GlobalSettingsRepository",
     "RotationEpisodeRepository",
     "insert_strategy_sleeve",

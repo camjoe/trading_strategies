@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories import insert_trade
+from trading.repositories.trades import TradeRepository
 from trading.services.accounting import list_account_trades
 
 
@@ -11,8 +11,7 @@ def test_list_account_trades_orders_by_trade_time_then_id(
 ) -> None:
     account_id = int(accounting_account["id"])
 
-    insert_trade(
-        conn,
+    TradeRepository(conn).insert(
         account_id=account_id,
         ticker="MSFT",
         side="buy",
@@ -22,8 +21,7 @@ def test_list_account_trades_orders_by_trade_time_then_id(
         trade_time="2026-01-01T00:00:01Z",
         note="second",
     )
-    insert_trade(
-        conn,
+    TradeRepository(conn).insert(
         account_id=account_id,
         ticker="AAPL",
         side="buy",
@@ -33,8 +31,7 @@ def test_list_account_trades_orders_by_trade_time_then_id(
         trade_time="2026-01-01T00:00:00Z",
         note="first",
     )
-    insert_trade(
-        conn,
+    TradeRepository(conn).insert(
         account_id=account_id,
         ticker="GOOG",
         side="buy",
