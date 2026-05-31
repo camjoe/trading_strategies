@@ -2,21 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-import trading.repositories.promotion as promotion_repository
 from trading.domain.evaluation_models import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
 from trading.domain.promotion_models import PromotionAssessment
-from trading.repositories.promotion import (
-    _require_event,
-    _require_review,
-    _row_json_object,
-    fetch_open_promotion_review,
-    fetch_promotion_review_by_id,
-    fetch_promotion_review_events,
-    fetch_promotion_reviews_for_account,
-    insert_promotion_review,
-    insert_promotion_review_event,
-    update_promotion_review_record,
-)
+from trading.repositories.promotion import PromotionReviewRepository, _row_json_object
 from tests.support.repositories import insert_repository_account
 
 
@@ -67,9 +55,9 @@ def _assessment(*, account_name: str = "acct_a", strategy_name: str = "Trend") -
 
 def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
+    repo = PromotionReviewRepository(conn)
 
-    review = insert_promotion_review(
-        conn,
+    review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
         evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
         requested_by="alice",
@@ -77,7 +65,7 @@ def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
         created_at="2026-03-01T00:00:00Z",
     )
 
-    fetched = fetch_promotion_review_by_id(conn, review_id=int(review.id))
+    fetched = repo.fetch_by_id(review_id=int(review.id))
 
     assert fetched is not None
     assert fetched.account_name_snapshot == "acct_a"
@@ -92,8 +80,8 @@ def test_insert_and_fetch_promotion_review_round_trip(conn) -> None:
 
 def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
-    review = insert_promotion_review(
-        conn,
+    repo = PromotionReviewRepository(conn)
+    review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
         evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
         requested_by="alice",
@@ -101,8 +89,7 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
         created_at="2026-03-01T00:00:00Z",
     )
 
-    first = insert_promotion_review_event(
-        conn,
+    first = repo.insert_event(
         review_id=int(review.id),
         event_type="requested",
         actor_name="alice",
@@ -112,8 +99,7 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
         event_payload={"ready_for_live": True},
         created_at="2026-03-01T00:00:00Z",
     )
-    second = insert_promotion_review_event(
-        conn,
+    second = repo.insert_event(
         review_id=int(review.id),
         event_type="note_added",
         actor_name="bob",
@@ -124,7 +110,7 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
         created_at="2026-03-01T00:10:00Z",
     )
 
-    events = fetch_promotion_review_events(conn, review_id=int(review.id))
+    events = repo.fetch_events(review_id=int(review.id))
 
     assert first.event_seq == 1
     assert second.event_seq == 2
@@ -134,8 +120,8 @@ def test_insert_promotion_review_event_sequences_per_review(conn) -> None:
 
 def test_fetch_open_history_and_update_review_state(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_a", strategy="Trend", initial_cash=1000.0)
-    review = insert_promotion_review(
-        conn,
+    repo = PromotionReviewRepository(conn)
+    review = repo.insert_review(
         assessment=_assessment(account_name="acct_a", strategy_name="Trend"),
         evaluation=_evaluation(account_id=account_id, account_name="acct_a", strategy_name="Trend"),
         requested_by="alice",
@@ -143,12 +129,11 @@ def test_fetch_open_history_and_update_review_state(conn) -> None:
         created_at="2026-03-01T00:00:00Z",
     )
 
-    open_review = fetch_open_promotion_review(conn, account_id=1, strategy_name="Trend")
+    open_review = repo.fetch_open(account_id=1, strategy_name="Trend")
     assert open_review is not None
     assert open_review.id == review.id
 
-    updated = update_promotion_review_record(
-        conn,
+    updated = repo.update_review(
         review_id=int(review.id),
         review_state="approved",
         reviewed_by="reviewer",
@@ -159,8 +144,8 @@ def test_fetch_open_history_and_update_review_state(conn) -> None:
 
     assert updated.review_state == "approved"
     assert updated.reviewed_by == "reviewer"
-    assert fetch_open_promotion_review(conn, account_id=1, strategy_name="Trend") is None
-    history = fetch_promotion_reviews_for_account(conn, account_id=1, strategy_name="Trend", limit=10)
+    assert repo.fetch_open(account_id=1, strategy_name="Trend") is None
+    history = repo.fetch_for_account(account_id=1, strategy_name="Trend", limit=10)
     assert [item.review_state for item in history] == ["approved"]
 
 
@@ -170,12 +155,14 @@ def test_row_json_and_require_helpers_raise_on_invalid_payloads(monkeypatch) -> 
     with pytest.raises(ValueError, match="Expected JSON object in column 'payload'"):
         _row_json_object({"payload": "[1, 2, 3]"}, "payload")
 
-    monkeypatch.setattr(promotion_repository, "fetch_promotion_review_by_id", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(PromotionReviewRepository, "fetch_by_id", lambda self, *, review_id: None)
     with pytest.raises(ValueError, match="Promotion review 7 not found after update"):
-        _require_review(object(), review_id=7, context="update")
+        PromotionReviewRepository(object())._require_review(review_id=7, context="update")
 
     with pytest.raises(ValueError, match="Promotion review event 3 not found after insert"):
-        _require_event(_StaticConnection(_StaticCursor(row=None)), event_id=3)
+        PromotionReviewRepository(
+            _StaticConnection(_StaticCursor(row=None))
+        )._require_event(event_id=3)
 
 
 @pytest.mark.parametrize(
@@ -188,8 +175,7 @@ def test_row_json_and_require_helpers_raise_on_invalid_payloads(monkeypatch) -> 
 )
 def test_insert_promotion_review_validates_required_evaluation_fields(evaluation, message) -> None:
     with pytest.raises(ValueError, match=message):
-        insert_promotion_review(
-            _StaticConnection(),
+        PromotionReviewRepository(_StaticConnection()).insert_review(
             assessment=_assessment(),
             evaluation=evaluation,
             requested_by=None,
@@ -200,8 +186,7 @@ def test_insert_promotion_review_validates_required_evaluation_fields(evaluation
 
 def test_insert_promotion_review_guard_paths_raise_when_ids_cannot_be_materialized() -> None:
     with pytest.raises(ValueError, match="Expected integer promotion review id after insert"):
-        insert_promotion_review(
-            _StaticConnection(_StaticCursor(lastrowid=None)),
+        PromotionReviewRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert_review(
             assessment=_assessment(),
             evaluation=_evaluation(),
             requested_by="alice",
@@ -210,8 +195,7 @@ def test_insert_promotion_review_guard_paths_raise_when_ids_cannot_be_materializ
         )
 
     with pytest.raises(ValueError, match="Unable to compute next event sequence for review 1"):
-        insert_promotion_review_event(
-            _StaticConnection(_StaticCursor(row=None)),
+        PromotionReviewRepository(_StaticConnection(_StaticCursor(row=None))).insert_event(
             review_id=1,
             event_type="requested",
             actor_name="alice",
@@ -223,8 +207,9 @@ def test_insert_promotion_review_guard_paths_raise_when_ids_cannot_be_materializ
         )
 
     with pytest.raises(ValueError, match="Expected integer promotion review event id after insert"):
-        insert_promotion_review_event(
-            _StaticConnection(_StaticCursor(row={"next_seq": 1}), _StaticCursor(lastrowid=None)),
+        PromotionReviewRepository(
+            _StaticConnection(_StaticCursor(row={"next_seq": 1}), _StaticCursor(lastrowid=None))
+        ).insert_event(
             review_id=1,
             event_type="requested",
             actor_name="alice",

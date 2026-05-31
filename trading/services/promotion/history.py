@@ -10,10 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from trading.domain.promotion_models import PromotionReviewEvent, PromotionReviewRecord
-from trading.repositories.promotion import (
-    fetch_promotion_review_events,
-    fetch_promotion_reviews_for_account,
-)
+from trading.repositories.promotion import PromotionReviewRepository
 from trading.services.accounts import get_account
 from trading.services.promotion.helpers import normalize_optional_text
 
@@ -34,8 +31,8 @@ def fetch_promotion_review_history(
     if limit <= 0:
         raise ValueError("Promotion review history limit must be positive.")
     account = get_account(conn, account_name)
-    review_rows = fetch_promotion_reviews_for_account(
-        conn,
+    repo = PromotionReviewRepository(conn)
+    review_rows = repo.fetch_for_account(
         account_id=account.id,
         strategy_name=normalize_optional_text(strategy_name),
         limit=limit,
@@ -43,7 +40,7 @@ def fetch_promotion_review_history(
     return [
         PromotionReviewHistoryEntry(
             review=review,
-            events=fetch_promotion_review_events(conn, review_id=int(review.id)),
+            events=repo.fetch_events(review_id=int(review.id)),
         )
         for review in review_rows
     ]

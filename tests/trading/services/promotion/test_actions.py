@@ -178,13 +178,12 @@ def test_execute_promotion_review_request_raises_when_created_review_cannot_be_r
             _ready_assessment(account_name=account_name, strategy_name=strategy_name or "trend_v1"),
         ),
     )
-    monkeypatch.setattr(
-        promotion_actions,
-        "insert_promotion_review",
-        lambda *_args, **_kwargs: promotion_actions.PromotionReviewRecord(id=77),
-    )
+    from unittest.mock import Mock
+    mock_repo = Mock()
+    mock_repo.insert_review.return_value = promotion_actions.PromotionReviewRecord(id=77)
+    mock_repo.fetch_by_id.return_value = None
+    monkeypatch.setattr(promotion_actions, "PromotionReviewRepository", lambda conn: mock_repo)
     monkeypatch.setattr(promotion_actions, "_record_review_event", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(promotion_actions, "fetch_promotion_review_by_id", lambda *_args, **_kwargs: None)
 
     with pytest.raises(ValueError, match="Promotion review 77 not found after request creation"):
         execute_promotion_review_request(conn, account_name="acct_service", strategy_name="trend_v1")

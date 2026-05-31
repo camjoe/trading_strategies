@@ -23,13 +23,7 @@ from trading.domain.promotion_models import (
     PromotionAssessment,
     PromotionReviewRecord,
 )
-from trading.repositories.promotion import (
-    fetch_open_promotion_review,
-    fetch_promotion_review_by_id,
-    insert_promotion_review,
-    insert_promotion_review_event,
-    update_promotion_review_record,
-)
+from trading.repositories.promotion import PromotionReviewRepository
 from trading.services.promotion.helpers import normalize_optional_text
 from trading.services.promotion.assessment import _fetch_current_promotion_snapshot
 
@@ -64,8 +58,7 @@ def _ensure_no_open_review_for_request(
     strategy_name: str,
     account_name: str,
 ) -> None:
-    open_review = fetch_open_promotion_review(
-        conn,
+    open_review = PromotionReviewRepository(conn).fetch_open(
         account_id=account_id,
         strategy_name=strategy_name,
     )
@@ -75,7 +68,7 @@ def _ensure_no_open_review_for_request(
 
 
 def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
-    review = fetch_promotion_review_by_id(conn, review_id=review_id)
+    review = PromotionReviewRepository(conn).fetch_by_id(review_id=review_id)
     if review is None:
         raise ValueError(f"Promotion review {review_id} not found.")
     return review
@@ -93,8 +86,7 @@ def _record_review_event(
     event_payload: dict[str, object],
     created_at: str,
 ) -> None:
-    insert_promotion_review_event(
-        conn,
+    PromotionReviewRepository(conn).insert_event(
         review_id=review_id,
         event_type=event_type,
         actor_name=actor_name,
@@ -116,8 +108,7 @@ def _update_review(
     updated_at: str,
     closed_at: str | None,
 ) -> PromotionReviewRecord:
-    return update_promotion_review_record(
-        conn,
+    return PromotionReviewRepository(conn).update_review(
         review_id=review_id,
         review_state=review_state,
         reviewed_by=reviewed_by,
@@ -167,8 +158,8 @@ def execute_promotion_review_request(
     normalized_requested_by = normalize_optional_text(requested_by)
     normalized_note = normalize_optional_text(note)
     with conn:
-        review = insert_promotion_review(
-            conn,
+        repo = PromotionReviewRepository(conn)
+        review = repo.insert_review(
             assessment=assessment,
             evaluation=artifact,
             requested_by=normalized_requested_by,
@@ -186,7 +177,7 @@ def execute_promotion_review_request(
             event_payload=_request_event_payload(assessment),
             created_at=created_at,
         )
-        refreshed = fetch_promotion_review_by_id(conn, review_id=int(review.id))
+        refreshed = repo.fetch_by_id(review_id=int(review.id))
     if refreshed is None:
         raise ValueError(f"Promotion review {review.id} not found after request creation.")
     return refreshed
