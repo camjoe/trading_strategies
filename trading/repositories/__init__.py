@@ -9,13 +9,7 @@ from trading.repositories.snapshots import (
 from trading.repositories.trades import fetch_trades_for_account, insert_trade
 from trading.repositories.trades import count_trades_between
 from trading.repositories.global_settings import GlobalSettingsRepository
-from trading.repositories.rotation import (
-    close_rotation_episode,
-    fetch_closed_rotation_episodes,
-    fetch_open_rotation_episode,
-    insert_rotation_episode,
-    update_account_rotation_state,
-)
+from trading.repositories.rotation import RotationEpisodeRepository
 from trading.repositories.sleeves import (
     close_active_sleeve_strategy_assignment,
     fetch_active_sleeve_strategy_assignment,
@@ -73,11 +67,7 @@ __all__ = [
     "count_trades_between",
     "insert_trade",
     "GlobalSettingsRepository",
-    "fetch_open_rotation_episode",
-    "insert_rotation_episode",
-    "close_rotation_episode",
-    "fetch_closed_rotation_episodes",
-    "update_account_rotation_state",
+    "RotationEpisodeRepository",
     "insert_strategy_sleeve",
     "fetch_strategy_sleeve_by_id",
     "fetch_strategy_sleeves_for_account",

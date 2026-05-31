@@ -29,13 +29,8 @@ from trading.repositories.sleeve_orders import (
     update_sleeve_order_status,
 )
 from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
-from trading.repositories.rotation import update_account_rotation_state
-from trading.repositories.rotation import (
-    close_rotation_episode,
-    fetch_closed_rotation_episodes,
-    fetch_open_rotation_episode,
-    insert_rotation_episode,
-)
+from trading.repositories.accounts import AccountRepository
+from trading.repositories.rotation import RotationEpisodeRepository
 from trading.repositories.snapshots import fetch_snapshot_count_between
 from trading.domain.rotation import (
     is_rotation_due,
@@ -108,13 +103,13 @@ def _rotate_runtime_account(
         now_iso,
         feature_fetchers=feature_fetchers,
         is_rotation_due_fn=is_rotation_due,
-        update_account_rotation_state_fn=update_account_rotation_state,
+        update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
         get_account_fn=get_account,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns,
-        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes,
-        fetch_open_rotation_episode_fn=fetch_open_rotation_episode,
-        insert_rotation_episode_fn=insert_rotation_episode,
-        close_rotation_episode_fn=close_rotation_episode,
+        fetch_closed_rotation_episodes_fn=RotationEpisodeRepository(conn).fetch_closed,
+        fetch_open_rotation_episode_fn=RotationEpisodeRepository(conn).fetch_open,
+        insert_rotation_episode_fn=RotationEpisodeRepository(conn).insert,
+        close_rotation_episode_fn=RotationEpisodeRepository(conn).close_episode,
         fetch_snapshot_count_between_fn=fetch_snapshot_count_between,
     )
 

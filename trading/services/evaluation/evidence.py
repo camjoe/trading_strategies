@@ -33,10 +33,7 @@ from trading.domain.evaluation_models import (
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
-from trading.repositories.rotation import (
-    fetch_latest_closed_rotation_episode,
-    fetch_open_rotation_episode,
-)
+from trading.repositories.rotation import RotationEpisodeRepository
 from trading.repositories.snapshots import (
     fetch_latest_snapshot_details_row,
     fetch_snapshot_count_between,
@@ -145,7 +142,7 @@ def _latest_rotation_episode_evidence(
     requested_strategy: str,
     latest_snapshot: dict[str, object] | None,
 ) -> EvaluationPaperLiveEvidence:
-    open_episode = fetch_open_rotation_episode(conn, account_id=account_id)
+    open_episode = RotationEpisodeRepository(conn).fetch_open(account_id=account_id)
     if (
         open_episode is not None
         and latest_snapshot is not None
@@ -179,8 +176,7 @@ def _latest_rotation_episode_evidence(
             episode_realized_pnl_delta=None,
         )
 
-    closed_episode = fetch_latest_closed_rotation_episode(
-        conn,
+    closed_episode = RotationEpisodeRepository(conn).fetch_latest_closed(
         account_id=account_id,
         strategy_name=requested_strategy,
     )
