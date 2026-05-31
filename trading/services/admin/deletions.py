@@ -4,9 +4,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 import sqlite3
 
-from common.coercion import coerce_int, row_expect_int
+from common.coercion import coerce_int
+from trading.database.sql_helpers import in_placeholders
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin import (
-    count_rows,
     delete_accounts_by_ids,
     delete_backtest_equity_snapshots_by_run_ids,
     delete_backtest_runs_by_account_ids,
@@ -17,12 +18,10 @@ from trading.repositories.admin import (
     delete_trades_by_account_ids,
     delete_walk_forward_group_runs_by_group_ids,
     delete_walk_forward_groups_by_account_ids,
-    fetch_accounts_by_names,
-    fetch_all_accounts,
     fetch_backtest_run_ids_for_account_ids,
     fetch_promotion_review_ids_for_account_ids,
+    fetch_row_count,
     fetch_walk_forward_group_ids_for_account_ids,
-    in_placeholders,
 )
 
 
@@ -53,21 +52,18 @@ def _resolve_delete_targets(
     names: list[str],
     delete_all: bool,
 ) -> list[dict[str, object]]:
+    repo = AccountRepository(conn)
     if delete_all:
-        rows = fetch_all_accounts(conn)
+        records = repo.fetch_all()
     else:
-        rows = fetch_accounts_by_names(conn, tuple(names))
-        found = {str(row["name"]) for row in rows}
+        records = repo.fetch_by_names(tuple(names))
+        found = {record.name for record in records}
         missing = [name for name in names if name not in found]
         if missing:
             missing_text = ", ".join(missing)
             raise ValueError(f"Accounts not found: {missing_text}")
 
-    normalized: list[dict[str, object]] = []
-    for row in rows:
-        account_id = row_expect_int(row, "id")
-        normalized.append({"id": account_id, "name": str(row["name"])})
-    return normalized
+    return [{"id": record.id, "name": record.name} for record in records]
 
 
 def _empty_delete_counts() -> dict[str, int]:
@@ -116,8 +112,8 @@ def delete_accounts(
     counts.update(
         {
             "accounts": len(targets),
-            "trades": count_rows(conn, "trades", account_placeholders_where, account_ids),
-            "equity_snapshots": count_rows(conn, "equity_snapshots", account_placeholders_where, account_ids),
+            "trades": fetch_row_count(conn, "trades", account_placeholders_where, account_ids),
+            "equity_snapshots": fetch_row_count(conn, "equity_snapshots", account_placeholders_where, account_ids),
             "backtest_runs": len(run_ids),
             "walk_forward_groups": len(walk_forward_group_ids),
             "promotion_reviews": len(review_ids),
@@ -126,8 +122,8 @@ def delete_accounts(
 
     if run_ids:
         run_placeholders_where = f"run_id IN ({in_placeholders(run_ids)})"
-        counts["backtest_trades"] = count_rows(conn, "backtest_trades", run_placeholders_where, run_ids)
-        counts["backtest_equity_snapshots"] = count_rows(
+        counts["backtest_trades"] = fetch_row_count(conn, "backtest_trades", run_placeholders_where, run_ids)
+        counts["backtest_equity_snapshots"] = fetch_row_count(
             conn,
             "backtest_equity_snapshots",
             run_placeholders_where,
@@ -135,7 +131,7 @@ def delete_accounts(
         )
     if walk_forward_group_ids:
         walk_forward_group_where = f"group_id IN ({in_placeholders(walk_forward_group_ids)})"
-        counts["walk_forward_group_runs"] = count_rows(
+        counts["walk_forward_group_runs"] = fetch_row_count(
             conn,
             "walk_forward_group_runs",
             walk_forward_group_where,
@@ -143,7 +139,7 @@ def delete_accounts(
         )
     if review_ids:
         review_placeholders_where = f"review_id IN ({in_placeholders(review_ids)})"
-        counts["promotion_review_events"] = count_rows(
+        counts["promotion_review_events"] = fetch_row_count(
             conn,
             "promotion_review_events",
             review_placeholders_where,

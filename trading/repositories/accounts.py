@@ -60,6 +60,16 @@ class AccountRepository:
         row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
         return self._row_to_record(row) if row is not None else None
 
+    def fetch_by_names(self, names: tuple[str, ...]) -> list[AccountRecord]:
+        if not names:
+            return []
+        placeholders = ", ".join("?" for _ in names)
+        rows = self._conn.execute(
+            f"SELECT * FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
+            names,
+        ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
     def fetch_listing(self) -> list[AccountRecord]:
         rows = self._conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
         return [self._row_to_record(row) for row in rows]

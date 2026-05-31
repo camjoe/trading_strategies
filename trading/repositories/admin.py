@@ -4,8 +4,6 @@ import sqlite3
 
 from trading.database.sql_helpers import in_placeholders
 
-__all__ = ["in_placeholders"]
-
 
 def _fetch_ids_by_account_ids(
     conn: sqlite3.Connection,
@@ -35,22 +33,7 @@ def _delete_by_ids(
     conn.execute(f"DELETE FROM {table} WHERE {column_name} IN ({placeholders})", ids)
 
 
-def fetch_all_accounts(conn: sqlite3.Connection) -> list[dict[str, object]]:
-    return [dict(row) for row in conn.execute("SELECT id, name FROM accounts ORDER BY name ASC").fetchall()]
-
-
-def fetch_accounts_by_names(conn: sqlite3.Connection, names: tuple[str, ...]) -> list[dict[str, object]]:
-    placeholders = in_placeholders(names)
-    return [
-        dict(row)
-        for row in conn.execute(
-            f"SELECT id, name FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
-            names,
-        ).fetchall()
-    ]
-
-
-def count_rows(
+def fetch_row_count(
     conn: sqlite3.Connection,
     table: str,
     where_sql: str,
