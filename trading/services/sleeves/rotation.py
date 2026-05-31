@@ -16,7 +16,7 @@ from trading.domain.sleeve_rotation import (
     SleeveStrategyMetrics,
     evaluate_champion_challenger_rotation,
 )
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotate_decision_for_sleeve,
     insert_rotation_decision,
@@ -169,8 +169,7 @@ def evaluate_and_apply_sleeve_rotation(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
     )
-    metric_rows = fetch_daily_metrics_for_sleeve_window(
-        conn,
+    metric_rows = DailyMetricsRepository(conn).fetch_for_sleeve_window(
         sleeve_id=int(sleeve_id),
         start_date=window_start_date,
         end_date=window_end_date,

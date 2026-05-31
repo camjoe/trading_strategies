@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.domain.sleeve_rotation import SleeveStrategyMetrics
-from trading.repositories.daily_metrics import upsert_daily_metric
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotation_decision_for_sleeve,
     insert_rotation_decision,
@@ -30,8 +30,7 @@ def _insert_sleeve(conn, *, account_id: int, name: str = "core") -> int:
 
 
 def _seed_incumbent_metrics(conn, *, account_id: int, sleeve_id: int) -> None:
-    upsert_daily_metric(
-        conn,
+    DailyMetricsRepository(conn).upsert(
         account_id=account_id,
         sleeve_id=sleeve_id,
         metric_date="2026-05-03",
@@ -47,8 +46,7 @@ def _seed_incumbent_metrics(conn, *, account_id: int, sleeve_id: int) -> None:
         created_at="2026-05-03T23:59:00Z",
         updated_at="2026-05-03T23:59:00Z",
     )
-    upsert_daily_metric(
-        conn,
+    DailyMetricsRepository(conn).upsert(
         account_id=account_id,
         sleeve_id=sleeve_id,
         metric_date="2026-05-04",

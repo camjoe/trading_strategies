@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from trading.domain.rotation import dump_rotation_schedule
-from trading.repositories.daily_metrics import upsert_daily_metric
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.sleeves import insert_sleeve_strategy_assignment, insert_strategy_sleeve
 from trading.repositories.snapshots import insert_snapshot_row
 from tests.support.repositories import insert_repository_account
@@ -108,8 +108,7 @@ def build_rotation_sleeve_env(
 
     # Two metric rows for rotation scoring
     for metric_date, created_at in [("2026-05-03", "2026-05-03T23:59:00Z"), ("2026-05-04", "2026-05-04T23:59:00Z")]:
-        upsert_daily_metric(
-            conn,
+        DailyMetricsRepository(conn).upsert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             metric_date=metric_date,

@@ -130,9 +130,9 @@ def test_fetch_account_sleeves_with_metrics(mock_conn: MagicMock) -> None:
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.daily_metrics") as mock_metrics_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_repo_class:
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
-            mock_metrics_repo.fetch_daily_metrics_for_sleeve.return_value = metrics_rows
+            mock_repo_class.return_value.fetch_for_sleeve.return_value = metrics_rows
 
             result = queries._fetch_account_sleeves(mock_conn, account_id=1)
 
@@ -160,9 +160,9 @@ def test_fetch_account_sleeves_without_metrics(mock_conn: MagicMock) -> None:
     ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.sleeves") as mock_sleeves_repo:
-        with patch("trading.services.ibkr_paper_monitor.queries.daily_metrics") as mock_metrics_repo:
+        with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_repo_class:
             mock_sleeves_repo.fetch_strategy_sleeves_for_account.return_value = sleeve_rows
-            mock_metrics_repo.fetch_daily_metrics_for_sleeve.return_value = []
+            mock_repo_class.return_value.fetch_for_sleeve.return_value = []
 
             result = queries._fetch_account_sleeves(mock_conn, account_id=1)
 

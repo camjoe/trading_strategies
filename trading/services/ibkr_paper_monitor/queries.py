@@ -9,7 +9,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from trading.repositories import sleeves, daily_metrics, rotation_decisions, sleeve_risk_decisions
+from trading.repositories import sleeves, rotation_decisions, sleeve_risk_decisions
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.accounts import AccountRepository
 
 
@@ -60,7 +61,7 @@ def _fetch_account_sleeves(conn: sqlite3.Connection, account_id: int) -> list[di
         sleeve_id = sleeve_row["id"]
 
         # Get latest metrics for this sleeve
-        latest_metrics_rows = daily_metrics.fetch_daily_metrics_for_sleeve(conn, sleeve_id=sleeve_id, limit=1)
+        latest_metrics_rows = DailyMetricsRepository(conn).fetch_for_sleeve(sleeve_id=sleeve_id, limit=1)
 
         latest_metrics = None
         if latest_metrics_rows:

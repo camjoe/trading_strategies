@@ -2,12 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.daily_metrics import (
-    fetch_daily_metrics_for_account,
-    fetch_daily_metrics_for_sleeve,
-    fetch_daily_metrics_for_sleeve_window,
-    upsert_daily_metric,
-)
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import (
     fetch_latest_portfolio_risk_snapshot,
     upsert_portfolio_risk_snapshot,
@@ -512,8 +507,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         assert latest_rotate is not None
         assert latest_rotate["rotation_action"] == "rotate"
 
-        sleeve_metric_id = upsert_daily_metric(
-            conn,
+        sleeve_metric_id = DailyMetricsRepository(conn).upsert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             metric_date="2026-05-03",
@@ -529,8 +523,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             created_at="2026-05-03T23:59:00Z",
             updated_at="2026-05-03T23:59:00Z",
         )
-        sleeve_metric_id_updated = upsert_daily_metric(
-            conn,
+        sleeve_metric_id_updated = DailyMetricsRepository(conn).upsert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             metric_date="2026-05-03",
@@ -548,8 +541,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         )
         assert sleeve_metric_id_updated == sleeve_metric_id
 
-        portfolio_metric_id = upsert_daily_metric(
-            conn,
+        portfolio_metric_id = DailyMetricsRepository(conn).upsert(
             account_id=account_id,
             sleeve_id=None,
             metric_date="2026-05-03",
@@ -565,8 +557,7 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             created_at="2026-05-03T23:59:00Z",
             updated_at="2026-05-03T23:59:00Z",
         )
-        portfolio_metric_id_updated = upsert_daily_metric(
-            conn,
+        portfolio_metric_id_updated = DailyMetricsRepository(conn).upsert(
             account_id=account_id,
             sleeve_id=None,
             metric_date="2026-05-03",
@@ -584,12 +575,12 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
         )
         assert portfolio_metric_id_updated == portfolio_metric_id
 
-        account_metrics = fetch_daily_metrics_for_account(conn, account_id=account_id, limit=10)
+        repo = DailyMetricsRepository(conn)
+        account_metrics = repo.fetch_for_account(account_id=account_id, limit=10)
         assert len(account_metrics) == 2
-        sleeve_metrics = fetch_daily_metrics_for_sleeve(conn, sleeve_id=sleeve_id, limit=10)
+        sleeve_metrics = repo.fetch_for_sleeve(sleeve_id=sleeve_id, limit=10)
         assert len(sleeve_metrics) == 1
-        sleeve_window_metrics = fetch_daily_metrics_for_sleeve_window(
-            conn,
+        sleeve_window_metrics = repo.fetch_for_sleeve_window(
             sleeve_id=sleeve_id,
             start_date="2026-05-03",
             end_date="2026-05-03",
@@ -884,8 +875,9 @@ class TestSleeveRiskDecisionsRepository:
             )
 
         with pytest.raises(ValueError, match="Expected daily_metrics id after insert"):
-            upsert_daily_metric(
-                _StaticConnection(_StaticCursor(row=None), _StaticCursor(lastrowid=None)),
+            DailyMetricsRepository(
+                _StaticConnection(_StaticCursor(row=None), _StaticCursor(lastrowid=None))
+            ).upsert(
                 account_id=1,
                 sleeve_id=None,
                 metric_date="2026-05-03",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
+from trading.repositories.daily_metrics import DailyMetricsRepository
 
 
 def fetch_sleeve_performance_window(
@@ -14,8 +14,7 @@ def fetch_sleeve_performance_window(
 ) -> list[sqlite3.Row]:
     if sleeve_id <= 0:
         raise ValueError("sleeve_id must be positive.")
-    return fetch_daily_metrics_for_sleeve_window(
-        conn,
+    return DailyMetricsRepository(conn).fetch_for_sleeve_window(
         sleeve_id=sleeve_id,
         start_date=start_date,
         end_date=end_date,

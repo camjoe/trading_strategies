@@ -12,7 +12,7 @@ SLEEVE_METRIC_DATE = "2026-01-03"
 
 
 def seed_sleeves(conn: sqlite3.Connection) -> None:
-    from trading.repositories.daily_metrics import upsert_daily_metric
+    from trading.repositories.daily_metrics import DailyMetricsRepository
     from trading.repositories.sleeves import (
         insert_sleeve_strategy_assignment,
         insert_strategy_sleeve,
@@ -43,8 +43,7 @@ def seed_sleeves(conn: sqlite3.Connection) -> None:
         created_at=ts,
         updated_at=ts,
     )
-    upsert_daily_metric(
-        conn,
+    DailyMetricsRepository(conn).upsert(
         account_id=acct_id,
         sleeve_id=sleeve_id,
         metric_date=SLEEVE_METRIC_DATE,

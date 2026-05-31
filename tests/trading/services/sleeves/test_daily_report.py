@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.daily_metrics import upsert_daily_metric
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
 from trading.repositories.rotation_decisions import insert_rotation_decision
 from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
@@ -29,8 +29,7 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
         created_at="2026-01-01T00:00:00Z",
         updated_at="2026-01-01T00:00:00Z",
     )
-    upsert_daily_metric(
-        conn,
+    DailyMetricsRepository(conn).upsert(
         account_id=report_env.account_id,
         sleeve_id=report_env.sleeve_id,
         metric_date=REPORT_DATE,

@@ -14,7 +14,7 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import fetch_latest_portfolio_risk_snapshot
 from trading.repositories.rotation_decisions import fetch_rotation_decisions_for_sleeve_date
 from trading.repositories.sleeve_risk_decisions import fetch_sleeve_risk_decisions_for_account_date
@@ -81,8 +81,7 @@ def _build_sleeve_performance(
     rows = []
     for sleeve in sleeves:
         sleeve_id = int(sleeve["id"])
-        metrics = fetch_daily_metrics_for_sleeve_window(
-            conn,
+        metrics = DailyMetricsRepository(conn).fetch_for_sleeve_window(
             sleeve_id=sleeve_id,
             start_date=report_date,
             end_date=report_date,

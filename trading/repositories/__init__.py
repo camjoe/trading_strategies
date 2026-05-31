@@ -65,12 +65,7 @@ from trading.repositories.sleeve_ledger import (
     fetch_sleeve_ledger_sum_by_type,
     insert_sleeve_ledger_entry,
 )
-from trading.repositories.daily_metrics import (
-    fetch_daily_metrics_for_account,
-    fetch_daily_metrics_for_sleeve,
-    fetch_daily_metrics_for_sleeve_window,
-    upsert_daily_metric,
-)
+from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import (
     fetch_latest_portfolio_risk_snapshot,
     upsert_portfolio_risk_snapshot,
@@ -133,10 +128,7 @@ __all__ = [
     "insert_sleeve_ledger_entry",
     "fetch_sleeve_ledger_entries",
     "fetch_sleeve_ledger_sum_by_type",
-    "upsert_daily_metric",
-    "fetch_daily_metrics_for_account",
-    "fetch_daily_metrics_for_sleeve",
-    "fetch_daily_metrics_for_sleeve_window",
+    "DailyMetricsRepository",
     "upsert_portfolio_risk_snapshot",
     "fetch_latest_portfolio_risk_snapshot",
     "insert_sleeve_risk_decision",
