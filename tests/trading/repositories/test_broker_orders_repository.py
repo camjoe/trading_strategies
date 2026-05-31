@@ -52,14 +52,14 @@ def test_insert_update_and_fetch_broker_orders(conn) -> None:
     )
 
     all_rows = repo.fetch_for_account(account_id=account_id)
-    assert [row["broker_order_id"] for row in all_rows] == ["bo-1", "bo-2", "bo-3", "bo-4"]
-    assert all_rows[0]["status"] == OrderStatus.PARTIALLY_FILLED.value
-    assert float(all_rows[0]["filled_qty"]) == 4.0
-    assert float(all_rows[0]["avg_fill_price"]) == 501.25
-    assert float(all_rows[0]["commission"]) == 1.5
+    assert [row.broker_order_id for row in all_rows] == ["bo-1", "bo-2", "bo-3", "bo-4"]
+    assert all_rows[0].status == OrderStatus.PARTIALLY_FILLED
+    assert all_rows[0].filled_qty == 4.0
+    assert all_rows[0].avg_fill_price == 501.25
+    assert all_rows[0].commission == 1.5
 
     open_rows = repo.fetch_open(account_id=account_id)
-    assert [row["broker_order_id"] for row in open_rows] == ["bo-1", "bo-2"]
+    assert [row.broker_order_id for row in open_rows] == ["bo-1", "bo-2"]
 
 
 def test_insert_fill_is_idempotent_only_for_non_null_exec_ids(conn) -> None:

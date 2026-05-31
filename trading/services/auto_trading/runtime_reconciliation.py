@@ -45,7 +45,7 @@ def reconcile_open_broker_orders_impl(
         broker.disconnect()
         return 0
 
-    open_ids = {row["broker_order_id"]: row for row in open_rows}
+    open_ids = {row.broker_order_id: row for row in open_rows}
     account_id = row_expect_int(account, "id")
     try:
         live_orders = broker.get_open_trades()
@@ -101,10 +101,10 @@ def reconcile_open_broker_orders_impl(
                 record_trade_fn(
                     conn,
                     account_name=account_name,
-                    side=persisted["side"],
-                    ticker=persisted["ticker"],
+                    side=persisted.side,
+                    ticker=persisted.ticker,
                     qty=live.filled_qty,
-                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted["requested_price"],
+                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted.requested_price,
                     fee=fee,
                     trade_time=now,
                     note=f"ib-fill order={live.broker_order_id}",

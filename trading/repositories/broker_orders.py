@@ -4,12 +4,16 @@ import sqlite3
 
 from trading.database.sql_helpers import in_placeholders
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.broker_order_record import BrokerOrderRecord
 
 
 class BrokerOrderRepository:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+
+    def _row_to_record(self, row: sqlite3.Row) -> BrokerOrderRecord:
+        return BrokerOrderRecord.from_mapping(dict(row))
 
     def insert_order(self, order: BrokerOrder) -> None:
         self._conn.execute(
@@ -70,8 +74,8 @@ class BrokerOrderRepository:
         )
         self._conn.commit()
 
-    def fetch_for_account(self, *, account_id: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
+    def fetch_for_account(self, *, account_id: int) -> list[BrokerOrderRecord]:
+        rows = self._conn.execute(
             """
             SELECT * FROM broker_orders
             WHERE account_id = ?
@@ -79,15 +83,16 @@ class BrokerOrderRepository:
             """,
             (account_id,),
         ).fetchall()
+        return [self._row_to_record(row) for row in rows]
 
-    def fetch_open(self, *, account_id: int) -> list[sqlite3.Row]:
+    def fetch_open(self, *, account_id: int) -> list[BrokerOrderRecord]:
         terminal = (
             OrderStatus.FILLED.value,
             OrderStatus.CANCELLED.value,
             OrderStatus.REJECTED.value,
         )
         placeholders = in_placeholders(terminal)
-        return self._conn.execute(
+        rows = self._conn.execute(
             f"""
             SELECT * FROM broker_orders
             WHERE account_id = ? AND status NOT IN ({placeholders})
@@ -95,3 +100,4 @@ class BrokerOrderRepository:
             """,
             (account_id, *terminal),
         ).fetchall()
+        return [self._row_to_record(row) for row in rows]
