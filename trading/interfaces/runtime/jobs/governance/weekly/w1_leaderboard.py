@@ -87,10 +87,10 @@ class SleeveStats(TypedDict):
 
 def _compute_sleeve_stats(metrics: list) -> SleeveStats:
     """Compute aggregated performance stats from a list of daily metric rows."""
-    returns = [row["return_pct"] for row in metrics if row["return_pct"] is not None]
-    risk_scores = [row["risk_adjusted_score"] for row in metrics if row["risk_adjusted_score"] is not None]
-    drawdowns = [row["drawdown_pct"] for row in metrics if row["drawdown_pct"] is not None]
-    trade_counts = [row["trade_count"] for row in metrics if row["trade_count"] is not None]
+    returns = [row.return_pct for row in metrics if row.return_pct is not None]
+    risk_scores = [row.risk_adjusted_score for row in metrics if row.risk_adjusted_score is not None]
+    drawdowns = [row.drawdown_pct for row in metrics if row.drawdown_pct is not None]
+    trade_counts = [row.trade_count for row in metrics if row.trade_count is not None]
 
     return {
         "avg_return_pct": (sum(returns) / len(returns)) if returns else None,

@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
 def _compute_audit_stats(metrics: list) -> dict[str, object]:
     """Compute long-horizon performance summary from daily metric rows."""
     # Cumulative return: compound of all non-null return_pct values.
-    returns = [float(row["return_pct"]) for row in metrics if row["return_pct"] is not None]
+    returns = [row.return_pct for row in metrics if row.return_pct is not None]
     cumulative_return_pct: float | None
     if returns:
         compound = 1.0
@@ -84,15 +84,15 @@ def _compute_audit_stats(metrics: list) -> dict[str, object]:
         cumulative_return_pct = None
 
     # Max drawdown: minimum (most negative) drawdown_pct value.
-    drawdowns = [float(row["drawdown_pct"]) for row in metrics if row["drawdown_pct"] is not None]
+    drawdowns = [row.drawdown_pct for row in metrics if row.drawdown_pct is not None]
     max_drawdown_pct = min(drawdowns) if drawdowns else None
 
     # Average hit rate.
-    hit_rates = [float(row["hit_rate"]) for row in metrics if row["hit_rate"] is not None]
+    hit_rates = [row.hit_rate for row in metrics if row.hit_rate is not None]
     avg_hit_rate = (sum(hit_rates) / len(hit_rates)) if hit_rates else None
 
     # Total trades.
-    trade_counts = [int(row["trade_count"]) for row in metrics if row["trade_count"] is not None]
+    trade_counts = [row.trade_count for row in metrics if row.trade_count is not None]
     total_trades = sum(trade_counts)
 
     return {

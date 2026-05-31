@@ -16,6 +16,7 @@ from trading.domain.sleeve_rotation import (
     SleeveStrategyMetrics,
     evaluate_champion_challenger_rotation,
 )
+from trading.models.daily_metric_record import DailyMetricRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import (
     fetch_latest_rotate_decision_for_sleeve,
@@ -90,16 +91,14 @@ def _build_incumbent_metrics(
     *,
     strategy_name: str,
     param_set_id: int | None,
-    rows: list[sqlite3.Row],
+    rows: list[DailyMetricRecord],
 ) -> SleeveStrategyMetrics:
-    risk_adjusted_scores = [
-        float(row["risk_adjusted_score"]) for row in rows if row["risk_adjusted_score"] is not None
-    ]
-    return_pcts = [float(row["return_pct"]) for row in rows if row["return_pct"] is not None]
-    hit_rates = [float(row["hit_rate"]) for row in rows if row["hit_rate"] is not None]
-    drawdown_values = [float(row["drawdown_pct"]) for row in rows if row["drawdown_pct"] is not None]
-    slippage_bps_values = [float(row["slippage_bps"]) for row in rows if row["slippage_bps"] is not None]
-    trade_count = sum(int(row["trade_count"]) for row in rows if row["trade_count"] is not None)
+    risk_adjusted_scores = [row.risk_adjusted_score for row in rows if row.risk_adjusted_score is not None]
+    return_pcts = [row.return_pct for row in rows if row.return_pct is not None]
+    hit_rates = [row.hit_rate for row in rows if row.hit_rate is not None]
+    drawdown_values = [row.drawdown_pct for row in rows if row.drawdown_pct is not None]
+    slippage_bps_values = [row.slippage_bps for row in rows if row.slippage_bps is not None]
+    trade_count = sum(row.trade_count for row in rows if row.trade_count is not None)
     drawdown_penalty = abs(min(drawdown_values)) if drawdown_values else 0.0
 
     risk_adjusted_return = _average(risk_adjusted_scores) if risk_adjusted_scores else _average(return_pcts)

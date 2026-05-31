@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models.daily_metric_record import DailyMetricRecord
+
 
 class DailyMetricsRepository:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
+
+    def _row_to_record(self, row: sqlite3.Row) -> DailyMetricRecord:
+        return DailyMetricRecord.from_mapping(dict(row))
 
     def upsert(
         self,
@@ -122,8 +127,8 @@ class DailyMetricsRepository:
             raise ValueError("Expected daily_metrics id after insert.")
         return int(cursor.lastrowid)
 
-    def fetch_for_account(self, *, account_id: int, limit: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
+    def fetch_for_account(self, *, account_id: int, limit: int) -> list[DailyMetricRecord]:
+        rows = self._conn.execute(
             """
             SELECT *
             FROM daily_metrics
@@ -133,9 +138,10 @@ class DailyMetricsRepository:
             """,
             (int(account_id), int(limit)),
         ).fetchall()
+        return [self._row_to_record(row) for row in rows]
 
-    def fetch_for_sleeve(self, *, sleeve_id: int, limit: int) -> list[sqlite3.Row]:
-        return self._conn.execute(
+    def fetch_for_sleeve(self, *, sleeve_id: int, limit: int) -> list[DailyMetricRecord]:
+        rows = self._conn.execute(
             """
             SELECT *
             FROM daily_metrics
@@ -145,6 +151,7 @@ class DailyMetricsRepository:
             """,
             (int(sleeve_id), int(limit)),
         ).fetchall()
+        return [self._row_to_record(row) for row in rows]
 
     def fetch_for_sleeve_window(
         self,
@@ -152,8 +159,8 @@ class DailyMetricsRepository:
         sleeve_id: int,
         start_date: str,
         end_date: str,
-    ) -> list[sqlite3.Row]:
-        return self._conn.execute(
+    ) -> list[DailyMetricRecord]:
+        rows = self._conn.execute(
             """
             SELECT *
             FROM daily_metrics
@@ -164,3 +171,4 @@ class DailyMetricsRepository:
             """,
             (int(sleeve_id), start_date, end_date),
         ).fetchall()
+        return [self._row_to_record(row) for row in rows]

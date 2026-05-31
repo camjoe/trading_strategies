@@ -67,10 +67,10 @@ def _fetch_account_sleeves(conn: sqlite3.Connection, account_id: int) -> list[di
         if latest_metrics_rows:
             m = latest_metrics_rows[0]
             latest_metrics = {
-                "hit_rate": m["hit_rate"],
-                "drawdown_pct": m["drawdown_pct"],
-                "trade_count": m["trade_count"] or 0,
-                "metric_date": m["metric_date"],
+                "hit_rate": m.hit_rate,
+                "drawdown_pct": m.drawdown_pct,
+                "trade_count": m.trade_count or 0,
+                "metric_date": m.metric_date,
             }
         else:
             latest_metrics = {

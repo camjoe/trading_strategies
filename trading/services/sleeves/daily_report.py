@@ -94,16 +94,12 @@ def _build_sleeve_performance(
                 sleeve_id=sleeve_id,
                 sleeve_name=str(sleeve["name"]),
                 strategy_name=strategy_name,
-                return_pct=float(metric["return_pct"]) if metric and metric["return_pct"] is not None else None,
-                drawdown_pct=float(metric["drawdown_pct"]) if metric and metric["drawdown_pct"] is not None else None,
-                hit_rate=float(metric["hit_rate"]) if metric and metric["hit_rate"] is not None else None,
-                trade_count=int(metric["trade_count"]) if metric and metric["trade_count"] is not None else None,
-                fees_total=float(metric["fees_total"]) if metric and metric["fees_total"] is not None else None,
-                risk_adjusted_score=(
-                    float(metric["risk_adjusted_score"])
-                    if metric and metric["risk_adjusted_score"] is not None
-                    else None
-                ),
+                return_pct=metric.return_pct if metric else None,
+                drawdown_pct=metric.drawdown_pct if metric else None,
+                hit_rate=metric.hit_rate if metric else None,
+                trade_count=metric.trade_count if metric else None,
+                fees_total=metric.fees_total if metric else None,
+                risk_adjusted_score=metric.risk_adjusted_score if metric else None,
                 current_equity=float(sleeve["current_equity"]),
                 start_equity=float(sleeve["start_equity"]),
             )
