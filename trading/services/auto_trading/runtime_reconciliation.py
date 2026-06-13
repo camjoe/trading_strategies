@@ -67,7 +67,7 @@ def reconcile_open_broker_orders_impl(
                 if sleeve_order_row is not None:
                     apply_sleeve_fill(
                         conn,
-                        sleeve_order_id=int(sleeve_order_row["id"]),
+                        sleeve_order_id=sleeve_order_row.id,
                         broker_fill_id=live.broker_order_id,
                         exec_id=resolve_reconciliation_exec_id(
                             broker_order_id=live.broker_order_id,
@@ -92,7 +92,7 @@ def reconcile_open_broker_orders_impl(
             if sleeve_order_row is not None:
                 update_sleeve_order_status_fn(
                     conn,
-                    sleeve_order_id=int(sleeve_order_row["id"]),
+                    sleeve_order_id=sleeve_order_row.id,
                     status=live.status.value,
                     updated_at=now,
                 )
