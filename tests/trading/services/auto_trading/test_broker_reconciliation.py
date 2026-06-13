@@ -28,7 +28,7 @@ def _insert_open_broker_order(conn, broker_order_id: str, account_id: int = 1) -
     conn.execute(
         "INSERT INTO broker_orders "
         "(account_id, ticker, side, qty, requested_price, broker_order_id, status, submitted_at, updated_at) "
-        "VALUES (?, 'AAPL', 'buy', 10, 150.0, ?, 'SUBMITTED', '2024-01-01T00:00:00', '2024-01-01T00:00:00')",
+        "VALUES (?, 'AAPL', 'buy', 10, 150.0, ?, 'submitted', '2024-01-01T00:00:00', '2024-01-01T00:00:00')",
         (account_id, broker_order_id),
     )
     conn.commit()
