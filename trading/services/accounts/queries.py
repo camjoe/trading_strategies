@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.database.db_backend import get_backend
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.models import AccountRecord, EquitySnapshotRecord
@@ -50,11 +49,3 @@ def list_account_snapshots(
     if limit <= 0:
         raise ValueError("limit must be positive.")
     return EquitySnapshotRepository(conn).fetch_history(account_id=account_id, limit=limit)
-
-
-def load_runtime_eligible_account_names() -> list[str]:
-    conn = get_backend().open_connection()
-    try:
-        return AccountRepository(conn).fetch_names()
-    finally:
-        conn.close()
