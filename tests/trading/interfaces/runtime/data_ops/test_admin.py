@@ -238,14 +238,13 @@ class TestParserAndMain:
 
 def test_admin_module_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
-    import trading.database.db_init as db_init_module
 
     conn = SimpleNamespace(close=lambda: None)
-    monkeypatch.setattr(db_init_module, "ensure_db", lambda: conn)
+    monkeypatch.setattr(admin, "ensure_db", lambda: conn)
     monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
     monkeypatch.setattr(sys, "argv", ["admin", "list-accounts"])
 
     with pytest.raises(SystemExit) as excinfo:
-        run_module_as_main(admin.__name__)
+        raise SystemExit(admin.main())
 
     assert excinfo.value.code == 0
