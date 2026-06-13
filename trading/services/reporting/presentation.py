@@ -282,9 +282,9 @@ def show_snapshots(conn: sqlite3.Connection, account_name: str, limit: int) -> N
     print(f"Snapshot history (latest {limit}) for {account_name}:")
     for row in rows:
         print(
-            f"- {row['snapshot_time']} | equity={row['equity']:.2f} cash={row['cash']:.2f} "
-            f"mv={row['market_value']:.2f} realized={row['realized_pnl']:.2f} "
-            f"unrealized={row['unrealized_pnl']:.2f}"
+            f"- {row.snapshot_time} | equity={row.equity:.2f} cash={row.cash:.2f} "
+            f"mv={row.market_value:.2f} realized={row.realized_pnl:.2f} "
+            f"unrealized={row.unrealized_pnl:.2f}"
         )
 
 

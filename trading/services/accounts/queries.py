@@ -3,9 +3,9 @@ from __future__ import annotations
 import sqlite3
 
 from trading.database.db_backend import get_backend
-from trading.models import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.models import AccountRecord, EquitySnapshotRecord
 
 
 def _normalize_account_name(name: str) -> str:
@@ -35,7 +35,7 @@ def list_account_names(conn: sqlite3.Connection) -> list[str]:
 def get_latest_account_snapshot(
     conn: sqlite3.Connection,
     account_id: int,
-) -> dict[str, object] | None:
+) -> EquitySnapshotRecord | None:
     _require_positive_account_id(account_id)
     return EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
 
@@ -45,7 +45,7 @@ def list_account_snapshots(
     account_id: int,
     *,
     limit: int,
-) -> list[dict[str, object]]:
+) -> list[EquitySnapshotRecord]:
     _require_positive_account_id(account_id)
     if limit <= 0:
         raise ValueError("limit must be positive.")
