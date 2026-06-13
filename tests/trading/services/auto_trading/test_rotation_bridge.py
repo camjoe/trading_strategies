@@ -213,7 +213,7 @@ def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
         deps=RotationDeps(
             is_rotation_due_fn=lambda *_args, **_kwargs: False,
             select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-            update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
+            update_account_rotation_state_fn=lambda *_args, **_kwargs: None,
             get_account_fn=get_account,
         ),
     )
