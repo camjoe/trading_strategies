@@ -41,7 +41,7 @@ def latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
             challenger_count += int(sleeve.get("challenger_count") or 0)
     return {
         "status": payload.get("status"),
-        "artifact_path": str(latest.relative_to(repo_root)),
+        "artifact_path": latest.relative_to(repo_root).as_posix(),
         "account_count": len(results),
         "sleeve_count": sleeve_count,
         "challenger_count": challenger_count,
