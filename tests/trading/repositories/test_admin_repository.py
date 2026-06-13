@@ -51,14 +51,14 @@ def _insert_trade(conn, *, account_id: int) -> None:
 class TestFetchRowCount:
     def test_returns_zero_for_empty_table(self, conn) -> None:
         acct_id = _account_id(conn)
-        count = fetch_row_count(conn, "trades", "account_id = ?", (acct_id,))
+        count = fetch_row_count(conn, "trades", "account_id", (acct_id,))
         assert count == 0
 
     def test_counts_matching_rows(self, conn) -> None:
         acct_id = _account_id(conn)
         _insert_trade(conn, account_id=acct_id)
         _insert_trade(conn, account_id=acct_id)
-        count = fetch_row_count(conn, "trades", "account_id = ?", (acct_id,))
+        count = fetch_row_count(conn, "trades", "account_id", (acct_id,))
         assert count == 2
 
     def test_only_counts_matching_rows(self, conn) -> None:
@@ -66,7 +66,7 @@ class TestFetchRowCount:
         acct_b = _account_id(conn, "acct_b")
         _insert_trade(conn, account_id=acct_a)
         _insert_trade(conn, account_id=acct_b)
-        assert fetch_row_count(conn, "trades", "account_id = ?", (acct_a,)) == 1
+        assert fetch_row_count(conn, "trades", "account_id", (acct_a,)) == 1
 
 
 class TestFetchBacktestRunIdsForAccountIds:
