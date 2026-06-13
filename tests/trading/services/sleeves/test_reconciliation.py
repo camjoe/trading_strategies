@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.snapshots import insert_snapshot_row
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.sleeves.reconciliation import (
     reconcile_sleeves_vs_account_equity,
     reconcile_sleeves_vs_latest_snapshot,
@@ -57,8 +57,7 @@ def test_reconcile_sleeves_vs_latest_snapshot_uses_latest_equity(conn) -> None:
     _insert_sleeve(conn, account_id=account_id, name="a", equity=5_000.0)
     _insert_sleeve(conn, account_id=account_id, name="b", equity=5_000.0)
 
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time="2026-05-03T12:00:00Z",
         cash=2_000.0,

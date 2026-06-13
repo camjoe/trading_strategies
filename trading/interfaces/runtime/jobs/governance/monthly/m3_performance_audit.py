@@ -21,13 +21,10 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL
-from trading.repositories.accounts import fetch_account_by_name
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_strategy_sleeves_for_account,
-)
+from trading.services.performance import fetch_sleeve_performance_window
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import load_runtime_eligible_account_names
+from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -73,7 +70,7 @@ def parse_args() -> argparse.Namespace:
 def _compute_audit_stats(metrics: list) -> dict[str, object]:
     """Compute long-horizon performance summary from daily metric rows."""
     # Cumulative return: compound of all non-null return_pct values.
-    returns = [float(row["return_pct"]) for row in metrics if row["return_pct"] is not None]
+    returns = [row.return_pct for row in metrics if row.return_pct is not None]
     cumulative_return_pct: float | None
     if returns:
         compound = 1.0
@@ -84,15 +81,15 @@ def _compute_audit_stats(metrics: list) -> dict[str, object]:
         cumulative_return_pct = None
 
     # Max drawdown: minimum (most negative) drawdown_pct value.
-    drawdowns = [float(row["drawdown_pct"]) for row in metrics if row["drawdown_pct"] is not None]
+    drawdowns = [row.drawdown_pct for row in metrics if row.drawdown_pct is not None]
     max_drawdown_pct = min(drawdowns) if drawdowns else None
 
     # Average hit rate.
-    hit_rates = [float(row["hit_rate"]) for row in metrics if row["hit_rate"] is not None]
+    hit_rates = [row.hit_rate for row in metrics if row.hit_rate is not None]
     avg_hit_rate = (sum(hit_rates) / len(hit_rates)) if hit_rates else None
 
     # Total trades.
-    trade_counts = [int(row["trade_count"]) for row in metrics if row["trade_count"] is not None]
+    trade_counts = [row.trade_count for row in metrics if row.trade_count is not None]
     total_trades = sum(trade_counts)
 
     return {
@@ -154,24 +151,22 @@ def main() -> int:
 
         account_results: list[dict[str, object]] = []
         for account_name in accounts:
-            account = fetch_account_by_name(conn, account_name)
+            account = find_account(conn, account_name)
             if account is None:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue
 
-            sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
+            sleeve_repo = SleeveRepository(conn)
+            sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
             sleeve_rows: list[dict[str, object]] = []
 
             for sleeve in sleeves:
-                sleeve_id = int(sleeve["id"])
-                sleeve_name = str(sleeve["name"])
+                assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+                strategy_name = assignment.strategy_name if assignment is not None else None
 
-                assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
-                strategy_name = str(assignment["strategy_name"]) if assignment is not None else None
-
-                metrics = fetch_daily_metrics_for_sleeve_window(
+                metrics = fetch_sleeve_performance_window(
                     conn,
-                    sleeve_id=sleeve_id,
+                    sleeve_id=sleeve.id,
                     start_date=start_str,
                     end_date=today_str,
                 )
@@ -179,7 +174,7 @@ def main() -> int:
 
                 sleeve_rows.append(
                     {
-                        "sleeve_name": sleeve_name,
+                        "sleeve_name": sleeve.name,
                         "strategy_name": strategy_name,
                         **stats,
                     }

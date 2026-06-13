@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.domain.returns import safe_return_pct
-from trading.repositories.backtest_history import fetch_strategy_backtest_rows
+from trading.repositories.backtest_history import BacktestRunRepository
 
 
 def fetch_strategy_backtest_returns(
@@ -13,11 +13,9 @@ def fetch_strategy_backtest_returns(
     start_day: str,
     end_day: str,
 ) -> list[tuple[str, float]]:
-    """Load per-run strategy returns from backtest history within a date window."""
     if not strategy_names:
         return []
-    rows = fetch_strategy_backtest_rows(
-        conn,
+    rows = BacktestRunRepository(conn).fetch_by_strategy_window(
         account_id=account_id,
         strategy_names=strategy_names,
         start_day=start_day,

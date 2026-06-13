@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-from trading.repositories.rotation import (
-    close_rotation_episode,
-    fetch_closed_rotation_episodes,
-    fetch_latest_closed_rotation_episode,
-    fetch_open_rotation_episode,
-    insert_rotation_episode,
-    update_account_rotation_state,
-)
+from trading.repositories.accounts import AccountRepository
+from trading.repositories.rotation import RotationEpisodeRepository
 from tests.support.repositories import insert_repository_account
 
 
@@ -18,8 +12,7 @@ def _account_id(conn, name: str = "rot_acct") -> int:
 class TestUpdateAccountRotationState:
     def test_updates_all_rotation_fields(self, conn) -> None:
         acct_id = _account_id(conn)
-        update_account_rotation_state(
-            conn,
+        AccountRepository(conn).update_rotation_state(
             account_id=acct_id,
             strategy="meanrev",
             rotation_active_index=1,
@@ -39,8 +32,7 @@ class TestUpdateAccountRotationState:
             "strategy"
         ]
 
-        update_account_rotation_state(
-            conn,
+        AccountRepository(conn).update_rotation_state(
             account_id=acct_a,
             strategy="newstrat",
             rotation_active_index=0,
@@ -54,8 +46,7 @@ class TestUpdateAccountRotationState:
     def test_can_be_called_multiple_times_overwriting(self, conn) -> None:
         acct_id = _account_id(conn)
         for i, strat in enumerate(["alpha", "beta", "gamma"]):
-            update_account_rotation_state(
-                conn,
+            AccountRepository(conn).update_rotation_state(
                 account_id=acct_id,
                 strategy=strat,
                 rotation_active_index=i,
@@ -70,8 +61,8 @@ class TestUpdateAccountRotationState:
 class TestRotationEpisodes:
     def test_insert_fetch_and_close_rotation_episode(self, conn) -> None:
         acct_id = _account_id(conn, "rot_episode")
-        insert_rotation_episode(
-            conn,
+        repo = RotationEpisodeRepository(conn)
+        repo.insert(
             account_id=acct_id,
             strategy_name="trend",
             started_at="2026-03-01T00:00:00Z",
@@ -79,12 +70,11 @@ class TestRotationEpisodes:
             starting_realized_pnl=10.0,
         )
 
-        open_row = fetch_open_rotation_episode(conn, account_id=acct_id)
+        open_row = repo.fetch_open(account_id=acct_id)
         assert open_row is not None
         assert open_row["strategy_name"] == "trend"
 
-        close_rotation_episode(
-            conn,
+        repo.close_episode(
             episode_id=int(open_row["id"]),
             ended_at="2026-03-10T00:00:00Z",
             ending_equity=1120.0,
@@ -93,8 +83,7 @@ class TestRotationEpisodes:
             snapshot_count=3,
         )
 
-        closed_rows = fetch_closed_rotation_episodes(
-            conn,
+        closed_rows = repo.fetch_closed(
             account_id=acct_id,
             strategy_names=["trend"],
             start_iso="2026-03-01T00:00:00Z",
@@ -109,8 +98,7 @@ class TestRotationEpisodes:
         acct_id = _account_id(conn, "rot_empty_filter")
 
         assert (
-            fetch_closed_rotation_episodes(
-                conn,
+            RotationEpisodeRepository(conn).fetch_closed(
                 account_id=acct_id,
                 strategy_names=[],
                 start_iso="2026-03-01T00:00:00Z",
@@ -121,25 +109,24 @@ class TestRotationEpisodes:
 
     def test_fetch_latest_closed_rotation_episode_returns_most_recent_match(self, conn) -> None:
         acct_id = _account_id(conn, "rot_latest")
+        repo = RotationEpisodeRepository(conn)
 
-        assert fetch_latest_closed_rotation_episode(conn, account_id=acct_id, strategy_name="trend") is None
+        assert repo.fetch_latest_closed(account_id=acct_id, strategy_name="trend") is None
 
         for started_at, ended_at, ending_equity in [
             ("2026-03-01T00:00:00Z", "2026-03-05T00:00:00Z", 1010.0),
             ("2026-03-06T00:00:00Z", "2026-03-09T00:00:00Z", 1030.0),
         ]:
-            insert_rotation_episode(
-                conn,
+            repo.insert(
                 account_id=acct_id,
                 strategy_name="trend",
                 started_at=started_at,
                 starting_equity=1000.0,
                 starting_realized_pnl=0.0,
             )
-            open_row = fetch_open_rotation_episode(conn, account_id=acct_id)
+            open_row = repo.fetch_open(account_id=acct_id)
             assert open_row is not None
-            close_rotation_episode(
-                conn,
+            repo.close_episode(
                 episode_id=int(open_row["id"]),
                 ended_at=ended_at,
                 ending_equity=ending_equity,
@@ -148,7 +135,7 @@ class TestRotationEpisodes:
                 snapshot_count=2,
             )
 
-        latest = fetch_latest_closed_rotation_episode(conn, account_id=acct_id, strategy_name="trend")
+        latest = repo.fetch_latest_closed(account_id=acct_id, strategy_name="trend")
 
         assert latest is not None
         assert latest["ended_at"] == "2026-03-09T00:00:00Z"

@@ -74,26 +74,15 @@ class TestArtifactStructure:
         assert payload["accounts"][0]["sleeves"] == []
 
     def test_sleeve_ranking_included_in_artifact(self, monkeypatch, tmp_path: Path) -> None:
-        sleeve_row = {
-            "id": 10,
-            "name": "sleeve_a",
-        }
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        from types import SimpleNamespace as _NS
+        sleeve_row = {"id": 10, "name": "sleeve_a"}
+        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="trend_follow", param_set_id=None)
         monkeypatch.setattr(
             module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: {"strategy_name": "trend_follow"},
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_daily_metrics_for_sleeve_window",
+            "fetch_sleeve_performance_window",
             lambda conn, *, sleeve_id, start_date, end_date: [
-                {
-                    "return_pct": 1.5,
-                    "risk_adjusted_score": 0.8,
-                    "drawdown_pct": -2.0,
-                    "trade_count": 5,
-                }
+                _NS(return_pct=1.5, risk_adjusted_score=0.8, drawdown_pct=-2.0, trade_count=5)
             ],
         )
 
@@ -122,18 +111,14 @@ class TestArtifactStructure:
         sleeve_row = {"id": 10, "name": "sleeve_a"}
         monkeypatch.setattr(module.dt, "datetime", _FixedDateTime)
         stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: None,
-        )
+        # fetch_active_assignment returns None by default from stub
 
         def _capture_metrics(conn, *, sleeve_id, start_date, end_date):
             captured["start_date"] = start_date
             captured["end_date"] = end_date
             return []
 
-        monkeypatch.setattr(module, "fetch_daily_metrics_for_sleeve_window", _capture_metrics)
+        monkeypatch.setattr(module, "fetch_sleeve_performance_window", _capture_metrics)
 
         result = _run_job(
             monkeypatch,
@@ -168,10 +153,11 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_main_returns_1_when_repository_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    from unittest.mock import MagicMock
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(
-        module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
-    )
+    boom_repo = MagicMock()
+    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
+    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

@@ -23,7 +23,7 @@ Repositories own persistence details:
 4. generic persistence primitives that services can compose
 
 Repository functions may still be specific and useful. For example,
-`fetch_account_by_name()` is an acceptable repository helper because it is a
+`fetch_by_name()` is an acceptable repository helper because it is a
 common persistence query, not business logic.
 
 Repository functions should **not**:
@@ -78,8 +78,8 @@ public APIs for the same capability and reintroduces redirect-only wrappers.
 Avoid public service helpers that are only passthroughs like:
 
 ```python
-def fetch_account_by_name(conn, name):
-    return repo_fetch_account_by_name(conn, name)
+def fetch_by_name(conn, name):
+    return AccountRepository(conn).fetch_by_name(name)
 ```
 
 If a service function adds no validation, orchestration, fallback behavior, or
@@ -97,7 +97,7 @@ For writes, prefer:
 
 Example:
 
-- repository: `update_account_fields(...)`
+- repository: `update(...)`
 - service: `set_account_strategy(...)`, `set_benchmark(...)`, `configure_account(...)`
 
 This keeps SQL assembly in the repository while keeping validation and policy in
@@ -125,10 +125,10 @@ Use this checklist when cleaning another service/repository pair:
 For `accounts`:
 
 - repository remains responsible for:
-  - `fetch_account_by_name`
-  - `fetch_account_rows`
-  - `fetch_account_listing_rows`
-  - `update_account_fields`
+  - `fetch_by_name`
+  - `fetch`
+  - `fetch_listing`
+  - `update`
 - service should expose:
   - `find_account`
   - `get_account`

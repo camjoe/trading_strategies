@@ -2,17 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models import AccountRecord
-from trading.repositories.accounts import (
-    fetch_account_by_name,
-    fetch_account_rows,
-    fetch_all_account_names,
-    load_all_account_names,
-)
-from trading.repositories.snapshots import (
-    fetch_latest_snapshot_row,
-    fetch_snapshot_history_rows,
-)
+from trading.repositories.accounts import AccountRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.models import AccountRecord, EquitySnapshotRecord
 
 
 def _normalize_account_name(name: str) -> str:
@@ -28,23 +20,23 @@ def _require_positive_account_id(account_id: int) -> None:
 
 
 def find_account(conn: sqlite3.Connection, name: str) -> AccountRecord | None:
-    return fetch_account_by_name(conn, _normalize_account_name(name))
+    return AccountRepository(conn).fetch_by_name(_normalize_account_name(name))
 
 
 def list_account_records(conn: sqlite3.Connection) -> list[AccountRecord]:
-    return fetch_account_rows(conn)
+    return AccountRepository(conn).fetch_all()
 
 
 def list_account_names(conn: sqlite3.Connection) -> list[str]:
-    return fetch_all_account_names(conn)
+    return AccountRepository(conn).fetch_names()
 
 
 def get_latest_account_snapshot(
     conn: sqlite3.Connection,
     account_id: int,
-) -> dict[str, object] | None:
+) -> EquitySnapshotRecord | None:
     _require_positive_account_id(account_id)
-    return fetch_latest_snapshot_row(conn, account_id=account_id)
+    return EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
 
 
 def list_account_snapshots(
@@ -52,12 +44,8 @@ def list_account_snapshots(
     account_id: int,
     *,
     limit: int,
-) -> list[dict[str, object]]:
+) -> list[EquitySnapshotRecord]:
     _require_positive_account_id(account_id)
     if limit <= 0:
         raise ValueError("limit must be positive.")
-    return fetch_snapshot_history_rows(conn, account_id=account_id, limit=limit)
-
-
-def load_runtime_eligible_account_names() -> list[str]:
-    return load_all_account_names()
+    return EquitySnapshotRepository(conn).fetch_history(account_id=account_id, limit=limit)

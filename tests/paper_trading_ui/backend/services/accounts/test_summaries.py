@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from trading.models.account_state import AccountState
+from trading.models.equity_snapshot_record import EquitySnapshotRecord
 import pytest
 
 from paper_trading_ui.backend.services.accounts import summaries as account_summaries
@@ -42,7 +43,16 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
         account_summaries,
         "get_latest_account_snapshot",
-        lambda _conn, _account_id: {"equity": 1100.0, "snapshot_time": "2026-01-02T00:00:00Z"},
+        lambda _conn, _account_id: EquitySnapshotRecord(
+            id=1,
+            account_id=1,
+            snapshot_time="2026-01-02T00:00:00Z",
+            cash=0.0,
+            market_value=1100.0,
+            equity=1100.0,
+            realized_pnl=0.0,
+            unrealized_pnl=0.0,
+        ),
     )
 
     summary = account_summaries.build_account_summary(

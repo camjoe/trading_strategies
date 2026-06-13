@@ -71,19 +71,11 @@ class TestArtifactStructure:
         assert isinstance(payload["accounts"], list)
 
     def test_params_parsed_from_json_column(self, monkeypatch, tmp_path: Path) -> None:
+        from types import SimpleNamespace as _NS
         sleeve_row = {"id": 7, "name": "sleeve_q"}
-        param_row = {"id": 42, "params_json": '{"lookback": 20, "threshold": 0.5}'}
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 42},
-        )
-        monkeypatch.setattr(
-            module,
-            "fetch_strategy_param_set_by_id",
-            lambda conn, *, param_set_id: param_row,
-        )
+        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=42)
+        mocks.param_set_repo.fetch_by_id.return_value = _NS(id=42, params_json='{"lookback": 20, "threshold": 0.5}')
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
@@ -99,21 +91,17 @@ class TestArtifactStructure:
         assert sleeve["params"] == {"lookback": 20, "threshold": 0.5}
 
     def test_uses_assignment_param_set_id_instead_of_global_active_set(self, monkeypatch, tmp_path: Path) -> None:
+        from types import SimpleNamespace as _NS
         sleeve_row = {"id": 7, "name": "sleeve_q"}
-        param_row = {"id": 99, "params_json": '{"alpha": 1.2}'}
         captured: dict[str, int] = {}
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 99},
-        )
+        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=99)
 
-        def _fetch_param_set_by_id(conn, *, param_set_id):
+        def _fetch_by_id(*, param_set_id):
             captured["param_set_id"] = param_set_id
-            return param_row
+            return _NS(id=99, params_json='{"alpha": 1.2}')
 
-        monkeypatch.setattr(module, "fetch_strategy_param_set_by_id", _fetch_param_set_by_id)
+        mocks.param_set_repo.fetch_by_id.side_effect = _fetch_by_id
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
@@ -130,11 +118,7 @@ class TestArtifactStructure:
     def test_null_param_set_when_no_assignment(self, monkeypatch, tmp_path: Path) -> None:
         sleeve_row = {"id": 8, "name": "sleeve_r"}
         stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        monkeypatch.setattr(
-            module,
-            "fetch_active_sleeve_strategy_assignment",
-            lambda conn, *, sleeve_id: None,
-        )
+        # fetch_active_assignment returns None by default from stub
 
         _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         payload = load_single_artifact_json(
@@ -166,16 +150,11 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> None:
+    from types import SimpleNamespace as _NS
     sleeve_row = {"id": 7, "name": "sleeve_q"}
-    stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-    monkeypatch.setattr(
-        module,
-        "fetch_active_sleeve_strategy_assignment",
-        lambda conn, *, sleeve_id: {"strategy_name": "mean_rev", "param_set_id": 42},
-    )
-    monkeypatch.setattr(
-        module, "fetch_strategy_param_set_by_id", lambda conn, *, param_set_id: {"params_json": "{bad json"}
-    )
+    mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
+    mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=42)
+    mocks.param_set_repo.fetch_by_id.return_value = _NS(id=42, params_json="{bad json")
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
     payload = load_single_artifact_json(
@@ -185,10 +164,11 @@ def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> 
 
 
 def test_main_returns_1_when_param_lookup_raises(monkeypatch, tmp_path: Path) -> None:
+    from unittest.mock import MagicMock
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(
-        module, "fetch_strategy_sleeves_for_account", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom"))
-    )
+    boom_repo = MagicMock()
+    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
+    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

@@ -4,11 +4,11 @@ import sqlite3
 
 from trading.domain.accounting import compute_account_state
 from trading.models import AccountState
-from trading.repositories.trades import fetch_trades_for_account
+from trading.repositories.trades import TradeRepository
 
 
 def list_account_trades(conn: sqlite3.Connection, account_id: int) -> list[dict[str, object]]:
-    return [dict(row) for row in fetch_trades_for_account(conn, account_id=account_id)]
+    return [dict(row) for row in TradeRepository(conn).fetch_for_account(account_id=account_id)]
 
 
 def load_account_state(

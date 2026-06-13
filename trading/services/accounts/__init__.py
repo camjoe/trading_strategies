@@ -29,8 +29,8 @@ from trading.services.accounts.queries import (
     list_account_names,
     list_account_records,
     list_account_snapshots,
-    load_runtime_eligible_account_names,
 )
+from trading.services.accounts.runtime_loader import load_runtime_eligible_account_names
 from trading.domain.exceptions import AccountAlreadyExistsError
 from trading.domain.auto_trading_policy import (
     DEFAULT_MAX_POSITION_PCT,

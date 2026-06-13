@@ -4,7 +4,7 @@ import sqlite3
 
 from common.coercion import coerce_float
 from trading.models.account_config import AccountConfig
-from trading.repositories.accounts import update_account_fields
+from trading.repositories.accounts import AccountRepository
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
@@ -68,8 +68,7 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
     if not updates:
         return False
 
-    update_account_fields(
-        conn,
+    AccountRepository(conn).update(
         account_id=account.id,
         updates=updates,
         params=params,
@@ -141,8 +140,7 @@ def apply_account_profiles(
 
         if strategy is not None:
             account = get_account(conn, name)
-            update_account_fields(
-                conn,
+            AccountRepository(conn).update(
                 account_id=account.id,
                 updates=["strategy = ?"],
                 params=[strategy],

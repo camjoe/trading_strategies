@@ -51,4 +51,4 @@ def test_get_latest_account_snapshot_prefers_latest_id_for_same_timestamp(conn, 
 
     latest = get_latest_account_snapshot(conn, account_id)
     assert latest is not None
-    assert float(latest["equity"]) == 1250.0
+    assert latest.equity == 1250.0

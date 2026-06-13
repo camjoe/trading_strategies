@@ -28,12 +28,9 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
-from trading.repositories.accounts import fetch_account_by_name
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_strategy_sleeves_for_account,
-)
+from trading.services.performance import fetch_sleeve_performance_window
+from trading.services.accounts.queries import find_account
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import load_runtime_eligible_account_names
 
 REPO_ROOT = get_repo_root(__file__)
@@ -87,10 +84,10 @@ class SleeveStats(TypedDict):
 
 def _compute_sleeve_stats(metrics: list) -> SleeveStats:
     """Compute aggregated performance stats from a list of daily metric rows."""
-    returns = [row["return_pct"] for row in metrics if row["return_pct"] is not None]
-    risk_scores = [row["risk_adjusted_score"] for row in metrics if row["risk_adjusted_score"] is not None]
-    drawdowns = [row["drawdown_pct"] for row in metrics if row["drawdown_pct"] is not None]
-    trade_counts = [row["trade_count"] for row in metrics if row["trade_count"] is not None]
+    returns = [row.return_pct for row in metrics if row.return_pct is not None]
+    risk_scores = [row.risk_adjusted_score for row in metrics if row.risk_adjusted_score is not None]
+    drawdowns = [row.drawdown_pct for row in metrics if row.drawdown_pct is not None]
+    trade_counts = [row.trade_count for row in metrics if row.trade_count is not None]
 
     return {
         "avg_return_pct": (sum(returns) / len(returns)) if returns else None,
@@ -151,31 +148,29 @@ def main() -> int:
 
         account_results: list[WeeklyLeaderboardAccountPayload] = []
         for account_name in accounts:
-            account = fetch_account_by_name(conn, account_name)
+            account = find_account(conn, account_name)
             if account is None:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue
 
-            sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account.id)
+            sleeve_repo = SleeveRepository(conn)
+            sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
             sleeve_rows: list[WeeklyLeaderboardSleevePayload] = []
 
             for sleeve in sleeves:
-                sleeve_id = int(sleeve["id"])
-                sleeve_name = str(sleeve["name"])
+                assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+                strategy_name = assignment.strategy_name if assignment is not None else None
 
-                assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
-                strategy_name = str(assignment["strategy_name"]) if assignment is not None else None
-
-                metrics = fetch_daily_metrics_for_sleeve_window(
+                metrics = fetch_sleeve_performance_window(
                     conn,
-                    sleeve_id=sleeve_id,
+                    sleeve_id=sleeve.id,
                     start_date=start_str,
                     end_date=today_str,
                 )
                 stats = _compute_sleeve_stats(metrics)
                 sleeve_rows.append(
                     WeeklyLeaderboardSleevePayload(
-                        sleeve_name=sleeve_name,
+                        sleeve_name=sleeve.name,
                         strategy_name=strategy_name,
                         avg_return_pct=stats["avg_return_pct"],
                         avg_risk_adjusted_score=stats["avg_risk_adjusted_score"],

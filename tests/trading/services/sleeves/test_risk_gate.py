@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.sleeve_positions import upsert_sleeve_position
+from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves import risk_gate as sleeve_risk_gate
 from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
@@ -78,8 +78,7 @@ def test_evaluate_sleeve_risk_gate_blocks_when_gross_exposure_is_exhausted(conn)
     account_id = insert_repository_account(conn, name="acct_risk_block")
     sleeve_a = _insert_sleeve(conn, account_id=account_id, sleeve_id=3, equity=1_000.0)
     _insert_sleeve(conn, account_id=account_id, sleeve_id=4, equity=1_000.0)
-    upsert_sleeve_position(
-        conn,
+    SleevePositionRepository(conn).upsert(
         sleeve_id=sleeve_a,
         symbol="SPY",
         qty=10.0,
@@ -115,8 +114,7 @@ def test_evaluate_sleeve_risk_gate_blocks_when_sector_cap_is_exhausted(conn) -> 
     account_id = insert_repository_account(conn, name="acct_risk_sector_block")
     sleeve_a = _insert_sleeve(conn, account_id=account_id, sleeve_id=5, equity=1_000.0)
     sleeve_b = _insert_sleeve(conn, account_id=account_id, sleeve_id=6, equity=1_000.0)
-    upsert_sleeve_position(
-        conn,
+    SleevePositionRepository(conn).upsert(
         sleeve_id=sleeve_a,
         symbol="AAPL",
         qty=9.0,
@@ -218,8 +216,7 @@ def test_evaluate_sleeve_risk_gate_blocks_non_positive_qty(conn) -> None:
 def test_evaluate_sleeve_risk_gate_allows_sell_and_reduces_exposure(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_risk_sell")
     sleeve_id = _insert_sleeve(conn, account_id=account_id, sleeve_id=9, equity=1_000.0)
-    upsert_sleeve_position(
-        conn,
+    SleevePositionRepository(conn).upsert(
         sleeve_id=sleeve_id,
         symbol="AAPL",
         qty=3.0,

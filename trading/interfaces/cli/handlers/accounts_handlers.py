@@ -80,7 +80,12 @@ def handle_set_benchmark(conn, args, parser, *, deps: dict[str, Any], module_fil
 
 
 def handle_list_accounts(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
-    deps["list_accounts"](conn)
+    lines = deps["list_accounts"](conn)
+    if not lines:
+        print("No accounts found.")
+        return
+    for line in lines:
+        print(line)
 
 
 def handle_trade(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:

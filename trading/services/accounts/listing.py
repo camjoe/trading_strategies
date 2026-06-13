@@ -4,7 +4,7 @@ import sqlite3
 
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
-from trading.repositories.accounts import fetch_account_listing_rows
+from trading.repositories.accounts import AccountRepository
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
 GOAL_NOT_SET_TEXT = "not-set"
@@ -85,10 +85,8 @@ def build_account_listing_lines(accounts: list[AccountRecord], *, by_strategy: b
     return lines
 
 
-def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> None:
-    accounts = fetch_account_listing_rows(conn)
+def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> list[str]:
+    accounts = AccountRepository(conn).fetch_listing()
     if not accounts:
-        print("No paper accounts found.")
-        return
-    for line in build_account_listing_lines(accounts, by_strategy=by_strategy):
-        print(line)
+        return []
+    return build_account_listing_lines(accounts, by_strategy=by_strategy)

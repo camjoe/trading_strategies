@@ -75,7 +75,7 @@ def _build_summary_from_stats(
 
     change_since_snapshot = None
     if latest_snapshot is not None:
-        previous_equity = float(latest_snapshot["equity"])
+        previous_equity = latest_snapshot.equity
         change_since_snapshot = equity - previous_equity
 
     return {
@@ -93,7 +93,7 @@ def _build_summary_from_stats(
         "totalChange": delta,
         "totalChangePct": delta_pct,
         "changeSinceLastSnapshot": change_since_snapshot,
-        "latestSnapshotTime": latest_snapshot["snapshot_time"] if latest_snapshot else None,
+        "latestSnapshotTime": latest_snapshot.snapshot_time if latest_snapshot else None,
         "stopLossPct": row.stop_loss_pct,
         "takeProfitPct": row.take_profit_pct,
         "tradeSizePct": (row.trade_size_pct if row.trade_size_pct is not None else DEFAULT_TRADE_SIZE_PCT),

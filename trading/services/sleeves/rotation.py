@@ -5,7 +5,6 @@ from datetime import timedelta
 import json
 import sqlite3
 
-from common.coercion import row_int
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.services.sleeves.helpers import mean as _sleeve_mean
@@ -16,30 +15,16 @@ from trading.domain.sleeve_rotation import (
     SleeveStrategyMetrics,
     evaluate_champion_challenger_rotation,
 )
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
-from trading.repositories.rotation_decisions import (
-    fetch_latest_rotate_decision_for_sleeve,
-    insert_rotation_decision,
-)
-from trading.repositories.sleeves import (
-    close_active_sleeve_strategy_assignment,
-    fetch_active_sleeve_strategy_assignment,
-    insert_sleeve_strategy_assignment,
-)
+from trading.models.daily_metric_record import DailyMetricRecord
+from trading.repositories.daily_metrics import DailyMetricsRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
+from trading.repositories.sleeves import SleeveRepository
 
-# Convert basis points to percentage points for cost-penalty normalization.
 BASIS_POINTS_TO_PERCENT = 0.01
 
-# Default rolling window for incumbent/challenger comparison.
 DEFAULT_ROLLING_WINDOW_DAYS = 30
-
-# Require this minimum observed trade count before a challenger can rotate in.
 DEFAULT_MIN_TRADES_IN_WINDOW = 20
-
-# Challenger must beat incumbent by this many basis points to rotate.
 DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS = 25.0
-
-# Cooldown period after a successful rotate decision.
 DEFAULT_ROTATION_COOLDOWN_DAYS = 7
 
 
@@ -90,16 +75,14 @@ def _build_incumbent_metrics(
     *,
     strategy_name: str,
     param_set_id: int | None,
-    rows: list[sqlite3.Row],
+    rows: list[DailyMetricRecord],
 ) -> SleeveStrategyMetrics:
-    risk_adjusted_scores = [
-        float(row["risk_adjusted_score"]) for row in rows if row["risk_adjusted_score"] is not None
-    ]
-    return_pcts = [float(row["return_pct"]) for row in rows if row["return_pct"] is not None]
-    hit_rates = [float(row["hit_rate"]) for row in rows if row["hit_rate"] is not None]
-    drawdown_values = [float(row["drawdown_pct"]) for row in rows if row["drawdown_pct"] is not None]
-    slippage_bps_values = [float(row["slippage_bps"]) for row in rows if row["slippage_bps"] is not None]
-    trade_count = sum(int(row["trade_count"]) for row in rows if row["trade_count"] is not None)
+    risk_adjusted_scores = [row.risk_adjusted_score for row in rows if row.risk_adjusted_score is not None]
+    return_pcts = [row.return_pct for row in rows if row.return_pct is not None]
+    hit_rates = [row.hit_rate for row in rows if row.hit_rate is not None]
+    drawdown_values = [row.drawdown_pct for row in rows if row.drawdown_pct is not None]
+    slippage_bps_values = [row.slippage_bps for row in rows if row.slippage_bps is not None]
+    trade_count = sum(row.trade_count for row in rows if row.trade_count is not None)
     drawdown_penalty = abs(min(drawdown_values)) if drawdown_values else 0.0
 
     risk_adjusted_return = _average(risk_adjusted_scores) if risk_adjusted_scores else _average(return_pcts)
@@ -159,18 +142,18 @@ def evaluate_and_apply_sleeve_rotation(
     decision_time: str | None = None,
 ) -> SleeveRotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=int(sleeve_id))
+    sleeve_repo = SleeveRepository(conn)
+    assignment = sleeve_repo.fetch_active_assignment(sleeve_id=int(sleeve_id))
     if assignment is None:
         raise ValueError(f"No incumbent assignment found for sleeve_id={sleeve_id}.")
 
-    incumbent_strategy = str(assignment["strategy_name"]).strip()
-    incumbent_param_set_id = row_int(assignment, "param_set_id")
+    incumbent_strategy = assignment.strategy_name.strip()
+    incumbent_param_set_id = assignment.param_set_id
     window_start_date, window_end_date = _resolve_window_bounds(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
     )
-    metric_rows = fetch_daily_metrics_for_sleeve_window(
-        conn,
+    metric_rows = DailyMetricsRepository(conn).fetch_for_sleeve_window(
         sleeve_id=int(sleeve_id),
         start_date=window_start_date,
         end_date=window_end_date,
@@ -180,7 +163,7 @@ def evaluate_and_apply_sleeve_rotation(
         param_set_id=incumbent_param_set_id,
         rows=metric_rows,
     )
-    latest_rotate = fetch_latest_rotate_decision_for_sleeve(conn, sleeve_id=int(sleeve_id))
+    latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=int(sleeve_id))
     latest_rotate_time = (
         str(latest_rotate["decision_time"]).strip()
         if latest_rotate is not None and latest_rotate["decision_time"] is not None
@@ -205,8 +188,7 @@ def evaluate_and_apply_sleeve_rotation(
         cooldown_active=cooldown_active,
         weights=_weights_from_config(config),
     )
-    decision_id = insert_rotation_decision(
-        conn,
+    decision_id = RotationDecisionRepository(conn).insert(
         sleeve_id=int(sleeve_id),
         decision_time=now_iso,
         incumbent_strategy=decision.incumbent_strategy,
@@ -224,14 +206,12 @@ def evaluate_and_apply_sleeve_rotation(
 
     rotated = False
     if decision.rotation_action == "rotate":
-        close_active_sleeve_strategy_assignment(
-            conn,
+        sleeve_repo.close_active_assignment(
             sleeve_id=int(sleeve_id),
             effective_to=now_iso,
             updated_at=now_iso,
         )
-        insert_sleeve_strategy_assignment(
-            conn,
+        sleeve_repo.insert_assignment(
             sleeve_id=int(sleeve_id),
             strategy_name=decision.selected_strategy,
             param_set_id=decision.selected_param_set_id,

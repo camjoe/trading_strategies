@@ -32,16 +32,9 @@ from trading.domain.evaluation_models import (
 )
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
-from trading.models import AccountRecord
-from trading.repositories.rotation import (
-    fetch_latest_closed_rotation_episode,
-    fetch_open_rotation_episode,
-)
-from trading.repositories.snapshots import (
-    fetch_latest_snapshot_details_row,
-    fetch_snapshot_count_between,
-    fetch_snapshot_count_for_account,
-)
+from trading.models import AccountRecord, EquitySnapshotRecord
+from trading.repositories.rotation import RotationEpisodeRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -143,24 +136,23 @@ def _latest_rotation_episode_evidence(
     *,
     account_id: int,
     requested_strategy: str,
-    latest_snapshot: dict[str, object] | None,
+    latest_snapshot: EquitySnapshotRecord | None,
 ) -> EvaluationPaperLiveEvidence:
-    open_episode = fetch_open_rotation_episode(conn, account_id=account_id)
+    open_episode = RotationEpisodeRepository(conn).fetch_open(account_id=account_id)
     if (
         open_episode is not None
         and latest_snapshot is not None
         and row_str(open_episode, "strategy_name") == requested_strategy
     ):
         started_at = row_expect_str(open_episode, "started_at")
-        latest_snapshot_time = row_expect_str(latest_snapshot, "snapshot_time")
-        snapshot_count = fetch_snapshot_count_between(
-            conn,
+        latest_snapshot_time = latest_snapshot.snapshot_time
+        snapshot_count = EquitySnapshotRepository(conn).fetch_count_between(
             account_id=account_id,
             start_iso=started_at,
             end_iso=latest_snapshot_time,
         )
         starting_equity = row_float(open_episode, "starting_equity")
-        latest_equity = row_float(latest_snapshot, "equity")
+        latest_equity = latest_snapshot.equity
         return EvaluationPaperLiveEvidence(
             available=True,
             source_level=OPEN_ROTATION_EPISODE_SOURCE_LEVEL,
@@ -170,17 +162,16 @@ def _latest_rotation_episode_evidence(
             starting_equity=starting_equity,
             latest_equity=latest_equity,
             return_pct=safe_return_pct(starting_equity, latest_equity),
-            cash=row_float(latest_snapshot, "cash"),
-            market_value=row_float(latest_snapshot, "market_value"),
-            realized_pnl=row_float(latest_snapshot, "realized_pnl"),
-            unrealized_pnl=row_float(latest_snapshot, "unrealized_pnl"),
+            cash=latest_snapshot.cash,
+            market_value=latest_snapshot.market_value,
+            realized_pnl=latest_snapshot.realized_pnl,
+            unrealized_pnl=latest_snapshot.unrealized_pnl,
             rotation_episode_id=row_int(open_episode, "id"),
             episode_started_at=started_at,
             episode_realized_pnl_delta=None,
         )
 
-    closed_episode = fetch_latest_closed_rotation_episode(
-        conn,
+    closed_episode = RotationEpisodeRepository(conn).fetch_latest_closed(
         account_id=account_id,
         strategy_name=requested_strategy,
     )
@@ -215,7 +206,7 @@ def build_paper_live_evidence(
     account_id = account.id
     rotation_enabled = bool(account.rotation_enabled)
     initial_cash = account.initial_cash
-    latest_snapshot = fetch_latest_snapshot_details_row(conn, account_id=account_id)
+    latest_snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
     evidence = (
         _latest_rotation_episode_evidence(
             conn,
@@ -232,21 +223,21 @@ def build_paper_live_evidence(
     if latest_snapshot is None or rotation_enabled:
         return EvaluationPaperLiveEvidence(mode=_evidence_mode(account))
 
-    latest_equity = row_float(latest_snapshot, "equity")
+    latest_equity = latest_snapshot.equity
     return EvaluationPaperLiveEvidence(
         available=True,
         mode=_evidence_mode(account),
         source_level=ACCOUNT_SNAPSHOT_SOURCE_LEVEL,
         strategy_isolated=True,
-        latest_snapshot_time=row_str(latest_snapshot, "snapshot_time"),
-        snapshot_count=fetch_snapshot_count_for_account(conn, account_id=account_id),
+        latest_snapshot_time=latest_snapshot.snapshot_time,
+        snapshot_count=EquitySnapshotRepository(conn).fetch_count(account_id=account_id),
         starting_equity=initial_cash,
         latest_equity=latest_equity,
         return_pct=safe_return_pct(initial_cash, latest_equity),
-        cash=row_float(latest_snapshot, "cash"),
-        market_value=row_float(latest_snapshot, "market_value"),
-        realized_pnl=row_float(latest_snapshot, "realized_pnl"),
-        unrealized_pnl=row_float(latest_snapshot, "unrealized_pnl"),
+        cash=latest_snapshot.cash,
+        market_value=latest_snapshot.market_value,
+        realized_pnl=latest_snapshot.realized_pnl,
+        unrealized_pnl=latest_snapshot.unrealized_pnl,
     )
 
 
