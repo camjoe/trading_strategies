@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import sqlite3
 
 from common.coercion import coerce_int
-from trading.database.sql_helpers import in_placeholders
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin import (
     delete_accounts_by_ids,
@@ -107,13 +106,12 @@ def delete_accounts(
     walk_forward_group_ids = fetch_walk_forward_group_ids_for_account_ids(conn, account_ids)
     review_ids = fetch_promotion_review_ids_for_account_ids(conn, account_ids)
 
-    account_placeholders_where = f"account_id IN ({in_placeholders(account_ids)})"
     counts = _empty_delete_counts()
     counts.update(
         {
             "accounts": len(targets),
-            "trades": fetch_row_count(conn, "trades", account_placeholders_where, account_ids),
-            "equity_snapshots": fetch_row_count(conn, "equity_snapshots", account_placeholders_where, account_ids),
+            "trades": fetch_row_count(conn, "trades", "account_id", account_ids),
+            "equity_snapshots": fetch_row_count(conn, "equity_snapshots", "account_id", account_ids),
             "backtest_runs": len(run_ids),
             "walk_forward_groups": len(walk_forward_group_ids),
             "promotion_reviews": len(review_ids),
@@ -121,28 +119,25 @@ def delete_accounts(
     )
 
     if run_ids:
-        run_placeholders_where = f"run_id IN ({in_placeholders(run_ids)})"
-        counts["backtest_trades"] = fetch_row_count(conn, "backtest_trades", run_placeholders_where, run_ids)
+        counts["backtest_trades"] = fetch_row_count(conn, "backtest_trades", "run_id", run_ids)
         counts["backtest_equity_snapshots"] = fetch_row_count(
             conn,
             "backtest_equity_snapshots",
-            run_placeholders_where,
+            "run_id",
             run_ids,
         )
     if walk_forward_group_ids:
-        walk_forward_group_where = f"group_id IN ({in_placeholders(walk_forward_group_ids)})"
         counts["walk_forward_group_runs"] = fetch_row_count(
             conn,
             "walk_forward_group_runs",
-            walk_forward_group_where,
+            "group_id",
             walk_forward_group_ids,
         )
     if review_ids:
-        review_placeholders_where = f"review_id IN ({in_placeholders(review_ids)})"
         counts["promotion_review_events"] = fetch_row_count(
             conn,
             "promotion_review_events",
-            review_placeholders_where,
+            "review_id",
             review_ids,
         )
 

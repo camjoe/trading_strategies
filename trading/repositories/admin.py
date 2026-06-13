@@ -36,10 +36,14 @@ def _delete_by_ids(
 def fetch_row_count(
     conn: sqlite3.Connection,
     table: str,
-    where_sql: str,
-    params: tuple[object, ...],
+    column_name: str,
+    ids: tuple[object, ...],
 ) -> int:
-    row = conn.execute(f"SELECT COUNT(*) AS n FROM {table} WHERE {where_sql}", params).fetchone()
+    placeholders = in_placeholders(ids)
+    row = conn.execute(
+        f"SELECT COUNT(*) AS n FROM {table} WHERE {column_name} IN ({placeholders})",
+        ids,
+    ).fetchone()
     if row is None:
         return 0
     n = row["n"]
