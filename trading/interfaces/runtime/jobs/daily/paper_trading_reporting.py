@@ -69,7 +69,7 @@ def build_daily_operator_report(
         )
         account_reports.append(account_daily_report_as_dict(report))
     return {
-        "artifact_path": str(artifact_path.relative_to(repo_root)),
+        "artifact_path": artifact_path.relative_to(repo_root).as_posix(),
         "notify_on_success": notify_on_success,
         "report_date": report_date,
         "account_count": len(account_reports),
