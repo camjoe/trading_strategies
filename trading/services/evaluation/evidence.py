@@ -32,7 +32,7 @@ from trading.domain.evaluation_models import (
 )
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
-from trading.models import AccountRecord
+from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.rotation import RotationEpisodeRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -136,7 +136,7 @@ def _latest_rotation_episode_evidence(
     *,
     account_id: int,
     requested_strategy: str,
-    latest_snapshot: dict[str, object] | None,
+    latest_snapshot: EquitySnapshotRecord | None,
 ) -> EvaluationPaperLiveEvidence:
     open_episode = RotationEpisodeRepository(conn).fetch_open(account_id=account_id)
     if (
@@ -152,7 +152,7 @@ def _latest_rotation_episode_evidence(
             end_iso=latest_snapshot_time,
         )
         starting_equity = row_float(open_episode, "starting_equity")
-        latest_equity = row_float(latest_snapshot, "equity")
+        latest_equity = latest_snapshot.equity
         return EvaluationPaperLiveEvidence(
             available=True,
             source_level=OPEN_ROTATION_EPISODE_SOURCE_LEVEL,
@@ -162,10 +162,10 @@ def _latest_rotation_episode_evidence(
             starting_equity=starting_equity,
             latest_equity=latest_equity,
             return_pct=safe_return_pct(starting_equity, latest_equity),
-            cash=row_float(latest_snapshot, "cash"),
-            market_value=row_float(latest_snapshot, "market_value"),
-            realized_pnl=row_float(latest_snapshot, "realized_pnl"),
-            unrealized_pnl=row_float(latest_snapshot, "unrealized_pnl"),
+            cash=latest_snapshot.cash,
+            market_value=latest_snapshot.market_value,
+            realized_pnl=latest_snapshot.realized_pnl,
+            unrealized_pnl=latest_snapshot.unrealized_pnl,
             rotation_episode_id=row_int(open_episode, "id"),
             episode_started_at=started_at,
             episode_realized_pnl_delta=None,
@@ -223,21 +223,21 @@ def build_paper_live_evidence(
     if latest_snapshot is None or rotation_enabled:
         return EvaluationPaperLiveEvidence(mode=_evidence_mode(account))
 
-    latest_equity = row_float(latest_snapshot, "equity")
+    latest_equity = latest_snapshot.equity
     return EvaluationPaperLiveEvidence(
         available=True,
         mode=_evidence_mode(account),
         source_level=ACCOUNT_SNAPSHOT_SOURCE_LEVEL,
         strategy_isolated=True,
-        latest_snapshot_time=row_str(latest_snapshot, "snapshot_time"),
+        latest_snapshot_time=latest_snapshot.snapshot_time,
         snapshot_count=EquitySnapshotRepository(conn).fetch_count(account_id=account_id),
         starting_equity=initial_cash,
         latest_equity=latest_equity,
         return_pct=safe_return_pct(initial_cash, latest_equity),
-        cash=row_float(latest_snapshot, "cash"),
-        market_value=row_float(latest_snapshot, "market_value"),
-        realized_pnl=row_float(latest_snapshot, "realized_pnl"),
-        unrealized_pnl=row_float(latest_snapshot, "unrealized_pnl"),
+        cash=latest_snapshot.cash,
+        market_value=latest_snapshot.market_value,
+        realized_pnl=latest_snapshot.realized_pnl,
+        unrealized_pnl=latest_snapshot.unrealized_pnl,
     )
 
 
