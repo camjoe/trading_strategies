@@ -180,6 +180,7 @@ def test_execute_promotion_review_request_raises_when_created_review_cannot_be_r
     )
     from unittest.mock import Mock
     mock_repo = Mock()
+    mock_repo.fetch_open.return_value = None
     mock_repo.insert_review.return_value = promotion_actions.PromotionReviewRecord(id=77)
     mock_repo.fetch_by_id.return_value = None
     monkeypatch.setattr(promotion_actions, "PromotionReviewRepository", lambda conn: mock_repo)
