@@ -1,6 +1,7 @@
 ---
 name: create-skill
 description: Creates new SKILL.md files in .github/skills/ following the agent skill authoring guide. Use when asked to create a new skill, when a repeatable task pattern emerges, or when a workflow should be captured for future reuse.
+invoker: any
 ---
 
 # Create Skill

@@ -1,6 +1,7 @@
 ---
 name: check-pr-readiness
 description: Runs the full pre-PR gatekeeping workflow: deterministic checks (layer, lint, tests), then AI code review and architecture review, then saves a readiness report. Use when preparing to submit a pull request or when asked to run a PR readiness check.
+invoker: any
 ---
 
 # Checking PR Readiness

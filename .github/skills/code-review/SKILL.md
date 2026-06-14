@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Reviews code changes for regressions, style violations, architecture boundary violations, missing tests, and contract drift. Use when asked to review a diff, branch, PR, codebase area, or when code quality, correctness, or safety should be evaluated.
+invoker: any
 ---
 
 # Code Review

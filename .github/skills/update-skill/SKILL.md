@@ -1,6 +1,7 @@
 ---
 name: update-skill
 description: Improves or refactors existing SKILL.md files following the agent skill authoring guide. Use when a skill is not triggering correctly, producing poor output, is too verbose, or needs to be restructured after a layout change.
+invoker: any
 ---
 
 # Update Skill

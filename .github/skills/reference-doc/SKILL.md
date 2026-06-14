@@ -1,6 +1,7 @@
 ---
 name: reference-doc
 description: Captures reusable patterns, reference documents, and architectural decisions as persistent knowledge artifacts. Use when asked to create a reference doc, ADR, or any structured knowledge artifact for this repository.
+invoker: any
 ---
 
 # Reference Doc

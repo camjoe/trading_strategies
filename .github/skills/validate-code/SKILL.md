@@ -1,6 +1,7 @@
 ---
 name: validate-code
 description: Runs the repository's deterministic validation suite: layer boundary checks, ruff linting, mypy type checking, and targeted or full pytest runs. Use when asked to validate, lint, run tests, check code quality, or run checks before committing.
+invoker: any
 ---
 
 # Validate Code

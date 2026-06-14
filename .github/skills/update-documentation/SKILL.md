@@ -1,6 +1,7 @@
 ---
 name: update-documentation
 description: Syncs READMEs, architecture notes, API docs, and operational documentation with code changes. Use when code changes imply documentation drift, when asked to sync docs, or when a README or doc is stale.
+invoker: any
 ---
 
 # Update Documentation
