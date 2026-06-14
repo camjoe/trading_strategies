@@ -27,6 +27,6 @@ Use the `reference-doc/` skill instead — it handles new reference documents an
 
 ## Repo references
 
-- `AGENTS.md`
-- `.github/DOCS_PRECOMMIT_POLICY.md`
+- `docs/architecture/nav-guide.md` — start here to locate which files a task touches
+- `docs/maps/docs-map.md` — maps code surfaces to owning documentation files
 - `README.md` files across the repo

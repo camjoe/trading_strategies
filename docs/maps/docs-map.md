@@ -113,7 +113,6 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 |---|---|---|
 | `.github/BOT_ARCHITECTURE_CONVENTIONS.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
 | `.github/BOT_STYLE_GUIDE.md` | Code style rules for Claude contributions | Style conventions change |
-| `.github/DOCS_PRECOMMIT_POLICY.md` | Docs-impact checklist for pre-commit review | Docs update workflow changes |
 
 ### Agents
 

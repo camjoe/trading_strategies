@@ -10,7 +10,7 @@ Use this skill when code changes imply documentation changes.
 ## Workflow
 
 1. Identify behavior, route, command, or workflow changes in scope.
-2. Find the source-of-truth docs for those surfaces.
+2. Find the source-of-truth docs for those surfaces — use `docs/maps/docs-map.md` ("Goes stale when" column) to map changed code to owning documentation files.
 3. Apply targeted documentation updates.
 4. Flag missing docs when documentation should exist but does not.
 
@@ -22,8 +22,8 @@ Use this skill when code changes imply documentation changes.
 
 ## Repo references
 
-- `AGENTS.md`
-- `.github/DOCS_PRECOMMIT_POLICY.md`
+- `docs/architecture/nav-guide.md` — task → file lookup; start here to locate affected files
+- `docs/maps/docs-map.md` — maps code surfaces to owning documentation files
 - `README.md` files across the repo
 - `python -m scripts.checks.readme_check`
 

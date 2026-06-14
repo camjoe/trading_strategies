@@ -1,11 +1,16 @@
 # Navigation Guide
 
-Task-oriented lookup: "I want to X → look/edit Y." Use this as the first stop when you know what you need to do but not exactly where it lives.
+**Start here.** Given a task, this guide tells you which file to touch. Once you have a file, follow the links below to the structural maps if you need surrounding context about that module or package.
 
-For structure overviews see:
-- [`trading-package-map.md`](trading-package-map.md) — `trading/` module directory
-- [`ui-map.md`](ui-map.md) — `paper_trading_ui/` structure
-- [`scripts-map.md`](scripts-map.md) — `scripts/` tooling
+The maps and this guide serve different questions:
+
+| Question | Go to |
+|---|---|
+| "I want to do X — which file do I touch?" | This file |
+| "What does every file in `trading/` do?" | [`trading-package-map.md`](../maps/trading-package-map.md) |
+| "What does every file in `paper_trading_ui/` do?" | [`ui-map.md`](../maps/ui-map.md) |
+| "What does every script do?" | [`scripts-map.md`](../maps/scripts-map.md) |
+| "Which docs might be stale after my change?" | [`docs-map.md`](../maps/docs-map.md) |
 
 ---
 
@@ -159,6 +164,12 @@ Tests mirror the source tree. If you edit `trading/services/reporting/`, the tes
 
 ---
 
-## Future
+## Documentation
 
-**Connection / dependency maps** — cross-module import graphs per app area — have been noted as a follow-up item. Re-evaluate after any architecture docs review to decide whether auto-generation (via a script) or hand-maintained tables are a better fit for this codebase's churn rate.
+| Task | Where |
+|---|---|
+| Find which docs to update after a code change | [`docs/maps/docs-map.md`](../maps/docs-map.md) — "Goes stale when" column |
+| Update in-app documentation content | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
+| Add a new reference note or ADR | `docs/reference/` — use `TEMPLATE.notes.md` or `TEMPLATE.adr.md` |
+| Update a runbook | `docs/runbooks/<runbook>.md` |
+| Check README freshness | `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` |

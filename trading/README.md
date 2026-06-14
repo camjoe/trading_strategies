@@ -32,7 +32,7 @@ The `trading/` module handles:
 
 `trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
-For the concise package map, see `docs/architecture/trading-package-map.md`.
+For the concise package map, see `docs/maps/trading-package-map.md`.
 For a task-oriented API reference ("what do I call to do X?"), see `docs/architecture/service-cookbook.md`.
 For a "where do I put X" placement guide, see `docs/architecture/nav-guide.md`.
 

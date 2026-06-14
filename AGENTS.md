@@ -21,7 +21,6 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
-- Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
 - Skill authoring and localization guidance: `.github/skills/README.md`
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
 
@@ -41,11 +40,11 @@ Current skill inventory:
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
-| `create-memory/` | Reference docs and ADRs in `docs/reference/` |
+| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `create-skill/` | Authoring new skills following the skills guide |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
-| `test-expansion/` | Coverage growth and regression-test expansion |
+| `expand-tests/` | Coverage growth and regression-test expansion |
 | `update-documentation/` | Docs drift sync and reference doc / ADR creation |
 | `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
@@ -81,12 +80,12 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Lightweight quick diff check | `code-review/` (Baseline mode) |
 | High-risk or safety-critical review (broker, DB, admin) | `code-review/` (Aggressive mode) |
 | Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
-| Create or update a reference doc or ADR | `create-memory/` |
+| Create or update a reference doc or ADR | `reference-doc/` |
 | README, reference, or API drift | `update-documentation/` |
 | Frontend-only cleanup in `paper_trading_ui/frontend` | `code-review/` (Cleanup mode) |
 | Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
 | Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
-| Generic test additions or edge-case coverage | `test-expansion/` |
+| Generic test additions or edge-case coverage | `expand-tests/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Modeling, alpha research, feature engineering | `python-stat-modeling/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |

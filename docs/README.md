@@ -43,4 +43,3 @@ Full listing: [`docs/reference/`](reference/). Key entries:
 
 1. Use [`docs/architecture/nav-guide.md`](architecture/nav-guide.md) to locate the right file for a change.
 2. Run `python -m scripts.run_checks --profile ci` for primary mechanical checks.
-3. Use `.github/DOCS_PRECOMMIT_POLICY.md` for the docs-impact checklist.

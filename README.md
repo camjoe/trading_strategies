@@ -63,11 +63,6 @@ python -m scripts.run_checks --profile ci --skip-python
 python -m scripts.run_checks --profile ci --install-python-tools
 ```
 
-Single-source validation guidance lives in:
-
-- [scripts/README.md](scripts/README.md) for script behavior and flags.
-- [.github/DOCS_PRECOMMIT_POLICY.md](.github/DOCS_PRECOMMIT_POLICY.md) for docs-impact audit workflow and bot request templates.
-
 ## Quick Start
 
 ### Trends Analysis

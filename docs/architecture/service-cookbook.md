@@ -4,7 +4,7 @@
 
 Answer the question: **"Which function do I call to do X?"**
 
-This is a task-oriented companion to [trading-package-map.md](trading-package-map.md),
+This is a task-oriented companion to [trading-package-map.md](../maps/trading-package-map.md),
 which covers structural conventions.  Use this guide when writing CLI commands,
 runtime jobs, or new UI backend routes that need to reach into `trading/services/`.
 
@@ -207,6 +207,6 @@ in `trading/services/` — not in the UI backend.  See
 
 ## Related references
 
-- [trading-package-map.md](trading-package-map.md) — structural overview and placement rules
+- [trading-package-map.md](../maps/trading-package-map.md) — structural overview and placement rules
 - [service-repository-boundary.md](service-repository-boundary.md) — how to split service vs repository responsibilities
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — canonical architecture rules for all bots
