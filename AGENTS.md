@@ -203,10 +203,10 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `pr ready`
 
-Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (code quality + architecture), finishing with a saved PR readiness report.
+Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
 
-- `pr ready` — full 5-step workflow vs `develop` (default base)
-- `pr ready: <base>` — full 5-step workflow vs a custom base branch (e.g. `pr ready: main`)
+- `pr ready` — full 6-step workflow vs `develop` (default base)
+- `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
 
 Follow `.github/skills/check-pr-readiness/SKILL.md`.
 
@@ -214,11 +214,11 @@ Follow `.github/skills/check-pr-readiness/SKILL.md`.
 
 | Step | Type | What runs |
 |---|---|---|
-| 1 | Deterministic | Layer boundary check |
-| 2 | Deterministic | Ruff lint + mypy type check |
-| 3 | Deterministic | Branch-targeted pytest (changes vs base) |
-| 4 | AI | Code review — style, quality, correctness |
-| 5 | AI | Architecture review — layering, coupling, maintainability |
+| 1 | Deterministic | Layer boundary check + ruff lint + mypy + branch-targeted tests |
+| 2 | AI | Architecture review — layer violations, dependency direction |
+| 3 | AI | Style review — naming, docs, consistency beyond ruff |
+| 4 | AI | Quality review — SRP, modularity, unnecessary patterns |
+| 5 | AI | Docs check — README staleness (advisory, never blocks) |
 | Report | AI | Saved to `local/pr_readiness_report.md` + printed |
 
 **Individual step shortcuts** — run any step on its own:
@@ -228,8 +228,8 @@ Follow `.github/skills/check-pr-readiness/SKILL.md`.
 | `pr tests` | Branch-targeted tests only (`--base develop`) |
 | `pr tests: <base>` | Branch-targeted tests vs a custom base |
 | `pr lint` | Layer check + ruff + mypy only |
-| `pr code review` | AI code review (style/quality) for branch diff vs develop |
-| `pr code review: <base>` | AI code review vs a custom base |
+| `pr code review` | AI style + quality review for branch diff vs develop |
+| `pr code review: <base>` | AI style + quality review vs a custom base |
 | `pr arch review` | AI architecture review for branch diff vs develop |
 | `pr arch review: <base>` | AI architecture review vs a custom base |
 
@@ -241,3 +241,49 @@ python -m scripts.checks.pr_ready --base main
 python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
 python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
 ```
+
+---
+
+## Agent shortcuts
+
+These phrases launch a **repo-specific agent** in a separate context window. Use them when you want to delegate a full task rather than ask in the current conversation. Each agent has exact repo paths, safety constraints, and permitted commands baked in.
+
+### `migrate:` — DB Migration Steward
+
+Validates schema changes and migration safety. Use for any `ColumnMigration` addition, column guard check, nullability change, or destructive data-op review.
+
+- `migrate: add column <name> to <table>` — validate a proposed migration
+- `migrate: review` — audit recent or uncommitted migration changes
+- `migrate: backup check` — verify backup hygiene before a destructive op
+
+Agent: `.github/agents/db-migration-steward.agent.md`
+
+### `broker:` — Broker Live Safety Steward
+
+Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `trading/brokers/`, `broker_type` routing, or any live-trading config flow.
+
+- `broker: <description>` — implement or review broker adapter work
+- `broker review` — review broker-facing changes in the current diff
+- `broker: add <adapter>` — implement a new broker adapter safely
+
+Agent: `.github/agents/broker-live-safety.agent.md`
+
+### `runtime:` — Trading Runtime Investigator
+
+Works on paper-trading runtime jobs, scheduler flows, account lifecycle, and operational debugging. Use when touching `trading/interfaces/runtime/` or runtime CLI commands.
+
+- `runtime: <description>` — implement or debug a runtime job or scheduler flow
+- `runtime review` — review runtime-facing changes in the current diff
+- `runtime: debug <job or symptom>` — investigate a runtime failure or unexpected behavior
+
+Agent: `.github/agents/trading-runtime.agent.md`
+
+### `backtest:` — Backtesting Analyst
+
+Implements and interprets backtesting, walk-forward analysis, persisted run reporting, and leaderboard comparisons. Use when touching `trading/backtesting/` or backtest-related UI surfaces.
+
+- `backtest: <description>` — implement or extend a backtesting workflow
+- `backtest review` — review backtesting changes in the current diff
+- `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
+
+Agent: `.github/agents/backtesting-analyst.agent.md`
