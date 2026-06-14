@@ -1,0 +1,157 @@
+# Docs Map
+
+Directory of all documentation files across the repository. Use this to audit for staleness, find coverage gaps, and check for redundancy between files.
+
+---
+
+## How to Use This Map
+
+- **Staleness check** — when code changes, use the "Goes stale when" column to identify which docs to review.
+- **Coverage check** — scan "What it covers" to spot missing documentation for a new subsystem or workflow.
+- **Redundancy check** — compare entries in the same section; overlapping "What it covers" fields signal duplication risk.
+
+---
+
+## READMEs
+
+Orientation docs — typically the first thing read when entering a package. Go stale when package structure, entry points, or primary responsibilities change.
+
+| File | What it covers | Goes stale when |
+|---|---|---|
+| `README.md` | Repo overview, setup, how to run | Project setup, major new packages added |
+| `docs/README.md` | Docs folder navigation index; links to all maps and conventions | A doc file is added, moved, or removed |
+| `trading/README.md` | `trading/` package overview and layering summary | Top-level `trading/` structure changes |
+| `trading/backtesting/README.md` | Backtesting subsystem orientation | `trading/backtesting/` entry points change |
+| `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
+| `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
+| `trends/README.md` | Trend/signal data assets | `trends/` layout or data sources change |
+| `scripts/README.md` | Dev and ops tooling orientation | Scripts added, removed, or renamed |
+| `paper_trading_ui/README.md` | UI app orientation, how to run backend and frontend | UI entry points, ports, or dev workflow change |
+| `docs/runbooks/README.md` | Runbook index | A runbook is added or removed |
+
+---
+
+## Architecture Maps
+
+Structural reference — one file per major package. Go stale when module files are added, removed, renamed, or their responsibilities shift.
+
+| File | What it covers | Goes stale when |
+|---|---|---|
+| `docs/project-map.md` | Top-level directory overview with per-app map links | A new top-level directory is added or renamed |
+| `docs/maps/trading-package-map.md` | Full `trading/` module directory; layering rules and placement decisions | Any `trading/` module added, removed, or its layer boundary changes |
+| `docs/maps/ui-map.md` | `paper_trading_ui/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
+| `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
+| `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
+| `docs/architecture/service-cookbook.md` | Which function to call for common tasks | Service API signatures or function names change |
+| `docs/architecture/service-repository-boundary.md` | Contract rules between service and repository layers | Layer boundary rules or exceptions change |
+
+---
+
+## Reference Notes and ADRs
+
+Deep-dive references and decision records. Notes go stale when the thing they describe changes; ADRs rarely change (they record past decisions) but should be marked superseded if a decision is reversed.
+
+### Notes
+
+| File | What it covers | Goes stale when |
+|---|---|---|
+| `docs/reference/notes-backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
+| `docs/reference/notes-broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
+| `docs/reference/notes-db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
+| `docs/reference/notes-accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
+| `docs/reference/notes-sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
+| `docs/reference/notes-strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
+| `docs/reference/notes-screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
+| `docs/reference/notes-sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
+
+### ADRs
+
+| File | Decision recorded | Would be superseded by |
+|---|---|---|
+| `docs/reference/adr-backtesting-layering.md` | Backtesting module layering approach | Restructuring `trading/backtesting/` out of its current bounded-context shape |
+| `docs/reference/adr-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
+| `docs/reference/adr-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
+
+### Templates and Standards
+
+| File | What it covers |
+|---|---|
+| `docs/reference/TEMPLATE.adr.md` | Template for new ADR files |
+| `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
+| `docs/reference/readme-layout-standard.md` | Standard layout for README files |
+| `docs/reference/reference-doc-standard.md` | Standard structure for reference notes |
+
+---
+
+## Runbooks
+
+Operational procedures. Go stale when workflows, job names, scripts, or DB operations change.
+
+| File | What it covers | Goes stale when |
+|---|---|---|
+| `docs/runbooks/daily_operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
+| `docs/runbooks/burn_in_protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
+| `docs/runbooks/governance_review_guide.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
+
+---
+
+## Style
+
+| File | What it covers | Goes stale when |
+|---|---|---|
+| `docs/style/python-style-guide.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+
+---
+
+## `.github` — Bot Instructions and Conventions
+
+Canonical rules loaded by Claude and other agents. These are the most authoritative docs in the repo — architecture maps and READMEs should agree with them, not the other way around.
+
+### Conventions
+
+| File | What it covers | Goes stale when |
+|---|---|---|
+| `.github/BOT_ARCHITECTURE_CONVENTIONS.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
+| `.github/BOT_STYLE_GUIDE.md` | Code style rules for Claude contributions | Style conventions change |
+| `.github/DOCS_PRECOMMIT_POLICY.md` | Docs-impact checklist for pre-commit review | Docs update workflow changes |
+
+### Agents
+
+| File | Agent scope | Goes stale when |
+|---|---|---|
+| `.github/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
+| `.github/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
+| `.github/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
+| `.github/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
+
+### Skills
+
+Skills live under `.github/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
+
+| Skill folder | What it covers |
+|---|---|
+| `check-pr-readiness/` | Pre-merge readiness checklist |
+| `code-review/` | Code review at multiple thoroughness levels; sub-docs cover architecture, quality, style, UI/API contract |
+| `reference-doc/` | Reference-doc creation workflow |
+| `create-skill/` | Skill authoring workflow |
+| `expand-tests/` | Test expansion workflow |
+| `finance-strategy/` | Finance and strategy domain knowledge |
+| `python-stat-modeling/` | Statistical modeling guidance |
+| `update-documentation/` | Documentation update workflow; sub-docs cover docs-check and docs-sync |
+| `update-skill/` | Skill update workflow |
+| `validate-code/` | Code validation (lint, type-check, tests, layer-check) |
+
+---
+
+## Consistency and Completeness Checklist
+
+Use this when auditing documentation health:
+
+- [ ] Every top-level directory in `docs/project-map.md` has a corresponding README.
+- [ ] Every module listed in an architecture map file still exists on disk.
+- [ ] ADRs whose decisions have been reversed are marked superseded.
+- [ ] Reference notes describe current behavior (not past implementations).
+- [ ] Runbooks reflect current job script names and paths.
+- [ ] `.github/BOT_ARCHITECTURE_CONVENTIONS.md` agrees with the architecture maps on import boundaries.
+- [ ] `docs/README.md` links are not broken (no missing or renamed files).
+- [ ] No two files in the same section cover the same scope without cross-referencing each other.
