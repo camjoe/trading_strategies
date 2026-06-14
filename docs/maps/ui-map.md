@@ -190,6 +190,6 @@ Static JSON assets consumed by the in-app docs renderer.
 
 ## Related References
 
-- [`docs/architecture/nav-guide.md`](nav-guide.md) — Task-oriented lookup for where to edit UI code
-- [`docs/architecture/service-cookbook.md`](service-cookbook.md) — Backend service API reference
+- [`docs/architecture/nav-guide.md`](../architecture/nav-guide.md) — Task-oriented lookup for where to edit UI code
+- [`docs/architecture/service-cookbook.md`](../architecture/service-cookbook.md) — Backend service API reference
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — Import boundary rules (backend must not import from `trading/interfaces/`)

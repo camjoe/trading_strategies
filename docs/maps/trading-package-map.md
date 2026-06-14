@@ -262,7 +262,7 @@ Static file-backed configuration assets. Read at runtime; not imported as Python
 
 ## Related References
 
-- [service-cookbook.md](service-cookbook.md) — task-oriented API reference ("what function do I call to do X?")
-- [nav-guide.md](nav-guide.md) — "I want to X → look/edit Y" lookup table
+- [service-cookbook.md](../architecture/service-cookbook.md) — task-oriented API reference ("what function do I call to do X?")
+- [nav-guide.md](../architecture/nav-guide.md) — "I want to X → look/edit Y" lookup table
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — authoritative import boundary and layering rules
 - `docs/reference/adr-backtesting-layering.md`

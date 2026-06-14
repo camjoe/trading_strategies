@@ -18,10 +18,13 @@ Navigation index for the `docs/` folder and related documentation across the rep
 **Canonical rules and conventions:**
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — layering, dependency direction, naming, and package ownership
 
-**Architecture maps:**
-- `docs/architecture/trading-package-map.md` — `trading/` module directory
-- `docs/architecture/ui-map.md` — `paper_trading_ui/` structure
-- `docs/architecture/scripts-map.md` — `scripts/` tooling
+**Architecture maps** (`docs/maps/`):
+- `docs/maps/trading-package-map.md` — `trading/` module directory
+- `docs/maps/ui-map.md` — `paper_trading_ui/` structure
+- `docs/maps/scripts-map.md` — `scripts/` tooling
+- `docs/maps/docs-map.md` — documentation file inventory and staleness guide
+
+**Architecture conventions** (`docs/architecture/`):
 - `docs/architecture/service-cookbook.md` — task-oriented API reference ("what function do I call to do X?")
 - `docs/architecture/service-repository-boundary.md` — service/repository contract rules
 

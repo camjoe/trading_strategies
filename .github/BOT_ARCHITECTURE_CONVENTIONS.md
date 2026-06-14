@@ -21,7 +21,7 @@ Top-level package shape is intentionally **hybrid**:
 2. Selected bounded contexts remain top-level when their ownership is distinct
    (`trading/backtesting`); broker adapters live at the repo-root `brokers/` package and
    external feature providers live at the repo-root `features/` package.
-3. See `docs/architecture/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
+3. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
 
 ## Allowed and Disallowed Dependencies
 

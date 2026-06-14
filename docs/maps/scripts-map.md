@@ -92,5 +92,5 @@ Tools for syncing the in-app documentation assets (`paper_trading_ui/frontend/sr
 
 ## Related References
 
-- [`docs/architecture/nav-guide.md`](nav-guide.md) — When to use which script
-- [`docs/architecture/trading-package-map.md`](trading-package-map.md) — Layer rules enforced by `layer_check.py`
+- [`docs/architecture/nav-guide.md`](../architecture/nav-guide.md) — When to use which script
+- [`docs/maps/trading-package-map.md`](trading-package-map.md) — Layer rules enforced by `layer_check.py`

@@ -19,9 +19,10 @@ Root overview of the trading strategies monorepo. For deeper navigation, see the
 
 ## Per-App Maps
 
-- [`docs/architecture/trading-package-map.md`](architecture/trading-package-map.md) — Layering rules and full module directory for `trading/`
-- [`docs/architecture/ui-map.md`](architecture/ui-map.md) — Structure of `paper_trading_ui/backend/` and `paper_trading_ui/frontend/`
-- [`docs/architecture/scripts-map.md`](architecture/scripts-map.md) — All `scripts/` modules and what they do
+- [`docs/maps/trading-package-map.md`](maps/trading-package-map.md) — Layering rules and full module directory for `trading/`
+- [`docs/maps/ui-map.md`](maps/ui-map.md) — Structure of `paper_trading_ui/backend/` and `paper_trading_ui/frontend/`
+- [`docs/maps/scripts-map.md`](maps/scripts-map.md) — All `scripts/` modules and what they do
+- [`docs/maps/docs-map.md`](maps/docs-map.md) — Documentation file inventory and staleness guide
 
 ## Task Navigation
 
