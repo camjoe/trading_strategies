@@ -17,8 +17,9 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 
 ## Modes
 
-- Standard review: focus on regressions, correctness, contract drift, and missing tests.
-- Deep review: expand to stale code, redundancy, schema relevance, canonical-path drift, and cleanup opportunities beyond the current diff.
+- **Baseline** (lightweight): survey changed files, check correctness and contract drift, cross-check architecture rules. Report only hard findings. No stale-code or cleanup sweep.
+- **Standard**: same as Baseline plus — when scope is broad, look for stale paths, redundant implementations, and simplification opportunities.
+- **Deep**: Standard plus explicit sweep for stale code, redundancy, schema relevance, canonical-path drift, and cleanup opportunities beyond the diff.
 
 ## Constraints
 

@@ -23,7 +23,7 @@ description: Syncs READMEs, architecture notes, API docs, and operational docume
 
 ## Creating reference docs or ADRs?
 
-Use the `create-memory/` skill instead — it handles new reference documents and architecture decision records.
+Use the `reference-doc/` skill instead — it handles new reference documents and architecture decision records.
 
 ## Repo references
 

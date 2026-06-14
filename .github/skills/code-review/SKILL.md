@@ -10,7 +10,7 @@ description: Reviews code changes for regressions, style violations, architectur
 | Mode | Use when | Reference |
 |---|---|---|
 | Standard | General PR or diff review | [code-review.md](code-review.md) |
-| Baseline | Quick pre-merge check, low-risk changes | [code-review-baseline.md](code-review-baseline.md) |
+| Baseline | Quick pre-merge check, low-risk changes — hard findings only | [code-review.md](code-review.md) (Baseline mode) |
 | Aggressive | High-risk changes: runtime, broker, migrations, admin routes | [code-review-aggressive.md](code-review-aggressive.md) |
 | Architecture | Layering, coupling, module placement, dependency direction | [architecture-review.md](architecture-review.md) |
 | Cleanup | Behavior-preserving refactor, dead code, simplification | [code-cleanup.md](code-cleanup.md) |
