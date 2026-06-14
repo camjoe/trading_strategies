@@ -40,12 +40,13 @@ Current skill inventory:
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
-| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `create-skill/` | Authoring new skills following the skills guide |
+| `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
+| `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
-| `expand-tests/` | Coverage growth and regression-test expansion |
-| `update-documentation/` | Docs drift sync and reference doc / ADR creation |
+| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
+| `update-documentation/` | Docs drift sync and passive staleness check |
 | `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
@@ -257,6 +258,7 @@ Validates schema changes and migration safety. Use for any `ColumnMigration` add
 - `migrate: backup check` — verify backup hygiene before a destructive op
 
 Agent: `.github/agents/db-migration-steward.agent.md`
+Skills: `.github/skills/db-migration/` (create, validate, estimate-risk, generate-rollback)
 
 ### `broker:` — Broker Live Safety Steward
 

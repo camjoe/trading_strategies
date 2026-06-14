@@ -30,6 +30,7 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-skill/` | Authoring new skills following the skills guide |
+| `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
@@ -50,6 +51,10 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `code-review/pr-review-arch.md` | `code-review/` | PR architecture constraints pass |
 | `code-review/pr-review-style.md` | `code-review/` | PR style compliance pass |
 | `code-review/pr-review-quality.md` | `code-review/` | PR quality standards pass |
+| `db-migration/create-migration.md` | `db-migration/` | Write a new ColumnMigration entry |
+| `db-migration/validate-migration.md` | `db-migration/` | Validate safety and correctness checklist |
+| `db-migration/estimate-risk.md` | `db-migration/` | Blast radius, index needs, backtest impact |
+| `db-migration/generate-rollback.md` | `db-migration/` | Rollback strategy for SQLite schema changes |
 | `update-documentation/docs-sync.md` | `update-documentation/` | Active docs drift sync |
 | `update-documentation/docs-check.md` | `update-documentation/` | Passive staleness check (advisory) |
 | `validate-code/layer-check.md` | `validate-code/` | Layer boundary check |
