@@ -47,6 +47,7 @@ Current skill inventory:
 | `docs-sync/` | Documentation drift detection and targeted sync |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
+| `reference-doc/` | Create or update a reference doc or ADR in `docs/reference/` |
 | `test-expansion/` | Coverage growth and regression-test expansion |
 | `ui-api-contract/` | Frontend/backend contract stewardship |
 
@@ -81,6 +82,7 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Lightweight quick diff check | `code-review-baseline/` |
 | High-risk or safety-critical review (broker, DB, admin) | `code-review-aggressive/` |
 | Whole-area simplification or stale-code audit | `code-review/` in deep mode |
+| Create or update a reference doc or ADR | `reference-doc/` |
 | README, reference, or API drift | `docs-sync/` |
 | Frontend-only cleanup in `paper_trading_ui/frontend` | `code-cleanup/` |
 | Generic Python cleanup or refactor | `code-cleanup/` |

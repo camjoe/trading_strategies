@@ -1,45 +1,43 @@
 # Docs Index
 
-Navigation index for docs and README files across the repository.
+Navigation index for the `docs/` folder and related documentation across the repository.
 
 ## Start Here
 
-1. `../README.md` for the repository overview.
-2. `../trading/README.md` for paper trading commands, direct runtime job scripts, and scheduler operations.
-3. Scheduler details are in `../trading/README.md` under "Scheduler Operations"; `manage_job_schedules.py` is the single job-schedule entrypoint, while the direct job scripts remain the runtime source of truth.
+- [`../docs/file-map.md`](file-map.md) — top-level directory index with links to per-app maps and the nav guide
+- [`../docs/architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 
-**Execution Note:**
-All trading scripts should be run as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
+**Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
-./.venv/bin/python -m trading.interfaces.cli.main
+.venv/Scripts/python -m trading.interfaces.cli.main   # Windows
+.venv/bin/python -m trading.interfaces.cli.main        # macOS/Linux
 ```
-
-## Docs Folder Files
-
-- `reference/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
-- `reference/adr-cross-platform-paths.md`: decision record for always using pathlib; lessons from a Windows/Linux CI failure.
-- `reference/adr-sleeve-virtualization-architecture.md`: architecture decision for sleeve virtualization on a single broker account and layering boundaries for autonomy implementation.
-- `reference/notes-backtesting.md`: backtesting commands, safeguards, layering overview, and operational notes.
-- `reference/notes-accounts-schema-usage.md`: living audit of `accounts` table field usage, write paths, and runtime relevance to support evidence-based schema cleanup.
-- `reference/notes-broker-integration.md`: broker abstraction layer — architecture, account configuration, IB connection setup, live trading safety guard, fill reconciliation, and extension guide.
-- `reference/notes-db-migration-system.md`: active reference guide for the hand-rolled SQLite migration system.
-- `reference/notes-sleeve-schema-contract.md`: draft sleeve table/index contract and migration approach for Increment 0.
-- `reference/readme-layout-standard.md`: standard section layouts for repo root, module/package, and utility READMEs.
-- `reference/notes-sentiment-signals.md`: current-state reference for alternative-data signal architecture (`policy_regime`, `news_sentiment`, `social_trend_rotation`) and extension boundaries.
-- `reference/notes-strategies.md`: strategy catalog, resolution behavior, data/dependency notes, and evaluation checklist.
-- `reference/notes-screenshot-ui.md`: UI screenshot utility — setup, usage, all flags, and recipes for developers and AI assistants.
 
 ## Architecture Reference
 
 **Canonical rules and conventions:**
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`: layering, dependency direction, naming, and package ownership.
+- `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — layering, dependency direction, naming, and package ownership
 
-## Purpose
+**Architecture maps:**
+- `docs/architecture/trading-package-map.md` — `trading/` module directory
+- `docs/architecture/ui-map.md` — `paper_trading_ui/` structure
+- `docs/architecture/scripts-map.md` — `scripts/` tooling
+- `docs/architecture/service-cookbook.md` — task-oriented API reference ("what function do I call to do X?")
+- `docs/architecture/service-repository-boundary.md` — service/repository contract rules
 
-This docs index helps contributors find architecture guides, references, and the current documentation quality workflow.
+## Reference Notes and ADRs
+
+Full listing: [`docs/reference/`](reference/). Key entries:
+
+- `reference/notes-backtesting.md` — backtesting commands, safeguards, and layering overview
+- `reference/notes-broker-integration.md` — broker abstraction, IB connection setup, live-trading safety
+- `reference/notes-db-migration-system.md` — hand-rolled SQLite migration system reference
+- `reference/adr-backtesting-layering.md` — decision rationale for backtesting module layering
+- `reference/adr-cross-platform-paths.md` — pathlib cross-platform usage decision record
+- `reference/adr-sleeve-virtualization-architecture.md` — sleeve virtualization architecture decision
 
 ## Workflows
 
-1. Use this index to locate and update the source-of-truth document for changed behavior.
+1. Use [`docs/architecture/nav-guide.md`](architecture/nav-guide.md) to locate the right file for a change.
 2. Run `python -m scripts.run_checks --profile ci` for primary mechanical checks.
-3. Use `.github/DOCS_PRECOMMIT_POLICY.md` for docs-impact checklist and bot request templates.
+3. Use `.github/DOCS_PRECOMMIT_POLICY.md` for the docs-impact checklist.

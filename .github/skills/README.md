@@ -49,19 +49,20 @@ If a skill and an agent both exist for the same job:
 | `architecture-review/` | Default surface for structure and layering review |
 | `code-cleanup/` | Default surface for backend, frontend, or mixed cleanup work |
 | `code-review/` | Default surface for generic review work and deep audits |
-| `code-review-baseline/` | Baseline review rubric for A/B quality experiments |
-| `code-review-aggressive/` | Higher-scrutiny review rubric for A/B quality experiments |
+| `code-review-baseline/` | Lightweight review variant — regressions and contract drift only; use for quick pre-merge checks |
+| `code-review-aggressive/` | High-scrutiny review variant — safety-critical changes, explicit zero-findings evidence required |
 | `docs-sync/` | Default surface for documentation drift work |
 | `finance-strategy/` | Default surface for terminology and strategy explanation |
 | `python-stat-modeling/` | Default surface for modeling and research tasks |
+| `reference-doc/` | Default surface for creating or updating reference docs and ADRs in `docs/reference/` |
 | `test-expansion/` | Default surface for generic testing work |
 | `ui-api-contract/` | Default surface for frontend/backend contract work |
 
 Retired from the active set:
 
-- `deep-code-review`
-- `frontend-cleanup`
-- `python-cleanup`
+- `deep-code-review` (merged into `code-review` deep mode)
+- `frontend-cleanup` (merged into `code-cleanup`)
+- `python-cleanup` (merged into `code-cleanup`)
 
 ## Remaining repo-specific agents
 

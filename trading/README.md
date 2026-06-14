@@ -17,7 +17,7 @@ The `trading/` module handles:
 - Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
 - Backtesting and walk-forward analysis support, including persisted per-window detail reporting
-- **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `trading/features/`
+- **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `features/` (repo root)
 
 ## Architecture Shape
 
@@ -27,13 +27,14 @@ The `trading/` module handles:
   - `interfaces -> services -> repositories/domain -> database`
 - Explicit top-level bounded contexts where isolation is valuable:
   - `trading/backtesting/`
-  - `trading/brokers/`
-  - `trading/features/`
+  - `brokers/` (repo root — broker adapters)
+  - `features/` (repo root — external-data feature providers)
 
 `trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
 For the concise package map, see `docs/architecture/trading-package-map.md`.
 For a task-oriented API reference ("what do I call to do X?"), see `docs/architecture/service-cookbook.md`.
+For a "where do I put X" placement guide, see `docs/architecture/nav-guide.md`.
 
 Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 
