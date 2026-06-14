@@ -12,7 +12,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 ## Local scope
 
 - Primary paths:
-  - `trading/brokers/`
+  - `brokers/`
   - `trading/services/`
   - `trading/interfaces/runtime/data_ops/`
   - `paper_trading_ui/backend/services/`

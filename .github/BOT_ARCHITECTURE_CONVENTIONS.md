@@ -21,7 +21,7 @@ Top-level package shape is intentionally **hybrid**:
 2. Selected bounded contexts remain top-level when their ownership is distinct
    (`trading/backtesting`); broker adapters live at the repo-root `brokers/` package and
    external feature providers live at the repo-root `features/` package.
-3. See `docs/architecture/trading-package-map.md` for the concise package map.
+3. See `docs/architecture/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
 
 ## Allowed and Disallowed Dependencies
 
@@ -205,7 +205,7 @@ calculations in `paper_trading_ui/backend/services/accounts/` — these were
 migrated to `trading/services/reporting/` and must not be re-introduced into
 the UI backend layer.
 
-
+## Placement Checklist
 
 Before creating or moving code in `trading/`:
 
@@ -214,6 +214,8 @@ Before creating or moving code in `trading/`:
 3. Place operator data ops in `trading/interfaces/runtime/data_ops/`.
 4. Keep SQL in repositories, not in handlers/routes.
 5. If architecture ownership changes, update this file accordingly.
+
+For a task-oriented "where do I put X" reference, see `docs/architecture/nav-guide.md`.
 
 ## Live Trading Safety Guard
 

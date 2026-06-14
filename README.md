@@ -36,9 +36,10 @@ pip install -r requirements-dev.txt
 ```
 
 **Execution Note:**
-- Run trading scripts as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
+- Run trading scripts as Python modules from the repository root using the active venv interpreter:
   ```sh
-  ./.venv/bin/python -m trading.interfaces.cli.main init
+  .venv\Scripts\python -m trading.interfaces.cli.main init   # Windows
+  .venv/bin/python -m trading.interfaces.cli.main init        # macOS/Linux
   ```
 
 ## CI Smoke Check

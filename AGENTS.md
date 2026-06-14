@@ -23,7 +23,6 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
 - Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
 - Skill authoring and localization guidance: `.github/skills/README.md`
-- Legacy Copilot-specific guidance: `.github/copilot-instructions.md`
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
 
 ## Task surfaces
@@ -34,6 +33,8 @@ This repository uses two task surfaces:
 
 Use a skill by default when the task is generic enough to be reusable.
 
+**Skills layout:** Canonical definitions live in folder-based files (`.github/skills/<skill-name>/SKILL.md`). Thin flat shims may also exist at `.github/skills/<skill-name>.skill.md` for compatibility. If both exist, the folder-based `SKILL.md` is canonical.
+
 Current skill inventory:
 
 | Skill | Purpose |
@@ -41,6 +42,8 @@ Current skill inventory:
 | `architecture-review/` | Layering, dependency direction, and structure review |
 | `code-cleanup/` | Backend, frontend, or mixed cleanup and refactor work |
 | `code-review/` | Diff-based review plus deep audit mode for stale code and redundancy |
+| `code-review-baseline/` | Lightweight pre-merge review — regressions and contract drift only |
+| `code-review-aggressive/` | High-scrutiny review for safety-critical changes with zero-findings evidence |
 | `docs-sync/` | Documentation drift detection and targeted sync |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
@@ -75,6 +78,8 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 |---|---|
 | Architecture, layering, dependency direction | `architecture-review/` |
 | Pre-commit or pre-merge audit | `code-review/` |
+| Lightweight quick diff check | `code-review-baseline/` |
+| High-risk or safety-critical review (broker, DB, admin) | `code-review-aggressive/` |
 | Whole-area simplification or stale-code audit | `code-review/` in deep mode |
 | README, reference, or API drift | `docs-sync/` |
 | Frontend-only cleanup in `paper_trading_ui/frontend` | `code-cleanup/` |
@@ -191,7 +196,3 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 - Run `python -m scripts.checks.readme_check --repo-root . --max-age-days 90`.
 - Report which README files need updates.
-
-## Notes
-
-- Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.
