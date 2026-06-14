@@ -5,16 +5,18 @@ description: Runs the full pre-PR gatekeeping workflow: deterministic checks (la
 
 # Checking PR Readiness
 
-Runs five ordered steps, stopping at the first failure.
+Runs six ordered steps. Stop at the first blocking failure — do not run subsequent AI steps if an earlier step fails.
 
-| Step | Type | What runs |
-|---|---|---|
-| 1–3 | Deterministic | Layer check, ruff + mypy, branch-targeted tests |
-| 4 | AI | Code review — style, quality, correctness, missing tests |
-| 5 | AI | Architecture review — layering, coupling, maintainability |
-| Report | AI | Saved to `local/pr_readiness_report.md` + printed |
+| Step | Type | What runs | Stops on |
+|---|---|---|---|
+| 1 | Deterministic | Layer + lint + type check + tests | Any non-zero exit |
+| 2 | AI | Architecture review (branch diff) | VIOLATION finding |
+| 3 | AI | Style review (branch diff) | BLOCKER finding |
+| 4 | AI | Quality review (branch diff) | BLOCKER finding |
+| 5 | AI | Docs check (advisory) | Never |
+| 6 | AI | PR readiness report | — |
 
-Steps 1–3 are AI-free. Steps 4–5 are scoped to the branch diff only to minimize token usage.
+Steps 2–4 are scoped to the branch diff only to minimize token usage.
 
 ## Invocation
 
@@ -23,41 +25,63 @@ pr ready               # vs develop (default)
 pr ready: main         # vs custom base
 ```
 
-## Phase 1 — Deterministic gate
+---
+
+## Step 1 — Deterministic gate
 
 ```
 python -m scripts.checks.pr_ready --base <base_ref>
 ```
 
-If exit code is non-zero, **stop**. Report which step failed. Do not proceed to Phase 2.
+If exit code is non-zero, **stop immediately**. Report which check failed. Do not run Steps 2–6. Hand back to the user.
 
-See [validate-code skill](../validate-code/SKILL.md) for individual check commands.
+Reference: [validate-code/SKILL.md](../validate-code/SKILL.md)
 
-## Phase 2 — Code review
+---
 
-Scope: `git diff --name-only <base_ref>...HEAD` only. No unrequested scope expansion.
+## Step 2 — Architecture review
 
-Focus: style violations, logic errors, missing test coverage, API contract drift.
-Do NOT surface architecture concerns here (Phase 3 handles those).
+Reference: [code-review/pr-review-arch.md](../code-review/pr-review-arch.md)
 
-Severity: HIGH = blocks PR. LOW = advisory.
-Be concise: finding + file:line + one sentence.
+- Scope: `git diff --name-only <base_ref>...HEAD` only.
+- Severity: VIOLATION (blocks) vs CONCERN (advisory).
+- If any VIOLATION found: **stop**. Do not run Steps 3–6. Print VIOLATION findings and hand back to user.
 
-Reference: [code-review.md](../code-review/code-review.md), `.github/BOT_STYLE_GUIDE.md`
+---
 
-## Phase 3 — Architecture review
+## Step 3 — Style review
 
-Scope: same changed files only.
+Reference: [code-review/pr-review-style.md](../code-review/pr-review-style.md)
 
-Focus: layer boundary violations, dependency direction, wrong-layer logic, coupling concerns.
-Do NOT repeat style findings from Phase 2.
+- Scope: same branch diff.
+- Severity: BLOCKER (blocks) vs ADVISORY.
+- If any BLOCKER found: **stop**. Do not run Steps 4–6. Print BLOCKER findings and hand back to user.
 
-Severity: VIOLATION = blocks PR. CONCERN = advisory.
-Be concise: finding + file:line + one sentence.
+---
 
-Reference: [architecture-review.md](../code-review/architecture-review.md), `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+## Step 4 — Quality review
 
-## Phase 4 — Report
+Reference: [code-review/pr-review-quality.md](../code-review/pr-review-quality.md)
+
+- Scope: same branch diff.
+- Severity: BLOCKER (blocks) vs ADVISORY.
+- If any BLOCKER found: **stop**. Do not run Steps 5–6. Print BLOCKER findings and hand back to user.
+
+---
+
+## Step 5 — Docs check (advisory)
+
+Reference: [update-documentation/docs-check.md](../update-documentation/docs-check.md)
+
+```
+python -m scripts.checks.readme_check
+```
+
+Never blocks. Collect findings for the report.
+
+---
+
+## Step 6 — PR readiness report
 
 Print to terminal and save to `local/pr_readiness_report.md`.
 
@@ -66,29 +90,40 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 
 **Branch:** <branch>  **Base:** <base_ref>  **Date:** <YYYY-MM-DD>
 
-### Deterministic Checks
+### Step 1 — Deterministic Checks
 | Check | Result |
 |---|---|
 | Layer boundaries | Clean / FAILED |
-| Ruff + Mypy | Clean / FAILED |
+| Ruff + eslint/tsc | Clean / FAILED |
+| Mypy | Clean / FAILED |
 | Tests | N tests, M suites / FAILED / No changed suites |
 
-### Code Review
-<findings by severity, or "No issues found.">
+### Step 2 — Architecture Review
+<VIOLATION/CONCERN findings, or "Clean">
 
-### Architecture Review
-<findings by severity, or "No issues found.">
+### Step 3 — Style Review
+<BLOCKER/ADVISORY findings, or "Clean">
+
+### Step 4 — Quality Review
+<BLOCKER/ADVISORY findings, or "Clean">
+
+### Step 5 — Docs Check (Advisory)
+<staleness findings, or "No stale docs detected">
 
 ### Overall: READY / NOT READY
 <one sentence: blocking issues or "No blocking issues found.">
 ```
 
+---
+
 ## Constraints
 
-- Stop at the first blocking failure. Do not run AI steps if Phase 1 fails.
-- HIGH/VIOLATION findings block. LOW/CONCERN are advisory.
+- Do not run AI steps if Step 1 fails.
+- Do not run Steps 3–6 if Step 2 has a VIOLATION.
+- Do not run Steps 4–6 if Step 3 has a BLOCKER.
+- Do not run Steps 5–6 if Step 4 has a BLOCKER.
 - Do not implement fixes. Report only.
-- Do not report on unchanged files.
+- Do not review unchanged files.
 
 ## Repo references
 

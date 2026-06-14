@@ -15,6 +15,7 @@ description: Reviews code changes for regressions, style violations, architectur
 | Architecture | Layering, coupling, module placement, dependency direction | [architecture-review.md](architecture-review.md) |
 | Cleanup | Behavior-preserving refactor, dead code, simplification | [code-cleanup.md](code-cleanup.md) |
 | Contract | Frontend/backend API contract, route/schema alignment | [ui-api-contract.md](ui-api-contract.md) |
+| PR Review | Pre-PR pass: arch + style + quality, scoped to branch diff | [pr-review-arch.md](pr-review-arch.md), [pr-review-style.md](pr-review-style.md), [pr-review-quality.md](pr-review-quality.md) |
 
 ## Default mode selection
 
@@ -24,6 +25,7 @@ description: Reviews code changes for regressions, style violations, architectur
 - "cleanup", "refactor", "simplify", "dead code" → **Cleanup**
 - "frontend and backend", "contract", "schema drift", "route" → **Contract**
 - "quick check", "pre-merge", "baseline" → **Baseline**
+- "pr review", "pre-PR", called from check-pr-readiness → **PR Review** (three sequential passes)
 
 ## Constraints (all modes)
 

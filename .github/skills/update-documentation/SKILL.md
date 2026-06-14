@@ -5,15 +5,15 @@ description: Syncs READMEs, architecture notes, API docs, and operational docume
 
 # Update Documentation
 
-## Workflow
+## Modes
 
-Follow [docs-sync.md](docs-sync.md) for all documentation drift work.
+| Mode | Use when | Reference |
+|---|---|---|
+| Docs sync | Code changes imply doc updates | [docs-sync.md](docs-sync.md) |
+| Docs check | Pre-PR passive staleness check | [docs-check.md](docs-check.md) |
 
-1. Identify behavior, route, command, or workflow changes in scope.
-2. Find the source-of-truth docs for those surfaces.
-3. Apply targeted documentation updates.
-4. Flag missing docs when documentation should exist but does not.
-5. Run `python -m scripts.checks.readme_check` after edits.
+**Docs sync** — active: identify changed surfaces, find owning docs, apply targeted updates.
+**Docs check** — passive: run `readme_check`, scan diff for stale paths/commands. Advisory only; never blocks.
 
 ## Constraints
 

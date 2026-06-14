@@ -5,63 +5,44 @@ description: Runs the repository's deterministic validation suite: layer boundar
 
 # Validate Code
 
-## Commands
+All checks are deterministic — no AI, no reasoning. Each check has its own reference file.
 
-**Full PR gate** (layer + lint + branch-targeted tests, fail-fast):
+## Checks (run in this order)
+
+| Step | What | Reference |
+|---|---|---|
+| 1 | Layer boundary check | [layer-check.md](layer-check.md) |
+| 2 | Lint (ruff + eslint/tsc if frontend changed) | [lint.md](lint.md) |
+| 3 | Type check (mypy) | [type-check.md](type-check.md) |
+| 4 | Tests (branch-targeted pytest + vitest if frontend changed) | [tests.md](tests.md) |
+
+## Run all checks at once
+
 ```
 python -m scripts.checks.pr_ready --base develop
 python -m scripts.checks.pr_ready --base main
 python -m scripts.checks.pr_ready --no-cov        # skip coverage overhead
 ```
 
-**Individual checks:**
-```
-python -m scripts.checks.layer_check              # layer boundary violations only
-python -m scripts.checks.ruff_check               # ruff lint + format
-python -m scripts.checks.mypy_check               # mypy type check
-python -m scripts.checks.run_suite --base develop # branch-targeted tests
-python -m scripts.checks.run_suite all            # full test suite
-python -m scripts.checks.run_suite --changed      # tests for uncommitted changes
-```
+`pr_ready` runs all four steps in order and stops at the first failure.
 
-**Unified profiles:**
+## Day-to-day profiles
+
 ```
-python -m scripts.run_checks --profile quick      # day-to-day: layer + lint + tests
-python -m scripts.run_checks --profile ci         # CI-shape: full suite + frontend
+python -m scripts.run_checks --profile quick      # layer + lint + tests
+python -m scripts.run_checks --profile ci         # full suite + frontend
 ```
 
-## When to use which command
+## On failure
 
-| Goal | Command |
-|---|---|
-| Before a PR | `pr_ready --base develop` |
-| After uncommitted changes | `run_suite --changed` |
-| Lint only | `ruff_check` + `mypy_check` |
-| Layer boundaries only | `layer_check` |
-| Full test suite | `run_suite all` |
-| Day-to-day quick check | `run_checks --profile quick` |
-
-## Fail-fast behavior
-
-`pr_ready` stops at the first failing step and reports which step failed. Fix it and re-run.
-
-Steps in order:
-1. Layer boundary check
-2. Ruff lint + format
-3. Mypy type check
-4. Branch-targeted pytest
+Stop. Report the exact failing command and output — do not paraphrase. Do not proceed to any AI review steps. Hand back to the user to fix.
 
 ## Constraints
 
 - Always use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (POSIX) — never system Python.
-- Report the exact failing command and output. Do not paraphrase errors.
-- Do not auto-fix lint errors unless the user asks. Run and report first.
+- Do not auto-fix lint errors unless explicitly asked. Run and report first.
 
 ## Repo references
 
 - `scripts/checks/pr_ready.py`
-- `scripts/checks/layer_check.py`
-- `scripts/checks/ruff_check.py`
-- `scripts/checks/mypy_check.py`
-- `scripts/checks/run_suite.py`
 - `scripts/run_checks.py`
