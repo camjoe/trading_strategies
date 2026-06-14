@@ -1,6 +1,6 @@
 ---
 name: python-stat-modeling
-description: Build or evaluate chronology-aware statistical modeling workflows for finance or other time-series domains.
+description: Builds or evaluates chronology-aware statistical modeling workflows for finance or other time-series domains. Use when asked about backtesting, alpha research, feature engineering, time-series modeling, leakage concerns, or evaluation methodology.
 ---
 
 # Python Statistical Modeling

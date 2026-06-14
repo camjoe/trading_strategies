@@ -33,24 +33,22 @@ This repository uses two task surfaces:
 
 Use a skill by default when the task is generic enough to be reusable.
 
-**Skills layout:** Canonical definitions live in folder-based files (`.github/skills/<skill-name>/SKILL.md`). Thin flat shims may also exist at `.github/skills/<skill-name>.skill.md` for compatibility. If both exist, the folder-based `SKILL.md` is canonical.
+**Skills layout:** Canonical definitions live in folder-based files (`.github/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
 
 Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `architecture-review/` | Layering, dependency direction, and structure review |
-| `code-cleanup/` | Backend, frontend, or mixed cleanup and refactor work |
-| `code-review/` | Diff-based review plus deep audit mode for stale code and redundancy |
-| `code-review-baseline/` | Lightweight pre-merge review — regressions and contract drift only |
-| `code-review-aggressive/` | High-scrutiny review for safety-critical changes with zero-findings evidence |
-| `docs-sync/` | Documentation drift detection and targeted sync |
+| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
+| `create-memory/` | Reference docs and ADRs in `docs/reference/` |
+| `create-skill/` | Authoring new skills following the skills guide |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
-| `reference-doc/` | Create or update a reference doc or ADR in `docs/reference/` |
 | `test-expansion/` | Coverage growth and regression-test expansion |
-| `ui-api-contract/` | Frontend/backend contract stewardship |
-| `pr-readiness/` | Full pre-PR workflow: deterministic gate + AI review + readiness report |
+| `update-documentation/` | Docs drift sync and reference doc / ADR creation |
+| `update-skill/` | Improving or refactoring existing skills |
+| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
 ### 2. Repo-specific agents
 
@@ -78,21 +76,24 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 
 | Task shape | Preferred surface |
 |---|---|
-| Architecture, layering, dependency direction | `architecture-review/` |
-| Pre-commit or pre-merge audit | `code-review/` |
-| Lightweight quick diff check | `code-review-baseline/` |
-| High-risk or safety-critical review (broker, DB, admin) | `code-review-aggressive/` |
-| Whole-area simplification or stale-code audit | `code-review/` in deep mode |
-| Create or update a reference doc or ADR | `reference-doc/` |
-| README, reference, or API drift | `docs-sync/` |
-| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-cleanup/` |
-| Generic Python cleanup or refactor | `code-cleanup/` |
-| Mixed backend and frontend cleanup | `code-cleanup/` |
+| Architecture, layering, dependency direction | `code-review/` (Architecture mode) |
+| Pre-commit or pre-merge audit | `code-review/` (Standard mode) |
+| Lightweight quick diff check | `code-review/` (Baseline mode) |
+| High-risk or safety-critical review (broker, DB, admin) | `code-review/` (Aggressive mode) |
+| Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
+| Create or update a reference doc or ADR | `create-memory/` |
+| README, reference, or API drift | `update-documentation/` |
+| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-review/` (Cleanup mode) |
+| Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
+| Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
 | Generic test additions or edge-case coverage | `test-expansion/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Modeling, alpha research, feature engineering | `python-stat-modeling/` |
-| Cross-stack route/schema/UI contract work | `ui-api-contract/` |
-| Pre-PR readiness check (any scope) | `pr-readiness/` |
+| Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
+| Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Run deterministic checks (lint, tests, layer) | `validate-code/` |
+| Create a new skill | `create-skill/` |
+| Update or improve a skill | `update-skill/` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
 | Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |
@@ -122,7 +123,7 @@ These phrases are repo conventions for common tasks.
 - `code review`: review staged and unstaged changes against `HEAD`
 - `code review: <branch>`: review the diff between the current branch and the given base branch
 - `code review: <file-or-folder>`: review a specific area
-- Follow `.github/skills/code-review/SKILL.md`.
+- Follow `.github/skills/code-review/SKILL.md` (Standard mode).
 
 ### `deep code review`
 
@@ -130,12 +131,12 @@ These phrases are repo conventions for common tasks.
 - `deep code review: trading`: review `trading/`
 - `deep code review: paper_trading_ui`: review `paper_trading_ui/`
 - `deep code review: <file-or-folder>`: review a specific area with the same deep audit workflow
-- Follow `.github/skills/code-review/SKILL.md` in deep-review mode.
+- Follow `.github/skills/code-review/SKILL.md` (Aggressive mode).
 
 ### `sync docs` or `docs sync`
 
 - Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.github/skills/docs-sync/SKILL.md`.
+- Follow `.github/skills/update-documentation/SKILL.md`.
 - After edits, run `python -m scripts.checks.readme_check`.
 
 ### `run suite`
@@ -208,7 +209,7 @@ Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, test
 - `pr ready` — full 5-step workflow vs `develop` (default base)
 - `pr ready: <base>` — full 5-step workflow vs a custom base branch (e.g. `pr ready: main`)
 
-Follow `.github/skills/pr-readiness/SKILL.md`.
+Follow `.github/skills/check-pr-readiness/SKILL.md`.
 
 **Step sequence (fail-fast):**
 

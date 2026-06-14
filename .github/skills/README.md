@@ -10,59 +10,55 @@ Define how this repository uses reusable skills vs repo-specific agents, and pro
 
 1. Choose the closest matching skill folder and follow its `SKILL.md`.
 2. Use a repo-specific agent only when the work depends on repo-only execution behavior.
-3. Keep top-level `.skill.md` files as compatibility shims only; treat folder `SKILL.md` files as canonical.
+3. To add or improve a skill, follow the authoring guide at `docs/Agent Skills.md`.
 
 ## Active layout
 
-Use folder-based skills with a `SKILL.md` file:
+```
+.github/skills/
+├── <skill-name>/
+│   ├── SKILL.md            ← canonical skill (loaded when skill triggers)
+│   └── <reference>.md      ← reference files (loaded on demand by SKILL.md)
+└── templates/              ← authoring templates
+```
 
-| Path | Purpose |
-|---|---|
-| `.github/skills/<skill-name>/SKILL.md` | Active Codex-style skill definition |
-| `.github/skills/<skill-name>.skill.md` | Thin Copilot-facing compatibility shim pointing at the canonical skill |
-| `.github/skills/templates/portable.skill.template.md` | Template for drafting a portable skill |
-| `.github/skills/templates/local-overlay.agent.template.md` | Template for the rare repo-specific overlay agent |
-
-The active convention is one folder per skill using lowercase hyphenated names. Flat `.skill.md` files at the top of `.github/skills/` are compatibility shims, not the canonical source of truth.
-
-## Skill-first model
-
-Use a skill directly by default.
-
-Keep or create an agent only when the task needs:
-
-- exact repo paths or command entrypoints
-- project-only safety rules
-- operator workflow integration
-- domain behavior too specific for the reusable skill
-
-If a skill and an agent both exist for the same job:
-
-1. use the skill first
-2. justify the agent
-3. remove the agent if it no longer adds repo-specific execution value
+One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. Additional `.md` files in the folder are reference documents loaded progressively as needed — they are not skills themselves.
 
 ## Current skill pack
 
-| Skill folder | Notes |
+| Skill folder | Covers |
 |---|---|
-| `architecture-review/` | Default surface for structure and layering review |
-| `code-cleanup/` | Default surface for backend, frontend, or mixed cleanup work |
-| `code-review/` | Default surface for generic review work and deep audits |
-| `code-review-baseline/` | Lightweight review variant — regressions and contract drift only; use for quick pre-merge checks |
-| `code-review-aggressive/` | High-scrutiny review variant — safety-critical changes, explicit zero-findings evidence required |
-| `docs-sync/` | Default surface for documentation drift work |
-| `finance-strategy/` | Default surface for terminology and strategy explanation |
-| `python-stat-modeling/` | Default surface for modeling and research tasks |
-| `reference-doc/` | Default surface for creating or updating reference docs and ADRs in `docs/reference/` |
-| `test-expansion/` | Default surface for generic testing work |
-| `ui-api-contract/` | Default surface for frontend/backend contract work |
+| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
+| `create-memory/` | Reference docs and ADRs in `docs/reference/` |
+| `create-skill/` | Authoring new skills following the skills guide |
+| `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
+| `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
+| `test-expansion/` | Coverage growth and regression-test expansion |
+| `update-documentation/` | Docs drift sync and reference doc / ADR creation |
+| `update-skill/` | Improving or refactoring existing skills |
+| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
+
+### Reference files (inside skill folders, not skills themselves)
+
+| File | Parent skill | Contains |
+|---|---|---|
+| `code-review/code-review.md` | `code-review/` | Standard diff review |
+| `code-review/code-review-baseline.md` | `code-review/` | Lightweight pre-merge review |
+| `code-review/code-review-aggressive.md` | `code-review/` | High-scrutiny safety-critical review |
+| `code-review/architecture-review.md` | `code-review/` | Layering and boundary review |
+| `code-review/code-cleanup.md` | `code-review/` | Behavior-preserving refactor |
+| `code-review/ui-api-contract.md` | `code-review/` | Frontend/backend contract alignment |
+| `update-documentation/docs-sync.md` | `update-documentation/` | Docs drift detection and sync |
+| `update-documentation/reference-doc.md` | `update-documentation/` | Reference doc and ADR creation |
+| `create-memory/reference-doc.md` | `create-memory/` | Reference doc and ADR creation |
 
 Retired from the active set:
 
-- `deep-code-review` (merged into `code-review` deep mode)
-- `frontend-cleanup` (merged into `code-cleanup`)
-- `python-cleanup` (merged into `code-cleanup`)
+- `deep-code-review` (merged into `code-review` Aggressive mode)
+- `frontend-cleanup` (merged into `code-review/code-cleanup.md`)
+- `python-cleanup` (merged into `code-review/code-cleanup.md`)
+- flat `.skill.md` shims (removed — not needed by Copilot CLI)
 
 ## Remaining repo-specific agents
 
@@ -82,9 +78,9 @@ Repo-specific agents live in `.github/agents/`.
 Skills should:
 
 1. stay reusable in a similar repo with light localization
-2. describe responsibilities, constraints, workflow, and expected output
-3. point to repo references only when those references materially improve execution
-4. stay concise and avoid turning `SKILL.md` into general documentation
+2. have a gerund `name` and a third-person `description` with both WHAT and WHEN
+3. keep `SKILL.md` under 500 lines — move details into reference files
+4. use one-level-deep references only (no chaining)
 
 Skills should not:
 
