@@ -1,7 +1,9 @@
 # README Layout Standard
 
-Status: Active reference
-Last reviewed: 2026-04-25
+Type: notes
+Status: Active
+Created: 2026-04-24
+Last Reviewed: 2026-04-25
 
 ## Purpose
 

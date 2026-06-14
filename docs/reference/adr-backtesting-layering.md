@@ -1,5 +1,6 @@
 # ADR: Backtesting Layering and Dependency Boundaries
 
+Type: adr
 Status: Accepted
 Date: 2026-03-27
 

@@ -1,5 +1,10 @@
 # UI Screenshot Utility
 
+Type: notes
+Status: Active
+Created: 2026-04-06
+Last Reviewed: 2026-05-02
+
 `scripts/screenshot_ui.py` captures full-page screenshots of the paper trading
 frontend using Playwright (headless Chromium).  It is used by developers and AI
 assistants to verify UI state without a live browser session.

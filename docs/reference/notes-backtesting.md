@@ -1,5 +1,10 @@
 # Backtesting
 
+Type: notes
+Status: Active
+Created: 2026-03-14
+Last Reviewed: 2026-05-07
+
 Backtesting is implemented in:
 - `trading/backtesting/backtest.py`
 - `trading/backtesting/repositories/`

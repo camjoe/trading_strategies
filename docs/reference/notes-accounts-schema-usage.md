@@ -1,7 +1,9 @@
 # Architecture Notes: Accounts Schema Usage
 
-Status: Active audit
-Last reviewed: 2026-04-25
+Type: notes
+Status: Active
+Created: 2026-04-13
+Last Reviewed: 2026-04-25
 
 ---
 

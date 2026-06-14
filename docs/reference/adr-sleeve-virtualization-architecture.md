@@ -1,5 +1,6 @@
 # ADR: Sleeve Virtualization Architecture for IBKR Paper Autonomy
 
+Type: adr
 Status: Proposed
 Date: 2026-05-03
 

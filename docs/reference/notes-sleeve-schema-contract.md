@@ -1,8 +1,9 @@
 # Reference Notes: Sleeve Schema Contract (Increment 0)
 
-Status: Draft contract for implementation
-Date: 2026-05-03
-Audience: Runtime implementers, DB migration reviewers, code review bots
+Type: notes
+Status: Draft
+Created: 2026-05-03
+Last Reviewed: 2026-05-03
 
 ## Purpose
 

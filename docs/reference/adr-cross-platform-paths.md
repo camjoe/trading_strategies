@@ -1,5 +1,6 @@
 # ADR: Cross-Platform Path Handling
 
+Type: adr
 Status: Accepted
 Date: 2026-03-01
 
