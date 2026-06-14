@@ -50,6 +50,7 @@ Current skill inventory:
 | `reference-doc/` | Create or update a reference doc or ADR in `docs/reference/` |
 | `test-expansion/` | Coverage growth and regression-test expansion |
 | `ui-api-contract/` | Frontend/backend contract stewardship |
+| `pr-readiness/` | Full pre-PR workflow: deterministic gate + AI review + readiness report |
 
 ### 2. Repo-specific agents
 
@@ -91,6 +92,7 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Modeling, alpha research, feature engineering | `python-stat-modeling/` |
 | Cross-stack route/schema/UI contract work | `ui-api-contract/` |
+| Pre-PR readiness check (any scope) | `pr-readiness/` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
 | Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |
@@ -198,3 +200,44 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 - Run `python -m scripts.checks.readme_check --repo-root . --max-age-days 90`.
 - Report which README files need updates.
+
+### `pr ready`
+
+Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (code quality + architecture), finishing with a saved PR readiness report.
+
+- `pr ready` — full 5-step workflow vs `develop` (default base)
+- `pr ready: <base>` — full 5-step workflow vs a custom base branch (e.g. `pr ready: main`)
+
+Follow `.github/skills/pr-readiness/SKILL.md`.
+
+**Step sequence (fail-fast):**
+
+| Step | Type | What runs |
+|---|---|---|
+| 1 | Deterministic | Layer boundary check |
+| 2 | Deterministic | Ruff lint + mypy type check |
+| 3 | Deterministic | Branch-targeted pytest (changes vs base) |
+| 4 | AI | Code review — style, quality, correctness |
+| 5 | AI | Architecture review — layering, coupling, maintainability |
+| Report | AI | Saved to `local/pr_readiness_report.md` + printed |
+
+**Individual step shortcuts** — run any step on its own:
+
+| Shortcut | What it does |
+|---|---|
+| `pr tests` | Branch-targeted tests only (`--base develop`) |
+| `pr tests: <base>` | Branch-targeted tests vs a custom base |
+| `pr lint` | Layer check + ruff + mypy only |
+| `pr code review` | AI code review (style/quality) for branch diff vs develop |
+| `pr code review: <base>` | AI code review vs a custom base |
+| `pr arch review` | AI architecture review for branch diff vs develop |
+| `pr arch review: <base>` | AI architecture review vs a custom base |
+
+**Deterministic-only command** (no AI, no tokens):
+
+```
+python -m scripts.checks.pr_ready
+python -m scripts.checks.pr_ready --base main
+python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
+python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
+```
