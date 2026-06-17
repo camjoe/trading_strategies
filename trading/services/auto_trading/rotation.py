@@ -322,12 +322,11 @@ def sync_rotation_episode(
         return
 
     metrics = compute_live_account_metrics_fn(conn, account)
-    open_episode = fetch_open_rotation_episode_fn(conn, account_id=row_expect_int(account, "id"))
+    open_episode = fetch_open_rotation_episode_fn(account_id=row_expect_int(account, "id"))
     episode_started_at = str(account["rotation_last_at"] or as_of_iso)
 
     if open_episode is None:
         insert_rotation_episode_fn(
-            conn,
             account_id=row_expect_int(account, "id"),
             strategy_name=active_strategy,
             started_at=episode_started_at,
@@ -340,14 +339,12 @@ def sync_rotation_episode(
         return
 
     snapshot_count = fetch_snapshot_count_between_fn(
-        conn,
         account_id=row_expect_int(account, "id"),
         start_iso=str(open_episode["started_at"]),
         end_iso=as_of_iso,
     )
     starting_realized_pnl = float(open_episode["starting_realized_pnl"])
     close_rotation_episode_fn(
-        conn,
         episode_id=int(open_episode["id"]),
         ended_at=as_of_iso,
         ending_equity=float(metrics["equity"]),
@@ -356,7 +353,6 @@ def sync_rotation_episode(
         snapshot_count=snapshot_count,
     )
     insert_rotation_episode_fn(
-        conn,
         account_id=row_expect_int(account, "id"),
         strategy_name=active_strategy,
         started_at=as_of_iso,
@@ -409,7 +405,6 @@ def select_optimal_strategy(
         live_scores: dict[str, list[float]] = {}
         if fetch_closed_rotation_episodes_fn is not None:
             closed_rows = fetch_closed_rotation_episodes_fn(
-                conn,
                 account_id=row_expect_int(account, "id"),
                 strategy_names=schedule,
                 start_iso=f"{start_day}T00:00:00Z",
@@ -487,7 +482,6 @@ def rotate_account_if_due(
         next_state = next_rotation_state(account, as_of_iso=now_iso)
 
     update_account_rotation_state_fn(
-        conn,
         account_id=row_expect_int(account, "id"),
         strategy=str(next_state["rotation_active_strategy"]),
         rotation_active_index=int(cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])),

@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_float
+from common.coercion import row_expect_float, row_expect_int
 from common.constants import SETTLEMENT_TICKER
 from trading.models import AccountRecord, AccountState
-from trading.repositories.snapshots import fetch_recent_equity_rows
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounting import load_account_state
 from trading.services.reporting.math import compute_market_value_and_unrealized
 from trading.services.pricing import fetch_latest_prices
@@ -35,12 +35,10 @@ def _infer_overall_trend_impl(
     current_equity: float,
     lookback: int,
 ) -> str:
-    rows = fetch_recent_equity_rows(
-        conn,
+    history = EquitySnapshotRepository(conn).fetch_recent_equity(
         account_id=account_id,
         limit=int(max(lookback, MIN_TREND_LOOKBACK_ROWS)),
     )
-    history: list[float] = [h for h in (row_float(r, "equity") for r in rows) if h is not None]
     history.reverse()
     history.append(current_equity)
 

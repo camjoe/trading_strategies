@@ -40,12 +40,12 @@ def reconcile_open_broker_orders_impl(
 ) -> int:
     broker = get_broker_for_account_fn(account)
 
-    open_rows = fetch_open_broker_orders_fn(conn, account_id=row_expect_int(account, "id"))
+    open_rows = fetch_open_broker_orders_fn(account_id=row_expect_int(account, "id"))
     if not open_rows:
         broker.disconnect()
         return 0
 
-    open_ids = {row["broker_order_id"]: row for row in open_rows}
+    open_ids = {row.broker_order_id: row for row in open_rows}
     account_id = row_expect_int(account, "id")
     try:
         live_orders = broker.get_open_trades()
@@ -63,11 +63,11 @@ def reconcile_open_broker_orders_impl(
             )
 
             for fill_index, fill in enumerate(live.fills):
-                insert_order_fill_fn(conn, live.broker_order_id, fill)
+                insert_order_fill_fn(live.broker_order_id, fill)
                 if sleeve_order_row is not None:
                     apply_sleeve_fill(
                         conn,
-                        sleeve_order_id=int(sleeve_order_row["id"]),
+                        sleeve_order_id=sleeve_order_row.id,
                         broker_fill_id=live.broker_order_id,
                         exec_id=resolve_reconciliation_exec_id(
                             broker_order_id=live.broker_order_id,
@@ -82,7 +82,6 @@ def reconcile_open_broker_orders_impl(
                     )
 
             update_broker_order_status_fn(
-                conn,
                 broker_order_id=live.broker_order_id,
                 status=live.status,
                 filled_qty=live.filled_qty,
@@ -93,7 +92,7 @@ def reconcile_open_broker_orders_impl(
             if sleeve_order_row is not None:
                 update_sleeve_order_status_fn(
                     conn,
-                    sleeve_order_id=int(sleeve_order_row["id"]),
+                    sleeve_order_id=sleeve_order_row.id,
                     status=live.status.value,
                     updated_at=now,
                 )
@@ -102,10 +101,10 @@ def reconcile_open_broker_orders_impl(
                 record_trade_fn(
                     conn,
                     account_name=account_name,
-                    side=persisted["side"],
-                    ticker=persisted["ticker"],
+                    side=persisted.side,
+                    ticker=persisted.ticker,
                     qty=live.filled_qty,
-                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted["requested_price"],
+                    price=live.avg_fill_price if live.avg_fill_price is not None else persisted.requested_price,
                     fee=fee,
                     trade_time=now,
                     note=f"ib-fill order={live.broker_order_id}",

@@ -1,6 +1,6 @@
 import trading.services.auto_trading as auto_trading_service
 from trading.services.accounts import create_account, get_account
-from trading.repositories.rotation import update_account_rotation_state
+from trading.repositories.accounts import AccountRepository
 from trading.services.auto_trading import RotationDeps
 from tests.trading.services.auto_trading.factories import make_auto_trading_account, make_feature_bundle
 
@@ -119,7 +119,7 @@ def test_rotate_runtime_account_if_due_updates_state() -> None:
         RotationDeps(
             is_rotation_due_fn=lambda _row: True,
             select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-            update_account_rotation_state_fn=update_account_rotation_state,
+            update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
             get_account_fn=lambda _conn, _name: account_after,
         ),
     )
@@ -189,7 +189,7 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
                     fetch_policy_features_fn=None,
                 )
             ),
-            update_account_rotation_state_fn=update_account_rotation_state,
+            update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
             get_account_fn=get_account,
         ),
     )
@@ -213,7 +213,7 @@ def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
         deps=RotationDeps(
             is_rotation_due_fn=lambda *_args, **_kwargs: False,
             select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
-            update_account_rotation_state_fn=update_account_rotation_state,
+            update_account_rotation_state_fn=lambda *_args, **_kwargs: None,
             get_account_fn=get_account,
         ),
     )

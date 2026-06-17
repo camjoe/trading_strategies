@@ -4,22 +4,16 @@ from dataclasses import dataclass, field, replace
 import math
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_int, row_expect_str
-from trading.repositories.sleeve_positions import fetch_sleeve_positions_for_account
-from trading.repositories.sleeves import fetch_strategy_sleeves_for_account
+from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.execution import SleeveTradeIntent
 
 
-# Maximum per-symbol sleeve exposure as a fraction of current sleeve equity.
 DEFAULT_MAX_SLEEVE_NOTIONAL_PCT = 0.25
-# Maximum account-level per-symbol exposure as a fraction of total sleeve equity.
 DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT = 0.30
-# Maximum account-level gross exposure as a fraction of total sleeve equity.
 DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE = 1.0
-# Maximum account-level sector exposure as a fraction of total sleeve equity.
 DEFAULT_MAX_SECTOR_CONCENTRATION_PCT = 0.45
 
-# Default coarse sector map for the baseline trade universe.
 DEFAULT_SYMBOL_SECTOR_MAP: dict[str, str] = {
     "AAPL": "technology",
     "MSFT": "technology",
@@ -137,28 +131,26 @@ def evaluate_sleeve_risk_gate(
     )
     symbol_sector_map = {key.upper().strip(): value for key, value in config.symbol_sector_map.items()}
 
-    sleeve_rows = fetch_strategy_sleeves_for_account(conn, account_id=int(account_id))
-    sleeve_equity_by_id = {row_expect_int(row, "id"): row_expect_float(row, "current_equity") for row in sleeve_rows}
+    sleeves = SleeveRepository(conn).fetch_for_account(account_id=int(account_id))
+    sleeve_equity_by_id = {s.id: s.current_equity for s in sleeves}
     total_equity = sum(sleeve_equity_by_id.values())
     gross_cap_notional = total_equity * max_portfolio_gross_exposure
     symbol_cap_notional = total_equity * max_symbol_concentration_pct
     sector_cap_notional = total_equity * max_sector_concentration_pct
 
-    position_rows = fetch_sleeve_positions_for_account(conn, account_id=int(account_id))
+    positions = SleevePositionRepository(conn).fetch_for_account(account_id=int(account_id))
     symbol_exposure: dict[str, float] = {}
     sector_exposure: dict[str, float] = {}
     sleeve_symbol_exposure: dict[tuple[int, str], float] = {}
     gross_exposure = 0.0
-    for row in position_rows:
-        sleeve_id = row_expect_int(row, "sleeve_id")
-        symbol = row_expect_str(row, "symbol")
-        exposure = abs(row_expect_float(row, "market_value"))
+    for pos in positions:
+        exposure = abs(pos.market_value)
         gross_exposure += exposure
-        symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + exposure
-        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
+        symbol_exposure[pos.symbol] = symbol_exposure.get(pos.symbol, 0.0) + exposure
+        sector = resolve_sector_for_symbol(pos.symbol, symbol_sector_map=symbol_sector_map)
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + exposure
-        sleeve_symbol_exposure[(sleeve_id, symbol)] = exposure
+        sleeve_symbol_exposure[(pos.sleeve_id, pos.symbol)] = exposure
     gross_before = gross_exposure
 
     approved_intents: list[SleeveTradeIntent] = []
@@ -192,10 +184,7 @@ def evaluate_sleeve_risk_gate(
         if side == "sell":
             allowed_count += 1
             approved_intents.append(intent)
-            exposure_delta = min(
-                symbol_exposure.get(symbol, 0.0),
-                requested_notional,
-            )
+            exposure_delta = min(symbol_exposure.get(symbol, 0.0), requested_notional)
             gross_exposure = max(0.0, gross_exposure - exposure_delta)
             symbol_exposure[symbol] = max(0.0, symbol_exposure.get(symbol, 0.0) - exposure_delta)
             sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)

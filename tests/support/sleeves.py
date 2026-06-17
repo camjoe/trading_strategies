@@ -3,9 +3,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from trading.domain.rotation import dump_rotation_schedule
-from trading.repositories.daily_metrics import upsert_daily_metric
-from trading.repositories.sleeves import insert_sleeve_strategy_assignment, insert_strategy_sleeve
-from trading.repositories.snapshots import insert_snapshot_row
+from trading.repositories.daily_metrics import DailyMetricsRepository
+from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
 
 DEFAULT_SLEEVE_TIMESTAMP = "2026-05-03T00:00:00Z"
@@ -26,8 +26,7 @@ def insert_test_sleeve(
 ) -> int:
     resolved_cash = start_equity if current_cash is None else current_cash
     resolved_equity = start_equity if current_equity is None else current_equity
-    return insert_strategy_sleeve(
-        conn,
+    return SleeveRepository(conn).insert(
         account_id=account_id,
         name=name,
         status=status,
@@ -56,8 +55,7 @@ def build_sleeve_env(
     """
     account_id = insert_repository_account(conn, name=account_name)
     sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=start_equity)
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time=snapshot_time,
         cash=start_equity,
@@ -93,9 +91,9 @@ def build_rotation_sleeve_env(
     )
     conn.commit()
 
+    sleeve_repo = SleeveRepository(conn)
     sleeve_id = insert_test_sleeve(conn, account_id=account_id, start_equity=start_equity)
-    insert_sleeve_strategy_assignment(
-        conn,
+    sleeve_repo.insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=None,
@@ -108,8 +106,7 @@ def build_rotation_sleeve_env(
 
     # Two metric rows for rotation scoring
     for metric_date, created_at in [("2026-05-03", "2026-05-03T23:59:00Z"), ("2026-05-04", "2026-05-04T23:59:00Z")]:
-        upsert_daily_metric(
-            conn,
+        DailyMetricsRepository(conn).upsert(
             account_id=account_id,
             sleeve_id=sleeve_id,
             metric_date=metric_date,
@@ -126,8 +123,7 @@ def build_rotation_sleeve_env(
             updated_at=created_at,
         )
 
-    insert_snapshot_row(
-        conn,
+    EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time=snapshot_time,
         cash=start_equity,

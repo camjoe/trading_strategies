@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.repositories.backtest_history import fetch_strategy_backtest_rows
+from trading.repositories.backtest_history import BacktestRunRepository
 
 
 def test_history_repository_fetches_rows_with_filters(bt_repo_account, seed_bt_run, conn) -> None:
@@ -25,8 +25,7 @@ def test_history_repository_fetches_rows_with_filters(bt_repo_account, seed_bt_r
         end_date="2026-02-10",
     )
 
-    rows = fetch_strategy_backtest_rows(
-        conn,
+    rows = BacktestRunRepository(conn).fetch_by_strategy_window(
         account_id=account_id,
         strategy_names=["trend"],
         start_day="2026-01-01",

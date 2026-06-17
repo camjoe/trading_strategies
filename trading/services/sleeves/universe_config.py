@@ -11,7 +11,7 @@ import json
 import sqlite3
 
 from common.time import utc_now_iso
-from trading.repositories.sleeves import update_sleeve_trade_universes
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.universe.resolver import list_available_universes
 
 
@@ -42,8 +42,7 @@ def configure_sleeve_trade_universes(
             raise ValueError(f"Unknown universe name(s): {unknown}. Available: {sorted(available) or '(none)'}")
         serialized = json.dumps(names, separators=(",", ":"))
 
-    update_sleeve_trade_universes(
-        conn,
+    SleeveRepository(conn).update_trade_universes(
         sleeve_id=sleeve_id,
         trade_universes=serialized,
         updated_at=utc_now_iso(),

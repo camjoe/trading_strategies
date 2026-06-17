@@ -13,15 +13,8 @@ class TestAccountListingOutput:
         account = get_account(conn, "acct_bench")
         assert account["benchmark_ticker"] == "QQQ"
 
-    def test_list_accounts_prints_empty_message_when_no_accounts(
-        self,
-        conn,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        list_accounts(conn)
-
-        out = capsys.readouterr().out
-        assert "No paper accounts found." in out
+    def test_list_accounts_returns_empty_when_no_accounts(self, conn) -> None:
+        assert list_accounts(conn) == []
 
     @pytest.mark.parametrize(
         ("name", "goal_min", "goal_max", "goal_period", "expected_goal_text"),
@@ -35,7 +28,6 @@ class TestAccountListingOutput:
     def test_list_accounts_formats_goal_variants(
         self,
         conn,
-        capsys: pytest.CaptureFixture[str],
         name: str,
         goal_min: float | None,
         goal_max: float | None,
@@ -55,22 +47,22 @@ class TestAccountListingOutput:
             ),
         )
 
-        list_accounts(conn)
+        lines = list_accounts(conn)
 
-        out = capsys.readouterr().out
+        combined = "\n".join(lines)
         if expected_goal_text is None:
-            assert "goal_metadata=" not in out
+            assert "goal_metadata=" not in combined
         else:
-            assert expected_goal_text in out
-        assert "benchmark=SPY" in out
+            assert expected_goal_text in combined
+        assert "benchmark=SPY" in combined
 
-    def test_list_accounts_without_strategy_grouping(self, conn, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_list_accounts_without_strategy_grouping(self, conn) -> None:
         create_account(conn, "acct_a", "Trend", 1000.0, "SPY")
         create_account(conn, "acct_b", "MeanRev", 1000.0, "SPY")
 
-        list_accounts(conn, by_strategy=False)
+        lines = list_accounts(conn, by_strategy=False)
 
-        out = capsys.readouterr().out
-        assert "Strategy:" not in out
-        assert "acct_a" in out
-        assert "acct_b" in out
+        combined = "\n".join(lines)
+        assert "Strategy:" not in combined
+        assert "acct_a" in combined
+        assert "acct_b" in combined

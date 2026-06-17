@@ -2,7 +2,7 @@ import pytest
 
 import trading.services.accounting.mutations as accounting_mutations
 from common.time import utc_now_iso
-from trading.repositories import fetch_trades_for_account
+from trading.repositories.trades import TradeRepository
 from trading.services.accounting import record_trade
 from trading.services.accounts import create_account, get_account
 from trading.services.runtime_settings import set_runtime_throttle_settings
@@ -41,7 +41,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_roundtrip")
-        rows = fetch_trades_for_account(conn, account_id=account["id"])
+        rows = TradeRepository(conn).fetch_for_account(account_id=account["id"])
 
         assert len(rows) == 1
         row = rows[0]
@@ -95,7 +95,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_sell")
-        rows = fetch_trades_for_account(conn, account_id=account["id"])
+        rows = TradeRepository(conn).fetch_for_account(account_id=account["id"])
         assert [row["side"] for row in rows] == ["buy", "sell"]
 
     def test_uses_default_trade_time_when_missing(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -115,7 +115,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_default_time")
-        row = fetch_trades_for_account(conn, account_id=account["id"])[0]
+        row = TradeRepository(conn).fetch_for_account(account_id=account["id"])[0]
         assert row["trade_time"] == "2099-01-01T00:00:00Z"
 
     def test_normalizes_side_and_ticker(self, conn) -> None:
@@ -134,7 +134,7 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_norm_order")
-        row = fetch_trades_for_account(conn, account_id=account["id"])[0]
+        row = TradeRepository(conn).fetch_for_account(account_id=account["id"])[0]
         assert row["side"] == "buy"
         assert row["ticker"] == "MSFT"
 
@@ -171,4 +171,4 @@ class TestRecordTrade:
         )
 
         account = get_account(conn, "acct_global_settings_manual")
-        assert len(fetch_trades_for_account(conn, account_id=account["id"])) == 2
+        assert len(TradeRepository(conn).fetch_for_account(account_id=account["id"])) == 2

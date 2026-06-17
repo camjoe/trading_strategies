@@ -26,9 +26,9 @@ def compute_current_exposure_snapshot(
     net_exposure = 0.0
     symbol_exposure: dict[str, float] = {}
     sector_exposure: dict[str, float] = {}
-    for row in position_rows:
-        symbol = str(row["symbol"]).upper().strip()
-        market_value = float(row["market_value"])
+    for pos in position_rows:
+        symbol = str(pos.symbol).upper().strip()
+        market_value = float(pos.market_value)
         abs_value = abs(market_value)
         gross_exposure += abs_value
         net_exposure += market_value
@@ -38,7 +38,7 @@ def compute_current_exposure_snapshot(
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + abs_value
 
     sleeve_rows = fetch_strategy_sleeves_for_account_fn(conn, account_id=account_id)
-    total_equity = sum(float(row["current_equity"]) for row in sleeve_rows)
+    total_equity = sum(float(s.current_equity) for s in sleeve_rows)
     max_symbol_concentration_pct = 0.0
     max_sector_concentration_pct = 0.0
     if total_equity > 0 and symbol_exposure:
@@ -68,7 +68,6 @@ def persist_sleeve_risk_snapshot(
         )
     )
     upsert_portfolio_risk_snapshot_fn(
-        conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
         gross_exposure=gross_exposure,

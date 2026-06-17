@@ -10,10 +10,11 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Python environment
 
-- Always run Python tools from the repo virtualenv:
-  - `./.venv/bin/python`
-  - `./.venv/bin/pytest`
-  - `./.venv/bin/pip`
+- Always run Python tools from the repo-local `.venv` virtual environment.
+- Use the platform-appropriate interpreter and tool paths:
+  - Windows: `.venv\Scripts\python.exe`, `.venv\Scripts\pytest.exe`, `.venv\Scripts\pip.exe`
+  - POSIX: `./.venv/bin/python`, `./.venv/bin/pytest`, `./.venv/bin/pip`
+- If a command example elsewhere in the repo uses a POSIX `.venv/bin/...` path, Windows agents should use the equivalent `.venv\Scripts\...` executable.
 - Do not use system `python`, `python3`, or `pytest`.
 - If `./.venv` is missing, stop and ask before proceeding.
 
@@ -22,6 +23,9 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
 - Skill authoring and localization guidance: `.github/skills/README.md`
+- Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
+  - `AGENTS.md` is the source of truth for durable repo instructions.
+  - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
 
 ## Task surfaces

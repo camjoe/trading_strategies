@@ -64,6 +64,10 @@ LAYER_RULES: list[LayerRule] = [
         label="trading/services → no direct database imports",
         source_glob="trading/services/**/*.py",
         forbidden_prefixes=("trading.database.",),
+        # runtime_loader.py is the deliberate exception: its sole purpose is to
+        # open a DB connection for runtime job runners that don't have an injected
+        # connection.  All other service modules must route through repositories.
+        exceptions=("trading/services/accounts/runtime_loader.py",),
     ),
     LayerRule(
         label="trading/services → no interface-layer imports",

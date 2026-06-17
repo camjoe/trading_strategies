@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from trading.interfaces.runtime.jobs.daily import paper_trading_reporting as module
 
@@ -65,8 +66,8 @@ def test_build_daily_operator_report_skips_missing_accounts(monkeypatch, tmp_pat
     monkeypatch.setattr(module, "ensure_db", lambda: object())
     monkeypatch.setattr(
         module,
-        "fetch_account_by_name",
-        lambda _conn, account_name: {"id": 7} if account_name == "acct1" else None,
+        "find_account",
+        lambda _conn, account_name: SimpleNamespace(id=7) if account_name == "acct1" else None,
     )
     monkeypatch.setattr(
         module,

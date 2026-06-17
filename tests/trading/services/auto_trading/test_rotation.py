@@ -127,8 +127,8 @@ def test_sync_rotation_episode_closes_previous_and_opens_new() -> None:
             account=account,
             as_of_iso="2026-03-20T00:00:00Z",
             fetch_open_rotation_episode_fn=fetch_open_episode,
-            insert_rotation_episode_fn=lambda _conn, **kwargs: inserted_calls.append(kwargs),
-            close_rotation_episode_fn=lambda _conn, **kwargs: closed_calls.append(kwargs),
+            insert_rotation_episode_fn=lambda **kwargs: inserted_calls.append(kwargs),
+            close_rotation_episode_fn=lambda **kwargs: closed_calls.append(kwargs),
             fetch_snapshot_count_between_fn=Mock(return_value=4),
             compute_live_account_metrics_fn=rotation_service.compute_live_account_metrics,
         )
@@ -486,7 +486,7 @@ def test_sync_rotation_episode_open_and_same_strategy_paths() -> None:
         account=_account(),
         as_of_iso="2026-03-20T00:00:00Z",
         fetch_open_rotation_episode_fn=Mock(return_value=None),
-        insert_rotation_episode_fn=lambda _conn, **kwargs: inserted_calls.append(kwargs),
+        insert_rotation_episode_fn=lambda **kwargs: inserted_calls.append(kwargs),
         close_rotation_episode_fn=Mock(),
         fetch_snapshot_count_between_fn=Mock(return_value=0),
         compute_live_account_metrics_fn=Mock(return_value={"equity": 1010.0, "realized_pnl": 12.0}),
@@ -561,7 +561,7 @@ def test_rotate_account_if_due_uses_index_fallback_when_selected_not_in_schedule
         now_iso="2026-03-31T00:00:00Z",
         is_rotation_due_fn=lambda _account: True,
         select_optimal_strategy_fn=lambda *_args, **_kwargs: "outside_schedule",
-        update_account_rotation_state_fn=lambda _conn, **kwargs: updated_rows.append(kwargs),
+        update_account_rotation_state_fn=lambda **kwargs: updated_rows.append(kwargs),
         get_account_fn=lambda _conn, _name: account,
     )
     assert updated is account

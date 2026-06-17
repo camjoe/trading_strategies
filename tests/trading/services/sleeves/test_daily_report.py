@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.daily_metrics import upsert_daily_metric
-from trading.repositories.portfolio_risk_snapshots import upsert_portfolio_risk_snapshot
-from trading.repositories.rotation_decisions import insert_rotation_decision
-from trading.repositories.sleeve_risk_decisions import insert_sleeve_risk_decision
-from trading.repositories.sleeves import insert_sleeve_strategy_assignment
+from trading.repositories.daily_metrics import DailyMetricsRepository
+from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
+from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.daily_report import (
     AccountDailyReport,
     account_daily_report_as_dict,
@@ -18,8 +18,7 @@ REPORT_DATE = "2026-05-07"
 
 
 def test_build_report_returns_correct_structure(conn, report_env) -> None:
-    insert_sleeve_strategy_assignment(
-        conn,
+    SleeveRepository(conn).insert_assignment(
         sleeve_id=report_env.sleeve_id,
         strategy_name="Momentum",
         param_set_id=None,
@@ -29,8 +28,7 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
         created_at="2026-01-01T00:00:00Z",
         updated_at="2026-01-01T00:00:00Z",
     )
-    upsert_daily_metric(
-        conn,
+    DailyMetricsRepository(conn).upsert(
         account_id=report_env.account_id,
         sleeve_id=report_env.sleeve_id,
         metric_date=REPORT_DATE,
@@ -96,8 +94,7 @@ def test_build_report_risk_violations_counts(conn, report_env) -> None:
         ("rescale", "symbol_concentration_cap"),
         ("allow", "ok"),
     ]:
-        insert_sleeve_risk_decision(
-            conn,
+        SleeveRiskDecisionRepository(conn).insert(
             account_id=report_env.account_id,
             sleeve_id=report_env.sleeve_id,
             decision_time=f"{REPORT_DATE}T10:00:00Z",
@@ -128,8 +125,7 @@ def test_build_report_risk_violations_counts(conn, report_env) -> None:
 
 
 def test_build_report_risk_violations_excludes_other_dates(conn, report_env) -> None:
-    insert_sleeve_risk_decision(
-        conn,
+    SleeveRiskDecisionRepository(conn).insert(
         account_id=report_env.account_id,
         sleeve_id=report_env.sleeve_id,
         decision_time="2026-05-06T10:00:00Z",  # different date
@@ -155,8 +151,7 @@ def test_build_report_risk_violations_excludes_other_dates(conn, report_env) -> 
 
 def test_build_report_kill_switch_from_snapshot(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_ks")
-    upsert_portfolio_risk_snapshot(
-        conn,
+    PortfolioRiskSnapshotRepository(conn).upsert(
         account_id=account_id,
         snapshot_time=f"{REPORT_DATE}T15:00:00Z",
         gross_exposure=50000.0,
@@ -176,8 +171,7 @@ def test_build_report_kill_switch_from_snapshot(conn) -> None:
 
 
 def test_build_report_rotation_decisions(conn, report_env) -> None:
-    insert_rotation_decision(
-        conn,
+    RotationDecisionRepository(conn).insert(
         sleeve_id=report_env.sleeve_id,
         decision_time=f"{REPORT_DATE}T09:00:00Z",
         incumbent_strategy="Momentum",
@@ -193,8 +187,7 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
         created_at=f"{REPORT_DATE}T09:00:00Z",
     )
     # Decision on a different date — should be excluded
-    insert_rotation_decision(
-        conn,
+    RotationDecisionRepository(conn).insert(
         sleeve_id=report_env.sleeve_id,
         decision_time="2026-05-06T09:00:00Z",
         incumbent_strategy="Momentum",

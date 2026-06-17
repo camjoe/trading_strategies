@@ -3,11 +3,8 @@ from __future__ import annotations
 from unittest.mock import Mock
 
 import trading.services.sleeves.execution as sleeve_execution
-from trading.repositories.sleeve_positions import upsert_sleeve_position
-from trading.repositories.sleeves import (
-    insert_sleeve_strategy_assignment,
-    update_sleeve_trade_universes,
-)
+from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import get_account
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
@@ -38,8 +35,7 @@ def test_generate_sleeve_trade_intents_uses_active_sleeves_and_assignments(conn,
     sleeve_assigned = _insert_sleeve(conn, account_id=account_id, name="assigned")
     sleeve_default = _insert_sleeve(conn, account_id=account_id, name="default")
     _insert_sleeve(conn, account_id=account_id, name="paused", status="paused")
-    insert_sleeve_strategy_assignment(
-        conn,
+    SleeveRepository(conn).insert_assignment(
         sleeve_id=sleeve_assigned,
         strategy_name="mean_reversion",
         param_set_id=None,
@@ -94,8 +90,8 @@ def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch
 def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_state")
     sleeve_id = _insert_sleeve(conn, account_id=account_id, name="stateful", current_cash=750.0)
-    upsert_sleeve_position(
-        conn,
+    pos_repo = SleevePositionRepository(conn)
+    pos_repo.upsert(
         sleeve_id=sleeve_id,
         symbol="AAPL",
         qty=2.0,
@@ -104,8 +100,7 @@ def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
         unrealized_pnl=10.0,
         updated_at="2026-05-03T00:00:00Z",
     )
-    upsert_sleeve_position(
-        conn,
+    pos_repo.upsert(
         sleeve_id=sleeve_id,
         symbol="MSFT",
         qty=0.0,
@@ -114,8 +109,7 @@ def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
         unrealized_pnl=0.0,
         updated_at="2026-05-03T00:00:00Z",
     )
-    upsert_sleeve_position(
-        conn,
+    pos_repo.upsert(
         sleeve_id=sleeve_id,
         symbol="TSLA",
         qty=-1.0,
@@ -159,8 +153,7 @@ def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_u
     account_name = "acct_sleeve_invalid_universe"
     account_id = insert_repository_account(conn, name=account_name)
     sleeve_id = _insert_sleeve(conn, account_id=account_id, name="invalid-universe")
-    update_sleeve_trade_universes(
-        conn,
+    SleeveRepository(conn).update_trade_universes(
         sleeve_id=sleeve_id,
         trade_universes='{"name": "not-a-list"}',
         updated_at="2026-05-03T00:00:00Z",

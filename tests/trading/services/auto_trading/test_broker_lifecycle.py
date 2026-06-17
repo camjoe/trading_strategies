@@ -83,8 +83,7 @@ def test_caller_owns_broker_lifecycle_when_injecting_broker(monkeypatch) -> None
     broker = FakeBroker()
     account = make_auto_trading_account(id=77)
 
-    monkeypatch.setattr(runtime_service, "insert_broker_order", lambda *_a, **_k: None)
-    monkeypatch.setattr(runtime_service, "insert_order_fill", lambda *_a, **_k: None)
+    monkeypatch.setattr(runtime_service, "BrokerOrderRepository", lambda conn: Mock())
     record_trade_calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         runtime_service,

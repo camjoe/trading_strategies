@@ -10,11 +10,7 @@ from __future__ import annotations
 import math
 import sqlite3
 
-from trading.repositories.global_settings import (
-    upsert_evaluation_confidence_settings as upsert_evaluation_confidence_settings_row,
-    upsert_promotion_policy_settings as upsert_promotion_policy_settings_row,
-    upsert_runtime_throttle_settings as upsert_runtime_throttle_settings_row,
-)
+from trading.repositories.global_settings import GlobalSettingsRepository
 
 # Evaluation confidence weights must remain normalized so blended confidence
 # calculations continue to behave like weighted averages.
@@ -46,8 +42,7 @@ def set_runtime_throttle_settings(
     runtime_max_trades_per_minute: int | None,
     updated_at: str,
 ) -> None:
-    upsert_runtime_throttle_settings_row(
-        conn,
+    GlobalSettingsRepository(conn).upsert_throttle_settings(
         runtime_max_trades_per_day=runtime_max_trades_per_day,
         runtime_max_trades_per_minute=runtime_max_trades_per_minute,
         updated_at=updated_at,
@@ -78,8 +73,7 @@ def set_evaluation_confidence_settings(
         second_name="paper_live_evidence_weight",
         second_value=paper_live_evidence_weight,
     )
-    upsert_evaluation_confidence_settings_row(
-        conn,
+    GlobalSettingsRepository(conn).upsert_evaluation_settings(
         backtest_trade_count_for_full_confidence=backtest_trade_count_for_full_confidence,
         backtest_snapshot_count_for_full_confidence=backtest_snapshot_count_for_full_confidence,
         paper_live_snapshot_count_for_full_confidence=paper_live_snapshot_count_for_full_confidence,
@@ -103,8 +97,7 @@ def set_promotion_policy_settings(
     min_live_overall_confidence: float,
     updated_at: str,
 ) -> None:
-    upsert_promotion_policy_settings_row(
-        conn,
+    GlobalSettingsRepository(conn).upsert_promotion_settings(
         min_research_backtest_trade_count=min_research_backtest_trade_count,
         min_research_backtest_snapshot_count=min_research_backtest_snapshot_count,
         min_research_backtest_return_pct=min_research_backtest_return_pct,

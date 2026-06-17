@@ -21,8 +21,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL
-from trading.repositories.accounts import fetch_account_by_name
-from trading.repositories.portfolio_risk_snapshots import fetch_latest_portfolio_risk_snapshot
+from trading.services.risk_snapshots import fetch_latest_risk_snapshot
+from trading.services.accounts.queries import find_account
 from trading.services.accounts import load_runtime_eligible_account_names
 
 REPO_ROOT = get_repo_root(__file__)
@@ -101,12 +101,12 @@ def main() -> int:
     try:
         account_results: list[dict[str, object]] = []
         for account_name in accounts:
-            account = fetch_account_by_name(conn, account_name)
+            account = find_account(conn, account_name)
             if account is None:
                 tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
                 continue
 
-            snapshot = fetch_latest_portfolio_risk_snapshot(conn, account_id=account.id)
+            snapshot = fetch_latest_risk_snapshot(conn, account_id=account.id)
             if snapshot is None:
                 account_results.append(
                     {
@@ -120,22 +120,22 @@ def main() -> int:
                 account_results.append(
                     {
                         "account_name": account_name,
-                        "snapshot_time": snapshot["snapshot_time"],
-                        "gross_exposure": snapshot["gross_exposure"],
-                        "net_exposure": snapshot["net_exposure"],
-                        "drawdown_pct": snapshot["drawdown_pct"],
-                        "daily_loss_pct": snapshot["daily_loss_pct"],
-                        "kill_switch_triggered": bool(snapshot["kill_switch_triggered"]),
-                        "max_symbol_concentration_pct": snapshot["max_symbol_concentration_pct"],
-                        "max_sector_concentration_pct": snapshot["max_sector_concentration_pct"],
+                        "snapshot_time": snapshot.snapshot_time,
+                        "gross_exposure": snapshot.gross_exposure,
+                        "net_exposure": snapshot.net_exposure,
+                        "drawdown_pct": snapshot.drawdown_pct,
+                        "daily_loss_pct": snapshot.daily_loss_pct,
+                        "kill_switch_triggered": snapshot.kill_switch_triggered,
+                        "max_symbol_concentration_pct": snapshot.max_symbol_concentration_pct,
+                        "max_sector_concentration_pct": snapshot.max_sector_concentration_pct,
                     }
                 )
                 tee_line(
                     log_path,
                     (
                         f"[{ts()}] RISK_REBASELINE: account={account_name} "
-                        f"snapshot_time={snapshot['snapshot_time']} "
-                        f"kill_switch={bool(snapshot['kill_switch_triggered'])}"
+                        f"snapshot_time={snapshot.snapshot_time} "
+                        f"kill_switch={snapshot.kill_switch_triggered}"
                     ),
                 )
 

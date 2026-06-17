@@ -14,14 +14,12 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from trading.repositories.daily_metrics import fetch_daily_metrics_for_sleeve_window
-from trading.repositories.portfolio_risk_snapshots import fetch_latest_portfolio_risk_snapshot
-from trading.repositories.rotation_decisions import fetch_rotation_decisions_for_sleeve_date
-from trading.repositories.sleeve_risk_decisions import fetch_sleeve_risk_decisions_for_account_date
-from trading.repositories.sleeves import (
-    fetch_active_sleeve_strategy_assignment,
-    fetch_strategy_sleeves_for_account,
-)
+from trading.models.sleeve_record import SleeveRecord
+from trading.repositories.daily_metrics import DailyMetricsRepository
+from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
+from trading.repositories.rotation_decisions import RotationDecisionRepository
+from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.sleeves import SleeveRepository
 
 
 def _next_date(report_date: str) -> str:
@@ -75,38 +73,33 @@ class AccountDailyReport:
 
 def _build_sleeve_performance(
     conn: sqlite3.Connection,
-    sleeves: list,
+    sleeves: list[SleeveRecord],
     report_date: str,
 ) -> list[SleevePerformanceRow]:
+    sleeve_repo = SleeveRepository(conn)
     rows = []
     for sleeve in sleeves:
-        sleeve_id = int(sleeve["id"])
-        metrics = fetch_daily_metrics_for_sleeve_window(
-            conn,
-            sleeve_id=sleeve_id,
+        metrics = DailyMetricsRepository(conn).fetch_for_sleeve_window(
+            sleeve_id=sleeve.id,
             start_date=report_date,
             end_date=report_date,
         )
         metric = metrics[0] if metrics else None
-        assignment = fetch_active_sleeve_strategy_assignment(conn, sleeve_id=sleeve_id)
-        strategy_name = str(assignment["strategy_name"]) if assignment else None
+        assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        strategy_name = assignment.strategy_name if assignment is not None else None
         rows.append(
             SleevePerformanceRow(
-                sleeve_id=sleeve_id,
-                sleeve_name=str(sleeve["name"]),
+                sleeve_id=sleeve.id,
+                sleeve_name=sleeve.name,
                 strategy_name=strategy_name,
-                return_pct=float(metric["return_pct"]) if metric and metric["return_pct"] is not None else None,
-                drawdown_pct=float(metric["drawdown_pct"]) if metric and metric["drawdown_pct"] is not None else None,
-                hit_rate=float(metric["hit_rate"]) if metric and metric["hit_rate"] is not None else None,
-                trade_count=int(metric["trade_count"]) if metric and metric["trade_count"] is not None else None,
-                fees_total=float(metric["fees_total"]) if metric and metric["fees_total"] is not None else None,
-                risk_adjusted_score=(
-                    float(metric["risk_adjusted_score"])
-                    if metric and metric["risk_adjusted_score"] is not None
-                    else None
-                ),
-                current_equity=float(sleeve["current_equity"]),
-                start_equity=float(sleeve["start_equity"]),
+                return_pct=metric.return_pct if metric else None,
+                drawdown_pct=metric.drawdown_pct if metric else None,
+                hit_rate=metric.hit_rate if metric else None,
+                trade_count=metric.trade_count if metric else None,
+                fees_total=metric.fees_total if metric else None,
+                risk_adjusted_score=metric.risk_adjusted_score if metric else None,
+                current_equity=sleeve.current_equity,
+                start_equity=sleeve.start_equity,
             )
         )
     return rows
@@ -117,20 +110,22 @@ def _build_risk_violations(
     account_id: int,
     report_date: str,
 ) -> RiskViolationsSummary:
-    decisions = fetch_sleeve_risk_decisions_for_account_date(conn, account_id=account_id, report_date=report_date)
-    block_count = sum(1 for d in decisions if d["action"] == "block")
-    rescale_count = sum(1 for d in decisions if d["action"] == "rescale")
-    allow_count = sum(1 for d in decisions if d["action"] == "allow")
+    decisions = SleeveRiskDecisionRepository(conn).fetch_for_account_date(
+        account_id=account_id,
+        report_date=report_date,
+    )
+    block_count = sum(1 for d in decisions if d.action == "block")
+    rescale_count = sum(1 for d in decisions if d.action == "rescale")
+    allow_count = sum(1 for d in decisions if d.action == "allow")
 
     reason_counts: dict[str, int] = {}
     for d in decisions:
-        code = d["reason_code"]
-        if code:
-            reason_counts[str(code)] = reason_counts.get(str(code), 0) + 1
+        if d.reason_code:
+            reason_counts[d.reason_code] = reason_counts.get(d.reason_code, 0) + 1
     top_reason_codes = sorted(reason_counts, key=lambda k: reason_counts[k], reverse=True)[:5]
 
-    snapshot = fetch_latest_portfolio_risk_snapshot(conn, account_id=account_id)
-    kill_switch = bool(snapshot and snapshot["kill_switch_triggered"])
+    snapshot = PortfolioRiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
+    kill_switch = snapshot is not None and snapshot.kill_switch_triggered
 
     return RiskViolationsSummary(
         total_decisions=len(decisions),
@@ -144,19 +139,20 @@ def _build_risk_violations(
 
 def _build_rotation_summary(
     conn: sqlite3.Connection,
-    sleeves: list,
+    sleeves: list[SleeveRecord],
     report_date: str,
 ) -> list[RotationDecisionRow]:
     rows = []
     for sleeve in sleeves:
-        sleeve_id = int(sleeve["id"])
-        sleeve_name = str(sleeve["name"])
-        decisions = fetch_rotation_decisions_for_sleeve_date(conn, sleeve_id=sleeve_id, report_date=report_date)
+        decisions = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(
+            sleeve_id=sleeve.id,
+            report_date=report_date,
+        )
         for d in decisions:
             rows.append(
                 RotationDecisionRow(
-                    sleeve_id=sleeve_id,
-                    sleeve_name=sleeve_name,
+                    sleeve_id=sleeve.id,
+                    sleeve_name=sleeve.name,
                     incumbent_strategy=d["incumbent_strategy"],
                     challenger_strategy=d["challenger_strategy"],
                     rotation_action=str(d["rotation_action"]),
@@ -173,7 +169,7 @@ def build_account_daily_report(
     account_name: str,
     report_date: str,
 ) -> AccountDailyReport:
-    sleeves = fetch_strategy_sleeves_for_account(conn, account_id=account_id)
+    sleeves = SleeveRepository(conn).fetch_for_account(account_id=account_id)
     return AccountDailyReport(
         account_id=account_id,
         account_name=account_name,
