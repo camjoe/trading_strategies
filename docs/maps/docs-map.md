@@ -80,6 +80,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
 | `docs/reference/readme-layout-standard.md` | Standard layout for README files |
 | `docs/reference/reference-doc-standard.md` | Standard structure for reference notes |
+| `docs/reference/skill-invocation-policy.md` | Who can invoke which skill; `invoker` frontmatter schema and enforcement preamble convention |
 
 ---
 
