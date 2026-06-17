@@ -4,6 +4,19 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 
 ---
 
+## Execution progress (2026-06-17)
+
+**Moves + link sweep DONE & verified clean** (final stale-pattern grep returns nothing outside `docs-migration/`):
+- `c068cf8` 1.1 docs reorg · `81605f7` 1.2 bots · `9a848ea` 1.3 BOT_* → docs · `a435546` 1.4 drops
+- `8fd06f4` link wave 1 (basenames) · `7b3c4de` wave 2 (skills/agents/BOT_/python-stat-modeling) · `e5c0f5c` wave 3 (ADRs)
+- Layer check passes; `layer_check.py` ruff-clean.
+
+**Findings parked for later (not blockers):**
+- Header backfill now includes **`docs/architecture/architecture-conventions.md`** and **`docs/conventions/bot-style.md`** (moved from `.github/`, predate the doc-header standard) — plus `naming.md` (1b) and `db-schema.md` (D-9). `agent-skills.md` stays exempt.
+- **Pre-existing CI issue (NOT migration-caused):** `ruff` F401 unused import in `tests/trading/interfaces/runtime/data_ops/test_admin.py:8` (introduced by the develop merge). Auto-fixable with `ruff --fix`; handle separately from migration commits.
+
+**Remaining in Pass 1:** Step 1b (author 6 net-new files) + header backfills.
+
 ## Guiding approach (Strategy A)
 
 - **In-place `git mv` at repo root.** Reorganize the live `docs/` and `.github/` directly into final positions. `git mv` preserves rename history → reviewable diffs. There is **no physical staging in `agentswip/`** — that folder was the design sketch and gets deleted (its files are empty placeholders / dropped examples).
