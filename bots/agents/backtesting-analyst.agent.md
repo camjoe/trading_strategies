@@ -17,7 +17,7 @@ Your job is to improve and explain backtesting workflows while keeping evaluatio
 - `paper_trading_ui/frontend/`
 - `docs/architecture/architecture-conventions.md`
 - `docs/reference/backtesting.md`
-- `docs/reference/adr-backtesting-layering.md`
+- `docs/adr/002-backtesting-layering.md`
 
 ## Responsibilities
 

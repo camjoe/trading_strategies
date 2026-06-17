@@ -50,8 +50,8 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, IB connection setup, live-trading safety
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
-- [`reference/adr-backtesting-layering.md`](reference/adr-backtesting-layering.md) — decision rationale for backtesting module layering
-- [`reference/adr-cross-platform-paths.md`](reference/adr-cross-platform-paths.md) — pathlib cross-platform usage decision record
+- [`adr/002-backtesting-layering.md`](adr/002-backtesting-layering.md) — decision rationale for backtesting module layering
+- [`adr/001-cross-platform-paths.md`](adr/001-cross-platform-paths.md) — pathlib cross-platform usage decision record
 
 ## Conventions
 

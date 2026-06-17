@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-14
 Last Reviewed: 2026-05-07
 Purpose: Reference for backtesting commands, layering overview, and safeguards.
-Related: [ADR: Backtesting Layering](adr-backtesting-layering.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [ADR: Backtesting Layering](../adr/002-backtesting-layering.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Backtesting is implemented in:
 - `trading/backtesting/backtest.py`
@@ -26,7 +26,7 @@ Backtesting follows a layered structure:
 
 Detailed rationale is in:
 
-- `docs/reference/adr-backtesting-layering.md`
+- `docs/adr/002-backtesting-layering.md`
 
 ## Commands
 
@@ -96,4 +96,4 @@ Operational notes:
 ## Related Docs
 
 - `docs/reference/strategies.md`
-- `docs/reference/adr-backtesting-layering.md`
+- `docs/adr/002-backtesting-layering.md`

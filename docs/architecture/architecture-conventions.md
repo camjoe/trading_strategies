@@ -65,7 +65,7 @@ Disallowed:
 
 8. `trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
-   - See `docs/reference/adr-backtesting-layering.md` for layering rationale.
+   - See `docs/adr/002-backtesting-layering.md` for layering rationale.
 
 9. `trading/config/`: file-backed static config assets
    - Account profile presets and other static configuration.

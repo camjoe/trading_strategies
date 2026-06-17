@@ -92,9 +92,9 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
-| `docs/reference/adr-backtesting-layering.md` | Backtesting module layering approach | Restructuring `trading/backtesting/` out of its current bounded-context shape |
-| `docs/reference/adr-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
-| `docs/reference/adr-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
+| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `trading/backtesting/` out of its current bounded-context shape |
+| `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
+| `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
 
 ### Templates and Standards
 
