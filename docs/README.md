@@ -1,45 +1,71 @@
 # Docs Index
 
-Navigation index for docs and README files across the repository.
+Type: index
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
+Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header-standard.md)
+
+Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs-map.md) for the full file inventory with staleness tracking.
+
+## Folder Guide
+
+| Folder | Purpose |
+|---|---|
+| [`architecture/`](architecture/) | **How** the system is designed — layers, boundaries, service API |
+| [`conventions/`](conventions/) | **Rules** this project follows — coding style, doc standards, naming |
+| [`maps/`](maps/) | **Where** things live — file/directory maps, updated frequently |
+| [`reference/`](reference/) | **Why** decisions were made (ADRs) and deep-dive notes on subsystems |
+| [`runbooks/`](runbooks/) | **How to operate** — step-by-step procedures for humans or agents |
 
 ## Start Here
 
-1. `../README.md` for the repository overview.
-2. `../trading/README.md` for paper trading commands, direct runtime job scripts, and scheduler operations.
-3. Scheduler details are in `../trading/README.md` under "Scheduler Operations"; `manage_job_schedules.py` is the single job-schedule entrypoint, while the direct job scripts remain the runtime source of truth.
+- [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
+- [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 
-**Execution Note:**
-All trading scripts should be run as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
+**Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
-./.venv/bin/python -m trading.interfaces.cli.main
+.venv/Scripts/python -m trading.interfaces.cli.main   # Windows
+.venv/bin/python -m trading.interfaces.cli.main        # macOS/Linux
 ```
 
-## Docs Folder Files
+## Architecture
 
-- `reference/adr-backtesting-layering.md`: decision rationale for backtesting module layering.
-- `reference/adr-cross-platform-paths.md`: decision record for always using pathlib; lessons from a Windows/Linux CI failure.
-- `reference/adr-sleeve-virtualization-architecture.md`: architecture decision for sleeve virtualization on a single broker account and layering boundaries for autonomy implementation.
-- `reference/notes-backtesting.md`: backtesting commands, safeguards, layering overview, and operational notes.
-- `reference/notes-accounts-schema-usage.md`: living audit of `accounts` table field usage, write paths, and runtime relevance to support evidence-based schema cleanup.
-- `reference/notes-broker-integration.md`: broker abstraction layer — architecture, account configuration, IB connection setup, live trading safety guard, fill reconciliation, and extension guide.
-- `reference/notes-db-migration-system.md`: active reference guide for the hand-rolled SQLite migration system.
-- `reference/notes-sleeve-schema-contract.md`: draft sleeve table/index contract and migration approach for Increment 0.
-- `reference/readme-layout-standard.md`: standard section layouts for repo root, module/package, and utility READMEs.
-- `reference/notes-sentiment-signals.md`: current-state reference for alternative-data signal architecture (`policy_regime`, `news_sentiment`, `social_trend_rotation`) and extension boundaries.
-- `reference/notes-strategies.md`: strategy catalog, resolution behavior, data/dependency notes, and evaluation checklist.
-- `reference/notes-screenshot-ui.md`: UI screenshot utility — setup, usage, all flags, and recipes for developers and AI assistants.
+- [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
+- [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
+- [`.github/BOT_ARCHITECTURE_CONVENTIONS.md`](../.github/BOT_ARCHITECTURE_CONVENTIONS.md) — authoritative layering and import boundary rules
 
-## Architecture Reference
+## Maps (file/directory inventories)
 
-**Canonical rules and conventions:**
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`: layering, dependency direction, naming, and package ownership.
+- [`maps/trading-package-map.md`](maps/trading-package-map.md) — `trading/` module directory and layering rules
+- [`maps/ui-map.md`](maps/ui-map.md) — `paper_trading_ui/` backend and frontend structure
+- [`maps/scripts-map.md`](maps/scripts-map.md) — `scripts/` tooling inventory
+- [`maps/docs-map.md`](maps/docs-map.md) — documentation file inventory
 
-## Purpose
+## Reference Notes and ADRs
 
-This docs index helps contributors find architecture guides, references, and the current documentation quality workflow.
+Full listing: [`reference/`](reference/). Key entries:
 
-## Workflows
+- [`reference/notes-backtesting.md`](reference/notes-backtesting.md) — backtesting commands, safeguards, and layering overview
+- [`reference/notes-broker-integration.md`](reference/notes-broker-integration.md) — broker abstraction, IB connection setup, live-trading safety
+- [`reference/notes-db-migration-system.md`](reference/notes-db-migration-system.md) — hand-rolled SQLite migration system
+- [`reference/adr-backtesting-layering.md`](reference/adr-backtesting-layering.md) — decision rationale for backtesting module layering
+- [`reference/adr-cross-platform-paths.md`](reference/adr-cross-platform-paths.md) — pathlib cross-platform usage decision record
 
-1. Use this index to locate and update the source-of-truth document for changed behavior.
-2. Run `python -m scripts.run_checks --profile ci` for primary mechanical checks.
-3. Use `.github/DOCS_PRECOMMIT_POLICY.md` for docs-impact checklist and bot request templates.
+## Conventions
+
+- [`conventions/python-style-guide.md`](conventions/python-style-guide.md) — Python coding conventions for this repo
+- [`conventions/readme-layout-standard.md`](conventions/readme-layout-standard.md) — standard README section layout
+- [`conventions/reference-doc-standard.md`](conventions/reference-doc-standard.md) — standard structure for reference notes
+
+## Runbooks
+
+- [`runbooks/README.md`](runbooks/README.md) — runbook index with quick-start commands
+- [`runbooks/daily_operations.md`](runbooks/daily_operations.md) — daily paper-trading job monitoring
+- [`runbooks/burn_in_protocol.md`](runbooks/burn_in_protocol.md) — burn-in protocol for new strategies
+- [`runbooks/governance_review_guide.md`](runbooks/governance_review_guide.md) — weekly/monthly governance review
+
+## Keeping Docs Fresh
+
+Run `/update-docs` to refresh maps and the service cookbook after adding files, renaming paths, or adding service functions. When making smaller targeted changes, update the relevant map in `docs/maps/` directly.

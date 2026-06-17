@@ -1,9 +1,11 @@
 # ADR: Cross-Platform Path Handling
 
+Type: adr
 Status: Accepted
-Date: 2026-03-01
-
-Purpose: record a CI failure caused by Windows/Linux path separator differences so the lesson is available to future sessions and bots.
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Record a CI failure caused by Windows/Linux path separator differences so the rule to always use pathlib is documented.
+Related: [DB Migration System](notes-db-migration-system.md)
 
 ## What Happened
 

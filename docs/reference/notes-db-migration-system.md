@@ -1,8 +1,11 @@
 # Architecture Notes: Database Migration System
 
-Status: Active reference  
-Date: 2026-03-31  
-Audience: Developers, DB Migration Steward bot, Code Review bot
+Type: notes
+Status: Active
+Created: 2026-03-31
+Last Reviewed: 2026-04-22
+Purpose: Reference for the hand-rolled SQLite migration system — key files, conventions, and schema snapshot commands.
+Related: [Accounts Schema Usage](notes-accounts-schema-usage.md), [ADR: Cross-Platform Paths](adr-cross-platform-paths.md)
 
 ---
 

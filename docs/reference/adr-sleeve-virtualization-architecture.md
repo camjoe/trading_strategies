@@ -1,7 +1,11 @@
 # ADR: Sleeve Virtualization Architecture for IBKR Paper Autonomy
 
+Type: adr
 Status: Proposed
-Date: 2026-05-03
+Created: 2026-05-03
+Last Reviewed: 2026-06-16
+Purpose: Record the proposed design for sleeve virtualization, allowing one broker account to host multiple independent strategy sleeves.
+Related: [Sleeve Schema Contract](notes-sleeve-schema-contract.md), [Broker Integration](notes-broker-integration.md)
 
 ## Context
 

@@ -1,5 +1,12 @@
 # Daily Operations Runbook
 
+Type: runbook
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Procedures for monitoring and recovering the daily IBKR Paper Autonomy workflow including completion checklist and artifact inspection.
+Related: [Burn-In Protocol](burn_in_protocol.md), [Broker Integration](../reference/notes-broker-integration.md)
+
 Procedures for monitoring and recovering the daily IBKR Paper Autonomy workflow.
 
 ## Scheduled job

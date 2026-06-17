@@ -1,5 +1,12 @@
 # Service vs Repository Boundary
 
+Type: architecture
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Define the repeatable boundary between service and repository layers — what belongs where and why.
+Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md)
+
 This note defines the repeatable boundary for modules that have both a
 `trading/services/*` and `trading/repositories/*` layer.
 

@@ -41,7 +41,7 @@ Balanced means:
 3. Keep comments high-signal and concise — explain *why*, not *what*.
 4. Use `from __future__ import annotations` at the top of every file.
 5. Prefer `X | None` over `Optional[X]`; prefer lowercase `list[X]`, `dict[K, V]` over `typing` aliases.
-6. Follow the naming table in `docs/style/python-style-guide.md`: `snake_case` functions/variables, `CapWords` classes, `UPPER_SNAKE_CASE` module-level constants.
+6. For naming: `snake_case` functions/variables, `CapWords` classes, `UPPER_SNAKE_CASE` module-level constants — see the full naming table and model suffix rules in `.github/BOT_ARCHITECTURE_CONVENTIONS.md § Naming Conventions`.
 7. Use f-strings for string formatting.
 8. Do not use bare `except:` or `except Exception: pass`.
 

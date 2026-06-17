@@ -1,5 +1,12 @@
 # Operator Runbooks
 
+Type: index
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Index of operational runbooks for the IBKR Paper Autonomy trading system with quick-start commands.
+Related: [Daily Operations](daily_operations.md), [Burn-In Protocol](burn_in_protocol.md), [Governance Review Guide](governance_review_guide.md)
+
 ## Overview
 
 Operational procedures for the IBKR Paper Autonomy trading system. Use these runbooks to monitor

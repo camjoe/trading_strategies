@@ -1,6 +1,7 @@
 ---
 name: finance-strategy
-description: Explain financial terminology, classify strategies, interpret signals, and describe market mechanics well enough to guide implementation work.
+description: Explains financial terminology, classifies strategies, interprets signals, and describes market mechanics in enough depth to guide implementation work. Use when asked about trading strategies, financial concepts, market mechanics, signal interpretation, or domain terminology.
+invoker: any
 ---
 
 # Finance and Strategy

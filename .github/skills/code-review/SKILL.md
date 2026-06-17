@@ -1,44 +1,43 @@
 ---
 name: code-review
-description: Review a diff or larger code area for regressions, missing tests, API drift, stale code, redundancy, and architecture or safety violations.
+description: Reviews code changes for regressions, style violations, architecture boundary violations, missing tests, and contract drift. Use when asked to review a diff, branch, PR, codebase area, or when code quality, correctness, or safety should be evaluated.
+invoker: any
 ---
 
 # Code Review
 
-Use this skill for read-only review of a diff, branch, or focused area, including broad subsystem audits.
+## Choose a mode
 
-## Workflow
+| Mode | Use when | Reference |
+|---|---|---|
+| Standard | General PR or diff review | [code-review.md](code-review.md) |
+| Baseline | Quick pre-merge check, low-risk changes — hard findings only | [code-review.md](code-review.md) (Baseline mode) |
+| Aggressive | High-risk changes: runtime, broker, migrations, admin routes | [code-review-aggressive.md](code-review-aggressive.md) |
+| Architecture | Layering, coupling, module placement, dependency direction | [architecture-review.md](architecture-review.md) |
+| Cleanup | Behavior-preserving refactor, dead code, simplification | [code-cleanup.md](code-cleanup.md) |
+| Contract | Frontend/backend API contract, route/schema alignment | [ui-api-contract.md](ui-api-contract.md) |
+| PR Review | Pre-PR pass: arch + style + quality, scoped to branch diff | [pr-review-arch.md](pr-review-arch.md), [pr-review-style.md](pr-review-style.md), [pr-review-quality.md](pr-review-quality.md) |
 
-1. Survey the changed surface.
-2. Check for correctness risks, contract drift, and missing coverage.
-3. When the scope is broad, look for stale paths, redundant implementations, and simplification opportunities.
-4. Cross-check architecture and safety rules that apply in this repo.
-5. Report only supported findings with file and line evidence.
+## Default mode selection
 
-## Modes
+- No mode specified → **Standard**
+- "deep", "stale code", "safe to merge" → **Aggressive**
+- "architecture", "layers", "coupling", "where does this belong" → **Architecture**
+- "cleanup", "refactor", "simplify", "dead code" → **Cleanup**
+- "frontend and backend", "contract", "schema drift", "route" → **Contract**
+- "quick check", "pre-merge", "baseline" → **Baseline**
+- "pr review", "pre-PR", called from check-pr-readiness → **PR Review** (three sequential passes)
 
-- Standard review: focus on regressions, correctness, contract drift, and missing tests.
-- Deep review: expand to stale code, redundancy, schema relevance, canonical-path drift, and cleanup opportunities beyond the current diff.
+## Constraints (all modes)
 
-## Constraints
-
-- Do not implement fixes during the review.
+- Do not implement fixes. Report only.
 - Do not elevate style-only comments into findings.
-- Do not report guesses without evidence.
-- Keep broader cleanup recommendations evidence-based and separate from hard defects.
+- Every finding needs file and line evidence.
+- Scope review to changed files unless mode explicitly expands it.
 
 ## Repo references
 
-- `AGENTS.md`
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - `.github/BOT_STYLE_GUIDE.md`
 - `docs/style/python-style-guide.md`
-- Relevant schema and migration files when database concerns are in scope
-- Repo validation commands from `scripts/run_checks.py` and `scripts/checks/`
-
-## Expected output
-
-1. Findings by severity
-2. Cleanup or simplification opportunities when relevant
-3. Validation summary
-4. Short overall risk summary
+- `scripts/run_checks.py`, `scripts/checks/`

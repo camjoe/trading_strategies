@@ -22,7 +22,6 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 - Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
-- Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
 - Skill authoring and localization guidance: `.github/skills/README.md`
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
@@ -37,18 +36,23 @@ This repository uses two task surfaces:
 
 Use a skill by default when the task is generic enough to be reusable.
 
+**Skills layout:** Canonical definitions live in folder-based files (`.github/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
+
 Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `architecture-review/` | Layering, dependency direction, and structure review |
-| `code-cleanup/` | Backend, frontend, or mixed cleanup and refactor work |
-| `code-review/` | Diff-based review plus deep audit mode for stale code and redundancy |
-| `docs-sync/` | Documentation drift detection and targeted sync |
+| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
+| `create-skill/` | Authoring new skills following the skills guide |
+| `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
+| `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
-| `test-expansion/` | Coverage growth and regression-test expansion |
-| `ui-api-contract/` | Frontend/backend contract stewardship |
+| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
+| `update-documentation/` | Docs drift sync and passive staleness check |
+| `update-skill/` | Improving or refactoring existing skills |
+| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
 ### 2. Repo-specific agents
 
@@ -76,17 +80,24 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 
 | Task shape | Preferred surface |
 |---|---|
-| Architecture, layering, dependency direction | `architecture-review/` |
-| Pre-commit or pre-merge audit | `code-review/` |
-| Whole-area simplification or stale-code audit | `code-review/` in deep mode |
-| README, reference, or API drift | `docs-sync/` |
-| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-cleanup/` |
-| Generic Python cleanup or refactor | `code-cleanup/` |
-| Mixed backend and frontend cleanup | `code-cleanup/` |
-| Generic test additions or edge-case coverage | `test-expansion/` |
+| Architecture, layering, dependency direction | `code-review/` (Architecture mode) |
+| Pre-commit or pre-merge audit | `code-review/` (Standard mode) |
+| Lightweight quick diff check | `code-review/` (Baseline mode) |
+| High-risk or safety-critical review (broker, DB, admin) | `code-review/` (Aggressive mode) |
+| Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
+| Create or update a reference doc or ADR | `reference-doc/` |
+| README, reference, or API drift | `update-documentation/` |
+| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-review/` (Cleanup mode) |
+| Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
+| Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
+| Generic test additions or edge-case coverage | `expand-tests/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Modeling, alpha research, feature engineering | `python-stat-modeling/` |
-| Cross-stack route/schema/UI contract work | `ui-api-contract/` |
+| Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
+| Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Run deterministic checks (lint, tests, layer) | `validate-code/` |
+| Create a new skill | `create-skill/` |
+| Update or improve a skill | `update-skill/` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
 | Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |
@@ -116,7 +127,7 @@ These phrases are repo conventions for common tasks.
 - `code review`: review staged and unstaged changes against `HEAD`
 - `code review: <branch>`: review the diff between the current branch and the given base branch
 - `code review: <file-or-folder>`: review a specific area
-- Follow `.github/skills/code-review/SKILL.md`.
+- Follow `.github/skills/code-review/SKILL.md` (Standard mode).
 
 ### `deep code review`
 
@@ -124,12 +135,12 @@ These phrases are repo conventions for common tasks.
 - `deep code review: trading`: review `trading/`
 - `deep code review: paper_trading_ui`: review `paper_trading_ui/`
 - `deep code review: <file-or-folder>`: review a specific area with the same deep audit workflow
-- Follow `.github/skills/code-review/SKILL.md` in deep-review mode.
+- Follow `.github/skills/code-review/SKILL.md` (Aggressive mode).
 
 ### `sync docs` or `docs sync`
 
 - Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.github/skills/docs-sync/SKILL.md`.
+- Follow `.github/skills/update-documentation/SKILL.md`.
 - After edits, run `python -m scripts.checks.readme_check`.
 
 ### `run suite`
@@ -195,6 +206,90 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 - Run `python -m scripts.checks.readme_check --repo-root . --max-age-days 90`.
 - Report which README files need updates.
 
-## Notes
+### `pr ready`
 
-- Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.
+Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+
+- `pr ready` — full 6-step workflow vs `develop` (default base)
+- `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
+
+Follow `.github/skills/check-pr-readiness/SKILL.md`.
+
+**Step sequence (fail-fast):**
+
+| Step | Type | What runs |
+|---|---|---|
+| 1 | Deterministic | Layer boundary check + ruff lint + mypy + branch-targeted tests |
+| 2 | AI | Architecture review — layer violations, dependency direction |
+| 3 | AI | Style review — naming, docs, consistency beyond ruff |
+| 4 | AI | Quality review — SRP, modularity, unnecessary patterns |
+| 5 | AI | Docs check — README staleness (advisory, never blocks) |
+| Report | AI | Saved to `local/pr_readiness_report.md` + printed |
+
+**Individual step shortcuts** — run any step on its own:
+
+| Shortcut | What it does |
+|---|---|
+| `pr tests` | Branch-targeted tests only (`--base develop`) |
+| `pr tests: <base>` | Branch-targeted tests vs a custom base |
+| `pr lint` | Layer check + ruff + mypy only |
+| `pr code review` | AI style + quality review for branch diff vs develop |
+| `pr code review: <base>` | AI style + quality review vs a custom base |
+| `pr arch review` | AI architecture review for branch diff vs develop |
+| `pr arch review: <base>` | AI architecture review vs a custom base |
+
+**Deterministic-only command** (no AI, no tokens):
+
+```
+python -m scripts.checks.pr_ready
+python -m scripts.checks.pr_ready --base main
+python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
+python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
+```
+
+---
+
+## Agent shortcuts
+
+These phrases launch a **repo-specific agent** in a separate context window. Use them when you want to delegate a full task rather than ask in the current conversation. Each agent has exact repo paths, safety constraints, and permitted commands baked in.
+
+### `migrate:` — DB Migration Steward
+
+Validates schema changes and migration safety. Use for any `ColumnMigration` addition, column guard check, nullability change, or destructive data-op review.
+
+- `migrate: add column <name> to <table>` — validate a proposed migration
+- `migrate: review` — audit recent or uncommitted migration changes
+- `migrate: backup check` — verify backup hygiene before a destructive op
+
+Agent: `.github/agents/db-migration-steward.agent.md`
+Skills: `.github/skills/db-migration/` (create, validate, estimate-risk, generate-rollback)
+
+### `broker:` — Broker Live Safety Steward
+
+Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `trading/brokers/`, `broker_type` routing, or any live-trading config flow.
+
+- `broker: <description>` — implement or review broker adapter work
+- `broker review` — review broker-facing changes in the current diff
+- `broker: add <adapter>` — implement a new broker adapter safely
+
+Agent: `.github/agents/broker-live-safety.agent.md`
+
+### `runtime:` — Trading Runtime Investigator
+
+Works on paper-trading runtime jobs, scheduler flows, account lifecycle, and operational debugging. Use when touching `trading/interfaces/runtime/` or runtime CLI commands.
+
+- `runtime: <description>` — implement or debug a runtime job or scheduler flow
+- `runtime review` — review runtime-facing changes in the current diff
+- `runtime: debug <job or symptom>` — investigate a runtime failure or unexpected behavior
+
+Agent: `.github/agents/trading-runtime.agent.md`
+
+### `backtest:` — Backtesting Analyst
+
+Implements and interprets backtesting, walk-forward analysis, persisted run reporting, and leaderboard comparisons. Use when touching `trading/backtesting/` or backtest-related UI surfaces.
+
+- `backtest: <description>` — implement or extend a backtesting workflow
+- `backtest review` — review backtesting changes in the current diff
+- `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
+
+Agent: `.github/agents/backtesting-analyst.agent.md`

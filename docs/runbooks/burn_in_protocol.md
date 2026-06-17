@@ -1,5 +1,12 @@
 # Burn-In Protocol
 
+Type: runbook
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Define the shadow period, stability thresholds, and go-live checklist for signing off new strategies for autonomous trading.
+Related: [Daily Operations](daily_operations.md), [Governance Review Guide](governance_review_guide.md), [Broker Integration](../reference/notes-broker-integration.md)
+
 Defines the shadow period, stability thresholds, and go-live checklist for the IBKR Paper Autonomy system.
 
 ## Purpose

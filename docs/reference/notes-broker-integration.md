@@ -1,7 +1,11 @@
 # Broker Integration Reference
 
-Status: Active reference
-Last reviewed: 2026-04-25
+Type: notes
+Status: Active
+Created: 2026-04-03
+Last Reviewed: 2026-04-25
+Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
+Related: [Daily Operations Runbook](../runbooks/daily_operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
 ## Purpose
 

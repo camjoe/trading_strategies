@@ -1,7 +1,11 @@
 # ADR: Backtesting Layering and Dependency Boundaries
 
+Type: adr
 Status: Accepted
-Date: 2026-03-27
+Created: 2026-03-27
+Last Reviewed: 2026-06-16
+Purpose: Record the decision to adopt a layered structure for backtesting to improve testability and keep changes low-risk.
+Related: [Backtesting Notes](notes-backtesting.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Context
 
