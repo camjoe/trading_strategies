@@ -43,6 +43,15 @@ Stop. Report the exact failing command and output — do not paraphrase. Do not 
 - Always use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (POSIX) — never system Python.
 - Do not auto-fix lint errors unless explicitly asked. Run and report first.
 
+## Not covered here (verify manually)
+
+This suite is deterministic and does not check everything. These are **advisory** — confirm them by review, not by this suite:
+
+- Doc-header metadata present and accurate (`docs/conventions/doc-header.md`)
+- Naming conventions beyond what ruff covers (`docs/conventions/naming.md`)
+- Reference notes and maps reflect current behavior
+- An ADR exists for any architectural decision
+
 ## Repo references
 
 - `scripts/checks/pr_ready.py`

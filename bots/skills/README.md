@@ -10,7 +10,7 @@ Define how this repository uses reusable skills vs repo-specific agents, and pro
 
 1. Choose the closest matching skill folder and follow its `SKILL.md`.
 2. Use a repo-specific agent only when the work depends on repo-only execution behavior.
-3. To add or improve a skill, follow the authoring guide at `docs/Agent Skills.md`.
+3. To add or improve a skill, follow the authoring guide at `docs/reference/agent-skills.md`.
 
 ## Active layout
 
