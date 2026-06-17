@@ -208,7 +208,7 @@ from trading.services.accounts.core import get_account
 
 If a calculation would be useful to a CLI command or a runtime job, it belongs
 in `trading/services/` — not in the UI backend.  See
-`.github/BOT_ARCHITECTURE_CONVENTIONS.md` for the full rule.
+`docs/architecture/architecture-conventions.md` for the full rule.
 
 ---
 
@@ -216,4 +216,4 @@ in `trading/services/` — not in the UI backend.  See
 
 - [trading-package-map.md](../maps/trading-package-map.md) — structural overview and placement rules
 - [service-repository-boundary.md](service-repository-boundary.md) — how to split service vs repository responsibilities
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — canonical architecture rules for all bots
+- `docs/architecture/architecture-conventions.md` — canonical architecture rules for all bots

@@ -34,7 +34,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 - [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
 - [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
-- [`.github/BOT_ARCHITECTURE_CONVENTIONS.md`](../.github/BOT_ARCHITECTURE_CONVENTIONS.md) — authoritative layering and import boundary rules
+- [`docs/architecture/architecture-conventions.md`](../docs/architecture/architecture-conventions.md) — authoritative layering and import boundary rules
 
 ## Maps (file/directory inventories)
 

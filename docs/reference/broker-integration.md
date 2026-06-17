@@ -205,4 +205,4 @@ When adding a new broker:
 - `trading/README.md`
 - `scripts/README.md`
 - `docs/reference/accounts-schema-usage.md`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`

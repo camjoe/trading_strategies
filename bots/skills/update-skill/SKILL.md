@@ -48,4 +48,4 @@ invoker: any
 ## Repo references
 
 - `docs/Agent Skills.md` — authoritative authoring guide
-- `.github/skills/` — existing skills for structure reference
+- `bots/skills/` — existing skills for structure reference

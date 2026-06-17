@@ -16,7 +16,7 @@ When creating a new doc, pick the folder whose purpose matches — don't put con
 
 ## Keeping Docs Fresh
 
-When you add files, rename paths, or add service functions, update the relevant map in `docs/maps/`. For larger sync passes (after a batch of changes), use the `update-documentation` skill located at `.github/skills/update-documentation/`:
+When you add files, rename paths, or add service functions, update the relevant map in `docs/maps/`. For larger sync passes (after a batch of changes), use the `update-documentation` skill located at `bots/skills/update-documentation/`:
 
 - **Docs sync** — actively updates stale docs after code changes; see `docs-sync.md`
 - **Docs check** — passive staleness audit; see `docs-check.md`
@@ -28,4 +28,4 @@ The `docs/maps/docs-map.md` "Goes stale when" column is your guide for which doc
 - `docs/maps/docs-map.md` — full documentation inventory and staleness guide
 - `docs/architecture/nav-guide.md` — task-oriented "I want to X → edit Y" lookup
 - `docs/architecture/service-cookbook.md` — which function to call for common tasks
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — authoritative layering and import boundary rules (agents load this)
+- `docs/architecture/architecture-conventions.md` — authoritative layering and import boundary rules (agents load this)

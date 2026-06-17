@@ -27,7 +27,7 @@ Layer check always runs first in `pr_ready`.
 - `trading/services/` does not import from `trading/interfaces/`.
 - `trading/repositories/` does not import from `trading/services/` or `trading/interfaces/`.
 
-Rules are defined in `.github/BOT_ARCHITECTURE_CONVENTIONS.md`.
+Rules are defined in `docs/architecture/architecture-conventions.md`.
 
 ## On failure
 
@@ -36,4 +36,4 @@ Non-zero exit. Output names the violating file and the illegal import. Fix the i
 ## Repo references
 
 - `scripts/checks/layer_check.py`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`

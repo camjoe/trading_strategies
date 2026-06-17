@@ -46,4 +46,4 @@ Handles the full lifecycle of a schema change: design → validate → risk chec
 - `trading/database/db_schema.py`
 - `trading/database/db_migrations.py`
 - `trading/database/db_init.py`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`

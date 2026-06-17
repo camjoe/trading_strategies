@@ -4,7 +4,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Core rules
 
-- Before editing any file under `trading/`, read `.github/BOT_ARCHITECTURE_CONVENTIONS.md` in full.
+- Before editing any file under `trading/`, read `docs/architecture/architecture-conventions.md` in full.
 - Respect the layering and ownership rules there. Do not invert dependency direction such as `interfaces -> services -> repositories/domain -> database`.
 - If a requested change would violate those conventions, stop and flag it before proceeding.
 
@@ -20,9 +20,9 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Working references
 
-- Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
-- Skill authoring and localization guidance: `.github/skills/README.md`
+- Architecture boundaries: `docs/architecture/architecture-conventions.md`
+- Style and formatting expectations: `docs/conventions/bot-style.md`
+- Skill authoring and localization guidance: `bots/skills/README.md`
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
@@ -36,7 +36,7 @@ This repository uses two task surfaces:
 
 Use a skill by default when the task is generic enough to be reusable.
 
-**Skills layout:** Canonical definitions live in folder-based files (`.github/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
+**Skills layout:** Canonical definitions live in folder-based files (`bots/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
 
 Current skill inventory:
 
@@ -48,7 +48,6 @@ Current skill inventory:
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
-| `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync and passive staleness check |
 | `update-skill/` | Improving or refactoring existing skills |
@@ -92,7 +91,6 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
 | Generic test additions or edge-case coverage | `expand-tests/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
-| Modeling, alpha research, feature engineering | `python-stat-modeling/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
 | Run deterministic checks (lint, tests, layer) | `validate-code/` |
@@ -127,7 +125,7 @@ These phrases are repo conventions for common tasks.
 - `code review`: review staged and unstaged changes against `HEAD`
 - `code review: <branch>`: review the diff between the current branch and the given base branch
 - `code review: <file-or-folder>`: review a specific area
-- Follow `.github/skills/code-review/SKILL.md` (Standard mode).
+- Follow `bots/skills/code-review/SKILL.md` (Standard mode).
 
 ### `deep code review`
 
@@ -135,12 +133,12 @@ These phrases are repo conventions for common tasks.
 - `deep code review: trading`: review `trading/`
 - `deep code review: paper_trading_ui`: review `paper_trading_ui/`
 - `deep code review: <file-or-folder>`: review a specific area with the same deep audit workflow
-- Follow `.github/skills/code-review/SKILL.md` (Aggressive mode).
+- Follow `bots/skills/code-review/SKILL.md` (Aggressive mode).
 
 ### `sync docs` or `docs sync`
 
 - Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.github/skills/update-documentation/SKILL.md`.
+- Follow `bots/skills/update-documentation/SKILL.md`.
 - After edits, run `python -m scripts.checks.readme_check`.
 
 ### `run suite`
@@ -213,7 +211,7 @@ Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, test
 - `pr ready` — full 6-step workflow vs `develop` (default base)
 - `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
 
-Follow `.github/skills/check-pr-readiness/SKILL.md`.
+Follow `bots/skills/check-pr-readiness/SKILL.md`.
 
 **Step sequence (fail-fast):**
 
@@ -261,8 +259,8 @@ Validates schema changes and migration safety. Use for any `ColumnMigration` add
 - `migrate: review` — audit recent or uncommitted migration changes
 - `migrate: backup check` — verify backup hygiene before a destructive op
 
-Agent: `.github/agents/db-migration-steward.agent.md`
-Skills: `.github/skills/db-migration/` (create, validate, estimate-risk, generate-rollback)
+Agent: `bots/agents/db-migration-steward.agent.md`
+Skills: `bots/skills/db-migration/` (create, validate, estimate-risk, generate-rollback)
 
 ### `broker:` — Broker Live Safety Steward
 
@@ -272,7 +270,7 @@ Works on broker adapters, factory routing, and live-trading safety guards. Use w
 - `broker review` — review broker-facing changes in the current diff
 - `broker: add <adapter>` — implement a new broker adapter safely
 
-Agent: `.github/agents/broker-live-safety.agent.md`
+Agent: `bots/agents/broker-live-safety.agent.md`
 
 ### `runtime:` — Trading Runtime Investigator
 
@@ -282,7 +280,7 @@ Works on paper-trading runtime jobs, scheduler flows, account lifecycle, and ope
 - `runtime review` — review runtime-facing changes in the current diff
 - `runtime: debug <job or symptom>` — investigate a runtime failure or unexpected behavior
 
-Agent: `.github/agents/trading-runtime.agent.md`
+Agent: `bots/agents/trading-runtime.agent.md`
 
 ### `backtest:` — Backtesting Analyst
 
@@ -292,4 +290,4 @@ Implements and interprets backtesting, walk-forward analysis, persisted run repo
 - `backtest review` — review backtesting changes in the current diff
 - `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
 
-Agent: `.github/agents/backtesting-analyst.agent.md`
+Agent: `bots/agents/backtesting-analyst.agent.md`

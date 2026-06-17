@@ -5,7 +5,7 @@ Purpose: preserve consistent dependency direction, module ownership, and naming 
 Scope:
 
 1. This file defines architecture and API contract rules.
-2. Formatting/style choices are out of scope here and live in `.github/BOT_STYLE_GUIDE.md`.
+2. Formatting/style choices are out of scope here and live in `docs/conventions/bot-style.md`.
 
 ## Canonical Layering
 

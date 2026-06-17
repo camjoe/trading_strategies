@@ -129,6 +129,6 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 ## Repo references
 
 - `scripts/checks/pr_ready.py`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- `.github/BOT_STYLE_GUIDE.md`
+- `docs/architecture/architecture-conventions.md`
+- `docs/conventions/bot-style.md`
 - `AGENTS.md`

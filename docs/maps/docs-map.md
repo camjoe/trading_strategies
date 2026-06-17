@@ -139,21 +139,21 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `.github/BOT_ARCHITECTURE_CONVENTIONS.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
-| `.github/BOT_STYLE_GUIDE.md` | Code style rules for Claude contributions | Style conventions change |
+| `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
+| `docs/conventions/bot-style.md` | Code style rules for Claude contributions | Style conventions change |
 
 ### Agents
 
 | File | Agent scope | Goes stale when |
 |---|---|---|
-| `.github/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
-| `.github/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
-| `.github/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
-| `.github/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
+| `bots/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
+| `bots/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
+| `bots/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
+| `bots/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
 
 ### Skills
 
-Skills live under `.github/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
+Skills live under `bots/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
 
 | Skill folder | What it covers |
 |---|---|
@@ -163,7 +163,6 @@ Skills live under `.github/skills/`. Each skill has a `SKILL.md` entry point plu
 | `create-skill/` | Skill authoring workflow |
 | `expand-tests/` | Test expansion workflow |
 | `finance-strategy/` | Finance and strategy domain knowledge |
-| `python-stat-modeling/` | Statistical modeling guidance |
 | `update-documentation/` | Documentation update workflow; sub-docs cover docs-check and docs-sync |
 | `update-skill/` | Skill update workflow |
 | `validate-code/` | Code validation (lint, type-check, tests, layer-check) |
@@ -179,6 +178,6 @@ Use this when auditing documentation health:
 - [ ] ADRs whose decisions have been reversed are marked superseded.
 - [ ] Reference notes describe current behavior (not past implementations).
 - [ ] Runbooks reflect current job script names and paths.
-- [ ] `.github/BOT_ARCHITECTURE_CONVENTIONS.md` agrees with the architecture maps on import boundaries.
+- [ ] `docs/architecture/architecture-conventions.md` agrees with the architecture maps on import boundaries.
 - [ ] `docs/README.md` links are not broken (no missing or renamed files).
 - [ ] No two files in the same section cover the same scope without cross-referencing each other.

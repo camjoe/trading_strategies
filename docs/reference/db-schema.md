@@ -1,6 +1,6 @@
 # Database Schema Reference
 
-**Source of truth:** `trading/database/db.py`  
+**Source of truth:** `trading/database/db_schema.py`  
 **Database file:** `local/paper_trading.db` (SQLite)
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  
@@ -247,7 +247,7 @@ CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id    ON order_fills(bro
 
 ## Migration system
 
-New columns are added via `ColumnMigration` dataclasses defined in `db.py`. Rules:
+New columns are added via `ColumnMigration` dataclasses defined in `db_migrations.py`. Rules:
 
 - **Append-only** — never drop or rename a column
 - `NOT NULL` additions must supply a `DEFAULT` value

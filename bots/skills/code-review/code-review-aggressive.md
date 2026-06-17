@@ -47,7 +47,7 @@ Automatically switch to deep mode when any of these are touched:
 ## Repo references
 
 - `AGENTS.md`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`
 - `trading/database/*` for schema and migration safety
 - Repo validation commands from `scripts/run_checks.py` and `scripts/checks/`
 

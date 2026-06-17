@@ -25,13 +25,13 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 - Do not change business or user-visible behavior unless requested.
 - Do not add abstraction for its own sake.
 - Do not loosen types to make refactors easier.
-- Read `.github/BOT_ARCHITECTURE_CONVENTIONS.md` before editing `trading/`.
+- Read `docs/architecture/architecture-conventions.md` before editing `trading/`.
 
 ## Repo references
 
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- `.github/BOT_STYLE_GUIDE.md`
-- `docs/style/python-style.md`
+- `docs/architecture/architecture-conventions.md`
+- `docs/conventions/bot-style.md`
+- `docs/conventions/python-style.md`
 - `trading/`
 - `paper_trading_ui/backend/`
 - `paper_trading_ui/frontend/`

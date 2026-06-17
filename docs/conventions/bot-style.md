@@ -5,11 +5,11 @@ Purpose: keep code and documentation output consistent without forcing style-onl
 Scope:
 
 1. This file defines style/formatting behavior only.
-2. Dependency direction, layering, naming ownership, abstraction/API contracts, and cross-platform rules live in `.github/BOT_ARCHITECTURE_CONVENTIONS.md`.
+2. Dependency direction, layering, naming ownership, abstraction/API contracts, and cross-platform rules live in `docs/architecture/architecture-conventions.md`.
 
 ## Full Python style reference
 
-See [`docs/style/python-style.md`](../docs/style/python-style.md) for the complete, curated
+See [`docs/conventions/python-style.md`](../docs/conventions/python-style.md) for the complete, curated
 PEP 8 interpretation for this project. That document is the authoritative reference for both developers
 and bots. Key project choices at a glance:
 
@@ -41,7 +41,7 @@ Balanced means:
 3. Keep comments high-signal and concise — explain *why*, not *what*.
 4. Use `from __future__ import annotations` at the top of every file.
 5. Prefer `X | None` over `Optional[X]`; prefer lowercase `list[X]`, `dict[K, V]` over `typing` aliases.
-6. For naming: `snake_case` functions/variables, `CapWords` classes, `UPPER_SNAKE_CASE` module-level constants — see the full naming table and model suffix rules in `.github/BOT_ARCHITECTURE_CONVENTIONS.md § Naming Conventions`.
+6. For naming: `snake_case` functions/variables, `CapWords` classes, `UPPER_SNAKE_CASE` module-level constants — see the full naming table and model suffix rules in `docs/architecture/architecture-conventions.md § Naming Conventions`.
 7. Use f-strings for string formatting.
 8. Do not use bare `except:` or `except Exception: pass`.
 
@@ -63,4 +63,4 @@ Balanced means:
 1. Use the balanced style approach unless the user explicitly asks otherwise.
 2. Explain non-trivial style decisions in the final summary.
 3. Do not do style-only rewrites unless explicitly requested.
-4. When generating new Python code, apply the rules in `docs/style/python-style.md` by default.
+4. When generating new Python code, apply the rules in `docs/conventions/python-style.md` by default.

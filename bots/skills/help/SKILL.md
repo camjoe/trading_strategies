@@ -59,29 +59,28 @@ Shortcuts for frequent tasks:
 
 ## Formatting rules
 
-- Pull agent names and descriptions from the `name` and `description` frontmatter fields in `.github/agents/*.agent.md`.
-- Pull skill names, descriptions, and invoker values from the `name`, `description`, and `invoker` frontmatter fields in `.github/skills/*/SKILL.md`.
+- Pull agent names and descriptions from the `name` and `description` frontmatter fields in `bots/agents/*.agent.md`.
+- Pull skill names, descriptions, and invoker values from the `name`, `description`, and `invoker` frontmatter fields in `bots/skills/*/SKILL.md`.
 - For the "Invoke with" column: use the agent's `argument-hint` to derive a short example; for skills, use `/<name>` as the primary trigger.
 - For "Who can invoke": render `any` as "Anyone", `human` as "Human only", `agent:<name>` as "**<Agent Display Name>** agent only".
 - Keep descriptions to one line. Do not copy full frontmatter descriptions verbatim — trim to the core WHAT.
 
 ## Repo references
 
-- `.github/agents/backtesting-analyst.agent.md`
-- `.github/agents/broker-live-safety.agent.md`
-- `.github/agents/db-migration-steward.agent.md`
-- `.github/agents/trading-runtime.agent.md`
-- `.github/skills/check-pr-readiness/SKILL.md`
-- `.github/skills/code-review/SKILL.md`
-- `.github/skills/create-memory/SKILL.md`
-- `.github/skills/create-skill/SKILL.md`
-- `.github/skills/db-migration/SKILL.md`
-- `.github/skills/expand-tests/SKILL.md`
-- `.github/skills/finance-strategy/SKILL.md`
-- `.github/skills/help/SKILL.md`
-- `.github/skills/python-stat-modeling/SKILL.md`
-- `.github/skills/reference-doc/SKILL.md`
-- `.github/skills/update-documentation/SKILL.md`
-- `.github/skills/update-skill/SKILL.md`
-- `.github/skills/validate-code/SKILL.md`
+- `bots/agents/backtesting-analyst.agent.md`
+- `bots/agents/broker-live-safety.agent.md`
+- `bots/agents/db-migration-steward.agent.md`
+- `bots/agents/trading-runtime.agent.md`
+- `bots/skills/check-pr-readiness/SKILL.md`
+- `bots/skills/code-review/SKILL.md`
+- `bots/skills/create-memory/SKILL.md`
+- `bots/skills/create-skill/SKILL.md`
+- `bots/skills/db-migration/SKILL.md`
+- `bots/skills/expand-tests/SKILL.md`
+- `bots/skills/finance-strategy/SKILL.md`
+- `bots/skills/help/SKILL.md`
+- `bots/skills/reference-doc/SKILL.md`
+- `bots/skills/update-documentation/SKILL.md`
+- `bots/skills/update-skill/SKILL.md`
+- `bots/skills/validate-code/SKILL.md`
 - `docs/reference/skill-invocation-policy.md`

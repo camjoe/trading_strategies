@@ -15,7 +15,7 @@ Your job is to improve and explain backtesting workflows while keeping evaluatio
 - `trading/interfaces/cli/`
 - `paper_trading_ui/backend/`
 - `paper_trading_ui/frontend/`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`
 - `docs/reference/backtesting.md`
 - `docs/reference/adr-backtesting-layering.md`
 

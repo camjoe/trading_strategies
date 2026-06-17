@@ -13,21 +13,21 @@ Your job is to own the full lifecycle of schema changes in `trading/database/`: 
 
 - `trading/database/`
 - `trading/interfaces/runtime/data_ops/`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`
 - `trading/database/db_schema.py`
 - `trading/database/db_migrations.py`
 - `trading/database/db_init.py`
 
 ## Sub-task skills
 
-For each task type, load and follow the corresponding reference file in `.github/skills/db-migration/`:
+For each task type, load and follow the corresponding reference file in `bots/skills/db-migration/`:
 
 | Task | Reference |
 |---|---|
-| Creating a migration | `.github/skills/db-migration/create-migration.md` |
-| Validating safety and correctness | `.github/skills/db-migration/validate-migration.md` |
-| Estimating risk and blast radius | `.github/skills/db-migration/estimate-risk.md` |
-| Generating a rollback strategy | `.github/skills/db-migration/generate-rollback.md` |
+| Creating a migration | `bots/skills/db-migration/create-migration.md` |
+| Validating safety and correctness | `bots/skills/db-migration/validate-migration.md` |
+| Estimating risk and blast radius | `bots/skills/db-migration/estimate-risk.md` |
+| Generating a rollback strategy | `bots/skills/db-migration/generate-rollback.md` |
 
 For a complete schema change, run all four sub-tasks in order unless the user asks for a specific one.
 

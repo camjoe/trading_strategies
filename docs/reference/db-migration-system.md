@@ -221,4 +221,4 @@ Inject a custom backend via `set_backend(SQLiteBackend(db_path=Path(":memory:"))
 - Operator data-ops (backup, export, delete) → `trading/interfaces/runtime/data_ops/`.
 - Do not call `init_schema()` from domain modules.
 - SQL stays in repositories, not in services or interfaces.
-- See `.github/BOT_ARCHITECTURE_CONVENTIONS.md` for the full dependency-direction rules.
+- See `docs/architecture/architecture-conventions.md` for the full dependency-direction rules.

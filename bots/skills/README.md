@@ -15,7 +15,7 @@ Define how this repository uses reusable skills vs repo-specific agents, and pro
 ## Active layout
 
 ```
-.github/skills/
+bots/skills/
 ├── <skill-name>/
 │   ├── SKILL.md            ← canonical skill (loaded when skill triggers)
 │   └── <reference>.md      ← reference files (loaded on demand by SKILL.md)
@@ -33,7 +33,6 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
-| `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync and passive staleness check |
 | `update-skill/` | Improving or refactoring existing skills |
@@ -83,7 +82,7 @@ These agents still exist because they encode repo-specific execution behavior th
 | `db-migration-steward.agent.md` | SQLite migration and backup rules |
 | `trading-runtime.agent.md` | Runtime job and operator flows |
 
-Repo-specific agents live in `.github/agents/`.
+Repo-specific agents live in `bots/agents/`.
 
 ## Authoring rules
 

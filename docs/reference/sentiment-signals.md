@@ -91,4 +91,4 @@ Still out of scope for the current implementation:
 - `docs/reference/strategies.md`
 - `docs/reference/backtesting.md`
 - `trading/README.md`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`

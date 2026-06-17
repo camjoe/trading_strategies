@@ -22,7 +22,7 @@ Use this skill when the task is primarily about structure rather than implementa
 
 ## Repo references
 
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
+- `docs/architecture/architecture-conventions.md`
 - `AGENTS.md`
 
 ## Expected output

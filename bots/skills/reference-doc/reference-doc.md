@@ -15,7 +15,7 @@ Use this skill to create a new reference document (`notes-*.md`) or Architecture
 4. **Draft sections** — follow the recommended section layout for the doc type.
 5. **Apply content** — write the document with concrete, actionable content.
 6. **Link the new doc** — add an entry to `docs/README.md` under "Reference Notes and ADRs".
-7. **Cross-link** — if the doc is an ADR, add a reference from the affected architecture doc (e.g., `BOT_ARCHITECTURE_CONVENTIONS.md`).
+7. **Cross-link** — if the doc is an ADR, add a reference from the affected architecture doc (e.g., `docs/architecture/architecture-conventions.md`).
 
 ## Header formats
 

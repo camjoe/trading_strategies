@@ -31,9 +31,9 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 ## Repo references
 
 - `AGENTS.md`
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- `.github/BOT_STYLE_GUIDE.md`
-- `docs/style/python-style.md`
+- `docs/architecture/architecture-conventions.md`
+- `docs/conventions/bot-style.md`
+- `docs/conventions/python-style.md`
 - Relevant schema and migration files when database concerns are in scope
 - Repo validation commands from `scripts/run_checks.py` and `scripts/checks/`
 
