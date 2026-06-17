@@ -4,6 +4,23 @@ Directory of all documentation files across the repository. Use this to audit fo
 
 ---
 
+## Top-Level Repository Directories
+
+| Directory | Description |
+|---|---|
+| `trading/` | Core trading engine — layered Python package (interfaces → services → repositories → domain → database → models) |
+| `paper_trading_ui/` | Operator UI — FastAPI backend + TypeScript/Vite frontend |
+| `brokers/` | Broker adapters (paper + live); injected at the interface layer |
+| `features/` | External-data feature providers for alternative strategies |
+| `tests/` | Test suite; mirrors the source tree path-for-path |
+| `scripts/` | Dev and ops tooling — checks, data ops, documentation sync, UI launcher |
+| `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
+| `common/` | Shared utilities available to all packages (used sparingly) |
+| `trends/` | Trend/signal data assets |
+| `.github/` | Bot instructions, architecture conventions, style guide, and skill definitions |
+
+---
+
 ## How to Use This Map
 
 - **Staleness check** — when code changes, use the "Goes stale when" column to identify which docs to review.
@@ -37,7 +54,7 @@ Structural reference — one file per major package. Go stale when module files 
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/project-map.md` | Top-level directory overview with per-app map links | A new top-level directory is added or renamed |
+| `docs/maps/docs-map.md` (this file, top section) | Top-level directory overview | A new top-level directory is added or renamed |
 | `docs/maps/trading-package-map.md` | Full `trading/` module directory; layering rules and placement decisions | Any `trading/` module added, removed, or its layer boundary changes |
 | `docs/maps/ui-map.md` | `paper_trading_ui/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
 | `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
@@ -78,8 +95,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 |---|---|
 | `docs/reference/TEMPLATE.adr.md` | Template for new ADR files |
 | `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
-| `docs/reference/readme-layout-standard.md` | Standard layout for README files |
-| `docs/reference/reference-doc-standard.md` | Standard structure for reference notes |
 | `docs/reference/skill-invocation-policy.md` | Who can invoke which skill; `invoker` frontmatter schema and enforcement preamble convention |
 
 ---
@@ -96,11 +111,15 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 ---
 
-## Style
+## Conventions
+
+Rules and standards this project follows — coding style, doc structure, naming conventions.
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/style/python-style-guide.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+| `docs/conventions/python-style-guide.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+| `docs/conventions/readme-layout-standard.md` | Standard layout for README files | README section structure changes |
+| `docs/conventions/reference-doc-standard.md` | Standard structure for reference notes | Reference doc conventions change |
 
 ---
 
@@ -147,7 +166,7 @@ Skills live under `.github/skills/`. Each skill has a `SKILL.md` entry point plu
 
 Use this when auditing documentation health:
 
-- [ ] Every top-level directory in `docs/project-map.md` has a corresponding README.
+- [ ] Every top-level directory in the "Top-Level Repository Directories" section above has a corresponding README.
 - [ ] Every module listed in an architecture map file still exists on disk.
 - [ ] ADRs whose decisions have been reversed are marked superseded.
 - [ ] Reference notes describe current behavior (not past implementations).
