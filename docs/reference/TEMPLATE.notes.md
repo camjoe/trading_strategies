@@ -4,6 +4,8 @@ Type: notes
 Status: Active
 Created: YYYY-MM-DD
 Last Reviewed: YYYY-MM-DD
+Purpose: <one sentence on what this doc covers and who should reach for it>
+Related:
 
 ## Purpose
 

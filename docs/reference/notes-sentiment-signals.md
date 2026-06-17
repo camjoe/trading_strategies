@@ -4,6 +4,8 @@ Type: notes
 Status: Active
 Created: 2026-03-30
 Last Reviewed: 2026-04-25
+Purpose: Capture the current architecture and extension points for alternative-data signals used in strategy execution.
+Related: [Strategy Catalog](notes-strategies.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
 

@@ -1,5 +1,12 @@
 # Trading Service API — Developer Cookbook
 
+Type: architecture
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Answer "which function do I call to do X?" — stable import patterns and service function mappings for common tasks.
+Related: [Service/Repository Boundary](service-repository-boundary.md), [Navigation Guide](nav-guide.md), [Trading Package Map](../maps/trading-package-map.md)
+
 ## Purpose
 
 Answer the question: **"Which function do I call to do X?"**

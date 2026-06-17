@@ -4,6 +4,8 @@ Type: notes
 Status: Active
 Created: 2026-03-11
 Last Reviewed: 2026-04-25
+Purpose: Catalog of strategy signal families, compatibility behavior, and evaluation workflow.
+Related: [Backtesting](notes-backtesting.md), [Sentiment Signals](notes-sentiment-signals.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
 

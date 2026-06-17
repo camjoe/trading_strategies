@@ -1,5 +1,12 @@
 # UI Map — `paper_trading_ui/`
 
+Type: map
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Structure of the operator UI — FastAPI backend routes/schemas/services and TypeScript/Vite frontend layout.
+Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/notes-screenshot-ui.md)
+
 Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. Both live under `paper_trading_ui/`.
 
 ---

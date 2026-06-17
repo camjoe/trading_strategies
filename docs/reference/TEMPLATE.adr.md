@@ -2,7 +2,10 @@
 
 Type: adr
 Status: Proposed
-Date: YYYY-MM-DD
+Created: YYYY-MM-DD
+Last Reviewed: YYYY-MM-DD
+Purpose: <one sentence on what decision this records and why it matters>
+Related:
 
 ## Context
 

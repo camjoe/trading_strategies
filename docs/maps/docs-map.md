@@ -1,5 +1,12 @@
 # Docs Map
 
+Type: map
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Full inventory of documentation files — use to audit staleness, find coverage gaps, and check for redundancy.
+Related: [Docs README](../README.md), [Navigation Guide](../architecture/nav-guide.md)
+
 Directory of all documentation files across the repository. Use this to audit for staleness, find coverage gaps, and check for redundancy between files.
 
 ---
@@ -120,6 +127,7 @@ Rules and standards this project follows — coding style, doc structure, naming
 | `docs/conventions/python-style-guide.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
 | `docs/conventions/readme-layout-standard.md` | Standard layout for README files | README section structure changes |
 | `docs/conventions/reference-doc-standard.md` | Standard structure for reference notes | Reference doc conventions change |
+| `docs/conventions/doc-header-standard.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
 
 ---
 

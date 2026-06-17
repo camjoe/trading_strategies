@@ -1,5 +1,12 @@
 # Scripts Map — `scripts/`
 
+Type: map
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
+Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
+
 Dev and ops tooling. Not part of the application runtime — these are invoked by developers and CI.
 
 ---

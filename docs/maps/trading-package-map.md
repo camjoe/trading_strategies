@@ -1,5 +1,12 @@
 # Trading Package Map
 
+Type: map
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Explain the trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement.
+Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
+
 ## Purpose
 
 Explain the top-level `trading/` structure as a **hybrid architecture**:

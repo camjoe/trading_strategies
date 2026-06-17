@@ -1,5 +1,12 @@
 # Docs Index
 
+Type: index
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
+Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header-standard.md)
+
 Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs-map.md) for the full file inventory with staleness tracking.
 
 ## Folder Guide

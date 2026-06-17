@@ -1,5 +1,12 @@
 # Navigation Guide
 
+Type: architecture
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Task-oriented lookup table — given "I want to X", tells you which file to touch.
+Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md), [UI Map](../maps/ui-map.md)
+
 **Start here.** Given a task, this guide tells you which file to touch. Once you have a file, follow the links below to the structural maps if you need surrounding context about that module or package.
 
 The maps and this guide serve different questions:

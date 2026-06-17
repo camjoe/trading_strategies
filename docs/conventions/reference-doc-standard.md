@@ -1,9 +1,11 @@
 # Reference Doc Standard
 
-Type: notes
+Type: convention
 Status: Active
 Created: 2026-06-13
-Last Reviewed: 2026-06-13
+Last Reviewed: 2026-06-16
+Purpose: Define the standard header format and document types for files under docs/reference/.
+Related: [Doc Header Standard](doc-header-standard.md), [README Layout Standard](readme-layout-standard.md)
 
 ## Purpose
 

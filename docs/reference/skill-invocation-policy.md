@@ -1,5 +1,12 @@
 # Skill Invocation Policy
 
+Type: policy
+Status: Active
+Created: 2026-06-13
+Last Reviewed: 2026-06-16
+Purpose: Define who is allowed to invoke each skill and how that restriction is declared and enforced via the invoker field.
+Related: [Agent Skills Reference](notes-agent-skills.md)
+
 Defines who is allowed to invoke each skill and how that restriction is declared and enforced.
 
 ---
