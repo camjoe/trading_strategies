@@ -44,9 +44,9 @@ Notes: `notes-` prefix dropped (D-OPEN-7 rule 3). ADRs → numbered `NNNN-title.
 | `docs/reference/notes-sentiment-signals.md` | `agentswip/docs/reference/sentiment-signals.md` | ✅ | | drop `notes-` |
 | `docs/reference/notes-agent-skills.md` | `agentswip/docs/reference/agent-skills.md` | ✅ | | drop `notes-` |
 | `docs/reference/skill-invocation-policy.md` | `agentswip/docs/reference/skill-invocation-policy.md` | ⬜ | | could be conventions/ instead — normative (placement open, not naming) |
-| `docs/reference/adr-backtesting-layering.md` | `agentswip/docs/adr/001-backtesting-layering.md` | 🟡 | | numbered (3-digit); confirm order |
-| `docs/reference/adr-cross-platform-paths.md` | `agentswip/docs/adr/002-cross-platform-paths.md` | 🟡 | | numbered (3-digit); confirm order |
-| `docs/reference/adr-sleeve-virtualization-architecture.md` | `agentswip/docs/adr/003-sleeve-virtualization-architecture.md` | 🟡 | | numbered (3-digit); confirm order |
+| `docs/reference/adr-cross-platform-paths.md` | `docs/adr/001-cross-platform-paths.md` | ✅ | staged | numbered by Created (2026-03-01) |
+| `docs/reference/adr-backtesting-layering.md` | `docs/adr/002-backtesting-layering.md` | ✅ | staged | numbered by Created (2026-03-27) |
+| `docs/reference/adr-sleeve-virtualization-architecture.md` | `docs/adr/003-sleeve-virtualization-architecture.md` | ✅ | staged | numbered by Created (2026-05-03) |
 | `docs/reference/TEMPLATE.adr.md` | `agentswip/docs/adr/TEMPLATE.adr.md` | ✅ | | reserved name; co-locate with type |
 | `docs/reference/TEMPLATE.notes.md` | `agentswip/docs/reference/TEMPLATE.notes.md` | ✅ | | reserved name |
 | `docs/notes-db-schema.md` (mis-filed at docs/ root) | `agentswip/docs/reference/db-schema.md` | 🟡 | | drop `notes-`; becomes generated-block + authored-notes (D-9); fix `db.py`→`db_schema.py`/`db_migrations.py` |

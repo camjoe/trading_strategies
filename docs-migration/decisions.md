@@ -95,7 +95,7 @@ The convention (to be written into `docs/conventions/naming.md`, currently a stu
 1. **`kebab-case.md` everywhere.** Lowercase, hyphen-separated. Renames the `snake_case` runbooks and the `SCREAMING_SNAKE` `.github` docs.
 2. **Reserved UPPERCASE names stay** (tool/convention-mandated): `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SKILL.md`, `TEMPLATE.*.md`.
 3. **Folder conveys type — drop redundant type-prefixes.** `reference/notes-backtesting.md` → `reference/backtesting.md` (the `notes-` prefix goes).
-4. **ADRs are numbered:** three-digit `NNN-title.md`, e.g. `adr/001-backtesting-layering.md`. Gives chronological order + a stable `ADR-NNN` id for cross-references. Number reflects acceptance order (provisional numbers in `file-mapping.md` — reorder to match real acceptance dates).
+4. **ADRs are numbered:** three-digit `NNN-title.md`, ordered by the header **`Created` date (chronological)**. Gives a stable `ADR-NNN` id for cross-references. Final order (verified from headers): `001-cross-platform-paths` (2026-03-01), `002-backtesting-layering` (2026-03-27), `003-sleeve-virtualization-architecture` (2026-05-03).
 5. **Keep meaningful tool-read suffixes:** `*.agent.md` and `TEMPLATE.*`.
 6. **No `-standard`/`-guide`/`-convention` suffix in `conventions/`.** The folder already denotes the file is a standard. So `doc-header-standard.md` → `doc-header.md`, `python-style-guide.md` → `python-style.md`, etc. (The same logic dropped `-guide` from the `governance-review` runbook for consistency.)
 

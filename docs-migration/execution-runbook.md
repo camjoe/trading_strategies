@@ -19,12 +19,10 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 - [ ] On a dedicated branch — currently `refactor/docs-reorganization` ✅.
 - [ ] Re-read [file-mapping.md](file-mapping.md) — it is the source of truth for every destination path.
 
-**Working-tree specifics (verified 2026-06-17):**
-- `.gitignore` "# temp" block ignores `app/`, `agentswip/`, `docs-migration/`. So `docs-migration/` (this plan) and `agentswip/` are **not tracked**.
-- `agentswip/` has **0 tracked files** → Step 1.4 deletes it with a plain `rm -rf` / `Remove-Item -Recurse` (no `git rm`).
-- These real files are **untracked** (never committed): `CLAUDE.md`, `docs/conventions/naming.md`, `docs/notes-db-schema.md`. `git mv` does **not** work on untracked files — use plain `mv` then `git add` at the destination (noted inline below).
-- Uncommitted `.gitignore` (M) edit is unrelated to Pass 1; leave or commit separately.
-- **Open question:** keep `docs-migration/` gitignored (local-only) or track it for history? See note at end.
+**Working-tree state (verified 2026-06-17, after tracking commits):**
+- Working tree is **clean**; everything is now committed, including `agentswip/` (38 files), `docs-migration/` (9 files), and the formerly-untracked `CLAUDE.md`, `docs/conventions/naming.md`, `docs/notes-db-schema.md`.
+- `.gitignore` "# temp" block was **removed** — `docs-migration/` and `agentswip/` are tracked (decision: track the plan for history). No ignored-but-tracked mess.
+- Because all files are tracked, **`git mv` works everywhere** and `agentswip/` deletion uses `git rm`.
 
 ---
 
@@ -34,11 +32,11 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 
 ### 1.1 — docs/ internal reorganization
 - [ ] Create folders: `docs/adr/`, `docs/business-rules/` (keep a `.gitkeep` in business-rules until D-OPEN-5 content lands).
-- [ ] **ADRs** → numbered, into `adr/`: `git mv docs/reference/adr-backtesting-layering.md docs/adr/001-backtesting-layering.md` (then 002 cross-platform-paths, 003 sleeve-virtualization-architecture). Confirm numbering matches acceptance order.
+- [ ] **ADRs** → numbered by `Created` date, into `adr/`: `001-cross-platform-paths` (2026-03-01), `002-backtesting-layering` (2026-03-27), `003-sleeve-virtualization-architecture` (2026-05-03). *(Done — verified from headers.)*
 - [ ] `git mv docs/reference/TEMPLATE.adr.md docs/adr/TEMPLATE.adr.md`.
 - [ ] **Reference notes** — drop `notes-` prefix: `backtesting.md`, `broker-integration.md`, `db-migration-system.md`, `accounts-schema-usage.md`, `sleeve-schema-contract.md`, `strategies.md`, `screenshot-ui.md`, `sentiment-signals.md`, `agent-skills.md`.
-- [ ] **DB schema** (D-9): `docs/notes-db-schema.md` is **untracked** → `mv docs/notes-db-schema.md docs/reference/db-schema.md` then `git add docs/reference/db-schema.md`. (Generation wiring is step 5; hand-written body stays as a stopgap until then.)
-- [ ] **Conventions** — drop `-standard`/`-guide`: `doc-header.md`, `readme-layout.md`, `reference-doc.md`, `python-style.md`. **`naming.md` is untracked** and a stub → overwrite with `staged/naming.md` content and `git add` (don't `git mv`).
+- [ ] **DB schema** (D-9): `git mv docs/notes-db-schema.md docs/reference/db-schema.md`. (Generation wiring is step 5; hand-written body stays as a stopgap until then.)
+- [ ] **Conventions** — drop `-standard`/`-guide` via `git mv`: `doc-header.md`, `readme-layout.md`, `reference-doc.md`, `python-style.md`. `naming.md` keeps its path but its stub body is overwritten with `staged/naming.md` content (Pass-1b/edit).
 - [ ] **Runbooks** — snake→kebab: `daily-operations.md`, `burn-in-protocol.md`, `governance-review.md`.
 - [ ] Commit: `migrate(docs): reorg reference/adr/conventions/runbooks + rename to convention`.
 
@@ -56,7 +54,7 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 
 ### 1.4 — Drops (mark via removal; git retains history)
 - [ ] `git rm -r .github/skills/python-stat-modeling/` (Pass 0 — D2; rewrite later).
-- [ ] Delete `agentswip/` — **untracked (0 tracked files)** → plain `rm -rf agentswip/` / `Remove-Item -Recurse -Force agentswip` (no `git rm`). Empty placeholders + court-records examples + `generate_maps.py` stub, all superseded/dropped.
+- [ ] `git rm -r agentswip/` — now tracked (38 files). Empty placeholders + court-records examples + `generate_maps.py` stub, all superseded/dropped.
 - [ ] Commit: `migrate: drop python-stat-modeling skill and agentswip scaffold`.
 
 ---
@@ -83,6 +81,7 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 - [ ] **docs/README.md** — update all links to renamed/moved files.
 - [ ] **docs/maps/docs-map.md** — the big one: it lists nearly every doc with old paths/names; update the inventory (or regenerate later via maps_check).
 - [ ] **Doc-header `Related:` lines** — sweep every `docs/**` file for stale relative links (e.g. `doc-header.md`'s Related pointed at `reference-doc-standard.md` → `reference-doc.md`).
+- [ ] **`doc-header.md` exception reference** — it names the header-exempt file as `notes-agent-skills.md`; update to `agent-skills.md`.
 - [ ] **Root README.md** — `docs/reference/notes-backtesting.md` link → `docs/reference/backtesting.md`, etc.
 - [ ] **Cross-doc references** — grep the repo for old paths (see Verification) and fix.
 - [ ] Update the AGENTS.md schema note to point at the (soon-to-be-generated) `docs/reference/db-schema.md` (D-9).
@@ -108,6 +107,7 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 - [ ] `python -m scripts.run_checks --profile ci` — green (the move shouldn't touch code, but confirm nothing imported a moved path).
 - [ ] Skills/agents still resolve from `.github` redirects (and/or your tool config points at `bots/`).
 - [ ] Spot-check 3–4 moved docs render and their `Related:` links resolve.
+- [ ] **Header coverage:** every `docs/` file has a `Type:` header except the documented exception `agent-skills.md`. (`naming.md` gets one in 1b; `db-schema.md` via D-9 generation.) Quick check: `grep -rL "^Type:" docs --include="*.md"` should list only `agent-skills.md` (+ TEMPLATEs).
 - [ ] `git log --oneline` shows clean, labelled, per-group commits; `git mv` rename detection intact.
 
 ---
@@ -129,6 +129,6 @@ Every step is a discrete commit on a dedicated branch. To undo: `git revert <com
 
 ---
 
-## Open: track `docs-migration/` or keep it local?
+## Resolved: `docs-migration/` is tracked
 
-`docs-migration/` is currently gitignored ("# temp"). Options: **(a)** keep ignored — local-only scratch, not in GitHub, lost if the machine fails; **(b)** un-ignore + commit — the plan/record is preserved in history and shareable (matches the original "authoritative living record" intent), at the cost of carrying migration scaffolding in the repo (can be removed post-migration). Decide before/while merging Pass 1.
+Decision made 2026-06-17 — `docs-migration/` (and `agentswip/` until deleted) are committed to the branch so the plan and updates are visible in history. The "# temp" ignore block was removed. The folder can be deleted post-migration if desired.
