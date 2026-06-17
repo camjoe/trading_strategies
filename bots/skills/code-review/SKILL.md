@@ -39,5 +39,5 @@ invoker: any
 
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
 - `.github/BOT_STYLE_GUIDE.md`
-- `docs/style/python-style-guide.md`
+- `docs/style/python-style.md`
 - `scripts/run_checks.py`, `scripts/checks/`

@@ -79,14 +79,14 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/reference/notes-backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
-| `docs/reference/notes-broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
-| `docs/reference/notes-db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
-| `docs/reference/notes-accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
-| `docs/reference/notes-sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
-| `docs/reference/notes-strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
-| `docs/reference/notes-screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
-| `docs/reference/notes-sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
+| `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
+| `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
+| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
+| `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
+| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
+| `docs/reference/strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
+| `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
+| `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
 
 ### ADRs
 
@@ -112,9 +112,9 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/runbooks/daily_operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
-| `docs/runbooks/burn_in_protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
-| `docs/runbooks/governance_review_guide.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
+| `docs/runbooks/daily-operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
+| `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
+| `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 
 ---
 
@@ -124,10 +124,10 @@ Rules and standards this project follows — coding style, doc structure, naming
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/conventions/python-style-guide.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
-| `docs/conventions/readme-layout-standard.md` | Standard layout for README files | README section structure changes |
-| `docs/conventions/reference-doc-standard.md` | Standard structure for reference notes | Reference doc conventions change |
-| `docs/conventions/doc-header-standard.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
+| `docs/conventions/python-style.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+| `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
+| `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
+| `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
 
 ---
 

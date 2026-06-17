@@ -60,7 +60,7 @@ Disallowed:
 
 7. `trading/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
-   - Migration system reference: `docs/reference/notes-db-migration-system.md`
+   - Migration system reference: `docs/reference/db-migration-system.md`
    - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
 
 8. `trading/backtesting/`: same layered model within backtesting package

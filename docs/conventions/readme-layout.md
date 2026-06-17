@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-04-24
 Last Reviewed: 2026-04-25
 Purpose: Define consistent README section layouts so contributors can write new README files with a predictable structure.
-Related: [Doc Header Standard](doc-header-standard.md), [Reference Doc Standard](reference-doc-standard.md)
+Related: [Doc Header Standard](doc-header.md), [Reference Doc Standard](reference-doc.md)
 
 ## Purpose
 

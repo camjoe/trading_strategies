@@ -5,7 +5,7 @@ Status: Proposed
 Created: 2026-05-03
 Last Reviewed: 2026-06-16
 Purpose: Record the proposed design for sleeve virtualization, allowing one broker account to host multiple independent strategy sleeves.
-Related: [Sleeve Schema Contract](notes-sleeve-schema-contract.md), [Broker Integration](notes-broker-integration.md)
+Related: [Sleeve Schema Contract](sleeve-schema-contract.md), [Broker Integration](broker-integration.md)
 
 ## Context
 

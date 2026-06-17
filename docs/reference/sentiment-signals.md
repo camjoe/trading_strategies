@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-30
 Last Reviewed: 2026-04-25
 Purpose: Capture the current architecture and extension points for alternative-data signals used in strategy execution.
-Related: [Strategy Catalog](notes-strategies.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [Strategy Catalog](strategies.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
 
@@ -26,7 +26,7 @@ This reference covers:
 
 Strategy catalog details (all strategy families) live in:
 
-- `docs/reference/notes-strategies.md`
+- `docs/reference/strategies.md`
 
 ## Current Architecture
 
@@ -88,7 +88,7 @@ Still out of scope for the current implementation:
 
 ## Related References
 
-- `docs/reference/notes-strategies.md`
-- `docs/reference/notes-backtesting.md`
+- `docs/reference/strategies.md`
+- `docs/reference/backtesting.md`
 - `trading/README.md`
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`

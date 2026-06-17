@@ -17,7 +17,7 @@ Ruff handles formatting and basic lint. This pass covers what ruff does **not** 
 4. **Consistency** — does the new code match patterns already established in the same file or service? No unexplained style drift.
 5. **Dead code** — commented-out blocks, unused imports ruff didn't catch, `TODO` items without a ticket reference.
 
-Read `.github/BOT_STYLE_GUIDE.md` and `docs/style/python-style-guide.md` before reviewing.
+Read `.github/BOT_STYLE_GUIDE.md` and `docs/style/python-style.md` before reviewing.
 
 ## Severity
 
@@ -36,4 +36,4 @@ One line per finding. No findings → `Style: Clean`.
 ## Repo references
 
 - `.github/BOT_STYLE_GUIDE.md`
-- `docs/style/python-style-guide.md`
+- `docs/style/python-style.md`

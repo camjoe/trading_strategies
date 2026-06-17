@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-04-03
 Last Reviewed: 2026-04-25
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
-Related: [Daily Operations Runbook](../runbooks/daily_operations.md), [Service Cookbook](../architecture/service-cookbook.md)
+Related: [Daily Operations Runbook](../runbooks/daily-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
 ## Purpose
 
@@ -204,5 +204,5 @@ When adding a new broker:
 
 - `trading/README.md`
 - `scripts/README.md`
-- `docs/reference/notes-accounts-schema-usage.md`
+- `docs/reference/accounts-schema-usage.md`
 - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`

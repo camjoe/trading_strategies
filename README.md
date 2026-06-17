@@ -71,7 +71,7 @@ See [trends/README.md](trends/README.md) for full documentation and usage exampl
 
 ### Backtesting
 
-See [docs/reference/notes-backtesting.md](docs/reference/notes-backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
+See [docs/reference/backtesting.md](docs/reference/backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
 
 ### Paper Trading
 

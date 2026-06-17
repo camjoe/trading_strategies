@@ -64,7 +64,7 @@ Key behavior:
 
 ## Strategy Notes
 
-- Phase 2 strategy ids are documented in `docs/reference/notes-strategies.md`.
+- Phase 2 strategy ids are documented in `docs/reference/strategies.md`.
 - Backtests resolve active strategy through shared rotation-aware logic.
 - If account rotation metadata is configured, backtests use the resolved active strategy.
 
@@ -95,5 +95,5 @@ Operational notes:
 
 ## Related Docs
 
-- `docs/reference/notes-strategies.md`
+- `docs/reference/strategies.md`
 - `docs/reference/adr-backtesting-layering.md`

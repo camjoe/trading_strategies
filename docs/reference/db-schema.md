@@ -254,4 +254,4 @@ New columns are added via `ColumnMigration` dataclasses defined in `db.py`. Rule
 - `post_sql` can carry `UPDATE` statements to backfill existing rows
 - `init_schema()` checks `PRAGMA table_info` before applying each migration (idempotent)
 
-See `docs/reference/notes-db-migration-system.md` for full details.
+See `docs/reference/db-migration-system.md` for full details.

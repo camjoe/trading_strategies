@@ -20,7 +20,7 @@ Your job is to work on runtime execution flows across the trading CLI, scheduler
 - Canonical references:
   - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
   - `trading/README.md`
-  - `docs/reference/notes-broker-integration.md`
+  - `docs/reference/broker-integration.md`
 
 ## Responsibilities
 

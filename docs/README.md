@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
-Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header-standard.md)
+Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header.md)
 
 Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs-map.md) for the full file inventory with staleness tracking.
 
@@ -47,24 +47,24 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 Full listing: [`reference/`](reference/). Key entries:
 
-- [`reference/notes-backtesting.md`](reference/notes-backtesting.md) — backtesting commands, safeguards, and layering overview
-- [`reference/notes-broker-integration.md`](reference/notes-broker-integration.md) — broker abstraction, IB connection setup, live-trading safety
-- [`reference/notes-db-migration-system.md`](reference/notes-db-migration-system.md) — hand-rolled SQLite migration system
+- [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
+- [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, IB connection setup, live-trading safety
+- [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
 - [`reference/adr-backtesting-layering.md`](reference/adr-backtesting-layering.md) — decision rationale for backtesting module layering
 - [`reference/adr-cross-platform-paths.md`](reference/adr-cross-platform-paths.md) — pathlib cross-platform usage decision record
 
 ## Conventions
 
-- [`conventions/python-style-guide.md`](conventions/python-style-guide.md) — Python coding conventions for this repo
-- [`conventions/readme-layout-standard.md`](conventions/readme-layout-standard.md) — standard README section layout
-- [`conventions/reference-doc-standard.md`](conventions/reference-doc-standard.md) — standard structure for reference notes
+- [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
+- [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
+- [`conventions/reference-doc.md`](conventions/reference-doc.md) — standard structure for reference notes
 
 ## Runbooks
 
 - [`runbooks/README.md`](runbooks/README.md) — runbook index with quick-start commands
-- [`runbooks/daily_operations.md`](runbooks/daily_operations.md) — daily paper-trading job monitoring
-- [`runbooks/burn_in_protocol.md`](runbooks/burn_in_protocol.md) — burn-in protocol for new strategies
-- [`runbooks/governance_review_guide.md`](runbooks/governance_review_guide.md) — weekly/monthly governance review
+- [`runbooks/daily-operations.md`](runbooks/daily-operations.md) — daily paper-trading job monitoring
+- [`runbooks/burn-in-protocol.md`](runbooks/burn-in-protocol.md) — burn-in protocol for new strategies
+- [`runbooks/governance-review.md`](runbooks/governance-review.md) — weekly/monthly governance review
 
 ## Keeping Docs Fresh
 

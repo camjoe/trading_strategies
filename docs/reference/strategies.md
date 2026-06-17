@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-11
 Last Reviewed: 2026-04-25
 Purpose: Catalog of strategy signal families, compatibility behavior, and evaluation workflow.
-Related: [Backtesting](notes-backtesting.md), [Sentiment Signals](notes-sentiment-signals.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [Backtesting](backtesting.md), [Sentiment Signals](sentiment-signals.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Purpose
 
@@ -109,6 +109,6 @@ Use this checklist when proposing new strategies:
 
 ## Related References
 
-- `docs/reference/notes-backtesting.md`
-- `docs/reference/notes-sentiment-signals.md`
+- `docs/reference/backtesting.md`
+- `docs/reference/sentiment-signals.md`
 - `trading/backtesting/README.md`

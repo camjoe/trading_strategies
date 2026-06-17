@@ -5,7 +5,7 @@ Status: Draft
 Created: 2026-05-03
 Last Reviewed: 2026-05-03
 Purpose: Define the concrete sleeve table and index contract for IBKR paper autonomy before coding migrations and repositories.
-Related: [ADR: Sleeve Virtualization](adr-sleeve-virtualization-architecture.md), [Accounts Schema Usage](notes-accounts-schema-usage.md), [DB Migration System](notes-db-migration-system.md)
+Related: [ADR: Sleeve Virtualization](adr-sleeve-virtualization-architecture.md), [Accounts Schema Usage](accounts-schema-usage.md), [DB Migration System](db-migration-system.md)
 
 ## Purpose
 

@@ -18,7 +18,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
   - `paper_trading_ui/backend/services/`
 - Canonical references:
   - `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-  - `docs/reference/notes-broker-integration.md`
+  - `docs/reference/broker-integration.md`
 
 ## Responsibilities
 

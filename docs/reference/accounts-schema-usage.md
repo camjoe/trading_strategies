@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-04-13
 Last Reviewed: 2026-04-25
 Purpose: Audit of how each accounts table field is used across the repo, classifying usage as core, niche, config, or unclear.
-Related: [DB Migration System](notes-db-migration-system.md), [Sleeve Schema Contract](notes-sleeve-schema-contract.md)
+Related: [DB Migration System](db-migration-system.md), [Sleeve Schema Contract](sleeve-schema-contract.md)
 
 ---
 

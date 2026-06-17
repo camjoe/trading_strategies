@@ -5,7 +5,7 @@ Status: Accepted
 Created: 2026-03-27
 Last Reviewed: 2026-06-16
 Purpose: Record the decision to adopt a layered structure for backtesting to improve testability and keep changes low-risk.
-Related: [Backtesting Notes](notes-backtesting.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [Backtesting Notes](backtesting.md), [Trading Package Map](../maps/trading-package-map.md)
 
 ## Context
 
@@ -42,7 +42,7 @@ Adopt a layered structure for backtesting:
 
 Use these docs for the current module map and ownership locations:
 
-- `docs/reference/notes-backtesting.md`
+- `docs/reference/backtesting.md`
 - `trading/backtesting/README.md`
 
 This ADR intentionally records the decision and guardrails, not a volatile file inventory.

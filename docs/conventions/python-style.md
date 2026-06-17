@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Project-specific interpretation of PEP 8, covering indentation, imports, naming, type hints, and ruff enforcement.
-Related: [Doc Header Standard](doc-header-standard.md)
+Related: [Doc Header Standard](doc-header.md)
 
 This guide is the project-specific interpretation of [PEP 8](https://peps.python.org/pep-0008/).
 It applies to all Python under `trading/`, `paper_trading_ui/backend/`, `scripts/`, `common/`, and `tests/`.

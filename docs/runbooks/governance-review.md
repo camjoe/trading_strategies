@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Procedures for running and interpreting the read-only weekly and monthly governance jobs that produce review artifacts.
-Related: [Daily Operations](daily_operations.md), [Burn-In Protocol](burn_in_protocol.md), [Strategy Catalog](../reference/notes-strategies.md)
+Related: [Daily Operations](daily-operations.md), [Burn-In Protocol](burn-in-protocol.md), [Strategy Catalog](../reference/strategies.md)
 
 Procedures for running and interpreting the weekly and monthly governance jobs.
 

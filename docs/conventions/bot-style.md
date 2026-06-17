@@ -9,7 +9,7 @@ Scope:
 
 ## Full Python style reference
 
-See [`docs/style/python-style-guide.md`](../docs/style/python-style-guide.md) for the complete, curated
+See [`docs/style/python-style.md`](../docs/style/python-style.md) for the complete, curated
 PEP 8 interpretation for this project. That document is the authoritative reference for both developers
 and bots. Key project choices at a glance:
 
@@ -63,4 +63,4 @@ Balanced means:
 1. Use the balanced style approach unless the user explicitly asks otherwise.
 2. Explain non-trivial style decisions in the final summary.
 3. Do not do style-only rewrites unless explicitly requested.
-4. When generating new Python code, apply the rules in `docs/style/python-style-guide.md` by default.
+4. When generating new Python code, apply the rules in `docs/style/python-style.md` by default.

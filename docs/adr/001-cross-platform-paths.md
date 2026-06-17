@@ -5,7 +5,7 @@ Status: Accepted
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Record a CI failure caused by Windows/Linux path separator differences so the rule to always use pathlib is documented.
-Related: [DB Migration System](notes-db-migration-system.md)
+Related: [DB Migration System](db-migration-system.md)
 
 ## What Happened
 

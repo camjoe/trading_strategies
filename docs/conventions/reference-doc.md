@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-13
 Last Reviewed: 2026-06-16
 Purpose: Define the standard header format and document types for files under docs/reference/.
-Related: [Doc Header Standard](doc-header-standard.md), [README Layout Standard](readme-layout-standard.md)
+Related: [Doc Header Standard](doc-header.md), [README Layout Standard](readme-layout.md)
 
 ## Purpose
 
@@ -108,4 +108,4 @@ To create a new reference doc in the correct format, use the `reference-doc` ski
 
 - Templates: `docs/reference/TEMPLATE.notes.md`, `docs/reference/TEMPLATE.adr.md`
 - Skill: `.github/skills/reference-doc/SKILL.md`
-- README layout standard (for README files, not reference docs): `docs/reference/readme-layout-standard.md`
+- README layout standard (for README files, not reference docs): `docs/reference/readme-layout.md`
