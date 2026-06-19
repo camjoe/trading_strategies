@@ -6,6 +6,7 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
+from scripts.checks.db_schema_check import run_db_schema_check
 from scripts.checks.layer_check import run_layer_check
 from scripts.checks.link_check import run_link_check
 from scripts.checks.maps_check import run_maps_check
@@ -27,6 +28,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-readme-consistency",
         action="store_true",
         help="Skip README consistency check.",
+    )
+    parser.add_argument(
+        "--skip-db-schema-check",
+        action="store_true",
+        help="Skip DB schema drift check.",
     )
     parser.add_argument(
         "--skip-maps-check",
@@ -72,6 +78,7 @@ def run_ci(
     skip_python: bool = False,
     skip_frontend: bool = False,
     skip_readme_consistency: bool = False,
+    skip_db_schema_check: bool = False,
     skip_maps_check: bool = False,
     skip_link_check: bool = False,
     readme_max_age_days: int = 90,
@@ -87,6 +94,8 @@ def run_ci(
                 )
             if not skip_maps_check:
                 run_maps_check(repo_root=repo_root)
+            if not skip_db_schema_check:
+                run_db_schema_check(repo_root=repo_root)
             if not skip_link_check:
                 run_link_check(repo_root=repo_root)
             layer_exit = run_layer_check(repo_root=repo_root)
@@ -138,6 +147,7 @@ def main() -> int:
         skip_python=args.skip_python,
         skip_frontend=args.skip_frontend,
         skip_readme_consistency=args.skip_readme_consistency,
+        skip_db_schema_check=args.skip_db_schema_check,
         skip_maps_check=args.skip_maps_check,
         skip_link_check=args.skip_link_check,
         readme_max_age_days=args.readme_max_age_days,

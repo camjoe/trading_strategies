@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-17
+Last Reviewed: 2026-06-19
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -37,6 +37,8 @@ Individual check modules. Each is also usable directly.
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `trading/services/reporting`) |
 | `readme_check.py` | README freshness checker — flags docs older than a configurable age threshold |
 | `maps_check.py` | Map drift checker — flags modules on disk missing from (or stale in) the structural maps; advisory |
+| `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
+| `db_schema_check.py` | DB schema drift checker — verifies db-schema.md's Quick Reference covers every live table; advisory |
 | `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
 | `shared.py` | Shared utilities for check modules (result types, formatting) |
 
