@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import random
 
-from brokers.factory import get_broker_for_account
+from infrastructure.brokers.factory import get_broker_for_account
 from common.paths.repo_paths import get_repo_root
 from features.news_feature_provider import NewsFeatureProvider
 from features.policy_feature_provider import PolicyFeatureProvider

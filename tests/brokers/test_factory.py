@@ -2,10 +2,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
-from brokers.ib_web_adapter import InteractiveBrokersWebAdapter
-from brokers.ib_web_client import IbWebApiSettings
-from brokers.paper_adapter import PaperBrokerAdapter
+from infrastructure.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
+from infrastructure.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from infrastructure.brokers.ib_web_client import IbWebApiSettings
+from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from tests.support.brokers import make_broker_account
 
 
@@ -27,16 +27,16 @@ class TestGetBrokerForAccount:
         account = make_broker_account(broker_type="interactive_brokers_web")
         mock_client = MagicMock()
         with (
-            patch("brokers.factory._require_live_trading_enabled"),
+            patch("infrastructure.brokers.factory._require_live_trading_enabled"),
             patch(
-                "brokers.factory.load_ib_web_api_settings",
+                "infrastructure.brokers.factory.load_ib_web_api_settings",
                 return_value=IbWebApiSettings(
                     base_url="https://example.test/v1/api",
                     account_id="U1234567",
                     headers={},
                 ),
             ),
-            patch("brokers.factory.InteractiveBrokersWebClient", return_value=mock_client),
+            patch("infrastructure.brokers.factory.InteractiveBrokersWebClient", return_value=mock_client),
         ):
             broker = get_broker_for_account(account)
         assert isinstance(broker, InteractiveBrokersWebAdapter)

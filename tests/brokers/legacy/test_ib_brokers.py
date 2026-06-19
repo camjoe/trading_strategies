@@ -13,9 +13,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
-from brokers.legacy.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
-from brokers.legacy.ib_client import IBClientProtocol, IbApiClient, IbAsyncClient
+from infrastructure.brokers.factory import LiveTradingNotEnabledError, get_broker_for_account
+from infrastructure.brokers.legacy.ib_adapter import InteractiveBrokersAdapter, _map_ib_status
+from infrastructure.brokers.legacy.ib_client import IBClientProtocol, IbApiClient, IbAsyncClient
 from trading.models.broker_order import BrokerOrder, OrderStatus, OrderType
 from tests.support.account_records import make_account_record
 
@@ -62,8 +62,8 @@ class TestLegacyIbFactoryRouting:
         )
         mock_client = _mock_ib_client()
         with (
-            patch("brokers.factory._require_live_trading_enabled"),
-            patch("brokers.legacy.factory.IbAsyncClient", return_value=mock_client),
+            patch("infrastructure.brokers.factory._require_live_trading_enabled"),
+            patch("infrastructure.brokers.legacy.factory.IbAsyncClient", return_value=mock_client),
         ):
             broker = get_broker_for_account(account)
         assert isinstance(broker, InteractiveBrokersAdapter)
@@ -83,12 +83,12 @@ class TestLegacyIbFactoryRouting:
             broker_client_id=1,
         )
         mock_client = _mock_ib_client()
-        with patch("brokers.legacy.factory.IbAsyncClient", return_value=mock_client):
+        with patch("infrastructure.brokers.legacy.factory.IbAsyncClient", return_value=mock_client):
             broker = get_broker_for_account(account)
         assert isinstance(broker, InteractiveBrokersAdapter)
 
     def test_ibapi_backend_uses_ib_api_client(self):
-        import brokers.legacy.factory as legacy_factory_module
+        import infrastructure.brokers.legacy.factory as legacy_factory_module
 
         account = _make_account(
             broker_type="interactive_brokers",
@@ -101,8 +101,8 @@ class TestLegacyIbFactoryRouting:
         try:
             legacy_factory_module.IB_CLIENT_BACKEND = "ibapi"
             with (
-                patch("brokers.factory._require_live_trading_enabled"),
-                patch("brokers.legacy.factory.IbApiClient", return_value=mock_client),
+                patch("infrastructure.brokers.factory._require_live_trading_enabled"),
+                patch("infrastructure.brokers.legacy.factory.IbApiClient", return_value=mock_client),
             ):
                 broker = get_broker_for_account(account)
             assert isinstance(broker, InteractiveBrokersAdapter)
@@ -110,13 +110,13 @@ class TestLegacyIbFactoryRouting:
             legacy_factory_module.IB_CLIENT_BACKEND = original
 
     def test_unknown_ib_backend_raises_value_error(self):
-        import brokers.legacy.factory as legacy_factory_module
+        import infrastructure.brokers.legacy.factory as legacy_factory_module
 
         account = _make_account(broker_type="interactive_brokers")
         original = legacy_factory_module.IB_CLIENT_BACKEND
         try:
             legacy_factory_module.IB_CLIENT_BACKEND = "not_a_real_backend"
-            with patch("brokers.factory._require_live_trading_enabled"):
+            with patch("infrastructure.brokers.factory._require_live_trading_enabled"):
                 with pytest.raises(ValueError, match="Unknown IB_CLIENT_BACKEND"):
                     get_broker_for_account(account)
         finally:
