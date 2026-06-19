@@ -1,8 +1,8 @@
-from trends.charts import plot_trends
-from trends.cli import parse_args
-from trends.data import fetch_data
-from trends.indicators import add_trend_features, print_indicator_explanations
-from trends.tickers import load_ticker_categories, resolve_tickers
+from apps.trends.charts import plot_trends
+from apps.trends.cli import parse_args
+from apps.trends.data import fetch_data
+from apps.trends.indicators import add_trend_features, print_indicator_explanations
+from apps.trends.tickers import load_ticker_categories, resolve_tickers
 
 
 def main() -> None:

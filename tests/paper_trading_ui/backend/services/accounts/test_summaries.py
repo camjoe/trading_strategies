@@ -4,7 +4,7 @@ from trading.models.account_state import AccountState
 from trading.models.equity_snapshot_record import EquitySnapshotRecord
 import pytest
 
-from paper_trading_ui.backend.services.accounts import summaries as account_summaries
+from apps.paper_trading_ui.backend.services.accounts import summaries as account_summaries
 from tests.support.account_records import make_account_record
 
 

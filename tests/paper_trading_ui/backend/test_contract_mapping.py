@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from paper_trading_ui.backend.account_contract import (
+from apps.paper_trading_ui.backend.account_contract import (
     build_account_params_update_command,
     build_admin_create_account_command,
 )
-from paper_trading_ui.backend.schemas import AccountParamsRequest, AdminCreateAccountRequest
+from apps.paper_trading_ui.backend.schemas import AccountParamsRequest, AdminCreateAccountRequest
 
 
 def test_build_admin_create_account_command_maps_account_config_and_rotation_fields() -> None:

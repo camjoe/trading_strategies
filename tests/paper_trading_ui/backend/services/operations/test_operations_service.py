@@ -4,8 +4,8 @@ import datetime as dt
 import sqlite3
 from pathlib import Path
 
-from paper_trading_ui.backend.services import operations as services_operations
-from paper_trading_ui.backend.services import promotion as services_promotion
+from apps.paper_trading_ui.backend.services import operations as services_operations
+from apps.paper_trading_ui.backend.services import promotion as services_promotion
 
 
 def _write(path: Path, text: str) -> None:

@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from paper_trading_ui.backend.services import require_account_row
-from paper_trading_ui.backend.services import db as services_db
+from apps.paper_trading_ui.backend.services import require_account_row
+from apps.paper_trading_ui.backend.services import db as services_db
 from trading.services.accounts import get_latest_account_snapshot
 
 

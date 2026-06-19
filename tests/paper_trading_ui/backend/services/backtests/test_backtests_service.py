@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from paper_trading_ui.backend.services import backtests as services_backtests
-from paper_trading_ui.backend.schemas import (
+from apps.paper_trading_ui.backend.services import backtests as services_backtests
+from apps.paper_trading_ui.backend.schemas import (
     BacktestPreflightRequest,
     BacktestRunRequest,
     WalkForwardRunRequest,

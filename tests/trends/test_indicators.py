@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from trends.indicators import (
+from apps.trends.indicators import (
     add_trend_features,
     calculate_bollinger_bands,
     calculate_macd,

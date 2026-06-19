@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import paper_trading_ui.backend.services.promotion as promotion_module
-from paper_trading_ui.backend.services.promotion import (
+import apps.paper_trading_ui.backend.services.promotion as promotion_module
+from apps.paper_trading_ui.backend.services.promotion import (
     _normalize_optional_text,
     build_promotion_overview,
 )

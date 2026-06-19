@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from paper_trading_ui.backend.routes import logs as logs_routes
+from apps.paper_trading_ui.backend.routes import logs as logs_routes
 
 
 class TestLogsRoutes:

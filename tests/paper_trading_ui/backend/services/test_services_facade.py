@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from paper_trading_ui.backend import services
+from apps.paper_trading_ui.backend import services
 
 
 def test_services_facade_exports_expected_symbols() -> None:

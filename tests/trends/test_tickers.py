@@ -1,6 +1,6 @@
 import argparse
 
-from trends.tickers import load_ticker_categories, load_tickers_from_file, resolve_tickers
+from apps.trends.tickers import load_ticker_categories, load_tickers_from_file, resolve_tickers
 
 
 def test_load_tickers_from_file_dedupes_and_ignores_comments(tmp_path) -> None:

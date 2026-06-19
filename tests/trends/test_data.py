@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from trends.data import fetch_data
+from apps.trends.data import fetch_data
 
 
 def test_fetch_data_flattens_multiindex_with_ticker_level(
