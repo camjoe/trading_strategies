@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from infrastructure.features.news_feature_provider import (
+from infrastructure.feature_providers.news_provider import (
     NEWS_HEADLINE_COUNT,
     NEWS_SENTIMENT_SCORE,
     NewsFeatureProvider,
@@ -56,7 +56,7 @@ class TestNewsFeatureProviderRss:
         headlines = ["Stock rises", "Market up", "Bullish outlook"]
         provider = NewsFeatureProvider()
         with patch(
-            "infrastructure.features.news_feature_provider.urllib.request.urlopen",
+            "infrastructure.feature_providers.news_provider.urllib.request.urlopen",
             self._mock_urlopen(headlines),
         ):
             result = provider._fetch_rss_headlines("AAPL")
@@ -67,7 +67,7 @@ class TestNewsFeatureProviderRss:
 
         provider = NewsFeatureProvider()
         with patch(
-            "infrastructure.features.news_feature_provider.urllib.request.urlopen",
+            "infrastructure.feature_providers.news_provider.urllib.request.urlopen",
             side_effect=URLError("timeout"),
         ):
             result = provider._fetch_rss_headlines("AAPL")
@@ -92,7 +92,7 @@ class TestNewsFeatureProviderRss:
             mock_resp.__exit__ = MagicMock(return_value=False)
             return mock_resp
 
-        with patch("infrastructure.features.news_feature_provider.urllib.request.urlopen", _mock_urlopen):
+        with patch("infrastructure.feature_providers.news_provider.urllib.request.urlopen", _mock_urlopen):
             result = provider._fetch_rss_headlines("AAPL")
 
         assert len(result) == _MAX_TOTAL_RSS_HEADLINES

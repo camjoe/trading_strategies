@@ -5,9 +5,9 @@ import random
 
 from infrastructure.brokers.factory import get_broker_for_account
 from common.paths.repo_paths import get_repo_root
-from infrastructure.features.news_feature_provider import NewsFeatureProvider
-from infrastructure.features.policy_feature_provider import PolicyFeatureProvider
-from infrastructure.features.social_feature_provider import SocialFeatureProvider
+from infrastructure.feature_providers.news_provider import NewsFeatureProvider
+from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
+from infrastructure.feature_providers.social_provider import SocialFeatureProvider
 from trading.database.db_init import ensure_db
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (

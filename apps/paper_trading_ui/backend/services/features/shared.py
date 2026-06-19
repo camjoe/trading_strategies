@@ -158,9 +158,9 @@ def load_providers() -> list[tuple[Any, str, str, str, str]]:
     Returns a list of ``(provider_or_none, display_name, source_label, strategy_id, class_name)``
     tuples. Providers initialize independently so one failure does not block others.
     """
-    from infrastructure.features.news_feature_provider import NewsFeatureProvider
-    from infrastructure.features.policy_feature_provider import PolicyFeatureProvider
-    from infrastructure.features.social_feature_provider import SocialFeatureProvider
+    from infrastructure.feature_providers.news_provider import NewsFeatureProvider
+    from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
+    from infrastructure.feature_providers.social_provider import SocialFeatureProvider
 
     provider_classes = {
         "PolicyFeatureProvider": PolicyFeatureProvider,
