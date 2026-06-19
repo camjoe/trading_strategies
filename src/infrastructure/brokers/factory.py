@@ -16,10 +16,10 @@ kept available, but it is not the primary IBKR path for current development.
 from __future__ import annotations
 
 from trading.domain.broker_connection import BrokerConnection
-from brokers.paper_adapter import PaperBrokerAdapter
-from brokers.ib_web_adapter import InteractiveBrokersWebAdapter
-from brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
-from brokers.legacy.factory import build_legacy_ib_broker
+from src.infrastructure.brokers.paper_adapter import PaperBrokerAdapter
+from src.infrastructure.brokers.ib_web_adapter import InteractiveBrokersWebAdapter
+from src.infrastructure.brokers.ib_web_client import InteractiveBrokersWebClient, load_ib_web_api_settings
+from src.infrastructure.brokers.legacy.factory import build_legacy_ib_broker
 from trading.models import AccountRecord
 
 # Broker type identifiers stored in accounts.broker_type column.
