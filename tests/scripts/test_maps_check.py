@@ -11,8 +11,9 @@ from scripts.checks.maps_check import (
     PY_PATH_RE,
     SUBSECTION_RE,
     _extract_documented_paths,
+    _heading_path,
+    _is_full_path,
     _resolve_token,
-    _section_dir_from_heading,
     check_map,
     run_maps_check,
 )
@@ -46,7 +47,8 @@ def test_py_path_re_accepts_paths_and_rejects_prose() -> None:
 def test_header_re_captures_heading_text_only() -> None:
     match = HEADER_RE.match("### `trading/services/`")
     assert match is not None
-    assert match.group(1) == "`trading/services/`"
+    assert match.group(1) == "###"  # leading hashes -> heading level
+    assert match.group(2) == "`trading/services/`"
     assert HEADER_RE.match("not a heading") is None
 
 
@@ -68,14 +70,20 @@ def test_subsection_re_captures_parenthetical_dir() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_section_dir_from_heading() -> None:
-    assert _section_dir_from_heading("`trading/domain/`") == "trading/domain"
-    assert _section_dir_from_heading("Layered Backbone") is None  # no backtick path
-    assert _section_dir_from_heading("`Module Directory`") is None  # not a known top dir
+def test_heading_path_extracts_first_backtick_path() -> None:
+    assert _heading_path("`trading/domain/`") == "trading/domain"
+    assert _heading_path("Routes (`routes/`)") == "routes"  # relative subsection path
+    assert _heading_path("Layered Backbone") is None  # no backtick path
+
+
+def test_is_full_path() -> None:
+    assert _is_full_path("trading/domain")
+    assert _is_full_path("paper_trading_ui/backend")
+    assert not _is_full_path("routes")  # section-relative
 
 
 def test_resolve_token_full_path_vs_section_relative() -> None:
-    assert _resolve_token("trading/models/x.py", None) == "trading/models/x.py"
+    assert _resolve_token("trading/models/x.py", "ignored") == "trading/models/x.py"
     assert _resolve_token("accounting.py", "trading/domain") == "trading/domain/accounting.py"
     assert _resolve_token("a/b.py", "trading/services") == "trading/services/a/b.py"
 
@@ -93,7 +101,7 @@ def test_extract_is_section_aware_no_basename_collision() -> None:
         "### `trading/services/`\n"
         "| `accounts/queries.py` | account reads |\n"
     )
-    documented = _extract_documented_paths(markdown)
+    documented = _extract_documented_paths(markdown, "trading")
     assert "trading/domain/accounting.py" in documented
     assert "trading/services/accounts/queries.py" in documented
     # A bare `accounting.py` under domain must NOT count a same-named file elsewhere as documented.
@@ -106,7 +114,7 @@ def test_extract_ignores_prose_mentions() -> None:
         "Only repositories and the `runtime_loader.py` exception import from here.\n"
         "| `db_init.py` | initialise the schema |\n"
     )
-    documented = _extract_documented_paths(markdown)
+    documented = _extract_documented_paths(markdown, "trading")
     assert "trading/database/db_init.py" in documented  # table row counts
     assert "trading/database/runtime_loader.py" not in documented  # prose mention does not
 
@@ -117,8 +125,15 @@ def test_extract_resolves_subsection_directories() -> None:
         "**Runtime jobs** (`trading/interfaces/runtime/jobs/`)\n"
         "| `daily/snapshot.py` | snapshot job |\n"
     )
-    documented = _extract_documented_paths(markdown)
+    documented = _extract_documented_paths(markdown, "trading")
     assert "trading/interfaces/runtime/jobs/daily/snapshot.py" in documented
+
+
+def test_extract_resolves_relative_subsection_under_full_section() -> None:
+    """ui-map style: a relative `### Routes (`routes/`)` under a full-path `## Backend (...)`."""
+    markdown = "## Backend (`paper_trading_ui/backend/`)\n### Routes (`routes/`)\n| `accounts.py` | account routes |\n"
+    documented = _extract_documented_paths(markdown, "paper_trading_ui/backend")
+    assert "paper_trading_ui/backend/routes/accounts.py" in documented
 
 
 # ---------------------------------------------------------------------------
