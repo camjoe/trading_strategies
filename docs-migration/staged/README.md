@@ -6,14 +6,14 @@ Keep names here matching their final filename so they're easy to move. Track eac
 
 ## Staged → destination
 
-| Staged file | Final destination | Status | Notes |
-|---|---|---|---|
-| `naming.md` | `docs/conventions/naming.md` | drafted | the real naming convention (D-OPEN-7); replaces the current stub |
-| `CONTRIBUTING.md` | `CONTRIBUTING.md` (repo root) | to draft | real human contributor workflow (D-OPEN-8) |
-| `CLAUDE.md` | `CLAUDE.md` (repo root) | to draft | thin: `@AGENTS.md` import + link to `docs/README.md` (D-OPEN-8) |
-| `copilot-instructions.md` | `.github/copilot-instructions.md` | to draft | thin redirect → AGENTS.md (D-OPEN-8) |
-| `quality-gates.md` | `docs/conventions/quality-gates.md` | to draft | DoD ↔ enforcing checks (D-8 / addition A) |
-| `bots-README.md` | `bots/README.md` | to draft | skill vs workflow vs agent + when-to-use (D-8 / addition B) |
-| `bot-authoring.md` | `docs/conventions/bot-authoring.md` | to draft | skill/agent frontmatter schema (D-8 / addition C) |
+> **Status: all resolved (Pass 1b done).** Only `naming.md` actually used this folder; the other net-new files were authored directly at their destinations. This `naming.md` copy can be deleted once you're confident the live `docs/conventions/naming.md` is final.
 
-> Add a row here whenever you stage a new file. "Final destination" uses repo-root paths (no `agentswip/` — see [D-OPEN-1](../decisions.md)).
+| Staged file | Final destination | Status |
+|---|---|---|
+| `naming.md` | `docs/conventions/naming.md` | ✅ copied (121f520) |
+| CONTRIBUTING.md | `CONTRIBUTING.md` (root) | ✅ authored at destination (44fc9bd) |
+| CLAUDE.md | `CLAUDE.md` (root) | ✅ authored at destination (121f520) |
+| copilot-instructions.md | `.github/copilot-instructions.md` | ✅ authored at destination (121f520) |
+| bots/README.md | `bots/README.md` | ✅ authored at destination (f7eafb5) |
+| quality-gates.md | — | 🗑️ dropped (D-8 revised — redundant) |
+| bot-authoring.md | — | 🗑️ dropped (D-8 revised — redundant) |

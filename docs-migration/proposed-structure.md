@@ -18,9 +18,9 @@ agentswip/                    📦 STAGING ONLY — contents promoted to repo ro
 │   │   └── TEMPLATE.notes.md 🟡 keep TEMPLATE.* co-located (vs examples/ folder)
 │   ├── business-rules/       ❓ finance/market/domain rules — seed with real content or omit (D-OPEN-5)
 │   ├── runbooks/             ✅ "how to operate"
-│   ├── conventions/          ✅ normative rules: style, naming, doc-header standard
-│   │                            + quality-gates.md (DoD ↔ enforcing checks, D-8)
-│   │                            + bot-authoring.md (skill/agent frontmatter schema, D-8)
+│   ├── conventions/          ✅ normative rules: style, naming, doc-header, bot-style
+│   │                            (D-8 quality-gates.md + bot-authoring.md dropped as redundant;
+│   │                             advisory-vs-enforced folded into validate-code skill)
 │   ├── maps/                 "where things live"
 │   │   ├── *.md              ✅ authored structural maps (file-lists + responsibilities); validated by scripts/checks/maps_check.py (D-OPEN-6)
 │   │   └── domains/          🟡 authored maps: why things exist + which files matter (not auto-checked)

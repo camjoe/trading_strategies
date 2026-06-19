@@ -15,7 +15,9 @@ Ordered, checkbox procedure for executing the migration. Pass 0 (triage) is comp
 - Header backfill now includes **`docs/architecture/architecture-conventions.md`** and **`docs/conventions/bot-style.md`** (moved from `.github/`, predate the doc-header standard) — plus `naming.md` (1b) and `db-schema.md` (D-9). `agent-skills.md` stays exempt.
 - **Pre-existing CI issue (NOT migration-caused):** `ruff` F401 unused import in `tests/trading/interfaces/runtime/data_ops/test_admin.py:8` (introduced by the develop merge). Auto-fixable with `ruff --fix`; handle separately from migration commits.
 
-**Remaining in Pass 1:** Step 1b (author 6 net-new files) + header backfills.
+**Pass 1b DONE:** `naming.md`, thin `CLAUDE.md` + `.github/copilot-instructions.md`, `bots/README.md`, `CONTRIBUTING.md`; advisory-vs-enforced folded into `validate-code`; doc-headers backfilled on `architecture-conventions.md` + `bot-style.md`; `agent-skills.md` refs fixed. **D-8 revised:** `quality-gates.md` + `bot-authoring.md` dropped as redundant. Ruff F401 fixed (`45f2827`).
+
+**Pass 1 COMPLETE.** Remaining is all deferred/Pass-2: D-9 (db-schema generation — `db-schema.md` still needs its header via the generator), D-OPEN-6 (`maps_check`), plus the Pass-2 consolidations and the freshness fixes from the develop merge.
 
 ## Guiding approach (Strategy A)
 

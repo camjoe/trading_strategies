@@ -39,6 +39,12 @@ Three additions to make agents/devs apply skills/agents/workflows correctly and 
 
 *Build timing:* decision now; authored at execution (staged). **D (skills/agents drift-check) NOT adopted now** — deferred, see D-OPEN-11.
 
+**REVISED at execution (2026-06-17):** after reading the existing skills, **A and C were dropped as redundant**:
+- **C (`bot-authoring.md`) dropped** — authoring guidance already lives in `docs/reference/agent-skills.md` (the authoritative upstream guide), `bots/skills/README.md` ("Authoring rules"), and `create-skill/SKILL.md`. A 4th doc would duplicate. No genuinely-new bit needed folding (existing guidance already emphasizes WHAT+WHEN descriptions).
+- **A (`quality-gates.md`) dropped as standalone** — `validate-code` (runs the checks) and `check-pr-readiness` (6-step DoD workflow) already operationalize the gate, and a `.github/workflows/quality-gates.yml` CI workflow already exists. Only genuinely-new bit — the *advisory-vs-enforced* list — was **folded into `validate-code/SKILL.md`** ("Not covered here / verify manually").
+- **B (`bots/README.md`) kept** — useful orientation at the `bots/` root (skill vs workflow vs agent).
+- Bonus fix: the skills referenced a stale `docs/Agent Skills.md`; corrected to `docs/reference/agent-skills.md` across create-skill, update-skill, bots/skills/README.
+
 ### D-9 — DB schema doc: generated block + authored notes
 The just-added `docs/notes-db-schema.md` (mis-filed at `docs/` root) → moves to **`docs/reference/db-schema.md`** (reference = "what exists"; drop `notes-` prefix).
 - **Single doc, two zones:** a GENERATED schema block (tables/columns/types/indexes) between managed markers, refreshed by extending `scripts/data_ops/describe_db_schema.py` with a markdown write-mode (`--source fresh` = canonical code-defined schema) → **this is the deterministic updater Cameron wanted**; plus an AUTHORED "Semantic notes" section (the `initial_cash` deposit-model note, `note`-prefix conventions, migration rules) the script never touches.

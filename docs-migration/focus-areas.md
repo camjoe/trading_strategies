@@ -17,7 +17,7 @@ The folder shuffle is the *easy, low-value* part — satisfying but mostly cosme
 | **Doc-header + staleness discipline** | Low each, High cumulative | ⭐⭐⭐⭐ | Yes | Your `Type/Status/Last Reviewed` headers + "goes stale when" columns are gold — but only if you keep applying them. A habit to build, not a task to finish. |
 | **Avoiding duplication drift** (bots↔.github redirects; business-rules↔JSON) | Medium | ⭐⭐⭐⭐ | Yes | Every duplicated copy is a future inconsistency. Keep copies *thin* (pointers) or *generated*, never hand-maintained twins. The risk you'll fight for months. |
 | **Quality-gates / DoD map (D-8 A)** | Low–Med | ⭐⭐⭐⭐ | Yes | Maps each rule → its enforcing check (or "advisory"); the Definition of Done. Turns conventions into something agents can self-verify. High leverage for consistent quality. |
-| **bots/README + bot-authoring (D-8 B/C)** | Low | ⭐⭐⭐ | Slightly | Define skill/workflow/agent + frontmatter schema so agents select and author correctly. One-time write; light upkeep as surfaces evolve. |
+| **bots/README (D-8 B)** | Low | ⭐⭐⭐ | Slightly | Defines skill/workflow/agent surfaces at the bots/ root. (D-8 A/C — quality-gates + bot-authoring — dropped as redundant with existing skills/guides; advisory-vs-enforced folded into validate-code.) |
 | **business-rules: docs authoritative, JSON derived** | Medium | ⭐⭐⭐ | Partly | SoT decided: `docs/business-rules/` wins; web-app JSON becomes derived. Real work = transfer content in, then wire the web app to render docs or generate JSON from them. Deferred until structure settles. |
 | Renaming `agentswip/` → repo root | Trivial | ⭐ | No | Must-do, but cosmetic. No skill required. |
 | Merge `agents/` + `prompts/` | Low | ⭐⭐ | No | Organizational clarity; one-time. |
