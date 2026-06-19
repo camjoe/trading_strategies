@@ -41,7 +41,7 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 
 ## Module Directory
 
-One-liner per module. For layering rules, allowed imports, and placement decisions see the sections above and `.github/BOT_ARCHITECTURE_CONVENTIONS.md`.
+One-liner per module. For layering rules, allowed imports, and placement decisions see the sections above and `docs/architecture/architecture-conventions.md`.
 
 ### `trading/interfaces/`
 
@@ -271,5 +271,5 @@ Static file-backed configuration assets. Read at runtime; not imported as Python
 
 - [service-cookbook.md](../architecture/service-cookbook.md) — task-oriented API reference ("what function do I call to do X?")
 - [nav-guide.md](../architecture/nav-guide.md) — "I want to X → look/edit Y" lookup table
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — authoritative import boundary and layering rules
-- `docs/reference/adr-backtesting-layering.md`
+- `docs/architecture/architecture-conventions.md` — authoritative import boundary and layering rules
+- `docs/adr/002-backtesting-layering.md`

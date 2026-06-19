@@ -1,7 +1,7 @@
 """Layer boundary enforcement check.
 
 Scans Python source files and fails if any module imports from a layer it is
-not allowed to depend on, as defined in .github/BOT_ARCHITECTURE_CONVENTIONS.md.
+not allowed to depend on, as defined in docs/architecture/architecture-conventions.md.
 
 Each rule declares:
   - source_glob: the subtree being constrained
@@ -221,7 +221,7 @@ def run_layer_check(repo_root: Path, *, rules: list[LayerRule] | None = None) ->
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check that layer boundaries defined in BOT_ARCHITECTURE_CONVENTIONS.md are respected.",
+        description="Check that layer boundaries defined in docs/architecture/architecture-conventions.md are respected.",
     )
     parser.add_argument(
         "--repo-root",

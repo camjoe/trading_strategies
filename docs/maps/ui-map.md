@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Structure of the operator UI — FastAPI backend routes/schemas/services and TypeScript/Vite frontend layout.
-Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/notes-screenshot-ui.md)
+Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/screenshot-ui.md)
 
 Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. Both live under `paper_trading_ui/`.
 
@@ -199,4 +199,4 @@ Static JSON assets consumed by the in-app docs renderer.
 
 - [`docs/architecture/nav-guide.md`](../architecture/nav-guide.md) — Task-oriented lookup for where to edit UI code
 - [`docs/architecture/service-cookbook.md`](../architecture/service-cookbook.md) — Backend service API reference
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — Import boundary rules (backend must not import from `trading/interfaces/`)
+- `docs/architecture/architecture-conventions.md` — Import boundary rules (backend must not import from `trading/interfaces/`)

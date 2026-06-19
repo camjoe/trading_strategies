@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-13
 Last Reviewed: 2026-06-16
 Purpose: Define who is allowed to invoke each skill and how that restriction is declared and enforced via the invoker field.
-Related: [Agent Skills Reference](notes-agent-skills.md)
+Related: [Agent Skills Reference](agent-skills.md)
 
 Defines who is allowed to invoke each skill and how that restriction is declared and enforced.
 
@@ -76,7 +76,6 @@ Do not execute any workflow steps below until the invoker check passes.
 | `expand-tests` | `any` | General testing tool |
 | `finance-strategy` | `any` | Domain knowledge, no side effects |
 | `help` | `any` | Discovery tool |
-| `python-stat-modeling` | `any` | Research tool, no side effects |
 | `reference-doc` | `any` | Documentation authoring |
 | `update-documentation` | `any` | Documentation maintenance |
 | `update-skill` | `any` | Skill maintenance |
@@ -102,6 +101,6 @@ Do not execute any workflow steps below until the invoker check passes.
 ## Related References
 
 - `docs/maps/skills-map.md` — full discovery index of agents and skills
-- `.github/skills/help/SKILL.md` — `/help` skill for interactive discovery
-- `.github/agents/` — agent definitions
-- `.github/skills/` — skill definitions
+- `bots/skills/help/SKILL.md` — `/help` skill for interactive discovery
+- `bots/agents/` — agent definitions
+- `bots/skills/` — skill definitions

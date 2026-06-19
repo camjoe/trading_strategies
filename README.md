@@ -18,8 +18,8 @@ This repository provides tools for:
 | `trends/` | Stock trends analysis and indicator calculations. |
 | `trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
 | `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `.github/agents/` | Repo-specific agent definitions for project-only execution flows. |
-| `.github/skills/` | Reusable skill definitions and templates for localized overlays. |
+| `bots/agents/` | Repo-specific agent definitions for project-only execution flows. |
+| `bots/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |
 
@@ -71,7 +71,7 @@ See [trends/README.md](trends/README.md) for full documentation and usage exampl
 
 ### Backtesting
 
-See [docs/reference/notes-backtesting.md](docs/reference/notes-backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
+See [docs/reference/backtesting.md](docs/reference/backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
 
 ### Paper Trading
 

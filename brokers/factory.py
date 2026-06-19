@@ -42,7 +42,7 @@ def get_broker_for_account(account: AccountRecord) -> BrokerConnection:
     .. warning::
         ``live_trading_enabled`` must be set manually via a direct DB update.
         No bot or automated process should ever set this flag — see
-        ``BOT_ARCHITECTURE_CONVENTIONS.md`` § Live Trading Safety Guard.
+        ``docs/architecture/architecture-conventions.md`` § Live Trading Safety Guard.
     """
     broker_type = str(account.broker_type or _BROKER_TYPE_PAPER).strip().lower()
 

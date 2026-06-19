@@ -79,22 +79,22 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/reference/notes-backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
-| `docs/reference/notes-broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
-| `docs/reference/notes-db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
-| `docs/reference/notes-accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
-| `docs/reference/notes-sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
-| `docs/reference/notes-strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
-| `docs/reference/notes-screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
-| `docs/reference/notes-sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
+| `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
+| `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
+| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
+| `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
+| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
+| `docs/reference/strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
+| `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
+| `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
 
 ### ADRs
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
-| `docs/reference/adr-backtesting-layering.md` | Backtesting module layering approach | Restructuring `trading/backtesting/` out of its current bounded-context shape |
-| `docs/reference/adr-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
-| `docs/reference/adr-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
+| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `trading/backtesting/` out of its current bounded-context shape |
+| `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
+| `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
 
 ### Templates and Standards
 
@@ -112,9 +112,9 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/runbooks/daily_operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
-| `docs/runbooks/burn_in_protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
-| `docs/runbooks/governance_review_guide.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
+| `docs/runbooks/daily-operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
+| `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
+| `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 
 ---
 
@@ -124,10 +124,10 @@ Rules and standards this project follows — coding style, doc structure, naming
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/conventions/python-style-guide.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
-| `docs/conventions/readme-layout-standard.md` | Standard layout for README files | README section structure changes |
-| `docs/conventions/reference-doc-standard.md` | Standard structure for reference notes | Reference doc conventions change |
-| `docs/conventions/doc-header-standard.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
+| `docs/conventions/python-style.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+| `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
+| `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
+| `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
 
 ---
 
@@ -139,21 +139,21 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `.github/BOT_ARCHITECTURE_CONVENTIONS.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
-| `.github/BOT_STYLE_GUIDE.md` | Code style rules for Claude contributions | Style conventions change |
+| `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
+| `docs/conventions/bot-style.md` | Code style rules for Claude contributions | Style conventions change |
 
 ### Agents
 
 | File | Agent scope | Goes stale when |
 |---|---|---|
-| `.github/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
-| `.github/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
-| `.github/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
-| `.github/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
+| `bots/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
+| `bots/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
+| `bots/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
+| `bots/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
 
 ### Skills
 
-Skills live under `.github/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
+Skills live under `bots/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
 
 | Skill folder | What it covers |
 |---|---|
@@ -163,7 +163,6 @@ Skills live under `.github/skills/`. Each skill has a `SKILL.md` entry point plu
 | `create-skill/` | Skill authoring workflow |
 | `expand-tests/` | Test expansion workflow |
 | `finance-strategy/` | Finance and strategy domain knowledge |
-| `python-stat-modeling/` | Statistical modeling guidance |
 | `update-documentation/` | Documentation update workflow; sub-docs cover docs-check and docs-sync |
 | `update-skill/` | Skill update workflow |
 | `validate-code/` | Code validation (lint, type-check, tests, layer-check) |
@@ -179,6 +178,6 @@ Use this when auditing documentation health:
 - [ ] ADRs whose decisions have been reversed are marked superseded.
 - [ ] Reference notes describe current behavior (not past implementations).
 - [ ] Runbooks reflect current job script names and paths.
-- [ ] `.github/BOT_ARCHITECTURE_CONVENTIONS.md` agrees with the architecture maps on import boundaries.
+- [ ] `docs/architecture/architecture-conventions.md` agrees with the architecture maps on import boundaries.
 - [ ] `docs/README.md` links are not broken (no missing or renamed files).
 - [ ] No two files in the same section cover the same scope without cross-referencing each other.

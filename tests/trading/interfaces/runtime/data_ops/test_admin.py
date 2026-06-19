@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.trading.interfaces.helpers import run_module_as_main
 
 from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 from trading.database.db_init import ensure_db
