@@ -124,7 +124,10 @@ Rules and standards this project follows — coding style, doc structure, naming
 
 | File | What it covers | Goes stale when |
 |---|---|---|
+| `docs/conventions/general-style.md` | Cross-cutting style approach + docs/markdown style; indexes the per-language guides | Style approach or doc-writing conventions change |
 | `docs/conventions/python-style.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+| `docs/conventions/frontend-style.md` | TypeScript/Vite frontend style | Frontend conventions change |
+| `docs/conventions/naming.md` | File/folder naming convention | Naming rules change |
 | `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
 | `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
 | `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
@@ -140,7 +143,6 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
-| `docs/conventions/style-guide.md` | Code style rules for Claude contributions | Style conventions change |
 
 ### Agents
 

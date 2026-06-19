@@ -5,12 +5,12 @@ Status: Active
 Created: 2026-03-29
 Last Reviewed: 2026-06-17
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
-Related: [Bot Style Guide](../conventions/style-guide.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Scope:
 
 1. This file defines architecture and API contract rules.
-2. Formatting/style choices are out of scope here and live in `docs/conventions/style-guide.md`.
+2. Formatting/style choices are out of scope here and live in `docs/conventions/general-style.md`.
 
 ## Canonical Layering
 
