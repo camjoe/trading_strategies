@@ -18,7 +18,7 @@ Note on D-5 (never delete information): "dropping" is a deliberate, reviewed dec
 
 | # | Items | Overlap | Proposed action | Status |
 |---|---|---|---|---|
-| C1 | `python-style.md` + `bot-style.md` (was BOT_STYLE_GUIDE.md) | Both are code-style guides | Review together; likely merge into one. | open (D-OPEN-9) |
+| C1 | `python-style.md` + `style-guide.md` (was BOT_STYLE_GUIDE.md) | Both are code-style guides | Review together; likely merge into one. | open (D-OPEN-9) |
 | C2 | `CLAUDE.md` "Docs Folder Guide" ↔ `docs/README.md` folder guide | Same folder-guide table in two places | Drop from CLAUDE.md; link to `docs/README.md`. | ✅ resolved (D-OPEN-8) |
 | C3 | `AGENTS.md` "Key Reference Points" / "Keeping Docs Fresh" ↔ `docs/README.md` + `docs-map.md` | Reference lists restated | After move, point AGENTS.md at the docs index instead of restating. | open |
 | C4 | `AGENTS.md` skill/agent inventory + routing tables ↔ each `SKILL.md` / `.github/skills/README.md` | Skill purposes listed in 2+ places | Decide single source for skill descriptions; others link. | open |

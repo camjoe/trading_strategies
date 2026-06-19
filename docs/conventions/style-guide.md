@@ -14,17 +14,9 @@ Scope:
 
 ## Full Python style reference
 
-See [`python-style.md`](python-style.md) for the complete, curated
-PEP 8 interpretation for this project. That document is the authoritative reference for both developers
-and bots. Key project choices at a glance:
-
-| Rule | This project |
-|---|---|
-| Max line length | **119 characters** |
-| String quotes | Double quotes |
-| Indentation | 4 spaces, no tabs |
-| Type hints | Required for all public functions |
-| Import order | stdlib → third-party → local |
+Python style rules live in **[`python-style.md`](python-style.md)** — the complete, curated PEP 8
+interpretation for this project, and the authoritative reference for both developers and bots. Do not
+restate Python rules here; link to that document so the two never drift.
 
 ## Style Approach
 
@@ -41,14 +33,9 @@ Balanced means:
 
 ### Python
 
-1. Use explicit type hints for public functions and non-trivial returns.
-2. Prefer small single-purpose helpers over large mixed-responsibility functions.
-3. Keep comments high-signal and concise — explain *why*, not *what*.
-4. Use `from __future__ import annotations` at the top of every file.
-5. Prefer `X | None` over `Optional[X]`; prefer lowercase `list[X]`, `dict[K, V]` over `typing` aliases.
-6. For naming: `snake_case` functions/variables, `CapWords` classes, `UPPER_SNAKE_CASE` module-level constants — see the full naming table and model suffix rules in `docs/architecture/architecture-conventions.md § Naming Conventions`.
-7. Use f-strings for string formatting.
-8. Do not use bare `except:` or `except Exception: pass`.
+All Python style rules — type hints, imports, naming, docstrings, idioms — are in
+[`python-style.md`](python-style.md). Naming ownership and model suffixes (`*Config`/`*Insert`/`*Record`)
+live in [`architecture-conventions.md`](../architecture/architecture-conventions.md).
 
 ### TypeScript and Frontend
 

@@ -130,5 +130,5 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 
 - `scripts/checks/pr_ready.py`
 - `docs/architecture/architecture-conventions.md`
-- `docs/conventions/bot-style.md`
+- `docs/conventions/style-guide.md`
 - `AGENTS.md`

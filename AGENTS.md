@@ -21,7 +21,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 ## Working references
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
-- Style and formatting expectations: `docs/conventions/bot-style.md`
+- Style and formatting expectations: `docs/conventions/style-guide.md`
 - Skill authoring and localization guidance: `bots/skills/README.md`
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.

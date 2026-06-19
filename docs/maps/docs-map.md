@@ -140,7 +140,7 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
-| `docs/conventions/bot-style.md` | Code style rules for Claude contributions | Style conventions change |
+| `docs/conventions/style-guide.md` | Code style rules for Claude contributions | Style conventions change |
 
 ### Agents
 
