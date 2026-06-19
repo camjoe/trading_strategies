@@ -75,6 +75,11 @@ def parse_args() -> argparse.Namespace:
         help="CI profile: skip README consistency check.",
     )
     parser.add_argument(
+        "--skip-maps-check",
+        action="store_true",
+        help="CI profile: skip maps drift check.",
+    )
+    parser.add_argument(
         "--install-python-tools",
         action="store_true",
         help="CI profile: install ruff and mypy before quality gates.",
@@ -105,6 +110,7 @@ def main() -> int:
         skip_python=args.skip_python,
         skip_frontend=args.skip_frontend,
         skip_readme_consistency=args.skip_readme_consistency,
+        skip_maps_check=args.skip_maps_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,
