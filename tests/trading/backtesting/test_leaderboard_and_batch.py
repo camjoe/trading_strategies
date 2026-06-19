@@ -85,7 +85,7 @@ class TestBacktestLeaderboardAndBatch:
             conn,
             BacktestBatchConfig(
                 account_names=["acct_a", "acct_b"],
-                tickers_file="trading/config/trade_universe.txt",
+                tickers_file="src/infrastructure/config/trade_universe.txt",
                 universe_history_dir=None,
                 start="2026-01-01",
                 end="2026-02-01",
@@ -99,3 +99,4 @@ class TestBacktestLeaderboardAndBatch:
 
         assert [item.account_name for item in results] == ["acct_b", "acct_a"]
         assert seen_run_names == ["batch_01_acct_a", "batch_02_acct_b"]
+

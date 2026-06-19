@@ -7,7 +7,7 @@ def make_backtest_args(**overrides):
     defaults = {
         "command": "backtest",
         "account": "acct1",
-        "tickers_file": "trading/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universe.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-01",
@@ -42,7 +42,7 @@ def make_backtest_batch_args(**overrides):
     defaults = {
         "command": "backtest-batch",
         "accounts": "acct1, acct2",
-        "tickers_file": "trading/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universe.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-01",
@@ -60,7 +60,7 @@ def make_walk_forward_args(**overrides):
     defaults = {
         "command": "backtest-walk-forward",
         "account": "acct1",
-        "tickers_file": "trading/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universe.txt",
         "universe_history_dir": None,
         "start": "2026-01-01",
         "end": "2026-03-31",
@@ -125,3 +125,4 @@ __all__ = [
     "make_walk_forward_args",
     "make_walk_forward_summary",
 ]
+

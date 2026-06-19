@@ -46,7 +46,7 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
             utc_now_iso(),
             5.0,
             0.0,
-            "trading/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universe.txt",
         ),
     )
     run = conn.execute("SELECT id FROM backtest_runs WHERE account_id = ?", (account_id,)).fetchone()
@@ -165,3 +165,4 @@ def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -
 
     with pytest.raises(ValueError, match="already exists"):
         create_account_with_rotation(conn, command)
+

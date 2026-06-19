@@ -134,7 +134,7 @@ def make_run_auto_trades_args(**overrides):
         "max_trades": 1,
         "seed": None,
         "accounts": "acct1",
-        "tickers_file": "trading/config/trade_universe.txt",
+        "tickers_file": "src/infrastructure/config/trade_universe.txt",
         "fee": 0.0,
         "execution_mode": "account",
     }
@@ -290,3 +290,4 @@ __all__ = [
     "stub_runtime_job_basics",
     "write_completed_runtime_log",
 ]
+

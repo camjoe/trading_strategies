@@ -66,7 +66,7 @@ def make_backtest_config(
 ) -> BacktestConfig:
     return BacktestConfig(
         account_name=account_name,
-        tickers_file="trading/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universe.txt",
         universe_history_dir=universe_history_dir,
         start=start,
         end=end,
@@ -92,7 +92,7 @@ def make_walk_forward_config(
 ) -> WalkForwardConfig:
     return WalkForwardConfig(
         account_name=account_name,
-        tickers_file="trading/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universe.txt",
         universe_history_dir=None,
         start=start,
         end=end,
@@ -193,3 +193,4 @@ __all__ = [
     "make_fake_close_history",
     "make_walk_forward_config",
 ]
+

@@ -16,7 +16,7 @@ from trading.services.accounts import create_account
 def _cfg() -> BacktestConfig:
     return BacktestConfig(
         account_name="acct_walk_forward_repo",
-        tickers_file="trading/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-01-31",
@@ -137,3 +137,4 @@ def test_walk_forward_repository_persists_and_reads_latest_group(conn) -> None:
 
     assert [int(item["run_id"]) for item in latest_group_runs] == latest_run_ids
     assert [int(item["window_index"]) for item in latest_group_runs] == [1, 2]
+

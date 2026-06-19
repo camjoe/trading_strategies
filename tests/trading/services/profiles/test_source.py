@@ -57,11 +57,12 @@ class TestJsonAccountProfileSource:
 def test_get_builtin_profile_preset_path_prefers_trading_config_directory() -> None:
     preset_path = get_builtin_profile_preset_path("Conservative")
 
-    assert preset_path.as_posix().endswith("trading/config/account_profiles/conservative.json")
+    assert preset_path.as_posix().endswith("src/infrastructure/config/account_profiles/conservative.json")
     assert preset_path.exists()
 
 
 def test_resolve_profile_file_path_rewrites_legacy_account_profiles_prefix() -> None:
     resolved = resolve_profile_file_path("trading/account_profiles/default.json")
 
-    assert resolved.as_posix().endswith("trading/config/account_profiles/default.json")
+    assert resolved.as_posix().endswith("src/infrastructure/config/account_profiles/default.json")
+

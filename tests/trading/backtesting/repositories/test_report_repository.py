@@ -31,7 +31,7 @@ def _fake_close_history(tickers: list[str]) -> pd.DataFrame:
 def _backtest_config(account_name: str) -> BacktestConfig:
     return BacktestConfig(
         account_name=account_name,
-        tickers_file="trading/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-01",
@@ -95,7 +95,7 @@ def _insert_account_and_runs(conn: sqlite3.Connection, account_name: str, run_co
                 "2026-01-31",
                 0.0,
                 0.0,
-                "trading/config/trade_universe.txt",
+                "src/infrastructure/config/trade_universe.txt",
                 "",
                 "",
                 f"2026-02-0{i + 1}T00:00:00Z",
@@ -194,3 +194,4 @@ def test_fetch_latest_backtest_run_id_for_account_strategy_returns_none_for_no_m
     )
 
     assert result is None
+

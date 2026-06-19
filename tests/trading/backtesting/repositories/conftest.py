@@ -47,7 +47,7 @@ def seed_bt_run(conn: sqlite3.Connection) -> Callable[..., int]:
                     created_at,
                     0.0,
                     0.0,
-                    "trading/config/trade_universe.txt",
+                    "src/infrastructure/config/trade_universe.txt",
                     "",
                     "",
                 ),
@@ -68,3 +68,4 @@ def seed_bt_run(conn: sqlite3.Connection) -> Callable[..., int]:
         return run_id
 
     return _seed
+

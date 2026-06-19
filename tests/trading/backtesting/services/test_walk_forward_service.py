@@ -18,7 +18,7 @@ class _Result:
 def _cfg() -> WalkForwardConfig:
     return WalkForwardConfig(
         account_name="acct",
-        tickers_file="trading/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-03-31",
@@ -141,3 +141,4 @@ def test_walk_forward_service_rejects_empty_windows() -> None:
             windows=[],
             run_backtest_fn=lambda _conn, _cfg: _Result(run_id=1, total_return_pct=1.0),
         )
+

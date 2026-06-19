@@ -14,7 +14,7 @@ from trading.backtesting.models import BacktestConfig
 def _cfg() -> BacktestConfig:
     return BacktestConfig(
         account_name="acct_repo",
-        tickers_file="trading/config/trade_universe.txt",
+        tickers_file="src/infrastructure/config/trade_universe.txt",
         universe_history_dir=None,
         start="2026-01-01",
         end="2026-01-31",
@@ -73,3 +73,4 @@ def test_backtest_repository_inserts_run_trade_and_snapshot(conn) -> None:
     assert "w1 | w2" == run_row["warnings"]
     assert int(trades["n"]) == 1
     assert int(snaps["n"]) == 1
+

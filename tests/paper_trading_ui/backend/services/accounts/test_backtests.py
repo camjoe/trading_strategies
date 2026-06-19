@@ -33,7 +33,7 @@ def test_fetch_latest_backtest_summary_none_and_present(conn, create_account_row
             utc_now_iso(),
             5.0,
             0.25,
-            "trading/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universe.txt",
         ),
     )
     conn.commit()
@@ -62,7 +62,7 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
             utc_now_iso(),
             5.0,
             0.0,
-            "trading/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universe.txt",
         ),
     )
     conn.commit()
@@ -97,3 +97,4 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "profitFactor": 1.6,
         "avgTradeReturnPct": 2.1,
     }
+

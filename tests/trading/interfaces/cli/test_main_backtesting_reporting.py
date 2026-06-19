@@ -27,7 +27,7 @@ def test_main_backtest_report_dispatches(monkeypatch, capsys) -> None:
             "max_drawdown_pct": -0.5,
             "slippage_bps": 5.0,
             "fee_per_trade": 0.0,
-            "tickers_file": "trading/config/trade_universe.txt",
+            "tickers_file": "src/infrastructure/config/trade_universe.txt",
             "warnings": "daily bars only",
         },
     )
@@ -61,7 +61,7 @@ def test_main_backtest_report_without_warnings_omits_notes_line(monkeypatch, cap
             "max_drawdown_pct": -0.5,
             "slippage_bps": 5.0,
             "fee_per_trade": 0.0,
-            "tickers_file": "trading/config/trade_universe.txt",
+            "tickers_file": "src/infrastructure/config/trade_universe.txt",
             "warnings": "",
         },
     )
@@ -113,3 +113,4 @@ def test_main_backtest_leaderboard_no_rows_prints_message(monkeypatch, capsys) -
     out = capsys.readouterr().out
     assert "No backtest runs matched the selected filters." in out
     assert fake_conn.closed is True
+

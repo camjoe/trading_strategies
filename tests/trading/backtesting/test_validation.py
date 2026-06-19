@@ -53,7 +53,7 @@ class TestBacktestValidationAndFailurePaths:
                 "2026-03-27T00:00:00Z",
                 0.0,
                 0.0,
-                "trading/config/trade_universe.txt",
+                "src/infrastructure/config/trade_universe.txt",
                 "test",
                 "",
             ),
@@ -103,7 +103,7 @@ class TestBacktestValidationAndFailurePaths:
                 conn,
                 backtest_module.BacktestBatchConfig(
                     account_names=["  ", ""],
-                    tickers_file="trading/config/trade_universe.txt",
+                    tickers_file="src/infrastructure/config/trade_universe.txt",
                     universe_history_dir=None,
                     start="2026-01-01",
                     end="2026-02-01",
@@ -114,3 +114,4 @@ class TestBacktestValidationAndFailurePaths:
                     allow_approximate_leaps=False,
                 ),
             )
+

@@ -8,7 +8,7 @@ REPO_ROOT = get_repo_root(__file__)
 # Common top-level directories reused across trading, UI, and scripts.
 LOCAL_DIR = REPO_ROOT / "local"
 TRADING_DIR = REPO_ROOT / "trading"
-TRADING_CONFIG_DIR = TRADING_DIR / "config"
+TRADING_CONFIG_DIR = REPO_ROOT / "src" / "infrastructure" / "config"
 
 # Canonical file locations used in multiple modules.
 ACCOUNT_PROFILES_DIR = TRADING_CONFIG_DIR / "account_profiles"

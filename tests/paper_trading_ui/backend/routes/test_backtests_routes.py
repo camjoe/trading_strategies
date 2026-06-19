@@ -75,7 +75,7 @@ class TestBacktestsRoutes:
                 "/api/backtests/run",
                 json={
                     "account": "acct_run_err",
-                    "tickersFile": "trading/config/trade_universe.txt",
+                    "tickersFile": "src/infrastructure/config/trade_universe.txt",
                     "start": "2026-01-01",
                     "end": "2026-01-31",
                 },
@@ -124,7 +124,7 @@ class TestBacktestsRoutes:
             "/api/backtests/preflight",
             json={
                 "account": "acct_api_leaps",
-                "tickersFile": "trading/config/trade_universe.txt",
+                "tickersFile": "src/infrastructure/config/trade_universe.txt",
                 "start": "2026-01-01",
                 "end": "2026-03-01",
                 "allowApproximateLeaps": False,
@@ -145,7 +145,7 @@ class TestBacktestsRoutes:
             "/api/backtests/preflight",
             json={
                 "account": "acct_api_conflict",
-                "tickersFile": "trading/config/trade_universe.txt",
+                "tickersFile": "src/infrastructure/config/trade_universe.txt",
                 "start": "2026-01-01",
                 "lookbackMonths": 1,
             },
@@ -166,7 +166,7 @@ class TestBacktestsRoutes:
                 "/api/backtests/walk-forward",
                 json={
                     "account": "acct_wf_err",
-                    "tickersFile": "trading/config/trade_universe.txt",
+                    "tickersFile": "src/infrastructure/config/trade_universe.txt",
                     "testMonths": 1,
                     "stepMonths": 1,
                 },
@@ -175,3 +175,4 @@ class TestBacktestsRoutes:
         assert response.status_code == 400
         assert response.json()["detail"] == "wf bad config"
         walk_forward_mock.assert_called_once()
+

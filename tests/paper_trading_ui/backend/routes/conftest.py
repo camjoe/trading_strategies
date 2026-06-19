@@ -64,9 +64,10 @@ def seed_backtest_run(api_conn: sqlite3.Connection) -> Callable[[str, str], None
                 utc_now_iso(),
                 5.0,
                 0.0,
-                "trading/config/trade_universe.txt",
+                "src/infrastructure/config/trade_universe.txt",
             ),
         )
         api_conn.commit()
 
     return _seed
+

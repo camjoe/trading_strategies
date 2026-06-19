@@ -67,7 +67,7 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
             "trading/backtesting/domain",
             "trading/backtesting/repositories",
             "trading/backtesting/services",
-            "trading/config",
+            "src/infrastructure/config",
         ),
     ),
     (
