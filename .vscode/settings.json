@@ -8,5 +8,8 @@
         "**/.coverage": true,
         "**/coverage.xml": true,
         "**/*.pyc": true
-    }
+    },
+    "python.analysis.extraPaths": [
+        "./src"
+    ]
 }
