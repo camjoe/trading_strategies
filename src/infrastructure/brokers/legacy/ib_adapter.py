@@ -49,7 +49,7 @@ from trading.models.broker_order import (
     OrderStatus,
     OrderType,
 )
-from src.infrastructure.brokers.legacy.ib_client import IBClientProtocol
+from infrastructure.brokers.legacy.ib_client import IBClientProtocol
 
 # Default IB TWS paper trading port.
 _IB_DEFAULT_HOST = "127.0.0.1"

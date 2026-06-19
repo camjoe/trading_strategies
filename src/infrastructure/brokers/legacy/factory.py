@@ -8,13 +8,13 @@ focused on the current/default Web API path.
 from __future__ import annotations
 
 from trading.domain.broker_connection import BrokerConnection
-from src.infrastructure.brokers.legacy.ib_adapter import (
+from infrastructure.brokers.legacy.ib_adapter import (
     InteractiveBrokersAdapter,
     _IB_DEFAULT_CLIENT_ID,
     _IB_DEFAULT_HOST,
     _IB_DEFAULT_PORT,
 )
-from src.infrastructure.brokers.legacy.ib_client import IbApiClient, IbAsyncClient
+from infrastructure.brokers.legacy.ib_client import IbApiClient, IbAsyncClient
 from trading.models import AccountRecord
 
 # Named backend constants for the legacy socket/TWS IB client path.
