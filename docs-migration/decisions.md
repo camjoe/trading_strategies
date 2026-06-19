@@ -1,6 +1,28 @@
 # Decision Log
 
-Numbered, append-only record of decisions for the docs consolidation. `D-#` = decided. `D-OPEN-#` = open question awaiting a decision. When an open question is resolved, record the outcome here and update [`proposed-structure.md`](proposed-structure.md) / [`file-mapping.md`](file-mapping.md).
+Numbered, append-only record of decisions for the docs consolidation. `D-#` = decided. `D-OPEN-#` = open question awaiting a decision. When an open question is resolved, record the outcome here.
+
+---
+
+## Execution status (2026-06-19)
+
+Snapshot of where execution actually stands (the decision entries below were written during planning and lag reality; this section is current).
+
+**Pass 1 (move): COMPLETE and merged to develop** (PRs #131/#132). All moves, renames, ADR numbering, `bots/`, link rewrites, thin entrypoints, CONTRIBUTING.
+
+**Pass 2 (consolidate/freshen): in progress** on branch `refactor/docs-reorganization-pass2`:
+- ✅ nav-guide + service-cookbook freshened for the develop-merge API renames.
+- ✅ **`maps_check.py` BUILT** — section-aware drift checker, extended to all 3 structural maps (trading-package/scripts/ui), wired into ci (advisory), tested. (See D-OPEN-6.)
+- ✅ **`link_check.py` BUILT** — markdown-link + repo-path checker, wired into ci (advisory), tested. Fixed 9 migration-caused + 3 mechanical clusters; ~19 long-tail broken refs deferred.
+- ✅ **D-OPEN-9 resolved** — `bot-style.md` slimmed + renamed → `style-guide.md` (see D-OPEN-9 for the divergence to settle).
+- 🟡 **D-9 IN PROGRESS (uncommitted)** — implemented as a drift CHECK, not the generate-DDL plan (see D-9 ACTUAL note).
+
+**Cleanup pending:**
+- `scripts-map.md` missing `link_check.py` + `db_schema_check.py` (maps_check flags 2 undocumented).
+- Stray untracked `project_structure.txt` + `trading_structure.txt` (UTF-16 dir dumps) — remove or gitignore.
+- ~19 long-tail broken links (link_check) — fix incrementally.
+
+**Remaining Pass 2:** finish D-9 (test + scripts-map entry + commit), `update-documentation` rework, `help/` → generated catalog, business-rules JSON transfer, long-tail link fixes.
 
 ---
 
@@ -53,6 +75,8 @@ The just-added `docs/notes-db-schema.md` (mis-filed at `docs/` root) → moves t
 - **Readable by agent + human**, deterministic to refresh — the two goals Cameron stated.
 - **Build at execution** (script markdown/write mode + first generation). Until then the moved file keeps its current hand-written schema as a stopgap (carries the `db.py` error — fix during migration). Concrete example of "generate the mechanical, author the meaning" (cf. D-OPEN-6).
 
+**ACTUAL (2026-06-19, in progress, uncommitted) — diverged from the plan above:** implemented as a *drift check*, not DDL generation. `db-schema.md` was rewritten into a 25-table **Quick Reference** (purpose + FK per table) + the kept semantic notes + a doc-header, **deferring full DDL to `db_schema.py`** (read it directly) rather than embedding/generating it. A new `scripts/checks/db_schema_check.py` verifies the Quick Reference covers every live table (the maps_check "check + author the meaning" model). Wired into ci (advisory); runs green ("covers all 25 tables"); source-of-truth corrected (`db_schema.py`/`db_migrations.py`, not `db.py`); db-schema.md now has its doc-header. This is a reasonable divergence (consistent with maps_check/link_check). **Missing: a test for `db_schema_check.py`, a `scripts-map.md` entry, and a commit.**
+
 ### D-10 — Execution strategy: in-place `git mv` at root (Strategy A)
 The move is executed by reorganizing the live `docs/` and `.github/` directly into final positions with `git mv` (preserves rename history → reviewable diffs), authoring net-new files fresh, then deleting the empty `agentswip/` scaffold. **No physical staging in `agentswip/`** — it was the design sketch, not a waypoint. Commit in labelled per-group chunks; Pass-1 edits limited to mechanical path/link rewrites. *(Fallback Strategy B — assemble in `agentswip/` then promote — rejected: it loses git rename tracking, undermining D-7's diff-legibility goal.)* Full procedure: `execution-runbook.md`. **Status: resolved.**
 
@@ -95,6 +119,8 @@ Consequence (new seam, reversed from before): the web app currently reads the JS
 - **Scaffold note:** `agentswip/scripts/generate_maps.py` (empty placeholder) is superseded by this; do not migrate it.
 - **Build timing:** spec'd now; **build after the migration lands**, so it targets final map paths/format. Tracked as an execution-phase task. A scaffold/generate mode (managed blocks) can be added later if the check proves valuable. **Status: design resolved; implementation deferred.**
 
+**BUILT (2026-06-19):** `scripts/checks/maps_check.py` built and hardened (section-aware resolution, table-row-only matching, skips dir-summarized subtrees), extended to all 3 structural maps via `MAP_SPECS`, wired into ci (advisory, `--skip-maps-check`), with `tests/scripts/test_maps_check.py`. Maps were synced to 0 drift; currently 2 (`link_check.py` + `db_schema_check.py` not yet in `scripts-map.md`).
+
 ### D-OPEN-7 — Unify file-naming convention — ✅ RESOLVED
 The convention (to be written into `docs/conventions/naming.md`, currently a stub):
 
@@ -107,8 +133,9 @@ The convention (to be written into `docs/conventions/naming.md`, currently a stu
 
 Notes: files already in kebab-case need no case change. **Status: resolved.** Next step: write the real `naming.md` (drafted in `staged/naming.md`).
 
-### D-OPEN-9 — Style-guide consolidation
-Review the style guides together at a later time: `python-style.md` (formerly `python-style-guide.md`) and `.github/BOT_STYLE_GUIDE.md` (would become `style-guide.md`). Question: do they merge into one style guide, or stay separate? Cameron wants to review them — including the Python one — together in a future pass. Until then, `style-guide` placement/name stays parked. **Status: open (deferred by choice).**
+### D-OPEN-9 — Style-guide consolidation — ✅ RESOLVED (one sub-decision to settle)
+Reviewed this pass. `python-style.md` stays the deep Python reference. `bot-style.md` was **slimmed** (removed the Python rules it duplicated from `python-style.md`) and **renamed → `docs/conventions/style-guide.md`** (commit `d6d518c`; all references updated, no breakage).
+- **Divergence from the discussed plan:** we had chosen to *split the bot-output behavior into `AGENTS.md` and rename the rest to `coding-style.md`*. What actually landed is just the slim + rename to `style-guide.md` — the behavior split did **not** happen; `style-guide.md` still contains "Style Approach" + "Bot Output Expectations". **Open sub-decision:** accept `style-guide.md` as-is, or do the split (move bot-output rules to AGENTS, rename to `coding-style.md`). **Status: resolved as a rename; split is optional and pending.**
 
 ### D-OPEN-10 — Internal link rewriting on rename/move
 Docs cross-link each other by relative path (e.g. `doc-header-standard.md`'s `Related:` line points at `reference-doc-standard.md`, `readme-layout-standard.md`; `docs/README.md` and `docs-map.md` link dozens of files). Every rename/move in `file-mapping.md` breaks these links. **Action at execution time:** after moving, sweep all docs for stale relative links and the doc-header `Related:` lines, and update them. Consider a link-check step. **`AGENTS.md` is the heaviest case** — it's dense with `.github/...` paths (skills, agents, BOT_*.md) that all move under D-OPEN-2; budget real time to rewrite it. **Status: open — execution-phase task, tracked so it isn't forgotten.**
