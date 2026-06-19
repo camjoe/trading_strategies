@@ -1,6 +1,11 @@
 # Bot Style Guide
 
-Purpose: keep code and documentation output consistent without forcing style-only churn.
+Type: convention
+Status: Active
+Created: 2026-03-29
+Last Reviewed: 2026-06-17
+Purpose: Keep code and documentation output consistent without forcing style-only churn.
+Related: [Python Style](python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Scope:
 
@@ -9,7 +14,7 @@ Scope:
 
 ## Full Python style reference
 
-See [`docs/conventions/python-style.md`](../docs/conventions/python-style.md) for the complete, curated
+See [`python-style.md`](python-style.md) for the complete, curated
 PEP 8 interpretation for this project. That document is the authoritative reference for both developers
 and bots. Key project choices at a glance:
 

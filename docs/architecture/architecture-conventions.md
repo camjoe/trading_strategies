@@ -1,6 +1,11 @@
 # Bot Architecture Conventions
 
-Purpose: preserve consistent dependency direction, module ownership, and naming conventions across bot edits.
+Type: architecture
+Status: Active
+Created: 2026-03-29
+Last Reviewed: 2026-06-17
+Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
+Related: [Bot Style Guide](../conventions/bot-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Scope:
 
