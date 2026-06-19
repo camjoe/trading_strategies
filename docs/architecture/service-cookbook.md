@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-06-17
 Purpose: Answer "which function do I call to do X?" — stable import patterns and service function mappings for common tasks.
 Related: [Service/Repository Boundary](service-repository-boundary.md), [Navigation Guide](nav-guide.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -28,7 +28,7 @@ from trading.services.accounts import get_account, list_account_records
 from trading.services.reporting import build_account_stats, build_live_benchmark_overlay
 
 # Avoid — internal submodule (subject to change without notice)
-from trading.services.accounts.core import get_account
+from trading.services.accounts.queries import get_account
 ```
 
 ---
@@ -145,6 +145,17 @@ from trading.services.accounts.core import get_account
 | Evaluate and apply sleeve rotation | `evaluate_and_apply_sleeve_rotation(conn, sleeve, config)` | `trading.services.sleeves` |
 | Reconcile sleeve equity vs account equity | `reconcile_sleeves_vs_account_equity(conn, account_id, equity)` | `trading.services.sleeves` |
 | Reconcile sleeve equity vs latest snapshot | `reconcile_sleeves_vs_latest_snapshot(conn, account_id)` | `trading.services.sleeves` |
+
+---
+
+## Sleeve performance & portfolio risk
+
+These live as **flat service modules** (single files, not packages) — import them directly rather than from a package surface.
+
+| Task | Function | Module |
+|---|---|---|
+| Fetch a sleeve's performance window | `fetch_sleeve_performance_window(conn, *, sleeve_id, start_date, end_date)` | `trading.services.performance` |
+| Fetch the latest portfolio risk snapshot | `fetch_latest_risk_snapshot(conn, *, account_id)` | `trading.services.risk_snapshots` |
 
 ---
 
