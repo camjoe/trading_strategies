@@ -1,26 +1,22 @@
 # Docs Migration — Record & Remaining Work
 
-Record of the documentation consolidation that reorganized `docs/` + the doc/agent/skill content of `.github/` into one source of truth (`docs/` + `bots/` at repo root).
+One-source-of-truth consolidation of `docs/` + the doc/agent/skill content of `.github/` into `docs/` + `bots/` at repo root. **Pass 1 (move) is merged to develop; Pass 2 (consolidate/freshen) is nearly done.**
 
-> **Status: Pass 1 complete (merged); Pass 2 in progress.** For the live, current state see the **Execution status** section at the top of [`decisions.md`](decisions.md) — it tracks what's built, committed, in progress, and pending.
->
-> The execution scaffolding (`execution-runbook.md`, `file-mapping.md`, `proposed-structure.md`, `staged/`) was removed after Pass 1; it's recoverable from git history. This folder now keeps only the durable record.
+This folder is a temporary record — delete it once the remaining work lands (git retains the history).
 
-## Files
+## What's left
 
-| File | Purpose |
-|---|---|
-| [`decisions.md`](decisions.md) | Numbered decision log — what we decided and why (D-1…D-10, D-OPEN-1…12). The authoritative record. |
-| [`consolidation.md`](consolidation.md) | Consolidation Report — overlaps to merge + skills/agents keep-drop triage. Tracks Pass-2 work. |
-| [`focus-areas.md`](focus-areas.md) | Candid effort-vs-value scorecard — where the durable value is and where to keep improving. |
+- **Long-tail broken links** — ~19 refs flagged by `link_check` (advisory; doesn't block). Fix incrementally.
+- **`update-documentation` skill rework** — now that `maps_check`/`readme_check` do the deterministic staleness detection, narrow the skill to the semantic "rewrite the prose/responsibilities" role. (See `decisions.md` D-OPEN-6.)
+- **`help/` → generated catalog** — build the catalog from skill/agent `when-to-use` frontmatter so it can't drift. (D-OPEN-11.)
+- **business-rules JSON → `docs/business-rules/`** — transfer the JSON content in as authoritative; make the web-app JSON derived. (D-OPEN-5.)
+- **scripts discoverability** — enrich `scripts-map` on usage/safety and cross-link scripts ↔ the skills/agents that drive them. (D-OPEN-12, future.)
 
-## Remaining work
+## Done
 
-Done in Pass 2: maps/cookbook/nav-guide freshened; `maps_check` + `link_check` built; D-OPEN-9 (style-guide rename). See `decisions.md` Execution status for detail. Remaining:
+- **Pass 1** — all moves, renames, ADR numbering, `bots/`, link rewrites, thin entrypoints (`CLAUDE.md`, `.github/copilot-instructions.md`), `CONTRIBUTING.md`. Merged via PRs #131/#132.
+- **Pass 2** — `maps_check`, `link_check`, and `db_schema_check` (D-9) built, wired into CI as advisory checks, and tested; style guides split by surface (D-OPEN-9); `trading-package-map` / `service-cookbook` / `nav-guide` freshened for the develop-merge API renames.
 
-- **Finish D-9** — `db_schema_check.py` + the `db-schema.md` Quick Reference exist (uncommitted); add a test, a `scripts-map.md` entry, and commit.
-- **Cleanup** — add `link_check.py` + `db_schema_check.py` to `scripts-map.md`; remove the stray `project_structure.txt` / `trading_structure.txt`; the ~19 long-tail broken links.
-- **D-OPEN-9 sub-decision** — accept `style-guide.md`, or do the split into AGENTS + `coding-style.md`.
-- **Pass 2 consolidation** (see `consolidation.md`): `update-documentation` rework, `help/` → generated catalog, business-rules JSON → `docs/business-rules/` transfer.
+## The record
 
-Delete this folder once the deferred work is complete (history will retain it).
+[`decisions.md`](decisions.md) is the authoritative log — the numbered decisions (D-1…D-10, D-OPEN-1…12) with their outcomes, plus the principles worth keeping past this migration.
