@@ -178,7 +178,7 @@ source area, run the matching suite to validate before committing:
 | `trading/interfaces/runtime/jobs/daily/` | `trading/interfaces/runtime/jobs/daily` |
 | `trading/interfaces/runtime/jobs/governance/` | `trading/interfaces/runtime/jobs/governance` |
 | `trading/interfaces/runtime/jobs/maintenance/` | `trading/interfaces/runtime/jobs/maintenance` |
-| `trading/brokers/legacy/` | `trading/brokers/legacy` |
+| `brokers/legacy/` | `brokers/legacy` |
 | `trading/backtesting/` | `trading/backtesting` |
 | `trading/repositories/` | `trading/repositories` |
 | `trading/interfaces/` | `trading/interfaces` |
@@ -264,7 +264,7 @@ Skills: `bots/skills/db-migration/` (create, validate, estimate-risk, generate-r
 
 ### `broker:` — Broker Live Safety Steward
 
-Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `trading/brokers/`, `broker_type` routing, or any live-trading config flow.
+Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `brokers/`, `broker_type` routing, or any live-trading config flow.
 
 - `broker: <description>` — implement or review broker adapter work
 - `broker review` — review broker-facing changes in the current diff

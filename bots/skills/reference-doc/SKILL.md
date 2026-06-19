@@ -30,5 +30,5 @@ invoker: any
 
 - `docs/reference/reference-doc.md`
 - `docs/reference/TEMPLATE.notes.md`
-- `docs/reference/TEMPLATE.adr.md`
+- `docs/adr/TEMPLATE.adr.md`
 - `docs/README.md`

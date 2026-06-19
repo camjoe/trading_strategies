@@ -64,7 +64,7 @@ Superseded By: <filename>  (only when Status: Superseded)
 
 - `docs/reference/reference-doc.md` — authoritative header standard and section guidance
 - `docs/reference/TEMPLATE.notes.md` — notes template
-- `docs/reference/TEMPLATE.adr.md` — ADR template
+- `docs/adr/TEMPLATE.adr.md` — ADR template
 - `docs/README.md` — reference section to update after creating a new doc
 
 ## Expected output

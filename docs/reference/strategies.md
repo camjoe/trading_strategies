@@ -16,7 +16,7 @@ checklist for research/backtesting flows.
 
 Canonical strategy registration lives in:
 
-- `trading/backtesting/domain/strategy_signals.py` (`STRATEGY_REGISTRY`)
+- `trading/domain/strategy_signals.py` (`STRATEGY_REGISTRY`)
 
 ## Strategy Families
 
@@ -49,7 +49,7 @@ Canonical strategy registration lives in:
 ## Strategy Resolution Behavior
 
 Resolution is handled by `resolve_strategy(...)` in
-`trading/backtesting/domain/strategy_signals.py`.
+`trading/domain/strategy_signals.py`.
 
 Order of resolution:
 
@@ -75,7 +75,7 @@ Price-based and proxy-feature strategies:
 
 Alternative-data strategies:
 
-- depend on `trading/features/` providers
+- depend on `features/` providers
 - use `ExternalFeatureBundle` inputs and degrade conservatively when data is unavailable
 - runtime deps in `requirements-base.txt` include:
   - `praw`

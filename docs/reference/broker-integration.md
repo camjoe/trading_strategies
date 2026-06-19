@@ -25,7 +25,7 @@ This document covers:
 
 Broker resolution is handled in:
 
-- `trading/brokers/factory.py`
+- `brokers/factory.py`
 
 Supported `accounts.broker_type` values:
 
@@ -35,13 +35,13 @@ Supported `accounts.broker_type` values:
 
 Key files:
 
-- `trading/brokers/base.py`: broker interfaces and order models
-- `trading/brokers/paper_adapter.py`: paper execution adapter
-- `trading/brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
-- `trading/brokers/ib_web_adapter.py`: broker adapter backed by Web API client
-- `trading/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
-- `trading/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
-- `trading/brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
+- `brokers/base.py`: broker interfaces and order models
+- `brokers/paper_adapter.py`: paper execution adapter
+- `brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
+- `brokers/ib_web_adapter.py`: broker adapter backed by Web API client
+- `brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
+- `brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
+- `brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
 - `trading/repositories/broker_orders.py`: persisted broker-order state
 
 ## Account Fields and Routing
@@ -90,7 +90,7 @@ Primary integration path: `interactive_brokers_web`.
 
 Settings loader:
 
-- `trading/brokers/ib_web_client.py::load_ib_web_api_settings`
+- `brokers/ib_web_client.py::load_ib_web_api_settings`
 
 Resolution behavior:
 
@@ -181,7 +181,7 @@ Legacy path remains available via `broker_type = 'interactive_brokers'`.
 
 - default backend: `ib_async`
 - optional backend: `ibapi` (native client stub currently not implemented)
-- backend switch lives in `trading/brokers/legacy/factory.py`
+- backend switch lives in `brokers/legacy/factory.py`
 
 Legacy default socket ports:
 
@@ -194,10 +194,10 @@ Legacy default socket ports:
 
 When adding a new broker:
 
-1. implement adapter under `trading/brokers/`
-2. add broker-type routing in `trading/brokers/factory.py`
+1. implement adapter under `brokers/`
+2. add broker-type routing in `brokers/factory.py`
 3. update account `broker_type` constraints/docs
-4. add tests under `tests/trading/brokers/` and related runtime tests
+4. add tests under `tests/brokers/` and related runtime tests
 5. update this document
 
 ## Related References

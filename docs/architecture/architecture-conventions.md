@@ -83,7 +83,7 @@ Disallowed:
     - Shared contracts and signal keys live in `trading/domain/feature_provider.py`.
     - `trading/` must never import from `features/`; the interface layer (`trading/interfaces/`)
       is the sole wiring point.
-    - Signal functions in `trading/backtesting/domain/strategy_signals.py` must
+    - Signal functions in `trading/domain/strategy_signals.py` must
       consume feature bundles via injected callables — they must never call external
       APIs directly.
 
