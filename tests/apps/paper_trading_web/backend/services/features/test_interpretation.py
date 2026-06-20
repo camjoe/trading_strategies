@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from apps.paper_trading_web.backend.services.features.interpretation import interpret_signal
+from paper_trading_web.backend.services.features.interpretation import interpret_signal
 
 
 @pytest.mark.parametrize(

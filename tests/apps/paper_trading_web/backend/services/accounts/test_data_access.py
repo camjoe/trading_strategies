@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.paper_trading_web.backend.services.accounts import data_access as account_data_access
+from paper_trading_web.backend.services.accounts import data_access as account_data_access
 
 
 def test_fetch_visible_account_rows_returns_managed_and_local_accounts(conn, create_account_row) -> None:

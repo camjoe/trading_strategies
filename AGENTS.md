@@ -189,7 +189,7 @@ source area, run the matching suite to validate before committing:
 | `trading/backtesting/` | `trading/backtesting` |
 | `trading/repositories/` | `trading/repositories` |
 | `trading/interfaces/` | `trading/interfaces` |
-| `apps/paper_trading_web/backend/` | `paper_trading_web` |
+| `apps/paper_trading_web/backend/` | `apps/paper_trading_web` |
 | Any area | `all` |
 
 Command: `python -m scripts.checks.run_suite <suite> [extra pytest flags]`

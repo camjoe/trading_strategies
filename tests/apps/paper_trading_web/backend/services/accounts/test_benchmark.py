@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 import trading.services.reporting.benchmark as reporting_benchmark
-from apps.paper_trading_web.backend.services.accounts import benchmark as account_benchmark
+from paper_trading_web.backend.services.accounts import benchmark as account_benchmark
 
 
 def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> None:

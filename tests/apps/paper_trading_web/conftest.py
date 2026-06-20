@@ -13,7 +13,7 @@ from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
 def api_client(tmp_path: Path) -> Iterator[TestClient]:
     original = get_backend()
     set_backend(SQLiteBackend(tmp_path / "paper_trading_web.db"))
-    from apps.paper_trading_web.backend.main import app
+    from paper_trading_web.backend.main import app
 
     try:
         with TestClient(app) as client:

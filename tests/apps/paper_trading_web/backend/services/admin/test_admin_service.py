@@ -4,8 +4,8 @@ import pytest
 from fastapi import HTTPException
 
 from common.time import utc_now_iso
-from apps.paper_trading_web.backend.services import admin as services_admin
-from apps.paper_trading_web.backend.services.admin import create_account_with_rotation
+from paper_trading_web.backend.services import admin as services_admin
+from paper_trading_web.backend.services.admin import create_account_with_rotation
 from trading.domain import AccountAlreadyExistsError
 
 
@@ -144,7 +144,7 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
 
 
 def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -> None:
-    from apps.paper_trading_web.backend.account_contract import AdminCreateAccountCommand
+    from paper_trading_web.backend.account_contract import AdminCreateAccountCommand
 
     command = AdminCreateAccountCommand(
         name="acct_dup",

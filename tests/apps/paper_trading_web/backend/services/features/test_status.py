@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from apps.paper_trading_web.backend.services.features import status as features_status
+from paper_trading_web.backend.services.features import status as features_status
 
 
 @dataclass

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.paper_trading_web.backend.services import ibkr_paper_monitor as service
+from paper_trading_web.backend.services import ibkr_paper_monitor as service
 
 
 @pytest.fixture

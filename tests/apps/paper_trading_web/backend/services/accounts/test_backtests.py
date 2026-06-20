@@ -2,7 +2,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from common.time import utc_now_iso
-from apps.paper_trading_web.backend.services.accounts import backtests as account_backtests
+from paper_trading_web.backend.services.accounts import backtests as account_backtests
 
 
 def test_fetch_recent_backtest_run_summaries_passthrough(monkeypatch, conn) -> None:

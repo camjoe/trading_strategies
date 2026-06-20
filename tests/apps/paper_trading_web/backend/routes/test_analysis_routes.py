@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-import apps.paper_trading_web.backend.routes.analysis as analysis_module
+import paper_trading_web.backend.routes.analysis as analysis_module
 
 
 def test_returns_analysis_payload_for_valid_account(
