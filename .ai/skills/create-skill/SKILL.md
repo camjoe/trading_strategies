@@ -1,6 +1,6 @@
 ---
 name: create-skill
-description: Creates new SKILL.md files in bots/skills/ following the agent skill authoring guide. Use when asked to create a new skill, when a repeatable task pattern emerges, or when a workflow should be captured for future reuse.
+description: Creates new SKILL.md files in .ai/skills/ following the agent skill authoring guide. Use when asked to create a new skill, when a repeatable task pattern emerges, or when a workflow should be captured for future reuse.
 invoker: any
 ---
 
@@ -15,7 +15,7 @@ invoker: any
    - `description`: third person, WHAT + WHEN, specific key terms, max 1024 chars
 4. **Write the body** — concise workflow steps, constraints, and output template. Under 500 lines.
 5. **Add reference files** if needed — for domain detail that only loads on demand. One level deep only.
-6. **Place in** `bots/skills/<skill-name>/SKILL.md`
+6. **Place in** `.ai/skills/<skill-name>/SKILL.md`
 
 ## Frontmatter rules
 
@@ -72,4 +72,5 @@ Before finishing a skill:
 ## Repo references
 
 - `docs/reference/agent-skills.md` — authoritative authoring guide
-- `bots/skills/` — existing skills for reference and consistency
+- `.ai/skills/` — existing skills for reference and consistency
+

@@ -69,7 +69,7 @@ Recommended section order:
 Examples in this repo:
 
 - `tests/support/README.md`
-- `bots/skills/README.md`
+- `.ai/skills/README.md`
 
 ## Section Naming Conventions
 
@@ -87,3 +87,4 @@ Before finalizing a README:
 3. Run:
    - `python -m scripts.checks.readme_check --max-age-days 90`
 4. If behavior changed, update linked docs in the same change set.
+

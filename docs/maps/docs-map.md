@@ -148,14 +148,14 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 
 | File | Agent scope | Goes stale when |
 |---|---|---|
-| `bots/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
-| `bots/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
-| `bots/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
-| `bots/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
+| `.ai/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
+| `.ai/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
+| `.ai/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
+| `.ai/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
 
 ### Skills
 
-Skills live under `bots/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
+Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
 
 | Skill folder | What it covers |
 |---|---|
@@ -183,3 +183,4 @@ Use this when auditing documentation health:
 - [ ] `docs/architecture/architecture-conventions.md` agrees with the architecture maps on import boundaries.
 - [ ] `docs/README.md` links are not broken (no missing or renamed files).
 - [ ] No two files in the same section cover the same scope without cross-referencing each other.
+

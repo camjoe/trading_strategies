@@ -100,12 +100,13 @@ Before finalizing a new or updated reference doc:
 4. ✅ Link added to `docs/README.md` reference section if it's a new file
 5. ✅ For a new ADR: link added from any affected architecture doc
 
-To create a new reference doc in the correct format, use the `reference-doc` skill (`bots/skills/reference-doc/SKILL.md`) or copy the relevant template from `docs/reference/TEMPLATE.notes.md` or `docs/adr/TEMPLATE.adr.md`.
+To create a new reference doc in the correct format, use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy the relevant template from `docs/reference/TEMPLATE.notes.md` or `docs/adr/TEMPLATE.adr.md`.
 
 ---
 
 ## Related
 
 - Templates: `docs/reference/TEMPLATE.notes.md`, `docs/adr/TEMPLATE.adr.md`
-- Skill: `bots/skills/reference-doc/SKILL.md`
+- Skill: `.ai/skills/reference-doc/SKILL.md`
 - README layout standard (for README files, not reference docs): `docs/reference/readme-layout.md`
+

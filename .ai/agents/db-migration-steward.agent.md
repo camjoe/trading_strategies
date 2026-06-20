@@ -20,14 +20,14 @@ Your job is to own the full lifecycle of schema changes in `trading/database/`: 
 
 ## Sub-task skills
 
-For each task type, load and follow the corresponding reference file in `bots/skills/db-migration/`:
+For each task type, load and follow the corresponding reference file in `.ai/skills/db-migration/`:
 
 | Task | Reference |
 |---|---|
-| Creating a migration | `bots/skills/db-migration/create-migration.md` |
-| Validating safety and correctness | `bots/skills/db-migration/validate-migration.md` |
-| Estimating risk and blast radius | `bots/skills/db-migration/estimate-risk.md` |
-| Generating a rollback strategy | `bots/skills/db-migration/generate-rollback.md` |
+| Creating a migration | `.ai/skills/db-migration/create-migration.md` |
+| Validating safety and correctness | `.ai/skills/db-migration/validate-migration.md` |
+| Estimating risk and blast radius | `.ai/skills/db-migration/estimate-risk.md` |
+| Generating a rollback strategy | `.ai/skills/db-migration/generate-rollback.md` |
 
 For a complete schema change, run all four sub-tasks in order unless the user asks for a specific one.
 
@@ -45,3 +45,4 @@ python -m pytest tests/ -k "db or migration or schema" -x --no-cov
 python -m mypy trading/database/ --ignore-missing-imports
 python -m scripts.run_checks --profile quick
 ```
+

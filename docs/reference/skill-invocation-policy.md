@@ -101,6 +101,7 @@ Do not execute any workflow steps below until the invoker check passes.
 ## Related References
 
 - `docs/maps/skills-map.md` — full discovery index of agents and skills
-- `bots/skills/help/SKILL.md` — `/help` skill for interactive discovery
-- `bots/agents/` — agent definitions
-- `bots/skills/` — skill definitions
+- `.ai/skills/help/SKILL.md` — `/help` skill for interactive discovery
+- `.ai/agents/` — agent definitions
+- `.ai/skills/` — skill definitions
+

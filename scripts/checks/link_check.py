@@ -19,7 +19,7 @@ CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 # Link targets with these prefixes are external / non-filesystem and are not checked.
 EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "tel:", "ftp://", "//")
 
-# A backtick span starting with one of these (e.g. `docs/...`, `bots/...`) is a repo-root path
+# A backtick span starting with one of these (e.g. `docs/...`, `.ai/...`) is a repo-root path
 # reference and is checked for existence. Dotted module paths (no slash) never match.
 TOP_DIRS = (
     "trading/",
@@ -30,7 +30,7 @@ TOP_DIRS = (
     "tests/",
     "common/",
     "docs/",
-    "bots/",
+    ".ai/",
     ".github/",
 )
 
@@ -193,3 +193,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

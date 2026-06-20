@@ -15,7 +15,7 @@ Define how this repository uses reusable skills vs repo-specific agents, and pro
 ## Active layout
 
 ```
-bots/skills/
+.ai/skills/
 ├── <skill-name>/
 │   ├── SKILL.md            ← canonical skill (loaded when skill triggers)
 │   └── <reference>.md      ← reference files (loaded on demand by SKILL.md)
@@ -82,7 +82,7 @@ These agents still exist because they encode repo-specific execution behavior th
 | `db-migration-steward.agent.md` | SQLite migration and backup rules |
 | `trading-runtime.agent.md` | Runtime job and operator flows |
 
-Repo-specific agents live in `bots/agents/`.
+Repo-specific agents live in `.ai/agents/`.
 
 ## Authoring rules
 
@@ -104,3 +104,4 @@ Skills should not:
 Add a new skill when the capability should be reusable outside this repo with only light localization.
 
 Add a new agent only when the task depends on repo-specific execution behavior that would make the skill less reusable or more confusing.
+

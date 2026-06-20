@@ -34,7 +34,7 @@ Lint/format directly with `ruff check .` and `ruff format .`.
 4. Run `python -m scripts.run_checks --profile quick` (and `ci` before a PR).
 5. Record architectural decisions as an ADR in `docs/adr/`.
 
-The Definition of Done lives in `bots/skills/validate-code/SKILL.md` — its "Not covered here" section lists what you must verify manually.
+The Definition of Done lives in `.ai/skills/validate-code/SKILL.md` — its "Not covered here" section lists what you must verify manually.
 
 ## Database changes
 
@@ -56,3 +56,4 @@ Run `python -m scripts.checks.pr_ready --base <base>` first. Include in the PR:
 - Editing existing/applied migration files
 - Skipping tests or the layer check
 - Adding code that inverts the dependency direction (`interfaces → services → repositories/domain → database`)
+
