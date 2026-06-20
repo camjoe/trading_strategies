@@ -35,7 +35,7 @@ Supported `accounts.broker_type` values:
 
 Key files:
 
-- `brokers/base.py`: broker interfaces and order models
+- `trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`trading/models/broker_order.py`)
 - `brokers/paper_adapter.py`: paper execution adapter
 - `brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
 - `brokers/ib_web_adapter.py`: broker adapter backed by Web API client

@@ -209,7 +209,7 @@ Review requests freeze the current evaluation evidence into a durable record and
 ## Backtesting Notes
 
 - `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
-- Daily recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/daily_backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
+- Daily recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes
 

@@ -109,7 +109,7 @@ For the complete, always-current route list (including backtesting endpoints), s
 
 ## Request Schemas
 
-Key account/admin and feature schemas in `paper_trading_ui/backend/schemas.py`:
+Key account/admin and feature schemas in `paper_trading_ui/backend/schemas/`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|

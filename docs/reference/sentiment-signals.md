@@ -39,7 +39,7 @@ Signal dispatch and registration:
 
 Provider boundary:
 
-- `features/base.py` defines `ExternalFeatureProvider` and
+- `trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
   `ExternalFeatureBundle`.
 - Concrete providers:
   - `features/policy_feature_provider.py`
@@ -49,7 +49,7 @@ Provider boundary:
 
 Market-data dependency:
 
-- `trading/services/market_data/runtime.py` resolves the configured market-data
+- `trading/services/market_data/registry.py` resolves the configured market-data
   provider.
 - Alternative providers consume market/news/social data through their own
   provider logic; strategy functions consume normalized bundles only.
