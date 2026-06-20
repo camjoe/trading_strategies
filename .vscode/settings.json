@@ -10,6 +10,7 @@
         "**/*.pyc": true
     },
     "python.analysis.extraPaths": [
-        "./src"
+        "./src",
+        "./apps"
     ]
 }
