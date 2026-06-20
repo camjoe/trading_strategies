@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - trading/**
-      - trends/**
+      - apps/trends/**
       - tests/**
       - apps/paper_trading_web/backend/**
       - apps/paper_trading_web/__init__.py
@@ -37,7 +37,7 @@ jobs:
           filters: |
             python_related:
               - trading/**
-              - trends/**
+              - apps/trends/**
               - tests/**
               - apps/paper_trading_web/backend/**
               - apps/paper_trading_web/__init__.py

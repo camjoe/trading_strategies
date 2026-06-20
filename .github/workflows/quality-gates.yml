@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - trading/**
-      - trends/**
+      - apps/trends/**
       - apps/paper_trading_web/backend/**
       - apps/paper_trading_web/frontend/**
       - requirements-base.txt
@@ -35,7 +35,7 @@ jobs:
           filters: |
             python_related:
               - trading/**
-              - trends/**
+              - apps/trends/**
               - apps/paper_trading_web/backend/**
               - requirements-base.txt
               - requirements-dev.txt
@@ -71,7 +71,7 @@ jobs:
           pip install ruff mypy
 
       - name: Run ruff lint gate
-        run: ruff check trading trends apps/paper_trading_web/backend --select F,E9
+        run: ruff check trading apps/trends apps/paper_trading_web/backend --select F,E9
 
       - name: Run mypy type gate
         run: mypy apps/paper_trading_web/backend trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip
