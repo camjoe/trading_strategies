@@ -72,13 +72,11 @@ Reference: [code-review/pr-review-quality.md](../code-review/pr-review-quality.m
 
 ## Step 5 — Docs check (advisory)
 
-Reference: [update-documentation/docs-check.md](../update-documentation/docs-check.md)
-
 ```
 python -m scripts.checks.readme_check
 ```
 
-Never blocks. Collect findings for the report.
+Reports README files not updated within the staleness threshold. Use `docs/maps/docs-map.md` ("Goes stale when" column) to map any changed source files to their owning docs. Never blocks. Collect findings for the report.
 
 ---
 

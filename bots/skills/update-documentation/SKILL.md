@@ -1,26 +1,27 @@
 ---
 name: update-documentation
-description: Syncs READMEs, architecture notes, API docs, and operational documentation with code changes. Use when code changes imply documentation drift, when asked to sync docs, or when a README or doc is stale.
+description: Rewrites and freshens README files, architecture notes, and operational documentation when prose or responsibilities have drifted from reality. Use when docs are stale, misleading, or incomplete — not just out-of-date by timestamp.
 invoker: any
 ---
 
 # Update Documentation
 
-## Modes
+Use this skill when documentation content needs rewriting — stale descriptions, wrong responsibilities, missing sections, or prose that no longer reflects how the code actually works.
 
-| Mode | Use when | Reference |
-|---|---|---|
-| Docs sync | Code changes imply doc updates | [docs-sync.md](docs-sync.md) |
-| Docs check | Pre-PR passive staleness check | [docs-check.md](docs-check.md) |
+Detection (is something stale?) is handled by CI and the `check-pr-readiness` workflow. This skill picks up from there: identify what needs rewriting, then rewrite it.
 
-**Docs sync** — active: identify changed surfaces, find owning docs, apply targeted updates.
-**Docs check** — passive: run `readme_check`, scan diff for stale paths/commands. Advisory only; never blocks.
+## Workflow
+
+1. **Identify scope** — use `readme_check` output or the PR readiness report to find flagged files; use `docs/maps/docs-map.md` ("Goes stale when" column) to find docs affected by code changes.
+2. **Read the owning doc** — understand what it currently says and why it's stale.
+3. **Apply targeted updates** — rewrite only the stale sections. Do not rewrite docs broadly when a focused update is enough.
+4. **Flag missing docs** — if a new surface (service, route, script) has no documentation, note it.
 
 ## Constraints
 
-- Do not rewrite docs broadly when a focused update is enough.
 - Do not change runtime behavior while syncing docs.
 - Do not leave code examples stale after command or route changes.
+- Do not rewrite style or formatting when only content needs updating.
 
 ## Creating reference docs or ADRs?
 
