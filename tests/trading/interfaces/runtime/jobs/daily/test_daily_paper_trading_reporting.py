@@ -21,7 +21,7 @@ def test_latest_shadow_eval_summary_handles_non_list_results(tmp_path: Path) -> 
 
     assert summary == {
         "status": "ok",
-        "artifact_path": str(artifact.relative_to(tmp_path)),
+        "artifact_path": artifact.relative_to(tmp_path).as_posix(),
         "account_count": 0,
         "sleeve_count": 0,
         "challenger_count": 0,
@@ -50,7 +50,7 @@ def test_latest_shadow_eval_summary_counts_valid_sleeves_and_challengers(tmp_pat
 
     assert summary == {
         "status": "ok",
-        "artifact_path": str(artifact.relative_to(tmp_path)),
+        "artifact_path": artifact.relative_to(tmp_path).as_posix(),
         "account_count": 3,
         "sleeve_count": 3,
         "challenger_count": 2,
