@@ -12,7 +12,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 ## Local scope
 
 - Primary paths:
-  - `brokers/`
+  - `src/infrastructure/brokers/`
   - `trading/services/`
   - `trading/interfaces/runtime/data_ops/`
   - `paper_trading_ui/backend/services/`
@@ -22,7 +22,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 
 ## Responsibilities
 
-1. Keep broker SDK imports and `broker_type` routing inside `brokers/`.
+1. Keep broker SDK imports and `broker_type` routing inside `src/infrastructure/brokers/`.
 2. Protect the `live_trading_enabled` safety gate and related operator workflows.
 3. Review broker config, reconciliation, and adapter changes for accidental live-trading exposure.
 4. Keep service and UI layers dependent on stable broker abstractions instead of broker SDK details.
@@ -32,7 +32,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 1. Never set `live_trading_enabled = 1` in generated code, migrations, scripts, fixtures, or seed data.
 2. Never modify broker defaults to point at a live endpoint automatically.
 3. Never catch or suppress `LiveTradingNotEnabledError`.
-4. Keep broker SDK imports inside `brokers/` and out of service, domain, UI, or repository modules.
+4. Keep broker SDK imports inside `src/infrastructure/brokers/` and out of service, domain, UI, or repository modules.
 
 ## Permitted Shell Commands
 

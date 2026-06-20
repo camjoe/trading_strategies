@@ -57,8 +57,8 @@ The maps and this guide serve different questions:
 | Task | Where |
 |---|---|
 | Change an account profile (strategy params, caps) | `trading/config/account_profiles/<profile>.toml` |
-| Change trade universe tickers | `trading/config/trade_universes/` |
-| Change account-level trade caps | `trading/config/account_trade_caps.json` |
+| Change trade universe tickers | `src/infrastructure/config/trade_universes/` |
+| Change account-level trade caps | `src/infrastructure/config/account_trade_caps.json` |
 
 ### Models / Data Contracts
 
@@ -106,7 +106,7 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change broker adapter (paper or live) | `brokers/` (repo root — not inside `trading/`) |
+| Change broker adapter (paper or live) | `src/infrastructure/brokers/` (repo root — not inside `trading/`) |
 | Change broker DI contract | `trading/domain/broker_connection.py` |
 
 ---
@@ -128,7 +128,7 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Add a new page/view | `paper_trading_ui/frontend/src/views/<name>.html` + new feature in `features/` |
+| Add a new page/view | `paper_trading_ui/frontend/src/views/<name>.html` + new feature in `src/infrastructure/feature_providers/` |
 | Add or change a feature module | `paper_trading_ui/frontend/src/features/<area>/` |
 | Add or change a reusable component | `paper_trading_ui/frontend/src/components/` |
 | Add shared utility (HTTP, formatting, DOM) | `paper_trading_ui/frontend/src/lib/` |
@@ -158,7 +158,7 @@ Tests mirror the source tree. If you edit `trading/services/reporting/`, the tes
 | Task | Where |
 |---|---|
 | Tests for `trading/` | `tests/trading/` (mirrors source path) |
-| Tests for `paper_trading_ui/backend/` | `tests/paper_trading_ui/` |
+| Tests for `paper_trading_ui/backend/` | `tests/apps/paper_trading_web/` |
 | Tests for `trading/interfaces/` | `tests/trading/interfaces/` |
 | Tests for `trading/repositories/` | `tests/trading/repositories/` |
 

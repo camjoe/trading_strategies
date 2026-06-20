@@ -152,7 +152,7 @@ python -m scripts.checks.run_suite trading/interfaces/runtime/jobs/daily
   - `tests/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
   - `tests/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
   - `tests/trading/services/market_data/conftest.py` — provider reset per test
-  - `tests/paper_trading_ui/conftest.py` — `api_client` with isolated DB backend
+  - `tests/apps/paper_trading_web/conftest.py` — `api_client` with isolated DB backend
 
 ## Database Fixtures — Which One to Use
 

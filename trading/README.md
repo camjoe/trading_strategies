@@ -17,7 +17,7 @@ The `trading/` module handles:
 - Promotion review request / approve / reject / note workflows with persisted audit history
 - Auto-trading simulation runs
 - Backtesting and walk-forward analysis support, including persisted per-window detail reporting
-- **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `features/` (repo root)
+- **Alternative strategy external-data features** — real-time signal enrichment via news, social, and policy providers in `src/infrastructure/feature_providers/` (repo root)
 
 ## Architecture Shape
 
@@ -27,8 +27,8 @@ The `trading/` module handles:
   - `interfaces -> services -> repositories/domain -> database`
 - Explicit top-level bounded contexts where isolation is valuable:
   - `trading/backtesting/`
-  - `brokers/` (repo root — broker adapters)
-  - `features/` (repo root — external-data feature providers)
+  - `src/infrastructure/brokers/` (repo root — broker adapters)
+  - `src/infrastructure/feature_providers/` (repo root — external-data feature providers)
 
 `trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
@@ -43,7 +43,7 @@ Data is stored in SQLite, defaulting to `local/paper_trading.db`.
 When `db_path` in `local/db_config.json` is relative, it is resolved from the
 repository root.
 
-**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `trading/config/market_data_config.example.json` for the config format.
+**Market data:** defaults to `yfinance`. Override via `TRADING_MARKET_DATA_PROVIDER` env var or `provider` in `local/market_data_config.json`. See `src/infrastructure/config/market_data_config.example.json` for the config format.
 
 ## Quick Start
 
@@ -105,16 +105,16 @@ Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/ru
 - `weekly_db_backup.py`: scheduled weekly backup execution.
 - `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, daily backtest refresh, health checks, snapshots, and weekly backups.
 - Scheduler support helpers such as `scheduler_installer.py` and `manage_job_schedules.py` live alongside the direct job entrypoints; cadence-prefixed naming remains reserved for the jobs themselves.
-- `trading/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts and a `default` fallback.
+- `src/infrastructure/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts and a `default` fallback.
 
 ## Auto-Trading
 
-Trade universe files live under `trading/config/`. The default is `trade_universe.txt`. Two additional presets are provided:
+Trade universe files live under `src/infrastructure/config/`. The default is `trade_universe.txt`. Two additional presets are provided:
 
 | File | Description |
 |------|-------------|
-| `trading/config/trade_universe.txt` | Default universe (general-purpose) |
-| `trading/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
+| `src/infrastructure/config/trade_universe.txt` | Default universe (general-purpose) |
+| `src/infrastructure/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
 Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.run_auto_trades --help` for all options.
 
@@ -143,8 +143,8 @@ eligible Christmas Eve sessions.
 Regime-rotation accounts can also enable `rotation_overlay_mode` (`news`, `social`, or `news_social`) to let alternative-data signals nudge the base policy regime.
 
 - Overlay coverage is computed from the union of the account's current holdings and its per-account `rotation_overlay_watchlist`.
-- New accounts and migrated existing accounts seed `rotation_overlay_watchlist` from `trading/config/trade_universe.txt`, providing a stable default universe before positions are opened.
-- That seed is stored in the database schema/defaults at migration time. If you later change `trading/config/trade_universe.txt` and want that new list to propagate, you must also run an explicit DB update or migration/backfill for `rotation_overlay_watchlist`.
+- New accounts and migrated existing accounts seed `rotation_overlay_watchlist` from `src/infrastructure/config/trade_universe.txt`, providing a stable default universe before positions are opened.
+- That seed is stored in the database schema/defaults at migration time. If you later change `src/infrastructure/config/trade_universe.txt` and want that new list to propagate, you must also run an explicit DB update or migration/backfill for `rotation_overlay_watchlist`.
 - Override the seeded watchlist per account through account profiles or the UI/API account-parameter endpoints when a narrower overlay universe is needed.
 
 ## Scheduler Operations
@@ -230,7 +230,7 @@ Review requests freeze the current evaluation evidence into a durable record and
 ## Related Docs
 
 - Backtesting: [docs/reference/backtesting.md](../docs/reference/backtesting.md)
-- UI dashboard: [paper_trading_ui/README.md](../paper_trading_ui/README.md)
+- UI dashboard: [paper_trading_ui/README.md](../apps/paper_trading_web/README.md)
 - Broker integration: [docs/reference/broker-integration.md](../docs/reference/broker-integration.md)
 - Trading architecture guide: [docs/architecture/architecture-conventions.md](../docs/architecture/architecture-conventions.md)
 
@@ -238,9 +238,9 @@ Review requests freeze the current evaluation evidence into a durable record and
 
 Built-in account profile presets now live under:
 
-- `trading/config/account_profiles/`
+- `src/infrastructure/config/account_profiles/`
 
-CLI defaults use `trading/config/account_profiles/default.json`.
+CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 
 ## Boundary Snapshot
 
@@ -248,4 +248,4 @@ CLI defaults use `trading/config/account_profiles/default.json`.
 - SQL access is owned by repository modules under `trading/repositories/`.
 - Orchestration and composition are owned by service modules under `trading/services/`.
 - Policy logic is owned by domain modules under `trading/domain/`.
-- **External-data feature providers** live in `features/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `trading/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.
+- **External-data feature providers** live in `src/infrastructure/feature_providers/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `trading/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.

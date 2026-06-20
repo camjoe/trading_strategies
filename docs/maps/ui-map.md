@@ -1,4 +1,4 @@
-# UI Map — `paper_trading_ui/`
+# UI Map — `apps/paper_trading_web/`
 
 Type: map
 Status: Active
@@ -7,11 +7,11 @@ Last Reviewed: 2026-06-16
 Purpose: Structure of the operator UI — FastAPI backend routes/schemas/services and TypeScript/Vite frontend layout.
 Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/screenshot-ui.md)
 
-Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. Both live under `paper_trading_ui/`.
+Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. Both live under `apps/paper_trading_web/`.
 
 ---
 
-## Backend (`paper_trading_ui/backend/`)
+## Backend (`apps/paper_trading_web/backend/`)
 
 ### Entry Points
 
@@ -76,7 +76,7 @@ Explicit output-shape contract for account data returned to the frontend. Isolat
 
 ---
 
-## Frontend (`paper_trading_ui/frontend/src/`)
+## Frontend (`apps/paper_trading_web/frontend/src/`)
 
 Vanilla TypeScript + Vite. No framework. Views are HTML files; features are TypeScript modules that wire up components to views.
 

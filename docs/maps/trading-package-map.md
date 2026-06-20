@@ -24,13 +24,13 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 - `trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
 - `trading/database/`: DB infrastructure/config/coercion
 - `trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
-- `trading/config/`: static file-backed configuration assets
+- `src/infrastructure/config/`: static file-backed configuration assets
 
 ### Bounded Contexts
 
 - `trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
-- `brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`trading/interfaces/`); `trading/` must never import from `brokers/` except at the interface layer
-- `features/` (repo root): external-data feature-provider boundary for alternative strategies
+- `src/infrastructure/brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`trading/interfaces/`); `trading/` must never import from `src/infrastructure/brokers/` except at the interface layer
+- `src/infrastructure/feature_providers/` (repo root): external-data feature-provider boundary for alternative strategies
 
 ## Placement Rules
 
@@ -284,7 +284,7 @@ Self-contained backtest subsystem with its own layered sub-packages.
 
 ---
 
-### `trading/config/`
+### `src/infrastructure/config/`
 
 Static file-backed configuration assets. Read at runtime; not imported as Python modules (except by services/profiles).
 

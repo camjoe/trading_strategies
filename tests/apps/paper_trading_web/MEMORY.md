@@ -9,7 +9,7 @@ During the broader regression sweep, the HTTP-style UI backend tests appeared to
 hang instead of failing fast.
 
 The passing neighbor file
-`tests/paper_trading_ui/backend/test_contract_mapping.py` was useful as a
+`tests/apps/paper_trading_web/backend/test_contract_mapping.py` was useful as a
 contrast: it does not start the FastAPI app and only tests pure
 request-to-command mapping helpers.
 
@@ -43,7 +43,7 @@ sync FastAPI route-dispatch path used by the backend app:
 
 That means a global fixture rewrite is risky, because many UI backend tests rely on
 the same `api_client` pattern and a fixture-level workaround could spread a bad
-assumption through the whole `tests/paper_trading_ui/` area.
+assumption through the whole `tests/apps/paper_trading_web/` area.
 
 ## Important Current State
 
@@ -52,7 +52,7 @@ testing strategy.
 
 ## Recommended Next Step
 
-Prefer API-route tests under `tests/paper_trading_ui/backend/routes/` as the
+Prefer API-route tests under `tests/apps/paper_trading_web/backend/routes/` as the
 primary backend HTTP coverage surface.
 
 ## If We Return Later

@@ -75,7 +75,7 @@ Price-based and proxy-feature strategies:
 
 Alternative-data strategies:
 
-- depend on `features/` providers
+- depend on `src/infrastructure/feature_providers/` providers
 - use `ExternalFeatureBundle` inputs and degrade conservatively when data is unavailable
 - runtime deps in `requirements-base.txt` include:
   - `praw`

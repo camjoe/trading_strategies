@@ -17,8 +17,8 @@ Directory of all documentation files across the repository. Use this to audit fo
 |---|---|
 | `trading/` | Core trading engine — layered Python package (interfaces → services → repositories → domain → database → models) |
 | `paper_trading_ui/` | Operator UI — FastAPI backend + TypeScript/Vite frontend |
-| `brokers/` | Broker adapters (paper + live); injected at the interface layer |
-| `features/` | External-data feature providers for alternative strategies |
+| `src/infrastructure/brokers/` | Broker adapters (paper + live); injected at the interface layer |
+| `src/infrastructure/feature_providers/` | External-data feature providers for alternative strategies |
 | `tests/` | Test suite; mirrors the source tree path-for-path |
 | `scripts/` | Dev and ops tooling — checks, data ops, documentation sync, UI launcher |
 | `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
@@ -80,13 +80,13 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
-| `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
+| `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
 | `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
 | `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
-| `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
+| `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 
 ### ADRs
 

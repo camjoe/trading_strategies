@@ -23,8 +23,7 @@ EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "tel:", "ftp://", "//")
 # reference and is checked for existence. Dotted module paths (no slash) never match.
 TOP_DIRS = (
     "trading/",
-    "brokers/",
-    "features/",
+    "src/",
     "scripts/",
     "apps/",
     "tests/",

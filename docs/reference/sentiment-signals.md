@@ -42,10 +42,10 @@ Provider boundary:
 - `trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
   `ExternalFeatureBundle`.
 - Concrete providers:
-  - `features/policy_feature_provider.py`
-  - `features/news_feature_provider.py`
-  - `features/social_feature_provider.py`
-- Feature-provider imports are isolated to `features/`.
+  - `src/infrastructure/feature_providers/policy_provider.py`
+  - `src/infrastructure/feature_providers/news_provider.py`
+  - `src/infrastructure/feature_providers/social_provider.py`
+- Feature-provider imports are isolated to `src/infrastructure/feature_providers/`.
 
 Market-data dependency:
 
@@ -68,7 +68,7 @@ Rotation overlays:
   when `rotation_overlay_mode` is enabled.
 - Overlay coverage uses the union of current holdings and
   `rotation_overlay_watchlist`.
-- Overlay watchlist defaults are seeded from `trading/config/trade_universe.txt`
+- Overlay watchlist defaults are seeded from `src/infrastructure/config/trade_universe.txt`
   at schema/default time. Changing that file later does not automatically
   update already-migrated DB values.
 

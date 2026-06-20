@@ -72,7 +72,7 @@ npm run dev
 
 ### Admin
 
-- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with default tickers seeded from `trading/config/trade_universe.txt`. That seed is persisted in DB schema/defaults, so later updates to `trading/config/trade_universe.txt` require an explicit DB update or migration to affect already-migrated databases.
+- `POST /api/admin/accounts/create` — create an account. Body: `AdminCreateAccountRequest`. `accountKind` defaults to `managed`; use `local` for locally managed strategy-testing accounts. If `rotationOverlayWatchlist` is omitted, the new account starts with default tickers seeded from `src/infrastructure/config/trade_universe.txt`. That seed is persisted in DB schema/defaults, so later updates to `src/infrastructure/config/trade_universe.txt` require an explicit DB update or migration to affect already-migrated databases.
 - `POST /api/admin/accounts/delete` — delete a managed account and its dependent records. Body: `AdminDeleteAccountRequest`.
 - `GET /api/admin/operations/overview` — summarize scheduled job health and recent refresh/snapshot/backup artifacts discovered under `local/`.
 - `GET /api/admin/promotion/overview?accountName=...&strategyName=&limit=5` — show the current computed promotion assessment plus recent persisted review history for one managed account.
@@ -113,7 +113,7 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas/`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
-| `AdminCreateAccountRequest` | Account creation payload with core fields plus `accountKind` and rotation settings. `accountKind` defaults to `managed`; use `local` for local strategy-testing accounts. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the seeded `trading/config/trade_universe.txt` default (see Admin route note above for migration behavior). | `POST /api/admin/accounts/create` |
+| `AdminCreateAccountRequest` | Account creation payload with core fields plus `accountKind` and rotation settings. `accountKind` defaults to `managed`; use `local` for local strategy-testing accounts. Includes `rotationOverlayMode`, `rotationOverlayMinTickers`, `rotationOverlayConfidenceThreshold`, and optional `rotationOverlayWatchlist`. Omitted watchlist values fall back to the seeded `src/infrastructure/config/trade_universe.txt` default (see Admin route note above for migration behavior). | `POST /api/admin/accounts/create` |
 | `AdminDeleteAccountRequest` | `accountName`, `confirm` | `POST /api/admin/accounts/delete` |
 | `BacktestRunRequest` | `account`, date/window selection, optional universe-history inputs, slippage/fee, optional `runName`, and `allowApproximateLeaps` | `POST /api/backtests/run` |
 | `BacktestPreflightRequest` | Same account/date/universe inputs as a run request, without execution fields | `POST /api/backtests/preflight` |
@@ -134,5 +134,5 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas/`:
 
 ## Frontend Boundary Notes
 
-- Keep feature entrypoints thin: `src/features/accounts.ts` and `src/features/admin.ts` are wrapper surfaces, while feature-specific orchestration lives under `src/features/accounts/` and `src/features/admin/`.
-- Keep account-detail rendering split by concern under `src/components/account-detail/` so section rendering changes do not accumulate back into one oversized `components/detail.ts`.
+- Keep feature entrypoints thin: `apps/paper_trading_web/frontend/src/features/accounts.ts` and `apps/paper_trading_web/frontend/src/features/admin.ts` are wrapper surfaces, while feature-specific orchestration lives under `apps/paper_trading_web/frontend/src/features/accounts/` and `apps/paper_trading_web/frontend/src/features/admin/`.
+- Keep account-detail rendering split by concern under `apps/paper_trading_web/frontend/src/components/account-detail/` so section rendering changes do not accumulate back into one oversized `components/detail.ts`.

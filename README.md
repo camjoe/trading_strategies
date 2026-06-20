@@ -67,7 +67,7 @@ python -m scripts.run_checks --profile ci --install-python-tools
 
 ### Trends Analysis
 
-See [trends/README.md](trends/README.md) for full documentation and usage examples.
+See [apps/trends/README.md](apps/trends/README.md) for full documentation and usage examples.
 
 ### Backtesting
 
