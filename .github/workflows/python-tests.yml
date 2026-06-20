@@ -8,8 +8,8 @@ on:
       - trading/**
       - trends/**
       - tests/**
-      - paper_trading_ui/backend/**
-      - paper_trading_ui/__init__.py
+      - apps/paper_trading_web/backend/**
+      - apps/paper_trading_web/__init__.py
       - requirements-base.txt
       - requirements-dev.txt
       - pytest.ini
@@ -39,8 +39,8 @@ jobs:
               - trading/**
               - trends/**
               - tests/**
-              - paper_trading_ui/backend/**
-              - paper_trading_ui/__init__.py
+              - apps/paper_trading_web/backend/**
+              - apps/paper_trading_web/__init__.py
               - requirements-base.txt
               - requirements-dev.txt
               - pytest.ini

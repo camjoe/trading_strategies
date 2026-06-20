@@ -78,7 +78,7 @@ def test_heading_path_extracts_first_backtick_path() -> None:
 
 def test_is_full_path() -> None:
     assert _is_full_path("trading/domain")
-    assert _is_full_path("paper_trading_ui/backend")
+    assert _is_full_path("apps/paper_trading_web/backend")
     assert not _is_full_path("routes")  # section-relative
 
 
@@ -131,9 +131,9 @@ def test_extract_resolves_subsection_directories() -> None:
 
 def test_extract_resolves_relative_subsection_under_full_section() -> None:
     """ui-map style: a relative `### Routes (`routes/`)` under a full-path `## Backend (...)`."""
-    markdown = "## Backend (`paper_trading_ui/backend/`)\n### Routes (`routes/`)\n| `accounts.py` | account routes |\n"
-    documented = _extract_documented_paths(markdown, "paper_trading_ui/backend")
-    assert "paper_trading_ui/backend/routes/accounts.py" in documented
+    markdown = "## Backend (`apps/paper_trading_web/backend/`)\n### Routes (`routes/`)\n| `accounts.py` | account routes |\n"
+    documented = _extract_documented_paths(markdown, "apps/paper_trading_web/backend")
+    assert "apps/paper_trading_web/backend/routes/accounts.py" in documented
 
 
 # ---------------------------------------------------------------------------

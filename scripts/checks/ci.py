@@ -65,7 +65,7 @@ def parse_args() -> argparse.Namespace:
 
 def _run_frontend_ci(repo_root: Path) -> None:
     npm_exe = resolve_npm_exe()
-    frontend_dir = repo_root / "paper_trading_ui" / "frontend"
+    frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
     run_step("Frontend: npm ci", [npm_exe, "ci"], frontend_dir)
     run_step("Frontend quality: lint", [npm_exe, "run", "lint"], frontend_dir)
     run_step("Frontend quality: typecheck", [npm_exe, "run", "typecheck"], frontend_dir)

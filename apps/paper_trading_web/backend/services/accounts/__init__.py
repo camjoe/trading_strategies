@@ -1,7 +1,7 @@
-"""Stable local import surface for paper_trading_ui account service helpers.
+"""Stable local import surface for paper_trading_web account service helpers.
 
-External callers within ``paper_trading_ui.backend`` should keep importing from
-``paper_trading_ui.backend.services.accounts``. The submodules under this
+External callers within ``paper_trading_web.backend`` should keep importing from
+``paper_trading_web.backend.services.accounts``. The submodules under this
 package are the internal split by responsibility.
 
 Account-name and snapshot-row queries delegate to canonical trading service

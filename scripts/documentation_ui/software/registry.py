@@ -6,7 +6,7 @@ from pathlib import Path
 from scripts.documentation_ui.registry_utils import sort_registry_rows
 
 
-SOFTWARE_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/software.json"
+SOFTWARE_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/software.json"
 
 
 GROUP_ORDER = [

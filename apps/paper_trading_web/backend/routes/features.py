@@ -3,7 +3,7 @@
 GET  /api/features/status  — health probe all three alt-strategy providers
 POST /api/features/signals — run alt-strategy signals for a given ticker
 
-All provider/signal logic lives in ``paper_trading_ui.backend.services.features``.
+All provider/signal logic lives in ``paper_trading_web.backend.services.features``.
 """
 
 from __future__ import annotations

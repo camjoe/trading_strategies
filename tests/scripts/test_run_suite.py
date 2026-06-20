@@ -37,7 +37,7 @@ def _make_suite_tree(root: Path, *rel_dirs: str) -> None:
 
 class TestDiscoverSuites:
     def test_returns_sorted_suite_names(self, tmp_path: Path) -> None:
-        _make_suite_tree(tmp_path, "trading/services", "trading/repositories", "paper_trading_ui")
+        _make_suite_tree(tmp_path, "trading/services", "trading/repositories", "paper_trading_web")
         suites = discover_suites(tmp_path)
         assert suites == sorted(suites)
 
@@ -79,8 +79,8 @@ class TestDeduplicateSuites:
         assert result == ["trading/services"]
 
     def test_keeps_both_when_no_overlap(self) -> None:
-        result = _deduplicate_suites(["trading/services", "paper_trading_ui"])
-        assert set(result) == {"trading/services", "paper_trading_ui"}
+        result = _deduplicate_suites(["trading/services", "paper_trading_web"])
+        assert set(result) == {"trading/services", "paper_trading_web"}
 
     def test_removes_deep_child_with_grandparent_present(self) -> None:
         result = _deduplicate_suites(["trading", "trading/services/market_data"])

@@ -2,7 +2,7 @@
 
 Domain logic lives in ``trading.services.reporting.benchmark``.
 This module re-exports the public surface so callers within
-``paper_trading_ui.backend`` can import from a stable local path.
+``paper_trading_web.backend`` can import from a stable local path.
 """
 
 from __future__ import annotations

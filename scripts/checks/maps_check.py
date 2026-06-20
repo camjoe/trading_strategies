@@ -38,7 +38,7 @@ KNOWN_TOP_DIRS = (
     "brokers",
     "features",
     "scripts",
-    "paper_trading_ui",
+    "apps",
     "tests",
     "common",
     "docs",
@@ -80,11 +80,11 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ),
     (
         "docs/maps/ui-map.md",
-        "paper_trading_ui/backend",
+        "apps/paper_trading_web/backend",
         (
-            "paper_trading_ui/backend/services/accounts",
-            "paper_trading_ui/backend/services/features",
-            "paper_trading_ui/backend/services/operations",
+            "apps/paper_trading_web/backend/services/accounts",
+            "apps/paper_trading_web/backend/services/features",
+            "apps/paper_trading_web/backend/services/operations",
         ),
     ),
 )
@@ -136,7 +136,7 @@ def _extract_documented_paths(text: str, source_rel: str) -> set[str]:
     """Resolve each `.py` token (table rows only) to a full repo path using its section context.
 
     Section directories may be full (``### `trading/services/` ``) or relative to a parent
-    section (``### Routes (`routes/`)`` under ``## Backend (`paper_trading_ui/backend/`)``).
+    section (``### Routes (`routes/`)`` under ``## Backend (`apps/paper_trading_web/backend/`)``).
     Heading level disambiguates: a level-1/2 heading starts a top-level section (resolved against
     the source root); a deeper heading or bold label is a subsection (resolved against the current
     section base). Only table rows count as file-claims, so prose mentions are ignored.

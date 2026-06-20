@@ -93,7 +93,7 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
 | Create or update a reference doc or ADR | `reference-doc/` |
 | README, reference, or API drift | `update-documentation/` |
-| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-review/` (Cleanup mode) |
+| Frontend-only cleanup in `apps/paper_trading_web/frontend` | `code-review/` (Cleanup mode) |
 | Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
 | Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
 | Generic test additions or edge-case coverage | `expand-tests/` |
@@ -136,9 +136,9 @@ These phrases are repo conventions for common tasks.
 
 ### `deep code review`
 
-- `deep code review`: review `trading/` and `paper_trading_ui/` together
+- `deep code review`: review `trading/` and `apps/paper_trading_web/` together
 - `deep code review: trading`: review `trading/`
-- `deep code review: paper_trading_ui`: review `paper_trading_ui/`
+- `deep code review: paper_trading_web`: review `apps/paper_trading_web/`
 - `deep code review: <file-or-folder>`: review a specific area with the same deep audit workflow
 - Follow `.ai/skills/code-review/SKILL.md` (Aggressive mode).
 
@@ -189,7 +189,7 @@ source area, run the matching suite to validate before committing:
 | `trading/backtesting/` | `trading/backtesting` |
 | `trading/repositories/` | `trading/repositories` |
 | `trading/interfaces/` | `trading/interfaces` |
-| `paper_trading_ui/backend/` | `paper_trading_ui` |
+| `apps/paper_trading_web/backend/` | `paper_trading_web` |
 | Any area | `all` |
 
 Command: `python -m scripts.checks.run_suite <suite> [extra pytest flags]`

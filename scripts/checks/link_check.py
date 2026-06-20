@@ -26,7 +26,7 @@ TOP_DIRS = (
     "brokers/",
     "features/",
     "scripts/",
-    "paper_trading_ui/",
+    "apps/",
     "tests/",
     "common/",
     "docs/",

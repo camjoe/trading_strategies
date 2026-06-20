@@ -106,7 +106,7 @@ def run_quick(
             run_pytest(repo_root=repo_root, python_exe=python_exe)
 
         if with_frontend:
-            frontend_dir = repo_root / "paper_trading_ui" / "frontend"
+            frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
             _run_frontend_quick(frontend_dir)
     except subprocess.CalledProcessError as exc:
         print(f"\nStep failed with exit code {exc.returncode}: {' '.join(exc.cmd)}")

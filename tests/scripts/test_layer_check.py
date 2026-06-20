@@ -111,7 +111,7 @@ def test_cli_exits_zero_when_no_violations(tmp_path: Path) -> None:
     src.mkdir()
     _write_py(src, "clean.py", "import os\n")
 
-    rule_glob_dir = tmp_path / "paper_trading_ui" / "backend" / "services"
+    rule_glob_dir = tmp_path / "apps" / "paper_trading_web" / "backend" / "services"
     rule_glob_dir.mkdir(parents=True)
 
     result = _run_script(tmp_path)
@@ -120,7 +120,7 @@ def test_cli_exits_zero_when_no_violations(tmp_path: Path) -> None:
 
 
 def test_cli_exits_one_when_violations_present(tmp_path: Path) -> None:
-    bad_dir = tmp_path / "paper_trading_ui" / "backend" / "routes"
+    bad_dir = tmp_path / "apps" / "paper_trading_web" / "backend" / "routes"
     bad_dir.mkdir(parents=True)
     _write_py(bad_dir, "bad.py", "from trading.database.db_init import ensure_db\n")
 
