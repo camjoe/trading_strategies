@@ -114,4 +114,3 @@ class TestBacktestValidationAndFailurePaths:
                     allow_approximate_leaps=False,
                 ),
             )
-

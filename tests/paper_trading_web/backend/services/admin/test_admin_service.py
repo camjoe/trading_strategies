@@ -165,4 +165,3 @@ def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -
 
     with pytest.raises(ValueError, match="already exists"):
         create_account_with_rotation(conn, command)
-

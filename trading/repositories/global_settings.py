@@ -6,7 +6,6 @@ from trading.models.global_settings_record import GlobalSettingsRecord
 
 
 class GlobalSettingsRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
@@ -14,9 +13,7 @@ class GlobalSettingsRepository:
         return GlobalSettingsRecord.from_mapping(dict(row))
 
     def fetch(self) -> GlobalSettingsRecord | None:
-        row = self._conn.execute(
-            "SELECT * FROM global_settings WHERE id = 1"
-        ).fetchone()
+        row = self._conn.execute("SELECT * FROM global_settings WHERE id = 1").fetchone()
         return self._row_to_record(row) if row is not None else None
 
     def upsert_throttle_settings(

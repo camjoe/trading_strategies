@@ -122,7 +122,9 @@ def test_fetch_ibkr_paper_accounts_list_handles_zero_initial_cash(mock_conn: Mag
 
 
 def test_fetch_account_sleeves_with_metrics(mock_conn: MagicMock) -> None:
-    sleeves = [_make_sleeve(id=1, name="Growth Sleeve", start_equity=50_000.0, current_equity=55_000.0, current_cash=5_000.0)]
+    sleeves = [
+        _make_sleeve(id=1, name="Growth Sleeve", start_equity=50_000.0, current_equity=55_000.0, current_cash=5_000.0)
+    ]
 
     metric = SimpleNamespace(hit_rate=0.65, drawdown_pct=-10.5, trade_count=25, metric_date="2026-05-10")
 
@@ -143,7 +145,9 @@ def test_fetch_account_sleeves_with_metrics(mock_conn: MagicMock) -> None:
 
 
 def test_fetch_account_sleeves_without_metrics(mock_conn: MagicMock) -> None:
-    sleeves = [_make_sleeve(id=1, name="New Sleeve", start_equity=50_000.0, current_equity=50_000.0, current_cash=50_000.0)]
+    sleeves = [
+        _make_sleeve(id=1, name="New Sleeve", start_equity=50_000.0, current_equity=50_000.0, current_cash=50_000.0)
+    ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
         with patch("trading.services.ibkr_paper_monitor.queries.DailyMetricsRepository") as mock_metrics_cls:
@@ -164,10 +168,20 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
         _make_sleeve(id=2, name="Value Sleeve"),
     ]
 
-    rotation_1 = {"id": 101, "incumbent_strategy": "momentum", "challenger_strategy": "mean_reversion",
-                  "decision_time": "2026-05-10T10:00:00", "decision_reason": "Underperformance"}
-    rotation_2 = {"id": 102, "incumbent_strategy": "div_yield", "challenger_strategy": "growth",
-                  "decision_time": "2026-05-11T14:00:00", "decision_reason": "Better alpha"}
+    rotation_1 = {
+        "id": 101,
+        "incumbent_strategy": "momentum",
+        "challenger_strategy": "mean_reversion",
+        "decision_time": "2026-05-10T10:00:00",
+        "decision_reason": "Underperformance",
+    }
+    rotation_2 = {
+        "id": 102,
+        "incumbent_strategy": "div_yield",
+        "challenger_strategy": "growth",
+        "decision_time": "2026-05-11T14:00:00",
+        "decision_reason": "Better alpha",
+    }
 
     with patch("trading.services.ibkr_paper_monitor.queries.SleeveRepository") as mock_sleeve_cls:
         with patch("trading.services.ibkr_paper_monitor.queries.RotationDecisionRepository") as mock_rot_cls:
@@ -182,8 +196,17 @@ def test_fetch_recent_rotations(mock_conn: MagicMock) -> None:
 
 
 def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
-    decisions = [_make_risk_decision(id=1, symbol="AAPL", side="buy", action="block",
-                                     reason_code="risk_limit_exceeded", approved_notional=0.0, requested_notional=10_000.0)]
+    decisions = [
+        _make_risk_decision(
+            id=1,
+            symbol="AAPL",
+            side="buy",
+            action="block",
+            reason_code="risk_limit_exceeded",
+            approved_notional=0.0,
+            requested_notional=10_000.0,
+        )
+    ]
 
     with patch("trading.services.ibkr_paper_monitor.queries.SleeveRiskDecisionRepository") as mock_risk_cls:
         mock_risk_cls.return_value.fetch_for_account.return_value = decisions
@@ -211,8 +234,9 @@ def test_fetch_ibkr_paper_account_detail_aggregates_all_data(mock_conn: MagicMoc
             with patch("trading.services.ibkr_paper_monitor.queries._fetch_recent_rotations") as mock_fetch_rotations:
                 with patch("trading.services.ibkr_paper_monitor.queries._fetch_risk_summary") as mock_fetch_risk:
                     mock_acct_cls.return_value.fetch_by_name.return_value = account
-                    mock_fetch_sleeves.return_value = [{"sleeve_id": 1, "name": "Sleeve 1",
-                                                        "current_equity": 55_000.0, "current_cash": 10_000.0}]
+                    mock_fetch_sleeves.return_value = [
+                        {"sleeve_id": 1, "name": "Sleeve 1", "current_equity": 55_000.0, "current_cash": 10_000.0}
+                    ]
                     mock_fetch_rotations.return_value = []
                     mock_fetch_risk.return_value = {"kill_switch_triggered": False}
 

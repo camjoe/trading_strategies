@@ -7,7 +7,6 @@ from trading.models.sleeve_order_record import SleeveOrderRecord
 
 
 class SleeveOrderRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

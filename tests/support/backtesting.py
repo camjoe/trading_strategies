@@ -193,4 +193,3 @@ __all__ = [
     "make_fake_close_history",
     "make_walk_forward_config",
 ]
-

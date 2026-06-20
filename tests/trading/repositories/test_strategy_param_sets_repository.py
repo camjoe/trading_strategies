@@ -34,19 +34,32 @@ class TestInsert:
     def test_raises_when_lastrowid_missing(self) -> None:
         class _Cursor:
             lastrowid = None
-            def fetchone(self): return None
-            def fetchall(self): return []
+
+            def fetchone(self):
+                return None
+
+            def fetchall(self):
+                return []
 
         class _Conn:
-            def execute(self, *_a, **_kw): return _Cursor()
-            def commit(self): pass
+            def execute(self, *_a, **_kw):
+                return _Cursor()
+
+            def commit(self):
+                pass
 
         with pytest.raises(ValueError, match="Expected strategy_param_sets id after insert"):
             StrategyParamSetRepository(_Conn()).insert(
-                strategy_name="trend", version="v1", params_json="{}",
-                config_version=None, is_active=0,
-                created_at="2026-01-01T00:00:00Z", updated_at="2026-01-01T00:00:00Z",
-                activated_at=None, deactivated_at=None, notes=None,
+                strategy_name="trend",
+                version="v1",
+                params_json="{}",
+                config_version=None,
+                is_active=0,
+                created_at="2026-01-01T00:00:00Z",
+                updated_at="2026-01-01T00:00:00Z",
+                activated_at=None,
+                deactivated_at=None,
+                notes=None,
             )
 
 
@@ -93,14 +106,28 @@ class TestFetchActive:
     def test_returns_most_recently_updated_when_multiple_active(self, conn) -> None:
         repo = StrategyParamSetRepository(conn)
         repo.insert(
-            strategy_name="trend", version="v1", params_json="{}", config_version=None,
-            is_active=1, created_at="2026-01-01T00:00:00Z", updated_at="2026-01-01T00:00:00Z",
-            activated_at=None, deactivated_at=None, notes=None,
+            strategy_name="trend",
+            version="v1",
+            params_json="{}",
+            config_version=None,
+            is_active=1,
+            created_at="2026-01-01T00:00:00Z",
+            updated_at="2026-01-01T00:00:00Z",
+            activated_at=None,
+            deactivated_at=None,
+            notes=None,
         )
         id_latest = repo.insert(
-            strategy_name="trend", version="v2", params_json="{}", config_version=None,
-            is_active=1, created_at="2026-01-01T00:00:00Z", updated_at="2026-01-02T00:00:00Z",
-            activated_at=None, deactivated_at=None, notes=None,
+            strategy_name="trend",
+            version="v2",
+            params_json="{}",
+            config_version=None,
+            is_active=1,
+            created_at="2026-01-01T00:00:00Z",
+            updated_at="2026-01-02T00:00:00Z",
+            activated_at=None,
+            deactivated_at=None,
+            notes=None,
         )
         record = repo.fetch_active(strategy_name="trend")
         assert record is not None

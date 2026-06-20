@@ -36,4 +36,3 @@ __all__ = [
     "BACKTEST_RUN_NAME",
     "seed_backtest_run",
 ]
-

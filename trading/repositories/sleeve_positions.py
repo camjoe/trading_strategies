@@ -6,7 +6,6 @@ from trading.models.sleeve_position_record import SleevePositionRecord
 
 
 class SleevePositionRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

@@ -95,6 +95,7 @@ class TestArtifactStructure:
 
     def test_snapshot_fields_present_when_snapshot_exists(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace
+
         snapshot = SimpleNamespace(
             snapshot_time="2026-06-01T10:00:00",
             gross_exposure=50000.0,

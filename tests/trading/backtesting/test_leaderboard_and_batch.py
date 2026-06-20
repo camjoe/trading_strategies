@@ -99,4 +99,3 @@ class TestBacktestLeaderboardAndBatch:
 
         assert [item.account_name for item in results] == ["acct_b", "acct_a"]
         assert seen_run_names == ["batch_01_acct_a", "batch_02_acct_b"]
-

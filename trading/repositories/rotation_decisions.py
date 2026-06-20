@@ -5,7 +5,6 @@ import sqlite3
 
 
 class RotationDecisionRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

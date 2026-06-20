@@ -6,7 +6,6 @@ from trading.models.equity_snapshot_record import EquitySnapshotRecord
 
 
 class EquitySnapshotRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

@@ -97,4 +97,3 @@ def test_fetch_latest_backtest_metrics_uses_summary_report(monkeypatch, conn, cr
         "profitFactor": 1.6,
         "avgTradeReturnPct": 2.1,
     }
-

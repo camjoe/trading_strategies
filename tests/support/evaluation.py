@@ -166,4 +166,3 @@ __all__ = [
     "insert_backtest_trade",
     "insert_walk_forward_grouping",
 ]
-

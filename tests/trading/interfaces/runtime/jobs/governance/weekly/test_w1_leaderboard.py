@@ -75,6 +75,7 @@ class TestArtifactStructure:
 
     def test_sleeve_ranking_included_in_artifact(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace as _NS
+
         sleeve_row = {"id": 10, "name": "sleeve_a"}
         mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="trend_follow", param_set_id=None)
@@ -154,6 +155,7 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 def test_main_returns_1_when_repository_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
+
     stub_runtime_job_basics(monkeypatch, module)
     boom_repo = MagicMock()
     boom_repo.fetch_for_account.side_effect = RuntimeError("boom")

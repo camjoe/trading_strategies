@@ -73,4 +73,3 @@ def test_backtest_repository_inserts_run_trade_and_snapshot(conn) -> None:
     assert "w1 | w2" == run_row["warnings"]
     assert int(trades["n"]) == 1
     assert int(snaps["n"]) == 1
-

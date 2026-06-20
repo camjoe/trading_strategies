@@ -6,7 +6,6 @@ from trading.database.sql_helpers import in_placeholders
 
 
 class RotationEpisodeRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

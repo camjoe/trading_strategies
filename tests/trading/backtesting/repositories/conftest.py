@@ -68,4 +68,3 @@ def seed_bt_run(conn: sqlite3.Connection) -> Callable[..., int]:
         return run_id
 
     return _seed
-

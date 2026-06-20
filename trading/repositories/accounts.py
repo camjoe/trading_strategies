@@ -45,7 +45,6 @@ _ACCOUNT_INSERT_SQL = (
 
 
 class AccountRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

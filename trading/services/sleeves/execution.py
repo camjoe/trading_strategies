@@ -108,11 +108,7 @@ def generate_sleeve_trade_intents(
             take_profit_pct,
         )
         assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
-        strategy_name = (
-            assignment.strategy_name.strip()
-            if assignment is not None
-            else default_strategy
-        )
+        strategy_name = assignment.strategy_name.strip() if assignment is not None else default_strategy
         param_set_id = assignment.param_set_id if assignment is not None else None
         selection = _prepare_trade_selection(
             account,

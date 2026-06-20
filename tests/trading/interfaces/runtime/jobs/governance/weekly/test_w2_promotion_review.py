@@ -92,6 +92,7 @@ class TestArtifactStructure:
             "status": "active",
         }
         from types import SimpleNamespace as _NS
+
         mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=None)
         monkeypatch.setattr(

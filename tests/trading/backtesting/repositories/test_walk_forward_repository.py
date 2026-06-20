@@ -137,4 +137,3 @@ def test_walk_forward_repository_persists_and_reads_latest_group(conn) -> None:
 
     assert [int(item["run_id"]) for item in latest_group_runs] == latest_run_ids
     assert [int(item["window_index"]) for item in latest_group_runs] == [1, 2]
-

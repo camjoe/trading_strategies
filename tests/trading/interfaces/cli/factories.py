@@ -125,4 +125,3 @@ __all__ = [
     "make_walk_forward_args",
     "make_walk_forward_summary",
 ]
-

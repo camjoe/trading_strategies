@@ -100,7 +100,9 @@ class TestDeleteBacktestEquitySnapshotsByRunIds:
         )
         conn.commit()
         delete_backtest_equity_snapshots_by_run_ids(conn, (run_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = ?", (run_id,)).fetchone()["n"]
+        count = conn.execute(
+            "SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = ?", (run_id,)
+        ).fetchone()["n"]
         assert count == 0
 
 
@@ -123,7 +125,9 @@ class TestDeleteBacktestRunsByAccountIds:
         acct_id = _account_id(conn)
         _insert_backtest_run(conn, account_id=acct_id)
         delete_backtest_runs_by_account_ids(conn, (acct_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (acct_id,)).fetchone()["n"]
+        count = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (acct_id,)).fetchone()[
+            "n"
+        ]
         assert count == 0
 
     def test_does_not_remove_runs_for_other_accounts(self, conn) -> None:
@@ -141,7 +145,9 @@ class TestDeleteEquitySnapshotsByAccountIds:
         acct_id = _account_id(conn)
         _insert_equity_snapshot(conn, account_id=acct_id)
         delete_equity_snapshots_by_account_ids(conn, (acct_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (acct_id,)).fetchone()["n"]
+        count = conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (acct_id,)).fetchone()[
+            "n"
+        ]
         assert count == 0
 
 

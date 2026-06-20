@@ -70,4 +70,3 @@ def seed_backtest_run(api_conn: sqlite3.Connection) -> Callable[[str, str], None
         api_conn.commit()
 
     return _seed
-

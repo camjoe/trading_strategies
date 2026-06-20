@@ -65,9 +65,7 @@ class GlobalSettingsRecord:
             promotion_min_research_walk_forward_average_return_pct=row_expect_float(
                 values, "promotion_min_research_walk_forward_average_return_pct"
             ),
-            promotion_min_live_paper_snapshot_count=row_expect_int(
-                values, "promotion_min_live_paper_snapshot_count"
-            ),
+            promotion_min_live_paper_snapshot_count=row_expect_int(values, "promotion_min_live_paper_snapshot_count"),
             promotion_min_live_overall_confidence=row_expect_float(values, "promotion_min_live_overall_confidence"),
             updated_at=row_str(values, "updated_at"),
         )

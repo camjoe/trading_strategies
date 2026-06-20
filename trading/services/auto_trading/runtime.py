@@ -239,8 +239,12 @@ def _compute_current_exposure_snapshot(
     return compute_current_exposure_snapshot(
         conn,
         account_id=account_id,
-        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(account_id=account_id),
-        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(account_id=account_id),
+        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(
+            account_id=account_id
+        ),
+        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(
+            account_id=account_id
+        ),
     )
 
 
@@ -258,8 +262,12 @@ def _persist_sleeve_risk_snapshot(
         snapshot_time=snapshot_time,
         kill_switch_triggered=kill_switch_triggered,
         payload=payload,
-        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(account_id=account_id),
-        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(account_id=account_id),
+        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(
+            account_id=account_id
+        ),
+        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(
+            account_id=account_id
+        ),
         upsert_portfolio_risk_snapshot_fn=PortfolioRiskSnapshotRepository(conn).upsert,
     )
 
@@ -700,10 +708,14 @@ def reconcile_open_broker_orders(
         fee,
         get_broker_for_account_fn=broker_factory,
         fetch_open_broker_orders_fn=BrokerOrderRepository(conn).fetch_open,
-        fetch_sleeve_order_by_broker_order_id_fn=lambda c, *, account_id, broker_order_id: SleeveOrderRepository(c).fetch_by_broker_order_id(account_id=account_id, broker_order_id=broker_order_id),
+        fetch_sleeve_order_by_broker_order_id_fn=lambda c, *, account_id, broker_order_id: SleeveOrderRepository(
+            c
+        ).fetch_by_broker_order_id(account_id=account_id, broker_order_id=broker_order_id),
         insert_order_fill_fn=BrokerOrderRepository(conn).insert_fill,
         update_broker_order_status_fn=BrokerOrderRepository(conn).update_status,
-        update_sleeve_order_status_fn=lambda c, *, sleeve_order_id, status, updated_at: SleeveOrderRepository(c).update_status(sleeve_order_id=sleeve_order_id, status=status, updated_at=updated_at),
+        update_sleeve_order_status_fn=lambda c, *, sleeve_order_id, status, updated_at: SleeveOrderRepository(
+            c
+        ).update_status(sleeve_order_id=sleeve_order_id, status=status, updated_at=updated_at),
         record_trade_fn=record_trade,
     )
 

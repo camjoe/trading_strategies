@@ -43,7 +43,6 @@ def _db_optional_text(value: str | None) -> str:
 
 
 class PromotionReviewRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

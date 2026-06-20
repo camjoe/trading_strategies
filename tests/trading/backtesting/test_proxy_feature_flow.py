@@ -109,4 +109,3 @@ class TestBacktestProxyFeatureFlow:
         )
 
         assert call_count["n"] > 0
-

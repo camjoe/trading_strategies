@@ -6,7 +6,6 @@ from trading.models.portfolio_risk_snapshot_record import PortfolioRiskSnapshotR
 
 
 class PortfolioRiskSnapshotRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

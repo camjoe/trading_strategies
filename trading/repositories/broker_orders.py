@@ -8,7 +8,6 @@ from trading.models.broker_order_record import BrokerOrderRecord
 
 
 class BrokerOrderRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

@@ -7,7 +7,6 @@ from trading.models.sleeve_strategy_assignment_record import SleeveStrategyAssig
 
 
 class SleeveRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

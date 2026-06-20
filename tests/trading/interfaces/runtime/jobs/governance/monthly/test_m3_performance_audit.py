@@ -76,11 +76,13 @@ class TestArtifactStructure:
         # Two metric rows: +2% and +3%
         # compound = (1.02 * 1.03 - 1) * 100 = 5.06%
         from types import SimpleNamespace as _NS
+
         metrics = [
             _NS(return_pct=2.0, drawdown_pct=-1.0, hit_rate=0.6, trade_count=3),
             _NS(return_pct=3.0, drawdown_pct=-2.0, hit_rate=0.7, trade_count=4),
         ]
         from types import SimpleNamespace as _NS
+
         mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="trend_v2", param_set_id=None)
         monkeypatch.setattr(
@@ -185,6 +187,7 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 def test_main_returns_1_when_metric_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
+
     stub_runtime_job_basics(monkeypatch, module)
     boom_repo = MagicMock()
     boom_repo.fetch_for_account.side_effect = RuntimeError("boom")

@@ -64,20 +64,36 @@ class TestUpsert:
     def test_raises_on_insert_failure(self) -> None:
         class _Cursor:
             lastrowid = None
-            def fetchone(self): return None
-            def fetchall(self): return []
+
+            def fetchone(self):
+                return None
+
+            def fetchall(self):
+                return []
 
         class _Conn:
-            def execute(self, *_a, **_kw): return _Cursor()
-            def commit(self): pass
+            def execute(self, *_a, **_kw):
+                return _Cursor()
+
+            def commit(self):
+                pass
 
         with pytest.raises(ValueError, match="Expected daily_metrics id after insert"):
             DailyMetricsRepository(_Conn()).upsert(
-                account_id=1, sleeve_id=None, metric_date="2026-01-01",
-                return_pct=None, drawdown_pct=None, turnover_pct=None,
-                slippage_bps=None, hit_rate=None, expectancy=None,
-                risk_adjusted_score=None, trade_count=None, fees_total=None,
-                created_at="2026-01-01T00:00:00Z", updated_at="2026-01-01T00:00:00Z",
+                account_id=1,
+                sleeve_id=None,
+                metric_date="2026-01-01",
+                return_pct=None,
+                drawdown_pct=None,
+                turnover_pct=None,
+                slippage_bps=None,
+                hit_rate=None,
+                expectancy=None,
+                risk_adjusted_score=None,
+                trade_count=None,
+                fees_total=None,
+                created_at="2026-01-01T00:00:00Z",
+                updated_at="2026-01-01T00:00:00Z",
             )
 
 

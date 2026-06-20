@@ -36,11 +36,46 @@ def test_insert_update_and_fetch_broker_orders(conn) -> None:
     other_account_id = insert_repository_account(conn, name="broker_orders_other")
     repo = BrokerOrderRepository(conn)
 
-    repo.insert_order(_make_order(account_id=account_id, broker_order_id="bo-1", submitted_at="2026-05-03T10:00:00Z", status=OrderStatus.SUBMITTED))
-    repo.insert_order(_make_order(account_id=account_id, broker_order_id="bo-2", submitted_at="2026-05-03T10:01:00Z", status=OrderStatus.ACCEPTED))
-    repo.insert_order(_make_order(account_id=account_id, broker_order_id="bo-3", submitted_at="2026-05-03T10:02:00Z", status=OrderStatus.FILLED))
-    repo.insert_order(_make_order(account_id=account_id, broker_order_id="bo-4", submitted_at="2026-05-03T10:03:00Z", status=OrderStatus.REJECTED))
-    repo.insert_order(_make_order(account_id=other_account_id, broker_order_id="bo-other", submitted_at="2026-05-03T10:04:00Z", status=OrderStatus.SUBMITTED))
+    repo.insert_order(
+        _make_order(
+            account_id=account_id,
+            broker_order_id="bo-1",
+            submitted_at="2026-05-03T10:00:00Z",
+            status=OrderStatus.SUBMITTED,
+        )
+    )
+    repo.insert_order(
+        _make_order(
+            account_id=account_id,
+            broker_order_id="bo-2",
+            submitted_at="2026-05-03T10:01:00Z",
+            status=OrderStatus.ACCEPTED,
+        )
+    )
+    repo.insert_order(
+        _make_order(
+            account_id=account_id,
+            broker_order_id="bo-3",
+            submitted_at="2026-05-03T10:02:00Z",
+            status=OrderStatus.FILLED,
+        )
+    )
+    repo.insert_order(
+        _make_order(
+            account_id=account_id,
+            broker_order_id="bo-4",
+            submitted_at="2026-05-03T10:03:00Z",
+            status=OrderStatus.REJECTED,
+        )
+    )
+    repo.insert_order(
+        _make_order(
+            account_id=other_account_id,
+            broker_order_id="bo-other",
+            submitted_at="2026-05-03T10:04:00Z",
+            status=OrderStatus.SUBMITTED,
+        )
+    )
 
     repo.update_status(
         broker_order_id="bo-1",
@@ -65,13 +100,24 @@ def test_insert_update_and_fetch_broker_orders(conn) -> None:
 def test_insert_fill_is_idempotent_only_for_non_null_exec_ids(conn) -> None:
     account_id = insert_repository_account(conn, name="broker_fill_acct")
     repo = BrokerOrderRepository(conn)
-    repo.insert_order(_make_order(account_id=account_id, broker_order_id="bo-fill", submitted_at="2026-05-03T11:00:00Z", status=OrderStatus.SUBMITTED))
+    repo.insert_order(
+        _make_order(
+            account_id=account_id,
+            broker_order_id="bo-fill",
+            submitted_at="2026-05-03T11:00:00Z",
+            status=OrderStatus.SUBMITTED,
+        )
+    )
 
-    fill = OrderFill(filled_qty=5.0, fill_price=499.5, fill_time="2026-05-03T11:01:00Z", commission=0.5, exec_id="exec-1")
+    fill = OrderFill(
+        filled_qty=5.0, fill_price=499.5, fill_time="2026-05-03T11:01:00Z", commission=0.5, exec_id="exec-1"
+    )
     repo.insert_fill("bo-fill", fill)
     repo.insert_fill("bo-fill", fill)
 
-    paper_fill = OrderFill(filled_qty=1.0, fill_price=500.0, fill_time="2026-05-03T11:02:00Z", commission=0.0, exec_id=None)
+    paper_fill = OrderFill(
+        filled_qty=1.0, fill_price=500.0, fill_time="2026-05-03T11:02:00Z", commission=0.0, exec_id=None
+    )
     repo.insert_fill("bo-fill", paper_fill)
     repo.insert_fill("bo-fill", paper_fill)
 

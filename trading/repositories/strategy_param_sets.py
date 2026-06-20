@@ -6,7 +6,6 @@ from trading.models.strategy_param_set_record import StrategyParamSetRecord
 
 
 class StrategyParamSetRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

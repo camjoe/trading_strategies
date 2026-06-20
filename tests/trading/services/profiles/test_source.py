@@ -65,4 +65,3 @@ def test_resolve_profile_file_path_rewrites_legacy_account_profiles_prefix() -> 
     resolved = resolve_profile_file_path("trading/account_profiles/default.json")
 
     assert resolved.as_posix().endswith("src/infrastructure/config/account_profiles/default.json")
-

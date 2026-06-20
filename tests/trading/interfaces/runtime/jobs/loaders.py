@@ -235,10 +235,7 @@ def stub_runtime_job_basics(
     mock_param_repo = None
 
     if sleeves_for_account is not None and hasattr(module, "SleeveRepository"):
-        sleeve_records = [
-            SimpleNamespace(**row) if isinstance(row, dict) else row
-            for row in sleeves_for_account
-        ]
+        sleeve_records = [SimpleNamespace(**row) if isinstance(row, dict) else row for row in sleeves_for_account]
         mock_sleeve_repo = MagicMock()
         mock_sleeve_repo.fetch_for_account.return_value = sleeve_records
         mock_sleeve_repo.fetch_active_assignment.return_value = None
@@ -290,4 +287,3 @@ __all__ = [
     "stub_runtime_job_basics",
     "write_completed_runtime_log",
 ]
-

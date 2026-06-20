@@ -7,7 +7,6 @@ from trading.models.sleeve_risk_decision_record import SleeveRiskDecisionRecord
 
 
 class SleeveRiskDecisionRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

@@ -53,20 +53,34 @@ class TestInsert:
     def test_raises_when_lastrowid_missing(self) -> None:
         class _Cursor:
             lastrowid = None
-            def fetchone(self): return None
-            def fetchall(self): return []
+
+            def fetchone(self):
+                return None
+
+            def fetchall(self):
+                return []
 
         class _Conn:
-            def execute(self, *_a, **_kw): return _Cursor()
-            def commit(self): pass
+            def execute(self, *_a, **_kw):
+                return _Cursor()
+
+            def commit(self):
+                pass
 
         with pytest.raises(ValueError, match="Expected rotation_decisions id after insert"):
             RotationDecisionRepository(_Conn()).insert(
-                sleeve_id=1, decision_time="2026-01-01T00:00:00Z",
-                incumbent_strategy=None, challenger_strategy=None,
-                selected_strategy=None, rotation_action="hold",
-                cooldown_active=0, score_components_json="{}", gate_results_json="{}",
-                decision_reason=None, config_version=None, param_set_id=None,
+                sleeve_id=1,
+                decision_time="2026-01-01T00:00:00Z",
+                incumbent_strategy=None,
+                challenger_strategy=None,
+                selected_strategy=None,
+                rotation_action="hold",
+                cooldown_active=0,
+                score_components_json="{}",
+                gate_results_json="{}",
+                decision_reason=None,
+                config_version=None,
+                param_set_id=None,
                 created_at="2026-01-01T00:00:00Z",
             )
 
@@ -126,9 +140,7 @@ class TestFetchForSleeveOnDate:
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-01T23:59:00Z", decision_reason="before")
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-02T09:00:00Z", decision_reason="on_date")
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-03T00:00:00Z", decision_reason="after")
-        rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(
-            sleeve_id=slv_id, report_date="2026-01-02"
-        )
+        rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(sleeve_id=slv_id, report_date="2026-01-02")
         assert len(rows) == 1
         assert rows[0]["decision_reason"] == "on_date"
 
@@ -137,9 +149,7 @@ class TestFetchForSleeveOnDate:
         slv_id = _sleeve_id(conn, acct_id)
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-02T23:59:59Z", decision_reason="last_second")
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-03T00:00:00Z", decision_reason="next_day")
-        rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(
-            sleeve_id=slv_id, report_date="2026-01-02"
-        )
+        rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(sleeve_id=slv_id, report_date="2026-01-02")
         assert len(rows) == 1
         assert rows[0]["decision_reason"] == "last_second"
 
@@ -148,9 +158,7 @@ class TestFetchForSleeveOnDate:
         slv_id = _sleeve_id(conn, acct_id)
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-02T11:00:00Z")
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-02T09:00:00Z")
-        rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(
-            sleeve_id=slv_id, report_date="2026-01-02"
-        )
+        rows = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(sleeve_id=slv_id, report_date="2026-01-02")
         times = [r["decision_time"] for r in rows]
         assert times == sorted(times)
 
@@ -165,9 +173,21 @@ class TestFetchLatestRotateAction:
     def test_returns_most_recent_rotate_ignoring_holds(self, conn) -> None:
         acct_id = _account_id(conn)
         slv_id = _sleeve_id(conn, acct_id)
-        _insert(conn, sleeve_id=slv_id, decision_time="2026-01-01T09:00:00Z", rotation_action="rotate", decision_reason="first_rotate")
+        _insert(
+            conn,
+            sleeve_id=slv_id,
+            decision_time="2026-01-01T09:00:00Z",
+            rotation_action="rotate",
+            decision_reason="first_rotate",
+        )
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-01T10:00:00Z", rotation_action="hold")
-        _insert(conn, sleeve_id=slv_id, decision_time="2026-01-01T11:00:00Z", rotation_action="rotate", decision_reason="latest_rotate")
+        _insert(
+            conn,
+            sleeve_id=slv_id,
+            decision_time="2026-01-01T11:00:00Z",
+            rotation_action="rotate",
+            decision_reason="latest_rotate",
+        )
         _insert(conn, sleeve_id=slv_id, decision_time="2026-01-01T12:00:00Z", rotation_action="hold")
         row = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=slv_id)
         assert row is not None

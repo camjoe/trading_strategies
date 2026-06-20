@@ -141,4 +141,3 @@ def test_walk_forward_service_rejects_empty_windows() -> None:
             windows=[],
             run_backtest_fn=lambda _conn, _cfg: _Result(run_id=1, total_return_pct=1.0),
         )
-

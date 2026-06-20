@@ -160,9 +160,7 @@ def test_row_json_and_require_helpers_raise_on_invalid_payloads(monkeypatch) -> 
         PromotionReviewRepository(object())._require_review(review_id=7, context="update")
 
     with pytest.raises(ValueError, match="Promotion review event 3 not found after insert"):
-        PromotionReviewRepository(
-            _StaticConnection(_StaticCursor(row=None))
-        )._require_event(event_id=3)
+        PromotionReviewRepository(_StaticConnection(_StaticCursor(row=None)))._require_event(event_id=3)
 
 
 @pytest.mark.parametrize(

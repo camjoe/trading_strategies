@@ -194,4 +194,3 @@ def test_fetch_latest_backtest_run_id_for_account_strategy_returns_none_for_no_m
     )
 
     assert result is None
-

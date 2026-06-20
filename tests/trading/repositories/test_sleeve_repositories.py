@@ -170,9 +170,7 @@ class TestSleevesRepository:
 
     def test_insert_param_set_and_assignment_raise_when_lastrowid_missing(self) -> None:
         with pytest.raises(ValueError, match="Expected strategy_param_sets id after insert"):
-            StrategyParamSetRepository(
-                _StaticConnection(_StaticCursor(lastrowid=None))
-            ).insert(
+            StrategyParamSetRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
                 strategy_name="trend",
                 version="v1",
                 params_json='{"lookback": 20}',
@@ -186,9 +184,7 @@ class TestSleevesRepository:
             )
 
         with pytest.raises(ValueError, match="Expected sleeve_strategy_assignments id after insert"):
-            SleeveRepository(
-                _StaticConnection(_StaticCursor(lastrowid=None))
-            ).insert_assignment(
+            SleeveRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert_assignment(
                 sleeve_id=1,
                 strategy_name="trend",
                 param_set_id=None,
@@ -318,9 +314,7 @@ class TestSleeveOrdersRepository:
 
     def test_insert_sleeve_order_raises_when_lastrowid_missing(self) -> None:
         with pytest.raises(ValueError, match="Expected sleeve_orders id after insert"):
-            SleeveOrderRepository(
-                _StaticConnection(_StaticCursor(lastrowid=None))
-            ).insert(
+            SleeveOrderRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
                 account_id=1,
                 sleeve_id=1,
                 strategy_name="trend",
@@ -736,16 +730,14 @@ class TestSleeveRiskDecisionsRepository:
         assert [row.reason_code for row in risk_rows] == ["in-window"]
 
         assert (
-            SleeveLedgerRepository(
-                _StaticConnection(_StaticCursor(row=None))
-            ).fetch_sum_by_type(sleeve_id=1, entry_type="fee")
+            SleeveLedgerRepository(_StaticConnection(_StaticCursor(row=None))).fetch_sum_by_type(
+                sleeve_id=1, entry_type="fee"
+            )
             == 0.0
         )
 
         with pytest.raises(ValueError, match="Expected sleeve_ledger id after insert"):
-            SleeveLedgerRepository(
-                _StaticConnection(_StaticCursor(lastrowid=None))
-            ).insert(
+            SleeveLedgerRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
                 sleeve_id=1,
                 entry_type="fee",
                 amount=-1.0,
@@ -756,9 +748,7 @@ class TestSleeveRiskDecisionsRepository:
             )
 
         with pytest.raises(ValueError, match="Expected sleeve_risk_decisions id after insert"):
-            SleeveRiskDecisionRepository(
-                _StaticConnection(_StaticCursor(lastrowid=None))
-            ).insert(
+            SleeveRiskDecisionRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
                 account_id=1,
                 sleeve_id=None,
                 decision_time="2026-05-03T00:00:00Z",
@@ -776,9 +766,7 @@ class TestSleeveRiskDecisionsRepository:
             )
 
         with pytest.raises(ValueError, match="Expected rotation_decisions id after insert"):
-            RotationDecisionRepository(
-                _StaticConnection(_StaticCursor(lastrowid=None))
-            ).insert(
+            RotationDecisionRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
                 sleeve_id=1,
                 decision_time="2026-05-03T00:00:00Z",
                 incumbent_strategy=None,
@@ -795,9 +783,7 @@ class TestSleeveRiskDecisionsRepository:
             )
 
         with pytest.raises(ValueError, match="Expected daily_metrics id after insert"):
-            DailyMetricsRepository(
-                _StaticConnection(_StaticCursor(row=None), _StaticCursor(lastrowid=None))
-            ).upsert(
+            DailyMetricsRepository(_StaticConnection(_StaticCursor(row=None), _StaticCursor(lastrowid=None))).upsert(
                 account_id=1,
                 sleeve_id=None,
                 metric_date="2026-05-03",

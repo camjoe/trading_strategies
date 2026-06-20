@@ -62,19 +62,16 @@ def fetch_promotion_policy_settings(conn: sqlite3.Connection) -> PromotionPolicy
         return defaults
     return PromotionPolicySettings(
         min_research_backtest_trade_count=(
-            record.promotion_min_research_backtest_trade_count
-            or defaults.min_research_backtest_trade_count
+            record.promotion_min_research_backtest_trade_count or defaults.min_research_backtest_trade_count
         ),
         min_research_backtest_snapshot_count=(
-            record.promotion_min_research_backtest_snapshot_count
-            or defaults.min_research_backtest_snapshot_count
+            record.promotion_min_research_backtest_snapshot_count or defaults.min_research_backtest_snapshot_count
         ),
         min_research_backtest_return_pct=record.promotion_min_research_backtest_return_pct,
         min_research_max_drawdown_pct=record.promotion_min_research_max_drawdown_pct,
         min_research_walk_forward_average_return_pct=record.promotion_min_research_walk_forward_average_return_pct,
         min_live_paper_snapshot_count=(
-            record.promotion_min_live_paper_snapshot_count
-            or defaults.min_live_paper_snapshot_count
+            record.promotion_min_live_paper_snapshot_count or defaults.min_live_paper_snapshot_count
         ),
         min_live_overall_confidence=record.promotion_min_live_overall_confidence,
     )

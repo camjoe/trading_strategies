@@ -72,6 +72,7 @@ class TestArtifactStructure:
 
     def test_params_parsed_from_json_column(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace as _NS
+
         sleeve_row = {"id": 7, "name": "sleeve_q"}
         mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
         mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=42)
@@ -92,6 +93,7 @@ class TestArtifactStructure:
 
     def test_uses_assignment_param_set_id_instead_of_global_active_set(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace as _NS
+
         sleeve_row = {"id": 7, "name": "sleeve_q"}
         captured: dict[str, int] = {}
         mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
@@ -151,6 +153,7 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> None:
     from types import SimpleNamespace as _NS
+
     sleeve_row = {"id": 7, "name": "sleeve_q"}
     mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
     mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=42)
@@ -165,6 +168,7 @@ def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> 
 
 def test_main_returns_1_when_param_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
+
     stub_runtime_job_basics(monkeypatch, module)
     boom_repo = MagicMock()
     boom_repo.fetch_for_account.side_effect = RuntimeError("boom")

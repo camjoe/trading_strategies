@@ -175,4 +175,3 @@ class TestBacktestsRoutes:
         assert response.status_code == 400
         assert response.json()["detail"] == "wf bad config"
         walk_forward_mock.assert_called_once()
-

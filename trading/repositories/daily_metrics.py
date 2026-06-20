@@ -6,7 +6,6 @@ from trading.models.daily_metric_record import DailyMetricRecord
 
 
 class DailyMetricsRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

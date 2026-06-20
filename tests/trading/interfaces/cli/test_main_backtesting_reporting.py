@@ -113,4 +113,3 @@ def test_main_backtest_leaderboard_no_rows_prints_message(monkeypatch, capsys) -
     out = capsys.readouterr().out
     assert "No backtest runs matched the selected filters." in out
     assert fake_conn.closed is True
-

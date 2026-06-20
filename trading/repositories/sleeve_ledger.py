@@ -6,7 +6,6 @@ from trading.models.sleeve_ledger_record import SleeveLedgerRecord
 
 
 class SleeveLedgerRepository:
-
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 

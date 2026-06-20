@@ -148,10 +148,13 @@ class TestSnapshotCounts:
         _insert(conn, acct_b, snapshot_time="2026-01-02T00:00:00", equity=999.0)
         repo = EquitySnapshotRepository(conn)
 
-        assert repo.fetch_count_between(
-            account_id=acct_a,
-            start_iso="2026-01-01T00:00:00",
-            end_iso="2026-01-02T23:59:59",
-        ) == 2
+        assert (
+            repo.fetch_count_between(
+                account_id=acct_a,
+                start_iso="2026-01-01T00:00:00",
+                end_iso="2026-01-02T23:59:59",
+            )
+            == 2
+        )
         assert repo.fetch_count(account_id=acct_a) == 3
         assert repo.fetch_count(account_id=acct_b) == 1

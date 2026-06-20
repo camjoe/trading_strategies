@@ -106,7 +106,10 @@ class TestFetchCountBetween:
             note=None,
         )
 
-        assert repo.fetch_count_between(
-            start_iso="2026-01-01T00:00:30Z",
-            end_iso="2026-01-01T00:01:30Z",
-        ) == 1
+        assert (
+            repo.fetch_count_between(
+                start_iso="2026-01-01T00:00:30Z",
+                end_iso="2026-01-01T00:01:30Z",
+            )
+            == 1
+        )
