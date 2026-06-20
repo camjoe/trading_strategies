@@ -38,6 +38,6 @@ invoker: any
 ## Repo references
 
 - `docs/architecture/architecture-conventions.md`
-- `docs/conventions/bot-style.md`
+- `docs/conventions/general-style.md`
 - `docs/conventions/python-style.md`
 - `scripts/run_checks.py`, `scripts/checks/`

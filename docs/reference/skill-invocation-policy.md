@@ -88,19 +88,19 @@ Do not execute any workflow steps below until the invoker check passes.
 1. Set `invoker: agent:<agent-name>` in the skill's frontmatter.
 2. Add the enforcement preamble (template above) at the top of the skill body.
 3. Update the roster table in this document.
-4. Update the `docs/maps/skills-map.md` "Who can invoke" column.
+4. Update the `AGENTS.md` routing table "Who can invoke" column.
 
 ## Removing a Restriction
 
 1. Change `invoker` back to `any`.
 2. Remove the enforcement preamble from the skill body.
-3. Update the roster table and skills-map.
+3. Update the roster table and `AGENTS.md` routing entry.
 
 ---
 
 ## Related References
 
-- `docs/maps/skills-map.md` — full discovery index of agents and skills
+- `AGENTS.md` — full routing table of skills and agents with invocation rules
 - `bots/skills/help/SKILL.md` — `/help` skill for interactive discovery
 - `bots/agents/` — agent definitions
 - `bots/skills/` — skill definitions

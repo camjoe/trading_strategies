@@ -23,12 +23,12 @@ invoker: any
 ## Constraints
 
 - Do not invent content — only document what is already true or decided.
-- Use the exact header format from `docs/reference/reference-doc.md`.
+- Use the exact header format from `docs/conventions/reference-doc.md`.
 - For ADRs: once accepted, do not change the decision body. Create a superseding ADR instead.
 
 ## Repo references
 
-- `docs/reference/reference-doc.md`
+- `docs/conventions/reference-doc.md`
 - `docs/reference/TEMPLATE.notes.md`
-- `docs/reference/TEMPLATE.adr.md`
+- `docs/adr/TEMPLATE.adr.md`
 - `docs/README.md`

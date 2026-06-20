@@ -100,7 +100,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers |
 |---|---|
-| `docs/reference/TEMPLATE.adr.md` | Template for new ADR files |
+| `docs/adr/TEMPLATE.adr.md` | Template for new ADR files |
 | `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
 | `docs/reference/skill-invocation-policy.md` | Who can invoke which skill; `invoker` frontmatter schema and enforcement preamble convention |
 
@@ -113,7 +113,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/runbooks/daily-operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
-| `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
+| `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 
 ---
@@ -124,7 +124,10 @@ Rules and standards this project follows — coding style, doc structure, naming
 
 | File | What it covers | Goes stale when |
 |---|---|---|
+| `docs/conventions/general-style.md` | Cross-cutting style approach + docs/markdown style; indexes the per-language guides | Style approach or doc-writing conventions change |
 | `docs/conventions/python-style.md` | Python style conventions for this repo | Linting rules or project-wide conventions change |
+| `docs/conventions/frontend-style.md` | TypeScript/Vite frontend style | Frontend conventions change |
+| `docs/conventions/naming.md` | File/folder naming convention | Naming rules change |
 | `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
 | `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
 | `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
@@ -140,7 +143,6 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
-| `docs/conventions/bot-style.md` | Code style rules for Claude contributions | Style conventions change |
 
 ### Agents
 

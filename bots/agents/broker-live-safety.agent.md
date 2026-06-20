@@ -22,7 +22,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 
 ## Responsibilities
 
-1. Keep broker SDK imports and `broker_type` routing inside `trading/brokers/`.
+1. Keep broker SDK imports and `broker_type` routing inside `brokers/`.
 2. Protect the `live_trading_enabled` safety gate and related operator workflows.
 3. Review broker config, reconciliation, and adapter changes for accidental live-trading exposure.
 4. Keep service and UI layers dependent on stable broker abstractions instead of broker SDK details.
@@ -32,7 +32,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 1. Never set `live_trading_enabled = 1` in generated code, migrations, scripts, fixtures, or seed data.
 2. Never modify broker defaults to point at a live endpoint automatically.
 3. Never catch or suppress `LiveTradingNotEnabledError`.
-4. Keep broker SDK imports inside `trading/brokers/` and out of service, domain, UI, or repository modules.
+4. Keep broker SDK imports inside `brokers/` and out of service, domain, UI, or repository modules.
 
 ## Permitted Shell Commands
 
@@ -40,7 +40,7 @@ Run only the commands listed below. Do not run git commands.
 
 - `python -m scripts.run_checks --profile quick`
 - `python -m pytest tests/ -k "broker or live_trading or reconciliation"`
-- `python -m mypy trading/brokers/ trading/services/ --ignore-missing-imports`
+- `python -m mypy brokers/ trading/services/ --ignore-missing-imports`
 
 ## Output Format
 

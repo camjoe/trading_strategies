@@ -118,10 +118,10 @@ most likely follow-up targets for later simplification passes.
 
 | Column | Write paths | Read / logic paths | Classification | Notes |
 | --- | --- | --- | --- | --- |
-| `broker_type` | migration default; intended manual/operator DB updates | `trading/brokers/factory.py` broker selection | **manual / safety-critical** | Execution-backend selector (`paper`, IBKR today, future live brokers such as Alpaca later); orthogonal to `account_kind` |
-| `broker_host` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
-| `broker_port` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
-| `broker_client_id` | migration add; intended manual/operator DB updates | `trading/brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
+| `broker_type` | migration default; intended manual/operator DB updates | `brokers/factory.py` broker selection | **manual / safety-critical** | Execution-backend selector (`paper`, IBKR today, future live brokers such as Alpaca later); orthogonal to `account_kind` |
+| `broker_host` | migration add; intended manual/operator DB updates | `brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
+| `broker_port` | migration add; intended manual/operator DB updates | `brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
+| `broker_client_id` | migration add; intended manual/operator DB updates | `brokers/factory.py` live broker connection setup | **manual / safety-critical** | Only used for live broker connectivity |
 | `live_trading_enabled` | migration default; must be manually enabled by human | broker factory hard gate, evaluation/promotion assessment | **manual / safety-critical** | The most sensitive field in the table; must never be bot-enabled |
 
 ---

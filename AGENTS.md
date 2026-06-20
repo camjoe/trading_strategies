@@ -21,12 +21,19 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 ## Working references
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
-- Style and formatting expectations: `docs/conventions/bot-style.md`
+- Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
 - Skill authoring and localization guidance: `bots/skills/README.md`
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
+
+## Output style
+
+- Apply a **balanced** style (see `docs/conventions/general-style.md`): prefer a touched file's existing local style, make consistency improvements only when they reduce ambiguity, and avoid broad style-only churn. Keep behavior unchanged unless asked.
+- Do **not** do style-only rewrites unless explicitly requested.
+- Explain any non-trivial style decision in your summary.
+- For new code, apply the relevant language guide by default — `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend).
 
 ## Task surfaces
 
@@ -178,7 +185,7 @@ source area, run the matching suite to validate before committing:
 | `trading/interfaces/runtime/jobs/daily/` | `trading/interfaces/runtime/jobs/daily` |
 | `trading/interfaces/runtime/jobs/governance/` | `trading/interfaces/runtime/jobs/governance` |
 | `trading/interfaces/runtime/jobs/maintenance/` | `trading/interfaces/runtime/jobs/maintenance` |
-| `trading/brokers/legacy/` | `trading/brokers/legacy` |
+| `brokers/legacy/` | `brokers/legacy` |
 | `trading/backtesting/` | `trading/backtesting` |
 | `trading/repositories/` | `trading/repositories` |
 | `trading/interfaces/` | `trading/interfaces` |
@@ -264,7 +271,7 @@ Skills: `bots/skills/db-migration/` (create, validate, estimate-risk, generate-r
 
 ### `broker:` — Broker Live Safety Steward
 
-Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `trading/brokers/`, `broker_type` routing, or any live-trading config flow.
+Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `brokers/`, `broker_type` routing, or any live-trading config flow.
 
 - `broker: <description>` — implement or review broker adapter work
 - `broker review` — review broker-facing changes in the current diff

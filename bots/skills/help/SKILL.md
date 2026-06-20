@@ -73,7 +73,6 @@ Shortcuts for frequent tasks:
 - `bots/agents/trading-runtime.agent.md`
 - `bots/skills/check-pr-readiness/SKILL.md`
 - `bots/skills/code-review/SKILL.md`
-- `bots/skills/create-memory/SKILL.md`
 - `bots/skills/create-skill/SKILL.md`
 - `bots/skills/db-migration/SKILL.md`
 - `bots/skills/expand-tests/SKILL.md`

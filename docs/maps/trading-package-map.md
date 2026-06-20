@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-06-17
 Purpose: Explain the trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement.
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -89,8 +89,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `manage_job_schedules.py` | Install/update OS-level job schedules |
 | `run_auto_trades.py` | Auto-trade execution runner |
 | `scheduler_installer.py` | Scheduler installation logic |
-| `job_status.py` | Job status tracking models |
-| `notifications.py` | Notification/alerting dispatch from jobs |
 
 **Runtime data ops** (`trading/interfaces/runtime/data_ops/`)
 
@@ -98,6 +96,13 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
+
+**Runtime (shared)** (`trading/interfaces/runtime/`)
+
+| Module | Responsibility |
+|---|---|
+| `job_status.py` | Job status tracking models |
+| `notifications.py` | Notification/alerting dispatch from runtime jobs |
 
 ---
 
@@ -154,6 +159,18 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `runtime_settings/mutations.py` | Runtime setting write operations |
 | `runtime_settings/queries.py` | Runtime setting read operations |
 | `runtime_throttle/enforcement.py` | Runtime throttle enforcement logic |
+| `sleeves/accounting.py` | Sleeve-level cash/equity accounting |
+| `sleeves/daily_report.py` | Sleeve daily reporting |
+| `sleeves/execution.py` | Sleeve trade execution and intent generation |
+| `sleeves/helpers.py` | Shared sleeve service helpers (math, formatting) |
+| `sleeves/reconciliation.py` | Sleeve equity reconciliation (vs account and snapshot) |
+| `sleeves/risk_gate.py` | Sleeve-level risk gate enforcement |
+| `sleeves/rotation.py` | Sleeve rotation execution |
+| `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
+| `sleeves/universe_config.py` | Sleeve trade-universe configuration |
+| `universe/resolver.py` | Trade-universe name resolution |
+| `performance.py` | Sleeve performance window queries (flat module; reads daily metrics) |
+| `risk_snapshots.py` | Portfolio risk snapshot access (flat module) |
 
 ---
 
@@ -179,6 +196,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `sleeve_risk_decisions.py` | Sleeve-level risk decision records |
 | `sleeves.py` | Sleeve configuration and state |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
+| `strategy_param_sets.py` | Strategy parameter set records |
 | `trades.py` | Trade execution records |
 
 ---
@@ -233,7 +251,20 @@ Passive data contracts. No business logic, no I/O.
 | `account_record.py` | `AccountRecord` read model (implements `Mapping[str, object]`) |
 | `account_state.py` | `AccountState` runtime state aggregation |
 | `broker_order.py` | `BrokerOrder` model |
+| `broker_order_record.py` | `BrokerOrderRecord` read model |
+| `daily_metric_record.py` | `DailyMetricRecord` read model |
+| `equity_snapshot_record.py` | `EquitySnapshotRecord` read model |
+| `global_settings_record.py` | `GlobalSettingsRecord` read model |
+| `portfolio_risk_snapshot_record.py` | `PortfolioRiskSnapshotRecord` read model |
 | `rotation_config.py` | `RotationConfig` data model |
+| `sleeve_fill_record.py` | `SleeveFillRecord` read model |
+| `sleeve_ledger_record.py` | `SleeveLedgerRecord` read model |
+| `sleeve_order_record.py` | `SleeveOrderRecord` read model |
+| `sleeve_position_record.py` | `SleevePositionRecord` read model |
+| `sleeve_record.py` | `SleeveRecord` read model |
+| `sleeve_risk_decision_record.py` | `SleeveRiskDecisionRecord` read model |
+| `sleeve_strategy_assignment_record.py` | `SleeveStrategyAssignmentRecord` read model |
+| `strategy_param_set_record.py` | `StrategyParamSetRecord` read model |
 
 ---
 

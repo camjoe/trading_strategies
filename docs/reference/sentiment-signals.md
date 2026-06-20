@@ -32,24 +32,24 @@ Strategy catalog details (all strategy families) live in:
 
 Signal dispatch and registration:
 
-- `trading/backtesting/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
+- `trading/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
   `resolve_signal()` dispatch.
 - The three alternative strategies above are registered with
   `strategy_style="alternative"`.
 
 Provider boundary:
 
-- `trading/features/base.py` defines `ExternalFeatureProvider` and
+- `trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
   `ExternalFeatureBundle`.
 - Concrete providers:
-  - `trading/features/policy_feature_provider.py`
-  - `trading/features/news_feature_provider.py`
-  - `trading/features/social_feature_provider.py`
-- Feature-provider imports are isolated to `trading/features/`.
+  - `features/policy_feature_provider.py`
+  - `features/news_feature_provider.py`
+  - `features/social_feature_provider.py`
+- Feature-provider imports are isolated to `features/`.
 
 Market-data dependency:
 
-- `trading/services/market_data/runtime.py` resolves the configured market-data
+- `trading/services/market_data/registry.py` resolves the configured market-data
   provider.
 - Alternative providers consume market/news/social data through their own
   provider logic; strategy functions consume normalized bundles only.

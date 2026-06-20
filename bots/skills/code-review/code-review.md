@@ -32,7 +32,7 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 
 - `AGENTS.md`
 - `docs/architecture/architecture-conventions.md`
-- `docs/conventions/bot-style.md`
+- `docs/conventions/general-style.md`
 - `docs/conventions/python-style.md`
 - Relevant schema and migration files when database concerns are in scope
 - Repo validation commands from `scripts/run_checks.py` and `scripts/checks/`

@@ -25,7 +25,6 @@ Use this skill when code changes imply documentation changes.
 - `docs/architecture/nav-guide.md` — task → file lookup; start here to locate affected files
 - `docs/maps/docs-map.md` — maps code surfaces to owning documentation files
 - `README.md` files across the repo
-- `python -m scripts.checks.readme_check`
 
 ## Expected output
 

@@ -30,7 +30,7 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 ## Repo references
 
 - `docs/architecture/architecture-conventions.md`
-- `docs/conventions/bot-style.md`
+- `docs/conventions/general-style.md`
 - `docs/conventions/python-style.md`
 - `trading/`
 - `paper_trading_ui/backend/`

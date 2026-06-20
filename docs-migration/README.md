@@ -1,24 +1,31 @@
 # Docs Migration — Record & Remaining Work
 
-Record of the documentation consolidation that reorganized `docs/` + the doc/agent/skill content of `.github/` into one source of truth (`docs/` + `bots/` at repo root).
+One-source-of-truth consolidation of `docs/` + the doc/agent/skill content of `.github/` into `docs/` + `bots/` at repo root. **Pass 1 (move) is merged to develop; Pass 2 (consolidate/freshen) is nearly done.**
 
-> **Status: Pass 1 complete.** The structural migration (moves, renames, ADR numbering, `bots/`, link rewrite, thin entrypoints, CONTRIBUTING, conventions) is done and committed. What remains is deferred tooling + Pass-2 consolidation — see below.
->
-> The execution scaffolding (`execution-runbook.md`, `file-mapping.md`, `proposed-structure.md`, `staged/`) was removed after Pass 1; it's recoverable from git history. This folder now keeps only the durable record.
+This folder is a temporary record — delete it once the remaining work lands (git retains the history).
 
-## Files
+## What's left
 
-| File | Purpose |
-|---|---|
-| [`decisions.md`](decisions.md) | Numbered decision log — what we decided and why (D-1…D-10, D-OPEN-1…12). The authoritative record. |
-| [`consolidation.md`](consolidation.md) | Consolidation Report — overlaps to merge + skills/agents keep-drop triage. Tracks Pass-2 work. |
-| [`focus-areas.md`](focus-areas.md) | Candid effort-vs-value scorecard — where the durable value is and where to keep improving. |
+### Finish this branch (Pass 2)
 
-## Remaining work (deferred from Pass 1)
+All Pass 2 work is done. ✅
 
-- **D-9** — build the `describe_db_schema.py` markdown generator (also gives `docs/reference/db-schema.md` its doc-header).
-- **D-OPEN-6** — build `scripts/checks/maps_check.py` (map ⇄ filesystem drift check).
-- **Pass 2 consolidation** (see `consolidation.md`): style-guide merge (D-OPEN-9), `update-documentation` rework, `help/` → generated catalog, business-rules JSON → `docs/business-rules/` transfer.
-- **Freshen** `trading-package-map.md` / `service-cookbook.md` / `nav-guide.md` for the renamed repository APIs from the develop merge.
+- **Long-tail broken links** — fixed (20 → 0).
+- **`update-documentation` skill rework** — done; `docs-check.md` removed, skill narrowed to semantic rewriting role, detection owned by CI tooling.
 
-Delete this folder once the deferred work is complete (history will retain it).
+### Future branch goals
+
+Each is a self-contained chunk of work for its own later branch — not part of finishing Pass 2.
+
+- **`help/` → generated catalog** — build the catalog from skill/agent `when-to-use` frontmatter so it can't drift. (D-OPEN-11.)
+- **business-rules JSON → `docs/business-rules/`** — transfer the JSON content in as authoritative; make the web-app JSON derived. (D-OPEN-5.)
+- **scripts discoverability** — enrich `scripts-map` on usage/safety and cross-link scripts ↔ the skills/agents that drive them. (D-OPEN-12.)
+
+## Done
+
+- **Pass 1** — all moves, renames, ADR numbering, `bots/`, link rewrites, thin entrypoints (`CLAUDE.md`, `.github/copilot-instructions.md`), `CONTRIBUTING.md`. Merged via PRs #131/#132.
+- **Pass 2** — `maps_check`, `link_check`, and `db_schema_check` (D-9) built, wired into CI as advisory checks, and tested; style guides split by surface (D-OPEN-9); `trading-package-map` / `service-cookbook` / `nav-guide` freshened for the develop-merge API renames.
+
+## The record
+
+[`decisions.md`](decisions.md) is the authoritative log — the numbered decisions (D-1…D-10, D-OPEN-1…12) with their outcomes, plus the principles worth keeping past this migration.

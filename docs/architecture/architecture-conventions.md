@@ -5,12 +5,12 @@ Status: Active
 Created: 2026-03-29
 Last Reviewed: 2026-06-17
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
-Related: [Bot Style Guide](../conventions/bot-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Scope:
 
 1. This file defines architecture and API contract rules.
-2. Formatting/style choices are out of scope here and live in `docs/conventions/bot-style.md`.
+2. Formatting/style choices are out of scope here and live in `docs/conventions/general-style.md`.
 
 ## Canonical Layering
 
@@ -83,7 +83,7 @@ Disallowed:
     - Shared contracts and signal keys live in `trading/domain/feature_provider.py`.
     - `trading/` must never import from `features/`; the interface layer (`trading/interfaces/`)
       is the sole wiring point.
-    - Signal functions in `trading/backtesting/domain/strategy_signals.py` must
+    - Signal functions in `trading/domain/strategy_signals.py` must
       consume feature bundles via injected callables — they must never call external
       APIs directly.
 

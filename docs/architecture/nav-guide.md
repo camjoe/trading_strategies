@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-06-17
 Purpose: Task-oriented lookup table — given "I want to X", tells you which file to touch.
 Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md), [UI Map](../maps/ui-map.md)
 
@@ -47,6 +47,10 @@ The maps and this guide serve different questions:
 | Change reporting math or presentation | `trading/services/reporting/` |
 | Change runtime settings | `trading/services/runtime_settings/` |
 | Change runtime throttling | `trading/services/runtime_throttle/enforcement.py` |
+| Change sleeve logic (accounting, execution, rotation, risk) | `trading/services/sleeves/` |
+| Change sleeve performance queries | `trading/services/performance.py` (flat file — reads daily metrics) |
+| Change portfolio risk-snapshot access | `trading/services/risk_snapshots.py` (flat file) |
+| Change trade-universe resolution | `trading/services/universe/resolver.py` |
 
 ### Configuration
 

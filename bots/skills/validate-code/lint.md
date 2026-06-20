@@ -42,4 +42,4 @@ Non-zero exit. Report each violation exactly as printed — do not paraphrase. D
 
 - `scripts/checks/ruff_check.py`
 - `paper_trading_ui/frontend/package.json`
-- `docs/conventions/bot-style.md`
+- `docs/conventions/general-style.md`

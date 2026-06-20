@@ -28,7 +28,7 @@ A file's folder already says what kind of doc it is, so don't restate it in the 
 |---|---|---|---|
 | `reference/` | `notes-backtesting.md` | `backtesting.md` | no `notes-` prefix |
 | `conventions/` | `doc-header-standard.md` | `doc-header.md` | no `-standard` / `-guide` / `-convention` suffix |
-| `conventions/` | `python-style-guide.md` | `python-style.md` | same |
+| `conventions/` | `python-general-style.md` | `python-style.md` | same |
 | `runbooks/` | `governance-review-guide.md` | `governance-review.md` | a runbook is already a procedure; no `-guide` |
 
 ## ADRs are numbered

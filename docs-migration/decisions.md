@@ -1,6 +1,6 @@
 # Decision Log
 
-Numbered, append-only record of decisions for the docs consolidation. `D-#` = decided. `D-OPEN-#` = open question awaiting a decision. When an open question is resolved, record the outcome here and update [`proposed-structure.md`](proposed-structure.md) / [`file-mapping.md`](file-mapping.md).
+Numbered record of decisions for the docs consolidation. `D-#` = decided; `D-OPEN-#` = open question (resolved ones keep their outcome). For current status and remaining work see [`README.md`](README.md).
 
 ---
 
@@ -13,126 +13,84 @@ Consolidate `docs/` and the doc/agent/skill content of `.github/` into a single 
 `.github/workflows/*.yml` and `.github/dependabot.yml` are out of scope and remain where GitHub requires them.
 
 ### D-3 — `.github/app/` removed
-Stray untracked Python (`base.py`, `__init__.py`, `account_record_repository.py`) was misplaced; Cameron removed it. No longer a concern.
+Stray misplaced Python was removed by Cameron. No longer a concern.
 
 ### D-4 — Resolve structure before moving
-Finalize the target structure first; do not move source files until destinations are **Decided**. The original migration prompt is a starting point, not a spec to execute literally.
+Finalize the target structure first; do not move source files until destinations are decided. The original migration prompt was a starting point, not a spec to execute literally.
 
 ### D-5 — Move freely; git is the safety net
-Renaming or moving files (in `docs/` or anywhere) is fine because everything is tracked. Prefer the easiest path. Prefer moving > rewriting > deleting; never delete information.
+Renaming/moving tracked files is fine. Prefer the easiest path: moving > rewriting > deleting; never delete information ("dropping" is a reviewed decision, recorded here — git retains history).
 
 ### D-6 — Extra scaffold folders kept for now
-Retained as possibly-useful; removable later. *(Update: `examples/` folders since dropped per D-OPEN-4; `bots/agents/` kept as the merged agents home per D-OPEN-3.)*
+Retained as possibly-useful, removable later. (`examples/` since dropped per D-OPEN-4; `bots/agents/` kept as the merged agents home per D-OPEN-3.)
 
 ### D-7 — Migration runs in three phases
-Consolidation/pruning is separated from the move (see `consolidation.md`):
-1. **Pass 0 — Triage** (before move): keep/drop call on each skill/agent/doc; **mark only**, nothing edited/deleted.
-2. **Pass 1 — Move**: pure relocation + rename + link-fix; **no content changes** (keeps git diffs reviewable).
-3. **Pass 2 — Consolidate** (after move): merge overlaps, freshen, dedupe — easier once everything is unified.
-*Why:* mixing moves with edits makes diffs unreviewable; consolidation is easier after relocation. *Tracker:* `consolidation.md` (the Consolidation Report deliverable).
+1. **Pass 0 — Triage** (before move): keep/drop call on each skill/agent/doc; mark only, nothing edited/deleted.
+2. **Pass 1 — Move**: pure relocation + rename + link-fix; no content changes (keeps diffs reviewable).
+3. **Pass 2 — Consolidate** (after move): merge overlaps, freshen, dedupe.
 
-### D-8 — Agent-correctness & quality layer (add A/B/C)
-Three additions to make agents/devs apply skills/agents/workflows correctly and hold a consistent quality bar:
-- **A. Quality-gates / Definition-of-Done map** → `docs/conventions/quality-gates.md`. One table mapping each rule/convention → its enforcing check (`layer_check`, `ruff`, `mypy`, `pytest`, `readme_check`, `maps_check`) or marking it "advisory, not enforced." Doubles as the DoD every change must pass; tells agents what to self-verify.
-- **B. `bots/README.md`** → defines the three surfaces (**skill** = reusable capability; **workflow** = multi-step sequence; **agent** = scoped persona) + a "when to use which" selector. Co-located so anyone entering `bots/` files things correctly.
-- **C. Bot authoring standard** → `docs/conventions/bot-authoring.md`. Frontmatter schema every skill/agent must carry (`name`, `when-to-use`, `invoker`, `enforced-by`); good `when-to-use` text is what drives correct agent selection. Extends `skill-invocation-policy`.
+*Why:* mixing moves with edits makes diffs unreviewable; consolidation is easier once everything is unified.
 
-*Build timing:* decision now; authored at execution (staged). **D (skills/agents drift-check) NOT adopted now** — deferred, see D-OPEN-11.
+**Pass-0 outcome (2026-06-17):** one drop — `python-stat-modeling` (zero usage + shallow generic checklist; reauthor later if a real repo-specific approach emerges). All other 9 skills + 4 agents kept; `help/` kept (reframe → D-OPEN-11); `update-documentation` kept (rework → D-OPEN-6).
 
-**REVISED at execution (2026-06-17):** after reading the existing skills, **A and C were dropped as redundant**:
-- **C (`bot-authoring.md`) dropped** — authoring guidance already lives in `docs/reference/agent-skills.md` (the authoritative upstream guide), `bots/skills/README.md` ("Authoring rules"), and `create-skill/SKILL.md`. A 4th doc would duplicate. No genuinely-new bit needed folding (existing guidance already emphasizes WHAT+WHEN descriptions).
-- **A (`quality-gates.md`) dropped as standalone** — `validate-code` (runs the checks) and `check-pr-readiness` (6-step DoD workflow) already operationalize the gate, and a `.github/workflows/quality-gates.yml` CI workflow already exists. Only genuinely-new bit — the *advisory-vs-enforced* list — was **folded into `validate-code/SKILL.md`** ("Not covered here / verify manually").
-- **B (`bots/README.md`) kept** — useful orientation at the `bots/` root (skill vs workflow vs agent).
-- Bonus fix: the skills referenced a stale `docs/Agent Skills.md`; corrected to `docs/reference/agent-skills.md` across create-skill, update-skill, bots/skills/README.
+### D-8 — Agent-correctness & quality layer
+Considered three additions; **only `bots/README.md` (skill vs workflow vs agent surfaces) was kept.** A quality-gates/DoD doc and a bot-authoring standard were dropped as redundant — `validate-code`, `check-pr-readiness`, the existing `quality-gates.yml` workflow, `agent-skills.md`, `bots/skills/README.md`, and `create-skill` already cover them. The one genuinely-new bit (advisory-vs-enforced list) was folded into `validate-code/SKILL.md`.
 
-### D-9 — DB schema doc: generated block + authored notes
-The just-added `docs/notes-db-schema.md` (mis-filed at `docs/` root) → moves to **`docs/reference/db-schema.md`** (reference = "what exists"; drop `notes-` prefix).
-- **Single doc, two zones:** a GENERATED schema block (tables/columns/types/indexes) between managed markers, refreshed by extending `scripts/data_ops/describe_db_schema.py` with a markdown write-mode (`--source fresh` = canonical code-defined schema) → **this is the deterministic updater Cameron wanted**; plus an AUTHORED "Semantic notes" section (the `initial_cash` deposit-model note, `note`-prefix conventions, migration rules) the script never touches.
-- **Fix the source-of-truth error:** there is **no `trading/database/db.py`** (verified). Real sources are `db_schema.py` (DDL) + `db_migrations.py` (`ColumnMigration`). The doc currently cites `db.py` — correct on migration; generation prevents recurrence.
-- **Resolves the AGENTS.md tension:** AGENTS.md warns against a *hand-maintained* schema mirror. Once generated, the markdown is safe — update AGENTS.md's note to point at `docs/reference/db-schema.md`.
-- **Readable by agent + human**, deterministic to refresh — the two goals Cameron stated.
-- **Build at execution** (script markdown/write mode + first generation). Until then the moved file keeps its current hand-written schema as a stopgap (carries the `db.py` error — fix during migration). Concrete example of "generate the mechanical, author the meaning" (cf. D-OPEN-6).
+### D-9 — DB schema doc
+`docs/reference/db-schema.md` (moved from a mis-filed `docs/` root file; `notes-` prefix dropped). **Implemented as a drift *check*, not DDL generation:** a 25-table Quick Reference (purpose + FK per table) + authored semantic notes + doc-header, with full DDL left to `db_schema.py` (read it directly). `scripts/checks/db_schema_check.py` verifies the Quick Reference covers every live table (the maps_check "check the mechanical, author the meaning" model); wired into CI (advisory), tested. Corrected the source-of-truth error (the real sources are `db_schema.py` + `db_migrations.py`, not the non-existent `db.py`).
 
-### D-10 — Execution strategy: in-place `git mv` at root (Strategy A)
-The move is executed by reorganizing the live `docs/` and `.github/` directly into final positions with `git mv` (preserves rename history → reviewable diffs), authoring net-new files fresh, then deleting the empty `agentswip/` scaffold. **No physical staging in `agentswip/`** — it was the design sketch, not a waypoint. Commit in labelled per-group chunks; Pass-1 edits limited to mechanical path/link rewrites. *(Fallback Strategy B — assemble in `agentswip/` then promote — rejected: it loses git rename tracking, undermining D-7's diff-legibility goal.)* Full procedure: `execution-runbook.md`. **Status: resolved.**
+### D-10 — Execution strategy: in-place `git mv` (Strategy A)
+Reorganized the live `docs/` + `.github/` directly into final positions with `git mv` (preserves rename history → reviewable diffs), authored net-new files fresh, then deleted the `agentswip/` scaffold. No physical staging in `agentswip/`. (Fallback "assemble in `agentswip/` then promote" rejected — it loses rename tracking.)
 
 ---
 
 ## Open questions
 
 ### D-OPEN-1 — Final name for the `agentswip/` root — ✅ RESOLVED
-There is **no `agentswip/` folder in the final version.** It is a staging ground only. The final layout promotes its contents to **repo root**: `CLAUDE.md`, `AGENTS.md`, `docs/`, `bots/`, `scripts/`, etc. all sit at repo root. Final destination = the `agentswip/`-prefixed paths in `file-mapping.md` with the `agentswip/` prefix stripped. The current `docs/` is replaced in the process. **Status: resolved.**
+No `agentswip/` folder in the final version — it was a staging sketch only. Its contents promote to repo root (`CLAUDE.md`, `AGENTS.md`, `docs/`, `bots/`, `scripts/`, …).
 
-### D-OPEN-2 — Do skills/agents move to `bots/`, or stay in `.github/`? — ✅ RESOLVED
-Move them. Cameron is fine with breaking default tool discovery — easy to fix manually. **Authoritative copies live in `bots/`** (or their final home). The files in tool-default locations (`.github/skills/`, `.github/copilot-instructions.md`, etc.) become **thin references/duplicates** pointing to the authoritative `bots/` versions. Note the ongoing cost: this introduces a duplication-drift surface (see `focus-areas.md`). **Status: resolved.**
+### D-OPEN-2 — Skills/agents move to `bots/` — ✅ RESOLVED
+Move them; breaking default tool discovery is acceptable (easy to fix). Authoritative copies live in `bots/`; tool-default locations (`.github/...`) become thin redirects. Cost: a duplication-drift surface — keep redirects thin (see Principles).
 
-### D-OPEN-3 — Merge `bots/agents/` and `bots/prompts/`? — ✅ RESOLVED
-Collapse into a single **`bots/agents/`** folder. `bots/prompts/` is dropped; its persona files (architect, reviewer, refactorer, test-writer) move into `agents/`. **Status: resolved.**
+### D-OPEN-3 — Merge `bots/agents/` and `bots/prompts/` — ✅ RESOLVED
+Collapse into a single `bots/agents/`; the persona files (architect, reviewer, refactorer, test-writer) move in. `bots/prompts/` dropped.
 
 ### D-OPEN-4 — How examples are handled — ✅ RESOLVED
-**Worked examples embed in the governing doc** (as `doc-header-standard.md` already does). No separate example files, no `examples/` folders. `TEMPLATE.*` blanks stay co-located with what they template.
-- **Drop** `docs/examples/` and `bots/skills/examples/` (empty scaffold folders).
-- The scaffold's `*-example.md` files are court-records illustrations of *shape* only — they do **not** migrate as content. Listed in `file-mapping.md` as dropped.
-- Convention to carry into doc-authoring guidance: if a standard/template needs an example, put it inline; don't create a standalone sample that can drift from its rule. **Status: resolved.**
+Worked examples embed in the governing doc; no separate example files or `examples/` folders. `TEMPLATE.*` blanks stay co-located with what they template.
 
-### D-OPEN-5 — `business-rules/` source of truth — ✅ RESOLVED
-The folder **stays** and **`docs/business-rules/` becomes authoritative.** Today the knowledge lives in a couple of JSON files surfaced by the web app — that JSON is Cameron's personal, easy-to-reference tracker, but it is *not* the long-term SoT. Going forward the docs are authoritative because both AI agents and Cameron need one place they can access easily. The JSON becomes **derived/secondary**, not the source.
+### D-OPEN-5 — `business-rules/` source of truth — ✅ RESOLVED (transfer deferred)
+`docs/business-rules/` becomes authoritative; the web-app JSON becomes derived/secondary. **Remaining work:** transfer the JSON content into `docs/business-rules/`, then wire the web app to consume the docs (render markdown, or generate the JSON from docs) — never hand-maintain both.
 
-Consequence (new seam, reversed from before): the web app currently reads the JSON. Once docs are authoritative, the web app must get its data another way — either render the markdown, or **generate the JSON from `docs/business-rules/`**. Decide that when we tackle business-rules. **Status: SoT decided (docs win); transfer + web-app wiring deferred until structure settles.**
-
-### TODO captured
-- [ ] Locate the business-rules JSON files (web-app data); **transfer their content into `docs/business-rules/`** as the authoritative version. Do this **after** the rest of the structure is settled.
-- [ ] Decide how the web app consumes the now-authoritative docs (render markdown, or generate JSON from docs). Avoid hand-maintaining both.
-
-### D-OPEN-6 — Map freshness tooling — ✅ RESOLVED (design); build deferred to execution
-**Approach: drift-check, not generation.** Maps are hybrids — mechanical file-lists (e.g. the `Module` column) interleaved with authored responsibilities + layering rules. Blind generation would clobber the authored content, so instead a script *reports* drift and never writes.
-
-- **What it does:** scan the filesystem, compare against each structural map; report (a) files on disk missing from the map, (b) map entries with no matching file. Read-only.
-- **Naming:** drops the `generate_maps.py` idea. New tool, e.g. `scripts/checks/maps_check.py`, following the existing `readme_check.py` / `layer_check.py` idiom; wired into `scripts/run_checks` (advisory, like `readme_check` — flags, doesn't hard-block).
-- **Scope:** structural maps only — `trading-package-map.md`, `scripts-map.md`, `ui-map.md`, and `docs-map.md`'s top-level-directory section. **Domain maps (`maps/domains/`) are excluded** — they're purely authored (why things exist), nothing to derive.
-- **No `*.generated.md` files, no DO-NOT-EDIT banners.** Maps remain single authored files; the checker validates them. (Updates `proposed-structure.md` maps section.)
-- **Relationship to the `update-documentation` skill:** the checker takes over the deterministic "is the inventory current?" job; the AI skill is left for the semantic part (writing/refreshing responsibilities and prose).
-- **Scaffold note:** `agentswip/scripts/generate_maps.py` (empty placeholder) is superseded by this; do not migrate it.
-- **Build timing:** spec'd now; **build after the migration lands**, so it targets final map paths/format. Tracked as an execution-phase task. A scaffold/generate mode (managed blocks) can be added later if the check proves valuable. **Status: design resolved; implementation deferred.**
+### D-OPEN-6 — Map freshness tooling — ✅ RESOLVED + BUILT
+**Drift-check, not generation** — maps interleave mechanical file-lists with authored responsibilities, so the script *reports* drift (files on disk missing from the map; map entries with no file) and never writes. Built `scripts/checks/maps_check.py` (section-aware, table-row-only matching, skips dir-summarized subtrees), covering all 3 structural maps (`trading-package`/`scripts`/`ui`) via `MAP_SPECS`; wired into CI (advisory, `--skip-maps-check`), tested. Domain maps excluded (purely authored). **Remaining work — `update-documentation` rework:** the checker now owns deterministic "is the inventory current?"; narrow the AI skill to the semantic role (writing/refreshing responsibilities and prose), and collapse the thin `docs-check` into the check tooling.
 
 ### D-OPEN-7 — Unify file-naming convention — ✅ RESOLVED
-The convention (to be written into `docs/conventions/naming.md`, currently a stub):
-
-1. **`kebab-case.md` everywhere.** Lowercase, hyphen-separated. Renames the `snake_case` runbooks and the `SCREAMING_SNAKE` `.github` docs.
-2. **Reserved UPPERCASE names stay** (tool/convention-mandated): `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `SKILL.md`, `TEMPLATE.*.md`.
-3. **Folder conveys type — drop redundant type-prefixes.** `reference/notes-backtesting.md` → `reference/backtesting.md` (the `notes-` prefix goes).
-4. **ADRs are numbered:** three-digit `NNN-title.md`, ordered by the header **`Created` date (chronological)**. Gives a stable `ADR-NNN` id for cross-references. Final order (verified from headers): `001-cross-platform-paths` (2026-03-01), `002-backtesting-layering` (2026-03-27), `003-sleeve-virtualization-architecture` (2026-05-03).
-5. **Keep meaningful tool-read suffixes:** `*.agent.md` and `TEMPLATE.*`.
-6. **No `-standard`/`-guide`/`-convention` suffix in `conventions/`.** The folder already denotes the file is a standard. So `doc-header-standard.md` → `doc-header.md`, `python-style-guide.md` → `python-style.md`, etc. (The same logic dropped `-guide` from the `governance-review` runbook for consistency.)
-
-Notes: files already in kebab-case need no case change. **Status: resolved.** Next step: write the real `naming.md` (drafted in `staged/naming.md`).
-
-### D-OPEN-9 — Style-guide consolidation
-Review the style guides together at a later time: `python-style.md` (formerly `python-style-guide.md`) and `.github/BOT_STYLE_GUIDE.md` (would become `bot-style.md`). Question: do they merge into one style guide, or stay separate? Cameron wants to review them — including the Python one — together in a future pass. Until then, `bot-style` placement/name stays parked. **Status: open (deferred by choice).**
-
-### D-OPEN-10 — Internal link rewriting on rename/move
-Docs cross-link each other by relative path (e.g. `doc-header-standard.md`'s `Related:` line points at `reference-doc-standard.md`, `readme-layout-standard.md`; `docs/README.md` and `docs-map.md` link dozens of files). Every rename/move in `file-mapping.md` breaks these links. **Action at execution time:** after moving, sweep all docs for stale relative links and the doc-header `Related:` lines, and update them. Consider a link-check step. **`AGENTS.md` is the heaviest case** — it's dense with `.github/...` paths (skills, agents, BOT_*.md) that all move under D-OPEN-2; budget real time to rewrite it. **Status: open — execution-phase task, tracked so it isn't forgotten.**
-
-### D-OPEN-11 — Agent self-verification tooling (deferred, future viability)
-Considered but not adopted now (from the structure evaluation):
-- **Skills/agents drift-check + generated catalog** — a `maps_check` sibling validating AGENTS.md routing ↔ actual `bots/skills` + `bots/agents` on disk, so routing can't silently lie. Same generator produces the human-readable catalog the `help/` skill presents (one source = `when-to-use` frontmatter; views = help catalog, AGENTS routing, auto-trigger). See `consolidation.md` note D1. Strong future-viability item; revisit after the move and after `maps_check.py` proves the pattern.
-- **Skill evals** — automated tests that a skill triggers/behaves correctly. State-of-the-art but premature; note for later.
-**Status: deferred by choice.**
-
-### D-OPEN-12 — Agent understanding/use of `scripts/` (deferred, post-move)
-Goal: agents understand and correctly use `scripts/` (auto-trading runners, `screenshot_ui`, etc.) — for skills and for discussion with Cameron.
-- **Structure already supports this** — no new folders needed: `docs/maps/scripts-map.md` (catalog: what each script does + when to use), `docs/runbooks/` (operational how-to, e.g. daily auto-trading), `docs/reference/notes-screenshot-ui.md` (subsystem detail).
-- **Pass-2 / post-move task:** (a) make `scripts-map` rich enough on usage + safety; (b) cross-link operational scripts to the skills/agents that drive them (e.g. `screenshot_ui` ↔ a UI-verify skill; auto-trading runners ↔ `trading-runtime` agent + runbooks); (c) consider a skill wrapping screenshot-for-change-confirmation if it recurs.
-- Cameron flagged this as likely post-move. **Status: deferred by choice.**
+Written into `docs/conventions/naming.md`: `kebab-case.md` everywhere; reserved UPPERCASE tool names stay (`README`, `AGENTS`, `CLAUDE`, `CONTRIBUTING`, `SKILL`, `TEMPLATE.*`); folder conveys type so redundant prefixes/suffixes drop (`notes-`, `-guide`, `-standard`); ADRs numbered `NNN-title.md` chronologically by `Created` date; meaningful tool-read suffixes kept (`*.agent.md`, `TEMPLATE.*`).
 
 ### D-OPEN-8 — Root AI entrypoints — ✅ RESOLVED
-Reality check: only 3 entrypoints exist today (`README.md`, `AGENTS.md`, `CLAUDE.md`); `copilot-instructions.md`/`CONTRIBUTING.md` are only empty scaffold placeholders.
+`AGENTS.md` is canonical. `CLAUDE.md` thin (imports `@AGENTS.md`); `.github/copilot-instructions.md` thin redirect → `AGENTS.md`; `README.md` stays the human front door; a real `CONTRIBUTING.md` authored for contributor workflow. Ongoing discipline: keep the redirects thin, don't re-bloat.
 
-- **`AGENTS.md` is canonical** — the single AI-instructions source of truth (already the richest doc).
-- **`CLAUDE.md` becomes thin** — imports AGENTS.md via Claude Code `@AGENTS.md` syntax + any Claude-only note. Its current "Docs Folder Guide" duplicates `docs/README.md` — drop the duplication; link to `docs/README.md` instead.
-- **`.github/copilot-instructions.md`** (Copilot **is** used) — create as a thin redirect → `AGENTS.md`. Lives in `.github/` (where Copilot reads it), not repo root.
-- **`README.md`** stays as-is — the human front door, distinct from the above.
-- **`CONTRIBUTING.md`** — author a real one at repo root (human contributor workflow: setup, test/lint/migration commands, PR expectations), distinct from README's overview. To be drafted (staged).
-- Scaffold copies (`agentswip/CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`, `README.md`, `CONTRIBUTING.md`) are empty/placeholder → superseded by the real root files; do not migrate.
+### D-OPEN-9 — Style-guide consolidation — ✅ RESOLVED + EXECUTED
+Style docs split by surface: `general-style.md` (cross-cutting balanced approach + docs/markdown style + index of the per-language guides), `python-style.md` (deep reference, unchanged), new `frontend-style.md` (TypeScript/Vite, expandable). Agent output-behavior moved to `AGENTS.md` (## Output style) for authority; AGENTS lists all three. Markdown/docs style stayed in `general-style.md` (broader than ADRs/reference docs — not folded into `reference-doc.md`). All refs updated; `docs-map.md` Conventions table refreshed.
 
-**Status: resolved.** Authoring of the thin CLAUDE.md, copilot-instructions.md, and the real CONTRIBUTING.md is execution-phase work (staged when written).
+### D-OPEN-10 — Internal link rewriting on rename/move — ✅ RESOLVED + BUILT
+Every rename breaks relative links and doc-header `Related:` lines. Done at execution as a link-rewrite sweep (AGENTS.md was the heaviest). Now backstopped by `link_check.py` (markdown links + repo-path refs; advisory, wired into CI, tested).
+
+### D-OPEN-11 — Agent self-verification tooling (deferred, future)
+Considered, not adopted yet:
+- **Skills/agents drift-check + generated catalog** — a `maps_check` sibling validating AGENTS.md routing ↔ actual `bots/skills` + `bots/agents`, so routing can't silently lie. The same generator feeds the `help/` catalog from one source (`when-to-use` frontmatter → help catalog, AGENTS routing, auto-trigger). This is the fix for "I forget to invoke the right prompt": push (auto-trigger / routing) beats pull (remembering to run `help`). Strong future item; revisit now that `maps_check` proves the pattern.
+- **Skill evals** — automated tests that a skill triggers/behaves correctly. Premature; note for later.
+
+### D-OPEN-12 — Agent understanding/use of `scripts/` (deferred, post-move)
+Structure already supports this (no new folders): `scripts-map.md` (catalog), `runbooks/` (operational how-to), `reference/screenshot-ui.md` (subsystem detail). **Remaining work:** enrich `scripts-map` on usage + safety; cross-link operational scripts to the skills/agents that drive them (e.g. `screenshot_ui` ↔ a UI-verify skill; auto-trading runners ↔ `trading-runtime` + runbooks).
+
+---
+
+## Principles that outlast this migration
+
+The folder shuffle was the easy, low-value part. The durable value is in the habits that fight documentation rot — spend energy here:
+
+1. **Keep entrypoints thin.** The pull toward dumping everything into `CLAUDE.md`/`AGENTS.md` is constant. Push content into `docs/`; keep the redirects and imports thin.
+2. **Generate or check the mechanical.** If a human/agent must remember to update something, it rots. Maps, schema, and (eventually) business-rules should be drift-checked or generated, not hand-maintained — the `maps_check`/`link_check`/`db_schema_check` pattern.
+3. **Own the duplication seams.** Two consciously created — `.github/` redirects → `bots/`, and `docs/business-rules/` (authoritative) vs the web-app JSON (derived) — are the most likely "the docs lied to me" sources. Make the *other* side genuinely derived (a generator or pointer), never a hand-maintained twin.
+4. **Doc-header discipline at creation time.** `Type/Status/Last Reviewed` headers + "goes stale when" columns are cheap to add when writing a file, expensive to retrofit — and the staleness tooling is only as good as the headers feeding it.
