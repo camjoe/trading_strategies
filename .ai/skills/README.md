@@ -34,7 +34,7 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
-| `update-documentation/` | Docs drift sync and passive staleness check |
+| `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
 | `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
@@ -55,7 +55,6 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `db-migration/estimate-risk.md` | `db-migration/` | Blast radius, index needs, backtest impact |
 | `db-migration/generate-rollback.md` | `db-migration/` | Rollback strategy for SQLite schema changes |
 | `update-documentation/docs-sync.md` | `update-documentation/` | Active docs drift sync |
-| `update-documentation/docs-check.md` | `update-documentation/` | Passive staleness check (advisory) |
 | `validate-code/layer-check.md` | `validate-code/` | Layer boundary check |
 | `validate-code/lint.md` | `validate-code/` | Ruff + eslint/tsc lint |
 | `validate-code/type-check.md` | `validate-code/` | Mypy type check |

@@ -73,7 +73,6 @@ Shortcuts for frequent tasks:
 - `.ai/agents/trading-runtime.agent.md`
 - `.ai/skills/check-pr-readiness/SKILL.md`
 - `.ai/skills/code-review/SKILL.md`
-- `.ai/skills/create-memory/SKILL.md`
 - `.ai/skills/create-skill/SKILL.md`
 - `.ai/skills/db-migration/SKILL.md`
 - `.ai/skills/expand-tests/SKILL.md`

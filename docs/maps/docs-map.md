@@ -113,7 +113,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/runbooks/daily-operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
-| `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | `trading/interfaces/runtime/maintenance/burn_in_status.py` or burn-in rules change |
+| `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 
 ---

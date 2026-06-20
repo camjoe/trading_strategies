@@ -8,8 +8,10 @@ This folder is a temporary record — delete it once the remaining work lands (g
 
 ### Finish this branch (Pass 2)
 
-- **Long-tail broken links** — ~19 refs flagged by `link_check` (advisory; doesn't block). Fix incrementally.
-- **`update-documentation` skill rework** — now that `maps_check`/`readme_check` do the deterministic staleness detection, narrow the skill to the semantic "rewrite the prose/responsibilities" role. (See `decisions.md` D-OPEN-6.)
+All Pass 2 work is done. ✅
+
+- **Long-tail broken links** — fixed (20 → 0).
+- **`update-documentation` skill rework** — done; `docs-check.md` removed, skill narrowed to semantic rewriting role, detection owned by CI tooling.
 
 ### Future branch goals
 

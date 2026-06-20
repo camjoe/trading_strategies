@@ -108,5 +108,5 @@ To create a new reference doc in the correct format, use the `reference-doc` ski
 
 - Templates: `docs/reference/TEMPLATE.notes.md`, `docs/adr/TEMPLATE.adr.md`
 - Skill: `.ai/skills/reference-doc/SKILL.md`
-- README layout standard (for README files, not reference docs): `docs/reference/readme-layout.md`
+- README layout standard (for README files, not reference docs): `docs/conventions/readme-layout.md`
 
