@@ -1,7 +1,7 @@
 import sqlite3
 from unittest.mock import Mock
 
-from src.infrastructure.brokers.paper_adapter import PaperBrokerAdapter
+from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from infrastructure.database.init import init_schema
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 import trading.services.auto_trading.runtime as runtime_service
