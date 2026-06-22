@@ -27,7 +27,7 @@ AccountRow = Mapping[str, object]
 def _row_optional_float(row: AccountRow, column: str) -> float | None:
     try:
         value = row[column]
-    except (KeyError, IndexError):
+    except KeyError, IndexError:
         return None
     if value is None:
         return None

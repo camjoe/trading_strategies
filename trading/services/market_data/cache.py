@@ -66,7 +66,7 @@ def read_market_data_cache(cache_key: str) -> pd.DataFrame | pd.Series | object:
     try:
         with cache_path.open("rb") as handle:
             cached = pickle.load(handle)
-    except (OSError, pickle.UnpicklingError, EOFError):
+    except OSError, pickle.UnpicklingError, EOFError:
         return _CACHE_MISS
 
     if not isinstance(cached, (pd.DataFrame, pd.Series)):

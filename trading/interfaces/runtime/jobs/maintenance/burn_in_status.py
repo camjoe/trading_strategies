@@ -103,7 +103,7 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
         artifact_path = export_dir / chosen
         try:
             data = json.loads(artifact_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             data = {}
 
         status = data.get("status", "failed")

@@ -21,7 +21,7 @@ def _account_field(account: Mapping[str, object], key: str) -> object | None:
         return account.get(key)
     try:
         return account[key]
-    except (KeyError, TypeError):
+    except KeyError, TypeError:
         return None
 
 

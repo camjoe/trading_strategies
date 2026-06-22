@@ -127,7 +127,7 @@ def main() -> int:
                         if param_set is not None:
                             try:
                                 params = json.loads(param_set.params_json) if param_set.params_json else None
-                            except (ValueError, TypeError):
+                            except ValueError, TypeError:
                                 params = None
 
                 sleeve_rows.append(
