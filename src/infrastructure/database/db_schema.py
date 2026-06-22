@@ -1,5 +1,5 @@
 from __future__ import annotations
-from trading.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
+from infrastructure.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON
 
 ACCOUNTS_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS accounts (

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from trading.database.db_config import get_db_path
+from infrastructure.database.db_config import get_db_path
 
 
 class DatabaseBackend(ABC):
