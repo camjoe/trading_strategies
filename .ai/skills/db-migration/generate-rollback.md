@@ -60,5 +60,5 @@ Provide:
 
 ## Repo references
 
-- `trading/database/db_schema.py`
+- `trading/database/schema.py`
 - `trading/interfaces/runtime/data_ops/` (backup tooling)

@@ -110,7 +110,7 @@ def _check_backtick_path(span: str, repo_root: Path) -> bool | None:
         return None
     token = words[0]
     if "*" in token or "(" in token or ")" in token or _is_placeholder(token) or not token.startswith(TOP_DIRS):
-        return None  # globs and function-call notation (db_config.get_db_path()) are not paths
+        return None  # globs and function-call notation (config.get_db_path()) are not paths
     base = token.split("#", 1)[0].split("::", 1)[0].rstrip("/")  # drop #anchor and ::symbol suffixes
     return (repo_root / base).exists()
 

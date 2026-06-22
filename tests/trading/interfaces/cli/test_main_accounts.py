@@ -156,8 +156,8 @@ def test_main_list_accounts_dispatches(monkeypatch) -> None:
 
 
 def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
-    import src.infrastructure.database.db_config as db_config_module
-    import src.infrastructure.database.db_init as db_init_module
+    import infrastructure.database.config as config_module
+    import infrastructure.database.init as init_module
     import trading.interfaces.cli.commands as commands_module
     import trading.interfaces.cli.handlers.router as router_module
 
@@ -171,8 +171,8 @@ def test_main_module_entrypoint_runs_under_main_name(monkeypatch) -> None:
 
     dispatched: dict[str, object] = {}
     monkeypatch.setattr(commands_module, "build_parser", lambda: _FakeParser())
-    monkeypatch.setattr(db_init_module, "ensure_db", lambda: _FakeConn())
-    monkeypatch.setattr(db_config_module, "get_db_path", lambda: "paper.db")
+    monkeypatch.setattr(init_module, "ensure_db", lambda: _FakeConn())
+    monkeypatch.setattr(config_module, "get_db_path", lambda: "paper.db")
     monkeypatch.setattr(
         router_module,
         "dispatch_command",

@@ -228,7 +228,7 @@ FILES = ("setup.cfg",)
 
 | Context | Style | Example |
 |---|---|---|
-| Module / package | `snake_case` | `db_backend.py`, `trading/` |
+| Module / package | `snake_case` | `backend.py`, `trading/` |
 | Function / method | `snake_case` | `get_account()`, `_apply_rotation()` |
 | Variable | `snake_case` | `account_id`, `sleeve_row` |
 | Constant (module-level) | `UPPER_SNAKE_CASE` | `MAX_RETRIES`, `ACCT_TREND` |

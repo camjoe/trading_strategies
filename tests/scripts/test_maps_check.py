@@ -112,10 +112,10 @@ def test_extract_ignores_prose_mentions() -> None:
     markdown = (
         "### `trading/database/`\n"
         "Only repositories and the `runtime_loader.py` exception import from here.\n"
-        "| `db_init.py` | initialise the schema |\n"
+        "| `init.py` | initialise the schema |\n"
     )
     documented = _extract_documented_paths(markdown, "trading")
-    assert "trading/database/db_init.py" in documented  # table row counts
+    assert "trading/database/init.py" in documented  # table row counts
     assert "trading/database/runtime_loader.py" not in documented  # prose mention does not
 
 

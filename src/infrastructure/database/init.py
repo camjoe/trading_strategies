@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Any
 
-from infrastructure.database.db_backend import get_backend
-from infrastructure.database.db_migrations import (
+from infrastructure.database.backend import get_backend
+from infrastructure.database.migrations import (
     ACCOUNT_BROKER_MIGRATIONS,
     ACCOUNT_MIGRATIONS,
     BACKTEST_RUN_MIGRATIONS,
@@ -11,7 +11,7 @@ from infrastructure.database.db_migrations import (
     ORDER_FILL_MIGRATIONS,
     SLEEVE_MIGRATIONS_BY_TABLE,
 )
-from infrastructure.database.db_schema import SCHEMA_SQL
+from infrastructure.database.schema import SCHEMA_SQL
 
 # Type alias — the concrete type depends on the active DatabaseBackend.
 DBConnection = Any

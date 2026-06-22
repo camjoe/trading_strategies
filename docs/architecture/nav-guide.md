@@ -28,9 +28,9 @@ The maps and this guide serve different questions:
 | Task | Where |
 |---|---|
 | Add or modify a SQL query | `trading/repositories/<area>.py` |
-| Change the DB schema | `trading/database/db_schema.py` + add a migration in `trading/database/db_migrations.py` |
+| Change the DB schema | `trading/database/schema.py` + add a migration in `trading/database/migrations.py` |
 | Inspect the current schema at runtime | `python -m scripts.data_ops.describe_db_schema` |
-| Change DB connection/path config | `trading/database/db_config.py` and `trading/database/db_backend.py` |
+| Change DB connection/path config | `trading/database/config.py` and `trading/database/backend.py` |
 
 ### Business Logic
 

@@ -81,7 +81,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 |---|---|---|
 | `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
-| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
+| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/migrations.py` or migration conventions change |
 | `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
 | `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |

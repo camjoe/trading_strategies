@@ -38,7 +38,7 @@ The Definition of Done lives in `.ai/skills/validate-code/SKILL.md` — its "Not
 
 ## Database changes
 
-- Schema lives in `trading/database/db_schema.py`; migrations in `trading/database/db_migrations.py`.
+- Schema lives in `trading/database/schema.py`; migrations in `trading/database/migrations.py`.
 - Migrations are **append-only `ColumnMigration` entries** — never drop or rename a column, never edit an applied migration. `NOT NULL` additions must supply a `DEFAULT`.
 - See **[docs/reference/db-migration-system.md](docs/reference/db-migration-system.md)** and the `db-migration` skill.
 

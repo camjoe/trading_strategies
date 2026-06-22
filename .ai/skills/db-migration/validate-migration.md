@@ -20,13 +20,13 @@ ColumnMigration(column_name="foo", ddl="... ADD COLUMN bar ...")  ❌
 Any `NOT NULL` column must have a `DEFAULT` value. Without it, SQLite rejects the `ALTER TABLE` on a populated table.
 
 ### 3. Not already in `SCHEMA_SQL`
-If the column already exists in `db_schema.py`'s `SCHEMA_SQL`, a migration is not needed. Check before adding.
+If the column already exists in `schema.py`'s `SCHEMA_SQL`, a migration is not needed. Check before adding.
 
 ### 4. Appended to end of tuple
 New entries must come after all existing entries. Do not insert mid-tuple.
 
 ### 5. `_ensure_column` guard is present
-Verify that `db_migrations.py` uses `_ensure_column` (or equivalent idempotency guard) so re-running migrations on an already-upgraded DB is safe.
+Verify that `migrations.py` uses `_ensure_column` (or equivalent idempotency guard) so re-running migrations on an already-upgraded DB is safe.
 
 ### 6. `post_sql` safety
 If `post_sql` is not `None`, check whether it runs `UPDATE` or `DELETE` on existing rows. If so, flag for explicit human review — do not apply automatically.
@@ -55,6 +55,6 @@ Verdict: ✅ Safe to apply / 🟡 Apply with caution / ❌ Block
 
 ## Repo references
 
-- `trading/database/db_migrations.py`
-- `trading/database/db_schema.py`
-- `trading/database/db_init.py`
+- `trading/database/migrations.py`
+- `trading/database/schema.py`
+- `trading/database/init.py`

@@ -45,7 +45,7 @@ def _write_py(directory: Path, name: str, source: str) -> Path:
 def test_check_rule_detects_forbidden_import(tmp_path: Path) -> None:
     src = tmp_path / "services"
     src.mkdir()
-    _write_py(src, "bad.py", "from trading.database.db_init import ensure_db\n")
+    _write_py(src, "bad.py", "from trading.database.init import ensure_db\n")
 
     rule = LayerRule(
         label="test-rule",
@@ -54,7 +54,7 @@ def test_check_rule_detects_forbidden_import(tmp_path: Path) -> None:
     )
     violations = check_rule(tmp_path, rule)
     assert len(violations) == 1
-    assert violations[0].import_text == "trading.database.db_init"
+    assert violations[0].import_text == "trading.database.init"
     assert violations[0].rule_label == "test-rule"
 
 
@@ -75,7 +75,7 @@ def test_check_rule_allows_non_forbidden_import(tmp_path: Path) -> None:
 def test_check_rule_honours_exceptions(tmp_path: Path) -> None:
     src = tmp_path / "services"
     src.mkdir()
-    _write_py(src, "db.py", "from trading.database.db_init import ensure_db\n")
+    _write_py(src, "db.py", "from trading.database.init import ensure_db\n")
 
     rule = LayerRule(
         label="test-rule",
@@ -122,7 +122,7 @@ def test_cli_exits_zero_when_no_violations(tmp_path: Path) -> None:
 def test_cli_exits_one_when_violations_present(tmp_path: Path) -> None:
     bad_dir = tmp_path / "apps" / "paper_trading_web" / "backend" / "routes"
     bad_dir.mkdir(parents=True)
-    _write_py(bad_dir, "bad.py", "from trading.database.db_init import ensure_db\n")
+    _write_py(bad_dir, "bad.py", "from trading.database.init import ensure_db\n")
 
     result = _run_script(tmp_path)
     assert result.returncode == 1

@@ -231,11 +231,11 @@ DB infrastructure. Only `trading/repositories/` and the documented `runtime_load
 
 | Module | Responsibility |
 |---|---|
-| `db_backend.py` | DB connection/backend factory |
-| `db_config.py` | DB path and environment config |
-| `db_init.py` | DB initialization (`ensure_db`) |
-| `db_migrations.py` | Schema migration runner |
-| `db_schema.py` | Table DDL definitions |
+| `backend.py` | DB connection/backend factory |
+| `config.py` | DB path and environment config |
+| `init.py` | DB initialization (`ensure_db`) |
+| `migrations.py` | Schema migration runner |
+| `schema.py` | Table DDL definitions |
 | `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 
 ---

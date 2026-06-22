@@ -38,6 +38,6 @@ Proceed recommendation: <one sentence>
 
 ## Repo references
 
-- `trading/database/db_schema.py`
+- `trading/database/schema.py`
 - `trading/backtesting/`
 - `paper_trading_ui/backend/`
