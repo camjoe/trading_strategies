@@ -6,8 +6,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from src.infrastructure.database.db_config import get_db_path
-from src.infrastructure.database.db_init import init_schema
+from infrastructure.database.config import get_db_path
+from infrastructure.database.init import init_schema
 
 
 def _connect_fresh_schema() -> sqlite3.Connection:

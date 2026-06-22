@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Callable, cast
 
 from common.paths.project_paths import DB_BACKUPS_DIR
-from src.infrastructure.database.db_init import ensure_db
-from src.infrastructure.database.db_backend import SQLiteBackend, get_backend
+from infrastructure.database.init import ensure_db
+from infrastructure.database.backend import SQLiteBackend, get_backend
 from trading.services.accounts.listing import list_accounts
 from trading.services.admin import delete_accounts, iter_delete_count_items
 

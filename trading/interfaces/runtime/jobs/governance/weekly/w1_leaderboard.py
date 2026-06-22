@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from common.paths.repo_paths import get_repo_root
-from src.infrastructure.database.db_init import ensure_db
+from infrastructure.database.init import ensure_db
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyLeaderboardAccountPayload,
     WeeklyLeaderboardArtifactPayload,

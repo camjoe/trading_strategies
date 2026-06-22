@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.database.db_backend import SQLiteBackend, get_backend, set_backend
-from src.infrastructure.database.db_init import _column_names, _ensure_column, ensure_db, init_schema
-from src.infrastructure.database.db_migrations import (
+from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.init import _column_names, _ensure_column, ensure_db, init_schema
+from infrastructure.database.migrations import (
     ACCOUNT_MIGRATIONS,
     BACKTEST_RUN_MIGRATIONS,
     DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,

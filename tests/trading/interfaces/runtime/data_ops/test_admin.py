@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 
-from src.infrastructure.database.db_backend import SQLiteBackend, get_backend, set_backend
-from src.infrastructure.database.db_init import ensure_db
+from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
+from infrastructure.database.init import ensure_db
 from trading.interfaces.runtime.data_ops import admin
 
 

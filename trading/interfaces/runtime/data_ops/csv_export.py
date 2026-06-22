@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from src.infrastructure.database.db_backend import SQLiteBackend, get_backend
-from src.infrastructure.database.db_config import get_db_path
+from infrastructure.database.backend import SQLiteBackend, get_backend
+from infrastructure.database.config import get_db_path
 
 DEFAULT_EXPORT_TABLES: tuple[str, ...] = (
     "accounts",

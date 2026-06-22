@@ -9,7 +9,7 @@ that need a fresh list of accounts without an injected connection.
 
 from __future__ import annotations
 
-from src.infrastructure.database.db_backend import get_backend
+from infrastructure.database.backend import get_backend
 from trading.repositories.accounts import AccountRepository
 
 

@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
-from src.infrastructure.database.db_migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST
+from infrastructure.database.migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST
 
 _CREATE_ACCOUNT = "paper_trading_web.backend.routes.admin.create_account_with_rotation"
 _LIST_CSV_EXPORTS = "paper_trading_web.backend.routes.admin.list_csv_exports"
