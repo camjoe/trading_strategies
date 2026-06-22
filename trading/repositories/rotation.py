@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from src.infrastructure.database.sql_helpers import in_placeholders
+from infrastructure.database.sql_helpers import in_placeholders
 
 
 class RotationEpisodeRepository:
