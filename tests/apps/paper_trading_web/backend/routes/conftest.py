@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from common.time import utc_now_iso
-from trading.database.db_init import ensure_db
+from src.infrastructure.database.db_init import ensure_db
 from trading.models import AccountConfig
 from trading.services.accounts import create_account
 

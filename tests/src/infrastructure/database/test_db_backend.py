@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from trading.database.db_backend import DatabaseBackend, SQLiteBackend, get_backend, set_backend
+from src.infrastructure.database.db_backend import DatabaseBackend, SQLiteBackend, get_backend, set_backend
 
 
 class StubBackend(DatabaseBackend):

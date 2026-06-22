@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from trading.database import db_config
+from src.infrastructure.database import db_config
 
 
 def test_returns_none_when_config_missing(tmp_path: Path) -> None:

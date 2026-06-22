@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
-from trading.database.db_init import _column_names, _ensure_column, ensure_db, init_schema
-from trading.database.db_migrations import (
+from src.infrastructure.database.db_backend import SQLiteBackend, get_backend, set_backend
+from src.infrastructure.database.db_init import _column_names, _ensure_column, ensure_db, init_schema
+from src.infrastructure.database.db_migrations import (
     ACCOUNT_MIGRATIONS,
     BACKTEST_RUN_MIGRATIONS,
     DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,

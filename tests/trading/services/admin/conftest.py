@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
-from trading.database.db_init import ensure_db
+from src.infrastructure.database.db_backend import SQLiteBackend, get_backend, set_backend
+from src.infrastructure.database.db_init import ensure_db
 from tests.trading.services.admin.seed import seed_admin_db
 
 

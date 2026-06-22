@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.database.db_init import ensure_db
+from src.infrastructure.database.db_init import ensure_db
 from trading.interfaces.runtime.jobs.job_helpers import (
     day_tag,
     is_env_truthy,

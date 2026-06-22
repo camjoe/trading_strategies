@@ -8,7 +8,7 @@ from common.paths.repo_paths import get_repo_root
 from infrastructure.feature_providers.news_provider import NewsFeatureProvider
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
 from infrastructure.feature_providers.social_provider import SocialFeatureProvider
-from trading.database.db_init import ensure_db
+from src.infrastructure.database.db_init import ensure_db
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
     EXECUTION_MODE_ACCOUNT,

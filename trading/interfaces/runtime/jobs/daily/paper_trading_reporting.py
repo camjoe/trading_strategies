@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from collections.abc import Callable
 
-from trading.database.db_init import ensure_db
+from src.infrastructure.database.db_init import ensure_db
 from trading.services.accounts.queries import find_account
 from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
 

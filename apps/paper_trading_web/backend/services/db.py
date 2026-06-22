@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Iterator
 
-from trading.database.db_init import ensure_db
+from src.infrastructure.database.db_init import ensure_db
 
 
 @contextmanager

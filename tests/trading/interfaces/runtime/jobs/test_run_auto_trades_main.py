@@ -107,7 +107,7 @@ def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
 
 def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     import sys
-    import trading.database.db_init as db_init_module
+    import src.infrastructure.database.db_init as db_init_module
     import trading.services.auto_trading as auto_trading_module
 
     conn = FakeConn()

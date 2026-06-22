@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from src.infrastructure.database.db_backend import SQLiteBackend, get_backend, set_backend
 
 
 @pytest.fixture

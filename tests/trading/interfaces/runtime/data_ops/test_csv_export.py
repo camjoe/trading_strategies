@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from trading.interfaces.runtime.data_ops import csv_export
-from trading.database.db_backend import SQLiteBackend, get_backend, set_backend
+from src.infrastructure.database.db_backend import SQLiteBackend, get_backend, set_backend
 
 
 class FixedDateTime:
