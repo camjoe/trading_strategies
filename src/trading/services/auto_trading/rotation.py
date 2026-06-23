@@ -41,6 +41,7 @@ from trading.domain.feature_provider import (
 )
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
+from trading.services.market_data import MarketDataProvider
 from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
 
 # Minimum completed live episodes required before the live component receives
@@ -283,6 +284,8 @@ def select_regime_strategy(
 def compute_live_account_metrics(
     conn: sqlite3.Connection,
     account: AccountRecord,
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> dict[str, float]:
     state = cast(
         object,
@@ -293,7 +296,7 @@ def compute_live_account_metrics(
     )
     positions = cast(dict[str, float], getattr(state, "positions"))
     avg_cost = cast(dict[str, float], getattr(state, "avg_cost"))
-    prices = fetch_latest_prices(sorted(positions.keys())) if positions else {}
+    prices = fetch_latest_prices(sorted(positions.keys()), provider=provider) if positions else {}
     market_value, _unrealized = compute_market_value_and_unrealized(positions, avg_cost, prices)
     equity = float(getattr(state, "cash", 0.0)) + float(market_value)
     return {

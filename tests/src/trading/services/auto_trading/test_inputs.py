@@ -45,8 +45,8 @@ def test_validate_trade_count_range_and_account_names() -> None:
 
 def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe: {"AAPL": 101.0})
-    monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe: {"AAPL": 50.0})
+    monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {"AAPL": 101.0})
+    monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
     universe, prices, iv_rank = auto_trading_service.resolve_market_inputs("tickers.txt")
     assert universe == ["AAPL"]
@@ -86,7 +86,7 @@ def test_resolve_market_inputs_raises_when_universe_is_empty(monkeypatch: pytest
 
 def test_resolve_market_inputs_raises_when_prices_are_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
-    monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe: {})
+    monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {})
 
     with pytest.raises(ValueError, match="Could not fetch any prices"):
         auto_trading_inputs.resolve_market_inputs("tickers.txt")

@@ -10,6 +10,7 @@ from infrastructure.feature_providers.policy_provider import PolicyFeatureProvid
 from infrastructure.feature_providers.social_provider import SocialFeatureProvider
 from infrastructure.database.init import ensure_db
 from trading.domain.feature_provider import FeatureFetcherSet
+from trading.services.market_data import build_provider
 from trading.services.auto_trading import (
     EXECUTION_MODE_ACCOUNT,
     EXECUTION_MODE_SLEEVE,
@@ -60,7 +61,10 @@ def main() -> None:
         random.seed(args.seed)
 
     accounts = resolve_account_names(args.accounts)
-    universe, prices, iv_rank_proxy = resolve_market_inputs(args.tickers_file)
+    # Composition root: build the market-data provider once and inject it through
+    # the market-input + rotation paths (no global locator access inside services).
+    provider = build_provider()
+    universe, prices, iv_rank_proxy = resolve_market_inputs(args.tickers_file, provider=provider)
     policy_provider = PolicyFeatureProvider()
     news_provider = NewsFeatureProvider()
     social_provider = SocialFeatureProvider()
@@ -84,6 +88,7 @@ def main() -> None:
             execution_mode=execution_mode,
             broker_factory=get_broker_for_account,
             feature_fetchers=feature_fetchers,
+            provider=provider,
         ):
             print(f"{account_name}: executed {executed} trades")
     finally:

@@ -42,7 +42,9 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
         execution_mode="sleeve",
     )
     monkeypatch.setattr(
-        module, "resolve_market_inputs", lambda _p: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0})
+        module,
+        "resolve_market_inputs",
+        lambda _p, **_kwargs: (["AAPL", "MSFT"], {"AAPL": 100.0, "MSFT": 200.0}, {"AAPL": 40.0}),
     )
     monkeypatch.setattr(module, "ensure_db", lambda: conn)
     run_accounts_mock = Mock(return_value=[("acct1", 2), ("acct2", 2)])
@@ -72,7 +74,9 @@ def test_main_additional_validation_paths(monkeypatch) -> None:
 def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
     install_main_args(monkeypatch)
     monkeypatch.setattr(
-        module, "resolve_market_inputs", lambda _p: (_ for _ in ()).throw(ValueError("Ticker universe is empty."))
+        module,
+        "resolve_market_inputs",
+        lambda _p, **_kwargs: (_ for _ in ()).throw(ValueError("Ticker universe is empty.")),
     )
 
     with pytest.raises(ValueError, match="Ticker universe is empty"):
@@ -81,7 +85,7 @@ def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
     monkeypatch.setattr(
         module,
         "resolve_market_inputs",
-        lambda _p: (_ for _ in ()).throw(ValueError("Could not fetch any prices for ticker universe.")),
+        lambda _p, **_kwargs: (_ for _ in ()).throw(ValueError("Could not fetch any prices for ticker universe.")),
     )
 
     with pytest.raises(ValueError, match="Could not fetch any prices"):
@@ -91,7 +95,7 @@ def test_main_empty_universe_and_no_prices(monkeypatch) -> None:
 def test_main_closes_connection_when_run_accounts_fails(monkeypatch) -> None:
     conn = FakeConn()
     install_main_args(monkeypatch)
-    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p: (["AAPL"], {"AAPL": 100.0}, {}))
+    monkeypatch.setattr(module, "resolve_market_inputs", lambda _p, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {}))
     monkeypatch.setattr(module, "ensure_db", lambda: conn)
     monkeypatch.setattr(
         module,
@@ -118,7 +122,7 @@ def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     monkeypatch.setattr(
         auto_trading_module,
         "resolve_market_inputs",
-        lambda _path: (["AAPL"], {"AAPL": 100.0}, {"AAPL": 40.0}),
+        lambda _path, **_kwargs: (["AAPL"], {"AAPL": 100.0}, {"AAPL": 40.0}),
     )
     monkeypatch.setattr(auto_trading_module, "run_accounts", lambda *_a, **_kw: [("acct1", 1)])
     monkeypatch.setattr(sys, "argv", ["run_auto_trades", "--accounts", "acct1", "--seed", "7"])

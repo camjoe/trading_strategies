@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
+from trading.services.market_data import MarketDataProvider
 from trading.services.auto_trading.rotation import (
     compute_live_account_metrics as compute_live_account_metrics_impl,
     fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
@@ -29,8 +30,10 @@ def fetch_runtime_rotation_overlay_tickers(
 def compute_runtime_live_account_metrics(
     conn: sqlite3.Connection,
     account: AccountRecord,
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> dict[str, float]:
-    return compute_live_account_metrics_impl(conn, account)
+    return compute_live_account_metrics_impl(conn, account, provider=provider)
 
 
 def select_runtime_rotation_strategy(
@@ -64,6 +67,7 @@ def sync_runtime_rotation_episode(
     insert_rotation_episode_fn: Callable[..., object],
     close_rotation_episode_fn: Callable[..., object],
     fetch_snapshot_count_between_fn: Callable[..., object],
+    provider: MarketDataProvider | None = None,
 ) -> None:
     if not hasattr(conn, "execute"):
         return
@@ -75,7 +79,7 @@ def sync_runtime_rotation_episode(
         insert_rotation_episode_fn=insert_rotation_episode_fn,
         close_rotation_episode_fn=close_rotation_episode_fn,
         fetch_snapshot_count_between_fn=fetch_snapshot_count_between_fn,
-        compute_live_account_metrics_fn=compute_runtime_live_account_metrics,
+        compute_live_account_metrics_fn=lambda c, a: compute_runtime_live_account_metrics(c, a, provider=provider),
     )
 
 
@@ -95,6 +99,7 @@ def rotate_runtime_account(
     insert_rotation_episode_fn: Callable[..., object],
     close_rotation_episode_fn: Callable[..., object],
     fetch_snapshot_count_between_fn: Callable[..., object],
+    provider: MarketDataProvider | None = None,
 ) -> AccountRecord:
     sync_runtime_rotation_episode(
         conn,
@@ -104,6 +109,7 @@ def rotate_runtime_account(
         insert_rotation_episode_fn=insert_rotation_episode_fn,
         close_rotation_episode_fn=close_rotation_episode_fn,
         fetch_snapshot_count_between_fn=fetch_snapshot_count_between_fn,
+        provider=provider,
     )
     deps = RotationDeps(
         is_rotation_due_fn=lambda row: is_rotation_due_fn(row, as_of_iso=now_iso),
@@ -127,5 +133,6 @@ def rotate_runtime_account(
         insert_rotation_episode_fn=insert_rotation_episode_fn,
         close_rotation_episode_fn=close_rotation_episode_fn,
         fetch_snapshot_count_between_fn=fetch_snapshot_count_between_fn,
+        provider=provider,
     )
     return rotated

@@ -28,7 +28,9 @@ def test_runtime_rotation_passthrough_helpers_delegate(monkeypatch: pytest.Monke
     monkeypatch.setattr(
         rotation_runtime_service,
         "compute_live_account_metrics_impl",
-        lambda inner_conn, inner_account: metric_calls.append((inner_conn, inner_account)) or {"equity": 123.0},
+        lambda inner_conn, inner_account, **_kwargs: (
+            metric_calls.append((inner_conn, inner_account)) or {"equity": 123.0}
+        ),
     )
 
     assert rotation_runtime_service.fetch_runtime_rotation_overlay_tickers(conn, account) == ["QQQ"]
@@ -123,7 +125,16 @@ def test_sync_runtime_rotation_episode_requires_connection_execute(monkeypatch: 
     assert kwargs["insert_rotation_episode_fn"] is insert_episode
     assert kwargs["close_rotation_episode_fn"] is close_episode
     assert kwargs["fetch_snapshot_count_between_fn"] is fetch_snapshot_count
-    assert kwargs["compute_live_account_metrics_fn"] is rotation_runtime_service.compute_runtime_live_account_metrics
+    # The metrics callable now wraps compute_runtime_live_account_metrics to inject
+    # the (here absent) market-data provider; verify it delegates with provider=None.
+    metric_calls: list[tuple[object, object, object]] = []
+    monkeypatch.setattr(
+        rotation_runtime_service,
+        "compute_runtime_live_account_metrics",
+        lambda c, a, *, provider=None: metric_calls.append((c, a, provider)) or {},
+    )
+    kwargs["compute_live_account_metrics_fn"](connection, account)
+    assert metric_calls == [(connection, account, None)]
 
 
 def test_rotate_runtime_account_syncs_before_and_after_rotation(monkeypatch: pytest.MonkeyPatch) -> None:
