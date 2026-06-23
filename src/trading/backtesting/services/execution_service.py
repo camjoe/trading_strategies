@@ -19,7 +19,7 @@ from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.trading_bridge import resolve_active_strategy
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
-from trading.services.market_data import get_feature_provider
+from trading.services.market_data import FeatureDataProvider, get_feature_provider
 
 AccountRow = Mapping[str, object]
 
@@ -48,6 +48,7 @@ def run_backtest(
     insert_trade_fn,
     insert_snapshot_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
+    feature_provider: FeatureDataProvider | None = None,
 ):
     account = get_account_fn(conn, cfg.account_name)
     start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
@@ -74,7 +75,8 @@ def run_backtest(
 
     feature_bundle = None
     if strategy_spec.required_features:
-        feature_bundle = get_feature_provider().build_feature_bundle(all_tickers, start_date, end_date, close)
+        active_feature_provider = feature_provider or get_feature_provider()
+        feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
     run_id = insert_run_fn(conn, account_id, strategy_name, start_date, end_date, cfg, warnings)

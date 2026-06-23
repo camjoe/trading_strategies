@@ -68,12 +68,14 @@ class TestBacktestWalkForwardAndWarnings:
 
         monkeypatch.setattr(backtest_module, "load_tickers_from_file", lambda _path: ["AAPL"])
         monkeypatch.setattr(
-            backtest_module, "fetch_close_history", lambda _tickers, _start, _end: make_fake_close_history(_tickers)
+            backtest_module,
+            "fetch_close_history",
+            lambda _tickers, _start, _end, **_kwargs: make_fake_close_history(_tickers),
         )
         monkeypatch.setattr(
             backtest_module,
             "fetch_benchmark_close",
-            lambda _ticker, _start, _end: pd.Series(
+            lambda _ticker, _start, _end, **_kwargs: pd.Series(
                 [100.0, 102.0],
                 index=pd.date_range("2026-01-01", periods=2, freq="B"),
             ),

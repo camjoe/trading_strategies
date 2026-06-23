@@ -24,7 +24,7 @@ class TestBacktestValidationAndFailurePaths:
         monkeypatch.setattr(
             backtest_module,
             "fetch_close_history",
-            lambda _tickers, _start, _end: pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_idx),
+            lambda _tickers, _start, _end, **_kwargs: pd.DataFrame({"AAPL": [100.0, 101.0]}, index=short_idx),
         )
 
         with pytest.raises(ValueError, match="Need at least 3 trading days"):

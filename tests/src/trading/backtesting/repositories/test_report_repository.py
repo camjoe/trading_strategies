@@ -48,11 +48,11 @@ def test_report_repository_contract_returns_rows(conn, monkeypatch: pytest.Monke
     monkeypatch.setattr("trading.backtesting.backtest.load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(
         "trading.backtesting.backtest.fetch_close_history",
-        lambda _tickers, _start, _end: _fake_close_history(_tickers),
+        lambda _tickers, _start, _end, **_kwargs: _fake_close_history(_tickers),
     )
     monkeypatch.setattr(
         "trading.backtesting.backtest.fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series(
+        lambda _ticker, _start, _end, **_kwargs: pd.Series(
             [100.0, 102.0],
             index=pd.date_range("2026-01-01", periods=2, freq="B"),
         ),

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from trading.services.market_data import get_provider
+from trading.services.market_data import MarketDataProvider, get_provider
 from common.tickers import load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"
@@ -49,14 +49,23 @@ def fetch_close_history(
     tickers: list[str],
     start_date: date,
     end_date: date,
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> pd.DataFrame:
     if not tickers:
         raise ValueError("At least one ticker is required for backtesting.")
-    return get_provider().fetch_close_history(tickers, start_date, end_date)
+    provider = provider or get_provider()
+    return provider.fetch_close_history(tickers, start_date, end_date)
 
 
-def fetch_benchmark_close(benchmark_ticker: str, start_date: date, end_date: date) -> pd.Series:
-    close = fetch_close_history([benchmark_ticker], start_date, end_date)
+def fetch_benchmark_close(
+    benchmark_ticker: str,
+    start_date: date,
+    end_date: date,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> pd.Series:
+    close = fetch_close_history([benchmark_ticker], start_date, end_date, provider=provider)
     series = close[benchmark_ticker].dropna()
     if series.empty:
         raise ValueError(f"No benchmark history for {benchmark_ticker}")

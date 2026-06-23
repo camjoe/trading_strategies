@@ -5,6 +5,7 @@ from datetime import date
 
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import choose_buy_qty
+from trading.services.market_data import get_feature_provider, get_provider
 from trading.backtesting.trading_bridge import get_account
 from trading.backtesting.models import (
     BacktestBatchConfig,
@@ -155,6 +156,10 @@ def _insert_snapshot(
 
 
 def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
+    # Composition seam: resolve the market-data + feature providers once for the
+    # run and inject them down the data path (no global access inside services).
+    provider = get_provider()
+    feature_provider = get_feature_provider()
     return run_backtest_impl(
         conn,
         cfg,
@@ -162,12 +167,17 @@ def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResul
         resolve_backtest_dates_fn=resolve_backtest_dates,
         warnings_for_config_fn=_warnings_for_config,
         resolve_universe_fn=_resolve_universe,
-        fetch_close_history_fn=fetch_close_history,
-        fetch_benchmark_close_fn=fetch_benchmark_close,
+        fetch_close_history_fn=lambda tickers, start_date, end_date: fetch_close_history(
+            tickers, start_date, end_date, provider=provider
+        ),
+        fetch_benchmark_close_fn=lambda benchmark_ticker, start_date, end_date: fetch_benchmark_close(
+            benchmark_ticker, start_date, end_date, provider=provider
+        ),
         insert_run_fn=_insert_run,
         insert_trade_fn=_insert_trade,
         insert_snapshot_fn=_insert_snapshot,
         choose_buy_qty_fn=choose_buy_qty,
+        feature_provider=feature_provider,
     )
 
 

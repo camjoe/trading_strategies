@@ -30,12 +30,12 @@ def install_backtest_market_data(
     monkeypatch.setattr(
         backtest_module,
         "fetch_close_history",
-        lambda _tickers, _start, _end: make_fake_close_history(_tickers),
+        lambda _tickers, _start, _end, **_kwargs: make_fake_close_history(_tickers),
     )
     monkeypatch.setattr(
         backtest_module,
         "fetch_benchmark_close",
-        lambda _ticker, _start, _end: pd.Series(
+        lambda _ticker, _start, _end, **_kwargs: pd.Series(
             benchmark_values,
             index=pd.date_range("2026-01-01", periods=len(benchmark_values), freq="B"),
         ),

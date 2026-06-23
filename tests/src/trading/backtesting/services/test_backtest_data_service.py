@@ -177,7 +177,7 @@ def test_fetch_benchmark_close_empty_series_raises(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(
         backtest_data,
         "fetch_close_history",
-        lambda _tickers, _start, _end: pd.DataFrame({"SPY": [nan, nan]}),
+        lambda _tickers, _start, _end, **_kwargs: pd.DataFrame({"SPY": [nan, nan]}),
     )
 
     with pytest.raises(ValueError, match="No benchmark history for SPY"):
@@ -188,7 +188,7 @@ def test_fetch_benchmark_close_returns_clean_series(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         backtest_data,
         "fetch_close_history",
-        lambda _tickers, _start, _end: pd.DataFrame({"SPY": [100.0, float("nan"), 101.0]}),
+        lambda _tickers, _start, _end, **_kwargs: pd.DataFrame({"SPY": [100.0, float("nan"), 101.0]}),
     )
 
     out = backtest_data.fetch_benchmark_close("SPY", date(2026, 1, 1), date(2026, 1, 31))
