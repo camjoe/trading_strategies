@@ -10,6 +10,7 @@ from common.tickers import load_ticker_categories
 
 from .protocols import FeatureBundle
 from .protocols import FeatureDataProvider
+from .protocols import MarketDataProvider
 
 
 class ProxyFeatureDataProvider(FeatureDataProvider):
@@ -22,7 +23,9 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
         category_proxy_map: Mapping[str, str] | None = None,
         topic_lookback: int = 20,
         macro_lookback: int = 20,
+        market_data_provider: MarketDataProvider | None = None,
     ) -> None:
+        self._market_data_provider = market_data_provider
         self.category_file = category_file
         self.category_proxy_map = {
             "tech": "XLK",
@@ -76,10 +79,13 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
         proxy_tickers = sorted(set(ticker_to_proxy.values()) | {"SPY", "TLT", "^VIX"})
         padded_start = start_date - timedelta(days=max(self.topic_lookback, self.macro_lookback) * 4)
 
-        import trading.services.market_data as market_data
+        provider = self._market_data_provider
+        if provider is None:
+            from trading.services.market_data import get_provider
 
+            provider = get_provider()
         try:
-            proxy_close = market_data.get_provider().fetch_close_history(proxy_tickers, padded_start, end_date)
+            proxy_close = provider.fetch_close_history(proxy_tickers, padded_start, end_date)
         except Exception as exc:
             return FeatureBundle(
                 ticker_features={},
