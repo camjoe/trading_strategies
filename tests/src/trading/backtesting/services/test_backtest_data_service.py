@@ -9,6 +9,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from trading.backtesting.services import backtest_data_service as backtest_data
+from trading.services.market_data import YFinanceProvider
 
 
 def _business_days(periods: int) -> pd.DatetimeIndex:
@@ -169,7 +170,9 @@ def test_fetch_close_history_missing_close_column_raises(monkeypatch: pytest.Mon
     monkeypatch.setattr("trading.services.market_data.yf.download", lambda **_kwargs: hist)
 
     with pytest.raises(ValueError, match="missing Close column"):
-        backtest_data.fetch_close_history(["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 31))
+        backtest_data.fetch_close_history(
+            ["AAPL", "MSFT"], date(2026, 1, 1), date(2026, 1, 31), provider=YFinanceProvider()
+        )
 
 
 def test_fetch_benchmark_close_empty_series_raises(monkeypatch: pytest.MonkeyPatch) -> None:

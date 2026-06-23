@@ -7,7 +7,6 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.execution_service as execution_service
 from trading.services.market_data import FeatureBundle, ProxyFeatureDataProvider
-import trading.services.market_data as market_data
 from tests.support.backtesting import (
     create_backtest_account,
     install_backtest_market_data,
@@ -17,7 +16,6 @@ from tests.support.backtesting import (
 class TestBacktestProxyFeatureFlow:
     def test_proxy_feature_provider_builds_aligned_topic_features(
         self,
-        monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
         idx = pd.date_range("2026-01-01", periods=40, freq="B")
@@ -48,9 +46,10 @@ class TestBacktestProxyFeatureFlow:
             def fetch_close_history(self, tickers: list[str], _start, _end) -> pd.DataFrame:
                 return proxy_frame.loc[:, tickers]
 
-        monkeypatch.setattr(market_data, "get_provider", lambda: StubProvider())
-
-        provider = ProxyFeatureDataProvider(category_file=str(category_file))
+        provider = ProxyFeatureDataProvider(
+            category_file=str(category_file),
+            market_data_provider=StubProvider(),
+        )
         bundle = provider.build_feature_bundle(["AAPL", "XOM"], date(2026, 1, 1), date(2026, 3, 1), close_history)
 
         aapl_features = bundle.history_for_ticker("AAPL", idx[-1])

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from trading.services.market_data import MarketDataProvider, get_provider
+from trading.services.market_data import MarketDataProvider, require_provider
 from common.tickers import load_tickers_from_file
 
 DATE_FMT = "%Y-%m-%d"
@@ -54,7 +54,7 @@ def fetch_close_history(
 ) -> pd.DataFrame:
     if not tickers:
         raise ValueError("At least one ticker is required for backtesting.")
-    provider = provider or get_provider()
+    provider = require_provider(provider)
     return provider.fetch_close_history(tickers, start_date, end_date)
 
 

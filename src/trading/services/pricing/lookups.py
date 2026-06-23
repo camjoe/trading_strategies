@@ -7,7 +7,7 @@ from datetime import date
 
 import pandas as pd
 
-from trading.services.market_data import MarketDataProvider, get_provider
+from trading.services.market_data import MarketDataProvider, require_provider
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def fetch_latest_prices(
     *,
     provider: MarketDataProvider | None = None,
 ) -> dict[str, float]:
-    provider = provider or get_provider()
+    provider = require_provider(provider)
     prices: dict[str, float] = {}
     for ticker in tickers:
         close = provider.fetch_close_series(ticker, "5d")
@@ -47,7 +47,7 @@ def benchmark_stats(
     ticker = benchmark_ticker.upper().strip()
     start = date.fromisoformat(created_at[:10])
     try:
-        active_provider = provider or get_provider()
+        active_provider = require_provider(provider)
         close_history = active_provider.fetch_close_history([ticker], start, date.today())
         close = _extract_close_series(close_history, ticker)
     except Exception as exc:

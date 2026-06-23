@@ -6,18 +6,13 @@ from .features import ProxyFeatureDataProvider
 from .protocols import FeatureBundle
 from .protocols import FeatureDataProvider
 from .protocols import MarketDataProvider
+from .protocols import require_feature_provider
+from .protocols import require_provider
 from .providers import YFinanceProvider
 from .providers import yf
 from .factory import build_feature_provider
 from .factory import build_provider
-from .registry import get_feature_provider
-from .registry import get_provider
-from .registry import get_provider_name
-from .registry import reload_provider_from_config
-from .registry import set_feature_provider
-from .registry import set_provider
-from .registry import set_provider_by_name
-from .registry import supported_provider_names
+from .factory import supported_provider_names
 
 __all__ = [
     "FeatureBundle",
@@ -29,13 +24,8 @@ __all__ = [
     "_MARKET_DATA_CACHE_TTL_SECONDS",
     "build_feature_provider",
     "build_provider",
-    "get_feature_provider",
-    "get_provider",
-    "get_provider_name",
-    "reload_provider_from_config",
-    "set_feature_provider",
-    "set_provider",
-    "set_provider_by_name",
+    "require_feature_provider",
+    "require_provider",
     "supported_provider_names",
     "yf",
 ]

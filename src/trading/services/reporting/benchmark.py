@@ -14,7 +14,7 @@ from datetime import date
 import pandas as pd
 
 from common.coercion import coerce_float
-from trading.services.market_data import MarketDataProvider, get_provider
+from trading.services.market_data import MarketDataProvider, require_provider
 
 
 def _snapshot_time(snapshot: dict[str, object]) -> str:
@@ -43,7 +43,7 @@ def fetch_benchmark_close_history(
     ticker = benchmark_ticker.strip().upper()
     if not ticker:
         return None
-    close_history = (provider or get_provider()).fetch_close_history([ticker], start_date, end_date)
+    close_history = require_provider(provider).fetch_close_history([ticker], start_date, end_date)
     if close_history is None:
         return None
     try:

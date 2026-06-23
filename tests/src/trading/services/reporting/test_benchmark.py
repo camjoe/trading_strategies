@@ -24,73 +24,63 @@ class StubProvider:
         return self.result
 
 
-def test_fetch_benchmark_close_history_returns_none_for_blank_ticker(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_fetch_benchmark_close_history_returns_none_for_blank_ticker() -> None:
     provider = StubProvider(pd.DataFrame({"SPY": [100.0]}))
-    monkeypatch.setattr(benchmark, "get_provider", lambda: provider)
 
     result = benchmark.fetch_benchmark_close_history(
         "   ",
         start_date=date(2024, 1, 2),
         end_date=date(2024, 1, 3),
+        provider=provider,
     )
 
     assert result is None
     assert provider.calls == []
 
 
-def test_fetch_benchmark_close_history_returns_none_when_provider_returns_none(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_fetch_benchmark_close_history_returns_none_when_provider_returns_none() -> None:
     provider = StubProvider(None)
-    monkeypatch.setattr(benchmark, "get_provider", lambda: provider)
 
     result = benchmark.fetch_benchmark_close_history(
         "spy",
         start_date=date(2024, 1, 2),
         end_date=date(2024, 1, 3),
+        provider=provider,
     )
 
     assert result is None
     assert provider.calls == [(["SPY"], date(2024, 1, 2), date(2024, 1, 3))]
 
 
-def test_fetch_benchmark_close_history_returns_none_when_ticker_column_is_missing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_fetch_benchmark_close_history_returns_none_when_ticker_column_is_missing() -> None:
     provider = StubProvider(pd.DataFrame({"QQQ": [100.0, 101.0]}))
-    monkeypatch.setattr(benchmark, "get_provider", lambda: provider)
 
     result = benchmark.fetch_benchmark_close_history(
         "spy",
         start_date=date(2024, 1, 2),
         end_date=date(2024, 1, 3),
+        provider=provider,
     )
 
     assert result is None
 
 
-def test_fetch_benchmark_close_history_returns_dropna_series_for_matching_ticker(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_fetch_benchmark_close_history_returns_dropna_series_for_matching_ticker() -> None:
     index = pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"])
     provider = StubProvider(pd.DataFrame({"SPY": [100.0, None, 103.5]}, index=index))
-    monkeypatch.setattr(benchmark, "get_provider", lambda: provider)
 
     result = benchmark.fetch_benchmark_close_history(
         "spy",
         start_date=date(2024, 1, 2),
         end_date=date(2024, 1, 4),
+        provider=provider,
     )
 
     expected = pd.Series([100.0, 103.5], index=index[[0, 2]], name="SPY")
     pdt.assert_series_equal(result, expected)
 
 
-def test_fetch_benchmark_close_history_uses_first_column_for_multi_level_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_fetch_benchmark_close_history_uses_first_column_for_multi_level_result() -> None:
     index = pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"])
     columns = pd.MultiIndex.from_tuples(
         [("SPY", "close"), ("SPY", "adjusted_close")],
@@ -106,12 +96,12 @@ def test_fetch_benchmark_close_history_uses_first_column_for_multi_level_result(
             columns=columns,
         )
     )
-    monkeypatch.setattr(benchmark, "get_provider", lambda: provider)
 
     result = benchmark.fetch_benchmark_close_history(
         "spy",
         start_date=date(2024, 1, 2),
         end_date=date(2024, 1, 4),
+        provider=provider,
     )
 
     expected = pd.Series([100.0, 103.0], index=index[[0, 2]], name="close")

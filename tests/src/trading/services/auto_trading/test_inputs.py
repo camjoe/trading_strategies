@@ -5,11 +5,10 @@ import pytest
 
 import trading.services.auto_trading as auto_trading_service
 import trading.services.auto_trading.inputs as auto_trading_inputs
-import trading.services.auto_trading.market as auto_trading_market
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
 
 
-def test_build_iv_rank_proxy_handles_empty_and_single(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
     def fake_fetch_close_series(ticker: str, period: str):
         assert period == "1y"
         if ticker == "EMPTY":
@@ -18,14 +17,10 @@ def test_build_iv_rank_proxy_handles_empty_and_single(monkeypatch: pytest.Monkey
             return pd.Series(range(1, 50), dtype=float)
         return None
 
-    monkeypatch.setattr(
-        auto_trading_market,
-        "get_provider",
-        lambda: SimpleNamespace(fetch_close_series=fake_fetch_close_series),
-    )
+    provider = SimpleNamespace(fetch_close_series=fake_fetch_close_series)
 
-    assert auto_trading_service.build_iv_rank_proxy(["EMPTY"]) == {}
-    assert auto_trading_service.build_iv_rank_proxy(["ONE"]) == {"ONE": 50.0}
+    assert auto_trading_service.build_iv_rank_proxy(["EMPTY"], provider=provider) == {}
+    assert auto_trading_service.build_iv_rank_proxy(["ONE"], provider=provider) == {"ONE": 50.0}
 
 
 def test_validate_trade_count_range_and_account_names() -> None:

@@ -7,7 +7,6 @@ import pytest
 
 from trading.services.market_data.features import ProxyFeatureDataProvider
 from trading.services.market_data.protocols import FeatureBundle
-import trading.services.market_data as market_data
 
 
 def test_feature_bundle_history_for_ticker_returns_copy_and_respects_cutoff() -> None:
@@ -32,9 +31,7 @@ def test_proxy_feature_provider_reports_missing_category_file_warning() -> None:
     assert any("Category file 'missing_categories.txt' not found" in warning for warning in warnings)
 
 
-def test_proxy_feature_provider_returns_warning_bundle_when_proxy_fetch_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_proxy_feature_provider_returns_warning_bundle_when_proxy_fetch_fails() -> None:
     index = pd.date_range("2026-01-01", periods=5, freq="B")
     close_history = pd.DataFrame({"AAPL": [100.0, 101.0, 102.0, 103.0, 104.0]}, index=index)
 
@@ -42,8 +39,10 @@ def test_proxy_feature_provider_returns_warning_bundle_when_proxy_fetch_fails(
         def fetch_close_history(self, _tickers, _start, _end):
             raise ValueError("feed unavailable")
 
-    monkeypatch.setattr(market_data, "get_provider", lambda: FailingProvider())
-    provider = ProxyFeatureDataProvider(category_file="missing_categories.txt")
+    provider = ProxyFeatureDataProvider(
+        category_file="missing_categories.txt",
+        market_data_provider=FailingProvider(),
+    )
 
     bundle = provider.build_feature_bundle(["AAPL"], date(2026, 1, 1), date(2026, 1, 31), close_history)
 
@@ -51,9 +50,7 @@ def test_proxy_feature_provider_returns_warning_bundle_when_proxy_fetch_fails(
     assert any("Proxy feature data unavailable: feed unavailable" in warning for warning in bundle.warnings)
 
 
-def test_proxy_feature_provider_builds_features_for_known_proxy_ticker(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_proxy_feature_provider_builds_features_for_known_proxy_ticker() -> None:
     index = pd.date_range("2026-01-01", periods=40, freq="B")
     close_history = pd.DataFrame({"XLK": [100.0 + i for i in range(40)]}, index=index)
     proxy_frame = pd.DataFrame(
@@ -70,8 +67,10 @@ def test_proxy_feature_provider_builds_features_for_known_proxy_ticker(
         def fetch_close_history(self, tickers: list[str], _start, _end) -> pd.DataFrame:
             return proxy_frame.loc[:, tickers]
 
-    monkeypatch.setattr(market_data, "get_provider", lambda: StubProvider())
-    provider = ProxyFeatureDataProvider(category_file="missing_categories.txt")
+    provider = ProxyFeatureDataProvider(
+        category_file="missing_categories.txt",
+        market_data_provider=StubProvider(),
+    )
 
     bundle = provider.build_feature_bundle(["XLK"], date(2026, 1, 1), date(2026, 3, 1), close_history)
 
@@ -114,9 +113,7 @@ def test_proxy_feature_provider_returns_empty_bundle_for_empty_close_history() -
     assert bundle.warnings == ()
 
 
-def test_proxy_feature_provider_marks_unmapped_tickers_and_normalizes_timezone(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_proxy_feature_provider_marks_unmapped_tickers_and_normalizes_timezone() -> None:
     index = pd.date_range("2026-01-01", periods=40, freq="B", tz="UTC")
     close_history = pd.DataFrame(
         {
@@ -139,8 +136,10 @@ def test_proxy_feature_provider_marks_unmapped_tickers_and_normalizes_timezone(
         def fetch_close_history(self, tickers: list[str], _start, _end) -> pd.DataFrame:
             return proxy_frame.loc[:, tickers]
 
-    monkeypatch.setattr(market_data, "get_provider", lambda: StubProvider())
-    provider = ProxyFeatureDataProvider(category_file="missing_categories.txt")
+    provider = ProxyFeatureDataProvider(
+        category_file="missing_categories.txt",
+        market_data_provider=StubProvider(),
+    )
 
     bundle = provider.build_feature_bundle(["XLK", "UNMAPPED"], date(2026, 1, 1), date(2026, 3, 1), close_history)
 

@@ -19,7 +19,7 @@ from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
 from trading.backtesting.trading_bridge import resolve_active_strategy
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
-from trading.services.market_data import FeatureDataProvider, get_feature_provider
+from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
 AccountRow = Mapping[str, object]
 
@@ -75,7 +75,7 @@ def run_backtest(
 
     feature_bundle = None
     if strategy_spec.required_features:
-        active_feature_provider = feature_provider or get_feature_provider()
+        active_feature_provider = require_feature_provider(feature_provider)
         feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 

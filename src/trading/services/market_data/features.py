@@ -11,6 +11,7 @@ from common.tickers import load_ticker_categories
 from .protocols import FeatureBundle
 from .protocols import FeatureDataProvider
 from .protocols import MarketDataProvider
+from .protocols import require_provider
 
 
 class ProxyFeatureDataProvider(FeatureDataProvider):
@@ -79,11 +80,7 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
         proxy_tickers = sorted(set(ticker_to_proxy.values()) | {"SPY", "TLT", "^VIX"})
         padded_start = start_date - timedelta(days=max(self.topic_lookback, self.macro_lookback) * 4)
 
-        provider = self._market_data_provider
-        if provider is None:
-            from trading.services.market_data import get_provider
-
-            provider = get_provider()
+        provider = require_provider(self._market_data_provider)
         try:
             proxy_close = provider.fetch_close_history(proxy_tickers, padded_start, end_date)
         except Exception as exc:

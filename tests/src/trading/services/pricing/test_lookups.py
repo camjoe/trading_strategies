@@ -31,58 +31,42 @@ class _StubProvider:
         return self._close_history_fn(tickers, start, end)
 
 
-def _install_provider(monkeypatch: pytest.MonkeyPatch, provider: _StubProvider) -> None:
-    monkeypatch.setattr(pricing_helpers, "get_provider", lambda: provider)
-
-
 class TestFetchLatestPrices:
-    def test_single(self, monkeypatch: pytest.MonkeyPatch):
-        _install_provider(
-            monkeypatch,
-            _StubProvider(close_series_fn=lambda _ticker, _period: _series(99.0, 100.5, 101.0)),
-        )
+    def test_single(self):
+        provider = _StubProvider(close_series_fn=lambda _ticker, _period: _series(99.0, 100.5, 101.0))
 
-        result = fetch_latest_prices(["AAPL"])
+        result = fetch_latest_prices(["AAPL"], provider=provider)
 
         assert result == {"AAPL": 101.0}
 
-    def test_multiple(self, monkeypatch: pytest.MonkeyPatch):
+    def test_multiple(self):
         prices_map = {"AAPL": 150.0, "SPY": 500.0}
-        _install_provider(
-            monkeypatch,
-            _StubProvider(close_series_fn=lambda ticker, _period: _series(prices_map[ticker])),
-        )
+        provider = _StubProvider(close_series_fn=lambda ticker, _period: _series(prices_map[ticker]))
 
-        result = fetch_latest_prices(["AAPL", "SPY"])
+        result = fetch_latest_prices(["AAPL", "SPY"], provider=provider)
 
         assert result == {"AAPL": 150.0, "SPY": 500.0}
 
-    def test_empty_list_makes_no_provider_calls(self, monkeypatch: pytest.MonkeyPatch):
+    def test_empty_list_makes_no_provider_calls(self):
         called: list[str] = []
-        _install_provider(
-            monkeypatch,
-            _StubProvider(close_series_fn=lambda ticker, _period: called.append(ticker) or None),
-        )
+        provider = _StubProvider(close_series_fn=lambda ticker, _period: called.append(ticker) or None)
 
-        fetch_latest_prices([])
+        fetch_latest_prices([], provider=provider)
 
         assert called == []
 
-    def test_provider_none_omits_ticker(self, monkeypatch: pytest.MonkeyPatch):
-        _install_provider(
-            monkeypatch,
-            _StubProvider(close_series_fn=lambda _ticker, _period: None),
-        )
+    def test_provider_none_omits_ticker(self):
+        provider = _StubProvider(close_series_fn=lambda _ticker, _period: None)
 
-        assert fetch_latest_prices(["AAPL"]) == {}
+        assert fetch_latest_prices(["AAPL"], provider=provider) == {}
 
-    def test_one_failing_ticker_does_not_block_others(self, monkeypatch: pytest.MonkeyPatch):
+    def test_one_failing_ticker_does_not_block_others(self):
         def _stub(ticker: str, period: str) -> pd.Series | None:
             return None if ticker == "BAD" else _series(200.0)
 
-        _install_provider(monkeypatch, _StubProvider(close_series_fn=_stub))
+        provider = _StubProvider(close_series_fn=_stub)
 
-        result = fetch_latest_prices(["GOOD", "BAD"])
+        result = fetch_latest_prices(["GOOD", "BAD"], provider=provider)
 
         assert result == {"GOOD": 200.0}
 
@@ -97,8 +81,8 @@ class TestBenchmarkStats:
         today_fn=date.today,
         monkeypatch: pytest.MonkeyPatch | None = None,
     ) -> tuple[float | None, float | None]:
+        provider = _StubProvider(close_history_fn=close_history_fn)
         if monkeypatch is not None:
-            _install_provider(monkeypatch, _StubProvider(close_history_fn=close_history_fn))
             monkeypatch.setattr(
                 pricing_helpers,
                 "date",
@@ -116,6 +100,7 @@ class TestBenchmarkStats:
             ticker,
             initial_cash,
             created_at,
+            provider=provider,
         )
 
     def test_normal(self, monkeypatch: pytest.MonkeyPatch):
