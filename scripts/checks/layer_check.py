@@ -49,7 +49,7 @@ LAYER_RULES: list[LayerRule] = [
     LayerRule(
         label="apps/paper_trading_web → no direct database imports",
         source_glob="apps/paper_trading_web/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        forbidden_prefixes=("infrastructure.database.",),
         # db.py is the interface-boundary connection factory: the single
         # point where ensure_db() is called to open connections for each
         # request. All other UI backend code receives conn via db_conn().
@@ -63,7 +63,7 @@ LAYER_RULES: list[LayerRule] = [
     LayerRule(
         label="trading/services → no direct database imports",
         source_glob="trading/services/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        forbidden_prefixes=("infrastructure.database.",),
         # runtime_loader.py is the deliberate exception: its sole purpose is to
         # open a DB connection for runtime job runners that don't have an injected
         # connection.  All other service modules must route through repositories.
@@ -76,8 +76,8 @@ LAYER_RULES: list[LayerRule] = [
     ),
     LayerRule(
         label="trading/backtesting/services → no direct database imports",
-        source_glob="trading/backtesting/services/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        source_glob="src/trading/backtesting/services/**/*.py",
+        forbidden_prefixes=("infrastructure.database.",),
     ),
     LayerRule(
         label="trading/domain → no repository imports",
@@ -87,7 +87,7 @@ LAYER_RULES: list[LayerRule] = [
     LayerRule(
         label="trading/domain → no database imports",
         source_glob="trading/domain/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        forbidden_prefixes=("infrastructure.database.",),
     ),
     LayerRule(
         label="trading/repositories → no interface imports",
@@ -95,9 +95,9 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
-        label="apps/paper_trading_web/routes → no direct trading.features imports",
+        label="apps/paper_trading_web/routes → no direct feature-provider imports",
         source_glob="apps/paper_trading_web/backend/routes/**/*.py",
-        forbidden_prefixes=("trading.features.",),
+        forbidden_prefixes=("infrastructure.feature_providers.",),
     ),
     LayerRule(
         label="apps/paper_trading_web/routes → no direct trading.backtesting.domain imports",
