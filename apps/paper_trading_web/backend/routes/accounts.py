@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from trading.services.accounting import list_account_trades
 from trading.services.accounts import list_account_snapshots
+from trading.services.market_data import build_provider
 
 from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
@@ -43,8 +44,9 @@ def api_account_config_options() -> dict[str, object]:
 @router.get("/api/accounts")
 def api_accounts() -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
+        provider = build_provider()
         rows = fetch_visible_account_rows(conn)
-        accounts = [build_account_list_payload(build_account_summary(conn, row)) for row in rows]
+        accounts = [build_account_list_payload(build_account_summary(conn, row, provider=provider)) for row in rows]
         accounts.sort(key=lambda item: str(item["name"]))
         return {"accounts": accounts}
 
@@ -52,12 +54,14 @@ def api_accounts() -> dict[str, list[dict[str, object]]]:
 @router.get("/api/accounts/compare")
 def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
     with db_conn() as conn:
+        provider = build_provider()
         comparison: list[dict[str, object]] = []
         for row in fetch_visible_account_rows(conn):
-            summary = build_account_summary(conn, row)
+            summary = build_account_summary(conn, row, provider=provider)
             snapshots = list_account_snapshots(conn, row.id, limit=100)
             attach_live_benchmark_summary(
-                summary, build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots)
+                summary,
+                build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots, provider=provider),
             )
             latest_backtest = fetch_latest_backtest_metrics(conn, row.name)
             comparison.append(build_comparison_account_payload(summary, latest_backtest))
@@ -68,11 +72,12 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
 @router.get("/api/accounts/{account_name}")
 def api_account_detail(account_name: str) -> dict[str, object]:
     with db_conn() as conn:
+        provider = build_provider()
         account = require_account_row(conn, account_name)
-        summary, positions = build_account_summary_and_positions(conn, account)
+        summary, positions = build_account_summary_and_positions(conn, account, provider=provider)
 
         snapshots = list_account_snapshots(conn, account.id, limit=100)
-        overlay = build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots)
+        overlay = build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots, provider=provider)
         attach_live_benchmark_summary(summary, overlay)
         trades = list_account_trades(conn, account.id)
         latest_backtest = fetch_latest_backtest_summary(conn, account.name)

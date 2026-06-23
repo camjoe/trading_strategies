@@ -55,12 +55,12 @@ def patch_analysis_market_data(
     monkeypatch.setattr(
         analysis_queries,
         "fetch_latest_prices",
-        lambda _tickers: prices or {},
+        lambda _tickers, **_kwargs: prices or {},
     )
     monkeypatch.setattr(
         analysis_queries,
         "benchmark_stats",
-        lambda _ticker, _effective_initial, _created_at: benchmark,
+        lambda _ticker, _effective_initial, _created_at, **_kwargs: benchmark,
     )
 
 

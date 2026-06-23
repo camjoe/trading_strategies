@@ -74,6 +74,8 @@ def _close_price_on_or_before(close_history: pd.Series, snapshot_time: str) -> f
 def build_live_benchmark_overlay(
     benchmark_ticker: str,
     snapshots: Sequence[dict[str, object]],
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> dict[str, object] | None:
     """Compute a time-aligned benchmark return overlay for an account's snapshot history.
 
@@ -111,6 +113,7 @@ def build_live_benchmark_overlay(
             ticker,
             start_date=start_date,
             end_date=end_date,
+            provider=provider,
         )
     except Exception:
         return None

@@ -18,7 +18,7 @@ def test_returns_analysis_payload_for_valid_account(
     monkeypatch.setattr(
         analysis_module,
         "fetch_account_analysis",
-        lambda _conn, *, account_row: expected,
+        lambda _conn, *, account_row, provider=None: expected,
     )
 
     response = api_client.get("/api/accounts/acct_analysis/analysis")

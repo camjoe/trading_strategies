@@ -4,6 +4,7 @@ import sqlite3
 
 from common.constants import SETTLEMENT_TICKER as _SETTLEMENT_TICKER
 from trading.models import AccountRecord, AccountState
+from trading.services.market_data import MarketDataProvider
 from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
@@ -19,8 +20,13 @@ from trading.services.reporting import (
 )
 
 
-def build_account_summary(conn: sqlite3.Connection, row: AccountRecord) -> dict[str, object]:
-    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
+def build_account_summary(
+    conn: sqlite3.Connection,
+    row: AccountRecord,
+    *,
+    provider: MarketDataProvider | None = None,
+) -> dict[str, object]:
+    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
     if isinstance(state, AccountState) and isinstance(prices, dict):
         equity = settlement_corrected_equity(state, prices)
@@ -45,10 +51,13 @@ def build_account_list_payload(summary: dict[str, object]) -> dict[str, object]:
 
 
 def build_account_summary_and_positions(
-    conn: sqlite3.Connection, row: AccountRecord
+    conn: sqlite3.Connection,
+    row: AccountRecord,
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
     """Call build_account_stats once and return both summary and open positions."""
-    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row)
+    state, prices, _mv, _unrealized, equity = build_account_stats(conn, row, provider=provider)
     inject_settlement_price(state, prices)
     if isinstance(state, AccountState) and isinstance(prices, dict):
         equity = settlement_corrected_equity(state, prices)

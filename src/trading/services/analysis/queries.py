@@ -11,6 +11,7 @@ import sqlite3
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 from common.constants import SETTLEMENT_TICKER
 from trading.services.accounting import load_account_state
+from trading.services.market_data import MarketDataProvider
 from trading.services.analysis.position import (
     TOP_POSITIONS_COUNT,
     compute_position_analysis,
@@ -27,6 +28,8 @@ from trading.services.reporting import (
 def fetch_account_analysis(
     conn: sqlite3.Connection,
     account_row: dict[str, object],
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> dict[str, object]:
     """Return a full performance analysis dict for an account."""
     account_id = row_expect_int(account_row, "id")
@@ -36,13 +39,13 @@ def fetch_account_analysis(
 
     state = load_account_state(conn, account_id=account_id, initial_cash=initial_cash)
     tickers = sorted(state.positions.keys())
-    prices = fetch_latest_prices(tickers) if tickers else {}
+    prices = fetch_latest_prices(tickers, provider=provider) if tickers else {}
     market_value, unrealized = compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
     equity = state.cash + market_value
 
     effective_initial = initial_cash if initial_cash else state.total_deposited
     account_return = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
-    _, bench_return = benchmark_stats(benchmark_ticker, effective_initial, created_at)
+    _, bench_return = benchmark_stats(benchmark_ticker, effective_initial, created_at, provider=provider)
     alpha = (account_return - bench_return) if bench_return is not None else None
 
     position_analysis = compute_position_analysis(state, prices, equity)

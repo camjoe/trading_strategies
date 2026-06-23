@@ -13,6 +13,7 @@ from common.constants import SETTLEMENT_TICKER
 from trading.models import AccountRecord, AccountState
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounting import load_account_state
+from trading.services.market_data import MarketDataProvider
 from trading.services.reporting.math import compute_market_value_and_unrealized
 from trading.services.pricing import fetch_latest_prices
 
@@ -100,12 +101,14 @@ def settlement_cash(state: object, prices: object) -> float:
 def build_account_stats(
     conn: sqlite3.Connection,
     account: AccountRecord,
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> tuple[AccountState, dict[str, float], float, float, float]:
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
     state = load_account_state(conn, account_id=account_id, initial_cash=initial_cash)
     tickers = sorted(state.positions.keys())
-    prices = fetch_latest_prices(tickers) if tickers else {}
+    prices = fetch_latest_prices(tickers, provider=provider) if tickers else {}
     market_value, unrealized = compute_market_value_and_unrealized(state.positions, state.avg_cost, prices)
     equity = state.cash + market_value
     return state, prices, market_value, unrealized, equity

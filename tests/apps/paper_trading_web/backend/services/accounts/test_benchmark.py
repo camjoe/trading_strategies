@@ -13,7 +13,7 @@ def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> Non
     monkeypatch.setattr(
         reporting_benchmark,
         "fetch_benchmark_close_history",
-        lambda _ticker, *, start_date, end_date: close_series,
+        lambda _ticker, *, start_date, end_date, provider=None: close_series,
     )
 
     overlay = account_benchmark.build_live_benchmark_overlay(

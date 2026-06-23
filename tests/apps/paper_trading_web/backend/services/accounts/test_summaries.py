@@ -38,7 +38,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
     monkeypatch.setattr(
         account_summaries,
         "build_account_stats",
-        lambda _conn, _row: (None, None, None, None, 1200.0),
+        lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
     )
     monkeypatch.setattr(
         account_summaries,
@@ -168,7 +168,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row: (None, None, None, None, 1200.0),
+            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -195,7 +195,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row: (None, None, None, None, 1200.0),
+            lambda _conn, _row, **_kwargs: (None, None, None, None, 1200.0),
         )
         monkeypatch.setattr(
             account_summaries,
@@ -247,7 +247,7 @@ class TestBuildAccountSummaryShape:
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
-            lambda _conn, _row: (None, None, None, None, 1100.0),
+            lambda _conn, _row, **_kwargs: (None, None, None, None, 1100.0),
         )
         monkeypatch.setattr(
             account_summaries,

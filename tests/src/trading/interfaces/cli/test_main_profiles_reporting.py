@@ -70,7 +70,7 @@ def test_main_report_dispatches(monkeypatch) -> None:
     monkeypatch.setattr(
         cli_main,
         "account_report",
-        lambda conn, account: captured.update({"conn": conn, "account": account}),
+        lambda conn, account, **_kwargs: captured.update({"conn": conn, "account": account}),
     )
 
     cli_main.main()
@@ -86,7 +86,9 @@ def test_main_snapshot_dispatches(monkeypatch) -> None:
     monkeypatch.setattr(
         cli_main,
         "snapshot_account",
-        lambda conn, account, snap_time: captured.update({"conn": conn, "account": account, "snap_time": snap_time}),
+        lambda conn, account, snap_time, **_kwargs: captured.update(
+            {"conn": conn, "account": account, "snap_time": snap_time}
+        ),
     )
 
     cli_main.main()
@@ -118,7 +120,7 @@ def test_main_compare_strategies_dispatches(monkeypatch) -> None:
     monkeypatch.setattr(
         cli_main,
         "compare_strategies",
-        lambda conn, lookback: captured.update({"conn": conn, "lookback": lookback}),
+        lambda conn, lookback, **_kwargs: captured.update({"conn": conn, "lookback": lookback}),
     )
 
     cli_main.main()

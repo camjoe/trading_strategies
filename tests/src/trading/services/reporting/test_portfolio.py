@@ -13,7 +13,7 @@ def test_build_account_stats_uses_price_map(reporting_account, conn, monkeypatch
 
     monkeypatch.setattr(
         "trading.services.reporting.portfolio.fetch_latest_prices",
-        lambda _tickers: {"AAPL": 120.0},
+        lambda _tickers, **_kwargs: {"AAPL": 120.0},
     )
 
     state, prices, market_value, unrealized, equity = build_account_stats(conn, reporting_account)
@@ -34,7 +34,7 @@ def test_build_account_stats_ignores_positions_without_price(
 
     monkeypatch.setattr(
         "trading.services.reporting.portfolio.fetch_latest_prices",
-        lambda _tickers: {"AAPL": 120.0},
+        lambda _tickers, **_kwargs: {"AAPL": 120.0},
     )
 
     state, prices, market_value, unrealized, equity = build_account_stats(conn, reporting_account)
