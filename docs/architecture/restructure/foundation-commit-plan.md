@@ -116,10 +116,17 @@ nothing in `trading` constructs it.
 `backtesting/services/backtest_data_service`, `backtesting/services/execution_service`
 (feature provider), `apps/trends/data`.
 
-> **Status: B1a DONE** (commit `474e2d3`) — backtesting now injects the
-> market-data + feature providers via the `backtest.py` composition seam;
-> `get_provider()` fallback retained transitionally; gate green (98.14% cov).
-> **Next: B1b (pricing).**
+> **Status: B1 COMPLETE** — every market-data consumer is now injectable
+> (optional `provider`/`feature_provider` param, `get_provider()` fallback retained):
+> B1a backtesting (`474e2d3`), B1b-d pricing/reporting/auto_trading leaves (`97f6f80`),
+> B1e ProxyFeatureDataProvider constructor injection (`34d15d3`). Gate green throughout.
+> **Next: B2** — wire composition roots (web `Depends`, CLI, jobs, trends, backtest
+> seam) to resolve+inject the provider, then remove the fallbacks + global registry.
+> Remaining direct global calls: `apps/trends/data.py`, the 6 fallbacks, and the
+> `backtest.py` seam. **B2 is the wide step** (threads through analysis/auto_trading/
+> reporting service chains; expect test-double churn since many tests patch the leaf
+> functions positionally). B2 is the prerequisite for B3 (move concrete adapter +
+> factory to `src/infrastructure/market_data`, which is the actual goal).
 
 ### B1 — Thread DI area-by-area (concrete + registry stay in `trading`)
 One green commit per area; during this stage composition roots get the provider
