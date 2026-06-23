@@ -116,6 +116,11 @@ nothing in `trading` constructs it.
 `backtesting/services/backtest_data_service`, `backtesting/services/execution_service`
 (feature provider), `apps/trends/data`.
 
+> **Status: B1a DONE** (commit `474e2d3`) — backtesting now injects the
+> market-data + feature providers via the `backtest.py` composition seam;
+> `get_provider()` fallback retained transitionally; gate green (98.14% cov).
+> **Next: B1b (pricing).**
+
 ### B1 — Thread DI area-by-area (concrete + registry stay in `trading`)
 One green commit per area; during this stage composition roots get the provider
 from the existing `get_provider()` bridge (so behavior is unchanged):
