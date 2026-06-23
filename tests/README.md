@@ -149,8 +149,8 @@ python -m scripts.checks.run_suite trading/interfaces/runtime/jobs/daily
   - `tests/trading/services/evaluation/conftest.py` — `eval_account`
   - `tests/trading/services/promotion/conftest.py` — `promotion_account`
   - `tests/trading/services/admin/conftest.py` — `configured_backend`
-  - `tests/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
-  - `tests/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
+  - `tests/src/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
+  - `tests/src/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
   - `tests/trading/services/market_data/conftest.py` — provider reset per test
   - `tests/apps/paper_trading_web/conftest.py` — `api_client` with isolated DB backend
 

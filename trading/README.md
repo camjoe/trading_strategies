@@ -26,7 +26,7 @@ The `trading/` module handles:
 - A layered backbone for most runtime behavior:
   - `interfaces -> services -> repositories/domain -> database`
 - Explicit top-level bounded contexts where isolation is valuable:
-  - `trading/backtesting/`
+  - `src/trading/backtesting/`
   - `src/infrastructure/brokers/` (repo root — broker adapters)
   - `src/infrastructure/feature_providers/` (repo root — external-data feature providers)
 
@@ -91,7 +91,7 @@ source.
 - `trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
 - `trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
-- `trading/database/`: database infrastructure (schema init, backend, config, coercion).
+- `src/infrastructure/database/`: database infrastructure (schema init, backend, config).
 
 Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
 
