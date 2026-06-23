@@ -21,6 +21,11 @@ the same commit, finish with `python -m scripts.run_checks --profile quick` gree
 
 ## Group 0 — Relocate `trading/` → `src/trading/` (do this FIRST)
 
+> **Status: 0a + 0b DONE** — package relocated (`550a13d`), tests relocated to
+> `tests/src/trading/` with the `tests.trading` → `tests.src.trading` codemod and
+> the `tests/src` `__init__.py` chain completed. `run_checks --profile quick` green
+> (1952 passed, 98.13% cov). **Group A (reconcile docs) next.**
+
 `trading` is currently a **split namespace package** (root `trading/` +
 `src/trading/backtesting/`), which forces dual-path tooling (two `--cov` entries,
 split layer globs, `trading`+`src` targets). Consolidating it first removes that
