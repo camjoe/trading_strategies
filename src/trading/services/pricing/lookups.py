@@ -7,15 +7,20 @@ from datetime import date
 
 import pandas as pd
 
-from trading.services.market_data import get_provider
+from trading.services.market_data import MarketDataProvider, get_provider
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_latest_prices(tickers: list[str]) -> dict[str, float]:
+def fetch_latest_prices(
+    tickers: list[str],
+    *,
+    provider: MarketDataProvider | None = None,
+) -> dict[str, float]:
+    provider = provider or get_provider()
     prices: dict[str, float] = {}
     for ticker in tickers:
-        close = get_provider().fetch_close_series(ticker, "5d")
+        close = provider.fetch_close_series(ticker, "5d")
         if close is not None:
             prices[ticker] = float(close.iloc[-1])
     return prices
@@ -36,11 +41,14 @@ def benchmark_stats(
     benchmark_ticker: str,
     initial_cash: float,
     created_at: str,
+    *,
+    provider: MarketDataProvider | None = None,
 ) -> tuple[float | None, float | None]:
     ticker = benchmark_ticker.upper().strip()
     start = date.fromisoformat(created_at[:10])
     try:
-        close_history = get_provider().fetch_close_history([ticker], start, date.today())
+        active_provider = provider or get_provider()
+        close_history = active_provider.fetch_close_history([ticker], start, date.today())
         close = _extract_close_series(close_history, ticker)
     except Exception as exc:
         logger.warning("Failed to fetch benchmark data for %s: %s", benchmark_ticker, exc, exc_info=True)

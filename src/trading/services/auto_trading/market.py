@@ -5,14 +5,18 @@ from __future__ import annotations
 import logging
 
 from common.constants import ANNUALIZATION_FACTOR
-from trading.services.market_data import get_provider
+from trading.services.market_data import MarketDataProvider, get_provider
 
 logger = logging.getLogger(__name__)
 
 
-def build_iv_rank_proxy(universe: list[str]) -> dict[str, float]:
+def build_iv_rank_proxy(
+    universe: list[str],
+    *,
+    provider: MarketDataProvider | None = None,
+) -> dict[str, float]:
     vols: dict[str, float] = {}
-    provider = get_provider()
+    provider = provider or get_provider()
     for ticker in universe:
         try:
             close = provider.fetch_close_series(ticker, "1y")
