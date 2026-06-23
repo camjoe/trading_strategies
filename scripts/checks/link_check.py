@@ -48,6 +48,11 @@ IGNORED_DIR_PARTS = {
 # standard's documented exception); its example links are not repo paths.
 EXCLUDED_DOCS = ("docs/reference/agent-skills.md",)
 
+# Directory prefixes excluded from scanning. The restructure planning docs
+# intentionally reference forward-looking target paths (and illustrative `...`
+# paths) that do not exist until later migration steps land.
+EXCLUDED_DIR_PREFIXES = ("docs/architecture/restructure/",)
+
 
 @dataclass
 class BrokenRef:
@@ -71,7 +76,10 @@ def discover_docs(repo_root: Path) -> list[Path]:
     for candidate in repo_root.rglob("*.md"):
         if any(part in IGNORED_DIR_PARTS for part in candidate.parts):
             continue
-        if _rel_posix(candidate, repo_root) in EXCLUDED_DOCS:
+        rel = _rel_posix(candidate, repo_root)
+        if rel in EXCLUDED_DOCS:
+            continue
+        if any(rel.startswith(prefix) for prefix in EXCLUDED_DIR_PREFIXES):
             continue
         docs.append(candidate)
     return sorted(docs)

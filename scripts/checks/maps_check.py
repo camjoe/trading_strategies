@@ -34,6 +34,7 @@ SUBSECTION_RE = re.compile(r"\*\*[^*]+\*\*\s*\(`([\w./-]+?)/?`\)")
 
 # A token starting with one of these top-level dirs is already a full repo path (not section-relative).
 KNOWN_TOP_DIRS = (
+    "src",
     "trading",
     "brokers",
     "features",
