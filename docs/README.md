@@ -35,6 +35,9 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
 - [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
 - [`docs/architecture/architecture-conventions.md`](../docs/architecture/architecture-conventions.md) — authoritative layering and import boundary rules
+- [`architecture/restructure/target-structure.md`](architecture/restructure/target-structure.md) — target vertical-slice structure for the `src/` migration (Draft)
+- [`architecture/restructure/migration-runbook.md`](architecture/restructure/migration-runbook.md) — per-package move steps for the `src/` migration (Draft)
+- [`architecture/restructure/foundation-commit-plan.md`](architecture/restructure/foundation-commit-plan.md) — ordered commits for the boundary/infrastructure foundation phase (Draft)
 
 ## Maps (file/directory inventories)
 
