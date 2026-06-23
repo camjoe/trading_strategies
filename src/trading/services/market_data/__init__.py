@@ -8,6 +8,8 @@ from .protocols import FeatureDataProvider
 from .protocols import MarketDataProvider
 from .providers import YFinanceProvider
 from .providers import yf
+from .factory import build_feature_provider
+from .factory import build_provider
 from .registry import get_feature_provider
 from .registry import get_provider
 from .registry import get_provider_name
@@ -25,6 +27,8 @@ __all__ = [
     "ProxyFeatureDataProvider",
     "YFinanceProvider",
     "_MARKET_DATA_CACHE_TTL_SECONDS",
+    "build_feature_provider",
+    "build_provider",
     "get_feature_provider",
     "get_provider",
     "get_provider_name",
