@@ -74,13 +74,15 @@ apply here. No collision: `src/trading/` holds only `backtesting/` today.
 - (Layer check rules already repointed — done in a prior commit.)
 - **DoD:** docs match reality; `run_checks --profile quick` green.
 
-> **Status: A DONE (mechanical)** — codemod rewrote 395 path refs across ~40 docs;
-> `link_check` real residuals = 0 (remaining broken refs are forward-looking
-> targets inside these restructure docs). `architecture-conventions.md` ownership
-> map + dependency rules now read `src/trading/` and `src/infrastructure/`.
-> **Carve-out:** `docs/maps/trading-package-map.md` needs a content regeneration
-> (drop the now-misplaced `database` section, document the 152 current files) —
-> that's an `update-documentation` skill task, advisory, tracked separately.
+> **Status: A DONE** — codemod rewrote ~395 path refs across ~40 docs (`b8968ca`);
+> `architecture-conventions.md` ownership map + dependency rules now read
+> `src/trading/` and `src/infrastructure/`. Follow-up `d987079` fixed two CHECKER
+> bugs that the move exposed (not real drift): `maps_check` KNOWN_TOP_DIRS lacked
+> `src` (double-prefixed every `src/...` token → false "152 undocumented/158
+> stale"); `link_check` now skips the restructure planning docs (forward-looking
+> paths) and 4 README relative links were re-depthed. **All CI doc checks pass:
+> link_check 0 broken, maps_check in sync, db_schema pass.** No map content
+> regeneration was needed.
 
 ### A2 — Clear the mechanical doc-link drift (one consolidated pass)
 - Running after Group 0 lets this clear **all** path relocations at once. Apply across all docs (codemod or scripted):
@@ -93,42 +95,60 @@ apply here. No collision: `src/trading/` holds only `backtesting/` today.
 
 ---
 
-## Group B — Extract the market-data adapter to infrastructure
+## Group B — Extract the market-data adapter to infrastructure (full DI)
 
-This is the one genuine refactor in the phase (not just a move): the `yfinance`
-adapter must land in `src/infrastructure/market_data/` **without** `trading/`
-importing `infrastructure/`. It mirrors the existing brokers pattern (port in
-domain, adapter + factory in infrastructure, wired at the interface/composition
-layer). The existing `get_provider`/`set_provider` seam (registry.py:114-126) is
-the foundation to build on.
+Approach (ratified): **full dependency injection**, mirroring the brokers pattern
+(`broker_factory` callable injected from the interface layer into services). The
+`MarketDataProvider` flows from composition roots down to the 6 consumers; the
+global `get_provider()` locator is removed in the end state.
 
-**End state:**
-- `trading/.../market_data/protocols.py` — the **ports** (`MarketDataProvider`, `FeatureDataProvider` ABCs). Stays in the domain.
-- `trading/.../market_data/runtime.py` — the **holder**: `get_provider()/set_provider()/set_provider_by_name()` over a module-global typed as the port. No concrete imports, no import-time concrete default.
-- `src/infrastructure/market_data/providers.py` — `YFinanceProvider`, `UnavailableProvider` (imports `yfinance`; imports the port from trading — infra→domain is allowed).
-- `src/infrastructure/market_data/factory.py` — the `_PROVIDER_FACTORIES` name→class map + config/env resolution (`TRADING_MARKET_DATA_PROVIDER`, config file). Exposes `install_configured_provider()` that calls `set_provider(...)`.
-- Composition roots (CLI `main`, web app startup, runtime job runners, backtest entry) call `install_configured_provider()` once at startup.
+**Critical ordering lesson (learned the hard way):** the concrete adapter
+(`providers.py`) must move to `infrastructure` **LAST**. Moving it first creates a
+circular import — `infrastructure.market_data.providers` imports
+`trading.services.market_data.cache`, which triggers trading's package `__init__`,
+which (via `registry.py` / re-exports) imports back into the partially-initialized
+`infrastructure.market_data.providers`. So: thread DI while the concrete adapter
+**and** the global registry stay in `trading`, and only relocate the concrete once
+nothing in `trading` constructs it.
 
-### B1 — Split holder from factory, in place (no move yet)
-- Within `trading/.../market_data/`, separate `registry.py` into: a **holder** (`runtime.py`: get/set state, port-typed, no concrete imports) and the **factory** (keep temporarily as `_factory.py`, still importing concrete `providers.py`).
-- Replace the import-time concrete default with an explicit `install_configured_provider()` call; have the package `__init__` (or a temporary shim) call it so behavior is unchanged this commit.
-- **Gotcha:** preserve current "just works on import" behavior here so this commit is a pure internal refactor with all tests green. Drop the implicit default only in B2.
-- **DoD:** no public API change; `market_data` tests green.
+**Consumers to inject** (6 `get_provider()` + 1 `get_feature_provider()` site):
+`pricing/lookups`, `reporting/benchmark`, `auto_trading/market`,
+`backtesting/services/backtest_data_service`, `backtesting/services/execution_service`
+(feature provider), `apps/trends/data`.
 
-### B2 — Move the adapter + factory to infrastructure; wire composition
-- `git mv` concrete `providers.py` and `_factory.py` → `src/infrastructure/market_data/`. Rename `_factory.py` → `factory.py`.
-- Repoint the factory's port import to `trading.…market_data.protocols` (infra→domain, allowed).
-- Remove the implicit import-time default from `trading`; add `install_configured_provider()` calls at the composition roots (CLI main, web app lifespan/startup, job runners, backtest setup).
-- Drop the `YFinanceProvider`/`yf` re-exports from `trading/.../market_data/__init__.py`.
-- **Add a layer rule** (slice-aware or simple): `trading/**` must not import `infrastructure.market_data.` — parallel to the brokers/feature_providers rules. Add a unit test for it.
-- Codemod the few concrete-class import sites (package `__init__`, registry).
-- **Gotcha:** anything that previously relied on the import-time provider now needs an explicit install — that's the call-site work; CI will surface any entrypoint that forgot.
-- **DoD:** layer check enforces the new boundary; `run_checks --profile quick` green.
+### B1 — Thread DI area-by-area (concrete + registry stay in `trading`)
+One green commit per area; during this stage composition roots get the provider
+from the existing `get_provider()` bridge (so behavior is unchanged):
+- **B1a — backtesting**: add `provider`/`feature_provider` params to
+  `backtest_data_service` + `execution_service`; thread up through
+  `leaderboard_service`/`report_service`/`backtesting.__init__` to the backtest
+  entry points (web route `api_run_backtest`, CLI backtest commands, backtest jobs).
+- **B1b — pricing**: `fetch_latest_prices`/`benchmark_stats` ← thread through
+  `analysis/queries`, `auto_trading/inputs`/`rotation`, `reporting`.
+- **B1c — reporting**: `fetch_benchmark_close_history`/`build_live_benchmark_overlay`
+  ← thread through the web `accounts` route/services.
+- **B1d — auto_trading**: `build_iv_rank_proxy` ← `auto_trading/inputs`.
+- **B1e — feature provider**: inject the `FeatureDataProvider` into
+  `ProxyFeatureDataProvider.build_feature_bundle` / `execution_service` (it's a
+  second global, `get_feature_provider()`).
+- **DoD each:** that area no longer calls `get_provider()`/`get_feature_provider()`; `run_checks --profile quick` green.
 
-### B3 — Relocate market-data provider tests
-- `git mv tests/trading/services/market_data/test_providers.py` and `test_registry.py` → `tests/src/infrastructure/market_data/`, adjusting to the new import paths and to **install/inject a provider** rather than relying on the old import-time default (use `set_provider(fake)` in fixtures).
-- Add `__init__.py` through the new `tests/src/infrastructure/market_data/` chain.
-- **DoD:** market-data tests green at the new location; coverage still reports the adapter.
+### B2 — Wire composition roots; remove the global locator
+- Web app: provide the `MarketDataProvider` via FastAPI `Depends`. CLI / runtime
+  jobs / backtest entry / `trends`: construct once at entry and inject down.
+- Delete `get_provider`/`set_provider`/`registry` globals from `trading` once no
+  consumer references them.
+- **DoD:** no `get_provider()` references remain; gate green.
+
+### B3 — Relocate the concrete adapter + factory (now safe — no cycle)
+- `git mv` `providers.py` → `src/infrastructure/market_data/providers.py`; move the
+  `_PROVIDER_FACTORIES` map + config/env resolution into
+  `src/infrastructure/market_data/factory.py` (`build_provider(name=None)`).
+  The adapter imports the port + cache from `trading` (infra→domain, allowed).
+- Composition roots import `infrastructure.market_data.factory` to build the provider.
+- **Add a slice-aware layer rule**: `src/trading/** ↛ infrastructure.market_data.` (parallel to brokers/feature_providers) + a unit test.
+- `git mv` `test_providers.py`/`test_registry.py` → `tests/src/infrastructure/market_data/` (+ `__init__.py` chain), injecting fakes instead of the old import-time default.
+- **DoD:** layer check enforces the boundary; gate green; coverage still reports the adapter.
 
 ### B4 (optional) — Evaluate `cache.py`
 - Decide if `market_data/cache.py` is transport-level caching (→ infrastructure) or domain-object caching (→ stays). Move only if the former. Skip if ambiguous.
