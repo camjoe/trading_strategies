@@ -116,17 +116,25 @@ nothing in `trading` constructs it.
 `backtesting/services/backtest_data_service`, `backtesting/services/execution_service`
 (feature provider), `apps/trends/data`.
 
-> **Status: B1 COMPLETE** — every market-data consumer is now injectable
-> (optional `provider`/`feature_provider` param, `get_provider()` fallback retained):
-> B1a backtesting (`474e2d3`), B1b-d pricing/reporting/auto_trading leaves (`97f6f80`),
-> B1e ProxyFeatureDataProvider constructor injection (`34d15d3`). Gate green throughout.
-> **Next: B2** — wire composition roots (web `Depends`, CLI, jobs, trends, backtest
-> seam) to resolve+inject the provider, then remove the fallbacks + global registry.
-> Remaining direct global calls: `apps/trends/data.py`, the 6 fallbacks, and the
-> `backtest.py` seam. **B2 is the wide step** (threads through analysis/auto_trading/
-> reporting service chains; expect test-double churn since many tests patch the leaf
-> functions positionally). B2 is the prerequisite for B3 (move concrete adapter +
-> factory to `src/infrastructure/market_data`, which is the actual goal).
+> **Status: B1 + B2 COMPLETE.** B1 made every consumer injectable; B2 wired the
+> composition roots and **deleted the global locator**:
+> - B2a (`d4fef8c`) — added stateless `factory.py` builders
+>   (`build_provider`/`build_feature_provider`/`supported_provider_names`).
+> - B2b (`0bea8bf`) — trends + backtest seam build via the builders.
+> - B2c-1 (`67ea41b`) — provider injected through reporting/analysis chains + roots
+>   (CLI reporting deps via `partial`, web routes per-request).
+> - B2c-2 (`03f71aa`) — provider injected through the auto_trading + rotation chain
+>   from the `run_auto_trades` job root.
+> - B2d (`4fa05aa`) — deleted `registry.py` (get/set_provider, feature-provider
+>   globals, config hot-reload, import-time YFinanceProvider default); leaves now
+>   call `require_provider`/`require_feature_provider` guards. No `get_provider()`
+>   references remain in `trading`. Quick gate green throughout (1955 passed).
+>
+> Note: composition roots resolve the provider per entry (web routes build one per
+> request; the FastAPI `Depends` form in the B2 sketch below was not needed). The
+> test-double churn the plan anticipated landed in B2c–B2d.
+> **Next: B3** — move concrete adapter + factory to `src/infrastructure/market_data`,
+> add the `src/trading ↛ infrastructure.market_data` layer rule (the actual goal).
 
 ### B1 — Thread DI area-by-area (concrete + registry stay in `trading`)
 One green commit per area; during this stage composition roots get the provider
