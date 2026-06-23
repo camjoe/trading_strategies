@@ -89,7 +89,7 @@ class TestBacktestProxyFeatureFlow:
             assert "topic_proxy_rel_strength" in feature_history.columns
             return "hold"
 
-        monkeypatch.setattr(execution_service, "get_feature_provider", lambda: StubFeatureProvider())
+        monkeypatch.setattr(backtest_module, "build_feature_provider", lambda **_kwargs: StubFeatureProvider())
         monkeypatch.setattr(execution_service, "resolve_signal", fake_signal)
 
         backtest_module.run_backtest(

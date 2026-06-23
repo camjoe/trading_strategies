@@ -3,6 +3,7 @@ from apps.trends.cli import parse_args
 from apps.trends.data import fetch_data
 from apps.trends.indicators import add_trend_features, print_indicator_explanations
 from apps.trends.tickers import load_ticker_categories, resolve_tickers
+from trading.services.market_data import build_provider
 
 
 def main() -> None:
@@ -31,9 +32,10 @@ def main() -> None:
     if not show_chart:
         print("Batch mode: charts will be saved to disk without opening windows.")
 
+    provider = build_provider()
     for ticker in tickers:
         try:
-            data = fetch_data(ticker, args.period, args.interval, debug_columns=args.debug_columns)
+            data = fetch_data(ticker, args.period, args.interval, provider=provider, debug_columns=args.debug_columns)
             data = add_trend_features(data)
 
             print(f"\nTicker: {ticker}")

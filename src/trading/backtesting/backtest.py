@@ -5,7 +5,7 @@ from datetime import date
 
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import choose_buy_qty
-from trading.services.market_data import get_feature_provider, get_provider
+from trading.services.market_data import build_feature_provider, build_provider
 from trading.backtesting.trading_bridge import get_account
 from trading.backtesting.models import (
     BacktestBatchConfig,
@@ -156,10 +156,10 @@ def _insert_snapshot(
 
 
 def run_backtest(conn: sqlite3.Connection, cfg: BacktestConfig) -> BacktestResult:
-    # Composition seam: resolve the market-data + feature providers once for the
+    # Composition seam: build the market-data + feature providers once for the
     # run and inject them down the data path (no global access inside services).
-    provider = get_provider()
-    feature_provider = get_feature_provider()
+    provider = build_provider()
+    feature_provider = build_feature_provider(market_data_provider=provider)
     return run_backtest_impl(
         conn,
         cfg,

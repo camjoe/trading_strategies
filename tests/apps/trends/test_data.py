@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from apps.trends.data import fetch_data
+from trading.services.market_data import YFinanceProvider
 
 
 def test_fetch_data_flattens_multiindex_with_ticker_level(
@@ -26,7 +27,7 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(
 
     monkeypatch.setattr("trading.services.market_data.yf.download", lambda *args, **kwargs: df)
 
-    out = fetch_data("AAPL", period="1y", interval="1d")
+    out = fetch_data("AAPL", period="1y", interval="1d", provider=YFinanceProvider())
 
     assert "Close" in out.columns
     assert "Volume" in out.columns
@@ -41,4 +42,4 @@ def test_fetch_data_raises_for_empty_download(
     monkeypatch.setattr("trading.services.market_data.yf.download", lambda *args, **kwargs: pd.DataFrame())
 
     with pytest.raises(ValueError, match="No data returned"):
-        fetch_data("AAPL", period="1y", interval="1d")
+        fetch_data("AAPL", period="1y", interval="1d", provider=YFinanceProvider())
