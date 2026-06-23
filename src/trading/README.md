@@ -8,7 +8,7 @@ Provide the core runtime and tooling for paper trading, reporting, promotion rev
 
 ## Scope
 
-The `trading/` module handles:
+The `src/trading/` module handles:
 
 - Account lifecycle (create, configure, benchmark, profiles)
 - Trade simulation and position tracking
@@ -21,7 +21,7 @@ The `trading/` module handles:
 
 ## Architecture Shape
 
-`trading/` uses a **hybrid structure**:
+`src/trading/` uses a **hybrid structure**:
 
 - A layered backbone for most runtime behavior:
   - `interfaces -> services -> repositories/domain -> database`
@@ -30,7 +30,7 @@ The `trading/` module handles:
   - `src/infrastructure/brokers/` (repo root — broker adapters)
   - `src/infrastructure/feature_providers/` (repo root — external-data feature providers)
 
-`trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
+`src/trading/models/` is reserved for passive shared data contracts (`*Config`, `*Insert`, `*Record`, state/order models). Parsing and validation orchestration belongs in services/domain helpers.
 
 For the concise package map, see `docs/maps/trading-package-map.md`.
 For a task-oriented API reference ("what do I call to do X?"), see `docs/architecture/service-cookbook.md`.
@@ -81,19 +81,19 @@ python -m scripts.data_ops.backup_db
 python -m scripts.data_ops.export_db_csv
 ```
 
-Canonical admin/export modules live in `trading/interfaces/runtime/data_ops/`.
+Canonical admin/export modules live in `src/trading/interfaces/runtime/data_ops/`.
 The `scripts.data_ops.*` commands are convenience wrappers around those
 canonical runtime data-op modules and should not be treated as the ownership
 source.
 
 ## Script Boundaries
 
-- `trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
-- `trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
+- `src/trading/interfaces/runtime/jobs/`: direct runtime job entrypoints plus thin scheduler-install helpers.
+- `src/trading/interfaces/runtime/data_ops/`: operator-facing DB admin and export utilities.
 - `scripts/`: repository automation and CI/developer workflows.
 - `src/infrastructure/database/`: database infrastructure (schema init, backend, config).
 
-Use `trading/interfaces/runtime/jobs/` for schedulers and `trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
+Use `src/trading/interfaces/runtime/jobs/` for schedulers and `src/trading/interfaces/runtime/data_ops/` for operator-facing DB utilities.
 
 ### Runtime Script Catalog
 
@@ -123,7 +123,7 @@ Pass `--tickers-file` to use a non-default universe. Use `python -m trading.inte
 python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
 
 # S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file trading/config/trade_universe_sp500_broad.txt
+python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/trading/config/trade_universe_sp500_broad.txt
 ```
 
 For live broker accounts, each account run now reuses a single broker
@@ -209,7 +209,7 @@ Review requests freeze the current evaluation evidence into a durable record and
 ## Backtesting Notes
 
 - `python -m trading.interfaces.cli.main backtest-walk-forward-report --group-id <id>` shows persisted walk-forward group details and per-window summaries after a walk-forward run completes.
-- Daily recurring backtest refreshes are handled by `trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
+- Daily recurring backtest refreshes are handled by `src/trading/interfaces/runtime/jobs/daily/backtest_refresh.py`, which writes machine-readable artifacts to `local/exports/daily_backtest_refresh/`.
 
 ## Notes
 
@@ -244,8 +244,8 @@ CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 
 ## Boundary Snapshot
 
-- The CLI entry point is `trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `trading/interfaces/runtime/jobs/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.run_auto_trades`). There are no top-level facade modules in `trading/`.
-- SQL access is owned by repository modules under `trading/repositories/`.
-- Orchestration and composition are owned by service modules under `trading/services/`.
-- Policy logic is owned by domain modules under `trading/domain/`.
-- **External-data feature providers** live in `src/infrastructure/feature_providers/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `trading/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.
+- The CLI entry point is `src/trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `src/trading/interfaces/runtime/jobs/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.run_auto_trades`). There are no top-level facade modules in `src/trading/`.
+- SQL access is owned by repository modules under `src/trading/repositories/`.
+- Orchestration and composition are owned by service modules under `src/trading/services/`.
+- Policy logic is owned by domain modules under `src/trading/domain/`.
+- **External-data feature providers** live in `src/infrastructure/feature_providers/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `src/trading/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.

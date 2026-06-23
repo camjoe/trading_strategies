@@ -16,7 +16,7 @@ This repository provides tools for:
 | Folder | Purpose |
 |--------|---------|
 | `trends/` | Stock trends analysis and indicator calculations. |
-| `trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
+| `src/trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
 | `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
 | `.ai/agents/` | Repo-specific agent definitions for project-only execution flows. |
 | `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
@@ -75,7 +75,7 @@ See [docs/reference/backtesting.md](docs/reference/backtesting.md) for backtest,
 
 ### Paper Trading
 
-See [trading/README.md](trading/README.md) for paper trading commands, account profiles, and scheduler operations.
+See [src/trading/README.md](src/trading/README.md) for paper trading commands, account profiles, and scheduler operations.
 
 ### UI Dashboard
 

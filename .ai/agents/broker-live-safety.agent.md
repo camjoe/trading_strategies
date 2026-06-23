@@ -13,8 +13,8 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
 
 - Primary paths:
   - `src/infrastructure/brokers/`
-  - `trading/services/`
-  - `trading/interfaces/runtime/data_ops/`
+  - `src/trading/services/`
+  - `src/trading/interfaces/runtime/data_ops/`
   - `paper_trading_ui/backend/services/`
 - Canonical references:
   - `docs/architecture/architecture-conventions.md`
@@ -40,7 +40,7 @@ Run only the commands listed below. Do not run git commands.
 
 - `python -m scripts.run_checks --profile quick`
 - `python -m pytest tests/ -k "broker or live_trading or reconciliation"`
-- `python -m mypy brokers/ trading/services/ --ignore-missing-imports`
+- `python -m mypy brokers/ src/trading/services/ --ignore-missing-imports`
 
 ## Output Format
 

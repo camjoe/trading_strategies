@@ -9,9 +9,9 @@ Define and document repository-level automation commands for validation, data op
 ## Ownership Boundaries
 
 - `scripts/`: repository-level automation and developer workflows (CI smoke, docs checks, exports, launch helpers).
-- `trading/interfaces/runtime/jobs/`: trading runtime operations and scheduler tasks (daily trading, health checks, backup registration).
-- `trading/interfaces/runtime/data_ops/`: interactive/local database administration and export utilities.
-- `trading/database/`: database infrastructure only (schema, backend, config, coercion).
+- `src/trading/interfaces/runtime/jobs/`: trading runtime operations and scheduler tasks (daily trading, health checks, backup registration).
+- `src/trading/interfaces/runtime/data_ops/`: interactive/local database administration and export utilities.
+- `src/infrastructure/database/`: database infrastructure only (schema, backend, config, coercion).
 
 Keep new scripts in the narrowest folder that matches their purpose so runtime operations and maintenance tooling do not drift together.
 
@@ -83,16 +83,16 @@ python -m scripts.data_ops.export_db_csv --tables accounts,trades
 python -m scripts.data_ops.export_db_csv_zip
 ```
 
-Treat `trading/interfaces/runtime/data_ops/` as the canonical home for backup,
+Treat `src/trading/interfaces/runtime/data_ops/` as the canonical home for backup,
 export, and delete flows. The `scripts.data_ops.*` modules exist as convenience
 entrypoints, not as the primary ownership location.
 
 What should not go here:
 
-- Trading runtime schedulers and health checks belong in `trading/interfaces/runtime/jobs/`.
-- Interactive/local DB admin workflows belong in `trading/interfaces/runtime/data_ops/`.
+- Trading runtime schedulers and health checks belong in `src/trading/interfaces/runtime/jobs/`.
+- Interactive/local DB admin workflows belong in `src/trading/interfaces/runtime/data_ops/`.
 
-If a script changes trading runtime behavior, place it in `trading/interfaces/runtime/jobs/` and document it in `trading/README.md`.
+If a script changes trading runtime behavior, place it in `src/trading/interfaces/runtime/jobs/` and document it in `src/trading/README.md`.
 
 ## README Quality
 

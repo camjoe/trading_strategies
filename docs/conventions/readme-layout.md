@@ -54,7 +54,7 @@ Recommended section order:
 
 Examples in this repo:
 
-- `trading/README.md`
+- `src/trading/README.md`
 - `paper_trading_ui/README.md`
 - `trends/README.md`
 

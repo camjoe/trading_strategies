@@ -8,10 +8,10 @@ Purpose: Reference for backtesting commands, layering overview, and safeguards.
 Related: [ADR: Backtesting Layering](../adr/002-backtesting-layering.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Backtesting is implemented in:
-- `trading/backtesting/backtest.py`
-- `trading/backtesting/repositories/`
-- `trading/backtesting/services/`
-- `trading/backtesting/domain/`
+- `src/trading/backtesting/backtest.py`
+- `src/trading/backtesting/repositories/`
+- `src/trading/backtesting/services/`
+- `src/trading/backtesting/domain/`
 
 The module reuses account metadata from paper trading while storing run, trade, and equity history in dedicated backtest tables.
 
@@ -19,10 +19,10 @@ The module reuses account metadata from paper trading while storing run, trade, 
 
 Backtesting follows a layered structure:
 
-- Repositories (`trading/backtesting/repositories/`): SQL reads/writes only.
-- Services (`trading/backtesting/services/`): orchestration, model mapping, and workflow logic.
-- Domain (`trading/backtesting/domain/`): pure calculations and policy helpers.
-- Entrypoint (`trading/backtesting/backtest.py`): public API composition and call routing.
+- Repositories (`src/trading/backtesting/repositories/`): SQL reads/writes only.
+- Services (`src/trading/backtesting/services/`): orchestration, model mapping, and workflow logic.
+- Domain (`src/trading/backtesting/domain/`): pure calculations and policy helpers.
+- Entrypoint (`src/trading/backtesting/backtest.py`): public API composition and call routing.
 
 Detailed rationale is in:
 
@@ -80,7 +80,7 @@ Key behavior:
 
 Backtesting in this repository runs on the in-house engine under:
 
-- `trading/backtesting/`
+- `src/trading/backtesting/`
 
 Dependency definitions live in:
 

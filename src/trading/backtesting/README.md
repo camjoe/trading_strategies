@@ -43,7 +43,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
 4. `domain/strategy_signals.py` dispatches to signal functions; `strategy_style="alternative"` strategies receive an `ExternalFeatureBundle` from a `src/infrastructure/feature_providers/` provider rather than computing purely from price history.
-5. Typed models remain in `trading/models/` for shared contracts.
+5. Typed models remain in `src/trading/models/` for shared contracts.
 
 ## Workflows
 

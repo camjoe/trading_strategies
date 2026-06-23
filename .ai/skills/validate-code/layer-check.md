@@ -23,9 +23,9 @@ Layer check always runs first in `pr_ready`.
 
 ## What it checks
 
-- Imports in `trading/interfaces/` do not reach into `trading/repositories/` or `trading/database/` directly.
-- `trading/services/` does not import from `trading/interfaces/`.
-- `trading/repositories/` does not import from `trading/services/` or `trading/interfaces/`.
+- Imports in `src/trading/interfaces/` do not reach into `src/trading/repositories/` or `src/infrastructure/database/` directly.
+- `src/trading/services/` does not import from `src/trading/interfaces/`.
+- `src/trading/repositories/` does not import from `src/trading/services/` or `src/trading/interfaces/`.
 
 Rules are defined in `docs/architecture/architecture-conventions.md`.
 

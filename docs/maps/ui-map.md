@@ -23,7 +23,7 @@ Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. 
 
 ### Routes (`routes/`)
 
-FastAPI routers. One file per logical domain. Routes call backend services; they do not call `trading/` directly.
+FastAPI routers. One file per logical domain. Routes call backend services; they do not call `src/trading/` directly.
 
 | Module | Endpoints |
 |---|---|
@@ -50,14 +50,14 @@ Pydantic request/response models. These define the API contract with the fronten
 
 ### Services (`services/`)
 
-Backend service layer — bridges routes to `trading/` package calls.
+Backend service layer — bridges routes to `src/trading/` package calls.
 
 | Module | Responsibility |
 |---|---|
 | `db.py` | DB connection/session management for the UI backend |
 | `accounts/` | Account data assembly (summaries, snapshots, detail) |
 | `admin.py` | Admin operation service |
-| `backtests.py` | Backtesting service (delegates to `trading/backtesting/`) |
+| `backtests.py` | Backtesting service (delegates to `src/trading/backtesting/`) |
 | `exports.py` | Data export assembly |
 | `features/` | Feature/signal data service |
 | `ibkr_paper_monitor.py` | IBKR monitor artifact assembly |
@@ -199,4 +199,4 @@ Static JSON assets consumed by the in-app docs renderer.
 
 - [`docs/architecture/nav-guide.md`](../architecture/nav-guide.md) — Task-oriented lookup for where to edit UI code
 - [`docs/architecture/service-cookbook.md`](../architecture/service-cookbook.md) — Backend service API reference
-- `docs/architecture/architecture-conventions.md` — Import boundary rules (backend must not import from `trading/interfaces/`)
+- `docs/architecture/architecture-conventions.md` — Import boundary rules (backend must not import from `src/trading/interfaces/`)

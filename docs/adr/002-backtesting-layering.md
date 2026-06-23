@@ -43,7 +43,7 @@ Adopt a layered structure for backtesting:
 Use these docs for the current module map and ownership locations:
 
 - `docs/reference/backtesting.md`
-- `trading/backtesting/README.md`
+- `src/trading/backtesting/README.md`
 
 This ADR intentionally records the decision and guardrails, not a volatile file inventory.
 

@@ -18,7 +18,7 @@ python -m scripts.checks.run_suite --no-cov --base develop   # faster, skip cove
 To target a specific suite explicitly:
 
 ```
-python -m scripts.checks.run_suite trading/services/accounting
+python -m scripts.checks.run_suite src/trading/services/accounting
 python -m scripts.checks.run_suite all
 ```
 

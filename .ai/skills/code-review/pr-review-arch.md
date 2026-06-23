@@ -14,7 +14,7 @@ Scope: branch diff only (`git diff --name-only <base>...HEAD`). Do not expand to
 3. **Wrong-layer logic** — business rules in repositories, data access in services, HTTP concerns leaking into domain code.
 4. **New abstractions** — is a new base class, mixin, or protocol being introduced? Does it belong in this layer?
 
-Read `docs/architecture/architecture-conventions.md` before reviewing `trading/`.
+Read `docs/architecture/architecture-conventions.md` before reviewing `src/trading/`.
 
 ## Severity
 
@@ -24,8 +24,8 @@ Read `docs/architecture/architecture-conventions.md` before reviewing `trading/`
 ## Output format
 
 ```
-VIOLATION | trading/services/foo.py:42 | Service imports from interface layer (SomeRouter)
-CONCERN   | trading/repositories/bar.py:18 | Business logic in repository method; consider moving to service
+VIOLATION | src/trading/services/foo.py:42 | Service imports from interface layer (SomeRouter)
+CONCERN   | src/trading/repositories/bar.py:18 | Business logic in repository method; consider moving to service
 ```
 
 One line per finding. File and line required. No findings → `Architecture: Clean`.

@@ -4,12 +4,12 @@ Type: map
 Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-17
-Purpose: Explain the trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement.
+Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement.
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
 ## Purpose
 
-Explain the top-level `trading/` structure as a **hybrid architecture**:
+Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 
 - A horizontal layered backbone for runtime application behavior.
 - A few explicit bounded contexts kept top-level because they encapsulate unique workflows or external integrations.
@@ -18,36 +18,36 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 
 ### Layered Backbone
 
-- `trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
-- `trading/services/`: orchestration/composition workflows
-- `trading/repositories/`: SQL persistence adapters
-- `trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
-- `trading/database/`: DB infrastructure/config/coercion
-- `trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
+- `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
+- `src/trading/services/`: orchestration/composition workflows
+- `src/trading/repositories/`: SQL persistence adapters
+- `src/trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
+- `src/infrastructure/database/`: DB infrastructure/config/coercion
+- `src/trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
 - `src/infrastructure/config/`: static file-backed configuration assets
 
 ### Bounded Contexts
 
-- `trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
-- `src/infrastructure/brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`trading/interfaces/`); `trading/` must never import from `src/infrastructure/brokers/` except at the interface layer
+- `src/trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
+- `src/infrastructure/brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`src/trading/interfaces/`); `src/trading/` must never import from `src/infrastructure/brokers/` except at the interface layer
 - `src/infrastructure/feature_providers/` (repo root): external-data feature-provider boundary for alternative strategies
 
 ## Placement Rules
 
 - Use the layered backbone by default.
 - Use top-level bounded contexts only when isolation materially improves clarity and safety.
-- Keep `trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
+- Keep `src/trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
 - Avoid adding facades that only forward imports unless they are deliberate public entrypoints.
 
 ## Module Directory
 
 One-liner per module. For layering rules, allowed imports, and placement decisions see the sections above and `docs/architecture/architecture-conventions.md`.
 
-### `trading/interfaces/`
+### `src/trading/interfaces/`
 
 Entry points and transport. Nothing below this layer should know about CLI args, HTTP, or scheduled job runners.
 
-**CLI** (`trading/interfaces/cli/`)
+**CLI** (`src/trading/interfaces/cli/`)
 
 | Module | Responsibility |
 |---|---|
@@ -63,7 +63,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `handlers/shared.py` | Shared handler utilities |
 | `main.py` | CLI entry point (`@click.group`) |
 
-**Runtime jobs** (`trading/interfaces/runtime/jobs/`)
+**Runtime jobs** (`src/trading/interfaces/runtime/jobs/`)
 
 | Module | Responsibility |
 |---|---|
@@ -90,14 +90,14 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `run_auto_trades.py` | Auto-trade execution runner |
 | `scheduler_installer.py` | Scheduler installation logic |
 
-**Runtime data ops** (`trading/interfaces/runtime/data_ops/`)
+**Runtime data ops** (`src/trading/interfaces/runtime/data_ops/`)
 
 | Module | Responsibility |
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
 
-**Runtime (shared)** (`trading/interfaces/runtime/`)
+**Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
 | Module | Responsibility |
 |---|---|
@@ -106,9 +106,9 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 ---
 
-### `trading/services/`
+### `src/trading/services/`
 
-Orchestration and composition. Calls repositories and domain; never builds SQL or imports from `trading/database/` directly (see `runtime_loader.py` exception below).
+Orchestration and composition. Calls repositories and domain; never builds SQL or imports from `src/infrastructure/database/` directly (see `runtime_loader.py` exception below).
 
 | Module | Responsibility |
 |---|---|
@@ -174,7 +174,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 ---
 
-### `trading/repositories/`
+### `src/trading/repositories/`
 
 SQL persistence adapters only. Each file owns one logical data area. Builds SQL internally; callers pass plain data, not SQL fragments.
 
@@ -201,7 +201,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 
 ---
 
-### `trading/domain/`
+### `src/trading/domain/`
 
 Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/O, no SQL, no service calls.
 
@@ -225,9 +225,9 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 ---
 
-### `trading/database/`
+### `src/infrastructure/database/`
 
-DB infrastructure. Only `trading/repositories/` and the documented `runtime_loader.py` exception should import from here.
+DB infrastructure. Only `src/trading/repositories/` and the documented `runtime_loader.py` exception should import from here.
 
 | Module | Responsibility |
 |---|---|
@@ -240,7 +240,7 @@ DB infrastructure. Only `trading/repositories/` and the documented `runtime_load
 
 ---
 
-### `trading/models/`
+### `src/trading/models/`
 
 Passive data contracts. No business logic, no I/O.
 
@@ -268,7 +268,7 @@ Passive data contracts. No business logic, no I/O.
 
 ---
 
-### `trading/backtesting/` (bounded context)
+### `src/trading/backtesting/` (bounded context)
 
 Self-contained backtest subsystem with its own layered sub-packages.
 

@@ -13,10 +13,10 @@ Define the concrete sleeve table and index contract for the IBKR paper autonomy 
 
 ## Migration Approach
 
-1. Add new table and index DDL to `trading/database/schema.py`.
+1. Add new table and index DDL to `src/infrastructure/database/schema.py`.
 2. Keep schema changes additive-only.
-3. Reuse existing init flow in `trading/database/init.py`.
-4. Use `ColumnMigration` tuples in `trading/database/migrations.py` only for future additive column evolutions on sleeve tables.
+3. Reuse existing init flow in `src/infrastructure/database/init.py`.
+4. Use `ColumnMigration` tuples in `src/infrastructure/database/migrations.py` only for future additive column evolutions on sleeve tables.
 5. Do not introduce a separate migration system.
 
 ## Table Contracts

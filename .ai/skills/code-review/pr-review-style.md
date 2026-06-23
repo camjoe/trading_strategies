@@ -27,8 +27,8 @@ Read `docs/conventions/general-style.md` and `docs/conventions/python-style.md` 
 ## Output format
 
 ```
-BLOCKER  | trading/services/foo.py:15 | Public method `do_thing` has no docstring
-ADVISORY | trading/services/foo.py:62 | Variable `d` is ambiguous; prefer `duration_seconds`
+BLOCKER  | src/trading/services/foo.py:15 | Public method `do_thing` has no docstring
+ADVISORY | src/trading/services/foo.py:62 | Variable `d` is ambiguous; prefer `duration_seconds`
 ```
 
 One line per finding. No findings → `Style: Clean`.

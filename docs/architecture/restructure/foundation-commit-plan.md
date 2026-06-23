@@ -74,6 +74,14 @@ apply here. No collision: `src/trading/` holds only `backtesting/` today.
 - (Layer check rules already repointed — done in a prior commit.)
 - **DoD:** docs match reality; `run_checks --profile quick` green.
 
+> **Status: A DONE (mechanical)** — codemod rewrote 395 path refs across ~40 docs;
+> `link_check` real residuals = 0 (remaining broken refs are forward-looking
+> targets inside these restructure docs). `architecture-conventions.md` ownership
+> map + dependency rules now read `src/trading/` and `src/infrastructure/`.
+> **Carve-out:** `docs/maps/trading-package-map.md` needs a content regeneration
+> (drop the now-misplaced `database` section, document the 152 current files) —
+> that's an `update-documentation` skill task, advisory, tracked separately.
+
 ### A2 — Clear the mechanical doc-link drift (one consolidated pass)
 - Running after Group 0 lets this clear **all** path relocations at once. Apply across all docs (codemod or scripted):
   - `trading/{domain,interfaces,models,repositories,services}/` → `src/trading/...` (from Group 0)

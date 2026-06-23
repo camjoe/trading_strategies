@@ -16,7 +16,7 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 
 ## Scope guidance
 
-- Use for Python-only cleanup in `trading/` or `paper_trading_ui/backend/`.
+- Use for Python-only cleanup in `src/trading/` or `paper_trading_ui/backend/`.
 - Use for frontend-only cleanup in `paper_trading_ui/frontend/`.
 - Use for mixed backend and frontend refactors when the primary goal is cleanup rather than contract debugging.
 
@@ -25,14 +25,14 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 - Do not change business or user-visible behavior unless requested.
 - Do not add abstraction for its own sake.
 - Do not loosen types to make refactors easier.
-- Read `docs/architecture/architecture-conventions.md` before editing `trading/`.
+- Read `docs/architecture/architecture-conventions.md` before editing `src/trading/`.
 
 ## Repo references
 
 - `docs/architecture/architecture-conventions.md`
 - `docs/conventions/general-style.md`
 - `docs/conventions/python-style.md`
-- `trading/`
+- `src/trading/`
 - `paper_trading_ui/backend/`
 - `paper_trading_ui/frontend/`
 - Python tests under `tests/`

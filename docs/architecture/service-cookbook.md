@@ -13,7 +13,7 @@ Answer the question: **"Which function do I call to do X?"**
 
 This is a task-oriented companion to [trading-package-map.md](../maps/trading-package-map.md),
 which covers structural conventions.  Use this guide when writing CLI commands,
-runtime jobs, or new UI backend routes that need to reach into `trading/services/`.
+runtime jobs, or new UI backend routes that need to reach into `src/trading/services/`.
 
 ---
 
@@ -218,7 +218,7 @@ These live as **flat service modules** (single files, not packages) — import t
 - ❌ Domain calculations, business rules, or data assembly
 
 If a calculation would be useful to a CLI command or a runtime job, it belongs
-in `trading/services/` — not in the UI backend.  See
+in `src/trading/services/` — not in the UI backend.  See
 `docs/architecture/architecture-conventions.md` for the full rule.
 
 ---

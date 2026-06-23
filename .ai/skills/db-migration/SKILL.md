@@ -43,7 +43,7 @@ Handles the full lifecycle of a schema change: design → validate → risk chec
 
 ## Repo references
 
-- `trading/database/schema.py`
-- `trading/database/migrations.py`
-- `trading/database/init.py`
+- `src/infrastructure/database/schema.py`
+- `src/infrastructure/database/migrations.py`
+- `src/infrastructure/database/init.py`
 - `docs/architecture/architecture-conventions.md`

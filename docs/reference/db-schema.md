@@ -4,12 +4,12 @@ Type: notes
 Status: Active
 Created: 2026-06-16
 Last Reviewed: 2026-06-19
-Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read trading/database/db_schema.py directly.
+Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read src/infrastructure/database/db_schema.py directly.
 Related: [DB Migration System](db-migration-system.md), [Accounts Schema Usage](accounts-schema-usage.md)
 
 **Sources of truth:**
-- `trading/database/schema.py` — CREATE TABLE statements (organized by table as named constants)
-- `trading/database/migrations.py` — ColumnMigration additions (append-only column history)
+- `src/infrastructure/database/schema.py` — CREATE TABLE statements (organized by table as named constants)
+- `src/infrastructure/database/migrations.py` — ColumnMigration additions (append-only column history)
 - `local/paper_trading.db` — live SQLite database
 
 All timestamps are stored as ISO 8601 strings with UTC `Z` suffix (e.g. `2026-01-20T12:00:00Z`).  

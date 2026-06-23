@@ -11,8 +11,8 @@ Your job is to improve and explain backtesting workflows while keeping evaluatio
 
 ## Scope
 
-- `trading/backtesting/`
-- `trading/interfaces/cli/`
+- `src/trading/backtesting/`
+- `src/trading/interfaces/cli/`
 - `paper_trading_ui/backend/`
 - `paper_trading_ui/frontend/`
 - `docs/architecture/architecture-conventions.md`
@@ -39,7 +39,7 @@ Your job is to improve and explain backtesting workflows while keeping evaluatio
 - `python -m trading.interfaces.cli.main backtest-walk-forward-report --help`
 - `python -m scripts.run_checks --profile quick`
 - `python -m pytest tests/ -k "backtest or walk_forward or leaderboard"`
-- `python -m mypy trading/backtesting/ paper_trading_ui/backend --ignore-missing-imports`
+- `python -m mypy src/trading/backtesting/ paper_trading_ui/backend --ignore-missing-imports`
 
 ## Output
 

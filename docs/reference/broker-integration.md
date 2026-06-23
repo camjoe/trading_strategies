@@ -35,14 +35,14 @@ Supported `accounts.broker_type` values:
 
 Key files:
 
-- `trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`trading/models/broker_order.py`)
+- `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/broker_order.py`)
 - `src/infrastructure/brokers/paper_adapter.py`: paper execution adapter
 - `src/infrastructure/brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
 - `src/infrastructure/brokers/ib_web_adapter.py`: broker adapter backed by Web API client
 - `src/infrastructure/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
 - `src/infrastructure/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
 - `src/infrastructure/brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
-- `trading/repositories/broker_orders.py`: persisted broker-order state
+- `src/trading/repositories/broker_orders.py`: persisted broker-order state
 
 ## Account Fields and Routing
 
@@ -163,7 +163,7 @@ Safety notes for optional paper-order check:
 
 Runtime execution opens one broker connection per account loop in:
 
-- `trading/services/auto_trading/runtime.py`
+- `src/trading/services/auto_trading/runtime.py`
 
 Open-order reconciliation is handled by:
 
@@ -197,12 +197,12 @@ When adding a new broker:
 1. implement adapter under `src/infrastructure/brokers/`
 2. add broker-type routing in `src/infrastructure/brokers/factory.py`
 3. update account `broker_type` constraints/docs
-4. add tests under `tests/brokers/` and related runtime tests
+4. add tests under `tests/src/infrastructure/brokers/` and related runtime tests
 5. update this document
 
 ## Related References
 
-- `trading/README.md`
+- `src/trading/README.md`
 - `scripts/README.md`
 - `docs/reference/accounts-schema-usage.md`
 - `docs/architecture/architecture-conventions.md`

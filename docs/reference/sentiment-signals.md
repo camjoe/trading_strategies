@@ -32,14 +32,14 @@ Strategy catalog details (all strategy families) live in:
 
 Signal dispatch and registration:
 
-- `trading/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
+- `src/trading/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
   `resolve_signal()` dispatch.
 - The three alternative strategies above are registered with
   `strategy_style="alternative"`.
 
 Provider boundary:
 
-- `trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
+- `src/trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
   `ExternalFeatureBundle`.
 - Concrete providers:
   - `src/infrastructure/feature_providers/policy_provider.py`
@@ -49,7 +49,7 @@ Provider boundary:
 
 Market-data dependency:
 
-- `trading/services/market_data/registry.py` resolves the configured market-data
+- `src/trading/services/market_data/registry.py` resolves the configured market-data
   provider.
 - Alternative providers consume market/news/social data through their own
   provider logic; strategy functions consume normalized bundles only.
@@ -64,7 +64,7 @@ Degradation contract:
 
 Rotation overlays:
 
-- `trading/services/auto_trading/rotation.py` applies news/social overlay votes
+- `src/trading/services/auto_trading/rotation.py` applies news/social overlay votes
   when `rotation_overlay_mode` is enabled.
 - Overlay coverage uses the union of current holdings and
   `rotation_overlay_watchlist`.
@@ -90,5 +90,5 @@ Still out of scope for the current implementation:
 
 - `docs/reference/strategies.md`
 - `docs/reference/backtesting.md`
-- `trading/README.md`
+- `src/trading/README.md`
 - `docs/architecture/architecture-conventions.md`

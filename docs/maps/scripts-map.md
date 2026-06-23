@@ -32,9 +32,9 @@ Individual check modules. Each is also usable directly.
 | `ci.py` | CI profile definition (all checks) |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import boundary enforcement — verifies layering rules (services → no database imports, etc.) |
-| `mypy_check.py` | Mypy type-check runner (`trading/` + `paper_trading_ui/backend/`) |
+| `mypy_check.py` | Mypy type-check runner (`src/trading/` + `paper_trading_ui/backend/`) |
 | `pytest_check.py` | Pytest runner (full suite) |
-| `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `trading/services/reporting`) |
+| `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |
 | `readme_check.py` | README freshness checker — flags docs older than a configurable age threshold |
 | `maps_check.py` | Map drift checker — flags modules on disk missing from (or stale in) the structural maps; advisory |
 | `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
@@ -44,7 +44,7 @@ Individual check modules. Each is also usable directly.
 
 **Run a targeted suite:**
 ```
-python -m scripts.checks.run_suite trading/services/reporting --no-cov
+python -m scripts.checks.run_suite src/trading/services/reporting --no-cov
 ```
 
 **Run checks:**

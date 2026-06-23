@@ -19,7 +19,7 @@ python -m scripts.checks.pr_ready --base <ref>
 
 ## What it checks
 
-Runs mypy over `trading/` and `paper_trading_ui/backend/`. Reports type errors with file, line, and error code.
+Runs mypy over `src/trading/` and `paper_trading_ui/backend/`. Reports type errors with file, line, and error code.
 
 ## On failure
 

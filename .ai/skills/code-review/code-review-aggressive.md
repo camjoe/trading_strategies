@@ -48,7 +48,7 @@ Automatically switch to deep mode when any of these are touched:
 
 - `AGENTS.md`
 - `docs/architecture/architecture-conventions.md`
-- `trading/database/*` for schema and migration safety
+- `src/infrastructure/database/*` for schema and migration safety
 - Repo validation commands from `scripts/run_checks.py` and `scripts/checks/`
 
 ## Expected output

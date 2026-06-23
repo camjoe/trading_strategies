@@ -24,8 +24,8 @@ Scope: branch diff only. Focus on structural and design quality — not style, n
 ## Output format
 
 ```
-BLOCKER  | trading/services/foo.py:88 | Function handles 3 unrelated concerns; split into separate helpers
-ADVISORY | trading/services/foo.py:120 | New `BaseProcessor` pattern not needed; `FooProcessor` could be a plain function
+BLOCKER  | src/trading/services/foo.py:88 | Function handles 3 unrelated concerns; split into separate helpers
+ADVISORY | src/trading/services/foo.py:120 | New `BaseProcessor` pattern not needed; `FooProcessor` could be a plain function
 ```
 
 One line per finding. No findings → `Quality: Clean`.

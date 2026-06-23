@@ -30,7 +30,7 @@ Use this skill when frontend and backend changes must agree on one contract.
 - `paper_trading_ui/backend/services/`
 - `paper_trading_ui/backend/schemas/`
 - `paper_trading_ui/frontend/src/`
-- `trading/` modules that should own canonical business behavior
+- `src/trading/` modules that should own canonical business behavior
 - `paper_trading_ui/README.md`
 
 ## Expected output

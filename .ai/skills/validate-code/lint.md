@@ -16,8 +16,8 @@ Runs ruff lint and ruff format check. Does not auto-fix. Reports each violation 
 To auto-fix (only when explicitly asked):
 
 ```
-.venv/Scripts/python.exe -m ruff check --fix trading/ paper_trading_ui/backend/
-.venv/Scripts/python.exe -m ruff format trading/ paper_trading_ui/backend/
+.venv/Scripts/python.exe -m ruff check --fix src/trading/ paper_trading_ui/backend/
+.venv/Scripts/python.exe -m ruff format src/trading/ paper_trading_ui/backend/
 ```
 
 ## Frontend — eslint + tsc

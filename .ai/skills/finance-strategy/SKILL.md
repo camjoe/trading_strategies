@@ -23,8 +23,8 @@ Use this skill for domain explanation, not for personalized investing advice.
 
 ## Repo references
 
-- `trading/domain/`
-- `trading/backtesting/`
+- `src/trading/domain/`
+- `src/trading/backtesting/`
 - Domain notes under `docs/reference/`
 
 ## Expected output

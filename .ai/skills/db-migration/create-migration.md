@@ -7,7 +7,7 @@ description: Creates a new ColumnMigration entry for the trading SQLite database
 
 ## What to produce
 
-A `ColumnMigration` entry ready to append to the migrations tuple in `trading/database/migrations.py`.
+A `ColumnMigration` entry ready to append to the migrations tuple in `src/infrastructure/database/migrations.py`.
 
 ## Workflow
 
@@ -35,7 +35,7 @@ A `ColumnMigration` entry ready to append to the migrations tuple in `trading/da
 ## Output
 
 ```python
-# Append to COLUMN_MIGRATIONS in trading/database/migrations.py
+# Append to COLUMN_MIGRATIONS in src/infrastructure/database/migrations.py
 ColumnMigration(
     table_name="<table>",
     column_name="<column>",
@@ -48,5 +48,5 @@ Plus the matching line in `SCHEMA_SQL` in `schema.py`.
 
 ## Repo references
 
-- `trading/database/migrations.py`
-- `trading/database/schema.py`
+- `src/infrastructure/database/migrations.py`
+- `src/infrastructure/database/schema.py`

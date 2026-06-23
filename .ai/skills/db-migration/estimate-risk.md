@@ -16,7 +16,7 @@ description: Estimates the blast radius and risk of a proposed schema migration 
 4. **Backward compatibility** — does any existing query, service, or repository SELECT * or rely on column order? SQLite adds columns at the end; named column access is safe, positional access is not.
 
 5. **Backtest impact** — does this column appear in any backtesting query, report payload, or leaderboard metric? If so, historical backtest results may need re-evaluation.
-   - Check `trading/backtesting/` for references to the affected table.
+   - Check `src/trading/backtesting/` for references to the affected table.
    - Check `paper_trading_ui/backend/` for report payloads that query this table.
 
 6. **Rollback complexity** — SQLite has limited ALTER TABLE support. Dropping a column requires table recreation. Note this before applying.
@@ -29,7 +29,7 @@ Estimated rows:      <count or "unknown — check manually">
 Backfill required:   Yes / No
 Index recommended:   Yes (<column> on <table>) / No
 Backward compatible: Yes / No (explain if No)
-Backtest impact:     None / Possible — check trading/backtesting/<area>
+Backtest impact:     None / Possible — check src/trading/backtesting/<area>
 Rollback complexity: Low (no data change) / Medium (backfill) / High (table recreation needed)
 
 Risk level: LOW / MEDIUM / HIGH
@@ -38,6 +38,6 @@ Proceed recommendation: <one sentence>
 
 ## Repo references
 
-- `trading/database/schema.py`
-- `trading/backtesting/`
+- `src/infrastructure/database/schema.py`
+- `src/trading/backtesting/`
 - `paper_trading_ui/backend/`

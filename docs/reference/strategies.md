@@ -16,7 +16,7 @@ checklist for research/backtesting flows.
 
 Canonical strategy registration lives in:
 
-- `trading/domain/strategy_signals.py` (`STRATEGY_REGISTRY`)
+- `src/trading/domain/strategy_signals.py` (`STRATEGY_REGISTRY`)
 
 ## Strategy Families
 
@@ -49,7 +49,7 @@ Canonical strategy registration lives in:
 ## Strategy Resolution Behavior
 
 Resolution is handled by `resolve_strategy(...)` in
-`trading/domain/strategy_signals.py`.
+`src/trading/domain/strategy_signals.py`.
 
 Order of resolution:
 
@@ -111,4 +111,4 @@ Use this checklist when proposing new strategies:
 
 - `docs/reference/backtesting.md`
 - `docs/reference/sentiment-signals.md`
-- `trading/backtesting/README.md`
+- `src/trading/backtesting/README.md`

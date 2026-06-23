@@ -1,5 +1,5 @@
 ---
-description: "Use when working on paper-trading runtime jobs, scheduler operations, account lifecycle flows, runtime health checks, or operational debugging in trading/interfaces/runtime and adjacent services."
+description: "Use when working on paper-trading runtime jobs, scheduler operations, account lifecycle flows, runtime health checks, or operational debugging in src/trading/interfaces/runtime and adjacent services."
 name: "Trading Runtime Investigator"
 tools: [read, search, edit, execute, todo]
 argument-hint: "Describe the runtime workflow, target command or job, affected accounts, and the symptom or change you need."
@@ -12,14 +12,14 @@ Your job is to work on runtime execution flows across the trading CLI, scheduler
 ## Local scope
 
 - Primary paths:
-  - `trading/interfaces/cli/`
-  - `trading/interfaces/runtime/jobs/`
-  - `trading/interfaces/runtime/data_ops/`
-  - `trading/services/`
-  - `trading/repositories/`
+  - `src/trading/interfaces/cli/`
+  - `src/trading/interfaces/runtime/jobs/`
+  - `src/trading/interfaces/runtime/data_ops/`
+  - `src/trading/services/`
+  - `src/trading/repositories/`
 - Canonical references:
   - `docs/architecture/architecture-conventions.md`
-  - `trading/README.md`
+  - `src/trading/README.md`
   - `docs/reference/broker-integration.md`
 
 ## Responsibilities

@@ -18,7 +18,7 @@ Use this skill when the task is primarily about structure rather than implementa
 
 - Focus on architecture, not style.
 - Do not excuse boundary violations just because tests pass.
-- Read the repo's architecture conventions before editing `trading/`.
+- Read the repo's architecture conventions before editing `src/trading/`.
 
 ## Repo references
 

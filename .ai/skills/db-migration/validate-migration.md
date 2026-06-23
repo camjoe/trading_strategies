@@ -35,7 +35,7 @@ If `post_sql` is not `None`, check whether it runs `UPDATE` or `DELETE` on exist
 
 ```
 python -m pytest tests/ -k "db or migration or schema" -x --no-cov
-python -m mypy trading/database/ --ignore-missing-imports
+python -m mypy src/infrastructure/database/ --ignore-missing-imports
 ```
 
 ## Output
@@ -55,6 +55,6 @@ Verdict: ✅ Safe to apply / 🟡 Apply with caution / ❌ Block
 
 ## Repo references
 
-- `trading/database/migrations.py`
-- `trading/database/schema.py`
-- `trading/database/init.py`
+- `src/infrastructure/database/migrations.py`
+- `src/infrastructure/database/schema.py`
+- `src/infrastructure/database/init.py`
