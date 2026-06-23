@@ -183,9 +183,11 @@ def test_run_maps_check_advisory_returns_zero_on_real_repo() -> None:
 
 
 def test_cli_enforce_exits_nonzero_on_drift(tmp_path: Path) -> None:
-    _write(tmp_path / "docs/maps/trading-package-map.md", "### `trading/services/`\n| `accounts/queries.py` | x |\n")
-    _write(tmp_path / "trading/services/accounts/queries.py")
-    _write(tmp_path / "trading/services/orphan.py")  # undocumented -> drift
+    _write(
+        tmp_path / "docs/maps/trading-package-map.md", "### `src/trading/services/`\n| `accounts/queries.py` | x |\n"
+    )
+    _write(tmp_path / "src/trading/services/accounts/queries.py")
+    _write(tmp_path / "src/trading/services/orphan.py")  # undocumented -> drift
 
     result = subprocess.run(
         [sys.executable, "-m", "scripts.checks.maps_check", "--repo-root", str(tmp_path), "--enforce"],

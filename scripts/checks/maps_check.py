@@ -62,11 +62,11 @@ IGNORED_DIR_PARTS = {
 MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         "docs/maps/trading-package-map.md",
-        "trading",
+        "src/trading",
         (
-            "trading/backtesting/domain",
-            "trading/backtesting/repositories",
-            "trading/backtesting/services",
+            "src/trading/backtesting/domain",
+            "src/trading/backtesting/repositories",
+            "src/trading/backtesting/services",
             "src/infrastructure/config",
         ),
     ),

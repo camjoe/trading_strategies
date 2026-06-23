@@ -62,16 +62,16 @@ LAYER_RULES: list[LayerRule] = [
     ),
     LayerRule(
         label="trading/services → no direct database imports",
-        source_glob="trading/services/**/*.py",
+        source_glob="src/trading/services/**/*.py",
         forbidden_prefixes=("infrastructure.database.",),
         # runtime_loader.py is the deliberate exception: its sole purpose is to
         # open a DB connection for runtime job runners that don't have an injected
         # connection.  All other service modules must route through repositories.
-        exceptions=("trading/services/accounts/runtime_loader.py",),
+        exceptions=("src/trading/services/accounts/runtime_loader.py",),
     ),
     LayerRule(
         label="trading/services → no interface-layer imports",
-        source_glob="trading/services/**/*.py",
+        source_glob="src/trading/services/**/*.py",
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
@@ -81,17 +81,17 @@ LAYER_RULES: list[LayerRule] = [
     ),
     LayerRule(
         label="trading/domain → no repository imports",
-        source_glob="trading/domain/**/*.py",
+        source_glob="src/trading/domain/**/*.py",
         forbidden_prefixes=("trading.repositories.",),
     ),
     LayerRule(
         label="trading/domain → no database imports",
-        source_glob="trading/domain/**/*.py",
+        source_glob="src/trading/domain/**/*.py",
         forbidden_prefixes=("infrastructure.database.",),
     ),
     LayerRule(
         label="trading/repositories → no interface imports",
-        source_glob="trading/repositories/**/*.py",
+        source_glob="src/trading/repositories/**/*.py",
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
