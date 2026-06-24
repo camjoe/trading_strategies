@@ -38,13 +38,12 @@ Documentation page workflows:
 
 Software (`scripts/documentation_ui/software/`):
 
-- `build_registry.py`: rebuilds `paper_trading_ui/frontend/src/assets/software.json` from `requirements-base.txt` and `requirements-dev.txt` while preserving curated package purposes.
-- `sync_ui_docs.py`: syncs the Software card's Key Python Packages tables in the UI docs page from `paper_trading_ui/frontend/src/assets/software.json`.
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/software.json` from `requirements-base.txt` and `requirements-dev.txt` while preserving curated package purposes.
 - `check.py`: standalone sync check that validates requirements and UI docs match the canonical software registry.
 
 API Reference (`scripts/documentation_ui/api/`):
 
-- `build_registry.py`: rebuilds `paper_trading_ui/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
 
 Reference orchestration (`scripts/documentation_ui/`):
 

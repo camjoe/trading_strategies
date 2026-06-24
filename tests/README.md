@@ -55,7 +55,7 @@ python -m scripts.checks.run_suite src/trading/services/market_data src/trading/
 python -m scripts.checks.run_suite src/trading/backtesting
 python -m scripts.checks.run_suite src/trading/repositories
 python -m scripts.checks.run_suite src/trading/interfaces
-python -m scripts.checks.run_suite paper_trading_ui
+python -m scripts.checks.run_suite apps/paper_trading_web
 python -m scripts.checks.run_suite common
 ```
 
@@ -193,7 +193,7 @@ this may result in unpredictable behaviour
 Use `run_module_as_main(module.__name__)` from `loaders.py` instead of calling `runpy.run_module` directly. It temporarily pops the module from `sys.modules`, runs it as `__main__`, then restores it — so subsequent tests in the same worker see the original (monkeypatched) module object:
 
 ```python
-from tests.trading.interfaces.runtime.jobs.loaders import (
+from tests.src.trading.interfaces.runtime.jobs.loaders import (
     some_module as module,
     run_module_as_main,
 )

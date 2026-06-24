@@ -19,8 +19,8 @@ Provide a local dashboard and API for paper-trading operations, including:
 Copy the example env files once before first run:
 
 ```sh
-cp paper_trading_ui/backend/.env.example paper_trading_ui/backend/.env
-cp paper_trading_ui/frontend/.env.example paper_trading_ui/frontend/.env
+cp apps/paper_trading_web/backend/.env.example apps/paper_trading_web/backend/.env
+cp apps/paper_trading_web/frontend/.env.example apps/paper_trading_web/frontend/.env
 ```
 
 Backend env supports `CORS_ORIGINS` and `LOGS_DIR`. Frontend env supports `VITE_API_BASE` (default `http://127.0.0.1:8000`).
@@ -40,13 +40,13 @@ This keeps both attached to your terminal. Press `Ctrl+C` to stop both. Defaults
 Backend:
 
 ```sh
-uvicorn paper_trading_ui.backend.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn paper_trading_web.backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Frontend:
 
 ```sh
-cd paper_trading_ui/frontend
+cd apps/paper_trading_web/frontend
 npm install
 npm run dev
 ```
@@ -105,11 +105,11 @@ npm run dev
 
 - `GET /health`
 
-For the complete, always-current route list (including backtesting endpoints), see `paper_trading_ui/backend/main.py`.
+For the complete, always-current route list (including backtesting endpoints), see `apps/paper_trading_web/backend/main.py`.
 
 ## Request Schemas
 
-Key account/admin and feature schemas in `paper_trading_ui/backend/schemas/`:
+Key account/admin and feature schemas in `apps/paper_trading_web/backend/schemas/`:
 
 | Schema | Fields | Used by |
 |--------|--------|---------|
@@ -123,10 +123,10 @@ Key account/admin and feature schemas in `paper_trading_ui/backend/schemas/`:
 
 ## Backend Boundary Notes
 
-- Route modules under `paper_trading_ui/backend/routes/` should stay thin and delegate DB mutations to backend service helpers.
-- Backend service modules now live under `paper_trading_ui/backend/services/`.
-- Admin account creation is handled by `create_account_with_rotation()` in `paper_trading_ui/backend/services/admin.py`. This function absorbs `AccountAlreadyExistsError` from the trading domain and re-raises it as `ValueError`; HTTP-layer translation (400 vs 409 etc.) stays in the route handler, not the service.
-- Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `paper_trading_ui/backend/services/admin.py`.
+- Route modules under `apps/paper_trading_web/backend/routes/` should stay thin and delegate DB mutations to backend service helpers.
+- Backend service modules now live under `apps/paper_trading_web/backend/services/`.
+- Admin account creation is handled by `create_account_with_rotation()` in `apps/paper_trading_web/backend/services/admin.py`. This function absorbs `AccountAlreadyExistsError` from the trading domain and re-raises it as `ValueError`; HTTP-layer translation (400 vs 409 etc.) stays in the route handler, not the service.
+- Admin account deletion now delegates to canonical runtime data-ops (`trading.interfaces.runtime.data_ops.admin`) through `apps/paper_trading_web/backend/services/admin.py`.
 - New UI/backend code should use canonical runtime data-ops modules (`trading.interfaces.runtime.data_ops.*`).
 - Account snapshot history and recent backtest-run list queries are exposed through backend service helpers instead of inline route SQL. Account-name and account-row access now use canonical trading service names directly (`fetch_accounts`, `list_names`) — local wrapper aliases were removed in the boundary refactor.
 - Managed-account listing and latest-backtest lookup in backend account services are routed through trading repository adapters.

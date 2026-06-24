@@ -15,9 +15,11 @@ This repository provides tools for:
 
 | Folder | Purpose |
 |--------|---------|
-| `trends/` | Stock trends analysis and indicator calculations. |
-| `src/trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
-| `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
+| `apps/trends/` | Stock trends analysis and indicator calculations. |
+| `src/trading/` | Core trading logic: accounts, pricing, orders, reporting, backtesting. |
+| `src/infrastructure/` | Concrete adapters isolated from the domain: brokers, market-data, feature providers, database. |
+| `src/common/` | Shared kernel utilities used across packages (coercion, constants, paths, tickers, time). |
+| `apps/paper_trading_web/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
 | `.ai/agents/` | Repo-specific agent definitions for project-only execution flows. |
 | `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
@@ -89,10 +91,10 @@ Or start each service separately (required when using the Python debugger — se
 
 ```sh
 # Terminal 1 — FastAPI backend (no --reload so pdb stdin works)
-python -m uvicorn paper_trading_ui.backend.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn paper_trading_web.backend.main:app --host 127.0.0.1 --port 8000
 
 # Terminal 2 — Vite frontend dev server
-cd paper_trading_ui/frontend
+cd apps/paper_trading_web/frontend
 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
