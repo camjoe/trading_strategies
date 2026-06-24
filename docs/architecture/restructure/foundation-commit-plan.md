@@ -181,8 +181,20 @@ from the existing `get_provider()` bridge (so behavior is unchanged):
 > domain — the yfinance dependency lives only in `src/infrastructure/market_data/`,
 > wired at composition seams. Stop-and-reassess point reached (see Order & checkpoints).
 
-### B4 (optional) — Evaluate `cache.py`
-- Decide if `market_data/cache.py` is transport-level caching (→ infrastructure) or domain-object caching (→ stays). Move only if the former. Skip if ambiguous.
+### B4 — Evaluate `cache.py` (+ package tidy) — **DONE (`81d159c`, `8b7cce6`)**
+- `cache.py` was transport-level caching (pickles raw fetch DataFrames to disk
+  with a TTL, used only by the concrete adapter) → `git mv` to
+  `src/infrastructure/market_data/cache.py`; the adapter imports it as a sibling
+  and the last infra→trading upward import is gone. Dropped the now-unused
+  `_MARKET_DATA_CACHE_TTL_SECONDS` + `Path` re-exports from the trading facade.
+- `market_hours.py` was misfiled under market_data — it's pure NYSE trading-calendar
+  policy (no I/O) → `git mv` to `src/trading/domain/market_hours.py` (fits the domain
+  layer; consumed by the auto_trading runtime guard, service→domain).
+- The trading-side `services/market_data/` package is now exactly the
+  `MarketDataProvider` port (`protocols.py`), the proxy feature provider
+  (`features.py`), and the feature builder (`factory.py`) — no transport or
+  calendar details remain.
+- **DoD met:** quick gate green (1957 passed, 98.14% cov); layer check clean.
 
 ---
 
