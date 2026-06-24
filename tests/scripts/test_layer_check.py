@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.checks.layer_check import LayerRule, check_rule, run_layer_check
+from scripts.checks.layer_check import LAYER_RULES, LayerRule, check_rule, run_layer_check
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -98,6 +98,39 @@ def test_check_rule_skips_syntax_errors_gracefully(tmp_path: Path) -> None:
         forbidden_prefixes=("trading.database.",),
     )
     violations = check_rule(tmp_path, rule)
+    assert violations == []
+
+
+# ---------------------------------------------------------------------------
+# Market-data adapter boundary rule
+# ---------------------------------------------------------------------------
+
+
+def _market_data_rule() -> LayerRule:
+    rule = next(
+        (r for r in LAYER_RULES if r.forbidden_prefixes == ("infrastructure.market_data.",)),
+        None,
+    )
+    assert rule is not None, "Expected a layer rule forbidding infrastructure.market_data imports in src/trading"
+    return rule
+
+
+def test_trading_must_not_import_market_data_adapter(tmp_path: Path) -> None:
+    src = tmp_path / "src" / "trading" / "services" / "pricing"
+    src.mkdir(parents=True)
+    _write_py(src, "lookups.py", "from infrastructure.market_data.factory import build_provider\n")
+
+    violations = check_rule(tmp_path, _market_data_rule())
+    assert len(violations) == 1
+    assert violations[0].import_text == "infrastructure.market_data.factory"
+
+
+def test_backtest_seam_may_import_market_data_adapter(tmp_path: Path) -> None:
+    seam = tmp_path / "src" / "trading" / "backtesting"
+    seam.mkdir(parents=True)
+    _write_py(seam, "backtest.py", "from infrastructure.market_data.factory import build_provider\n")
+
+    violations = check_rule(tmp_path, _market_data_rule())
     assert violations == []
 
 

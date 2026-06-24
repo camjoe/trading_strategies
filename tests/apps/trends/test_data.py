@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from apps.trends.data import fetch_data
-from trading.services.market_data import YFinanceProvider
+from infrastructure.market_data import YFinanceProvider
 
 
 def test_fetch_data_flattens_multiindex_with_ticker_level(
@@ -25,7 +25,7 @@ def test_fetch_data_flattens_multiindex_with_ticker_level(
         columns=columns,
     )
 
-    monkeypatch.setattr("trading.services.market_data.yf.download", lambda *args, **kwargs: df)
+    monkeypatch.setattr("infrastructure.market_data.yf.download", lambda *args, **kwargs: df)
 
     out = fetch_data("AAPL", period="1y", interval="1d", provider=YFinanceProvider())
 
@@ -39,7 +39,7 @@ def test_fetch_data_raises_for_empty_download(
     tmp_path,
 ) -> None:
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
-    monkeypatch.setattr("trading.services.market_data.yf.download", lambda *args, **kwargs: pd.DataFrame())
+    monkeypatch.setattr("infrastructure.market_data.yf.download", lambda *args, **kwargs: pd.DataFrame())
 
     with pytest.raises(ValueError, match="No data returned"):
         fetch_data("AAPL", period="1y", interval="1d", provider=YFinanceProvider())

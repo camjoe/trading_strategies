@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from trading.services.market_data import build_provider
+from infrastructure.market_data.factory import build_provider
 from trading.services.reporting import snapshot_account
 
 from ..services.accounts.data_access import require_account_row

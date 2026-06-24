@@ -9,8 +9,8 @@ from infrastructure.feature_providers.news_provider import NewsFeatureProvider
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
 from infrastructure.feature_providers.social_provider import SocialFeatureProvider
 from infrastructure.database.init import ensure_db
+from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.services.market_data import build_provider
 from trading.services.auto_trading import (
     EXECUTION_MODE_ACCOUNT,
     EXECUTION_MODE_SLEEVE,

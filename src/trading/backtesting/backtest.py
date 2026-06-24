@@ -5,7 +5,8 @@ from datetime import date
 
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import choose_buy_qty
-from trading.services.market_data import build_feature_provider, build_provider
+from infrastructure.market_data.factory import build_provider
+from trading.services.market_data import build_feature_provider
 from trading.backtesting.trading_bridge import get_account
 from trading.backtesting.models import (
     BacktestBatchConfig,

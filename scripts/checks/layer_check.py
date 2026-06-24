@@ -95,6 +95,20 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
+        label="trading → no direct market-data adapter imports (wire at composition roots)",
+        source_glob="src/trading/**/*.py",
+        forbidden_prefixes=("infrastructure.market_data.",),
+        # The concrete adapter + factory are wired in at composition seams only:
+        # the interface layer (CLI / runtime jobs) and the backtest entry seam.
+        # All other trading code depends on the MarketDataProvider port + an
+        # injected instance, never the concrete adapter.
+        exceptions=(
+            "src/trading/interfaces/cli/main.py",
+            "src/trading/interfaces/runtime/jobs/run_auto_trades.py",
+            "src/trading/backtesting/backtest.py",
+        ),
+    ),
+    LayerRule(
         label="apps/paper_trading_web/routes → no direct feature-provider imports",
         source_glob="apps/paper_trading_web/backend/routes/**/*.py",
         forbidden_prefixes=("infrastructure.feature_providers.",),

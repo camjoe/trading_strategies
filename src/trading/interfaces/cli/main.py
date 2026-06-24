@@ -22,7 +22,7 @@ from trading.services.promotion import (
     show_promotion_review_history,
     show_promotion_status,
 )
-from trading.services.market_data import build_provider
+from infrastructure.market_data.factory import build_provider
 from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 
 

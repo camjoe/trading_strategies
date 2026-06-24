@@ -24,8 +24,9 @@ Top-level package shape is intentionally **hybrid**:
 
 1. The layered backbone above applies to main runtime behavior.
 2. Selected bounded contexts remain top-level when their ownership is distinct
-   (`src/trading/backtesting`); broker adapters live at the repo-root `src/infrastructure/brokers/` package and
-   external feature providers live at the repo-root `src/infrastructure/feature_providers/` package.
+   (`src/trading/backtesting`); broker adapters live at the repo-root `src/infrastructure/brokers/` package,
+   external feature providers live at the repo-root `src/infrastructure/feature_providers/` package, and the
+   concrete market-data adapter + factory live at the repo-root `src/infrastructure/market_data/` package.
 3. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
 
 ## Allowed and Disallowed Dependencies
@@ -93,6 +94,18 @@ Disallowed:
    - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
    - `src/trading/` must never import from `src/infrastructure/brokers/`; the interface layer (`src/trading/interfaces/`) is the sole wiring point.
+
+12. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
+   - Keep the `yfinance` SDK import inside this package (`providers.py`).
+   - Service and domain layers must depend only on the `MarketDataProvider` port from
+     `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.
+   - The factory (`src/infrastructure/market_data/factory.py`) is the sole location for `provider` routing
+     (env/config resolution) and concrete-adapter construction (`build_provider`).
+   - `src/trading/` must never import from `src/infrastructure/market_data/`; the interface layer
+     (`src/trading/interfaces/`) and the backtest composition seam (`src/trading/backtesting/backtest.py`)
+     are the only wiring points. This boundary is enforced by `scripts/checks/layer_check.py`.
+   - The feature provider (`ProxyFeatureDataProvider`) stays in `src/trading/services/market_data/` — it is a
+     trading-domain computation over an injected market-data provider, with no external-library dependency.
 
 ## External Data Strategies
 

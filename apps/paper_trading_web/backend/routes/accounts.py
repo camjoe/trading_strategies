@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from infrastructure.market_data.factory import build_provider
 from trading.services.accounting import list_account_trades
 from trading.services.accounts import list_account_snapshots
-from trading.services.market_data import build_provider
 
 from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command

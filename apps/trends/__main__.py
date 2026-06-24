@@ -3,7 +3,7 @@ from apps.trends.cli import parse_args
 from apps.trends.data import fetch_data
 from apps.trends.indicators import add_trend_features, print_indicator_explanations
 from apps.trends.tickers import load_ticker_categories, resolve_tickers
-from trading.services.market_data import build_provider
+from infrastructure.market_data.factory import build_provider
 
 
 def main() -> None:
