@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from trading.services.market_data.cache import (
+from infrastructure.market_data.cache import (
     market_data_cache_dir,
     market_data_cache_disabled,
     market_data_cache_key,

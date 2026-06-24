@@ -7,11 +7,12 @@ from typing import NoReturn
 import pandas as pd
 import yfinance as yf
 
-from trading.services.market_data.cache import _CACHE_MISS
-from trading.services.market_data.cache import market_data_cache_key
-from trading.services.market_data.cache import read_market_data_cache
-from trading.services.market_data.cache import write_market_data_cache
 from trading.services.market_data.protocols import MarketDataProvider
+
+from .cache import _CACHE_MISS
+from .cache import market_data_cache_key
+from .cache import read_market_data_cache
+from .cache import write_market_data_cache
 
 logger = logging.getLogger(__name__)
 
