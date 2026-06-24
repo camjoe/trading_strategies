@@ -59,6 +59,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
 - [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
 - [`conventions/reference-doc.md`](conventions/reference-doc.md) — standard structure for reference notes
+- [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles + deferred doc-tooling backlog
 
 ## Runbooks
 
