@@ -212,7 +212,11 @@ You need `run_module_as_main` when **both** of these are true:
 
 All other layers (`services/`, `repositories/`, `domain/`) never have `__main__` entrypoints, so `runpy.run_module` — and therefore this pattern — only appears under `tests/src/trading/interfaces/`.
 
+## UI Backend HTTP Tests
 
+API-route tests under `tests/apps/paper_trading_web/backend/routes/` (via the `api_client` fixture) are the primary HTTP coverage surface for the web backend.
+
+Historical caveat: a past regression sweep hit hangs in the **synchronous FastAPI route-dispatch path** that reproduced even for a minimal app and even through `httpx.ASGITransport` (a minimal *async* app worked). The takeaway if HTTP-style hangs ever resurface: the cause is environmental sync-route execution, not Starlette's `TestClient` alone — investigate that rather than rewriting the shared `api_client` fixture, since a fixture-level workaround would spread a bad assumption across the whole UI backend suite.
 
 ## Audit Notes
 
