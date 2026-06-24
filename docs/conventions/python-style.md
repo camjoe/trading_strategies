@@ -8,7 +8,7 @@ Purpose: Project-specific interpretation of PEP 8, covering indentation, imports
 Related: [Doc Header Standard](doc-header.md)
 
 This guide is the project-specific interpretation of [PEP 8](https://peps.python.org/pep-0008/).
-It applies to all Python under `src/trading/`, `paper_trading_ui/backend/`, `scripts/`, `common/`, and `tests/`.
+It applies to all Python under `src/trading/`, `paper_trading_ui/backend/`, `scripts/`, `src/common/`, and `tests/`.
 
 When PEP 8 is ambiguous or offers options, this guide picks one. Project rules take precedence over vanilla PEP 8.
 Automated enforcement uses `ruff` (see [Enforcement](#enforcement) below).

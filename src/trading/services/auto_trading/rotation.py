@@ -152,8 +152,7 @@ def _classify_social_overlay_vote(
     trend_score = coerce_float(bundle.get(SOCIAL_TREND_SCORE))
     mention_count = coerce_float(bundle.get(SOCIAL_MENTION_COUNT))
     reddit_sentiment = coerce_float(bundle.get(SOCIAL_REDDIT_SENTIMENT))
-    missing_social_inputs = trend_score is None or mention_count is None or reddit_sentiment is None
-    if missing_social_inputs:
+    if trend_score is None or mention_count is None or reddit_sentiment is None:
         return None
     has_bullish_trend = trend_score >= SOCIAL_TREND_BUY_THRESHOLD
     has_social_coverage = mention_count > 0

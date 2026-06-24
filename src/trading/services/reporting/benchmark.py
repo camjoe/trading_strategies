@@ -145,12 +145,12 @@ def build_live_benchmark_overlay(
     if len(points) < 2:
         return None
 
-    benchmark_equity = coerce_float(points[-1]["benchmarkEquity"])
+    ending_benchmark_equity = coerce_float(points[-1]["benchmarkEquity"])
     account_ending_equity = coerce_float(points[-1]["accountEquity"])
-    if benchmark_equity is None or account_ending_equity is None:
+    if ending_benchmark_equity is None or account_ending_equity is None:
         return None
     account_return_pct = ((account_ending_equity / starting_equity) - 1.0) * 100.0
-    benchmark_return_pct = ((benchmark_equity / starting_equity) - 1.0) * 100.0
+    benchmark_return_pct = ((ending_benchmark_equity / starting_equity) - 1.0) * 100.0
     alpha_pct = account_return_pct - benchmark_return_pct
     return {
         "benchmark": ticker,
@@ -158,7 +158,7 @@ def build_live_benchmark_overlay(
         "endTime": str(points[-1]["time"]),
         "startingEquity": starting_equity,
         "endingEquity": account_ending_equity,
-        "benchmarkEquity": benchmark_equity,
+        "benchmarkEquity": ending_benchmark_equity,
         "accountReturnPct": account_return_pct,
         "benchmarkReturnPct": benchmark_return_pct,
         "alphaPct": alpha_pct,

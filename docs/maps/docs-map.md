@@ -22,7 +22,7 @@ Directory of all documentation files across the repository. Use this to audit fo
 | `tests/` | Test suite; mirrors the source tree path-for-path |
 | `scripts/` | Dev and ops tooling — checks, data ops, documentation sync, UI launcher |
 | `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
-| `common/` | Shared utilities available to all packages (used sparingly) |
+| `src/common/` | Shared utilities available to all packages (used sparingly) |
 | `trends/` | Trend/signal data assets |
 | `.github/` | Bot instructions, architecture conventions, style guide, and skill definitions |
 

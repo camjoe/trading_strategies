@@ -15,11 +15,9 @@
 #   - the `pythonpath = apps src` line in pytest.ini
 #   - the sys.path bootstrap in scripts/__init__.py
 #
-# `common` is NOT covered here on purpose: it lives at the repo root, which is
-# already on sys.path in every context (pytest's rootdir insertion and
-# `python -m`'s working directory), so it needs no help. When `trading` is
-# later moved under src/, it is discovered automatically — no change needed
-# here (re-run `pip install -e .` once so the editable finder learns it).
+# `trading` and `common` now live under `src/` and are discovered automatically
+# by the package finder below (re-run `pip install -e .` once after relocating a
+# package so the editable finder learns it).
 #
 # Runtime/third-party dependencies are NOT duplicated here — they remain owned
 # by requirements-base.txt / requirements-dev.txt. Install those as usual:
