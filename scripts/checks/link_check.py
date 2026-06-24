@@ -48,10 +48,9 @@ IGNORED_DIR_PARTS = {
 # standard's documented exception); its example links are not repo paths.
 EXCLUDED_DOCS = ("docs/reference/agent-skills.md",)
 
-# Directory prefixes excluded from scanning. The restructure planning docs
-# intentionally reference forward-looking target paths (and illustrative `...`
-# paths) that do not exist until later migration steps land.
-EXCLUDED_DIR_PREFIXES = ("docs/architecture/restructure/",)
+# Directory prefixes excluded from scanning. (None currently — the restructure
+# planning docs that needed this were retired once the migration completed.)
+EXCLUDED_DIR_PREFIXES: tuple[str, ...] = ()
 
 
 @dataclass

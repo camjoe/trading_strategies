@@ -49,8 +49,8 @@ Provider boundary:
 
 Market-data dependency:
 
-- `src/trading/services/market_data/registry.py` resolves the configured market-data
-  provider.
+- `src/infrastructure/market_data/factory.py` resolves and builds the configured
+  market-data provider (injected at composition seams; no global locator).
 - Alternative providers consume market/news/social data through their own
   provider logic; strategy functions consume normalized bundles only.
 
