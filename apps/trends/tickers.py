@@ -1,19 +1,6 @@
 from pathlib import Path
-from common.tickers import load_tickers_from_file as _load_tickers_from_file
-from common.tickers import parse_ticker_tokens as _parse_ticker_tokens
-from common.tickers import load_ticker_categories as _load_ticker_categories
 
-
-def parse_ticker_tokens(text: str) -> list[str]:
-    return _parse_ticker_tokens(text)
-
-
-def load_tickers_from_file(file_path: str) -> list[str]:
-    return _load_tickers_from_file(file_path)
-
-
-def load_ticker_categories(file_path: str) -> dict[str, list[str]]:
-    return _load_ticker_categories(file_path)
+from common.tickers import load_ticker_categories, load_tickers_from_file
 
 
 def resolve_tickers(args: object) -> list[str]:
