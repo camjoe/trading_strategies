@@ -210,7 +210,7 @@ These live as **flat service modules** (single files, not packages) — import t
 
 ## UI Backend boundary rule
 
-`paper_trading_ui/backend/services/` is a **transport-only** layer.
+`apps/paper_trading_web/backend/services/` is a **transport-only** layer.
 
 - ✅ HTTP request → domain model conversion
 - ✅ FastAPI error handling (`raise HTTPException`)

@@ -201,7 +201,7 @@ Domain naming:
 
 ## UI Backend Boundary Rule
 
-`paper_trading_ui/backend/services/` is a **transport-only** layer.
+`apps/paper_trading_web/backend/services/` is a **transport-only** layer.
 
 It must contain only:
 - HTTP request → domain model conversion
@@ -219,7 +219,7 @@ Domain logic belongs in `src/trading/`.  If a calculation is needed by any inter
 the result for the HTTP response.
 
 Violation example: settlement-corrected equity math or benchmark return
-calculations in `paper_trading_ui/backend/services/accounts/` — these were
+calculations in `apps/paper_trading_web/backend/services/accounts/` — these were
 migrated to `src/trading/services/reporting/` and must not be re-introduced into
 the UI backend layer.
 

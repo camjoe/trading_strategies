@@ -40,7 +40,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 ## Maps (file/directory inventories)
 
 - [`maps/trading-package-map.md`](maps/trading-package-map.md) — `src/trading/` module directory and layering rules
-- [`maps/ui-map.md`](maps/ui-map.md) — `paper_trading_ui/` backend and frontend structure
+- [`maps/ui-map.md`](maps/ui-map.md) — `apps/paper_trading_web/` backend and frontend structure
 - [`maps/scripts-map.md`](maps/scripts-map.md) — `scripts/` tooling inventory
 - [`maps/docs-map.md`](maps/docs-map.md) — documentation file inventory
 

@@ -17,7 +17,7 @@ description: Estimates the blast radius and risk of a proposed schema migration 
 
 5. **Backtest impact** — does this column appear in any backtesting query, report payload, or leaderboard metric? If so, historical backtest results may need re-evaluation.
    - Check `src/trading/backtesting/` for references to the affected table.
-   - Check `paper_trading_ui/backend/` for report payloads that query this table.
+   - Check `apps/paper_trading_web/backend/` for report payloads that query this table.
 
 6. **Rollback complexity** — SQLite has limited ALTER TABLE support. Dropping a column requires table recreation. Note this before applying.
 
@@ -40,4 +40,4 @@ Proceed recommendation: <one sentence>
 
 - `src/infrastructure/database/schema.py`
 - `src/trading/backtesting/`
-- `paper_trading_ui/backend/`
+- `apps/paper_trading_web/backend/`

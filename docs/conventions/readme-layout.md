@@ -55,8 +55,8 @@ Recommended section order:
 Examples in this repo:
 
 - `src/trading/README.md`
-- `paper_trading_ui/README.md`
-- `trends/README.md`
+- `apps/paper_trading_web/README.md`
+- `apps/trends/README.md`
 
 ### 3. Utility or Support README
 

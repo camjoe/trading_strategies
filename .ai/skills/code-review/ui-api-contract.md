@@ -21,17 +21,17 @@ Use this skill when frontend and backend changes must agree on one contract.
 - Do not silently broaden types without checking backend behavior.
 - Do not let route handlers absorb business logic if the repo expects service helpers.
 - Do not add raw SQL to route handlers when service, repository, or trading-layer boundaries already exist.
-- Do not duplicate runtime data-ops or account-operation workflows inside `paper_trading_ui`.
+- Do not duplicate runtime data-ops or account-operation workflows inside `paper_trading_web`.
 
 ## Repo references
 
 - `docs/architecture/architecture-conventions.md`
-- `paper_trading_ui/backend/routes/`
-- `paper_trading_ui/backend/services/`
-- `paper_trading_ui/backend/schemas/`
-- `paper_trading_ui/frontend/src/`
+- `apps/paper_trading_web/backend/routes/`
+- `apps/paper_trading_web/backend/services/`
+- `apps/paper_trading_web/backend/schemas/`
+- `apps/paper_trading_web/frontend/src/`
 - `src/trading/` modules that should own canonical business behavior
-- `paper_trading_ui/README.md`
+- `apps/paper_trading_web/README.md`
 
 ## Expected output
 

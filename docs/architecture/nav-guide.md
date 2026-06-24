@@ -15,7 +15,7 @@ The maps and this guide serve different questions:
 |---|---|
 | "I want to do X — which file do I touch?" | This file |
 | "What does every file in `src/trading/` do?" | [`trading-package-map.md`](../maps/trading-package-map.md) |
-| "What does every file in `paper_trading_ui/` do?" | [`ui-map.md`](../maps/ui-map.md) |
+| "What does every file in `apps/paper_trading_web/` do?" | [`ui-map.md`](../maps/ui-map.md) |
 | "What does every script do?" | [`scripts-map.md`](../maps/scripts-map.md) |
 | "Which docs might be stale after my change?" | [`docs-map.md`](../maps/docs-map.md) |
 
@@ -115,12 +115,12 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Add a new API route | `paper_trading_ui/backend/routes/<area>.py` + register in `main.py` |
-| Change request/response schema | `paper_trading_ui/backend/schemas/<area>.py` |
-| Change what account data the frontend receives | `paper_trading_ui/backend/account_contract/` |
-| Change backend service logic | `paper_trading_ui/backend/services/<area>.py` |
-| Change backend DB connection | `paper_trading_ui/backend/services/db.py` |
-| Change backend config (ports, paths, env) | `paper_trading_ui/backend/config.py` |
+| Add a new API route | `apps/paper_trading_web/backend/routes/<area>.py` + register in `main.py` |
+| Change request/response schema | `apps/paper_trading_web/backend/schemas/<area>.py` |
+| Change what account data the frontend receives | `apps/paper_trading_web/backend/account_contract/` |
+| Change backend service logic | `apps/paper_trading_web/backend/services/<area>.py` |
+| Change backend DB connection | `apps/paper_trading_web/backend/services/db.py` |
+| Change backend config (ports, paths, env) | `apps/paper_trading_web/backend/config.py` |
 
 ---
 
@@ -128,12 +128,12 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Add a new page/view | `paper_trading_ui/frontend/src/views/<name>.html` + new feature in `src/infrastructure/feature_providers/` |
-| Add or change a feature module | `paper_trading_ui/frontend/src/features/<area>/` |
-| Add or change a reusable component | `paper_trading_ui/frontend/src/components/` |
-| Add shared utility (HTTP, formatting, DOM) | `paper_trading_ui/frontend/src/lib/` |
-| Add/change an API response type | `paper_trading_ui/frontend/src/types/<area>.ts` |
-| Change design tokens or base styles | `paper_trading_ui/frontend/src/styles/tokens.css` or `base.css` |
+| Add a new page/view | `apps/paper_trading_web/frontend/src/views/<name>.html` + new feature in `src/infrastructure/feature_providers/` |
+| Add or change a feature module | `apps/paper_trading_web/frontend/src/features/<area>/` |
+| Add or change a reusable component | `apps/paper_trading_web/frontend/src/components/` |
+| Add shared utility (HTTP, formatting, DOM) | `apps/paper_trading_web/frontend/src/lib/` |
+| Add/change an API response type | `apps/paper_trading_web/frontend/src/types/<area>.ts` |
+| Change design tokens or base styles | `apps/paper_trading_web/frontend/src/styles/tokens.css` or `base.css` |
 | Update in-app documentation content | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
 
 ---
@@ -158,7 +158,7 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Task | Where |
 |---|---|
 | Tests for `src/trading/` | `tests/src/trading/` (mirrors source path) |
-| Tests for `paper_trading_ui/backend/` | `tests/apps/paper_trading_web/` |
+| Tests for `apps/paper_trading_web/backend/` | `tests/apps/paper_trading_web/` |
 | Tests for `src/trading/interfaces/` | `tests/src/trading/interfaces/` |
 | Tests for `src/trading/repositories/` | `tests/src/trading/repositories/` |
 

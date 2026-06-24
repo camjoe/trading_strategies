@@ -16,14 +16,14 @@ Directory of all documentation files across the repository. Use this to audit fo
 | Directory | Description |
 |---|---|
 | `src/trading/` | Core trading engine — layered Python package (interfaces → services → repositories → domain → database → models) |
-| `paper_trading_ui/` | Operator UI — FastAPI backend + TypeScript/Vite frontend |
+| `apps/paper_trading_web/` | Operator UI — FastAPI backend + TypeScript/Vite frontend |
 | `src/infrastructure/brokers/` | Broker adapters (paper + live); injected at the interface layer |
 | `src/infrastructure/feature_providers/` | External-data feature providers for alternative strategies |
 | `tests/` | Test suite; mirrors the source tree path-for-path |
 | `scripts/` | Dev and ops tooling — checks, data ops, documentation sync, UI launcher |
 | `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
 | `src/common/` | Shared utilities available to all packages (used sparingly) |
-| `trends/` | Trend/signal data assets |
+| `apps/trends/` | Trend/signal data assets |
 | `.github/` | Bot instructions, architecture conventions, style guide, and skill definitions |
 
 ---
@@ -48,9 +48,9 @@ Orientation docs — typically the first thing read when entering a package. Go 
 | `src/trading/backtesting/README.md` | Backtesting subsystem orientation | `src/trading/backtesting/` entry points change |
 | `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
 | `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
-| `trends/README.md` | Trend/signal data assets | `trends/` layout or data sources change |
+| `apps/trends/README.md` | Trend/signal data assets | `apps/trends/` layout or data sources change |
 | `scripts/README.md` | Dev and ops tooling orientation | Scripts added, removed, or renamed |
-| `paper_trading_ui/README.md` | UI app orientation, how to run backend and frontend | UI entry points, ports, or dev workflow change |
+| `apps/paper_trading_web/README.md` | UI app orientation, how to run backend and frontend | UI entry points, ports, or dev workflow change |
 | `docs/runbooks/README.md` | Runbook index | A runbook is added or removed |
 
 ---
@@ -63,7 +63,7 @@ Structural reference — one file per major package. Go stale when module files 
 |---|---|---|
 | `docs/maps/docs-map.md` (this file, top section) | Top-level directory overview | A new top-level directory is added or renamed |
 | `docs/maps/trading-package-map.md` | Full `src/trading/` module directory; layering rules and placement decisions | Any `src/trading/` module added, removed, or its layer boundary changes |
-| `docs/maps/ui-map.md` | `paper_trading_ui/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
+| `docs/maps/ui-map.md` | `apps/paper_trading_web/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
 | `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
 | `docs/architecture/service-cookbook.md` | Which function to call for common tasks | Service API signatures or function names change |

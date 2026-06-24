@@ -32,7 +32,7 @@ Individual check modules. Each is also usable directly.
 | `ci.py` | CI profile definition (all checks) |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import boundary enforcement — verifies layering rules (services → no database imports, etc.) |
-| `mypy_check.py` | Mypy type-check runner (`src/trading/` + `paper_trading_ui/backend/`) |
+| `mypy_check.py` | Mypy type-check runner (`src/trading/` + `apps/paper_trading_web/backend/`) |
 | `pytest_check.py` | Pytest runner (full suite) |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |
 | `readme_check.py` | README freshness checker — flags docs older than a configurable age threshold |
@@ -76,7 +76,7 @@ python -m scripts.data_ops.describe_db_schema --source live
 
 ## Documentation UI (`scripts/documentation_ui/`)
 
-Tools for syncing the in-app documentation assets (`paper_trading_ui/frontend/src/assets/`).
+Tools for syncing the in-app documentation assets (`apps/paper_trading_web/frontend/src/assets/`).
 
 | Module | Responsibility |
 |---|---|

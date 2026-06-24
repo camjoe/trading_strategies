@@ -16,8 +16,8 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 
 ## Scope guidance
 
-- Use for Python-only cleanup in `src/trading/` or `paper_trading_ui/backend/`.
-- Use for frontend-only cleanup in `paper_trading_ui/frontend/`.
+- Use for Python-only cleanup in `src/trading/` or `apps/paper_trading_web/backend/`.
+- Use for frontend-only cleanup in `apps/paper_trading_web/frontend/`.
 - Use for mixed backend and frontend refactors when the primary goal is cleanup rather than contract debugging.
 
 ## Constraints
@@ -33,10 +33,10 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 - `docs/conventions/general-style.md`
 - `docs/conventions/python-style.md`
 - `src/trading/`
-- `paper_trading_ui/backend/`
-- `paper_trading_ui/frontend/`
+- `apps/paper_trading_web/backend/`
+- `apps/paper_trading_web/frontend/`
 - Python tests under `tests/`
-- Frontend tests under `paper_trading_ui/frontend/src/tests/`
+- Frontend tests under `apps/paper_trading_web/frontend/src/tests/`
 
 ## Expected output
 

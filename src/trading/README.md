@@ -230,7 +230,7 @@ Review requests freeze the current evaluation evidence into a durable record and
 ## Related Docs
 
 - Backtesting: [docs/reference/backtesting.md](../../docs/reference/backtesting.md)
-- UI dashboard: [paper_trading_ui/README.md](../../apps/paper_trading_web/README.md)
+- UI dashboard: [apps/paper_trading_web/README.md](../../apps/paper_trading_web/README.md)
 - Broker integration: [docs/reference/broker-integration.md](../../docs/reference/broker-integration.md)
 - Trading architecture guide: [docs/architecture/architecture-conventions.md](../../docs/architecture/architecture-conventions.md)
 

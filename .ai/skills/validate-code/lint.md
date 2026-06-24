@@ -16,17 +16,17 @@ Runs ruff lint and ruff format check. Does not auto-fix. Reports each violation 
 To auto-fix (only when explicitly asked):
 
 ```
-.venv/Scripts/python.exe -m ruff check --fix src/trading/ paper_trading_ui/backend/
-.venv/Scripts/python.exe -m ruff format src/trading/ paper_trading_ui/backend/
+.venv/Scripts/python.exe -m ruff check --fix src/trading/ apps/paper_trading_web/backend/
+.venv/Scripts/python.exe -m ruff format src/trading/ apps/paper_trading_web/backend/
 ```
 
 ## Frontend — eslint + tsc
 
-Run when any file under `paper_trading_ui/frontend/` is in the diff.
+Run when any file under `apps/paper_trading_web/frontend/` is in the diff.
 
 ```
-cd paper_trading_ui/frontend && npm run lint
-cd paper_trading_ui/frontend && npm run typecheck
+cd apps/paper_trading_web/frontend && npm run lint
+cd apps/paper_trading_web/frontend && npm run typecheck
 ```
 
 `npm run lint` runs `eslint src --ext .ts`.
@@ -41,5 +41,5 @@ Non-zero exit. Report each violation exactly as printed — do not paraphrase. D
 ## Repo references
 
 - `scripts/checks/ruff_check.py`
-- `paper_trading_ui/frontend/package.json`
+- `apps/paper_trading_web/frontend/package.json`
 - `docs/conventions/general-style.md`

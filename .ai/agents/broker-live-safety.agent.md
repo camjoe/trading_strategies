@@ -15,7 +15,7 @@ Your job is to protect broker-facing code paths while allowing safe work on brok
   - `src/infrastructure/brokers/`
   - `src/trading/services/`
   - `src/trading/interfaces/runtime/data_ops/`
-  - `paper_trading_ui/backend/services/`
+  - `apps/paper_trading_web/backend/services/`
 - Canonical references:
   - `docs/architecture/architecture-conventions.md`
   - `docs/reference/broker-integration.md`

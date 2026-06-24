@@ -26,11 +26,11 @@ python -m scripts.checks.run_suite all
 
 ## Frontend — vitest
 
-Run when any file under `paper_trading_ui/frontend/src/` is in the diff:
+Run when any file under `apps/paper_trading_web/frontend/src/` is in the diff:
 
 ```
-cd paper_trading_ui/frontend && npm test
-cd paper_trading_ui/frontend && npm run test:coverage   # with coverage report
+cd apps/paper_trading_web/frontend && npm test
+cd apps/paper_trading_web/frontend && npm run test:coverage   # with coverage report
 ```
 
 <!-- TODO: add frontend test detection + run to scripts/checks/pr_ready.py based on diff -->
@@ -43,4 +43,4 @@ Non-zero exit. Print the failing test name, file, and assertion error. Do not sk
 
 - `scripts/checks/run_suite.py`
 - `AGENTS.md` (suite-to-source mapping table)
-- `paper_trading_ui/frontend/package.json`
+- `apps/paper_trading_web/frontend/package.json`

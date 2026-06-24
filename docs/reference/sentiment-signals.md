@@ -75,7 +75,7 @@ Rotation overlays:
 Operator visibility:
 
 - UI feature status and signal inspection are exposed via
-  `paper_trading_ui` feature routes/services.
+  `paper_trading_web` feature routes/services.
 
 ## Not Implemented in This Slice
 

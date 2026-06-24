@@ -24,9 +24,9 @@ Use this skill when testing is the primary objective.
 ## Repo references
 
 - `tests/`
-- `paper_trading_ui/frontend/src/tests/`
+- `apps/paper_trading_web/frontend/src/tests/`
 - `pytest.ini`
-- `paper_trading_ui/frontend/package.json`
+- `apps/paper_trading_web/frontend/package.json`
 
 ## Expected output
 

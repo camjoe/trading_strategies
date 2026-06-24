@@ -8,7 +8,7 @@ Provide a repeatable workflow for chart-based trend analysis and indicator gener
 
 ## Quick Start
 
-1. Add your tickers in `trends/assets/run_tickers.txt` (one per line or comma-separated).
+1. Add your tickers in `apps/trends/assets/run_tickers.txt` (one per line or comma-separated).
 2. Run from the project root:
 
 ```sh
@@ -27,10 +27,10 @@ The script calculates moving averages, RSI/RS, MACD, and daily returns, then sav
 
 ## Input Files
 
-- `trends/assets/run_tickers.txt`: quick ticker list for normal runs.
-- `trends/assets/ticker_categories.txt`: grouped ticker lists using `[category]` sections.
+- `apps/trends/assets/run_tickers.txt`: quick ticker list for normal runs.
+- `apps/trends/assets/ticker_categories.txt`: grouped ticker lists using `[category]` sections.
 
-### `trends/assets/run_tickers.txt` format
+### `apps/trends/assets/run_tickers.txt` format
 
 ```txt
 # One per line or comma-separated
@@ -39,7 +39,7 @@ MSFT, NVDA
 SPY
 ```
 
-### `trends/assets/ticker_categories.txt` format
+### `apps/trends/assets/ticker_categories.txt` format
 
 ```txt
 [tech]
@@ -61,14 +61,14 @@ py -m trends
 py -m trends AAPL --period 1y --interval 1d
 
 # From file or category
-py -m trends --tickers-file trends/assets/run_tickers.txt
+py -m trends --tickers-file apps/trends/assets/run_tickers.txt
 py -m trends --category tech --period 1y
 py -m trends --list-categories
 ```
 
 ## Notes
 
-- If `trends/assets/run_tickers.txt` exists, it is used by default.
+- If `apps/trends/assets/run_tickers.txt` exists, it is used by default.
 - Multiple tickers run in batch mode (saved charts, no popup).
 - Single ticker opens a chart window and also saves output.
 - Category names are case-insensitive.
