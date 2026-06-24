@@ -212,8 +212,13 @@ from the existing `get_provider()` bridge (so behavior is unchanged):
   when `common.*` resolved to `Any`.
 - **DoD met:** quick gate green (1957 passed); layer check clean.
 
-### C2 (optional) — `apps/trends` tickers duplication
-- `trends/tickers.py` likely duplicates `common/tickers.py`. Decide: either point `trends` at `common/` (dedupe), or keep `trends` deliberately isolated as a standalone tool. No action required for the boundary itself — `trends` already shares no code with the trading system.
+### C2 — `apps/trends` tickers duplication — **DONE (`91375ba`)**
+- The hypothesis was wrong: `apps/trends/tickers.py` did **not** duplicate `common.tickers`
+  — it already delegated to it via three one-line passthrough wrappers (one,
+  `parse_ticker_tokens`, was dead). Per the facade rules, removed the wrappers; trends now
+  imports `common.tickers.load_*` directly and keeps only the trends-specific `resolve_tickers`.
+- Dropped two redundant `test_tickers` cases (already covered by
+  `tests/src/common/test_common_tickers.py`). No behavior change; quick gate green (1955 passed).
 
 ---
 
