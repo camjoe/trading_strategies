@@ -200,8 +200,17 @@ from the existing `get_provider()` bridge (so behavior is unchanged):
 
 ## Group C — Shared kernel & apps (decisions; can defer)
 
-### C1 (optional) — `common/` → `src/common/`
-- `common/` already functions as the shared kernel (112 importers). Relocating it to `src/common/` buys sibling-consistency with `src/trading` + `src/infrastructure` (the three-sibling base). Like Group 0 it's a **pure `git mv`** — `common.X` imports are unchanged since `src/` is on the path. Best done right after Group 0 (when the three-sibling shape becomes real), or skipped if you'd rather keep `common/` at root. Adds nothing functional either way.
+### C1 — `common/` → `src/common/` — **DONE (`9b76cac`)**
+- Pure `git mv` of `common/` → `src/common/` (and `tests/common/` → `tests/src/common/`),
+  completing the three-sibling base `src/{trading, infrastructure, common}`. Package name
+  `common` kept (ratified 2026-06-24 — rename to `shared`/`shared_kernel` judged not worth a
+  ~157-site codemod for a cosmetic gain), so **zero import rewrites**; re-ran `pip install -e .`.
+- Dropped the redundant `common` ruff target (covered by `src`); repointed path-based doc refs
+  + refreshed stale pyproject/scripts comments.
+- Side effect: `common` now sits under mypy's `src` target → type-checked for the first time,
+  which surfaced + fixed 3 latent consumer issues (benchmark.py, rotation.py) previously masked
+  when `common.*` resolved to `Any`.
+- **DoD met:** quick gate green (1957 passed); layer check clean.
 
 ### C2 (optional) — `apps/trends` tickers duplication
 - `trends/tickers.py` likely duplicates `common/tickers.py`. Decide: either point `trends` at `common/` (dedupe), or keep `trends` deliberately isolated as a standalone tool. No action required for the boundary itself — `trends` already shares no code with the trading system.
