@@ -6,7 +6,7 @@ from apps.trends.tickers import resolve_tickers
 def test_resolve_tickers_prefers_explicit_ticker() -> None:
     args = argparse.Namespace(
         category=None,
-        category_file="trends/assets/ticker_categories.txt",
+        category_file="apps/trends/assets/ticker_categories.txt",
         tickers_file=None,
         ticker="nvda",
     )

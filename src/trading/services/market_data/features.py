@@ -20,7 +20,7 @@ class ProxyFeatureDataProvider(FeatureDataProvider):
     def __init__(
         self,
         *,
-        category_file: str = "trends/assets/ticker_categories.txt",
+        category_file: str = "apps/trends/assets/ticker_categories.txt",
         category_proxy_map: Mapping[str, str] | None = None,
         topic_lookback: int = 20,
         macro_lookback: int = 20,

@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--category-file",
-        default="trends/assets/ticker_categories.txt",
+        default="apps/trends/assets/ticker_categories.txt",
         help="Path to category file with [category] sections.",
     )
     parser.add_argument(
