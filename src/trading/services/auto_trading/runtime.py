@@ -15,7 +15,7 @@ from trading.models import AccountRecord
 from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.services.market_data.market_hours import is_regular_us_equity_market_open
+from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
 from trading.services.universe.resolver import resolve_named_universes
