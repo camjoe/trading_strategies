@@ -160,15 +160,26 @@ from the existing `get_provider()` bridge (so behavior is unchanged):
   consumer references them.
 - **DoD:** no `get_provider()` references remain; gate green.
 
-### B3 — Relocate the concrete adapter + factory (now safe — no cycle)
-- `git mv` `providers.py` → `src/infrastructure/market_data/providers.py`; move the
-  `_PROVIDER_FACTORIES` map + config/env resolution into
-  `src/infrastructure/market_data/factory.py` (`build_provider(name=None)`).
-  The adapter imports the port + cache from `trading` (infra→domain, allowed).
-- Composition roots import `infrastructure.market_data.factory` to build the provider.
-- **Add a slice-aware layer rule**: `src/trading/** ↛ infrastructure.market_data.` (parallel to brokers/feature_providers) + a unit test.
-- `git mv` `test_providers.py`/`test_registry.py` → `tests/src/infrastructure/market_data/` (+ `__init__.py` chain), injecting fakes instead of the old import-time default.
-- **DoD:** layer check enforces the boundary; gate green; coverage still reports the adapter.
+### B3 — Relocate the concrete adapter + factory (now safe — no cycle) — **DONE (`b6126e3`)**
+- `git mv providers.py` → `src/infrastructure/market_data/providers.py` (imports the
+  `MarketDataProvider` port + transport cache from `trading.services.market_data`).
+- New `src/infrastructure/market_data/factory.py` owns `build_provider(name=None)` +
+  `_PROVIDER_FACTORIES` + env/config resolution + `supported_provider_names`. The
+  trading-side `factory.py` keeps only `build_feature_provider` (ProxyFeatureDataProvider
+  has no external dep, stays in trading).
+- Composition seams import `infrastructure.market_data.factory.build_provider`:
+  CLI main, run_auto_trades job, backtest seam, web routes, trends.
+- Layer rule added: `src/trading ↛ infrastructure.market_data.` (exceptions: the CLI,
+  run_auto_trades, and backtest seams) + unit tests; enforced by `layer_check.py`.
+- `git mv test_providers.py` → `tests/src/infrastructure/market_data/`; factory/build_provider
+  tests split there too (+ `__init__`/conftest chain); `yf` patches repoint to infrastructure.
+- architecture-conventions.md ownership map documents the new package (#12).
+- **DoD met:** layer check enforces the boundary; quick gate green (1957 passed);
+  coverage still reports the adapter under `--cov=src/infrastructure`.
+
+> **Group B COMPLETE.** Infrastructure is now genuinely separated from the trading
+> domain — the yfinance dependency lives only in `src/infrastructure/market_data/`,
+> wired at composition seams. Stop-and-reassess point reached (see Order & checkpoints).
 
 ### B4 (optional) — Evaluate `cache.py`
 - Decide if `market_data/cache.py` is transport-level caching (→ infrastructure) or domain-object caching (→ stays). Move only if the former. Skip if ambiguous.
