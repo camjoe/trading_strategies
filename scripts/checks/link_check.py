@@ -22,12 +22,10 @@ EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "tel:", "ftp://", "//")
 # A backtick span starting with one of these (e.g. `docs/...`, `.ai/...`) is a repo-root path
 # reference and is checked for existence. Dotted module paths (no slash) never match.
 TOP_DIRS = (
-    "trading/",
     "src/",
     "scripts/",
     "apps/",
     "tests/",
-    "common/",
     "docs/",
     ".ai/",
     ".github/",
@@ -106,18 +104,28 @@ def _check_markdown_link(target: str, doc_dir: Path) -> bool:
     return (doc_dir / stripped).exists()
 
 
-def _check_backtick_path(span: str, repo_root: Path) -> bool | None:
-    """Check a backtick span that looks like a repo-root path. Returns None if it is not one.
+def _path_token(span: str) -> str | None:
+    """Return the first whitespace-delimited token of a backtick span if it looks like a path
+    reference, else None.
 
-    Only the first whitespace-delimited word is treated as the path, so trailing section pointers
-    like "`docs/...conventions.md § Naming`" check just the file.
+    Only the first word is used, so trailing section pointers like "`docs/...md § Naming`" check
+    just the file. Globs, brace-expansions, function-call notation (`config.get_db_path()`), and
+    `<placeholder>` templates are not paths.
     """
     words = span.split()
     if not words:
         return None
     token = words[0]
-    if "*" in token or "(" in token or ")" in token or _is_placeholder(token) or not token.startswith(TOP_DIRS):
-        return None  # globs and function-call notation (config.get_db_path()) are not paths
+    if any(ch in token for ch in "*(){}") or _is_placeholder(token):
+        return None
+    return token
+
+
+def _check_backtick_path(span: str, repo_root: Path) -> bool | None:
+    """Check a backtick span that looks like a current repo-root path. Returns None if it is not one."""
+    token = _path_token(span)
+    if token is None or not token.startswith(TOP_DIRS):
+        return None
     base = token.split("#", 1)[0].split("::", 1)[0].rstrip("/")  # drop #anchor and ::symbol suffixes
     return (repo_root / base).exists()
 

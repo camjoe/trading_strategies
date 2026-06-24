@@ -12,7 +12,7 @@ Detection (is something stale?) is handled by CI and the `check-pr-readiness` wo
 
 ## Workflow
 
-1. **Identify scope** — use `readme_check` output or the PR readiness report to find flagged files; use `docs/maps/docs-map.md` ("Goes stale when" column) to find docs affected by code changes.
+1. **Identify scope** — use `readme_check` and `link_check` output (or the PR readiness report) to find flagged files; use `docs/maps/docs-map.md` ("Goes stale when" column) to find docs affected by code changes. Scope includes **co-located READMEs across the repo** (root, `tests/`, `scripts/`, `apps/*`, `src/*` package READMEs), not just files under `docs/` — `link_check` scans every tracked `.md` and flags backtick repo-path references that no longer resolve.
 2. **Read the owning doc** — understand what it currently says and why it's stale.
 3. **Apply targeted updates** — rewrite only the stale sections. Do not rewrite docs broadly when a focused update is enough.
 4. **Flag missing docs** — if a new surface (service, route, script) has no documentation, note it.
