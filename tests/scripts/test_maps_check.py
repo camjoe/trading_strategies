@@ -77,15 +77,16 @@ def test_heading_path_extracts_first_backtick_path() -> None:
 
 
 def test_is_full_path() -> None:
-    assert _is_full_path("trading/domain")
+    assert _is_full_path("src/trading/domain")
     assert _is_full_path("apps/paper_trading_web/backend")
     assert not _is_full_path("routes")  # section-relative
+    assert not _is_full_path("trading/domain")  # first-party packages now live under src/
 
 
 def test_resolve_token_full_path_vs_section_relative() -> None:
-    assert _resolve_token("trading/models/x.py", "ignored") == "trading/models/x.py"
-    assert _resolve_token("accounting.py", "trading/domain") == "trading/domain/accounting.py"
-    assert _resolve_token("a/b.py", "trading/services") == "trading/services/a/b.py"
+    assert _resolve_token("src/trading/models/x.py", "ignored") == "src/trading/models/x.py"
+    assert _resolve_token("accounting.py", "src/trading/domain") == "src/trading/domain/accounting.py"
+    assert _resolve_token("a/b.py", "src/trading/services") == "src/trading/services/a/b.py"
 
 
 # ---------------------------------------------------------------------------
@@ -95,38 +96,38 @@ def test_resolve_token_full_path_vs_section_relative() -> None:
 
 def test_extract_is_section_aware_no_basename_collision() -> None:
     markdown = (
-        "### `trading/domain/`\n"
+        "### `src/trading/domain/`\n"
         "| Module | Responsibility |\n"
         "| `accounting.py` | domain accounting |\n"
-        "### `trading/services/`\n"
+        "### `src/trading/services/`\n"
         "| `accounts/queries.py` | account reads |\n"
     )
-    documented = _extract_documented_paths(markdown, "trading")
-    assert "trading/domain/accounting.py" in documented
-    assert "trading/services/accounts/queries.py" in documented
+    documented = _extract_documented_paths(markdown, "src/trading")
+    assert "src/trading/domain/accounting.py" in documented
+    assert "src/trading/services/accounts/queries.py" in documented
     # A bare `accounting.py` under domain must NOT count a same-named file elsewhere as documented.
-    assert "trading/services/sleeves/accounting.py" not in documented
+    assert "src/trading/services/sleeves/accounting.py" not in documented
 
 
 def test_extract_ignores_prose_mentions() -> None:
     markdown = (
-        "### `trading/database/`\n"
+        "### `src/trading/database/`\n"
         "Only repositories and the `runtime_loader.py` exception import from here.\n"
         "| `init.py` | initialise the schema |\n"
     )
-    documented = _extract_documented_paths(markdown, "trading")
-    assert "trading/database/init.py" in documented  # table row counts
-    assert "trading/database/runtime_loader.py" not in documented  # prose mention does not
+    documented = _extract_documented_paths(markdown, "src/trading")
+    assert "src/trading/database/init.py" in documented  # table row counts
+    assert "src/trading/database/runtime_loader.py" not in documented  # prose mention does not
 
 
 def test_extract_resolves_subsection_directories() -> None:
     markdown = (
-        "### `trading/interfaces/`\n"
-        "**Runtime jobs** (`trading/interfaces/runtime/jobs/`)\n"
+        "### `src/trading/interfaces/`\n"
+        "**Runtime jobs** (`src/trading/interfaces/runtime/jobs/`)\n"
         "| `daily/snapshot.py` | snapshot job |\n"
     )
-    documented = _extract_documented_paths(markdown, "trading")
-    assert "trading/interfaces/runtime/jobs/daily/snapshot.py" in documented
+    documented = _extract_documented_paths(markdown, "src/trading")
+    assert "src/trading/interfaces/runtime/jobs/daily/snapshot.py" in documented
 
 
 def test_extract_resolves_relative_subsection_under_full_section() -> None:
@@ -144,30 +145,30 @@ def test_extract_resolves_relative_subsection_under_full_section() -> None:
 
 
 def test_check_map_flags_undocumented_and_stale(tmp_path: Path) -> None:
-    _write(tmp_path / "trading/domain/accounting.py")
-    _write(tmp_path / "trading/services/sleeves/accounting.py")  # name collides, but undocumented
-    _write(tmp_path / "trading/services/accounts/queries.py")
+    _write(tmp_path / "src/trading/domain/accounting.py")
+    _write(tmp_path / "src/trading/services/sleeves/accounting.py")  # name collides, but undocumented
+    _write(tmp_path / "src/trading/services/accounts/queries.py")
     _write(
         tmp_path / "map.md",
-        "### `trading/domain/`\n"
+        "### `src/trading/domain/`\n"
         "| `accounting.py` | x |\n"
-        "### `trading/services/`\n"
+        "### `src/trading/services/`\n"
         "| `accounts/queries.py` | x |\n"
         "| `accounts/ghost.py` | x |\n",  # documented but no such file -> stale
     )
 
-    report = check_map(tmp_path, "map.md", "trading", ())
+    report = check_map(tmp_path, "map.md", "src/trading", ())
 
-    assert report.undocumented == ["trading/services/sleeves/accounting.py"]
-    assert report.stale == ["trading/services/accounts/ghost.py"]
+    assert report.undocumented == ["src/trading/services/sleeves/accounting.py"]
+    assert report.stale == ["src/trading/services/accounts/ghost.py"]
 
 
 def test_check_map_respects_skip_subtrees(tmp_path: Path) -> None:
-    _write(tmp_path / "trading/backtesting/backtest.py")
-    _write(tmp_path / "trading/backtesting/domain/policy.py")  # under a dir-summarized subtree
-    _write(tmp_path / "map.md", "### `trading/backtesting/`\n| `backtest.py` | x |\n")
+    _write(tmp_path / "src/trading/backtesting/backtest.py")
+    _write(tmp_path / "src/trading/backtesting/domain/policy.py")  # under a dir-summarized subtree
+    _write(tmp_path / "map.md", "### `src/trading/backtesting/`\n| `backtest.py` | x |\n")
 
-    report = check_map(tmp_path, "map.md", "trading", ("trading/backtesting/domain",))
+    report = check_map(tmp_path, "map.md", "src/trading", ("src/trading/backtesting/domain",))
 
     assert report.undocumented == []  # policy.py is skipped, backtest.py is documented
 
