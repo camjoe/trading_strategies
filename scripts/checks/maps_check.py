@@ -35,14 +35,11 @@ SUBSECTION_RE = re.compile(r"\*\*[^*]+\*\*\s*\(`([\w./-]+?)/?`\)")
 # A token starting with one of these top-level dirs is already a full repo path (not section-relative).
 KNOWN_TOP_DIRS = (
     "src",
-    "trading",
-    "brokers",
-    "features",
-    "scripts",
     "apps",
+    "scripts",
     "tests",
-    "common",
     "docs",
+    ".ai",
     ".github",
 )
 
@@ -68,8 +65,17 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
             "src/trading/backtesting/domain",
             "src/trading/backtesting/repositories",
             "src/trading/backtesting/services",
-            "src/infrastructure/config",
         ),
+    ),
+    (
+        "docs/maps/infrastructure-map.md",
+        "src/infrastructure",
+        (),
+    ),
+    (
+        "docs/maps/common-map.md",
+        "src/common",
+        (),
     ),
     (
         "docs/maps/scripts-map.md",

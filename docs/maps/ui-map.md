@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-06-24
 Purpose: Structure of the operator UI — FastAPI backend routes/schemas/services and TypeScript/Vite frontend layout.
 Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/screenshot-ui.md)
 

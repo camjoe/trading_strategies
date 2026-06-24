@@ -131,6 +131,7 @@ Rules and standards this project follows — coding style, doc structure, naming
 | `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
 | `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
 | `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
+| `docs/conventions/branching.md` | Branch model, naming rules, and commit restrictions | Branching strategy or naming conventions change |
 
 ---
 

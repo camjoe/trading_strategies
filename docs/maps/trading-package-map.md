@@ -3,8 +3,8 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-17
-Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement.
+Last Reviewed: 2026-06-24
+Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
 ## Purpose
@@ -22,15 +22,13 @@ Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 - `src/trading/services/`: orchestration/composition workflows
 - `src/trading/repositories/`: SQL persistence adapters
 - `src/trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
-- `src/infrastructure/database/`: DB infrastructure/config/coercion
 - `src/trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
-- `src/infrastructure/config/`: static file-backed configuration assets
+
+Concrete infrastructure (database, brokers, feature providers, the market-data adapter, and static config assets) lives in the sibling `src/infrastructure/` package — see the [Infrastructure Map](infrastructure-map.md). Persistence flows through `src/trading/repositories/` into `src/infrastructure/database/`; the other adapters are injected at the interface layer.
 
 ### Bounded Contexts
 
 - `src/trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
-- `src/infrastructure/brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`src/trading/interfaces/`); `src/trading/` must never import from `src/infrastructure/brokers/` except at the interface layer
-- `src/infrastructure/feature_providers/` (repo root): external-data feature-provider boundary for alternative strategies
 
 ## Placement Rules
 
@@ -118,7 +116,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
-| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `trading.database` |
+| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `admin/deletions.py` | Admin bulk-deletion workflows |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
@@ -135,12 +133,9 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `evaluation/queries.py` | Evaluation data queries |
 | `ibkr_paper_monitor/artifacts.py` | IBKR paper-monitor artifact assembly |
 | `ibkr_paper_monitor/queries.py` | IBKR paper-monitor data queries |
-| `market_data/cache.py` | Market data caching layer |
-| `market_data/features.py` | Feature data fetching and assembly |
-| `market_data/market_hours.py` | Market hours/calendar helpers |
-| `market_data/protocols.py` | Market data protocol definitions |
-| `market_data/providers.py` | Market data provider implementations |
-| `market_data/registry.py` | Feature provider registry |
+| `market_data/features.py` | `ProxyFeatureDataProvider` — free-first proxy feature computation over an injected provider |
+| `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
+| `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
 | `pricing/lookups.py` | Price lookup queries |
 | `profiles/application.py` | Account profile application logic |
 | `profiles/rotation_config_parser.py` | TOML rotation config parser |
@@ -215,6 +210,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet` protocol (DI contract) |
 | `indicators_adapter.py` | Technical indicator adapters |
+| `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
 | `promotion_models.py` | Promotion state and result models |
 | `promotion_policy.py` | Promotion eligibility rules |
 | `returns.py` | Return calculation math |
@@ -222,21 +218,6 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `sleeve_accounting.py` | Sleeve-level accounting math |
 | `sleeve_rotation.py` | Sleeve rotation rules |
 | `strategy_signals.py` | Strategy signal models and processing |
-
----
-
-### `src/infrastructure/database/`
-
-DB infrastructure. Only `src/trading/repositories/` and the documented `runtime_loader.py` exception should import from here.
-
-| Module | Responsibility |
-|---|---|
-| `backend.py` | DB connection/backend factory |
-| `config.py` | DB path and environment config |
-| `init.py` | DB initialization (`ensure_db`) |
-| `migrations.py` | Schema migration runner |
-| `schema.py` | Table DDL definitions |
-| `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
 
 ---
 
@@ -281,20 +262,6 @@ Self-contained backtest subsystem with its own layered sub-packages.
 | `domain/` | Backtesting-specific domain logic |
 | `repositories/` | Backtest result persistence |
 | `services/` | Backtest orchestration services |
-
----
-
-### `src/infrastructure/config/`
-
-Static file-backed configuration assets. Read at runtime; not imported as Python modules (except by services/profiles).
-
-| Asset | Description |
-|---|---|
-| `account_profiles/` | TOML account profile configs |
-| `trade_universes/` | Trade universe definition files |
-| `account_trade_caps.json` | Account-level trade cap limits |
-| `trade_universe.txt` | Default trade universe ticker list |
-| `trade_universe_sp500_broad.txt` | Broad S&P 500 trade universe |
 
 ---
 
