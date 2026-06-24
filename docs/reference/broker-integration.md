@@ -206,3 +206,5 @@ When adding a new broker:
 - `scripts/README.md`
 - `docs/reference/accounts-schema-usage.md`
 - `docs/architecture/architecture-conventions.md`
+- [`broker-setup-ibkr.md`](broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup checklist
+- [`broker-setup-alpaca.md`](broker-setup-alpaca.md) — Alpaca setup guide (Draft)
