@@ -97,13 +97,14 @@ Use `src/trading/interfaces/runtime/jobs/` for schedulers and `src/trading/inter
 
 ### Runtime Script Catalog
 
-- `run_auto_trades.py`: executes per-account simulated trade batches directly; `daily_paper_trading.py` shells out to this script for grouped account runs, but operators can also run it standalone.
-- `daily_paper_trading.py`: orchestrates scheduled daily paper-trading run.
-- `check_daily_trader_health.py`: verifies recency/health of daily trading runs.
-- `daily_snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
-- `daily_backtest_refresh.py`: scheduled daily backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/daily_backtest_refresh/`.
-- `weekly_db_backup.py`: scheduled weekly backup execution.
-- `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, daily backtest refresh, health checks, snapshots, and weekly backups.
+- `run_auto_trades.py`: executes per-account simulated trade batches directly; `daily/paper_trading.py` shells out to this script for grouped account runs, but operators can also run it standalone.
+- `daily/paper_trading.py`: orchestrates scheduled daily paper-trading run.
+- `daily/trader_health.py`: verifies recency/health of daily trading runs.
+- `daily/snapshot.py`: scheduled snapshot runner with duplicate-run guards and retry.
+- `daily/backtest_refresh.py`: scheduled daily backtest refresh runner with duplicate-run guards, transient retry handling, and JSON artifact output under `local/exports/daily_backtest_refresh/`.
+- `daily/challenger_shadow_eval.py`: scheduled daily challenger shadow-evaluation runner (off by default; install the entry before enabling it).
+- `maintenance/weekly_db_backup.py`: scheduled weekly backup execution.
+- `manage_job_schedules.py`: single job-schedule entrypoint for daily paper-trading, optional fallback paper-trading, challenger shadow evaluation, daily backtest refresh, health checks, snapshots, and weekly backups.
 - Scheduler support helpers such as `scheduler_installer.py` and `manage_job_schedules.py` live alongside the direct job entrypoints; cadence-prefixed naming remains reserved for the jobs themselves.
 - `src/infrastructure/config/account_trade_caps.json`: per-account trade caps configuration used by the runtime scheduler. Supports per-account `min`/`max` trade counts and a `default` fallback.
 
@@ -123,7 +124,7 @@ Pass `--tickers-file` to use a non-default universe. Use `python -m trading.inte
 python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
 
 # S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/trading/config/trade_universe_sp500_broad.txt
+python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/infrastructure/config/trade_universe_sp500_broad.txt
 ```
 
 For live broker accounts, each account run now reuses a single broker
@@ -171,20 +172,30 @@ The direct job scripts are the source of truth. Keep operations simple: run the 
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
   --daily-paper-trading-time 13:10 \
   --daily-paper-trading-fallback-time 15:45 \
+  --daily-challenger-shadow-eval-time 12:50 --enable-daily-challenger-shadow-eval \
   --health-check-time 16:15 \
   --daily-snapshot-time 16:30 \
   --daily-backtest-refresh-time 17:00 \
   --weekly-db-backup-day-of-week Sunday \
   --weekly-db-backup-time 02:00
+
+# Alternatively, auto-derive the shadow-eval time as a lead before daily paper trading
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+  --daily-paper-trading-time 13:10 \
+  --auto-shadow-eval-from-daily-paper --shadow-eval-lead-minutes 20
+
+# Remove previously registered entries (preview with --dry-run first)
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister --dry-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister
 ```
 
 Scheduler behavior notes:
 
 - `manage_job_schedules.py` is a thin schedule entrypoint, while `scheduler_installer.py` handles platform-specific cron/Task Scheduler installation details.
 - `manage_job_schedules.py` uses the interpreter provided via `--python` (default: current `sys.executable`), writes Task Scheduler entries on Windows and cron entries on Linux, and avoids relying on a host-level `python` shim.
-- Snapshot and daily backtest refresh entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh`) or the matching environment variable is set.
+- Snapshot, daily backtest refresh, and challenger shadow-evaluation entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh` / `--enable-daily-challenger-shadow-eval`) or the matching environment variable is set. The `--auto-shadow-eval-from-daily-paper` form enables the shadow-eval run automatically.
 
-Windows Task Scheduler task names default to `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailySnapshot`, `Trading\DailyBacktestRefresh`, `Trading\DailyTraderHealthCheck`, and `Trading\WeeklyDbBackup`.
+Windows Task Scheduler task names default to `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailyChallengerShadowEval`, `Trading\DailySnapshot`, `Trading\DailyBacktestRefresh`, `Trading\DailyTraderHealthCheck`, and `Trading\WeeklyDbBackup`.
 
 ## Promotion Review Workflow
 

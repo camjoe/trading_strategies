@@ -20,6 +20,8 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
 
 **Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
 
+**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, backtest-refresh, challenger shadow-eval, health-check, and weekly-backup entries), see [Scheduler Operations](../../src/trading/README.md#scheduler-operations).
+
 ---
 
 ## Normal daily checklist
