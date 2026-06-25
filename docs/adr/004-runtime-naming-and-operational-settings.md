@@ -12,7 +12,7 @@ Related: [Architecture Conventions](../architecture/architecture-conventions.md)
 The word "runtime" was overloaded across `src/trading/`, carrying two unrelated meanings:
 
 1. The scheduler/job transport layer at `src/trading/interfaces/runtime/` ("the runtime execution context").
-2. A "applies during runtime operation" qualifier on service packages: `src/trading/services/runtime_settings/` and `src/trading/services/runtime_throttle/`.
+2. A "applies during runtime operation" qualifier on service packages: the former `runtime_settings` and `runtime_throttle` packages under `src/trading/services/` (since merged — see Decision).
 
 This collided at the import-path level — `trading.services.runtime_settings` versus `trading.interfaces.runtime` — making it ambiguous whether a `runtime_*` name referred to the scheduler layer or to operational configuration. The two settings packages were also already tightly coupled: `RuntimeThrottleSettings` lived in `runtime_settings/models.py` and `runtime_throttle/enforcement.py` imported it back from `runtime_settings`.
 
