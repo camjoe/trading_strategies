@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - trading/**
+      - src/trading/**
       - apps/trends/**
       - tests/**
       - apps/paper_trading_web/backend/**
@@ -36,7 +36,7 @@ jobs:
         with:
           filters: |
             python_related:
-              - trading/**
+              - src/trading/**
               - apps/trends/**
               - tests/**
               - apps/paper_trading_web/backend/**
@@ -61,7 +61,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: "pip"
           cache-dependency-path: |
             requirements-base.txt

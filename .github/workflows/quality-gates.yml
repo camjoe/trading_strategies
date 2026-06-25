@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - trading/**
+      - src/trading/**
       - apps/trends/**
       - apps/paper_trading_web/backend/**
       - apps/paper_trading_web/frontend/**
@@ -34,7 +34,7 @@ jobs:
         with:
           filters: |
             python_related:
-              - trading/**
+              - src/trading/**
               - apps/trends/**
               - apps/paper_trading_web/backend/**
               - requirements-base.txt
@@ -58,7 +58,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: "pip"
           cache-dependency-path: |
             requirements-base.txt
@@ -71,10 +71,10 @@ jobs:
           pip install ruff mypy
 
       - name: Run ruff lint gate
-        run: ruff check trading apps/trends apps/paper_trading_web/backend --select F,E9
+        run: ruff check src/trading apps/trends apps/paper_trading_web/backend --select F,E9
 
       - name: Run mypy type gate
-        run: mypy apps/paper_trading_web/backend trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip
+        run: mypy apps/paper_trading_web/backend src/trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip
 
   frontend-quality:
     needs: changes
