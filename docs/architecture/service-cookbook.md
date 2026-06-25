@@ -154,8 +154,8 @@ These live as **flat service modules** (single files, not packages) — import t
 
 | Task | Function | Module |
 |---|---|---|
-| Fetch a sleeve's performance window | `fetch_sleeve_performance_window(conn, *, sleeve_id, start_date, end_date)` | `trading.services.performance` |
-| Fetch the latest portfolio risk snapshot | `fetch_latest_risk_snapshot(conn, *, account_id)` | `trading.services.risk_snapshots` |
+| Fetch a sleeve's performance window | `fetch_sleeve_performance_window(conn, *, sleeve_id, start_date, end_date)` | `trading.services.analysis` |
+| Fetch the latest portfolio risk snapshot | `fetch_latest_risk_snapshot(conn, *, account_id)` | `trading.services.analysis` |
 
 ---
 

@@ -1,3 +1,9 @@
+"""Portfolio risk-snapshot query flows for analysis consumers.
+
+Owns read-only access to the latest portfolio risk snapshot beneath the stable
+``trading.services.analysis`` package surface.
+"""
+
 from __future__ import annotations
 
 import sqlite3

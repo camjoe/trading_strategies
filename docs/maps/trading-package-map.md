@@ -120,6 +120,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `admin/deletions.py` | Admin bulk-deletion workflows |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
+| `analysis/performance.py` | Sleeve performance window queries (reads daily metrics) |
+| `analysis/risk_snapshots.py` | Portfolio risk snapshot access |
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/market.py` | Market state helpers |
@@ -164,8 +166,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
 | `sleeves/universe_config.py` | Sleeve trade-universe configuration |
 | `universe/resolver.py` | Trade-universe name resolution |
-| `performance.py` | Sleeve performance window queries (flat module; reads daily metrics) |
-| `risk_snapshots.py` | Portfolio risk snapshot access (flat module) |
 
 ---
 

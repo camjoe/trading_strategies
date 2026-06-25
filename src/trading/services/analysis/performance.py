@@ -1,3 +1,9 @@
+"""Sleeve performance query flows for analysis consumers.
+
+Owns read-only sleeve performance-window reads beneath the stable
+``trading.services.analysis`` package surface.
+"""
+
 from __future__ import annotations
 
 import sqlite3

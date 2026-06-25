@@ -48,8 +48,8 @@ The maps and this guide serve different questions:
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/sleeves/` |
-| Change sleeve performance queries | `src/trading/services/performance.py` (flat file — reads daily metrics) |
-| Change portfolio risk-snapshot access | `src/trading/services/risk_snapshots.py` (flat file) |
+| Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
+| Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
 
 ### Configuration
