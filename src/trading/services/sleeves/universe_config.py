@@ -2,7 +2,7 @@
 
 Provides the service-layer entry point for assigning named trade universes to
 individual sleeves.  Named universes are resolved at runtime via
-:mod:`trading.services.universe_resolver`.
+:mod:`trading.services.universe`.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import sqlite3
 
 from common.time import utc_now_iso
 from trading.repositories.sleeves import SleeveRepository
-from trading.services.universe.resolver import list_available_universes
+from trading.services.universe import list_available_universes
 
 
 def configure_sleeve_trade_universes(

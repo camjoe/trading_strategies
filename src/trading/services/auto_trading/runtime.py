@@ -18,7 +18,7 @@ from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
-from trading.services.universe.resolver import resolve_named_universes
+from trading.services.universe import resolve_named_universes
 from trading.repositories.broker_orders import BrokerOrderRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
