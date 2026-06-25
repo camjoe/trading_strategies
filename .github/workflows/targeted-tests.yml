@@ -7,8 +7,8 @@ on:
         description: >
           Space- or comma-separated suite names to run, OR leave blank to
           auto-detect from changed files vs the base branch.
-          Suite names mirror the tests/ directory tree (e.g. "trading/services",
-          "trading/services/market_data trading/services/promotion").
+          Suite names mirror the tests/ directory tree (e.g. "src/trading/services",
+          "src/trading/services/market_data src/trading/services/promotion").
           Use "all" to run the full suite.
         required: false
         default: ""
@@ -36,7 +36,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: "pip"
           cache-dependency-path: |
             requirements-base.txt

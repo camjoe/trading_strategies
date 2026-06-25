@@ -84,6 +84,7 @@ def run_quick(
         run_readme_consistency(
             repo_root=repo_root,
             max_age_days=readme_max_age_days,
+            quiet=True,
         )
         layer_exit = run_layer_check(repo_root=repo_root)
         if layer_exit != 0:
@@ -106,7 +107,7 @@ def run_quick(
             run_pytest(repo_root=repo_root, python_exe=python_exe)
 
         if with_frontend:
-            frontend_dir = repo_root / "paper_trading_ui" / "frontend"
+            frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
             _run_frontend_quick(frontend_dir)
     except subprocess.CalledProcessError as exc:
         print(f"\nStep failed with exit code {exc.returncode}: {' '.join(exc.cmd)}")

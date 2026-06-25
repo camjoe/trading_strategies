@@ -25,7 +25,7 @@ This document covers:
 
 Broker resolution is handled in:
 
-- `brokers/factory.py`
+- `src/infrastructure/brokers/factory.py`
 
 Supported `accounts.broker_type` values:
 
@@ -35,14 +35,14 @@ Supported `accounts.broker_type` values:
 
 Key files:
 
-- `trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`trading/models/broker_order.py`)
-- `brokers/paper_adapter.py`: paper execution adapter
-- `brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
-- `brokers/ib_web_adapter.py`: broker adapter backed by Web API client
-- `brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
-- `brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
-- `brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
-- `trading/repositories/broker_orders.py`: persisted broker-order state
+- `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/broker_order.py`)
+- `src/infrastructure/brokers/paper_adapter.py`: paper execution adapter
+- `src/infrastructure/brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
+- `src/infrastructure/brokers/ib_web_adapter.py`: broker adapter backed by Web API client
+- `src/infrastructure/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
+- `src/infrastructure/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
+- `src/infrastructure/brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
+- `src/trading/repositories/broker_orders.py`: persisted broker-order state
 
 ## Account Fields and Routing
 
@@ -90,7 +90,7 @@ Primary integration path: `interactive_brokers_web`.
 
 Settings loader:
 
-- `brokers/ib_web_client.py::load_ib_web_api_settings`
+- `src/infrastructure/brokers/ib_web_client.py::load_ib_web_api_settings`
 
 Resolution behavior:
 
@@ -163,7 +163,7 @@ Safety notes for optional paper-order check:
 
 Runtime execution opens one broker connection per account loop in:
 
-- `trading/services/auto_trading/runtime.py`
+- `src/trading/services/auto_trading/runtime.py`
 
 Open-order reconciliation is handled by:
 
@@ -181,7 +181,7 @@ Legacy path remains available via `broker_type = 'interactive_brokers'`.
 
 - default backend: `ib_async`
 - optional backend: `ibapi` (native client stub currently not implemented)
-- backend switch lives in `brokers/legacy/factory.py`
+- backend switch lives in `src/infrastructure/brokers/legacy/factory.py`
 
 Legacy default socket ports:
 
@@ -194,15 +194,17 @@ Legacy default socket ports:
 
 When adding a new broker:
 
-1. implement adapter under `brokers/`
-2. add broker-type routing in `brokers/factory.py`
+1. implement adapter under `src/infrastructure/brokers/`
+2. add broker-type routing in `src/infrastructure/brokers/factory.py`
 3. update account `broker_type` constraints/docs
-4. add tests under `tests/brokers/` and related runtime tests
+4. add tests under `tests/src/infrastructure/brokers/` and related runtime tests
 5. update this document
 
 ## Related References
 
-- `trading/README.md`
+- `src/trading/README.md`
 - `scripts/README.md`
 - `docs/reference/accounts-schema-usage.md`
 - `docs/architecture/architecture-conventions.md`
+- [`broker-setup-ibkr.md`](broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup checklist
+- [`broker-setup-alpaca.md`](broker-setup-alpaca.md) — Alpaca setup guide (Draft)

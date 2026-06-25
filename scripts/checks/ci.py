@@ -65,7 +65,7 @@ def parse_args() -> argparse.Namespace:
 
 def _run_frontend_ci(repo_root: Path) -> None:
     npm_exe = resolve_npm_exe()
-    frontend_dir = repo_root / "paper_trading_ui" / "frontend"
+    frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
     run_step("Frontend: npm ci", [npm_exe, "ci"], frontend_dir)
     run_step("Frontend quality: lint", [npm_exe, "run", "lint"], frontend_dir)
     run_step("Frontend quality: typecheck", [npm_exe, "run", "typecheck"], frontend_dir)
@@ -91,13 +91,14 @@ def run_ci(
                 run_readme_consistency(
                     repo_root=repo_root,
                     max_age_days=readme_max_age_days,
+                    quiet=True,
                 )
             if not skip_maps_check:
-                run_maps_check(repo_root=repo_root)
+                run_maps_check(repo_root=repo_root, quiet=True)
             if not skip_db_schema_check:
-                run_db_schema_check(repo_root=repo_root)
+                run_db_schema_check(repo_root=repo_root, quiet=True)
             if not skip_link_check:
-                run_link_check(repo_root=repo_root)
+                run_link_check(repo_root=repo_root, quiet=True)
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit
@@ -107,18 +108,18 @@ def run_ci(
                     return reference_doc_exit
             run_step(
                 "Python: upgrade pip",
-                [python_exe, "-m", "pip", "install", "--upgrade", "pip"],
+                [python_exe, "-m", "pip", "install", "-q", "--upgrade", "pip"],
                 repo_root,
             )
             run_step(
                 "Python: install requirements-dev.txt",
-                [python_exe, "-m", "pip", "install", "-r", "requirements-dev.txt"],
+                [python_exe, "-m", "pip", "install", "-q", "-r", "requirements-dev.txt"],
                 repo_root,
             )
             if install_python_tools:
                 run_step(
                     "Python: install quality tools",
-                    [python_exe, "-m", "pip", "install", "ruff", "mypy"],
+                    [python_exe, "-m", "pip", "install", "-q", "ruff", "mypy"],
                     repo_root,
                 )
 

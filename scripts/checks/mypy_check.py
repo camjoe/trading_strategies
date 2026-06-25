@@ -8,7 +8,7 @@ from common.paths.repo_paths import get_repo_root
 from scripts.checks.shared import resolve_python_exe, run_step
 
 
-DEFAULT_TARGETS = ["paper_trading_ui/backend", "trading"]
+DEFAULT_TARGETS = ["apps/paper_trading_web/backend", "src"]
 
 
 def run_mypy(

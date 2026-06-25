@@ -42,66 +42,80 @@ class LayerRule:
 
 LAYER_RULES: list[LayerRule] = [
     LayerRule(
-        label="paper_trading_ui → no direct repository imports",
-        source_glob="paper_trading_ui/**/*.py",
+        label="apps/paper_trading_web → no direct repository imports",
+        source_glob="apps/paper_trading_web/**/*.py",
         forbidden_prefixes=("trading.repositories.",),
     ),
     LayerRule(
-        label="paper_trading_ui → no direct database imports",
-        source_glob="paper_trading_ui/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        label="apps/paper_trading_web → no direct database imports",
+        source_glob="apps/paper_trading_web/**/*.py",
+        forbidden_prefixes=("infrastructure.database.",),
         # db.py is the interface-boundary connection factory: the single
         # point where ensure_db() is called to open connections for each
         # request. All other UI backend code receives conn via db_conn().
-        exceptions=("paper_trading_ui/backend/services/db.py",),
+        exceptions=("apps/paper_trading_web/backend/services/db.py",),
     ),
     LayerRule(
-        label="paper_trading_ui → no direct interface-layer imports",
-        source_glob="paper_trading_ui/**/*.py",
+        label="apps/paper_trading_web → no direct interface-layer imports",
+        source_glob="apps/paper_trading_web/**/*.py",
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
         label="trading/services → no direct database imports",
-        source_glob="trading/services/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        source_glob="src/trading/services/**/*.py",
+        forbidden_prefixes=("infrastructure.database.",),
         # runtime_loader.py is the deliberate exception: its sole purpose is to
         # open a DB connection for runtime job runners that don't have an injected
         # connection.  All other service modules must route through repositories.
-        exceptions=("trading/services/accounts/runtime_loader.py",),
+        exceptions=("src/trading/services/accounts/runtime_loader.py",),
     ),
     LayerRule(
         label="trading/services → no interface-layer imports",
-        source_glob="trading/services/**/*.py",
+        source_glob="src/trading/services/**/*.py",
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
         label="trading/backtesting/services → no direct database imports",
-        source_glob="trading/backtesting/services/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        source_glob="src/trading/backtesting/services/**/*.py",
+        forbidden_prefixes=("infrastructure.database.",),
     ),
     LayerRule(
         label="trading/domain → no repository imports",
-        source_glob="trading/domain/**/*.py",
+        source_glob="src/trading/domain/**/*.py",
         forbidden_prefixes=("trading.repositories.",),
     ),
     LayerRule(
         label="trading/domain → no database imports",
-        source_glob="trading/domain/**/*.py",
-        forbidden_prefixes=("trading.database.",),
+        source_glob="src/trading/domain/**/*.py",
+        forbidden_prefixes=("infrastructure.database.",),
     ),
     LayerRule(
         label="trading/repositories → no interface imports",
-        source_glob="trading/repositories/**/*.py",
+        source_glob="src/trading/repositories/**/*.py",
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
-        label="paper_trading_ui/routes → no direct trading.features imports",
-        source_glob="paper_trading_ui/backend/routes/**/*.py",
-        forbidden_prefixes=("trading.features.",),
+        label="trading → no direct market-data adapter imports (wire at composition roots)",
+        source_glob="src/trading/**/*.py",
+        forbidden_prefixes=("infrastructure.market_data.",),
+        # The concrete adapter + factory are wired in at composition seams only:
+        # the interface layer (CLI / runtime jobs) and the backtest entry seam.
+        # All other trading code depends on the MarketDataProvider port + an
+        # injected instance, never the concrete adapter.
+        exceptions=(
+            "src/trading/interfaces/cli/main.py",
+            "src/trading/interfaces/runtime/jobs/run_auto_trades.py",
+            "src/trading/backtesting/backtest.py",
+        ),
     ),
     LayerRule(
-        label="paper_trading_ui/routes → no direct trading.backtesting.domain imports",
-        source_glob="paper_trading_ui/backend/routes/**/*.py",
+        label="apps/paper_trading_web/routes → no direct feature-provider imports",
+        source_glob="apps/paper_trading_web/backend/routes/**/*.py",
+        forbidden_prefixes=("infrastructure.feature_providers.",),
+    ),
+    LayerRule(
+        label="apps/paper_trading_web/routes → no direct trading.backtesting.domain imports",
+        source_glob="apps/paper_trading_web/backend/routes/**/*.py",
         forbidden_prefixes=("trading.backtesting.domain.",),
     ),
 ]

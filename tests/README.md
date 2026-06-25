@@ -42,67 +42,67 @@ python -m scripts.checks.run_suite all
 python -m scripts.checks.run_suite trading
 
 # All services
-python -m scripts.checks.run_suite trading/services
+python -m scripts.checks.run_suite src/trading/services
 
 # A single service
-python -m scripts.checks.run_suite trading/services/market_data
-python -m scripts.checks.run_suite trading/services/promotion
+python -m scripts.checks.run_suite src/trading/services/market_data
+python -m scripts.checks.run_suite src/trading/services/promotion
 
 # Multiple suites combined
-python -m scripts.checks.run_suite trading/services/market_data trading/services/promotion
+python -m scripts.checks.run_suite src/trading/services/market_data src/trading/services/promotion
 
 # Other top-level areas
-python -m scripts.checks.run_suite trading/backtesting
-python -m scripts.checks.run_suite trading/repositories
-python -m scripts.checks.run_suite trading/interfaces
-python -m scripts.checks.run_suite paper_trading_ui
+python -m scripts.checks.run_suite src/trading/backtesting
+python -m scripts.checks.run_suite src/trading/repositories
+python -m scripts.checks.run_suite src/trading/interfaces
+python -m scripts.checks.run_suite apps/paper_trading_web
 python -m scripts.checks.run_suite common
 ```
 
 ### Target an individual file
 
 ```sh
-python -m scripts.checks.run_suite trading/services/market_data/test_features.py
+python -m scripts.checks.run_suite src/trading/services/market_data/test_features.py
 ```
 
 ### Pass extra flags to pytest
 
 ```sh
 # Verbose, no coverage (fast iteration)
-python -m scripts.checks.run_suite trading/services -v --no-cov
+python -m scripts.checks.run_suite src/trading/services -v --no-cov
 
 # Run only tests matching a keyword
-python -m scripts.checks.run_suite trading/services/market_data -k "test_provider"
+python -m scripts.checks.run_suite src/trading/services/market_data -k "test_provider"
 ```
 
 ### Available service suites
 
 | Suite name | Tests directory |
 |---|---|
-| `trading/services` | `tests/trading/services/` |
-| `trading/services/accounting` | `tests/trading/services/accounting/` |
-| `trading/services/accounts` | `tests/trading/services/accounts/` |
-| `trading/services/admin` | `tests/trading/services/admin/` |
-| `trading/services/analysis` | `tests/trading/services/analysis/` |
-| `trading/services/auto_trading` | `tests/trading/services/auto_trading/` |
-| `trading/services/evaluation` | `tests/trading/services/evaluation/` |
-| `trading/services/ibkr_paper_monitor` | `tests/trading/services/ibkr_paper_monitor/` |
-| `trading/services/market_data` | `tests/trading/services/market_data/` |
-| `trading/services/pricing` | `tests/trading/services/pricing/` |
-| `trading/services/profiles` | `tests/trading/services/profiles/` |
-| `trading/services/promotion` | `tests/trading/services/promotion/` |
-| `trading/services/reporting` | `tests/trading/services/reporting/` |
-| `trading/services/sleeves` | `tests/trading/services/sleeves/` |
+| `src/trading/services` | `tests/src/trading/services/` |
+| `src/trading/services/accounting` | `tests/src/trading/services/accounting/` |
+| `src/trading/services/accounts` | `tests/src/trading/services/accounts/` |
+| `src/trading/services/admin` | `tests/src/trading/services/admin/` |
+| `src/trading/services/analysis` | `tests/src/trading/services/analysis/` |
+| `src/trading/services/auto_trading` | `tests/src/trading/services/auto_trading/` |
+| `src/trading/services/evaluation` | `tests/src/trading/services/evaluation/` |
+| `src/trading/services/ibkr_paper_monitor` | `tests/src/trading/services/ibkr_paper_monitor/` |
+| `src/trading/services/market_data` | `tests/src/trading/services/market_data/` |
+| `src/trading/services/pricing` | `tests/src/trading/services/pricing/` |
+| `src/trading/services/profiles` | `tests/src/trading/services/profiles/` |
+| `src/trading/services/promotion` | `tests/src/trading/services/promotion/` |
+| `src/trading/services/reporting` | `tests/src/trading/services/reporting/` |
+| `src/trading/services/sleeves` | `tests/src/trading/services/sleeves/` |
 
-Two source service modules (`profile_source`, `universe_resolver`) are covered by flat test files at `tests/trading/services/` rather than subdirectories; target them via the `trading/services` suite or directly by file path.  `runtime_settings` and `runtime_throttle` do not yet have dedicated test subdirectories; use `trading/services` to include any tests that exist at the parent level.
+Two source service modules (`profile_source`, `universe_resolver`) are covered by flat test files at `tests/src/trading/services/` rather than subdirectories; target them via the `src/trading/services` suite or directly by file path.  `runtime_settings` and `runtime_throttle` do not yet have dedicated test subdirectories; use `src/trading/services` to include any tests that exist at the parent level.
 
 ### Targeted runs in GitHub Actions
 
 Use the **Targeted Tests** workflow (`targeted-tests.yml`) for focused validation on a branch without waiting for the full CI suite:
 
 ```sh
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="trading/services/market_data"
-gh workflow run targeted-tests.yml --ref <your-branch> -f suites="trading/services/market_data,trading/services/promotion"
+gh workflow run targeted-tests.yml --ref <your-branch> -f suites="src/trading/services/market_data"
+gh workflow run targeted-tests.yml --ref <your-branch> -f suites="src/trading/services/market_data,src/trading/services/promotion"
 gh workflow run targeted-tests.yml --ref <your-branch> -f suites="all" -f extra_args="--no-cov"
 ```
 
@@ -132,27 +132,27 @@ Use `-o addopts=` when local environments do not have coverage plugins required 
 
 Daily snapshot scheduler coverage lives in:
 
-- `tests/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_helpers.py`
-- `tests/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_main.py`
+- `tests/src/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_helpers.py`
+- `tests/src/trading/interfaces/runtime/jobs/daily/test_daily_snapshot_main.py`
 
 Run only this test slice:
 
 ```sh
-python -m scripts.checks.run_suite trading/interfaces/runtime/jobs/daily
+python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/daily
 ```
 
 ## Fixture Hierarchy
 
 - `tests/conftest.py`: cross-suite fixtures, including `conn` (writable) and `seeded_conn` (read-only seeded DB).
 - Suite-level `conftest.py` files provide scoped fixtures for their subtree. Key examples:
-  - `tests/trading/services/analysis/conftest.py` — `analysis_account`
-  - `tests/trading/services/evaluation/conftest.py` — `eval_account`
-  - `tests/trading/services/promotion/conftest.py` — `promotion_account`
-  - `tests/trading/services/admin/conftest.py` — `configured_backend`
-  - `tests/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
-  - `tests/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
-  - `tests/trading/services/market_data/conftest.py` — provider reset per test
-  - `tests/paper_trading_ui/conftest.py` — `api_client` with isolated DB backend
+  - `tests/src/trading/services/analysis/conftest.py` — `analysis_account`
+  - `tests/src/trading/services/evaluation/conftest.py` — `eval_account`
+  - `tests/src/trading/services/promotion/conftest.py` — `promotion_account`
+  - `tests/src/trading/services/admin/conftest.py` — `configured_backend`
+  - `tests/src/trading/backtesting/conftest.py` — `bt_market_data` factory fixture
+  - `tests/src/trading/backtesting/repositories/conftest.py` — `bt_repo_account`, `seed_bt_run`
+  - `tests/src/trading/services/market_data/conftest.py` — provider reset per test
+  - `tests/apps/paper_trading_web/conftest.py` — `api_client` with isolated DB backend
 
 ## Database Fixtures — Which One to Use
 
@@ -166,12 +166,12 @@ Named constants from `tests/support/seed/db.py` (e.g. `ACCT_TREND`, `ACCT_MOMENT
 
 - Database backend is switched to a `tmp_path` SQLite file inside fixtures and restored in a `finally` block.
 - `seeded_conn` is enforced read-only at the OS/VFS layer via `?mode=ro` URI flag — not just `PRAGMA query_only`.
-- Market data provider environment variables are reset before and after each `tests/trading/services/market_data` test.
+- Market data provider environment variables are reset before and after each `tests/src/trading/services/market_data` test.
 - Tests that mutate global state should always restore it in fixture teardown.
 
 ## Interfaces Layer: `__main__` Entrypoint Tests
 
-`tests/trading/interfaces/` tests cover modules that own `if __name__ == "__main__":` blocks — CLI scripts, runtime jobs, and scheduled tasks. These are the only modules in the codebase that are executed directly as processes, so they are the only test files that use `runpy.run_module`.
+`tests/src/trading/interfaces/` tests cover modules that own `if __name__ == "__main__":` blocks — CLI scripts, runtime jobs, and scheduled tasks. These are the only modules in the codebase that are executed directly as processes, so they are the only test files that use `runpy.run_module`.
 
 ### The double-import problem
 
@@ -193,7 +193,7 @@ this may result in unpredictable behaviour
 Use `run_module_as_main(module.__name__)` from `loaders.py` instead of calling `runpy.run_module` directly. It temporarily pops the module from `sys.modules`, runs it as `__main__`, then restores it — so subsequent tests in the same worker see the original (monkeypatched) module object:
 
 ```python
-from tests.trading.interfaces.runtime.jobs.loaders import (
+from tests.src.trading.interfaces.runtime.jobs.loaders import (
     some_module as module,
     run_module_as_main,
 )
@@ -210,15 +210,19 @@ You need `run_module_as_main` when **both** of these are true:
 - The module is imported at the top of the test file (or transitively via `loaders.py`)
 - That same module is passed to `runpy.run_module` in a test
 
-All other layers (`services/`, `repositories/`, `domain/`) never have `__main__` entrypoints, so `runpy.run_module` — and therefore this pattern — only appears under `tests/trading/interfaces/`.
+All other layers (`services/`, `repositories/`, `domain/`) never have `__main__` entrypoints, so `runpy.run_module` — and therefore this pattern — only appears under `tests/src/trading/interfaces/`.
 
+## UI Backend HTTP Tests
 
+API-route tests under `tests/apps/paper_trading_web/backend/routes/` (via the `api_client` fixture) are the primary HTTP coverage surface for the web backend.
+
+Historical caveat: a past regression sweep hit hangs in the **synchronous FastAPI route-dispatch path** that reproduced even for a minimal app and even through `httpx.ASGITransport` (a minimal *async* app worked). The takeaway if HTTP-style hangs ever resurface: the cause is environmental sync-route execution, not Starlette's `TestClient` alone — investigate that rather than rewriting the shared `api_client` fixture, since a fixture-level workaround would spread a bad assumption across the whole UI backend suite.
 
 ## Audit Notes
 
 - Full repository validation remains `python -m pytest` from repo root.
 - Cross-stack smoke validation is `python -m scripts.run_checks --profile ci`.
-- For parser/default-path changes, include focused checks for CLI parser/handler coverage under `tests/trading/interfaces/cli/` and runtime-job coverage under `tests/trading/interfaces/runtime/jobs/`.
+- For parser/default-path changes, include focused checks for CLI parser/handler coverage under `tests/src/trading/interfaces/cli/` and runtime-job coverage under `tests/src/trading/interfaces/runtime/jobs/`.
 
 ## Test Support Layout
 
@@ -246,8 +250,8 @@ tests/support/
 
 Helpers that are exclusively used by a single suite live co-located with that suite rather than in `tests/support/`:
 
-- `tests/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders and `run_module_as_main` (see [Interfaces Layer: `__main__` Entrypoint Tests](#interfaces-layer-__main__-entrypoint-tests))
-- `tests/trading/services/auto_trading/factories.py` — auto-trading fakes and builders
-- `tests/trading/services/admin/seed.py` — admin dataset seeding
+- `tests/src/trading/interfaces/runtime/jobs/loaders.py` — runtime job module loaders and `run_module_as_main` (see [Interfaces Layer: `__main__` Entrypoint Tests](#interfaces-layer-__main__-entrypoint-tests))
+- `tests/src/trading/services/auto_trading/factories.py` — auto-trading fakes and builders
+- `tests/src/trading/services/admin/seed.py` — admin dataset seeding
 
 **Convention:** if a co-located `factories.py` is imported from outside its own directory, move it to `tests/support/` under a domain-based name.

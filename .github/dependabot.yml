@@ -7,7 +7,7 @@ updates:
     open-pull-requests-limit: 10
 
   - package-ecosystem: "npm"
-    directory: "/paper_trading_ui/frontend"
+    directory: "/apps/paper_trading_web/frontend"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 10

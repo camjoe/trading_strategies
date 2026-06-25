@@ -27,7 +27,7 @@ def seed_backtest_run(conn: sqlite3.Connection) -> None:
             "2026-01-01T00:00:00Z",
             5.0,
             0.0,
-            "trading/config/trade_universe.txt",
+            "src/infrastructure/config/trade_universe.txt",
         ),
     )
 

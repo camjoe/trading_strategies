@@ -10,6 +10,7 @@ from scripts.checks.link_check import (
     _check_markdown_link,
     _is_external,
     _is_placeholder,
+    _path_token,
     check_file,
     discover_docs,
     run_link_check,
@@ -71,9 +72,23 @@ def test_check_backtick_path(tmp_path: Path) -> None:
     assert _check_backtick_path("docs/missing.md", tmp_path) is False
     assert _check_backtick_path("EquitySnapshotRecord", tmp_path) is None  # not a repo path
     assert _check_backtick_path("trading/services/**/*.py", tmp_path) is None  # glob
-    assert _check_backtick_path("trading/database/db_config.get_db_path()", tmp_path) is None  # function call
+    assert _check_backtick_path("trading/database/config.get_db_path()", tmp_path) is None  # function call
     assert _check_backtick_path("docs/real.md § Naming", tmp_path) is True  # section suffix ignored
     assert _check_backtick_path("docs/real.md::symbol", tmp_path) is True  # ::symbol suffix ignored
+
+
+# ---------------------------------------------------------------------------
+# Path token extraction
+# ---------------------------------------------------------------------------
+
+
+def test_path_token_rejects_non_paths() -> None:
+    assert _path_token("docs/real.md") == "docs/real.md"
+    assert _path_token("docs/real.md § Naming") == "docs/real.md"  # first word only
+    assert _path_token("trading/services/**/*.py") is None  # glob
+    assert _path_token("config.get_db_path()") is None  # function call
+    assert _path_token("src/infrastructure/{brokers,market_data}") is None  # brace-expansion
+    assert _path_token("routes/<area>.py") is None  # placeholder
 
 
 # ---------------------------------------------------------------------------

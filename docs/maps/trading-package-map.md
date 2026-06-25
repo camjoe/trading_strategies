@@ -3,13 +3,13 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-17
-Purpose: Explain the trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement.
+Last Reviewed: 2026-06-24
+Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
 ## Purpose
 
-Explain the top-level `trading/` structure as a **hybrid architecture**:
+Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 
 - A horizontal layered backbone for runtime application behavior.
 - A few explicit bounded contexts kept top-level because they encapsulate unique workflows or external integrations.
@@ -18,36 +18,34 @@ Explain the top-level `trading/` structure as a **hybrid architecture**:
 
 ### Layered Backbone
 
-- `trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
-- `trading/services/`: orchestration/composition workflows
-- `trading/repositories/`: SQL persistence adapters
-- `trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
-- `trading/database/`: DB infrastructure/config/coercion
-- `trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
-- `trading/config/`: static file-backed configuration assets
+- `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
+- `src/trading/services/`: orchestration/composition workflows
+- `src/trading/repositories/`: SQL persistence adapters
+- `src/trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
+- `src/trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
+
+Concrete infrastructure (database, brokers, feature providers, the market-data adapter, and static config assets) lives in the sibling `src/infrastructure/` package — see the [Infrastructure Map](infrastructure-map.md). Persistence flows through `src/trading/repositories/` into `src/infrastructure/database/`; the other adapters are injected at the interface layer.
 
 ### Bounded Contexts
 
-- `trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
-- `brokers/` (repo root): broker adapters and factory boundary (paper + live integrations); injected at the interface layer (`trading/interfaces/`); `trading/` must never import from `brokers/` except at the interface layer
-- `features/` (repo root): external-data feature-provider boundary for alternative strategies
+- `src/trading/backtesting/`: a self-contained layered subsystem with its own `domain/services/repositories`
 
 ## Placement Rules
 
 - Use the layered backbone by default.
 - Use top-level bounded contexts only when isolation materially improves clarity and safety.
-- Keep `trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
+- Keep `src/trading/models/` passive; move parsing/validation orchestration into services/domain helpers.
 - Avoid adding facades that only forward imports unless they are deliberate public entrypoints.
 
 ## Module Directory
 
 One-liner per module. For layering rules, allowed imports, and placement decisions see the sections above and `docs/architecture/architecture-conventions.md`.
 
-### `trading/interfaces/`
+### `src/trading/interfaces/`
 
 Entry points and transport. Nothing below this layer should know about CLI args, HTTP, or scheduled job runners.
 
-**CLI** (`trading/interfaces/cli/`)
+**CLI** (`src/trading/interfaces/cli/`)
 
 | Module | Responsibility |
 |---|---|
@@ -63,7 +61,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `handlers/shared.py` | Shared handler utilities |
 | `main.py` | CLI entry point (`@click.group`) |
 
-**Runtime jobs** (`trading/interfaces/runtime/jobs/`)
+**Runtime jobs** (`src/trading/interfaces/runtime/jobs/`)
 
 | Module | Responsibility |
 |---|---|
@@ -90,14 +88,14 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `run_auto_trades.py` | Auto-trade execution runner |
 | `scheduler_installer.py` | Scheduler installation logic |
 
-**Runtime data ops** (`trading/interfaces/runtime/data_ops/`)
+**Runtime data ops** (`src/trading/interfaces/runtime/data_ops/`)
 
 | Module | Responsibility |
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
 
-**Runtime (shared)** (`trading/interfaces/runtime/`)
+**Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
 | Module | Responsibility |
 |---|---|
@@ -106,9 +104,9 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 ---
 
-### `trading/services/`
+### `src/trading/services/`
 
-Orchestration and composition. Calls repositories and domain; never builds SQL or imports from `trading/database/` directly (see `runtime_loader.py` exception below).
+Orchestration and composition. Calls repositories and domain; never builds SQL or imports from `src/infrastructure/database/` directly (see `runtime_loader.py` exception below).
 
 | Module | Responsibility |
 |---|---|
@@ -118,7 +116,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
-| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `trading.database` |
+| `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
 | `admin/deletions.py` | Admin bulk-deletion workflows |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
@@ -135,12 +133,9 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `evaluation/queries.py` | Evaluation data queries |
 | `ibkr_paper_monitor/artifacts.py` | IBKR paper-monitor artifact assembly |
 | `ibkr_paper_monitor/queries.py` | IBKR paper-monitor data queries |
-| `market_data/cache.py` | Market data caching layer |
-| `market_data/features.py` | Feature data fetching and assembly |
-| `market_data/market_hours.py` | Market hours/calendar helpers |
-| `market_data/protocols.py` | Market data protocol definitions |
-| `market_data/providers.py` | Market data provider implementations |
-| `market_data/registry.py` | Feature provider registry |
+| `market_data/features.py` | `ProxyFeatureDataProvider` — free-first proxy feature computation over an injected provider |
+| `market_data/protocols.py` | Market-data + feature ports (`MarketDataProvider`, `FeatureDataProvider`, `FeatureBundle`) and the `require_*` injection guards |
+| `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
 | `pricing/lookups.py` | Price lookup queries |
 | `profiles/application.py` | Account profile application logic |
 | `profiles/rotation_config_parser.py` | TOML rotation config parser |
@@ -174,7 +169,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 
 ---
 
-### `trading/repositories/`
+### `src/trading/repositories/`
 
 SQL persistence adapters only. Each file owns one logical data area. Builds SQL internally; callers pass plain data, not SQL fragments.
 
@@ -201,7 +196,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 
 ---
 
-### `trading/domain/`
+### `src/trading/domain/`
 
 Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/O, no SQL, no service calls.
 
@@ -215,6 +210,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet` protocol (DI contract) |
 | `indicators_adapter.py` | Technical indicator adapters |
+| `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
 | `promotion_models.py` | Promotion state and result models |
 | `promotion_policy.py` | Promotion eligibility rules |
 | `returns.py` | Return calculation math |
@@ -225,22 +221,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 ---
 
-### `trading/database/`
-
-DB infrastructure. Only `trading/repositories/` and the documented `runtime_loader.py` exception should import from here.
-
-| Module | Responsibility |
-|---|---|
-| `db_backend.py` | DB connection/backend factory |
-| `db_config.py` | DB path and environment config |
-| `db_init.py` | DB initialization (`ensure_db`) |
-| `db_migrations.py` | Schema migration runner |
-| `db_schema.py` | Table DDL definitions |
-| `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
-
----
-
-### `trading/models/`
+### `src/trading/models/`
 
 Passive data contracts. No business logic, no I/O.
 
@@ -268,7 +249,7 @@ Passive data contracts. No business logic, no I/O.
 
 ---
 
-### `trading/backtesting/` (bounded context)
+### `src/trading/backtesting/` (bounded context)
 
 Self-contained backtest subsystem with its own layered sub-packages.
 
@@ -281,20 +262,6 @@ Self-contained backtest subsystem with its own layered sub-packages.
 | `domain/` | Backtesting-specific domain logic |
 | `repositories/` | Backtest result persistence |
 | `services/` | Backtest orchestration services |
-
----
-
-### `trading/config/`
-
-Static file-backed configuration assets. Read at runtime; not imported as Python modules (except by services/profiles).
-
-| Asset | Description |
-|---|---|
-| `account_profiles/` | TOML account profile configs |
-| `trade_universes/` | Trade universe definition files |
-| `account_trade_caps.json` | Account-level trade cap limits |
-| `trade_universe.txt` | Default trade universe ticker list |
-| `trade_universe_sp500_broad.txt` | Broad S&P 500 trade universe |
 
 ---
 

@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.database.db_init import init_schema
+from infrastructure.database.init import init_schema
 
 DB_SCHEMA_DOC_REL = "docs/reference/db-schema.md"
 
@@ -39,7 +39,7 @@ def _quick_reference_tables(content: str) -> set[str]:
     return tables
 
 
-def run_db_schema_check(repo_root: Path, *, enforce: bool = False) -> int:
+def run_db_schema_check(repo_root: Path, *, enforce: bool = False, quiet: bool = False) -> int:
     doc_path = repo_root / DB_SCHEMA_DOC_REL
     if not doc_path.is_file():
         print(f"ERROR: schema doc not found: {doc_path}")
@@ -51,6 +51,11 @@ def run_db_schema_check(repo_root: Path, *, enforce: bool = False) -> int:
 
     undocumented = sorted(actual_tables - qr_tables)
     stale_qr = sorted(qr_tables - actual_tables)
+
+    # Quiet mode: collapse a clean run to one line; drift falls through to the full report.
+    if quiet and not (undocumented or stale_qr):
+        print(f"PASS: DB schema - Quick Reference covers all {len(actual_tables)} tables.")
+        return 0
 
     print("DB Schema Drift Check")
     print(f"Doc:  {DB_SCHEMA_DOC_REL}")

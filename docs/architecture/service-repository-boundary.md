@@ -8,7 +8,7 @@ Purpose: Define the repeatable boundary between service and repository layers â€
 Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md)
 
 This note defines the repeatable boundary for modules that have both a
-`trading/services/*` and `trading/repositories/*` layer.
+`src/trading/services/*` and `src/trading/repositories/*` layer.
 
 ## Goal
 

@@ -4,10 +4,10 @@ Type: convention
 Status: Active
 Created: 2026-06-19
 Last Reviewed: 2026-06-19
-Purpose: TypeScript / Vite frontend style for `paper_trading_ui/frontend/` — kept separate so it can grow as the UI does.
+Purpose: TypeScript / Vite frontend style for `apps/paper_trading_web/frontend/` — kept separate so it can grow as the UI does.
 Related: [General Style](general-style.md), [Python Style](python-style.md), [UI Map](../maps/ui-map.md)
 
-Style for the operator UI (`paper_trading_ui/frontend/`, vanilla TypeScript + Vite). Python style is in [`python-style.md`](python-style.md); the cross-cutting approach and documentation style are in [`general-style.md`](general-style.md).
+Style for the operator UI (`apps/paper_trading_web/frontend/`, vanilla TypeScript + Vite). Python style is in [`python-style.md`](python-style.md); the cross-cutting approach and documentation style are in [`general-style.md`](general-style.md).
 
 ## TypeScript and Frontend
 

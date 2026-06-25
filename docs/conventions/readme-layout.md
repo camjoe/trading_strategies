@@ -54,9 +54,9 @@ Recommended section order:
 
 Examples in this repo:
 
-- `trading/README.md`
-- `paper_trading_ui/README.md`
-- `trends/README.md`
+- `src/trading/README.md`
+- `apps/paper_trading_web/README.md`
+- `apps/trends/README.md`
 
 ### 3. Utility or Support README
 
@@ -69,7 +69,7 @@ Recommended section order:
 Examples in this repo:
 
 - `tests/support/README.md`
-- `bots/skills/README.md`
+- `.ai/skills/README.md`
 
 ## Section Naming Conventions
 
@@ -87,3 +87,4 @@ Before finalizing a README:
 3. Run:
    - `python -m scripts.checks.readme_check --max-age-days 90`
 4. If behavior changed, update linked docs in the same change set.
+

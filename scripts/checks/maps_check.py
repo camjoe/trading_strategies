@@ -34,14 +34,12 @@ SUBSECTION_RE = re.compile(r"\*\*[^*]+\*\*\s*\(`([\w./-]+?)/?`\)")
 
 # A token starting with one of these top-level dirs is already a full repo path (not section-relative).
 KNOWN_TOP_DIRS = (
-    "trading",
-    "brokers",
-    "features",
+    "src",
+    "apps",
     "scripts",
-    "paper_trading_ui",
     "tests",
-    "common",
     "docs",
+    ".ai",
     ".github",
 )
 
@@ -62,13 +60,22 @@ IGNORED_DIR_PARTS = {
 MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         "docs/maps/trading-package-map.md",
-        "trading",
+        "src/trading",
         (
-            "trading/backtesting/domain",
-            "trading/backtesting/repositories",
-            "trading/backtesting/services",
-            "trading/config",
+            "src/trading/backtesting/domain",
+            "src/trading/backtesting/repositories",
+            "src/trading/backtesting/services",
         ),
+    ),
+    (
+        "docs/maps/infrastructure-map.md",
+        "src/infrastructure",
+        (),
+    ),
+    (
+        "docs/maps/common-map.md",
+        "src/common",
+        (),
     ),
     (
         "docs/maps/scripts-map.md",
@@ -80,11 +87,11 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ),
     (
         "docs/maps/ui-map.md",
-        "paper_trading_ui/backend",
+        "apps/paper_trading_web/backend",
         (
-            "paper_trading_ui/backend/services/accounts",
-            "paper_trading_ui/backend/services/features",
-            "paper_trading_ui/backend/services/operations",
+            "apps/paper_trading_web/backend/services/accounts",
+            "apps/paper_trading_web/backend/services/features",
+            "apps/paper_trading_web/backend/services/operations",
         ),
     ),
 )
@@ -136,7 +143,7 @@ def _extract_documented_paths(text: str, source_rel: str) -> set[str]:
     """Resolve each `.py` token (table rows only) to a full repo path using its section context.
 
     Section directories may be full (``### `trading/services/` ``) or relative to a parent
-    section (``### Routes (`routes/`)`` under ``## Backend (`paper_trading_ui/backend/`)``).
+    section (``### Routes (`routes/`)`` under ``## Backend (`apps/paper_trading_web/backend/`)``).
     Heading level disambiguates: a level-1/2 heading starts a top-level section (resolved against
     the source root); a deeper heading or bold label is a subsection (resolved against the current
     section base). Only table rows count as file-claims, so prose mentions are ignored.
@@ -190,7 +197,7 @@ def check_map(repo_root: Path, map_rel: str, source_rel: str, skip: tuple[str, .
     return report
 
 
-def run_maps_check(repo_root: Path, *, enforce: bool = False) -> int:
+def run_maps_check(repo_root: Path, *, enforce: bool = False, quiet: bool = False) -> int:
     if not repo_root.exists():
         print(f"ERROR: repo root does not exist: {repo_root}")
         return 2
@@ -203,6 +210,11 @@ def run_maps_check(repo_root: Path, *, enforce: bool = False) -> int:
         reports.append(check_map(repo_root, map_rel, source_rel, skip))
     total_undocumented = sum(len(report.undocumented) for report in reports)
     total_stale = sum(len(report.stale) for report in reports)
+
+    # Quiet mode: collapse a clean run to one line; drift falls through to the full report.
+    if quiet and not (total_undocumented or total_stale):
+        print(f"PASS: maps drift - {len(reports)} maps in sync with source.")
+        return 0
 
     print("Maps Drift Check")
     print(f"Repo root: {repo_root}")

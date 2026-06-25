@@ -11,7 +11,7 @@ Related: [Accounts Schema Usage](accounts-schema-usage.md), [ADR: Cross-Platform
 
 ## Overview
 
-This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `trading/database/` via a `ColumnMigration` dataclass and is applied automatically at startup.
+This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `src/infrastructure/database/` via a `ColumnMigration` dataclass and is applied automatically at startup.
 
 ---
 
@@ -19,14 +19,14 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 
 | File | Role |
 |------|------|
-| `trading/database/db_init.py` | `ensure_db()`, `init_schema()`, and column-guard helpers |
-| `trading/database/db_schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
-| `trading/database/db_migrations.py` | `ColumnMigration` dataclass, migration tuples, and seeded overlay-watchlist defaults |
-| `trading/database/db_backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
-| `trading/database/db_config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
-| `trading/database/sql_helpers.py` | SQL helper functions such as `in_placeholders()` |
-| `trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
-| `trading/interfaces/runtime/data_ops/csv_export.py` | CSV export for accounts and trades |
+| `src/infrastructure/database/init.py` | `ensure_db()`, `init_schema()`, and column-guard helpers |
+| `src/infrastructure/database/schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
+| `src/infrastructure/database/migrations.py` | `ColumnMigration` dataclass, migration tuples, and seeded overlay-watchlist defaults |
+| `src/infrastructure/database/backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
+| `src/infrastructure/database/config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
+| `src/infrastructure/database/sql_helpers.py` | SQL helper functions such as `in_placeholders()` |
+| `src/trading/interfaces/runtime/data_ops/admin.py` | `backup_database()`, CLI for backup and delete operations |
+| `src/trading/interfaces/runtime/data_ops/csv_export.py` | CSV export for accounts and trades |
 
 For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_schema` for the code-defined schema or `python -m scripts.data_ops.describe_db_schema --source live` for the configured SQLite database. Do not maintain a hand-written full schema mirror.
 
@@ -34,7 +34,7 @@ For a readable schema snapshot, run `python -m scripts.data_ops.describe_db_sche
 
 ## Database Path Resolution
 
-`trading/database/db_config.get_db_path()` resolves in this order:
+`src/infrastructure/database/config.get_db_path()` resolves in this order:
 
 1. `TRADING_DB_PATH` environment variable
 2. `db_path` value in `local/db_config.json` (or `TRADING_DB_CONFIG` env var path)
@@ -48,7 +48,7 @@ never hardcode slash direction.
 
 ## Schema Initialization: `init_schema()`
 
-Called from `ensure_db()` on every connection in `trading/database/db_init.py`:
+Called from `ensure_db()` on every connection in `src/infrastructure/database/init.py`:
 
 ```python
 def init_schema(conn: DBConnection) -> None:
@@ -149,7 +149,7 @@ Indexes: `idx_trades_trade_time`, `idx_backtest_runs_account_id`, `idx_backtest_
 
 ### Trading Database Backups
 
-Backup logic lives in `trading/interfaces/runtime/data_ops/admin.py`:
+Backup logic lives in `src/trading/interfaces/runtime/data_ops/admin.py`:
 
 ```python
 backup_database(destination=None) -> Path
@@ -179,7 +179,7 @@ Do not mix trading DB backup logic with project_manager DB backups.
 
 ## DatabaseBackend Abstraction
 
-`trading/database/db_backend.py` defines a `DatabaseBackend` ABC with three required methods:
+`src/infrastructure/database/backend.py` defines a `DatabaseBackend` ABC with three required methods:
 
 | Method | Purpose |
 |--------|---------|
@@ -195,7 +195,7 @@ Do not mix trading DB backup logic with project_manager DB backups.
 
 If a new table is needed:
 
-1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `db_schema.py`.
+1. Add a `CREATE TABLE IF NOT EXISTS` DDL string to `schema.py`.
 2. Add it to `SCHEMA_SQL`.
 3. If it will need future column migrations, create a new migration tuple (e.g. `NEW_TABLE_MIGRATIONS`) and register it in `init_schema()`.
 4. Add any performance indexes as `CREATE INDEX IF NOT EXISTS` in a companion `*_INDEXES_SQL` string.
@@ -217,8 +217,8 @@ Inject a custom backend via `set_backend(SQLiteBackend(db_path=Path(":memory:"))
 
 ## Relevant Architecture Conventions
 
-- Schema init and migration logic → `trading/database/` only.
-- Operator data-ops (backup, export, delete) → `trading/interfaces/runtime/data_ops/`.
+- Schema init and migration logic → `src/infrastructure/database/` only.
+- Operator data-ops (backup, export, delete) → `src/trading/interfaces/runtime/data_ops/`.
 - Do not call `init_schema()` from domain modules.
 - SQL stays in repositories, not in services or interfaces.
 - See `docs/architecture/architecture-conventions.md` for the full dependency-direction rules.

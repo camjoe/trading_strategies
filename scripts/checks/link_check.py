@@ -19,18 +19,15 @@ CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 # Link targets with these prefixes are external / non-filesystem and are not checked.
 EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "tel:", "ftp://", "//")
 
-# A backtick span starting with one of these (e.g. `docs/...`, `bots/...`) is a repo-root path
+# A backtick span starting with one of these (e.g. `docs/...`, `.ai/...`) is a repo-root path
 # reference and is checked for existence. Dotted module paths (no slash) never match.
 TOP_DIRS = (
-    "trading/",
-    "brokers/",
-    "features/",
+    "src/",
     "scripts/",
-    "paper_trading_ui/",
+    "apps/",
     "tests/",
-    "common/",
     "docs/",
-    "bots/",
+    ".ai/",
     ".github/",
 )
 
@@ -48,6 +45,10 @@ IGNORED_DIR_PARTS = {
 # Files excluded from scanning. agent-skills.md is a verbatim upstream copy (the doc-header
 # standard's documented exception); its example links are not repo paths.
 EXCLUDED_DOCS = ("docs/reference/agent-skills.md",)
+
+# Directory prefixes excluded from scanning. (None currently — the restructure
+# planning docs that needed this were retired once the migration completed.)
+EXCLUDED_DIR_PREFIXES: tuple[str, ...] = ()
 
 
 @dataclass
@@ -72,7 +73,10 @@ def discover_docs(repo_root: Path) -> list[Path]:
     for candidate in repo_root.rglob("*.md"):
         if any(part in IGNORED_DIR_PARTS for part in candidate.parts):
             continue
-        if _rel_posix(candidate, repo_root) in EXCLUDED_DOCS:
+        rel = _rel_posix(candidate, repo_root)
+        if rel in EXCLUDED_DOCS:
+            continue
+        if any(rel.startswith(prefix) for prefix in EXCLUDED_DIR_PREFIXES):
             continue
         docs.append(candidate)
     return sorted(docs)
@@ -100,18 +104,28 @@ def _check_markdown_link(target: str, doc_dir: Path) -> bool:
     return (doc_dir / stripped).exists()
 
 
-def _check_backtick_path(span: str, repo_root: Path) -> bool | None:
-    """Check a backtick span that looks like a repo-root path. Returns None if it is not one.
+def _path_token(span: str) -> str | None:
+    """Return the first whitespace-delimited token of a backtick span if it looks like a path
+    reference, else None.
 
-    Only the first whitespace-delimited word is treated as the path, so trailing section pointers
-    like "`docs/...conventions.md § Naming`" check just the file.
+    Only the first word is used, so trailing section pointers like "`docs/...md § Naming`" check
+    just the file. Globs, brace-expansions, function-call notation (`config.get_db_path()`), and
+    `<placeholder>` templates are not paths.
     """
     words = span.split()
     if not words:
         return None
     token = words[0]
-    if "*" in token or "(" in token or ")" in token or _is_placeholder(token) or not token.startswith(TOP_DIRS):
-        return None  # globs and function-call notation (db_config.get_db_path()) are not paths
+    if any(ch in token for ch in "*(){}") or _is_placeholder(token):
+        return None
+    return token
+
+
+def _check_backtick_path(span: str, repo_root: Path) -> bool | None:
+    """Check a backtick span that looks like a current repo-root path. Returns None if it is not one."""
+    token = _path_token(span)
+    if token is None or not token.startswith(TOP_DIRS):
+        return None
     base = token.split("#", 1)[0].split("::", 1)[0].rstrip("/")  # drop #anchor and ::symbol suffixes
     return (repo_root / base).exists()
 
@@ -138,13 +152,18 @@ def check_file(path: Path, repo_root: Path) -> FileReport:
     return report
 
 
-def run_link_check(repo_root: Path, *, enforce: bool = False) -> int:
+def run_link_check(repo_root: Path, *, enforce: bool = False, quiet: bool = False) -> int:
     if not repo_root.exists():
         print(f"ERROR: repo root does not exist: {repo_root}")
         return 2
 
     reports = [report for path in discover_docs(repo_root) if (report := check_file(path, repo_root)).broken]
     total = sum(len(report.broken) for report in reports)
+
+    # Quiet mode: collapse a clean run to one line; broken refs fall through to the full report.
+    if quiet and not total:
+        print("PASS: doc links - all references resolve.")
+        return 0
 
     print("Doc Link Check")
     print(f"Repo root: {repo_root}")

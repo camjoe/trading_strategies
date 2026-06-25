@@ -1,17 +1,17 @@
-# UI Map — `paper_trading_ui/`
+# UI Map — `apps/paper_trading_web/`
 
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-06-24
 Purpose: Structure of the operator UI — FastAPI backend routes/schemas/services and TypeScript/Vite frontend layout.
 Related: [Navigation Guide](../architecture/nav-guide.md), [UI Screenshot Notes](../reference/screenshot-ui.md)
 
-Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. Both live under `paper_trading_ui/`.
+Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. Both live under `apps/paper_trading_web/`.
 
 ---
 
-## Backend (`paper_trading_ui/backend/`)
+## Backend (`apps/paper_trading_web/backend/`)
 
 ### Entry Points
 
@@ -23,7 +23,7 @@ Structure of the operator UI: a FastAPI backend and a TypeScript/Vite frontend. 
 
 ### Routes (`routes/`)
 
-FastAPI routers. One file per logical domain. Routes call backend services; they do not call `trading/` directly.
+FastAPI routers. One file per logical domain. Routes call backend services; they do not call `src/trading/` directly.
 
 | Module | Endpoints |
 |---|---|
@@ -50,14 +50,14 @@ Pydantic request/response models. These define the API contract with the fronten
 
 ### Services (`services/`)
 
-Backend service layer — bridges routes to `trading/` package calls.
+Backend service layer — bridges routes to `src/trading/` package calls.
 
 | Module | Responsibility |
 |---|---|
 | `db.py` | DB connection/session management for the UI backend |
 | `accounts/` | Account data assembly (summaries, snapshots, detail) |
 | `admin.py` | Admin operation service |
-| `backtests.py` | Backtesting service (delegates to `trading/backtesting/`) |
+| `backtests.py` | Backtesting service (delegates to `src/trading/backtesting/`) |
 | `exports.py` | Data export assembly |
 | `features/` | Feature/signal data service |
 | `ibkr_paper_monitor.py` | IBKR monitor artifact assembly |
@@ -76,7 +76,7 @@ Explicit output-shape contract for account data returned to the frontend. Isolat
 
 ---
 
-## Frontend (`paper_trading_ui/frontend/src/`)
+## Frontend (`apps/paper_trading_web/frontend/src/`)
 
 Vanilla TypeScript + Vite. No framework. Views are HTML files; features are TypeScript modules that wire up components to views.
 
@@ -199,4 +199,4 @@ Static JSON assets consumed by the in-app docs renderer.
 
 - [`docs/architecture/nav-guide.md`](../architecture/nav-guide.md) — Task-oriented lookup for where to edit UI code
 - [`docs/architecture/service-cookbook.md`](../architecture/service-cookbook.md) — Backend service API reference
-- `docs/architecture/architecture-conventions.md` — Import boundary rules (backend must not import from `trading/interfaces/`)
+- `docs/architecture/architecture-conventions.md` — Import boundary rules (backend must not import from `src/trading/interfaces/`)

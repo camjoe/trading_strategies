@@ -8,7 +8,7 @@ Purpose: Project-specific interpretation of PEP 8, covering indentation, imports
 Related: [Doc Header Standard](doc-header.md)
 
 This guide is the project-specific interpretation of [PEP 8](https://peps.python.org/pep-0008/).
-It applies to all Python under `trading/`, `paper_trading_ui/backend/`, `scripts/`, `common/`, and `tests/`.
+It applies to all Python under `src/trading/`, `apps/paper_trading_web/backend/`, `scripts/`, `src/common/`, and `tests/`.
 
 When PEP 8 is ambiguous or offers options, this guide picks one. Project rules take precedence over vanilla PEP 8.
 Automated enforcement uses `ruff` (see [Enforcement](#enforcement) below).
@@ -228,7 +228,7 @@ FILES = ("setup.cfg",)
 
 | Context | Style | Example |
 |---|---|---|
-| Module / package | `snake_case` | `db_backend.py`, `trading/` |
+| Module / package | `snake_case` | `backend.py`, `src/trading/` |
 | Function / method | `snake_case` | `get_account()`, `_apply_rotation()` |
 | Variable | `snake_case` | `account_id`, `sleeve_row` |
 | Constant (module-level) | `UPPER_SNAKE_CASE` | `MAX_RETRIES`, `ACCT_TREND` |
@@ -401,14 +401,14 @@ with `line-length = 119` and the rule selections agreed by the team.
 
 To run a manual style check now (assessment mode, no enforcement):
 ```bash
-.venv/bin/ruff check trading/ paper_trading_ui/backend/ tests/ --select E,W,N --line-length 119 --statistics
+.venv/bin/ruff check src/trading/ apps/paper_trading_web/backend/ tests/ --select E,W,N --line-length 119 --statistics
 ```
 
 ---
 
 ## Current state assessment
 
-Ruff scan run against `trading/`, `paper_trading_ui/backend/`, `tests/` on 2026-05-10
+Ruff scan run against `src/trading/`, `apps/paper_trading_web/backend/`, `tests/` on 2026-05-10
 with `--select E,W,N --line-length 119`:
 
 | Code | Count | Issue | Auto-fixable |

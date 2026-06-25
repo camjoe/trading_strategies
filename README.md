@@ -15,11 +15,13 @@ This repository provides tools for:
 
 | Folder | Purpose |
 |--------|---------|
-| `trends/` | Stock trends analysis and indicator calculations. |
-| `trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
-| `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `bots/agents/` | Repo-specific agent definitions for project-only execution flows. |
-| `bots/skills/` | Reusable skill definitions and templates for localized overlays. |
+| `apps/trends/` | Stock trends analysis and indicator calculations. |
+| `src/trading/` | Core trading logic: accounts, pricing, orders, reporting, backtesting. |
+| `src/infrastructure/` | Concrete adapters isolated from the domain: brokers, market-data, feature providers, database. |
+| `src/common/` | Shared kernel utilities used across packages (coercion, constants, paths, tickers, time). |
+| `apps/paper_trading_web/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
+| `.ai/agents/` | Repo-specific agent definitions for project-only execution flows. |
+| `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |
 
@@ -67,7 +69,7 @@ python -m scripts.run_checks --profile ci --install-python-tools
 
 ### Trends Analysis
 
-See [trends/README.md](trends/README.md) for full documentation and usage examples.
+See [apps/trends/README.md](apps/trends/README.md) for full documentation and usage examples.
 
 ### Backtesting
 
@@ -75,7 +77,7 @@ See [docs/reference/backtesting.md](docs/reference/backtesting.md) for backtest,
 
 ### Paper Trading
 
-See [trading/README.md](trading/README.md) for paper trading commands, account profiles, and scheduler operations.
+See [src/trading/README.md](src/trading/README.md) for paper trading commands, account profiles, and scheduler operations.
 
 ### UI Dashboard
 
@@ -89,10 +91,10 @@ Or start each service separately (required when using the Python debugger — se
 
 ```sh
 # Terminal 1 — FastAPI backend (no --reload so pdb stdin works)
-python -m uvicorn paper_trading_ui.backend.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn paper_trading_web.backend.main:app --host 127.0.0.1 --port 8000
 
 # Terminal 2 — Vite frontend dev server
-cd paper_trading_ui/frontend
+cd apps/paper_trading_web/frontend
 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
@@ -116,3 +118,4 @@ Tests cover both `trading` and `trends` packages with a minimum 70% coverage thr
 ## Documentation Index
 
 For detailed documentation on all components, see [docs/README.md](docs/README.md).
+

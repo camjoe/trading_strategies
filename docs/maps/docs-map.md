@@ -15,15 +15,15 @@ Directory of all documentation files across the repository. Use this to audit fo
 
 | Directory | Description |
 |---|---|
-| `trading/` | Core trading engine — layered Python package (interfaces → services → repositories → domain → database → models) |
-| `paper_trading_ui/` | Operator UI — FastAPI backend + TypeScript/Vite frontend |
-| `brokers/` | Broker adapters (paper + live); injected at the interface layer |
-| `features/` | External-data feature providers for alternative strategies |
+| `src/trading/` | Core trading engine — layered Python package (interfaces → services → repositories → domain → database → models) |
+| `apps/paper_trading_web/` | Operator UI — FastAPI backend + TypeScript/Vite frontend |
+| `src/infrastructure/brokers/` | Broker adapters (paper + live); injected at the interface layer |
+| `src/infrastructure/feature_providers/` | External-data feature providers for alternative strategies |
 | `tests/` | Test suite; mirrors the source tree path-for-path |
 | `scripts/` | Dev and ops tooling — checks, data ops, documentation sync, UI launcher |
 | `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
-| `common/` | Shared utilities available to all packages (used sparingly) |
-| `trends/` | Trend/signal data assets |
+| `src/common/` | Shared utilities available to all packages (used sparingly) |
+| `apps/trends/` | Trend/signal data assets |
 | `.github/` | Bot instructions, architecture conventions, style guide, and skill definitions |
 
 ---
@@ -44,13 +44,13 @@ Orientation docs — typically the first thing read when entering a package. Go 
 |---|---|---|
 | `README.md` | Repo overview, setup, how to run | Project setup, major new packages added |
 | `docs/README.md` | Docs folder navigation index; links to all maps and conventions | A doc file is added, moved, or removed |
-| `trading/README.md` | `trading/` package overview and layering summary | Top-level `trading/` structure changes |
-| `trading/backtesting/README.md` | Backtesting subsystem orientation | `trading/backtesting/` entry points change |
+| `src/trading/README.md` | `src/trading/` package overview and layering summary | Top-level `src/trading/` structure changes |
+| `src/trading/backtesting/README.md` | Backtesting subsystem orientation | `src/trading/backtesting/` entry points change |
 | `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
 | `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
-| `trends/README.md` | Trend/signal data assets | `trends/` layout or data sources change |
+| `apps/trends/README.md` | Trend/signal data assets | `apps/trends/` layout or data sources change |
 | `scripts/README.md` | Dev and ops tooling orientation | Scripts added, removed, or renamed |
-| `paper_trading_ui/README.md` | UI app orientation, how to run backend and frontend | UI entry points, ports, or dev workflow change |
+| `apps/paper_trading_web/README.md` | UI app orientation, how to run backend and frontend | UI entry points, ports, or dev workflow change |
 | `docs/runbooks/README.md` | Runbook index | A runbook is added or removed |
 
 ---
@@ -62,8 +62,8 @@ Structural reference — one file per major package. Go stale when module files 
 | File | What it covers | Goes stale when |
 |---|---|---|
 | `docs/maps/docs-map.md` (this file, top section) | Top-level directory overview | A new top-level directory is added or renamed |
-| `docs/maps/trading-package-map.md` | Full `trading/` module directory; layering rules and placement decisions | Any `trading/` module added, removed, or its layer boundary changes |
-| `docs/maps/ui-map.md` | `paper_trading_ui/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
+| `docs/maps/trading-package-map.md` | Full `src/trading/` module directory; layering rules and placement decisions | Any `src/trading/` module added, removed, or its layer boundary changes |
+| `docs/maps/ui-map.md` | `apps/paper_trading_web/` backend (routes, schemas, services) and frontend (features, components, lib, types, views, styles) | Any UI file added, removed, or restructured |
 | `docs/maps/scripts-map.md` | All `scripts/` modules and their responsibilities | Scripts added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
 | `docs/architecture/service-cookbook.md` | Which function to call for common tasks | Service API signatures or function names change |
@@ -79,20 +79,20 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `trading/backtesting/` interface or safeguards change |
-| `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `brokers/` adapters or connection config change |
-| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `trading/database/db_migrations.py` or migration conventions change |
+| `docs/reference/backtesting.md` | Backtesting commands, safeguards, and layering overview | `src/trading/backtesting/` interface or safeguards change |
+| `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
+| `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `src/infrastructure/database/migrations.py` or migration conventions change |
 | `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
-| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `trading/models/` sleeve shapes change |
-| `docs/reference/strategies.md` | Strategy signal models and processing | `trading/domain/strategy_signals.py` or strategy config changes |
+| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `src/trading/models/` sleeve shapes change |
+| `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
-| `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `features/` sentiment providers change |
+| `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 
 ### ADRs
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
-| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `trading/backtesting/` out of its current bounded-context shape |
+| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `src/trading/backtesting/` out of its current bounded-context shape |
 | `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
 | `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
 
@@ -131,6 +131,7 @@ Rules and standards this project follows — coding style, doc structure, naming
 | `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
 | `docs/conventions/reference-doc.md` | Standard structure for reference notes | Reference doc conventions change |
 | `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
+| `docs/conventions/branching.md` | Branch model, naming rules, and commit restrictions | Branching strategy or naming conventions change |
 
 ---
 
@@ -148,14 +149,14 @@ Canonical rules loaded by Claude and other agents. These are the most authoritat
 
 | File | Agent scope | Goes stale when |
 |---|---|---|
-| `bots/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
-| `bots/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
-| `bots/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
-| `bots/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
+| `.ai/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
+| `.ai/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
+| `.ai/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
+| `.ai/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
 
 ### Skills
 
-Skills live under `bots/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
+Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
 
 | Skill folder | What it covers |
 |---|---|
@@ -183,3 +184,4 @@ Use this when auditing documentation health:
 - [ ] `docs/architecture/architecture-conventions.md` agrees with the architecture maps on import boundaries.
 - [ ] `docs/README.md` links are not broken (no missing or renamed files).
 - [ ] No two files in the same section cover the same scope without cross-referencing each other.
+

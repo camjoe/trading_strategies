@@ -24,83 +24,96 @@ Top-level package shape is intentionally **hybrid**:
 
 1. The layered backbone above applies to main runtime behavior.
 2. Selected bounded contexts remain top-level when their ownership is distinct
-   (`trading/backtesting`); broker adapters live at the repo-root `brokers/` package and
-   external feature providers live at the repo-root `features/` package.
+   (`src/trading/backtesting`); broker adapters live at the repo-root `src/infrastructure/brokers/` package,
+   external feature providers live at the repo-root `src/infrastructure/feature_providers/` package, and the
+   concrete market-data adapter + factory live at the repo-root `src/infrastructure/market_data/` package.
 3. See `docs/maps/trading-package-map.md` for the module directory and `docs/architecture/nav-guide.md` for task-oriented placement guidance.
 
 ## Allowed and Disallowed Dependencies
 
 Allowed:
 
-1. `trading/interfaces/*` importing `trading/services/*`
-2. `trading/services/*` importing `trading/repositories/*` and `trading/domain/*`
-3. `trading/repositories/*` importing `trading/database/*` helpers
+1. `src/trading/interfaces/*` importing `src/trading/services/*`
+2. `src/trading/services/*` importing `src/trading/repositories/*` and `src/trading/domain/*`
+3. `src/trading/repositories/*` importing `src/infrastructure/database/*` helpers
 
 Disallowed:
 
-1. `trading/domain/*` importing interfaces/repositories/database modules
-2. `trading/repositories/*` importing CLI/runtime adapters
-3. `trading/interfaces/*` embedding persistence SQL or domain policy math that belongs in lower layers
+1. `src/trading/domain/*` importing interfaces/repositories/database modules
+2. `src/trading/repositories/*` importing CLI/runtime adapters
+3. `src/trading/interfaces/*` embedding persistence SQL or domain policy math that belongs in lower layers
 
 ## Package Ownership Map
 
-1. `trading/interfaces/cli/`: CLI adapters and command wiring
+1. `src/trading/interfaces/cli/`: CLI adapters and command wiring
    - Keep transport/input wiring here, not domain logic.
 
-2. `trading/interfaces/runtime/jobs/`: scheduler/runtime entrypoints
+2. `src/trading/interfaces/runtime/jobs/`: scheduler/runtime entrypoints
    - Scheduler and runtime orchestration entrypoints (daily runs, health checks, registration tasks).
 
-3. `trading/interfaces/runtime/data_ops/`: operator-facing maintenance flows
+3. `src/trading/interfaces/runtime/data_ops/`: operator-facing maintenance flows
    - Operator-facing DB admin/export flows.
    - Canonical location for backup/export/delete operations.
 
-4. `trading/services/`: application orchestration and composition
+4. `src/trading/services/`: application orchestration and composition
    - Coordinates domain logic and repositories.
 
-5. `trading/domain/`: pure policy/decision logic (side-effect free)
+5. `src/trading/domain/`: pure policy/decision logic (side-effect free)
    - No DB, CLI, subprocess, or network side effects.
 
-6. `trading/repositories/`: SQL persistence adapters
+6. `src/trading/repositories/`: SQL persistence adapters
    - SQL reads/writes and row-level data access helpers.
 
-7. `trading/database/`: DB infrastructure/config/coercion only
+7. `src/infrastructure/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
    - Migration system reference: `docs/reference/db-migration-system.md`
    - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
 
-8. `trading/backtesting/`: same layered model within backtesting package
+8. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
    - See `docs/adr/002-backtesting-layering.md` for layering rationale.
 
-9. `trading/config/`: file-backed static config assets
+9. `src/infrastructure/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
-10. `features/` (repo root): external-data feature providers for alternative strategies
+10. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
     - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
     - This package is the **only** place that may import external API libraries
       (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
       network calls to third-party services.
-    - Shared contracts and signal keys live in `trading/domain/feature_provider.py`.
-    - `trading/` must never import from `features/`; the interface layer (`trading/interfaces/`)
+    - Shared contracts and signal keys live in `src/trading/domain/feature_provider.py`.
+    - `src/trading/` must never import from `src/infrastructure/feature_providers/`; the interface layer (`src/trading/interfaces/`)
       is the sole wiring point.
-    - Signal functions in `trading/domain/strategy_signals.py` must
+    - Signal functions in `src/trading/domain/strategy_signals.py` must
       consume feature bundles via injected callables — they must never call external
       APIs directly.
 
-11. `brokers/` (repo root): broker connection adapters and factory
+11. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
    - Keep all broker SDK imports (ib_async, ibapi) inside this package.
-   - Service and domain layers must depend only on `BrokerConnection` from `trading/domain/broker_connection.py`.
-   - The factory (`brokers/factory.py`) is the sole location for `broker_type` routing logic.
+   - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
+   - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
-   - `trading/` must never import from `brokers/`; the interface layer (`trading/interfaces/`) is the sole wiring point.
+   - `src/trading/` must never import from `src/infrastructure/brokers/`; the interface layer (`src/trading/interfaces/`) is the sole wiring point.
+
+12. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
+   - Keep the `yfinance` SDK import inside this package (`providers.py`).
+   - Service and domain layers must depend only on the `MarketDataProvider` port from
+     `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.
+   - The factory (`src/infrastructure/market_data/factory.py`) is the sole location for `provider` routing
+     (env/config resolution) and concrete-adapter construction (`build_provider`).
+   - `src/trading/` must never import from `src/infrastructure/market_data/`; the interface layer
+     (`src/trading/interfaces/`) and the backtest composition seam (`src/trading/backtesting/backtest.py`)
+     are the only wiring points. This boundary is enforced by `scripts/checks/layer_check.py`.
+   - The feature provider (`ProxyFeatureDataProvider`) stays in `src/trading/services/market_data/` — it is a
+     trading-domain computation over an injected market-data provider, with no external-library dependency.
 
 ## External Data Strategies
 
 Rules for all alternative-strategy development (strategy_style = "alternative"):
 
-1. **External calls are isolated in `features/`** — no direct imports of
+1. **External calls are isolated in `src/infrastructure/feature_providers/`** — no direct imports of
    `praw`, `pytrends`, `vaderSentiment`, `newsapi`, or any other third-party
-   external-data library outside of `features/` submodules.
+   external-data library outside of `src/infrastructure/feature_providers/` submodules.
 
 2. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
    must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
@@ -120,7 +133,7 @@ All bots must follow this rule when writing or reviewing Python code:
 
 1. Do not introduce numeric or string literals that represent a named financial, mathematical, or domain concept inline in logic.
 2. Any value that has a name in the domain (e.g., RSI window, annualization factor, basis points divisor, threshold, floor, cap) must be extracted to a named constant in `UPPER_SNAKE_CASE`.
-3. Prefer placing shared cross-module constants in `common/constants.py`. Place module-local constants at the top of the file where they are used.
+3. Prefer placing shared cross-module constants in `src/common/constants.py`. Place module-local constants at the top of the file where they are used.
 4. Include a short explanatory comment above each constant stating what it represents and why it has that value.
 5. This applies to: indicator parameters, time periods, scaling factors, thresholds, allocation percentages, fee/slippage rates, and any other value that encodes domain knowledge.
 
@@ -188,7 +201,7 @@ Domain naming:
 
 ## UI Backend Boundary Rule
 
-`paper_trading_ui/backend/services/` is a **transport-only** layer.
+`apps/paper_trading_web/backend/services/` is a **transport-only** layer.
 
 It must contain only:
 - HTTP request → domain model conversion
@@ -200,23 +213,23 @@ It must **not** contain:
 - Business rules or policy logic
 - Data assembly that could be useful to CLI or runtime job consumers
 
-Domain logic belongs in `trading/`.  If a calculation is needed by any interface
-(FastAPI, CLI, or runtime jobs), it must live in `trading/services/` or
-`trading/domain/`.  The UI backend then delegates to those functions and shapes
+Domain logic belongs in `src/trading/`.  If a calculation is needed by any interface
+(FastAPI, CLI, or runtime jobs), it must live in `src/trading/services/` or
+`src/trading/domain/`.  The UI backend then delegates to those functions and shapes
 the result for the HTTP response.
 
 Violation example: settlement-corrected equity math or benchmark return
-calculations in `paper_trading_ui/backend/services/accounts/` — these were
-migrated to `trading/services/reporting/` and must not be re-introduced into
+calculations in `apps/paper_trading_web/backend/services/accounts/` — these were
+migrated to `src/trading/services/reporting/` and must not be re-introduced into
 the UI backend layer.
 
 ## Placement Checklist
 
-Before creating or moving code in `trading/`:
+Before creating or moving code in `src/trading/`:
 
 1. Classify change target: interface/service/domain/repository/database.
-2. Place scheduler operations in `trading/interfaces/runtime/jobs/`.
-3. Place operator data ops in `trading/interfaces/runtime/data_ops/`.
+2. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
+3. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
 4. Keep SQL in repositories, not in handlers/routes.
 5. If architecture ownership changes, update this file accordingly.
 

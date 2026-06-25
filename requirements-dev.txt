@@ -9,3 +9,8 @@ hypothesis==6.131.26
 
 # Dev tooling
 playwright>=1.50.0
+
+# Editable install of this workspace so the apps/ and src/ packages
+# (infrastructure, paper_trading_web, trends) import by their top-level names.
+# Replaces the old pytest.ini `pythonpath` and scripts/__init__.py path hacks.
+-e .

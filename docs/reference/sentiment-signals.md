@@ -32,25 +32,25 @@ Strategy catalog details (all strategy families) live in:
 
 Signal dispatch and registration:
 
-- `trading/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
+- `src/trading/domain/strategy_signals.py` owns `STRATEGY_REGISTRY` and
   `resolve_signal()` dispatch.
 - The three alternative strategies above are registered with
   `strategy_style="alternative"`.
 
 Provider boundary:
 
-- `trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
+- `src/trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
   `ExternalFeatureBundle`.
 - Concrete providers:
-  - `features/policy_feature_provider.py`
-  - `features/news_feature_provider.py`
-  - `features/social_feature_provider.py`
-- Feature-provider imports are isolated to `features/`.
+  - `src/infrastructure/feature_providers/policy_provider.py`
+  - `src/infrastructure/feature_providers/news_provider.py`
+  - `src/infrastructure/feature_providers/social_provider.py`
+- Feature-provider imports are isolated to `src/infrastructure/feature_providers/`.
 
 Market-data dependency:
 
-- `trading/services/market_data/registry.py` resolves the configured market-data
-  provider.
+- `src/infrastructure/market_data/factory.py` resolves and builds the configured
+  market-data provider (injected at composition seams; no global locator).
 - Alternative providers consume market/news/social data through their own
   provider logic; strategy functions consume normalized bundles only.
 
@@ -64,18 +64,18 @@ Degradation contract:
 
 Rotation overlays:
 
-- `trading/services/auto_trading/rotation.py` applies news/social overlay votes
+- `src/trading/services/auto_trading/rotation.py` applies news/social overlay votes
   when `rotation_overlay_mode` is enabled.
 - Overlay coverage uses the union of current holdings and
   `rotation_overlay_watchlist`.
-- Overlay watchlist defaults are seeded from `trading/config/trade_universe.txt`
+- Overlay watchlist defaults are seeded from `src/infrastructure/config/trade_universe.txt`
   at schema/default time. Changing that file later does not automatically
   update already-migrated DB values.
 
 Operator visibility:
 
 - UI feature status and signal inspection are exposed via
-  `paper_trading_ui` feature routes/services.
+  `paper_trading_web` feature routes/services.
 
 ## Not Implemented in This Slice
 
@@ -90,5 +90,5 @@ Still out of scope for the current implementation:
 
 - `docs/reference/strategies.md`
 - `docs/reference/backtesting.md`
-- `trading/README.md`
+- `src/trading/README.md`
 - `docs/architecture/architecture-conventions.md`
