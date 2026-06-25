@@ -13,15 +13,10 @@ from common.time import utc_now_iso
 from trading.domain.strategy_signals import validate_strategy_name
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
-    PROMOTION_REVIEW_EVENT_APPROVED,
-    PROMOTION_REVIEW_EVENT_NOTE_ADDED,
-    PROMOTION_REVIEW_EVENT_REJECTED,
-    PROMOTION_REVIEW_EVENT_REQUESTED,
-    PROMOTION_REVIEW_STATE_APPROVED,
-    PROMOTION_REVIEW_STATE_REJECTED,
-    PROMOTION_REVIEW_STATE_REQUESTED,
     PromotionAssessment,
+    PromotionReviewEventType,
     PromotionReviewRecord,
+    PromotionReviewState,
 )
 from trading.repositories.promotion import PromotionReviewRepository
 from trading.services.promotion.helpers import normalize_optional_text
@@ -78,10 +73,10 @@ def _record_review_event(
     conn: sqlite3.Connection,
     *,
     review_id: int,
-    event_type: str,
+    event_type: PromotionReviewEventType,
     actor_name: str | None,
-    from_review_state: str | None,
-    to_review_state: str | None,
+    from_review_state: PromotionReviewState | None,
+    to_review_state: PromotionReviewState | None,
     note: str | None,
     event_payload: dict[str, object],
     created_at: str,
@@ -102,7 +97,7 @@ def _update_review(
     conn: sqlite3.Connection,
     *,
     review_id: int,
-    review_state: str,
+    review_state: PromotionReviewState,
     reviewed_by: str | None,
     operator_summary_note: str | None,
     updated_at: str,
@@ -169,10 +164,10 @@ def execute_promotion_review_request(
         _record_review_event(
             conn,
             review_id=int(review.id),
-            event_type=PROMOTION_REVIEW_EVENT_REQUESTED,
+            event_type=PromotionReviewEventType.REQUESTED,
             actor_name=normalized_requested_by,
             from_review_state=None,
-            to_review_state=PROMOTION_REVIEW_STATE_REQUESTED,
+            to_review_state=PromotionReviewState.REQUESTED,
             note=normalized_note,
             event_payload=_request_event_payload(assessment),
             created_at=created_at,
@@ -185,18 +180,20 @@ def execute_promotion_review_request(
 
 def _require_open_review(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
     review = _fetch_review_or_raise(conn, review_id=review_id)
-    if review.review_state != PROMOTION_REVIEW_STATE_REQUESTED:
+    if review.review_state != PromotionReviewState.REQUESTED:
         raise ValueError(f"Promotion review {review_id} is already closed with state '{review.review_state}'.")
     return review
 
 
-def _resolve_review_closure(action: str, *, ready_for_live: bool) -> tuple[str, str]:
+def _resolve_review_closure(
+    action: str, *, ready_for_live: bool
+) -> tuple[PromotionReviewState, PromotionReviewEventType]:
     if action == PROMOTION_REVIEW_ACTION_APPROVE:
         if not ready_for_live:
             raise ValueError("Only ready-for-live promotion reviews can be approved.")
-        return PROMOTION_REVIEW_STATE_APPROVED, PROMOTION_REVIEW_EVENT_APPROVED
+        return PromotionReviewState.APPROVED, PromotionReviewEventType.APPROVED
     if action == PROMOTION_REVIEW_ACTION_REJECT:
-        return PROMOTION_REVIEW_STATE_REJECTED, PROMOTION_REVIEW_EVENT_REJECTED
+        return PromotionReviewState.REJECTED, PromotionReviewEventType.REJECTED
     raise ValueError(f"Unsupported promotion review action '{action}'.")
 
 
@@ -212,7 +209,7 @@ def _execute_promotion_review_note(
         _record_review_event(
             conn,
             review_id=int(review.id),
-            event_type=PROMOTION_REVIEW_EVENT_NOTE_ADDED,
+            event_type=PromotionReviewEventType.NOTE_ADDED,
             actor_name=actor_name,
             from_review_state=review.review_state,
             to_review_state=review.review_state,

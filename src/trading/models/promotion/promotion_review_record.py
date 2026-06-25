@@ -2,12 +2,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-from trading.models.promotion.constants import (
-    PROMOTION_ASSESSMENT_VERSION,
-    PROMOTION_STAGE_CANDIDATE,
-    PROMOTION_STATUS_BLOCKED,
-    PROMOTION_REVIEW_STATE_REQUESTED,
-)
+from trading.models.promotion.constants import PROMOTION_ASSESSMENT_VERSION
+from trading.models.promotion.enums import PromotionReviewState, PromotionStage, PromotionStatus
 
 
 @dataclass(frozen=True)
@@ -16,9 +12,9 @@ class PromotionReviewRecord:
     account_id: int | None = None
     account_name_snapshot: str | None = None
     strategy_name: str | None = None
-    review_state: str = PROMOTION_REVIEW_STATE_REQUESTED
-    assessment_stage: str = PROMOTION_STAGE_CANDIDATE
-    assessment_status: str = PROMOTION_STATUS_BLOCKED
+    review_state: PromotionReviewState = PromotionReviewState.REQUESTED
+    assessment_stage: PromotionStage = PromotionStage.CANDIDATE
+    assessment_status: PromotionStatus = PromotionStatus.BLOCKED
     ready_for_live: bool = False
     overall_confidence: float = 0.0
     live_trading_enabled_snapshot: bool = False

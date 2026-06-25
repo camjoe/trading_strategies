@@ -16,7 +16,7 @@ def _ready_assessment(*, account_name: str = "acct_service", strategy_name: str 
         account_name=account_name,
         strategy_name=strategy_name,
         stage="promotion_review",
-        status="ready",
+        status="ready_for_review",
         ready_for_live=True,
     )
 

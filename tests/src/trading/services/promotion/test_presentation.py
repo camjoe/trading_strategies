@@ -144,7 +144,7 @@ def test_render_promotion_review_history_lines_includes_closure_event_note(
                 account_name=account_name,
                 strategy_name=strategy_name or "trend_v1",
                 stage="promotion_review",
-                status="ready",
+                status="ready_for_review",
                 ready_for_live=True,
             ),
         ),

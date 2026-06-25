@@ -1,6 +1,7 @@
 """Promotion assessment and review data contracts.
 
-Stable re-export surface for promotion models and their vocabulary constants.
+Stable re-export surface for promotion models, their field vocabularies
+(`StrEnum`s), and remaining vocabulary constants.
 """
 
 from __future__ import annotations
@@ -8,22 +9,12 @@ from __future__ import annotations
 from trading.models.promotion.constants import (
     PROMOTION_ASSESSMENT_VERSION,
     PROMOTION_REVIEW_ACTOR_TYPE_OPERATOR,
-    PROMOTION_REVIEW_EVENT_APPROVED,
-    PROMOTION_REVIEW_EVENT_NOTE_ADDED,
-    PROMOTION_REVIEW_EVENT_REJECTED,
-    PROMOTION_REVIEW_EVENT_REQUESTED,
-    PROMOTION_REVIEW_STATE_APPROVED,
-    PROMOTION_REVIEW_STATE_REJECTED,
-    PROMOTION_REVIEW_STATE_REQUESTED,
-    PROMOTION_STAGE_CANDIDATE,
-    PROMOTION_STAGE_LIVE_ACTIVE,
-    PROMOTION_STAGE_PAPER_OBSERVING,
-    PROMOTION_STAGE_PROMOTION_REVIEW,
-    PROMOTION_STAGE_RESEARCH_VALIDATED,
-    PROMOTION_STATUS_BLOCKED,
-    PROMOTION_STATUS_LIVE,
-    PROMOTION_STATUS_OBSERVING,
-    PROMOTION_STATUS_READY_FOR_REVIEW,
+)
+from trading.models.promotion.enums import (
+    PromotionReviewEventType,
+    PromotionReviewState,
+    PromotionStage,
+    PromotionStatus,
 )
 from trading.models.promotion.promotion_assessment import PromotionAssessment
 from trading.models.promotion.promotion_review_event import PromotionReviewEvent
@@ -32,23 +23,11 @@ from trading.models.promotion.promotion_review_record import PromotionReviewReco
 __all__ = [
     "PROMOTION_ASSESSMENT_VERSION",
     "PROMOTION_REVIEW_ACTOR_TYPE_OPERATOR",
-    "PROMOTION_REVIEW_EVENT_APPROVED",
-    "PROMOTION_REVIEW_EVENT_NOTE_ADDED",
-    "PROMOTION_REVIEW_EVENT_REJECTED",
-    "PROMOTION_REVIEW_EVENT_REQUESTED",
-    "PROMOTION_REVIEW_STATE_APPROVED",
-    "PROMOTION_REVIEW_STATE_REJECTED",
-    "PROMOTION_REVIEW_STATE_REQUESTED",
-    "PROMOTION_STAGE_CANDIDATE",
-    "PROMOTION_STAGE_LIVE_ACTIVE",
-    "PROMOTION_STAGE_PAPER_OBSERVING",
-    "PROMOTION_STAGE_PROMOTION_REVIEW",
-    "PROMOTION_STAGE_RESEARCH_VALIDATED",
-    "PROMOTION_STATUS_BLOCKED",
-    "PROMOTION_STATUS_LIVE",
-    "PROMOTION_STATUS_OBSERVING",
-    "PROMOTION_STATUS_READY_FOR_REVIEW",
     "PromotionAssessment",
     "PromotionReviewEvent",
+    "PromotionReviewEventType",
     "PromotionReviewRecord",
+    "PromotionReviewState",
+    "PromotionStage",
+    "PromotionStatus",
 ]
