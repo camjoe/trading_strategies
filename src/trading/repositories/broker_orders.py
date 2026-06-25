@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 from infrastructure.database.sql_helpers import in_placeholders
-from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
-from trading.models.broker_order_record import BrokerOrderRecord
+from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders.broker_order_record import BrokerOrderRecord
 
 
 class BrokerOrderRepository:

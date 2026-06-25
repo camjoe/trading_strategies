@@ -6,7 +6,7 @@ from io import StringIO
 import pytest
 
 from scripts import ibkr_web_api_smoke_test
-from trading.models.broker_order import BrokerOrder, OrderStatus
+from trading.models.orders.broker_order import BrokerOrder, OrderStatus
 from infrastructure.brokers.ib_web_client import IbWebApiSettings
 
 

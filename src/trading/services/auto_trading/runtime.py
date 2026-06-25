@@ -12,7 +12,7 @@ from common.time import utc_now_iso
 from collections.abc import Callable
 
 from trading.models import AccountRecord
-from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open

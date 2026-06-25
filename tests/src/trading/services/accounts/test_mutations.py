@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from trading.models.account_config import AccountConfig
+from trading.models.accounts.account_config import AccountConfig
 from trading.services.accounts import create_account
 
 

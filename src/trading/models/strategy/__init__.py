@@ -1,0 +1,1 @@
+"""strategy data contracts."""

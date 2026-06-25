@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from infrastructure.database.init import init_schema
-from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
 import trading.services.auto_trading.runtime as runtime_service
 from tests.support.brokers import make_broker_account
 

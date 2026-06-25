@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
-from trading.models.sleeve_risk_decision_record import SleeveRiskDecisionRecord
+from trading.models.sleeves.sleeve_risk_decision_record import SleeveRiskDecisionRecord
 
 
 class SleeveRiskDecisionRepository:

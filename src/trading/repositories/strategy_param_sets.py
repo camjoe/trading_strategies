@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.strategy_param_set_record import StrategyParamSetRecord
+from trading.models.strategy.strategy_param_set_record import StrategyParamSetRecord
 
 
 class StrategyParamSetRepository:

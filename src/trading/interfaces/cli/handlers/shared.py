@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.models.account_config import AccountConfig
+from trading.models.accounts.account_config import AccountConfig
 
 
 def resolve_learning_enabled(args, include_learning_disabled: bool) -> bool | None:

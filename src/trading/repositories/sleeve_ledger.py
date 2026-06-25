@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.sleeve_ledger_record import SleeveLedgerRecord
+from trading.models.sleeves.sleeve_ledger_record import SleeveLedgerRecord
 
 
 class SleeveLedgerRepository:

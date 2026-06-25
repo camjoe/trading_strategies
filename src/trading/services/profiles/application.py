@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import coerce_float
-from trading.models.account_config import AccountConfig
+from trading.models.accounts.account_config import AccountConfig
 from trading.repositories.accounts import AccountRepository
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 from trading.services.accounts import configure_account, create_account, get_account, set_benchmark

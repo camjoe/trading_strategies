@@ -15,7 +15,7 @@ from trading.domain.sleeve_rotation import (
     SleeveStrategyMetrics,
     evaluate_champion_challenger_rotation,
 )
-from trading.models.daily_metric_record import DailyMetricRecord
+from trading.models.portfolio.daily_metric_record import DailyMetricRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository

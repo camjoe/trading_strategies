@@ -1,0 +1,1 @@
+"""accounts data contracts."""

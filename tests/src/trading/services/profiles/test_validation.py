@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from trading.models.account_config import AccountConfig
+from trading.models.accounts.account_config import AccountConfig
 import trading.services.profiles.application as profiles_application
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 

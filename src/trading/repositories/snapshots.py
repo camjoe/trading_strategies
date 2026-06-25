@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 
 
 class EquitySnapshotRepository:
