@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Callable, Mapping
+from typing import TYPE_CHECKING, Callable, Mapping
 
 from common.coercion import coerce_int
 from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 from common.time import as_utc_iso
 from common.time import parse_utc_iso
+
+if TYPE_CHECKING:
+    from trading.models.rotation.rotation_config import RotationConfig
 
 ROTATION_MODES = {"time", "optimal", "regime"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
@@ -164,6 +167,19 @@ def parse_rotation_overlay_watchlist(raw_value: object | None) -> list[str]:
 
 def dump_rotation_overlay_watchlist(watchlist: list[str]) -> str:
     return json.dumps(watchlist, separators=(",", ":"))
+
+
+def rotation_config_to_db_dict(cfg: RotationConfig) -> dict[str, object]:
+    """Finalize ``RotationConfig.to_db_dict()`` for persistence.
+
+    The model owns the field→column mapping; this applies the domain-owned
+    JSON encoding to the two list-valued columns (schedule, overlay watchlist).
+    """
+    values = cfg.to_db_dict()
+    values["rotation_schedule"] = dump_rotation_schedule(cfg.schedule) if cfg.schedule else None
+    if cfg.overlay_watchlist is not None:
+        values["rotation_overlay_watchlist"] = dump_rotation_overlay_watchlist(cfg.overlay_watchlist)
+    return values
 
 
 def resolve_rotation_overlay_watchlist(account: Mapping[str, object]) -> list[str]:

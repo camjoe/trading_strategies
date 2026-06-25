@@ -1,5 +1,6 @@
 import pytest
 
+from trading.domain.rotation import rotation_config_to_db_dict
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 
 
@@ -136,7 +137,7 @@ class TestParseRotationConfigFromProfile:
             }
         )
         assert rc.overlay_watchlist == ["AAPL", "MSFT"]
-        assert rc.to_db_dict()["rotation_overlay_watchlist"] == '["AAPL","MSFT"]'
+        assert rotation_config_to_db_dict(rc)["rotation_overlay_watchlist"] == '["AAPL","MSFT"]'
 
     def test_lookback_days_and_last_at_stored(self):
         rc = parse_rotation_config_from_profile(

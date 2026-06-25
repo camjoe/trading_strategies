@@ -2,11 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from trading.domain.rotation import (
-    dump_rotation_overlay_watchlist,
-    dump_rotation_schedule,
-)
-
 
 @dataclass(frozen=True)
 class RotationConfig:
@@ -29,6 +24,12 @@ class RotationConfig:
     active_strategy: str | None = None
 
     def to_db_dict(self) -> dict[str, object]:
+        """Map fields to account-table column values.
+
+        The list-valued columns (``rotation_schedule``, ``rotation_overlay_watchlist``)
+        are returned as raw lists; JSON encoding is applied by
+        ``trading.domain.rotation.rotation_config_to_db_dict``.
+        """
         values: dict[str, object] = {
             "rotation_enabled": self.enabled,
             "rotation_mode": self.mode,
@@ -36,7 +37,7 @@ class RotationConfig:
             "rotation_interval_days": self.interval_days,
             "rotation_interval_minutes": self.interval_minutes,
             "rotation_lookback_days": self.lookback_days,
-            "rotation_schedule": dump_rotation_schedule(self.schedule) if self.schedule else None,
+            "rotation_schedule": self.schedule,
             "rotation_regime_strategy_risk_on": self.regime_strategy_risk_on,
             "rotation_regime_strategy_neutral": self.regime_strategy_neutral,
             "rotation_regime_strategy_risk_off": self.regime_strategy_risk_off,
@@ -48,5 +49,5 @@ class RotationConfig:
             "rotation_active_strategy": self.active_strategy,
         }
         if self.overlay_watchlist is not None:
-            values["rotation_overlay_watchlist"] = dump_rotation_overlay_watchlist(self.overlay_watchlist)
+            values["rotation_overlay_watchlist"] = self.overlay_watchlist
         return values

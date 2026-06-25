@@ -95,6 +95,18 @@ LAYER_RULES: list[LayerRule] = [
         forbidden_prefixes=("trading.interfaces.",),
     ),
     LayerRule(
+        label="trading/models → no imports from higher layers or infrastructure (models is the lowest, pure-data layer)",
+        source_glob="src/trading/models/**/*.py",
+        forbidden_prefixes=(
+            "trading.domain.",
+            "trading.services.",
+            "trading.repositories.",
+            "trading.interfaces.",
+            "trading.backtesting.",
+            "infrastructure.",
+        ),
+    ),
+    LayerRule(
         label="trading → no direct market-data adapter imports (wire at composition roots)",
         source_glob="src/trading/**/*.py",
         forbidden_prefixes=("infrastructure.market_data.",),
