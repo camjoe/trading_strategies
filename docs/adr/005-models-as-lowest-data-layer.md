@@ -49,6 +49,22 @@ rather than cleanly layered.
    `RotationConfig.to_db_dict()` returns the raw field→column mapping; the JSON
    encoding of its list columns is applied by `domain.rotation_config_to_db_dict`.
 
+6. **Constants follow the "lowest owning layer" rule.** A constant lives at the
+   lowest layer that owns the concept *and* is reachable by all its consumers,
+   without forcing an upward import. This sorts constants by their nature rather
+   than dumping them in one place:
+   - Generic, domain-agnostic primitives → `src/common/constants.py`.
+   - A feature's data-contract vocabulary / schema metadata (allowed `status`
+     values, artifact versions) → that feature's `constants.py` in `models/`
+     (e.g. `models/promotion/constants.py`). `domain` policy then *reads* that
+     vocabulary from `models/` — the correct direction.
+   - Domain policy parameters (math weights, thresholds, gate messages) → the
+     owning `domain/` module.
+   - One-off values → top of the single file that uses them.
+
+   Because these moved with their dataclasses, `models/{evaluation,promotion}/`
+   gained `constants.py` files; that is intentional, not an accidental third tier.
+
 ## Consequences
 
 Benefits:
@@ -58,12 +74,19 @@ Benefits:
 - `models/` is a true foundation layer with an enforced no-upward-imports rule.
 - The flat `models/` sprawl is resolved by feature subfolders.
 
-Trade-offs / deferred:
+Resolved:
 
 - The policy-knob `*Settings` dataclasses (`EvaluationConfidenceSettings`,
-  `PromotionPolicySettings`) stay in `domain/` for now because their field
-  defaults are domain constants used by domain math. Relocating them — and
-  finding a home for those constants — is deferred to a follow-up.
+  `PromotionPolicySettings`) **stay in `domain/` — final, not deferred.** They are
+  domain policy parameters (their fields default to domain math constants used by
+  domain compute functions), not passive data contracts that cross a boundary.
+  Forcing them and their math constants into `models/` to satisfy "all dataclasses
+  in models" would put domain math in the data layer for no benefit. This is a
+  deliberate, principled exception to decision (1): `models/` holds passive data
+  contracts and their field vocabulary; domain policy config stays in `domain/`.
+
+Trade-offs:
+
 - A few domain value objects (sleeve transition/rotation results) now live apart
   from the pure functions that build them; the functions import them back from
   `models/`.

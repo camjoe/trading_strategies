@@ -61,9 +61,11 @@ Disallowed:
 5. `src/trading/domain/`: pure policy/decision logic (side-effect free)
    - No DB, CLI, subprocess, or network side effects.
    - Holds logic + DI contracts (`BrokerConnection`, `FeatureFetcherSet`,
-     `StrategySpec`). Passive data classes belong in `models/` (see below);
-     the deferred exception is the policy-knob `*Settings` dataclasses, which
-     stay with their constants until those constants get a dedicated home.
+     `StrategySpec`). Passive data classes belong in `models/` (see below).
+     The deliberate exception is the policy-knob `*Settings` dataclasses
+     (`EvaluationConfidenceSettings`, `PromotionPolicySettings`): they are domain
+     policy parameters (not data contracts) and stay here with the domain math
+     constants they default to.
 
 6. `src/trading/models/`: passive data contracts (the lowest layer)
    - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
@@ -146,7 +148,23 @@ All bots must follow this rule when writing or reviewing Python code:
 
 1. Do not introduce numeric or string literals that represent a named financial, mathematical, or domain concept inline in logic.
 2. Any value that has a name in the domain (e.g., RSI window, annualization factor, basis points divisor, threshold, floor, cap) must be extracted to a named constant in `UPPER_SNAKE_CASE`.
-3. Prefer placing shared cross-module constants in `src/common/constants.py`. Place module-local constants at the top of the file where they are used.
+3. Place each constant at its **lowest owning layer**: the lowest layer that owns
+   the concept *and* is reachable by every consumer without forcing an upward
+   import. Sort by the constant's nature, not by convenience:
+
+   | Constant kind | Home |
+   |---|---|
+   | Generic, domain-agnostic primitive used across unrelated areas (time, math, basis points, indicator params) | `src/common/constants.py` |
+   | A feature's data-contract vocabulary or schema metadata (allowed `status`/`stage` values, artifact/schema versions) | that feature's `constants.py` at its lowest owning layer — e.g. `src/trading/models/<area>/constants.py` |
+   | Domain policy parameters (math weights, thresholds, gate/decision messages) | the owning `src/trading/domain/` module (module-local or an area constants module) |
+   | One-off value used in a single file | top of that file |
+
+   This respects layer direction (`domain` may import `models`/`common`; `models`
+   may import only `common`; nothing imports upward), so a constant never drags a
+   consumer into an illegal import. Feature data-vocabulary living in
+   `models/<area>/constants.py` is intentional — `domain` policy *reads* the
+   vocabulary from the data layer, which is the correct direction. See
+   `docs/adr/005-models-as-lowest-data-layer.md`.
 4. Include a short explanatory comment above each constant stating what it represents and why it has that value.
 5. This applies to: indicator parameters, time periods, scaling factors, thresholds, allocation percentages, fee/slippage rates, and any other value that encodes domain knowledge.
 
@@ -253,10 +271,16 @@ the UI backend layer.
 Before creating or moving code in `src/trading/`:
 
 1. Classify change target: interface/service/domain/repository/database.
-2. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
-3. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
-4. Keep SQL in repositories, not in handlers/routes.
-5. If architecture ownership changes, update this file accordingly.
+2. Place any shared symbol (constant, type, value object) at its **lowest owning
+   layer** — the lowest layer that owns the concept and is reachable by all
+   consumers without an upward import. Layer direction: `domain` → `models`/`common`;
+   `models` → `common`; nothing imports upward. Passive data contracts and their
+   field vocabulary live in `models/`; domain policy/logic and policy-knob configs
+   live in `domain/`; generic primitives in `common/`.
+3. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
+4. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
+5. Keep SQL in repositories, not in handlers/routes.
+6. If architecture ownership changes, update this file accordingly.
 
 For a task-oriented "where do I put X" reference, see `docs/architecture/nav-guide.md`.
 
