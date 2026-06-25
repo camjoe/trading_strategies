@@ -32,7 +32,6 @@ from trading.backtesting.report_models import (
     WalkForwardDetailReport,
     WalkForwardWindowDetail,
 )
-from trading.backtesting.services import fetch_strategy_backtest_returns
 
 __all__ = [
     "BacktestBatchConfig",
@@ -50,7 +49,6 @@ __all__ = [
     "run_backtest_batch",
     "walk_forward_report",
     "run_walk_forward_backtest",
-    "fetch_strategy_backtest_returns",
     "BacktestFullReport",
     "BacktestLeaderboardEntry",
     "BacktestReportSnapshot",
