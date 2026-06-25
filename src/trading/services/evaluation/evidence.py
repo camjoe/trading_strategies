@@ -22,7 +22,7 @@ from trading.domain.evaluation_confidence import (
     compute_overall_confidence,
     compute_paper_live_confidence,
 )
-from trading.domain.evaluation_models import (
+from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
     EvaluationConfidence,

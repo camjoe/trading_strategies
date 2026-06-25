@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.domain.evaluation_models import (
+from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
     EvaluationConfidence,
@@ -9,7 +9,7 @@ from trading.domain.evaluation_models import (
     EvaluationWalkForwardEvidence,
     StrategyEvaluationArtifact,
 )
-from trading.domain.promotion_models import PromotionAssessment
+from trading.models.promotion import PromotionAssessment
 
 
 def make_ready_evaluation(

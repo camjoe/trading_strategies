@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from trading.domain.evaluation_models import StrategyEvaluationArtifact
-from trading.domain.promotion_models import (
+from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.models.promotion import (
     PROMOTION_REVIEW_ACTOR_TYPE_OPERATOR,
     PROMOTION_REVIEW_STATE_REQUESTED,
     PromotionAssessment,

@@ -4,7 +4,8 @@ import sqlite3
 from dataclasses import dataclass
 
 from common.time import utc_now_iso
-from trading.domain.sleeve_accounting import SleeveFillTransition, apply_sleeve_fill_transition
+from trading.domain.sleeve_accounting import apply_sleeve_fill_transition
+from trading.models.sleeves.sleeve_fill_transition import SleeveFillTransition
 from trading.repositories.sleeve_ledger import SleeveLedgerRepository
 from trading.repositories.sleeve_orders import SleeveOrderRepository
 from trading.repositories.sleeve_positions import SleevePositionRepository

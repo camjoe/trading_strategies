@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.domain.sleeve_rotation import SleeveStrategyMetrics
+from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository

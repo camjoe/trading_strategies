@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import pytest
 
-from trading.domain.promotion_models import PromotionAssessment
+from trading.models.promotion import PromotionAssessment
 import trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review as module
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (

@@ -1,6 +1,6 @@
 import pytest
 
-from trading.domain.promotion_models import PromotionReviewEvent, PromotionReviewRecord
+from trading.models.promotion import PromotionReviewEvent, PromotionReviewRecord
 from trading.services.promotion import (
     render_promotion_review_history_lines,
     render_promotion_status_lines,

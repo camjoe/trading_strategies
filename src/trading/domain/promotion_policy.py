@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from trading.domain.evaluation_models import StrategyEvaluationArtifact
-from trading.domain.promotion_models import (
+from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.models.promotion import (
     PROMOTION_STAGE_CANDIDATE,
     PROMOTION_STAGE_LIVE_ACTIVE,
     PROMOTION_STAGE_PAPER_OBSERVING,

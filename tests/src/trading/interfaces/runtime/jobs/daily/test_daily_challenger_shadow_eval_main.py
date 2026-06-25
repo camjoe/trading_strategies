@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import pytest
 
-from trading.domain.sleeve_rotation import SleeveStrategyMetrics
+from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
 from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (

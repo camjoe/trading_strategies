@@ -5,7 +5,7 @@ import sqlite3
 
 from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.domain.rotation import parse_rotation_schedule
-from trading.domain.sleeve_rotation import SleeveStrategyMetrics
+from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
 from trading.models import AccountRecord
 from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository

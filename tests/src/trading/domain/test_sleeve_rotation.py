@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from trading.domain.sleeve_rotation import (
-    SleeveStrategyMetrics,
-    evaluate_champion_challenger_rotation,
-)
+from trading.domain.sleeve_rotation import evaluate_champion_challenger_rotation
+from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
 
 
 def _incumbent() -> SleeveStrategyMetrics:

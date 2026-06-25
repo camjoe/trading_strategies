@@ -1,4 +1,4 @@
-from trading.domain.evaluation_models import StrategyEvaluationArtifact
+from trading.models.evaluation import StrategyEvaluationArtifact
 
 
 def test_strategy_evaluation_artifact_payload_defaults() -> None:
