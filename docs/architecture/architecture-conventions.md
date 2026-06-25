@@ -172,6 +172,18 @@ Domain naming:
 1. prefer descriptive policy/math names
 2. avoid transport or persistence verbs
 
+"runtime" naming:
+
+1. In a package/module **path**, "runtime" means the scheduler transport layer;
+   `src/trading/interfaces/runtime/` is the only place that meaning applies.
+2. Operator-tunable settings applied during operation (evaluation confidence,
+   promotion policy, trade throttles) live in
+   `src/trading/services/operational_settings/`. Do not reintroduce
+   `runtime_settings`/`runtime_throttle` packages.
+3. In-package `runtime_*` qualifiers (e.g. `services/auto_trading/runtime*.py`)
+   meaning "runtime-execution code vs. decision/input code" are intentional.
+4. Rationale and rejected alternatives: `docs/adr/004-runtime-naming-and-operational-settings.md`.
+
 ## Import and Facade Rules
 
 1. Prefer direct imports from concrete implementation modules.
