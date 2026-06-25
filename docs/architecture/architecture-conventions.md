@@ -60,23 +60,36 @@ Disallowed:
 
 5. `src/trading/domain/`: pure policy/decision logic (side-effect free)
    - No DB, CLI, subprocess, or network side effects.
+   - Holds logic + DI contracts (`BrokerConnection`, `FeatureFetcherSet`,
+     `StrategySpec`). Passive data classes belong in `models/` (see below);
+     the deferred exception is the policy-knob `*Settings` dataclasses, which
+     stay with their constants until those constants get a dedicated home.
 
-6. `src/trading/repositories/`: SQL persistence adapters
+6. `src/trading/models/`: passive data contracts (the lowest layer)
+   - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
+     state/order models, and domain value objects (evaluation/promotion/sleeve).
+   - No business logic, no I/O, and **no imports from `domain`, `services`,
+     `repositories`, `interfaces`, or `infrastructure`** — enforced by
+     `scripts/checks/layer_check.py`. `domain` may import `models`, never the reverse.
+   - Organized into feature subfolders (`accounts/`, `sleeves/`, `evaluation/`, …),
+     one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
+
+7. `src/trading/repositories/`: SQL persistence adapters
    - SQL reads/writes and row-level data access helpers.
 
-7. `src/infrastructure/database/`: DB infrastructure/config/coercion only
+8. `src/infrastructure/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
    - Migration system reference: `docs/reference/db-migration-system.md`
    - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
 
-8. `src/trading/backtesting/`: same layered model within backtesting package
+9. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
    - See `docs/adr/002-backtesting-layering.md` for layering rationale.
 
-9. `src/infrastructure/config/`: file-backed static config assets
+10. `src/infrastructure/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
-10. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
+11. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
     - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
     - This package is the **only** place that may import external API libraries
       (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
@@ -88,14 +101,14 @@ Disallowed:
       consume feature bundles via injected callables — they must never call external
       APIs directly.
 
-11. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
+12. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
    - Keep all broker SDK imports (ib_async, ibapi) inside this package.
    - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
    - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
    - `src/trading/` must never import from `src/infrastructure/brokers/`; the interface layer (`src/trading/interfaces/`) is the sole wiring point.
 
-12. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
+13. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
    - Keep the `yfinance` SDK import inside this package (`providers.py`).
    - Service and domain layers must depend only on the `MarketDataProvider` port from
      `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.

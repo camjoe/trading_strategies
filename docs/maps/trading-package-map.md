@@ -21,8 +21,8 @@ Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 - `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
 - `src/trading/services/`: orchestration/composition workflows
 - `src/trading/repositories/`: SQL persistence adapters
-- `src/trading/domain/`: side-effect-free policy/math/state-transition logic and shared DI contracts (`BrokerConnection`, `FeatureFetcherSet`)
-- `src/trading/models/`: shared passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models)
+- `src/trading/domain/`: side-effect-free policy/math/state-transition logic and DI contracts (`BrokerConnection`, `FeatureFetcherSet`, `StrategySpec`)
+- `src/trading/models/`: all passive data contracts (`*Config`, `*Insert`, `*Record`, state/order models, and domain value objects), organized into feature subfolders. The **lowest layer** — imports nothing from other trading layers or infrastructure.
 
 Concrete infrastructure (database, brokers, feature providers, the market-data adapter, and static config assets) lives in the sibling `src/infrastructure/` package — see the [Infrastructure Map](infrastructure-map.md). Persistence flows through `src/trading/repositories/` into `src/infrastructure/database/`; the other adapters are injected at the interface layer.
 
@@ -205,47 +205,39 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `accounting.py` | Cash and equity accounting rules |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
-| `evaluation_confidence.py` | Evaluation confidence scoring logic |
-| `evaluation_models.py` | Evaluation data models |
+| `evaluation_confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `exceptions.py` | Domain-level exception types |
-| `feature_provider.py` | `FeatureFetcherSet` protocol (DI contract) |
+| `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
-| `promotion_models.py` | Promotion state and result models |
-| `promotion_policy.py` | Promotion eligibility rules |
+| `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Return calculation math |
-| `rotation.py` | Rotation state-transition logic |
-| `sleeve_accounting.py` | Sleeve-level accounting math |
-| `sleeve_rotation.py` | Sleeve rotation rules |
-| `strategy_signals.py` | Strategy signal models and processing |
+| `rotation.py` | Rotation state-transition logic + `RotationConfig` persistence serialization |
+| `sleeve_accounting.py` | Sleeve-level accounting math (builds `models.sleeves.SleeveFillTransition`) |
+| `sleeve_rotation.py` | Sleeve rotation scoring/decision logic (builds `models.sleeves` rotation value objects) |
+| `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
 
 ---
 
 ### `src/trading/models/`
 
-Passive data contracts. No business logic, no I/O.
+Passive data contracts — the **lowest layer**. No business logic, no I/O, and no
+imports from `domain`/`services`/`repositories`/`interfaces`/`infrastructure`
+(enforced by `scripts/checks/layer_check.py`). Organized into feature subfolders;
+each holds one contract per file. The package root and each subpackage re-export
+their public types.
 
-| Module | Responsibility |
+| Subfolder | Contracts |
 |---|---|
-| `account_config.py` | `AccountConfig` configuration model |
-| `account_insert.py` | `AccountInsert` creation input model |
-| `account_record.py` | `AccountRecord` read model (implements `Mapping[str, object]`) |
-| `account_state.py` | `AccountState` runtime state aggregation |
-| `broker_order.py` | `BrokerOrder` model |
-| `broker_order_record.py` | `BrokerOrderRecord` read model |
-| `daily_metric_record.py` | `DailyMetricRecord` read model |
-| `equity_snapshot_record.py` | `EquitySnapshotRecord` read model |
-| `global_settings_record.py` | `GlobalSettingsRecord` read model |
-| `portfolio_risk_snapshot_record.py` | `PortfolioRiskSnapshotRecord` read model |
-| `rotation_config.py` | `RotationConfig` data model |
-| `sleeve_fill_record.py` | `SleeveFillRecord` read model |
-| `sleeve_ledger_record.py` | `SleeveLedgerRecord` read model |
-| `sleeve_order_record.py` | `SleeveOrderRecord` read model |
-| `sleeve_position_record.py` | `SleevePositionRecord` read model |
-| `sleeve_record.py` | `SleeveRecord` read model |
-| `sleeve_risk_decision_record.py` | `SleeveRiskDecisionRecord` read model |
-| `sleeve_strategy_assignment_record.py` | `SleeveStrategyAssignmentRecord` read model |
-| `strategy_param_set_record.py` | `StrategyParamSetRecord` read model |
+| `accounts/` | `AccountConfig`, `AccountInsert`, `AccountRecord` (implements `Mapping`), `AccountState` |
+| `orders/` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `BrokerOrderRecord` |
+| `portfolio/` | `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioRiskSnapshotRecord` |
+| `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`) |
+| `strategy/` | `StrategyParamSetRecord` |
+| `settings/` | `GlobalSettingsRecord` |
+| `sleeves/` | `SleeveFillRecord`, `SleeveLedgerRecord`, `SleeveOrderRecord`, `SleevePositionRecord`, `SleeveRecord`, `SleeveRiskDecisionRecord`, `SleeveStrategyAssignmentRecord`, `SleeveFillTransition`, `SleeveRotationDecision`, `SleeveStrategyMetrics`, `SleeveStrategyScore`, `SleeveRotationScoreWeights` |
+| `evaluation/` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDiagnostics`) + version constants |
+| `promotion/` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + stage/status/review vocabulary constants |
 
 ---
 

@@ -1,8 +1,11 @@
 """Shared passive data contracts used across trading layers.
 
-This package hosts stable model shapes (`*Config`, `*Insert`, `*Record`) and
-state/order models that are reused by services, repositories, brokers, and
-domain helpers.
+The lowest layer: all passive data contracts (`*Config`/`*Insert`/`*Record`,
+state/order models, and domain value objects) live here, organized into feature
+subfolders. This package imports nothing from `domain`/`services`/`repositories`/
+`interfaces`/`infrastructure` (enforced by `scripts/checks/layer_check.py`). The
+package root re-exports the stable public types. See
+`docs/adr/005-models-as-lowest-data-layer.md`.
 """
 
 from __future__ import annotations
