@@ -7,6 +7,8 @@ Last Reviewed: 2026-06-19
 Purpose: Define the two agent surfaces (skills and agents) and when to reach for each.
 Related: [AGENTS.md](../AGENTS.md), [Agent Skills Guide](../docs/reference/agent-skills.md), [Skill Invocation Policy](../docs/reference/skill-invocation-policy.md)
 
+## Overview
+
 Operational assets for AI agents working in this repo. **[`AGENTS.md`](../AGENTS.md)** (repo root) is the canonical entrypoint and routing guide; this folder holds the capabilities it routes to.
 
 ## The two surfaces
@@ -18,7 +20,7 @@ Operational assets for AI agents working in this repo. **[`AGENTS.md`](../AGENTS
 
 **Rule of thumb:** prefer a **skill**; escalate to an **agent** only when repo-specific execution value matters.
 
-## When to use which
+## Usage
 
 - Default to the most specific matching skill — see the routing tables in [`AGENTS.md`](../AGENTS.md).
 - Use an agent only when it adds exact repo paths, project-only safety rules, domain/workflow constraints, or operator-workflow integration.

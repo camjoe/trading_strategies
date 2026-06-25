@@ -197,7 +197,7 @@ def check_map(repo_root: Path, map_rel: str, source_rel: str, skip: tuple[str, .
     return report
 
 
-def run_maps_check(repo_root: Path, *, enforce: bool = False) -> int:
+def run_maps_check(repo_root: Path, *, enforce: bool = False, quiet: bool = False) -> int:
     if not repo_root.exists():
         print(f"ERROR: repo root does not exist: {repo_root}")
         return 2
@@ -210,6 +210,11 @@ def run_maps_check(repo_root: Path, *, enforce: bool = False) -> int:
         reports.append(check_map(repo_root, map_rel, source_rel, skip))
     total_undocumented = sum(len(report.undocumented) for report in reports)
     total_stale = sum(len(report.stale) for report in reports)
+
+    # Quiet mode: collapse a clean run to one line; drift falls through to the full report.
+    if quiet and not (total_undocumented or total_stale):
+        print(f"PASS: maps drift - {len(reports)} maps in sync with source.")
+        return 0
 
     print("Maps Drift Check")
     print(f"Repo root: {repo_root}")

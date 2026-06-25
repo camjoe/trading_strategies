@@ -152,13 +152,18 @@ def check_file(path: Path, repo_root: Path) -> FileReport:
     return report
 
 
-def run_link_check(repo_root: Path, *, enforce: bool = False) -> int:
+def run_link_check(repo_root: Path, *, enforce: bool = False, quiet: bool = False) -> int:
     if not repo_root.exists():
         print(f"ERROR: repo root does not exist: {repo_root}")
         return 2
 
     reports = [report for path in discover_docs(repo_root) if (report := check_file(path, repo_root)).broken]
     total = sum(len(report.broken) for report in reports)
+
+    # Quiet mode: collapse a clean run to one line; broken refs fall through to the full report.
+    if quiet and not total:
+        print("PASS: doc links - all references resolve.")
+        return 0
 
     print("Doc Link Check")
     print(f"Repo root: {repo_root}")

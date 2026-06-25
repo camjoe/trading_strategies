@@ -84,6 +84,7 @@ def run_quick(
         run_readme_consistency(
             repo_root=repo_root,
             max_age_days=readme_max_age_days,
+            quiet=True,
         )
         layer_exit = run_layer_check(repo_root=repo_root)
         if layer_exit != 0:

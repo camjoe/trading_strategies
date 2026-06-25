@@ -7,6 +7,8 @@ Last Reviewed: 2026-06-16
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
 Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header.md)
 
+## Overview
+
 Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs-map.md) for the full file inventory with staleness tracking.
 
 ## Folder Guide
@@ -19,7 +21,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 | [`reference/`](reference/) | **Why** decisions were made (ADRs) and deep-dive notes on subsystems |
 | [`runbooks/`](runbooks/) | **How to operate** — step-by-step procedures for humans or agents |
 
-## Start Here
+## Quick Start
 
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
