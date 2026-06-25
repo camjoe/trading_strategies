@@ -16,7 +16,7 @@ from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
-from trading.services.runtime_throttle import enforce_runtime_trade_throttles
+from trading.services.operational_settings import enforce_runtime_trade_throttles
 
 logger = logging.getLogger(__name__)
 

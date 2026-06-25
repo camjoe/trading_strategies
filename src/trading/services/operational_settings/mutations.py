@@ -1,8 +1,8 @@
-"""Runtime settings mutations for runtime-settings consumers.
+"""Operational settings mutations for operational-settings consumers.
 
-Owns caller-facing validation and write orchestration for persisted
-runtime-related settings beneath the stable ``trading.services.runtime_settings``
-package surface.
+Owns caller-facing validation and write orchestration for persisted operational
+settings beneath the stable ``trading.services.operational_settings`` package
+surface.
 """
 
 from __future__ import annotations

@@ -201,10 +201,10 @@ These live as **flat service modules** (single files, not packages) — import t
 
 | Task | Function | Package |
 |---|---|---|
-| Fetch runtime throttle settings | `fetch_runtime_throttle_settings(conn)` | `trading.services.runtime_settings` |
-| Update runtime throttle settings | `set_runtime_throttle_settings(conn, settings)` | `trading.services.runtime_settings` |
-| Fetch promotion policy settings | `fetch_promotion_policy_settings(conn)` | `trading.services.runtime_settings` |
-| Enforce trade count throttle limits | `enforce_runtime_trade_throttles(conn, account_id, count)` | `trading.services.runtime_throttle` |
+| Fetch runtime throttle settings | `fetch_runtime_throttle_settings(conn)` | `trading.services.operational_settings` |
+| Update runtime throttle settings | `set_runtime_throttle_settings(conn, settings)` | `trading.services.operational_settings` |
+| Fetch promotion policy settings | `fetch_promotion_policy_settings(conn)` | `trading.services.operational_settings` |
+| Enforce trade count throttle limits | `enforce_runtime_trade_throttles(conn, account_id, count)` | `trading.services.operational_settings` |
 
 ---
 

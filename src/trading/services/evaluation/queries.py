@@ -21,7 +21,7 @@ from trading.services.evaluation.evidence import (
     build_walk_forward_evidence,
     resolve_requested_strategy,
 )
-from trading.services.runtime_settings import fetch_evaluation_confidence_settings
+from trading.services.operational_settings import fetch_evaluation_confidence_settings
 
 
 def fetch_strategy_evaluation_for_account_row(

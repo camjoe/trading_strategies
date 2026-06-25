@@ -45,8 +45,8 @@ The maps and this guide serve different questions:
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change reporting math or presentation | `src/trading/services/reporting/` |
-| Change runtime settings | `src/trading/services/runtime_settings/` |
-| Change runtime throttling | `src/trading/services/runtime_throttle/enforcement.py` |
+| Change operational settings | `src/trading/services/operational_settings/` |
+| Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/sleeves/` |
 | Change sleeve performance queries | `src/trading/services/performance.py` (flat file — reads daily metrics) |
 | Change portfolio risk-snapshot access | `src/trading/services/risk_snapshots.py` (flat file) |

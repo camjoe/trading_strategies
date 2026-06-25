@@ -150,10 +150,10 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `reporting/math.py` | Reporting math utilities |
 | `reporting/portfolio.py` | Portfolio reporting |
 | `reporting/presentation.py` | Report presentation formatting |
-| `runtime_settings/models.py` | Runtime setting models |
-| `runtime_settings/mutations.py` | Runtime setting write operations |
-| `runtime_settings/queries.py` | Runtime setting read operations |
-| `runtime_throttle/enforcement.py` | Runtime throttle enforcement logic |
+| `operational_settings/models.py` | Operational setting models |
+| `operational_settings/mutations.py` | Operational setting write operations |
+| `operational_settings/queries.py` | Operational setting read operations |
+| `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `sleeves/accounting.py` | Sleeve-level cash/equity accounting |
 | `sleeves/daily_report.py` | Sleeve daily reporting |
 | `sleeves/execution.py` | Sleeve trade execution and intent generation |
@@ -209,7 +209,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `evaluation_models.py` | Evaluation data models |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet` protocol (DI contract) |
-| `indicators_adapter.py` | Technical indicator adapters |
+| `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
 | `promotion_models.py` | Promotion state and result models |
 | `promotion_policy.py` | Promotion eligibility rules |

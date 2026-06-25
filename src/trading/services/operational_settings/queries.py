@@ -1,7 +1,7 @@
-"""Runtime settings queries for runtime-settings consumers.
+"""Operational settings queries for operational-settings consumers.
 
-Owns caller-facing reads of persisted runtime-related settings beneath the
-stable ``trading.services.runtime_settings`` package surface.
+Owns caller-facing reads of persisted operational settings beneath the stable
+``trading.services.operational_settings`` package surface.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import sqlite3
 from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.domain.promotion_policy import PromotionPolicySettings
 from trading.repositories.global_settings import GlobalSettingsRepository
-from trading.services.runtime_settings.models import RuntimeThrottleSettings
+from trading.services.operational_settings.models import RuntimeThrottleSettings
 
 
 def fetch_runtime_throttle_settings(conn: sqlite3.Connection) -> RuntimeThrottleSettings:

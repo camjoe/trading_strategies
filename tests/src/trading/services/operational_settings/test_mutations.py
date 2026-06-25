@@ -1,10 +1,10 @@
-"""Tests for trading.services.runtime_settings.mutations."""
+"""Tests for trading.services.operational_settings.mutations."""
 
 from __future__ import annotations
 
 import pytest
 
-from trading.services.runtime_settings.mutations import (
+from trading.services.operational_settings.mutations import (
     _validate_weight_sum,
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,

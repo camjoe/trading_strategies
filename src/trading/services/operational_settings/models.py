@@ -1,4 +1,4 @@
-"""Runtime settings models for runtime-settings consumers."""
+"""Operational settings models for operational-settings consumers."""
 
 from __future__ import annotations
 

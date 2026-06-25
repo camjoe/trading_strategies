@@ -1,4 +1,4 @@
-"""Tests for trading.services.runtime_throttle.enforcement."""
+"""Tests for trading.services.operational_settings.enforcement."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
-from trading.services.runtime_settings.models import RuntimeThrottleSettings
-from trading.services.runtime_throttle.enforcement import enforce_runtime_trade_throttles
+from trading.services.operational_settings.enforcement import enforce_runtime_trade_throttles
+from trading.services.operational_settings.models import RuntimeThrottleSettings
 
 
 def _settings(*, day: int | None = None, minute: int | None = None) -> RuntimeThrottleSettings:

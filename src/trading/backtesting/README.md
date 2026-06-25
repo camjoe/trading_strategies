@@ -29,7 +29,7 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 
 - `domain/`: pure reusable backtesting logic.
   - `strategy_signals.py`: `STRATEGY_REGISTRY`, `StrategySpec`, `resolve_strategy()`, and `resolve_signal()` dispatcher. Covers all 14 strategy IDs including the three `strategy_style="alternative"` strategies (`policy_regime`, `news_sentiment`, `social_trend_rotation`) that consume `ExternalFeatureBundle` values from `src/infrastructure/feature_providers/` providers.
-  - `indicators_adapter.py`: indicator import adapter boundary for trends package.
+  - `indicators.py`: pure pandas indicator calculations (MACD, RS/RSI).
   - `metrics.py`: drawdown and benchmark-return calculations.
   - `windowing.py`: walk-forward date window generation.
   - `risk_warnings.py`: safeguard/warning policy composition.

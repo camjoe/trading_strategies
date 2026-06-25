@@ -7,7 +7,7 @@ from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
-from trading.services.runtime_settings import set_runtime_throttle_settings
+from trading.services.operational_settings import set_runtime_throttle_settings
 from tests.src.trading.services.auto_trading.factories import (
     MARKET_CLOSED_TIME_ISO,
     MARKET_OPEN_TIME_ISO,

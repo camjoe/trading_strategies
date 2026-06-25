@@ -1,15 +1,15 @@
-"""Tests for trading.services.runtime_settings.queries."""
+"""Tests for trading.services.operational_settings.queries."""
 
 from __future__ import annotations
 
 import pytest
 
-from trading.services.runtime_settings.mutations import (
+from trading.services.operational_settings.mutations import (
     set_evaluation_confidence_settings,
     set_promotion_policy_settings,
     set_runtime_throttle_settings,
 )
-from trading.services.runtime_settings.queries import (
+from trading.services.operational_settings.queries import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
     fetch_runtime_throttle_settings,

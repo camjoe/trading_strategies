@@ -1,4 +1,4 @@
-"""Runtime throttle enforcement helpers for runtime-throttle consumers."""
+"""Trade throttle enforcement helpers for operational-settings consumers."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ from common.time import as_utc_iso
 from common.time import parse_utc_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.repositories.trades import TradeRepository
-from trading.services.runtime_settings import RuntimeThrottleSettings, fetch_runtime_throttle_settings
+from trading.services.operational_settings.models import RuntimeThrottleSettings
+from trading.services.operational_settings.queries import fetch_runtime_throttle_settings
 
 # Rolling one-minute window for the per-minute global runtime trade cap.
 TRADE_THROTTLE_MINUTE_WINDOW = timedelta(minutes=1)
