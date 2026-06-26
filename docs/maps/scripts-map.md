@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-19
+Last Reviewed: 2026-06-25
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -15,10 +15,10 @@ Dev and ops tooling. Not part of the application runtime — these are invoked b
 
 Entry point for all validation checks. Run via `python -m scripts.run_checks --profile <name>`.
 
-| Profile | What it runs |
-|---|---|
-| `quick` | `ruff` + `layer_check` |
-| `ci` | `ruff` + `layer_check` + `mypy` + `pytest` |
+| Profile | When to use | What it runs |
+|---|---|---|
+| `quick` | Day-to-day, before committing | README consistency, layer check, ruff, mypy, pytest (optional: frontend, reference-doc checks, targeted suites) |
+| `ci` | CI-shaped smoke before a PR | Everything in `quick` plus the doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend lint/typecheck/tests |
 
 ---
 
@@ -28,8 +28,8 @@ Individual check modules. Each is also usable directly.
 
 | Module | Responsibility |
 |---|---|
-| `quick.py` | Quick profile definition (ruff + layer_check) |
-| `ci.py` | CI profile definition (all checks) |
+| `quick.py` | Quick profile: README consistency + layer check + ruff + mypy + pytest |
+| `ci.py` | CI profile: the quick gates plus doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import boundary enforcement — verifies layering rules (services → no database imports, etc.) |
 | `mypy_check.py` | Mypy type-check runner (`src/trading/` + `apps/paper_trading_web/backend/`) |
@@ -52,6 +52,12 @@ python -m scripts.checks.run_suite src/trading/services/reporting --no-cov
 ```
 python -m scripts.run_checks --profile quick
 python -m scripts.run_checks --profile ci
+```
+
+**Deterministic pre-PR gate (no AI, no tokens):**
+```
+python -m scripts.checks.pr_ready
+python -m scripts.checks.pr_ready --base main --no-cov
 ```
 
 ---

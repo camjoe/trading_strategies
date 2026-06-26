@@ -142,7 +142,7 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Run quick validation (ruff + layer check) | `python -m scripts.run_checks --profile quick` |
+| Run quick local validation (README, layer, ruff, mypy, pytest) | `python -m scripts.run_checks --profile quick` |
 | Run full CI validation | `python -m scripts.run_checks --profile ci` |
 | Run tests for a specific area | `python -m scripts.checks.run_suite <path-prefix> --no-cov` |
 | Add a new check to CI | `scripts/checks/<new_check>.py` + register in `scripts/checks/ci.py` |
