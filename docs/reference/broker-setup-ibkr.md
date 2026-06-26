@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-24
 Last Reviewed: 2026-06-24
 Purpose: Operator setup and connection checklist for Interactive Brokers via the Client Portal Gateway.
-Related: [Broker Integration Reference](broker-integration.md), [Daily Operations Runbook](../runbooks/daily-operations.md)
+Related: [Broker Integration Reference](broker-integration.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md)
 
 ## Purpose
 
@@ -105,4 +105,4 @@ Use clearly non-marketable limit prices. Cancellation is best-effort — order s
 - [`broker-integration.md`](broker-integration.md) — broker architecture, adapter wiring, account fields, live-trading safety
 - [`broker-setup-alpaca.md`](broker-setup-alpaca.md) — Alpaca setup (parallel broker path, not yet implemented)
 - [`accounts-schema-usage.md`](accounts-schema-usage.md) — `broker_type` and `live_trading_enabled` field usage
-- [`runbooks/daily-operations.md`](../runbooks/daily-operations.md) — daily operator workflow
+- [`runbooks/runtime-operations.md`](../runbooks/runtime-operations.md) — runtime operator workflow

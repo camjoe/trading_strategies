@@ -1,13 +1,17 @@
-# Daily Operations Runbook
+# Runtime Operations Runbook
 
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
-Purpose: Procedures for monitoring and recovering the daily IBKR Paper Autonomy workflow including completion checklist and artifact inspection.
-Related: [Burn-In Protocol](burn-in-protocol.md), [Broker Integration](../reference/broker-integration.md)
+Last Reviewed: 2026-06-25
+Purpose: Procedures for monitoring and recovering the runtime trading jobs — the daily IBKR Paper Autonomy workflow and the weekly database backup — including completion checks and artifact inspection.
+Related: [Runtime Jobs Reference](../reference/runtime-jobs.md), [Governance Review Guide](governance-review.md), [Burn-In Protocol](burn-in-protocol.md), [Broker Integration](../reference/broker-integration.md)
 
-Procedures for monitoring and recovering the daily IBKR Paper Autonomy workflow.
+Procedures for monitoring and recovering the runtime trading jobs. This runbook covers the daily
+paper-trading workflow and the weekly database backup; the weekly/monthly **governance** jobs are
+covered in the [Governance Review Guide](governance-review.md), and the **burn-in** period in the
+[Burn-In Protocol](burn-in-protocol.md). For how to *run or schedule* any job (rather than monitor it),
+see the [Runtime Jobs Reference](../reference/runtime-jobs.md).
 
 ## Scheduled job
 
@@ -20,7 +24,7 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
 
 **Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
 
-**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, backtest-refresh, challenger shadow-eval, health-check, and weekly-backup entries), see [Scheduler Operations](../../src/trading/README.md#scheduler-operations).
+**Schedule setup:** to register, enable, or remove scheduled jobs (including the fallback, snapshot, backtest-refresh, challenger shadow-eval, health-check, and weekly-backup entries), see the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules).
 
 ---
 
@@ -103,6 +107,25 @@ If `kill_switch_triggered: true` appears in the daily operator report or the M1 
    ```
 3. Investigate the cause (data staleness, reconciliation mismatch, exposure breach).
 4. Resolve and reset the kill switch via the admin interface before the next scheduled run.
+
+---
+
+## Weekly database backup
+
+The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`.
+
+1. **Confirm this week's backup completed** — check the latest weekly log:
+   ```bash
+   grep "COMPLETE" local/logs/weekly_db_backup_*.log | tail -1
+   ```
+2. **Run on demand** if a scheduled run was missed:
+   ```bash
+   .venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
+   ```
+3. The combined daily + weekly status is summarized by:
+   ```bash
+   python -m scripts.check_jobs
+   ```
 
 ---
 

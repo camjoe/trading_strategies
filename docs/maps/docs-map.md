@@ -85,6 +85,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
 | `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `src/trading/models/` sleeve shapes change |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
+| `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 
@@ -112,7 +113,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 | File | What it covers | Goes stale when |
 |---|---|---|
-| `docs/runbooks/daily-operations.md` | Daily paper-trading job checklist | Daily job scripts or their schedule change |
+| `docs/runbooks/runtime-operations.md` | Daily + weekly-backup job monitoring, failure recovery, log inspection | Runtime job scripts or their schedule change |
 | `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
 

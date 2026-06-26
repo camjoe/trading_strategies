@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-04-03
 Last Reviewed: 2026-04-25
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
-Related: [Daily Operations Runbook](../runbooks/daily-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
+Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
 ## Purpose
 
