@@ -3,11 +3,12 @@ from __future__ import annotations
 import sqlite3
 
 from common.coercion import coerce_float
-from trading.models.account_config import AccountConfig
+from trading.models.accounts.account_config import AccountConfig
 from trading.repositories.accounts import AccountRepository
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
 from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
+from trading.domain.rotation import rotation_config_to_db_dict
 from trading.domain.strategy_signals import validate_strategy_name
 
 ROTATION_KEYS = {
@@ -55,7 +56,7 @@ def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str
     if has_schedule_input:
         write_keys.add("rotation_active_index")
 
-    field_values = cfg.to_db_dict()
+    field_values = rotation_config_to_db_dict(cfg)
 
     updates: list[str] = []
     params: list[object] = []

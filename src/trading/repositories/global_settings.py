@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.global_settings_record import GlobalSettingsRecord
+from trading.models.settings.global_settings_record import GlobalSettingsRecord
 
 
 class GlobalSettingsRepository:

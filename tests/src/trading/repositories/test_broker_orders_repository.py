@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.models.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
+from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
 from trading.repositories.broker_orders import BrokerOrderRepository
 from tests.support.repositories import insert_repository_account
 

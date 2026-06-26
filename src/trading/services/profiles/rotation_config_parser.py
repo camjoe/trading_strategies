@@ -11,7 +11,7 @@ from trading.domain.rotation import (
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
-from trading.models.rotation_config import RotationConfig
+from trading.models.rotation.rotation_config import RotationConfig
 
 
 def _validated_strategy_name(value: str | None, field_name: str) -> str | None:

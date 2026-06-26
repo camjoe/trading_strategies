@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.domain.evaluation_models import (
+from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
     EvaluationConfidence,

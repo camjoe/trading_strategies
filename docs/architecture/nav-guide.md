@@ -45,11 +45,11 @@ The maps and this guide serve different questions:
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change reporting math or presentation | `src/trading/services/reporting/` |
-| Change runtime settings | `src/trading/services/runtime_settings/` |
-| Change runtime throttling | `src/trading/services/runtime_throttle/enforcement.py` |
+| Change operational settings | `src/trading/services/operational_settings/` |
+| Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/sleeves/` |
-| Change sleeve performance queries | `src/trading/services/performance.py` (flat file — reads daily metrics) |
-| Change portfolio risk-snapshot access | `src/trading/services/risk_snapshots.py` (flat file) |
+| Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
+| Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
 
 ### Configuration
@@ -142,7 +142,7 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Run quick validation (ruff + layer check) | `python -m scripts.run_checks --profile quick` |
+| Run quick local validation (README, layer, ruff, mypy, pytest) | `python -m scripts.run_checks --profile quick` |
 | Run full CI validation | `python -m scripts.run_checks --profile ci` |
 | Run tests for a specific area | `python -m scripts.checks.run_suite <path-prefix> --no-cov` |
 | Add a new check to CI | `scripts/checks/<new_check>.py` + register in `scripts/checks/ci.py` |

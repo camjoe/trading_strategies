@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.domain.promotion_models import PromotionAssessment
+from trading.models.promotion import PromotionAssessment
 from trading.services.promotion.helpers import NONE_TEXT, render_bool, render_section
 from trading.services.promotion.assessment import fetch_current_promotion_assessment
 from trading.services.promotion.history import (

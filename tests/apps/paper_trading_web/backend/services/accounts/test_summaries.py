@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from trading.models.account_state import AccountState
-from trading.models.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.accounts.account_state import AccountState
+from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 import pytest
 
 from paper_trading_web.backend.services.accounts import summaries as account_summaries

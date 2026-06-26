@@ -75,8 +75,7 @@ for example:
 - `trading.services.admin`
 - `trading.services.auto_trading`
 - `trading.services.profiles`
-- `trading.services.runtime_settings`
-- `trading.services.runtime_throttle`
+- `trading.services.operational_settings`
 
 Do **not** keep a second sibling facade such as `accounts_service.py` once the
 package root already serves as the stable import surface. That creates two
@@ -152,16 +151,16 @@ That split keeps repository files table-shaped and service files workflow-shaped
 
 ## Runtime example
 
-For the small runtime slice:
+For the operational-settings slice:
 
-- `trading.services.runtime_settings` is the caller-facing package root for
-  runtime throttle, evaluation-confidence, and promotion-policy settings,
+- `trading.services.operational_settings` is the caller-facing package root for
+  trade throttle, evaluation-confidence, and promotion-policy settings,
   even though those reads still use `global_settings` underneath.
-- `trading.services.runtime_settings` should also own validation for write-side
-  invariants such as normalized evaluation-confidence weights; the repository
-  should only persist the provided row shape.
-- `trading.services.runtime_throttle` is the caller-facing package root for
-  enforcing trade-cap policy, even though it still uses `trades`
+- It should also own validation for write-side invariants such as normalized
+  evaluation-confidence weights; the repository should only persist the provided
+  row shape.
+- The same package root also owns trade-cap throttle enforcement
+  (`enforce_runtime_trade_throttles`), even though it still uses `trades`
   for the persistence query.
 
 Not every `runtime_*` module needs to become a package. A tiny constants module

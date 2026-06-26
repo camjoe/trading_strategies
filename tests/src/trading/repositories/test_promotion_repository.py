@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from trading.domain.evaluation_models import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
-from trading.domain.promotion_models import PromotionAssessment
+from trading.models.evaluation import EvaluationBasicScope, EvaluationConfidence, StrategyEvaluationArtifact
+from trading.models.promotion import PromotionAssessment
 from trading.repositories.promotion import PromotionReviewRepository, _row_json_object
 from tests.support.repositories import insert_repository_account
 

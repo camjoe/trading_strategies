@@ -9,7 +9,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-from trading.domain.promotion_models import PromotionReviewEvent, PromotionReviewRecord
+from trading.models.promotion import PromotionReviewEvent, PromotionReviewRecord
 from trading.repositories.promotion import PromotionReviewRepository
 from trading.services.accounts import get_account
 from trading.services.promotion.helpers import normalize_optional_text

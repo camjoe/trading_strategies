@@ -27,7 +27,6 @@ from trading.domain.rotation import (
     resolve_rotation_mode,
 )
 from trading.domain.sleeve_accounting import (
-    SleeveFillTransition,
     apply_sleeve_fill_transition,
     compute_sleeve_equity,
     normalize_sleeve_order_input,
@@ -57,7 +56,6 @@ __all__ = [
     "resolve_active_strategy",
     "resolve_optimality_mode",
     "resolve_rotation_mode",
-    "SleeveFillTransition",
     "apply_sleeve_fill_transition",
     "compute_sleeve_equity",
     "normalize_sleeve_order_input",

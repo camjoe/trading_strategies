@@ -8,13 +8,13 @@ from tests.support.seed.accounts import ACCT_TREND, PROMOTION_STRATEGY, seed_acc
 
 
 def seed_promotion_review(conn: sqlite3.Connection) -> None:
-    from trading.domain.evaluation_models import (
+    from trading.models.evaluation import (
         EvaluationBacktestEvidence,
         EvaluationBasicScope,
         EvaluationConfidence,
         StrategyEvaluationArtifact,
     )
-    from trading.domain.promotion_models import PromotionAssessment
+    from trading.models.promotion import PromotionAssessment
     from trading.repositories.promotion import PromotionReviewRepository
 
     acct_id = seed_account_id(conn, ACCT_TREND)

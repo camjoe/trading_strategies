@@ -13,7 +13,7 @@ from infrastructure.brokers.ib_web_adapter import (
     _summary_amount,
 )
 from infrastructure.brokers.ib_web_client import IbWebApiContract
-from trading.models.broker_order import OrderStatus, OrderType
+from trading.models.orders.broker_order import OrderStatus, OrderType
 from tests.support.brokers import make_broker_order
 
 

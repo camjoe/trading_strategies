@@ -27,6 +27,11 @@ python -m scripts.documentation_ui.check
 
 ## Script Catalog
 
+For the complete inventory of every script and when to reach for it, see
+[`docs/maps/scripts-map.md`](../docs/maps/scripts-map.md); for task-oriented "I want to X → run Y"
+lookup, see [`docs/architecture/nav-guide.md`](../docs/architecture/nav-guide.md). This README
+highlights the most common entrypoints.
+
 Repository workflow scripts (`scripts/`):
 
 - `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
@@ -57,8 +62,8 @@ Modular check scripts (`scripts/checks/`):
   pollute repository documentation audits.
 - `mypy_check.py`: standalone mypy runner with default backend/trading targets.
 - `pytest_check.py`: standalone pytest runner with passthrough args.
-- `quick.py`: fast aggregate checks (README consistency + mypy + pytest, optional frontend).
-- `ci.py`: broader CI-shaped checks (docs, installs, ruff, mypy, pytest, frontend).
+- `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
+- `ci.py`: broader CI-shaped checks (README/maps/link/`-m`/DB-schema doc checks, dependency installs, ruff, mypy, pytest, frontend).
 
 Data operation scripts (`scripts/data_ops/`):
 

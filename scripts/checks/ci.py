@@ -10,6 +10,7 @@ from scripts.checks.db_schema_check import run_db_schema_check
 from scripts.checks.layer_check import run_layer_check
 from scripts.checks.link_check import run_link_check
 from scripts.checks.maps_check import run_maps_check
+from scripts.checks.module_ref_check import run_module_ref_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
@@ -43,6 +44,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-link-check",
         action="store_true",
         help="Skip doc link check.",
+    )
+    parser.add_argument(
+        "--skip-module-ref-check",
+        action="store_true",
+        help="Skip doc `-m` module reference check.",
     )
     parser.add_argument(
         "--readme-max-age-days",
@@ -81,6 +87,7 @@ def run_ci(
     skip_db_schema_check: bool = False,
     skip_maps_check: bool = False,
     skip_link_check: bool = False,
+    skip_module_ref_check: bool = False,
     readme_max_age_days: int = 90,
     install_python_tools: bool = False,
     with_reference_doc_checks: bool = False,
@@ -99,6 +106,8 @@ def run_ci(
                 run_db_schema_check(repo_root=repo_root, quiet=True)
             if not skip_link_check:
                 run_link_check(repo_root=repo_root, quiet=True)
+            if not skip_module_ref_check:
+                run_module_ref_check(repo_root=repo_root, quiet=True)
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit
@@ -151,6 +160,7 @@ def main() -> int:
         skip_db_schema_check=args.skip_db_schema_check,
         skip_maps_check=args.skip_maps_check,
         skip_link_check=args.skip_link_check,
+        skip_module_ref_check=args.skip_module_ref_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,

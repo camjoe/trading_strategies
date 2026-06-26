@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.sleeve_fill_record import SleeveFillRecord
-from trading.models.sleeve_order_record import SleeveOrderRecord
+from trading.models.sleeves.sleeve_fill_record import SleeveFillRecord
+from trading.models.sleeves.sleeve_order_record import SleeveOrderRecord
 
 
 class SleeveOrderRepository:

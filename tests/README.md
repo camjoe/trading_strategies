@@ -88,13 +88,13 @@ python -m scripts.checks.run_suite src/trading/services/market_data -k "test_pro
 | `src/trading/services/evaluation` | `tests/src/trading/services/evaluation/` |
 | `src/trading/services/ibkr_paper_monitor` | `tests/src/trading/services/ibkr_paper_monitor/` |
 | `src/trading/services/market_data` | `tests/src/trading/services/market_data/` |
+| `src/trading/services/operational_settings` | `tests/src/trading/services/operational_settings/` |
 | `src/trading/services/pricing` | `tests/src/trading/services/pricing/` |
 | `src/trading/services/profiles` | `tests/src/trading/services/profiles/` |
 | `src/trading/services/promotion` | `tests/src/trading/services/promotion/` |
 | `src/trading/services/reporting` | `tests/src/trading/services/reporting/` |
 | `src/trading/services/sleeves` | `tests/src/trading/services/sleeves/` |
-
-Two source service modules (`profile_source`, `universe_resolver`) are covered by flat test files at `tests/src/trading/services/` rather than subdirectories; target them via the `src/trading/services` suite or directly by file path.  `runtime_settings` and `runtime_throttle` do not yet have dedicated test subdirectories; use `src/trading/services` to include any tests that exist at the parent level.
+| `src/trading/services/universe` | `tests/src/trading/services/universe/` |
 
 ### Targeted runs in GitHub Actions
 

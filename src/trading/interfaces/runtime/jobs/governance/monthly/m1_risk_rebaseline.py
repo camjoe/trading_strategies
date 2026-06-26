@@ -21,7 +21,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M1_RISK_REBASELINE_COMPLETE_SENTINEL
-from trading.services.risk_snapshots import fetch_latest_risk_snapshot
+from trading.services.analysis import fetch_latest_risk_snapshot
 from trading.services.accounts.queries import find_account
 from trading.services.accounts import load_runtime_eligible_account_names
 

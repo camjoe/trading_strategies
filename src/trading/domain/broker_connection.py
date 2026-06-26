@@ -3,7 +3,7 @@
 All broker adapters must implement :class:`BrokerConnection`.  Concrete adapters
 are injected at the runtime / interface layer.
 
-Order data types live in :mod:`trading.models.broker_order` so that repositories
+Order data types live in :mod:`trading.models.orders.broker_order` so that repositories
 and services can use them without depending on this package.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from trading.models.broker_order import BrokerOrder  # noqa: F401 — re-exported for broker adapters
+from trading.models.orders.broker_order import BrokerOrder  # noqa: F401 — re-exported for broker adapters
 
 
 class BrokerConnection(ABC):

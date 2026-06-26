@@ -14,7 +14,7 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from trading.models.sleeve_record import SleeveRecord
+from trading.models.sleeves.sleeve_record import SleeveRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository

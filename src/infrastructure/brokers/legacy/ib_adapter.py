@@ -43,7 +43,7 @@ from __future__ import annotations
 
 from common.time import utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.broker_order import (
+from trading.models.orders.broker_order import (
     BrokerOrder,
     OrderFill,
     OrderStatus,

@@ -9,13 +9,11 @@ from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.services.sleeves.helpers import mean as _sleeve_mean
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
-from trading.domain.sleeve_rotation import (
-    SleeveRotationDecision,
-    SleeveRotationScoreWeights,
-    SleeveStrategyMetrics,
-    evaluate_champion_challenger_rotation,
-)
-from trading.models.daily_metric_record import DailyMetricRecord
+from trading.domain.sleeve_rotation import evaluate_champion_challenger_rotation
+from trading.models.sleeves.sleeve_rotation_decision import SleeveRotationDecision
+from trading.models.sleeves.sleeve_rotation_score_weights import SleeveRotationScoreWeights
+from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.models.portfolio.daily_metric_record import DailyMetricRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository

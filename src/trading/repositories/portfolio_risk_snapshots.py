@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.portfolio_risk_snapshot_record import PortfolioRiskSnapshotRecord
+from trading.models.portfolio.portfolio_risk_snapshot_record import PortfolioRiskSnapshotRecord
 
 
 class PortfolioRiskSnapshotRepository:

@@ -145,7 +145,7 @@ def _build_summary_from_stats(
 
 
 def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list[dict[str, object]]:
-    from trading.models.account_state import AccountState
+    from trading.models.accounts.account_state import AccountState
 
     if not isinstance(state, AccountState):
         return []

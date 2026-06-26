@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.account_config import AccountConfig
+from trading.models.accounts.account_config import AccountConfig
 from trading.services.accounts import set_account_strategy
 from trading.services.profiles import apply_rotation_fields
 

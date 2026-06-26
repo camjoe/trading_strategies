@@ -5,7 +5,7 @@ from common.time import utc_now_iso
 from trading.repositories.trades import TradeRepository
 from trading.services.accounting import record_trade
 from trading.services.accounts import create_account, get_account
-from trading.services.runtime_settings import set_runtime_throttle_settings
+from trading.services.operational_settings import set_runtime_throttle_settings
 
 
 class TestRecordTrade:

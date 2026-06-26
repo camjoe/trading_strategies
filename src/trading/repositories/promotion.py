@@ -3,13 +3,16 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from trading.domain.evaluation_models import StrategyEvaluationArtifact
-from trading.domain.promotion_models import (
+from trading.models.evaluation import StrategyEvaluationArtifact
+from trading.models.promotion import (
     PROMOTION_REVIEW_ACTOR_TYPE_OPERATOR,
-    PROMOTION_REVIEW_STATE_REQUESTED,
     PromotionAssessment,
     PromotionReviewEvent,
+    PromotionReviewEventType,
     PromotionReviewRecord,
+    PromotionReviewState,
+    PromotionStage,
+    PromotionStatus,
 )
 
 # Compact JSON storage keeps persisted review payloads stable and easy to diff.
@@ -22,6 +25,10 @@ def _row_text(row: sqlite3.Row, key: str) -> str | None:
         return None
     text = str(value)
     return text if text else None
+
+
+def _opt_review_state(value: str | None) -> PromotionReviewState | None:
+    return None if value is None else PromotionReviewState(value)
 
 
 def _row_json_object(row: sqlite3.Row, key: str) -> dict[str, object]:
@@ -53,9 +60,9 @@ class PromotionReviewRepository:
             account_id=int(row["account_id"]),
             account_name_snapshot=str(row["account_name_snapshot"]),
             strategy_name=str(row["strategy_name"]),
-            review_state=str(row["review_state"]),
-            assessment_stage=str(row["assessment_stage"]),
-            assessment_status=str(row["assessment_status"]),
+            review_state=PromotionReviewState(str(row["review_state"])),
+            assessment_stage=PromotionStage(str(row["assessment_stage"])),
+            assessment_status=PromotionStatus(str(row["assessment_status"])),
             ready_for_live=bool(int(row["ready_for_live"])),
             overall_confidence=float(row["overall_confidence"]),
             live_trading_enabled_snapshot=bool(int(row["live_trading_enabled_snapshot"])),
@@ -77,11 +84,11 @@ class PromotionReviewRepository:
             id=int(row["id"]),
             review_id=int(row["review_id"]),
             event_seq=int(row["event_seq"]),
-            event_type=str(row["event_type"]),
+            event_type=PromotionReviewEventType(str(row["event_type"])),
             actor_type=str(row["actor_type"]),
             actor_name=_row_text(row, "actor_name"),
-            from_review_state=_row_text(row, "from_review_state"),
-            to_review_state=_row_text(row, "to_review_state"),
+            from_review_state=_opt_review_state(_row_text(row, "from_review_state")),
+            to_review_state=_opt_review_state(_row_text(row, "to_review_state")),
             note=_row_text(row, "note"),
             event_payload=_row_json_object(row, "event_payload"),
             created_at=str(row["created_at"]),
@@ -146,7 +153,7 @@ class PromotionReviewRepository:
                 evaluation.basic.account_id,
                 evaluation.basic.account_name,
                 evaluation.basic.requested_strategy,
-                PROMOTION_REVIEW_STATE_REQUESTED,
+                PromotionReviewState.REQUESTED,
                 assessment.stage,
                 assessment.status,
                 int(assessment.ready_for_live),
@@ -190,7 +197,7 @@ class PromotionReviewRepository:
             ORDER BY created_at DESC, id DESC
             LIMIT 1
             """,
-            (account_id, strategy_name, PROMOTION_REVIEW_STATE_REQUESTED),
+            (account_id, strategy_name, PromotionReviewState.REQUESTED),
         ).fetchone()
         return None if row is None else self._map_review_row(row)
 
@@ -218,10 +225,10 @@ class PromotionReviewRepository:
         self,
         *,
         review_id: int,
-        event_type: str,
+        event_type: PromotionReviewEventType,
         actor_name: str | None,
-        from_review_state: str | None,
-        to_review_state: str | None,
+        from_review_state: PromotionReviewState | None,
+        to_review_state: PromotionReviewState | None,
         note: str | None,
         event_payload: dict[str, object],
         created_at: str,
@@ -282,7 +289,7 @@ class PromotionReviewRepository:
         self,
         *,
         review_id: int,
-        review_state: str,
+        review_state: PromotionReviewState,
         reviewed_by: str | None,
         operator_summary_note: str | None,
         updated_at: str,

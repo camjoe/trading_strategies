@@ -6,7 +6,7 @@ from typing import Any, Callable, Mapping
 
 import pandas as pd
 
-from trading.domain.indicators_adapter import calculate_macd, calculate_rs_rsi
+from trading.domain.indicators import calculate_macd, calculate_rs_rsi
 
 from common.constants import (
     MACD_MIN_HISTORY,

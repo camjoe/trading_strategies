@@ -28,7 +28,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
-from trading.services.performance import fetch_sleeve_performance_window
+from trading.services.analysis import fetch_sleeve_performance_window
 from trading.services.accounts.queries import find_account
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import load_runtime_eligible_account_names

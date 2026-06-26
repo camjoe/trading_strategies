@@ -178,8 +178,7 @@ source area, run the matching suite to validate before committing:
 | `src/trading/services/profiles/` | `src/trading/services/profiles` |
 | `src/trading/services/promotion/` | `src/trading/services/promotion` |
 | `src/trading/services/reporting/` | `src/trading/services/reporting` |
-| `src/trading/services/runtime_settings/` | `src/trading/services` _(no dedicated subdir yet)_ |
-| `src/trading/services/runtime_throttle/` | `src/trading/services` _(no dedicated subdir yet)_ |
+| `src/trading/services/operational_settings/` | `src/trading/services/operational_settings` |
 | `src/trading/services/sleeves/` | `src/trading/services/sleeves` |
 | `src/trading/services/` (multiple) | `src/trading/services` |
 | `src/trading/interfaces/runtime/jobs/daily/` | `src/trading/interfaces/runtime/jobs/daily` |

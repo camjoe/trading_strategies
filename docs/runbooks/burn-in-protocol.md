@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Define the shadow period, stability thresholds, and go-live checklist for signing off new strategies for autonomous trading.
-Related: [Daily Operations](daily-operations.md), [Governance Review Guide](governance-review.md), [Broker Integration](../reference/broker-integration.md)
+Related: [Runtime Operations](runtime-operations.md), [Governance Review Guide](governance-review.md), [Broker Integration](../reference/broker-integration.md)
 
 Defines the shadow period, stability thresholds, and go-live checklist for the IBKR Paper Autonomy system.
 
@@ -107,7 +107,7 @@ Before enabling autonomous mode, an operator must verify all items below.
 
 Any critical failure during the shadow period **resets the consecutive success counter**. The failure must be:
 
-1. Investigated and root-caused (see [daily-operations.md](daily-operations.md))
+1. Investigated and root-caused (see [runtime-operations.md](runtime-operations.md))
 2. Resolved and validated
 3. Documented in the burn-in log (append a note to `local/artifacts/burn_in_notes.txt`)
 

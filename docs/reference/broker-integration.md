@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-04-03
 Last Reviewed: 2026-04-25
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
-Related: [Daily Operations Runbook](../runbooks/daily-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
+Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
 ## Purpose
 
@@ -35,7 +35,7 @@ Supported `accounts.broker_type` values:
 
 Key files:
 
-- `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/broker_order.py`)
+- `src/trading/domain/broker_connection.py`: broker interface (`BrokerConnection`) and order models (`src/trading/models/orders/broker_order.py`)
 - `src/infrastructure/brokers/paper_adapter.py`: paper execution adapter
 - `src/infrastructure/brokers/ib_web_client.py`: IBKR Web API client + settings loader + pacing guard
 - `src/infrastructure/brokers/ib_web_adapter.py`: broker adapter backed by Web API client

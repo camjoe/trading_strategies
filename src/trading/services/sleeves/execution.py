@@ -10,7 +10,7 @@ from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
-from trading.services.universe.resolver import resolve_named_universes
+from trading.services.universe import resolve_named_universes
 
 
 @dataclass(frozen=True, slots=True)

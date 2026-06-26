@@ -60,23 +60,38 @@ Disallowed:
 
 5. `src/trading/domain/`: pure policy/decision logic (side-effect free)
    - No DB, CLI, subprocess, or network side effects.
+   - Holds logic + DI contracts (`BrokerConnection`, `FeatureFetcherSet`,
+     `StrategySpec`). Passive data classes belong in `models/` (see below).
+     The deliberate exception is the policy-knob `*Settings` dataclasses
+     (`EvaluationConfidenceSettings`, `PromotionPolicySettings`): they are domain
+     policy parameters (not data contracts) and stay here with the domain math
+     constants they default to.
 
-6. `src/trading/repositories/`: SQL persistence adapters
+6. `src/trading/models/`: passive data contracts (the lowest layer)
+   - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
+     state/order models, and domain value objects (evaluation/promotion/sleeve).
+   - No business logic, no I/O, and **no imports from `domain`, `services`,
+     `repositories`, `interfaces`, or `infrastructure`** — enforced by
+     `scripts/checks/layer_check.py`. `domain` may import `models`, never the reverse.
+   - Organized into feature subfolders (`accounts/`, `sleeves/`, `evaluation/`, …),
+     one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
+
+7. `src/trading/repositories/`: SQL persistence adapters
    - SQL reads/writes and row-level data access helpers.
 
-7. `src/infrastructure/database/`: DB infrastructure/config/coercion only
+8. `src/infrastructure/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
    - Migration system reference: `docs/reference/db-migration-system.md`
    - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
 
-8. `src/trading/backtesting/`: same layered model within backtesting package
+9. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
    - See `docs/adr/002-backtesting-layering.md` for layering rationale.
 
-9. `src/infrastructure/config/`: file-backed static config assets
+10. `src/infrastructure/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
 
-10. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
+11. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
     - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
     - This package is the **only** place that may import external API libraries
       (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
@@ -88,14 +103,14 @@ Disallowed:
       consume feature bundles via injected callables — they must never call external
       APIs directly.
 
-11. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
+12. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
    - Keep all broker SDK imports (ib_async, ibapi) inside this package.
    - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
    - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
    - `src/trading/` must never import from `src/infrastructure/brokers/`; the interface layer (`src/trading/interfaces/`) is the sole wiring point.
 
-12. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
+13. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
    - Keep the `yfinance` SDK import inside this package (`providers.py`).
    - Service and domain layers must depend only on the `MarketDataProvider` port from
      `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.
@@ -133,7 +148,23 @@ All bots must follow this rule when writing or reviewing Python code:
 
 1. Do not introduce numeric or string literals that represent a named financial, mathematical, or domain concept inline in logic.
 2. Any value that has a name in the domain (e.g., RSI window, annualization factor, basis points divisor, threshold, floor, cap) must be extracted to a named constant in `UPPER_SNAKE_CASE`.
-3. Prefer placing shared cross-module constants in `src/common/constants.py`. Place module-local constants at the top of the file where they are used.
+3. Place each constant at its **lowest owning layer**: the lowest layer that owns
+   the concept *and* is reachable by every consumer without forcing an upward
+   import. Sort by the constant's nature, not by convenience:
+
+   | Constant kind | Home |
+   |---|---|
+   | Generic, domain-agnostic primitive used across unrelated areas (time, math, basis points, indicator params) | `src/common/constants.py` |
+   | A feature's data-contract vocabulary or schema metadata (allowed `status`/`stage` values, artifact/schema versions) | that feature's `constants.py` at its lowest owning layer — e.g. `src/trading/models/<area>/constants.py` |
+   | Domain policy parameters (math weights, thresholds, gate/decision messages) | the owning `src/trading/domain/` module (module-local or an area constants module) |
+   | One-off value used in a single file | top of that file |
+
+   This respects layer direction (`domain` may import `models`/`common`; `models`
+   may import only `common`; nothing imports upward), so a constant never drags a
+   consumer into an illegal import. Feature data-vocabulary living in
+   `models/<area>/constants.py` is intentional — `domain` policy *reads* the
+   vocabulary from the data layer, which is the correct direction. See
+   `docs/adr/005-models-as-lowest-data-layer.md`.
 4. Include a short explanatory comment above each constant stating what it represents and why it has that value.
 5. This applies to: indicator parameters, time periods, scaling factors, thresholds, allocation percentages, fee/slippage rates, and any other value that encodes domain knowledge.
 
@@ -171,6 +202,18 @@ Domain naming:
 
 1. prefer descriptive policy/math names
 2. avoid transport or persistence verbs
+
+"runtime" naming:
+
+1. In a package/module **path**, "runtime" means the scheduler transport layer;
+   `src/trading/interfaces/runtime/` is the only place that meaning applies.
+2. Operator-tunable settings applied during operation (evaluation confidence,
+   promotion policy, trade throttles) live in
+   `src/trading/services/operational_settings/`. Do not reintroduce
+   `runtime_settings`/`runtime_throttle` packages.
+3. In-package `runtime_*` qualifiers (e.g. `services/auto_trading/runtime*.py`)
+   meaning "runtime-execution code vs. decision/input code" are intentional.
+4. Rationale and rejected alternatives: `docs/adr/004-runtime-naming-and-operational-settings.md`.
 
 ## Import and Facade Rules
 
@@ -228,10 +271,16 @@ the UI backend layer.
 Before creating or moving code in `src/trading/`:
 
 1. Classify change target: interface/service/domain/repository/database.
-2. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
-3. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
-4. Keep SQL in repositories, not in handlers/routes.
-5. If architecture ownership changes, update this file accordingly.
+2. Place any shared symbol (constant, type, value object) at its **lowest owning
+   layer** — the lowest layer that owns the concept and is reachable by all
+   consumers without an upward import. Layer direction: `domain` → `models`/`common`;
+   `models` → `common`; nothing imports upward. Passive data contracts and their
+   field vocabulary live in `models/`; domain policy/logic and policy-knob configs
+   live in `domain/`; generic primitives in `common/`.
+3. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
+4. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
+5. Keep SQL in repositories, not in handlers/routes.
+6. If architecture ownership changes, update this file accordingly.
 
 For a task-oriented "where do I put X" reference, see `docs/architecture/nav-guide.md`.
 

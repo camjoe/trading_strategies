@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.models.broker_order import BrokerOrder
+from trading.models.orders.broker_order import BrokerOrder
 
 from tests.support.account_records import make_account_record
 

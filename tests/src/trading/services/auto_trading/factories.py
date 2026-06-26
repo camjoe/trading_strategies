@@ -6,8 +6,8 @@ from unittest.mock import Mock
 
 import trading.services.auto_trading.execution as execution_service
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
-from trading.models.account_state import AccountState
-from trading.models.broker_order import OrderStatus
+from trading.models.accounts.account_state import AccountState
+from trading.models.orders.broker_order import OrderStatus
 from tests.support.account_records import make_account_record
 
 MARKET_OPEN_TIME_ISO = "2026-03-14T14:00:00Z"

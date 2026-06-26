@@ -10,7 +10,7 @@ import sqlite3
 
 from common.coercion import row_expect_float, row_expect_str, row_float
 from common.time import utc_now_iso
-from trading.domain.evaluation_models import StrategyEvaluationArtifact
+from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models import AccountRecord
 from trading.services.market_data import MarketDataProvider
 from trading.repositories.snapshots import EquitySnapshotRepository

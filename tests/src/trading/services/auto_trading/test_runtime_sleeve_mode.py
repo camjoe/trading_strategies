@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.sleeves import SleeveRepository
-from trading.models.broker_order import OrderFill, OrderStatus
+from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.sleeves.execution import SleeveTradeIntent

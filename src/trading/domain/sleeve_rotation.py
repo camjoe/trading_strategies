@@ -1,54 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from trading.models.sleeves.sleeve_rotation_decision import SleeveRotationDecision
+from trading.models.sleeves.sleeve_rotation_score_weights import SleeveRotationScoreWeights
+from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.models.sleeves.sleeve_strategy_score import SleeveStrategyScore
 
 # Conversion factor from percentage points to basis points.
 PERCENT_TO_BASIS_POINTS = 100.0
-
-
-@dataclass(frozen=True, slots=True)
-class SleeveRotationScoreWeights:
-    risk_adjusted_return_weight: float = 1.0
-    stability_weight: float = 0.25
-    drawdown_penalty_weight: float = 0.20
-    cost_penalty_weight: float = 0.10
-    regime_fit_weight: float = 0.10
-
-
-@dataclass(frozen=True, slots=True)
-class SleeveStrategyMetrics:
-    strategy_name: str
-    param_set_id: int | None
-    trade_count: int
-    risk_adjusted_return: float
-    stability: float
-    drawdown_penalty: float
-    cost_penalty: float
-    regime_fit: float
-
-
-@dataclass(frozen=True, slots=True)
-class SleeveStrategyScore:
-    strategy_name: str
-    param_set_id: int | None
-    score: float
-    score_components: dict[str, float]
-    trade_count: int
-    risk_adjusted_return: float
-
-
-@dataclass(frozen=True, slots=True)
-class SleeveRotationDecision:
-    rotation_action: str
-    selected_strategy: str
-    selected_param_set_id: int | None
-    incumbent_strategy: str
-    challenger_strategy: str | None
-    challenger_param_set_id: int | None
-    cooldown_active: bool
-    decision_reason: str
-    score_components: dict[str, dict[str, float]]
-    gate_results: dict[str, object]
 
 
 def _compute_score(

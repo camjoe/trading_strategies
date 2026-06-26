@@ -1,6 +1,6 @@
 import pytest
 
-from trading.domain.promotion_models import PromotionReviewEvent, PromotionReviewRecord
+from trading.models.promotion import PromotionReviewEvent, PromotionReviewRecord
 from trading.services.promotion import (
     render_promotion_review_history_lines,
     render_promotion_status_lines,
@@ -144,7 +144,7 @@ def test_render_promotion_review_history_lines_includes_closure_event_note(
                 account_name=account_name,
                 strategy_name=strategy_name or "trend_v1",
                 stage="promotion_review",
-                status="ready",
+                status="ready_for_review",
                 ready_for_live=True,
             ),
         ),
