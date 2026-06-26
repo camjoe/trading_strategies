@@ -38,6 +38,7 @@ Individual check modules. Each is also usable directly.
 | `readme_check.py` | README freshness checker — flags docs older than a configurable age threshold |
 | `maps_check.py` | Map drift checker — flags modules on disk missing from (or stale in) the structural maps; advisory |
 | `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
+| `module_ref_check.py` | Doc `-m` module-reference checker — flags `python -m <module>` invocations in docs whose first-party module does not resolve; advisory |
 | `db_schema_check.py` | DB schema drift checker — verifies db-schema.md's Quick Reference covers every live table; advisory |
 | `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
 | `shared.py` | Shared utilities for check modules (result types, formatting) |
