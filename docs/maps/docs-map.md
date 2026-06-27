@@ -93,6 +93,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
+| `docs/adr/007-production-runtime-hosting-and-deployment.md` | Dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred | Moving to live trading / VPS, or adopting a hot-standby environment |
 | `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `src/trading/backtesting/` out of its current bounded-context shape |
 | `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
 | `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
@@ -113,6 +114,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 | File | What it covers | Goes stale when |
 |---|---|---|
+| `docs/runbooks/production-runtime-host.md` | Linux production host setup + test-and-deploy workflow promoting code to it | Host setup steps, deploy workflow, or branch/promotion model change |
 | `docs/runbooks/runtime-operations.md` | Daily + weekly-backup job monitoring, failure recovery, log inspection | Runtime job scripts or their schedule change |
 | `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
 | `docs/runbooks/governance-review.md` | Weekly/monthly governance review steps | Governance job scripts or review criteria change |
