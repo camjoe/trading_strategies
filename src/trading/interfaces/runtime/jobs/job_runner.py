@@ -48,6 +48,8 @@ _TAG_FUNCS: dict[Period, Callable[[dt.datetime], str]] = {
 JobBody = Callable[["JobContext"], dict[str, object]]
 # Optional hook a job uses to register its own CLI flags on the shared parser.
 ArgAugmenter = Callable[[argparse.ArgumentParser], None]
+# Optional hook validating parsed args; returns an error message, or None if valid.
+ArgValidator = Callable[[argparse.Namespace], str | None]
 
 
 @dataclass(frozen=True)
@@ -104,12 +106,14 @@ def governance_job(
     period: Period,
     description: str,
     add_arguments: ArgAugmenter | None = None,
+    validate: ArgValidator | None = None,
 ) -> Callable[[JobBody], Callable[[], int]]:
     """Wrap an account-scoped governance-job body with the shared lifecycle.
 
     The body receives a fully-prepared `JobContext` and returns the artifact
-    payload; the wrapper handles parsing, the dedup skip-guard, the DB session,
-    error-to-exit-code mapping, artifact write, and the completion sentinel.
+    payload; the wrapper handles parsing, optional arg validation, the dedup
+    skip-guard, the DB session, error-to-exit-code mapping, artifact write, and
+    the completion sentinel.
     """
     period_label = period
     tag_for = _TAG_FUNCS[period]
@@ -121,6 +125,12 @@ def governance_job(
             if add_arguments is not None:
                 add_arguments(parser)
             args = parser.parse_args()
+
+            if validate is not None:
+                error = validate(args)
+                if error is not None:
+                    print(error, file=sys.stderr)
+                    return 1
 
             repo_root = Path(args.repo_root).expanduser().resolve()
             logs_dir = logs_dir_for_repo(repo_root)
