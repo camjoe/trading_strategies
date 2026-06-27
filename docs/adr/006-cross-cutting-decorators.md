@@ -1,7 +1,7 @@
 # ADR: Sanction Decorators and Context Managers for Cross-Cutting Concerns
 
 Type: adr
-Status: Proposed
+Status: Accepted
 Created: 2026-06-27
 Last Reviewed: 2026-06-27
 Purpose: Establish a sanctioned, bounded pattern for extracting repeated cross-cutting boilerplate (setup/teardown, skip-guards, error→exit-code mapping) using decorators and context managers, starting with the runtime governance jobs.
@@ -97,9 +97,11 @@ Alternatives considered:
    `contextlib` job-session context manager that owns the logs/artifacts/DB
    lifecycle and the skip-guard. Each governance job becomes a small body that
    receives a `JobContext` and returns a payload dict. Migrate one job (`m1`)
-   first as a reviewed proof, then the remaining five. **Status: the `m1` proof
-   is complete (159 → ~98 lines, suite green, ruff/mypy/layer-check clean); see
-   Findings below. The remaining five await acceptance.**
+   first as a reviewed proof, then the remaining five. **Status: complete — all
+   six governance jobs (`m1`–`m3`, `w1`–`w3`) are migrated, the 73 governance
+   tests pass, and ruff/mypy/layer-check are clean. The runner grew two job
+   hooks during migration: `add_arguments` (custom CLI flags) and `validate`
+   (pre-run arg checks). See Findings below.**
 
 ## Consequences
 
@@ -145,11 +147,11 @@ Findings from the `m1` proof (2026-06-27):
   Read §4 as: preserving wrappers (retry/timing) use `ParamSpec`; transforming
   wrappers use explicit `Callable` types. Either way, no bare `Callable[..., Any]`.
 
-Follow-ups (on acceptance):
+Follow-ups:
 
-- Implement Decision §6 and migrate the six governance jobs.
-- Add a short "Cross-Cutting Patterns" subsection to
+- [x] Implement Decision §6 and migrate the six governance jobs.
+- [x] Add a short "Cross-Cutting Patterns" subsection to
   `docs/architecture/architecture-conventions.md` capturing Decision §1–§5.
-- Note the new `job_runner.py` module in `docs/maps/trading-package-map.md`.
-- Re-evaluate daily jobs, UI error mapping, and provider degradation against this
-  pattern as separate, individually-scoped changes — do not batch them.
+- [x] Note the new `job_runner.py` module in `docs/maps/trading-package-map.md`.
+- [ ] Re-evaluate daily jobs, UI error mapping, and provider degradation against
+  this pattern as separate, individually-scoped changes — do not batch them.

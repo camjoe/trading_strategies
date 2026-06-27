@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-06-17
+Last Reviewed: 2026-06-27
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
 Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -233,6 +233,36 @@ Domain naming:
 3. Prefer explicit typed interfaces (dataclasses, TypedDict, Protocol) over generic `object` contracts.
 4. Keep persistence and transport details out of domain contracts.
 5. Avoid API drift: update docs/tests whenever public command/API behavior changes.
+
+## Cross-Cutting Patterns
+
+Decorators and context managers are sanctioned for **cross-cutting concerns
+only** — resource setup/teardown, timing/instrumentation, retry, skip-guards,
+error-to-result mapping, registration. Full rationale and the first application
+(the governance-job `job_runner`) are in `docs/adr/006-cross-cutting-decorators.md`.
+
+1. **Cross-cutting only.** These tools must not carry business or domain decision
+   logic, and must **never** appear in `src/trading/domain/` or
+   `src/trading/models/`, where explicit control flow is required.
+2. **Split the concern by tool.** Use a `contextlib` context manager for
+   setup + guaranteed teardown (open/close a resource); use a decorator for
+   wrapping the call (early-return guards, `except → return`, success sentinel).
+   They compose — a decorator may drive a context manager internally. Do not
+   hand-roll `try/finally` inside a decorator when a context manager fits.
+3. **Lowest owning layer.** A generic, domain-agnostic helper (timing, retry)
+   lives in `src/common/` (e.g. `common/decorators.py`); a helper that knows an
+   interface concept (CLI exit codes, log paths, HTTP responses) lives in that
+   interface area, not `common/`. Standard module name: `decorators.py` (or a
+   runner/session module when it also exposes a context manager).
+4. **Typing is mandatory.** Use `functools.wraps`. A signature-*preserving*
+   wrapper (retry/timing) preserves the signature with `typing.ParamSpec`/
+   `TypeVar`; a *transforming* wrapper (one that changes the signature, like the
+   job runner) uses explicit `Callable` type aliases. Either way: no bare
+   `Callable[..., Any]` passthroughs, and `mypy` (CI) must stay clean.
+5. **Prefer the plainest tool.** A decorator is not automatically correct. If a
+   context manager alone or a plain runner function removes the duplication with
+   clearer control flow, use that. Reserve decorators for cases where the
+   `@`-annotation genuinely improves the call site.
 
 ## Cross-Platform Safety
 
