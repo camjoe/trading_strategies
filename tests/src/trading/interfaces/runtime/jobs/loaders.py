@@ -221,13 +221,22 @@ def stub_runtime_job_basics(
     """
     from unittest.mock import MagicMock
 
+    import trading.interfaces.runtime.jobs.job_runner as job_runner
+
     resolved_accounts = list(runtime_accounts or ["acct1"])
     resolved_conn = db_conn or SimpleNamespace(close=lambda: None)
     lookup = account_lookup or (lambda name: SimpleNamespace(id=1, name=name))
 
-    monkeypatch.setattr(module, "ensure_db", lambda: resolved_conn)
-    if hasattr(module, "load_runtime_eligible_account_names"):
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
+    # Jobs migrated to the shared runner (ADR 006) hold the DB/account seams on
+    # `job_runner`; legacy jobs still hold them on their own module. Patch
+    # whichever targets define them so both styles work through one helper.
+    for target in (module, job_runner):
+        if hasattr(target, "ensure_db"):
+            monkeypatch.setattr(target, "ensure_db", lambda: resolved_conn)
+        if hasattr(target, "load_runtime_eligible_account_names"):
+            monkeypatch.setattr(
+                target, "load_runtime_eligible_account_names", lambda: list(resolved_accounts)
+            )
     if hasattr(module, "find_account"):
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 

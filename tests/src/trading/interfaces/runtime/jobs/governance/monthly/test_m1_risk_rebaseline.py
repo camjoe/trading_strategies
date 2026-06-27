@@ -6,6 +6,7 @@ import sys
 import pytest
 
 import trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline as module
+from trading.interfaces.runtime.jobs.job_helpers import month_tag
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     RUN_ALL_ACCOUNTS_ARGS,
@@ -27,7 +28,7 @@ def _run_job(monkeypatch, tmp_path: Path, args: tuple[str, ...] = RUN_ALL_ARGS) 
 class TestDedupGuard:
     def test_skips_when_already_completed_this_month(self, monkeypatch, tmp_path: Path) -> None:
         now = dt.datetime.now()
-        tag = module.month_tag(now)
+        tag = month_tag(now)
         write_completed_runtime_log(
             tmp_path,
             filename_prefix="monthly_governance_m1_risk_rebaseline",
@@ -125,8 +126,10 @@ class TestArtifactStructure:
 
 
 def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
+    import trading.interfaces.runtime.jobs.job_runner as job_runner
+
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: [])
+    monkeypatch.setattr(job_runner, "resolve_accounts", lambda *_args: [])
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
     assert "No accounts specified." in capsys.readouterr().err
@@ -152,9 +155,9 @@ def test_main_returns_1_when_snapshot_lookup_raises(monkeypatch, tmp_path: Path)
 
 
 def test_monthly_risk_rebaseline_module_main_entrypoint(monkeypatch, tmp_path: Path) -> None:
-    import trading.services.accounts as accounts_module
+    import trading.interfaces.runtime.jobs.job_runner as job_runner
 
-    monkeypatch.setattr(accounts_module, "load_runtime_eligible_account_names", lambda: [])
+    monkeypatch.setattr(job_runner, "load_runtime_eligible_account_names", lambda: [])
     monkeypatch.setattr(sys, "argv", ["m1_risk_rebaseline", "--repo-root", str(tmp_path)])
 
     with pytest.raises(SystemExit) as excinfo:
@@ -164,8 +167,10 @@ def test_monthly_risk_rebaseline_module_main_entrypoint(monkeypatch, tmp_path: P
 
 
 def test_main_returns_1_when_account_resolution_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    import trading.interfaces.runtime.jobs.job_runner as job_runner
+
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(module, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
+    monkeypatch.setattr(job_runner, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
     assert "bad accounts" in capsys.readouterr().err
