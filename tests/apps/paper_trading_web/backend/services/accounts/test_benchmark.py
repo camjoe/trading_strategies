@@ -5,6 +5,21 @@ import pytest
 
 import trading.services.reporting.benchmark as reporting_benchmark
 from paper_trading_web.backend.services.accounts import benchmark as account_benchmark
+from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+
+
+def _snapshot(snapshot_time: str, equity: float) -> EquitySnapshotRecord:
+    """Build a snapshot record carrying only the fields the overlay reads."""
+    return EquitySnapshotRecord(
+        id=0,
+        account_id=0,
+        snapshot_time=snapshot_time,
+        cash=0.0,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
 
 
 def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> None:
@@ -19,9 +34,9 @@ def test_build_live_benchmark_overlay_aligns_snapshot_period(monkeypatch) -> Non
     overlay = account_benchmark.build_live_benchmark_overlay(
         "SPY",
         [
-            {"snapshot_time": "2026-01-04T00:00:00Z", "equity": 1200.0},
-            {"snapshot_time": "2026-01-02T00:00:00Z", "equity": 1000.0},
-            {"snapshot_time": "2026-01-03T00:00:00Z", "equity": 1100.0},
+            _snapshot("2026-01-04T00:00:00Z", 1200.0),
+            _snapshot("2026-01-02T00:00:00Z", 1000.0),
+            _snapshot("2026-01-03T00:00:00Z", 1100.0),
         ],
     )
 

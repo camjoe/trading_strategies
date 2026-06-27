@@ -14,18 +14,16 @@ from datetime import date
 import pandas as pd
 
 from common.coercion import coerce_float
+from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.services.market_data import MarketDataProvider, require_provider
 
 
-def _snapshot_time(snapshot: dict[str, object]) -> str:
-    return str(snapshot["snapshot_time"])
+def _snapshot_time(snapshot: EquitySnapshotRecord) -> str:
+    return snapshot.snapshot_time
 
 
-def _snapshot_equity(snapshot: dict[str, object]) -> float:
-    value = coerce_float(snapshot["equity"])
-    if value is None:
-        raise ValueError("Snapshot equity is required for benchmark overlay.")
-    return value
+def _snapshot_equity(snapshot: EquitySnapshotRecord) -> float:
+    return snapshot.equity
 
 
 def fetch_benchmark_close_history(
@@ -73,7 +71,7 @@ def _close_price_on_or_before(close_history: pd.Series, snapshot_time: str) -> f
 
 def build_live_benchmark_overlay(
     benchmark_ticker: str,
-    snapshots: Sequence[dict[str, object]],
+    snapshots: Sequence[EquitySnapshotRecord],
     *,
     provider: MarketDataProvider | None = None,
 ) -> dict[str, object] | None:
@@ -84,8 +82,8 @@ def build_live_benchmark_overlay(
     benchmark_ticker:
         The ticker symbol to use as the benchmark (e.g. ``"SPY"``).
     snapshots:
-        Ordered or unordered sequence of account snapshot dicts, each containing
-        ``snapshot_time`` (ISO-8601 string) and ``equity`` (numeric).
+        Ordered or unordered sequence of ``EquitySnapshotRecord`` rows, each
+        carrying ``snapshot_time`` (ISO-8601 string) and ``equity`` (numeric).
 
     Returns
     -------

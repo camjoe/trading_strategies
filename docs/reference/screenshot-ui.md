@@ -61,7 +61,7 @@ python -m scripts.screenshot_ui
 python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab compare
 python -m scripts.screenshot_ui --tab backtesting
-python -m scripts.screenshot_ui --tab trades
+python -m scripts.screenshot_ui --tab ibkr-paper-monitor
 python -m scripts.screenshot_ui --tab alt-strategies
 python -m scripts.screenshot_ui --tab admin
 python -m scripts.screenshot_ui --tab docs
@@ -90,9 +90,13 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 ```
 accounts        alt-strategies
 compare         admin
-docs            trades
+docs            ibkr-paper-monitor
 backtesting
 ```
+
+Tab names match the `data-tab` attributes in
+`apps/paper_trading_web/frontend/src/views/nav.html` (note the UI labels differ:
+`compare` is shown as "Overview", `alt-strategies` as "Sentiment").
 
 ---
 

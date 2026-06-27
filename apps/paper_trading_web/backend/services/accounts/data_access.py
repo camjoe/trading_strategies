@@ -5,6 +5,7 @@ import sqlite3
 from fastapi import HTTPException
 
 from trading.models import AccountRecord
+from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.services.accounts import (
     get_account,
     list_account_records,
@@ -22,14 +23,14 @@ def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:
     return list_account_records(conn)
 
 
-def build_snapshot_payload(snapshot: dict[str, object]) -> dict[str, object]:
+def build_snapshot_payload(snapshot: EquitySnapshotRecord) -> dict[str, object]:
     return {
-        "time": snapshot["snapshot_time"],
-        "cash": snapshot["cash"],
-        "marketValue": snapshot["market_value"],
-        "equity": snapshot["equity"],
-        "realizedPnl": snapshot["realized_pnl"],
-        "unrealizedPnl": snapshot["unrealized_pnl"],
+        "time": snapshot.snapshot_time,
+        "cash": snapshot.cash,
+        "marketValue": snapshot.market_value,
+        "equity": snapshot.equity,
+        "realizedPnl": snapshot.realized_pnl,
+        "unrealizedPnl": snapshot.unrealized_pnl,
     }
 
 

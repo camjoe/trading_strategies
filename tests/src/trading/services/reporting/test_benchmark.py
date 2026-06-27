@@ -6,7 +6,22 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.services.reporting import benchmark
+
+
+def _snapshot(snapshot_time: str, equity: float) -> EquitySnapshotRecord:
+    """Build a snapshot record carrying only the fields the overlay reads."""
+    return EquitySnapshotRecord(
+        id=0,
+        account_id=0,
+        snapshot_time=snapshot_time,
+        cash=0.0,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
 
 
 class StubProvider:
@@ -111,7 +126,7 @@ def test_fetch_benchmark_close_history_uses_first_column_for_multi_level_result(
 def test_build_live_benchmark_overlay_returns_none_when_too_few_snapshots() -> None:
     result = benchmark.build_live_benchmark_overlay(
         "SPY",
-        [{"snapshot_time": "2024-01-02T16:00:00Z", "equity": 100.0}],
+        [_snapshot("2024-01-02T16:00:00Z", 100.0)],
     )
 
     assert result is None
@@ -127,8 +142,8 @@ def test_build_live_benchmark_overlay_returns_none_for_blank_ticker(monkeypatch:
     result = benchmark.build_live_benchmark_overlay(
         "  ",
         [
-            {"snapshot_time": "2024-01-02T16:00:00Z", "equity": 100.0},
-            {"snapshot_time": "2024-01-03T16:00:00Z", "equity": 101.0},
+            _snapshot("2024-01-02T16:00:00Z", 100.0),
+            _snapshot("2024-01-03T16:00:00Z", 101.0),
         ],
     )
 
@@ -149,8 +164,8 @@ def test_build_live_benchmark_overlay_returns_none_for_non_positive_starting_equ
     result = benchmark.build_live_benchmark_overlay(
         "SPY",
         [
-            {"snapshot_time": "2024-01-02T16:00:00Z", "equity": starting_equity},
-            {"snapshot_time": "2024-01-03T16:00:00Z", "equity": 101.0},
+            _snapshot("2024-01-02T16:00:00Z", starting_equity),
+            _snapshot("2024-01-03T16:00:00Z", 101.0),
         ],
     )
 
@@ -168,8 +183,8 @@ def test_build_live_benchmark_overlay_returns_none_when_fetch_raises(
     result = benchmark.build_live_benchmark_overlay(
         "SPY",
         [
-            {"snapshot_time": "2024-01-02T16:00:00Z", "equity": 100.0},
-            {"snapshot_time": "2024-01-03T16:00:00Z", "equity": 105.0},
+            _snapshot("2024-01-02T16:00:00Z", 100.0),
+            _snapshot("2024-01-03T16:00:00Z", 105.0),
         ],
     )
 
@@ -192,8 +207,8 @@ def test_build_live_benchmark_overlay_returns_none_for_missing_or_empty_close_hi
     result = benchmark.build_live_benchmark_overlay(
         "SPY",
         [
-            {"snapshot_time": "2024-01-02T16:00:00Z", "equity": 100.0},
-            {"snapshot_time": "2024-01-03T16:00:00Z", "equity": 105.0},
+            _snapshot("2024-01-02T16:00:00Z", 100.0),
+            _snapshot("2024-01-03T16:00:00Z", 105.0),
         ],
     )
 
@@ -215,8 +230,8 @@ def test_build_live_benchmark_overlay_returns_none_when_fewer_than_two_points_ma
     result = benchmark.build_live_benchmark_overlay(
         "SPY",
         [
-            {"snapshot_time": "2024-01-02T16:00:00Z", "equity": 100.0},
-            {"snapshot_time": "2024-01-03T16:00:00Z", "equity": 105.0},
+            _snapshot("2024-01-02T16:00:00Z", 100.0),
+            _snapshot("2024-01-03T16:00:00Z", 105.0),
         ],
     )
 
@@ -239,9 +254,9 @@ def test_build_live_benchmark_overlay_computes_sorted_overlay_and_returns_expect
         name="SPY",
     )
     snapshots = [
-        {"snapshot_time": "2024-01-04T16:00:00Z", "equity": 150.0},
-        {"snapshot_time": "2024-01-02T16:00:00Z", "equity": 100.0},
-        {"snapshot_time": "2024-01-03T16:00:00Z", "equity": 90.0},
+        _snapshot("2024-01-04T16:00:00Z", 150.0),
+        _snapshot("2024-01-02T16:00:00Z", 100.0),
+        _snapshot("2024-01-03T16:00:00Z", 90.0),
     ]
 
     monkeypatch.setattr(benchmark, "fetch_benchmark_close_history", lambda *_args, **_kwargs: close_history)
