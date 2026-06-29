@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from trading.repositories.admin import (
+from trading.repositories.admin_deletions import (
     delete_accounts_by_ids,
     delete_backtest_equity_snapshots_by_run_ids,
     delete_backtest_runs_by_account_ids,
