@@ -6,6 +6,8 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
+from trading.domain.exceptions import NotFoundError
+
 _BACKTEST_REPORT_FULL = "paper_trading_web.backend.routes.backtests.backtest_report_full"
 _RUN_BACKTEST = "paper_trading_web.backend.routes.backtests.run_backtest"
 _PREVIEW_BACKTEST_WARNINGS = "paper_trading_web.backend.routes.backtests.preview_backtest_warnings"
@@ -45,7 +47,7 @@ class TestBacktestsRoutes:
         assert payload["latestRun"] is None
 
     def test_backtest_run_report_endpoint_not_found(self, api_client: TestClient) -> None:
-        report_mock = Mock(side_effect=ValueError("run not found"))
+        report_mock = Mock(side_effect=NotFoundError("run not found"))
         with patch(_BACKTEST_REPORT_FULL, report_mock):
             response = api_client.get("/api/backtests/runs/999")
         assert response.status_code == 404

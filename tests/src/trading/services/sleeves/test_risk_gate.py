@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from trading.models.sleeves.sleeve_risk_gate_config import SleeveRiskGateConfig
+from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.repositories.sleeve_positions import SleevePositionRepository
-from trading.services.sleeves.execution import SleeveTradeIntent
-from trading.services.sleeves import risk_gate as sleeve_risk_gate
 from trading.services.sleeves.risk_gate import evaluate_sleeve_risk_gate
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
@@ -178,13 +178,8 @@ def test_evaluate_sleeve_risk_gate_rejects_non_positive_config(conn) -> None:
             conn,
             account_id=account_id,
             intents=[intent],
-            config=sleeve_risk_gate.SleeveRiskGateConfig(max_sleeve_notional_pct=0.0),
+            config=SleeveRiskGateConfig(max_sleeve_notional_pct=0.0),
         )
-
-
-def test_resolve_sector_for_symbol_returns_none_for_blank_mapping() -> None:
-    assert sleeve_risk_gate.resolve_sector_for_symbol("AAPL", symbol_sector_map={"AAPL": "   "}) is None
-    assert sleeve_risk_gate.resolve_sector_for_symbol("MSFT", symbol_sector_map={}) is None
 
 
 def test_evaluate_sleeve_risk_gate_blocks_non_positive_qty(conn) -> None:

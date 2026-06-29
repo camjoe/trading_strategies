@@ -14,14 +14,14 @@ from typing import Callable
 
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import (
+    AttemptOutcome,
     day_tag,
     is_env_truthy,
-    is_transient_error,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
-    retry_delay_seconds,
     run_command,
+    run_command_with_retry,
     tee_line,
     ts,
     write_artifact,
@@ -176,63 +176,34 @@ def run_backtest_refresh_with_retry(
     run_command_fn: Callable[[Path, str, list[str], Path], tuple[int, str]] = run_command,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
-    attempts = max(1, int(args.max_attempts))
-    started_at = ts()
+    """Run one account's backtest-refresh command with transient-failure retries.
 
-    for attempt in range(1, attempts + 1):
-        label = f"Backtest refresh {account} (attempt {attempt}/{attempts})"
-        exit_code, output = run_command_fn(
-            log_path,
-            label,
-            build_backtest_command(account=account, args=args, day_tag=day_tag),
-            repo_root,
-        )
+    Success requires both a zero exit code and a parseable ``run_id``; a zero
+    exit with no ``run_id`` is a non-retryable ``missing_run_id`` failure. Every
+    result payload carries a ``run_id`` (``None`` when absent).
+    """
+
+    def classify(exit_code: int, output: str) -> AttemptOutcome:
         run_id = extract_run_id(output)
         if exit_code == 0 and run_id is not None:
-            return {
-                "account": account,
-                "status": "success",
-                "attempts": attempt,
-                "run_id": run_id,
-                "started_at": started_at,
-                "finished_at": ts(),
-                "last_exit_code": exit_code,
-            }
-
-        transient = is_transient_error(output)
-        failure_payload = {
-            "account": account,
-            "status": "failed",
-            "attempts": attempt,
-            "run_id": run_id,
-            "started_at": started_at,
-            "finished_at": ts(),
-            "last_exit_code": exit_code,
-            "transient": transient,
-        }
+            return AttemptOutcome(succeeded=True, retryable=False, extras={"run_id": run_id})
         if exit_code == 0 and run_id is None:
-            failure_payload["error"] = "missing_run_id"
-            return failure_payload
-        if attempt >= attempts or not transient:
-            return failure_payload
+            return AttemptOutcome(succeeded=False, retryable=False, extras={"run_id": None, "error": "missing_run_id"})
+        return AttemptOutcome(succeeded=False, retryable=True, extras={"run_id": run_id})
 
-        delay_seconds = retry_delay_seconds(float(args.backoff_seconds), attempt)
-        tee_line(
-            log_path,
-            (f"[{ts()}] RETRY: account={account} attempt={attempt} delay_seconds={delay_seconds:.2f}"),
-        )
-        sleep_fn(delay_seconds)
-
-    return {
-        "account": account,
-        "status": "failed",
-        "attempts": attempts,
-        "run_id": None,
-        "started_at": started_at,
-        "finished_at": ts(),
-        "last_exit_code": 1,
-        "transient": False,
-    }
+    return run_command_with_retry(
+        log_path=log_path,
+        repo_root=repo_root,
+        account=account,
+        command=build_backtest_command(account=account, args=args, day_tag=day_tag),
+        label_prefix="Backtest refresh",
+        max_attempts=int(args.max_attempts),
+        base_backoff_seconds=float(args.backoff_seconds),
+        classify=classify,
+        result_defaults={"run_id": None},
+        run_command_fn=run_command_fn,
+        sleep_fn=sleep_fn,
+    )
 
 
 def main() -> int:

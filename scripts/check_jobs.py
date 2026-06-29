@@ -14,6 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.files import modified_at_utc, sorted_by_mtime_desc
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.daily.backtest_refresh import COMPLETE_SENTINEL as DAILY_BACKTEST_REFRESH_SENTINEL
 from trading.interfaces.runtime.jobs.daily.paper_trading import COMPLETE_SENTINEL as DAILY_SENTINEL
@@ -43,7 +44,7 @@ def _log_has_sentinel(path: Path, sentinel: str) -> bool:
 
 
 def _log_mtime(path: Path) -> dt.datetime:
-    return dt.datetime.fromtimestamp(path.stat().st_mtime, tz=dt.timezone.utc).astimezone()
+    return modified_at_utc(path).astimezone()
 
 
 def _days_ago(d: dt.date) -> str:
@@ -69,7 +70,7 @@ def _check_daily_job(
 ) -> dict:
     """Return status dict for a daily job."""
     today = dt.date.today()
-    logs = sorted(LOGS_DIR.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+    logs = sorted_by_mtime_desc(LOGS_DIR.glob(pattern))
 
     today_str = today.strftime("%Y%m%d")
     today_complete = False
@@ -141,7 +142,7 @@ def _check_weekly() -> dict:
     week_tag = f"{iso[0]}_W{iso[1]:02d}"
 
     pattern = "weekly_db_backup_*.log"
-    logs = sorted(LOGS_DIR.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+    logs = sorted_by_mtime_desc(LOGS_DIR.glob(pattern))
 
     this_week_complete = False
     this_week_log: Path | None = None

@@ -221,13 +221,22 @@ def stub_runtime_job_basics(
     """
     from unittest.mock import MagicMock
 
+    import infrastructure.database.init as db_init
+    import trading.interfaces.runtime.jobs.job_runner as job_runner
+
     resolved_accounts = list(runtime_accounts or ["acct1"])
     resolved_conn = db_conn or SimpleNamespace(close=lambda: None)
     lookup = account_lookup or (lambda name: SimpleNamespace(id=1, name=name))
 
-    monkeypatch.setattr(module, "ensure_db", lambda: resolved_conn)
-    if hasattr(module, "load_runtime_eligible_account_names"):
-        monkeypatch.setattr(module, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
+    # Migrated jobs (ADR 006) open the DB via the shared `db_session`
+    # (infrastructure.database.init.ensure_db); legacy jobs call `ensure_db` on
+    # their own module. Patch whichever targets define it so both styles work.
+    for target in (module, job_runner, db_init):
+        if hasattr(target, "ensure_db"):
+            monkeypatch.setattr(target, "ensure_db", lambda: resolved_conn)
+    for target in (module, job_runner):
+        if hasattr(target, "load_runtime_eligible_account_names"):
+            monkeypatch.setattr(target, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
     if hasattr(module, "find_account"):
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 

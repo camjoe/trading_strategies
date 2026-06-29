@@ -8,7 +8,7 @@ from common.paths.repo_paths import get_repo_root
 from infrastructure.feature_providers.news_provider import NewsFeatureProvider
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
 from infrastructure.feature_providers.social_provider import SocialFeatureProvider
-from infrastructure.database.init import ensure_db
+from infrastructure.database.init import db_session
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
@@ -74,8 +74,7 @@ def main() -> None:
         fetch_social=social_provider.get_features,
     )
 
-    conn = ensure_db()
-    try:
+    with db_session() as conn:
         for account_name, executed in run_accounts(
             conn,
             account_names=accounts,
@@ -91,8 +90,6 @@ def main() -> None:
             provider=provider,
         ):
             print(f"{account_name}: executed {executed} trades")
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":

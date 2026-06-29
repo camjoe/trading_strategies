@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-24
+Last Reviewed: 2026-06-27
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -84,6 +84,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |
+| `job_runner.py` | `governance_job` decorator + `_db_session` context manager: shared lifecycle wrapper for account-scoped governance jobs (ADR 006) |
 | `manage_job_schedules.py` | Install/update OS-level job schedules |
 | `run_auto_trades.py` | Auto-trade execution runner |
 | `scheduler_installer.py` | Scheduler installation logic |
@@ -163,6 +164,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `sleeves/reconciliation.py` | Sleeve equity reconciliation (vs account and snapshot) |
 | `sleeves/risk_gate.py` | Sleeve-level risk gate enforcement |
 | `sleeves/rotation.py` | Sleeve rotation execution |
+| `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
 | `sleeves/universe_config.py` | Sleeve trade-universe configuration |
 | `universe/resolver.py` | Trade-universe name resolution |
@@ -176,7 +178,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | Module | Responsibility |
 |---|---|
 | `accounts.py` | Equity snapshot and account snapshot persistence |
-| `admin.py` | Admin/maintenance DB operations (row counts, deletions) |
+| `admin_deletions.py` | Admin/maintenance deletion operations (row counts, dependent deletes) |
 | `backtest_history.py` | Backtest run history records |
 | `broker_orders.py` | Broker-submitted order records |
 | `daily_metrics.py` | Daily performance metric snapshots |
@@ -214,6 +216,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `returns.py` | Return calculation math |
 | `rotation.py` | Rotation state-transition logic + `RotationConfig` persistence serialization |
 | `sleeve_accounting.py` | Sleeve-level accounting math (builds `models.sleeves.SleeveFillTransition`) |
+| `sleeve_risk_gate.py` | Sleeve risk-gate decision policy |
 | `sleeve_rotation.py` | Sleeve rotation scoring/decision logic (builds `models.sleeves` rotation value objects) |
 | `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
 

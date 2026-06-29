@@ -1,4 +1,6 @@
 from __future__ import annotations
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from infrastructure.database.backend import get_backend
@@ -21,6 +23,21 @@ def ensure_db() -> DBConnection:
     conn = get_backend().open_connection()
     init_schema(conn)
     return conn
+
+
+@contextmanager
+def db_session() -> Iterator[DBConnection]:
+    """Open an initialized DB connection and guarantee it is closed.
+
+    The shared resource-lifecycle wrapper for the `conn = ensure_db(); try: ...
+    finally: conn.close()` pattern. Tests stub the connection by patching
+    `infrastructure.database.init.ensure_db`.
+    """
+    conn = ensure_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def _column_names(conn: DBConnection, table_name: str) -> set[str]:

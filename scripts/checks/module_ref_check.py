@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.link_check import discover_docs
@@ -26,10 +27,6 @@ class BrokenRef:
 class FileReport:
     path: Path
     broken: list[BrokenRef] = field(default_factory=list)
-
-
-def _rel_posix(path: Path, repo_root: Path) -> str:
-    return str(path.relative_to(repo_root)).replace("\\", "/")
 
 
 def _search_roots(repo_root: Path) -> list[Path]:
@@ -99,7 +96,7 @@ def run_module_ref_check(repo_root: Path, *, enforce: bool = False, quiet: bool 
     if total:
         print("\nFindings:")
         for report in reports:
-            rel = _rel_posix(report.path, repo_root)
+            rel = relative_posix(report.path, repo_root)
             for ref in report.broken:
                 print(f"- {rel}:{ref.line} [module] {ref.module}")
 

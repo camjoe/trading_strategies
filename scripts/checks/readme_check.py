@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
 
@@ -20,7 +21,7 @@ class ReadmeReport:
 
 
 def normalize_rel(path: Path, repo_root: Path) -> str:
-    return str(path.relative_to(repo_root)).replace("\\", "/")
+    return relative_posix(path, repo_root)
 
 
 def discover_readmes(repo_root: Path) -> list[Path]:

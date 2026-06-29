@@ -11,6 +11,7 @@ from trading.backtesting.repositories.walk_forward_repository import (
     fetch_walk_forward_group_runs,
 )
 from trading.backtesting.services.report_service import fetch_backtest_report_summary
+from trading.domain.exceptions import NotFoundError
 from trading.services.accounts import get_account
 
 
@@ -24,7 +25,7 @@ def _resolve_walk_forward_group(
     if group_id is not None:
         group = fetch_walk_forward_group_by_id(conn, group_id=group_id)
         if group is None:
-            raise ValueError(f"Walk-forward group {group_id} not found.")
+            raise NotFoundError(f"Walk-forward group {group_id} not found.")
         return group
 
     if account_name is None:

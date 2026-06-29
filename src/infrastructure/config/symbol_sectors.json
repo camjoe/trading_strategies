@@ -1,0 +1,17 @@
+{
+  "AAPL": "technology",
+  "MSFT": "technology",
+  "NVDA": "technology",
+  "GOOGL": "technology",
+  "META": "technology",
+  "AMZN": "consumer_discretionary",
+  "TSLA": "consumer_discretionary",
+  "JPM": "financials",
+  "JNJ": "healthcare",
+  "UNH": "healthcare",
+  "XOM": "energy",
+  "WMT": "consumer_staples",
+  "SPY": "broad_market",
+  "QQQ": "broad_market",
+  "IWM": "broad_market"
+}

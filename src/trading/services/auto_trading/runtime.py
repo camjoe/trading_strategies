@@ -53,10 +53,12 @@ from trading.services.auto_trading.runtime_sleeve_risk import (
     persist_sleeve_risk_snapshot,
 )
 from trading.services.sleeves.accounting import apply_sleeve_fill
-from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
+from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
+from trading.services.sleeves.execution import generate_sleeve_trade_intents
 from trading.services.sleeves.risk_gate import (
     evaluate_sleeve_risk_gate,
 )
+from trading.services.sleeves.sector_config import load_symbol_sector_map
 from trading.services.sleeves.rotation import (
     SleeveRotationConfig,
     evaluate_and_apply_sleeve_rotation,
@@ -248,6 +250,7 @@ def _compute_current_exposure_snapshot(
         fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(
             account_id=account_id
         ),
+        symbol_sector_map=load_symbol_sector_map(),
     )
 
 
@@ -272,6 +275,7 @@ def _persist_sleeve_risk_snapshot(
             account_id=account_id
         ),
         upsert_portfolio_risk_snapshot_fn=PortfolioRiskSnapshotRepository(conn).upsert,
+        symbol_sector_map=load_symbol_sector_map(),
     )
 
 
