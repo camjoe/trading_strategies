@@ -7,7 +7,6 @@ from trading.models.sleeves.constants import (
     DEFAULT_MAX_SECTOR_CONCENTRATION_PCT,
     DEFAULT_MAX_SLEEVE_NOTIONAL_PCT,
     DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT,
-    DEFAULT_SYMBOL_SECTOR_MAP,
 )
 
 
@@ -17,4 +16,7 @@ class SleeveRiskGateConfig:
     max_symbol_concentration_pct: float = DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT
     max_portfolio_gross_exposure: float = DEFAULT_MAX_PORTFOLIO_GROSS_EXPOSURE
     max_sector_concentration_pct: float = DEFAULT_MAX_SECTOR_CONCENTRATION_PCT
-    symbol_sector_map: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_SYMBOL_SECTOR_MAP))
+    # Symbol→sector reference data is operator config; the service layer loads it
+    # from src/infrastructure/config/symbol_sectors.json and injects it here.
+    # An empty map means no sector-concentration limits are applied.
+    symbol_sector_map: dict[str, str] = field(default_factory=dict)

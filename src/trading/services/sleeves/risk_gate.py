@@ -18,6 +18,7 @@ from trading.models.sleeves.sleeve_risk_gate_result import SleeveRiskGateResult
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
+from trading.services.sleeves.sector_config import load_symbol_sector_map
 
 
 def evaluate_sleeve_risk_gate(
@@ -25,8 +26,10 @@ def evaluate_sleeve_risk_gate(
     *,
     account_id: int,
     intents: list[SleeveTradeIntent],
-    config: SleeveRiskGateConfig = SleeveRiskGateConfig(),
+    config: SleeveRiskGateConfig | None = None,
 ) -> SleeveRiskGateResult:
+    if config is None:
+        config = SleeveRiskGateConfig(symbol_sector_map=load_symbol_sector_map())
     sleeves = SleeveRepository(conn).fetch_for_account(account_id=int(account_id))
     sleeve_equity_by_id = {s.id: s.current_equity for s in sleeves}
     positions = SleevePositionRepository(conn).fetch_for_account(account_id=int(account_id))
