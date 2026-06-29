@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from trading.domain.exceptions import NotFoundError
+
 
 def test_api_ibkr_paper_accounts_returns_list(api_client: TestClient) -> None:
     """Test that /api/ibkr-paper-accounts returns accounts list."""
@@ -74,7 +76,7 @@ def test_api_ibkr_paper_account_detail_returns_404_when_not_found(
         ) as mock_fetch:
             mock_conn = MagicMock()
             mock_db.return_value.__enter__.return_value = mock_conn
-            mock_fetch.side_effect = ValueError("Account not found: nonexistent")
+            mock_fetch.side_effect = NotFoundError("Account not found: nonexistent")
 
             response = api_client.get("/api/ibkr-paper-accounts/nonexistent")
 

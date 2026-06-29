@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from ..services.db import db_conn
 from ..services.ibkr_paper_monitor import (
@@ -35,9 +35,5 @@ def api_ibkr_paper_account_detail(account_name: str) -> dict[str, object]:
     - Risk summary (kill switch, violations)
     """
     with db_conn() as conn:
-        try:
-            data = fetch_account_ibkr_paper_monitor_data(conn, account_name)
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-        return data
+        # NotFoundError -> 404 is handled by the app-level exception handler.
+        return fetch_account_ibkr_paper_monitor_data(conn, account_name)

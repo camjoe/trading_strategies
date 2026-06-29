@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import sqlite3
 
 from common.coercion import coerce_int
+from trading.domain.exceptions import NotFoundError
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin import (
     delete_accounts_by_ids,
@@ -60,7 +61,7 @@ def _resolve_delete_targets(
         missing = [name for name in names if name not in found]
         if missing:
             missing_text = ", ".join(missing)
-            raise ValueError(f"Accounts not found: {missing_text}")
+            raise NotFoundError(f"Accounts not found: {missing_text}")
 
     return [{"id": record.id, "name": record.name} for record in records]
 

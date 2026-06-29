@@ -72,7 +72,7 @@ Alternatives considered:
 3. **Placement follows the lowest-owning-layer rule.** A cross-cutting helper
    lives at the lowest layer that owns the concept:
    - Generic, domain-agnostic (timing, retry, simple caching) → `src/common/`
-     (e.g. `src/common/decorators.py`).
+     (e.g. a `decorators.py` module there).
    - Concern that knows about an interface concept (CLI exit codes, log paths,
      job sentinels, HTTP responses) → that interface area, **not** `common/`.
      The governance-job runner therefore lives in
