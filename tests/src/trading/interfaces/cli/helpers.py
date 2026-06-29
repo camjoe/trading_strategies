@@ -57,9 +57,12 @@ def configure_account_args(**overrides):
 
 
 def install_main_harness(monkeypatch, cli_main_module, args, conn: FakeConn | None = None) -> FakeConn:
+    import infrastructure.database.init as db_init
+
     fake_conn = conn or FakeConn()
     monkeypatch.setattr(cli_main_module, "build_parser", lambda: FakeParser(args))
-    monkeypatch.setattr(cli_main_module, "ensure_db", lambda: fake_conn)
+    # main() opens the DB via the shared db_session, which calls init.ensure_db.
+    monkeypatch.setattr(db_init, "ensure_db", lambda: fake_conn)
     return fake_conn
 
 

@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 
+import infrastructure.database.init as db_init
 from infrastructure.database.backend import SQLiteBackend, get_backend, set_backend
 from infrastructure.database.init import ensure_db
 from trading.interfaces.runtime.data_ops import admin
@@ -124,7 +125,7 @@ class TestHelpersAndCommands:
     def test_cmd_list_accounts_prints_no_accounts(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         closed = {"value": False}
         conn = SimpleNamespace(close=lambda: closed.__setitem__("value", True))
-        monkeypatch.setattr(admin, "ensure_db", lambda: conn)
+        monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
         monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
 
         assert admin._cmd_list_accounts(Namespace()) == 0
@@ -133,7 +134,7 @@ class TestHelpersAndCommands:
 
     def test_cmd_list_accounts_prints_rows(self, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
         conn = SimpleNamespace(close=lambda: None)
-        monkeypatch.setattr(admin, "ensure_db", lambda: conn)
+        monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
         monkeypatch.setattr(admin, "list_accounts", lambda _conn: ["[1] acct1", "[2] acct2"])
 
         assert admin._cmd_list_accounts(Namespace()) == 0
@@ -145,7 +146,7 @@ class TestHelpersAndCommands:
         captured: dict[str, object] = {}
         conn = SimpleNamespace(close=lambda: captured.__setitem__("closed", True))
         monkeypatch.setattr(admin, "backup_database", lambda destination: Path("backup-before.db"))
-        monkeypatch.setattr(admin, "ensure_db", lambda: conn)
+        monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
 
         def fake_delete_accounts(conn_obj, *, account_names, delete_all, dry_run):
             captured["conn"] = conn_obj
@@ -239,7 +240,7 @@ def test_admin_module_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
 
     conn = SimpleNamespace(close=lambda: None)
-    monkeypatch.setattr(admin, "ensure_db", lambda: conn)
+    monkeypatch.setattr(db_init, "ensure_db", lambda: conn)
     monkeypatch.setattr(admin, "list_accounts", lambda _conn: [])
     monkeypatch.setattr(sys, "argv", ["admin", "list-accounts"])
 

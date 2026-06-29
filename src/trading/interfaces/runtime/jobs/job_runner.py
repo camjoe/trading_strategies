@@ -13,15 +13,14 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import sys
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 from typing import Literal
 
 from common.paths.repo_paths import get_repo_root
-from infrastructure.database.init import DBConnection, ensure_db
+from infrastructure.database.init import DBConnection, db_session
 from trading.interfaces.runtime.jobs.job_helpers import (
     logs_dir_for_repo,
     month_tag,
@@ -67,16 +66,6 @@ class JobContext:
     def log(self, message: str) -> None:
         """Tee a timestamped line to the run log (and stdout)."""
         tee_line(self.log_path, f"[{ts()}] {message}")
-
-
-@contextmanager
-def _db_session() -> Iterator[DBConnection]:
-    """Open the database and guarantee it is closed — the resource lifecycle."""
-    conn = ensure_db()
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 
 def _build_parser(*, description: str, period_label: str) -> argparse.ArgumentParser:
@@ -170,7 +159,7 @@ def governance_job(
                 return 1
 
             try:
-                with _db_session() as conn:
+                with db_session() as conn:
                     ctx = JobContext(
                         conn=conn,
                         args=args,
