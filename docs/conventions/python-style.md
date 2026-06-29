@@ -317,6 +317,14 @@ Rules:
 - Use `Iterator[X]` for generator functions and fixture return types.
 - Use `Never` / `NoReturn` for functions that always raise.
 - Annotate `-> None` explicitly on functions with no return value — it documents intent.
+- Prefer read-only collection protocols for function parameters when mutation is
+  not required. Use `Mapping[K, V]` instead of `dict[K, V]` for parameters that
+  are only read, and use `Sequence[T]` instead of `list[T]` when callers do not
+  need list-specific behavior. Keep concrete types for return values and mutable
+  storage, e.g. return `dict[K, V]` when constructing a plain dict and use
+  `dict[K, V]` for dataclass/model fields that callers may mutate or serialize.
+  Apply this rule to new or touched signatures; do not churn existing code only
+  to change collection annotations.
 
 ---
 
