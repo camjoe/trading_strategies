@@ -7,9 +7,9 @@ from unittest.mock import Mock
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.models.orders.broker_order import OrderFill, OrderStatus
+from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
-from trading.services.sleeves.execution import SleeveTradeIntent
 from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.repositories import insert_repository_account

@@ -53,7 +53,8 @@ from trading.services.auto_trading.runtime_sleeve_risk import (
     persist_sleeve_risk_snapshot,
 )
 from trading.services.sleeves.accounting import apply_sleeve_fill
-from trading.services.sleeves.execution import SleeveTradeIntent, generate_sleeve_trade_intents
+from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
+from trading.services.sleeves.execution import generate_sleeve_trade_intents
 from trading.services.sleeves.risk_gate import (
     evaluate_sleeve_risk_gate,
 )
