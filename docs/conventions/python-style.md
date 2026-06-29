@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-06-29
 Purpose: Project-specific interpretation of PEP 8, covering indentation, imports, naming, type hints, and ruff enforcement.
 Related: [Doc Header Standard](doc-header.md)
 
@@ -29,8 +29,9 @@ Automated enforcement uses `ruff` (see [Enforcement](#enforcement) below).
 10. [Docstrings](#docstrings)
 11. [Type hints](#type-hints)
 12. [Programming idioms](#programming-idioms)
-13. [Enforcement](#enforcement)
-14. [Current state assessment](#current-state-assessment)
+13. [File and path portability](#file-and-path-portability)
+14. [Enforcement](#enforcement)
+15. [Current state assessment](#current-state-assessment)
 
 ---
 
@@ -389,6 +390,34 @@ names = [row["name"] for row in rows]
 # avoid
 names = list(map(lambda r: r["name"], rows))
 ```
+
+---
+
+## File and path portability
+
+Use `pathlib.Path` for filesystem paths and prefer the shared helpers in `src/common/`
+when formatting paths, resolving the repo Python executable, or comparing file
+modified times across platforms.
+
+Reach for these helpers in new or touched code:
+
+- `common.paths.relative_posix(path, root)` when a path is displayed, logged, or
+  compared as a repository-relative string. This avoids repeated
+  `str(path).replace("\\", "/")` snippets.
+- `common.paths.resolve_repo_python_exe(repo_root)` when scripts need the
+  repository virtualenv Python executable. This centralizes the Windows
+  `.venv\Scripts\python.exe` vs POSIX `.venv/bin/python` distinction.
+- `common.files.modified_at_utc(path)` when code needs a timezone-aware file
+  modified timestamp.
+- `common.files.modified_at_iso(path)` when code returns or displays a file
+  modified timestamp.
+- `common.files.sorted_by_mtime_desc(paths)` or
+  `common.files.latest_by_mtime(paths)` when selecting the newest file by
+  modified time.
+
+Keep platform-specific string normalization only at boundaries where the string
+is input data rather than a filesystem path object, such as validating a user
+provided route parameter.
 
 ---
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
+
+from common.paths.executables import resolve_repo_python_exe
 
 
 def run_step(name: str, command: list[str], cwd: Path) -> None:
@@ -13,14 +14,7 @@ def run_step(name: str, command: list[str], cwd: Path) -> None:
 
 
 def resolve_python_exe(repo_root: Path) -> str:
-    candidates = [
-        repo_root / ".venv" / "Scripts" / "python.exe",
-        repo_root / ".venv" / "bin" / "python",
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return str(candidate)
-    return sys.executable
+    return resolve_repo_python_exe(repo_root)
 
 
 def resolve_npm_exe() -> str:

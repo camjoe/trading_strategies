@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
 
@@ -64,16 +65,12 @@ class FileReport:
     broken: list[BrokenRef] = field(default_factory=list)
 
 
-def _rel_posix(path: Path, repo_root: Path) -> str:
-    return str(path.relative_to(repo_root)).replace("\\", "/")
-
-
 def discover_docs(repo_root: Path) -> list[Path]:
     docs: list[Path] = []
     for candidate in repo_root.rglob("*.md"):
         if any(part in IGNORED_DIR_PARTS for part in candidate.parts):
             continue
-        rel = _rel_posix(candidate, repo_root)
+        rel = relative_posix(candidate, repo_root)
         if rel in EXCLUDED_DOCS:
             continue
         if any(rel.startswith(prefix) for prefix in EXCLUDED_DIR_PREFIXES):
@@ -173,7 +170,7 @@ def run_link_check(repo_root: Path, *, enforce: bool = False, quiet: bool = Fals
     if total:
         print("\nFindings:")
         for report in reports:
-            rel = _rel_posix(report.path, repo_root)
+            rel = relative_posix(report.path, repo_root)
             for ref in report.broken:
                 print(f"- {rel}:{ref.line} [{ref.kind}] {ref.target}")
 

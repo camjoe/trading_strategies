@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from common.files import sorted_by_mtime_desc
 from common.paths.repo_paths import get_repo_root
 
 
@@ -22,7 +23,7 @@ def _find_latest_artifact(pattern: str, search_dir: Path) -> dict[str, Any] | No
     if not search_dir.exists():
         return None
 
-    matching_files = sorted(search_dir.glob(pattern), reverse=True)
+    matching_files = sorted_by_mtime_desc(search_dir.glob(pattern))
     if not matching_files:
         return None
 

@@ -10,6 +10,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from common.files import sorted_by_mtime_desc
+
 RUNTIME_ALERT_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 
 # Subprocess module path constants — update here if a module is ever relocated.
@@ -145,7 +147,7 @@ def tee_line(log_path: Path, text: str) -> None:
 
 
 def latest_log_contains_sentinel(log_dir: Path, pattern: str, sentinel: str) -> bool:
-    logs = sorted(log_dir.glob(pattern), key=lambda path: path.stat().st_mtime, reverse=True)
+    logs = sorted_by_mtime_desc(log_dir.glob(pattern))
     if not logs:
         return False
 

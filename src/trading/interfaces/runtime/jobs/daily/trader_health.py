@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 from typing import TypedDict
 
+from common.files import modified_at_utc, sorted_by_mtime_desc
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import RUNTIME_ALERT_WEBHOOK_ENV, logs_dir_for_repo
 from trading.interfaces.runtime.notifications import notify_webhook_best_effort
@@ -122,11 +123,7 @@ def main() -> int:
     repo_root = Path(args.repo_root).expanduser().resolve()
     log_dir = logs_dir_for_repo(repo_root)
 
-    logs = sorted(
-        log_dir.glob(DAILY_PAPER_TRADING_EXECUTION_LOG_PATTERN),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
+    logs = sorted_by_mtime_desc(log_dir.glob(DAILY_PAPER_TRADING_EXECUTION_LOG_PATTERN))
     if not logs:
         payload = _make_payload(
             status="fail",
@@ -139,7 +136,7 @@ def main() -> int:
 
     latest = logs[0]
     now = dt.datetime.now(dt.timezone.utc)
-    latest_mtime = dt.datetime.fromtimestamp(latest.stat().st_mtime, tz=dt.timezone.utc)
+    latest_mtime = modified_at_utc(latest)
     age_hours = (now - latest_mtime).total_seconds() / 3600.0
 
     try:

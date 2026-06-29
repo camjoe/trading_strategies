@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from trading.interfaces.runtime.jobs.job_helpers import (
@@ -33,6 +34,8 @@ def test_latest_log_contains_sentinel_uses_newest_match(tmp_path: Path):
     newer = tmp_path / "job_newer.log"
     older.write_text("COMPLETE\n", encoding="utf-8")
     newer.write_text("incomplete\n", encoding="utf-8")
+    os.utime(older, (100, 100))
+    os.utime(newer, (200, 200))
 
     assert latest_log_contains_sentinel(tmp_path, "job_*.log", "COMPLETE") is False
 
