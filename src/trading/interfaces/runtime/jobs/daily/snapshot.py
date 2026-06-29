@@ -15,14 +15,14 @@ from common.paths.repo_paths import get_repo_root
 from trading.services.accounts import load_runtime_eligible_account_names
 from trading.interfaces.runtime.job_status import DAILY_SNAPSHOT_COMPLETE_SENTINEL
 from trading.interfaces.runtime.jobs.job_helpers import (
+    AttemptOutcome,
     day_tag,
     is_env_truthy,
-    is_transient_error,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
-    retry_delay_seconds,
     run_command,
+    run_command_with_retry,
     tee_line,
     ts,
     write_artifact,
@@ -90,55 +90,27 @@ def run_snapshot_with_retry(
     run_command_fn: Callable[[Path, str, list[str], Path], tuple[int, str]] = run_command,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
-    attempts = max(1, max_attempts)
-    started_at = ts()
+    """Run one account's snapshot command with transient-failure retries.
 
-    for attempt in range(1, attempts + 1):
-        label = f"Snapshot {account} (attempt {attempt}/{attempts})"
-        exit_code, output = run_command_fn(
-            log_path,
-            label,
-            ["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
-            repo_root,
-        )
-        if exit_code == 0:
-            return {
-                "account": account,
-                "status": "success",
-                "attempts": attempt,
-                "started_at": started_at,
-                "finished_at": ts(),
-                "last_exit_code": exit_code,
-            }
+    Success is a zero exit code; all failures are retryable (subject to the
+    transient-error and attempt-count checks in `run_command_with_retry`).
+    """
 
-        transient = is_transient_error(output)
-        if attempt >= attempts or not transient:
-            return {
-                "account": account,
-                "status": "failed",
-                "attempts": attempt,
-                "started_at": started_at,
-                "finished_at": ts(),
-                "last_exit_code": exit_code,
-                "transient": transient,
-            }
+    def classify(exit_code: int, _output: str) -> AttemptOutcome:
+        return AttemptOutcome(succeeded=exit_code == 0, retryable=True, extras={})
 
-        delay_seconds = retry_delay_seconds(base_backoff_seconds, attempt)
-        tee_line(
-            log_path,
-            (f"[{ts()}] RETRY: account={account} attempt={attempt} delay_seconds={delay_seconds:.2f}"),
-        )
-        sleep_fn(delay_seconds)
-
-    return {
-        "account": account,
-        "status": "failed",
-        "attempts": attempts,
-        "started_at": started_at,
-        "finished_at": ts(),
-        "last_exit_code": 1,
-        "transient": False,
-    }
+    return run_command_with_retry(
+        log_path=log_path,
+        repo_root=repo_root,
+        account=account,
+        command=["-m", CLI_MAIN_MODULE, "snapshot", "--account", account],
+        label_prefix="Snapshot",
+        max_attempts=max_attempts,
+        base_backoff_seconds=base_backoff_seconds,
+        classify=classify,
+        run_command_fn=run_command_fn,
+        sleep_fn=sleep_fn,
+    )
 
 
 def main() -> int:

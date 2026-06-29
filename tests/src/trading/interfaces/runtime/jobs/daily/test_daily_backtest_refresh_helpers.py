@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     daily_backtest_refresh as module,
     make_daily_backtest_refresh_args,
@@ -15,9 +16,9 @@ def test_already_completed_today_detects_sentinel(tmp_path: Path) -> None:
 
 
 def test_retry_delay_seconds_doubles_each_attempt() -> None:
-    assert module.retry_delay_seconds(2.0, 1) == 2.0
-    assert module.retry_delay_seconds(2.0, 2) == 4.0
-    assert module.retry_delay_seconds(2.0, 3) == 8.0
+    assert retry_delay_seconds(2.0, 1) == 2.0
+    assert retry_delay_seconds(2.0, 2) == 4.0
+    assert retry_delay_seconds(2.0, 3) == 8.0
 
 
 def test_build_backtest_command_includes_optional_settings() -> None:
