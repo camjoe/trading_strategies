@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import HTTPException
-
 from trading.services.accounts import (
     AccountAlreadyExistsError,
     create_account,
@@ -32,17 +30,13 @@ def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateA
 
 
 def delete_account_and_dependents(account_name: str) -> dict[str, int]:
-    try:
-        with db_conn() as conn:
-            deleted = delete_accounts(
-                conn,
-                account_names=[account_name],
-                delete_all=False,
-                dry_run=False,
-            )
-    except ValueError as error:
-        if "Accounts not found:" in str(error):
-            raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from error
-        raise
-
+    # delete_accounts raises NotFoundError for unknown accounts, mapped to HTTP 404
+    # by the app-level exception handler (see docs/adr/007-ui-error-mapping.md).
+    with db_conn() as conn:
+        deleted = delete_accounts(
+            conn,
+            account_names=[account_name],
+            delete_all=False,
+            dry_run=False,
+        )
     return build_managed_account_delete_counts(deleted)

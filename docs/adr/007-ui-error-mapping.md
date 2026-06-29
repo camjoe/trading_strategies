@@ -91,21 +91,34 @@ Accepted and shipped as the first slice:
   subclasses `ValueError` so existing `except ValueError` handlers (CLI, UI
   validation, tests) keep working unchanged, while the UI can match the type for
   404. A bare `ValueError` still surfaces as 500.
-- Four not-found sources now raise it: `services/accounts/mutations.get_account`,
-  `backtesting/services/report_service`, `services/ibkr_paper_monitor/queries`,
-  `services/admin/deletions`.
+- The user-facing entity-lookup not-found sources now raise it:
+  `services/accounts/mutations.get_account`, `backtesting/services/report_service`,
+  `backtesting/repositories/walk_forward_repository` (backtest run),
+  `backtesting/services/walk_forward_report_service` (group),
+  `services/ibkr_paper_monitor/queries`, `services/admin/deletions`, and
+  `services/promotion/actions._fetch_review_or_raise`.
 - One app-level handler in `apps/paper_trading_web/backend/main.py`:
   `NotFoundError -> 404`.
-- The three not-found-only routes dropped their local 404 mapping
+- The not-found-only routes dropped their local 404 mapping
   (`routes/backtests.py`, `routes/ibkr_paper_monitor.py`,
-  `services/accounts/data_access.require_account_row`).
+  `services/accounts/data_access.require_account_row`), and
+  `services/admin.delete_account_and_dependents` dropped its
+  `"Accounts not found:"` string heuristic — all now rely on the app handler.
+
+**Conversion principle.** Only "a requested entity does not exist" (a lookup
+miss) becomes `NotFoundError`. Deliberately left as `ValueError`: *bad input*
+(`backtest_data_service` bad directory path, `csv_export` invalid table — 400
+-class) and *internal post-write integrity* checks (`repositories/promotion`
+"not found after insert", `services/promotion/actions` "not found after request
+creation", `services/sleeves/accounting` fill-processing invariants — 500-class,
+not user not-found).
 
 Deferred (still behavior-preserving today *because* `NotFoundError` is a
-`ValueError`): the `routes/admin.py` promotion `"not found"` string heuristic and
-the `services/admin.delete_account_and_dependents` catch both still resolve to
-404 via their existing `except ValueError`. They will be cleaned up when the
-promotion/delete not-found paths adopt `NotFoundError`. Validation (400/422)
-mapping stays per-route (no `ValidationError` introduced yet).
+`ValueError`): the `routes/admin.py` promotion-overview `"not found"` heuristic
+stays — `build_promotion_overview`'s assessment/history fetches return empty
+rather than raising, so removing it would lose the 404. It can go when those
+paths gain typed not-found semantics. Validation (400/422) mapping stays
+per-route (no `ValidationError` introduced yet).
 
 ## Consequences
 
