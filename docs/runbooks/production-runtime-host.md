@@ -93,25 +93,66 @@ chmod 600 .env              # readable only by the runtime user
 > Code `permissions.deny` read rule for `**/.env` and secret paths.)
 
 **Important — the runtime jobs do not auto-load `.env`.** Unlike the web backend (which loads
-`apps/paper_trading_web/backend/.env` via dotenv), the cron job entrypoints read `os.environ`
-directly. So you must get these vars into the job's environment one of two ways:
+`apps/paper_trading_web/backend/.env` via dotenv), the job entrypoints read `os.environ` directly.
+Choose one of the approaches below to get secrets into each job's environment.
 
-- **Source the file in a cron wrapper.** Point each cron command at a tiny wrapper script:
-  ```bash
-  # ~/trading-prod/run-job.sh
-  #!/usr/bin/env bash
-  set -euo pipefail
-  cd "$(dirname "$0")"
-  set -a && . ./.env && set +a
-  exec ./.venv/bin/python "$@"
-  ```
-  ```bash
-  chmod +x ~/trading-prod/run-job.sh
-  ```
-  Then register schedules with `--python /home/<user>/trading-prod/run-job.sh` in §1.5 so every
-  job inherits the env. (The wrapper forwards `-m <module> …` straight through.)
-- **Or** declare the vars directly in the crontab (export lines / `KEY=value` header) above the
-  generated job lines.
+#### Approach A — systemd `EnvironmentFile` (recommended for systemd setups)
+
+Pass `--env-file` when registering schedules. The installer adds `EnvironmentFile=-<path>` to each
+generated service unit, so systemd loads the file automatically at job launch. The `-` prefix means
+a missing file is silently ignored rather than failing the job:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+    --env-file /home/<user>/trading-prod/.env \
+    --daily-paper-trading-time 13:00 \
+    ...
+```
+
+Secrets stay in `.env` on disk, mode `600`. Only systemd reads them at runtime — they are never
+embedded in the unit files or any logs.
+
+#### Approach B — `run-job.sh` wrapper (for cron setups, or if EnvironmentFile is not available)
+
+`run-job.sh` is a tiny shell wrapper committed to the repo root. It sources `.env` and then
+forwards all arguments to the venv Python, so every job it launches inherits the full environment:
+
+```bash
+#!/usr/bin/env bash
+# run-job.sh — sources .env then delegates to the venv python.
+# Pass --python /path/to/run-job.sh to manage_job_schedules so cron jobs inherit secrets.
+set -euo pipefail
+cd "$(dirname "$0")"
+set -a && . ./.env && set +a
+exec ./.venv/bin/python "$@"
+```
+
+```bash
+chmod +x ~/trading-prod/run-job.sh
+```
+
+Register with `--python /home/<user>/trading-prod/run-job.sh` instead of the venv python directly:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+    --python /home/<user>/trading-prod/run-job.sh \
+    --scheduler cron \
+    --daily-paper-trading-time 13:00 \
+    ...
+```
+
+Every cron line then runs through the wrapper, which loads `.env` before handing off to Python.
+
+#### Approach C — inline vars in crontab (quick / no wrapper)
+
+Declare vars at the top of the crontab above the generated lines:
+
+```
+TRADING_RUNTIME_ALERT_WEBHOOK_URL=https://...
+TRADING_IBKR_WEB_API_ACCOUNT_ID=...
+```
+
+Least preferred — secrets end up visible in `crontab -l` output.
 
 At minimum set:
 - `TRADING_RUNTIME_ALERT_WEBHOOK_URL` so missed/failed runs are visible (see

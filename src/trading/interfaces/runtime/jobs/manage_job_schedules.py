@@ -198,6 +198,15 @@ def parse_args() -> argparse.Namespace:
         dest="wake_system",
         help="Disable WakeSystem on systemd timers",
     )
+    parser.add_argument(
+        "--env-file",
+        default="",
+        help=(
+            "Path to a .env file to inject into each systemd service unit via EnvironmentFile=. "
+            "The file is treated as optional (missing file is not an error). "
+            "Has no effect when using cron or Windows Task Scheduler."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -361,6 +370,7 @@ def main() -> int:
                 dry_run=args.dry_run,
                 scheduler_type=args.scheduler,
                 wake_system=args.wake_system,
+                env_file=Path(args.env_file) if args.env_file else None,
             )
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)

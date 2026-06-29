@@ -192,10 +192,12 @@ def build_systemd_service_unit(
     *,
     user: str,
     log_path: Path,
+    env_file: Path | None = None,
 ) -> str:
     """Build the content of a systemd .service unit file for a scheduled task."""
     command_parts = [str(python_exe), "-m", task.module, *task.args]
     exec_start = " ".join(shlex.quote(part) for part in command_parts)
+    env_line = f"EnvironmentFile=-{env_file}\n" if env_file else ""
     return (
         "[Unit]\n"
         f"Description={task.task_name} service\n"
@@ -203,6 +205,7 @@ def build_systemd_service_unit(
         "[Service]\n"
         "Type=oneshot\n"
         f"User={user}\n"
+        f"{env_line}"
         f"WorkingDirectory={repo_root}\n"
         f"ExecStart={exec_start}\n"
         f"StandardOutput=append:{log_path}\n"
@@ -218,6 +221,7 @@ def generate_systemd_install_script(
     user: str,
     wake_system: bool,
     dry_run: bool,
+    env_file: Path | None = None,
 ) -> int:
     """Generate a bash script that installs systemd timer and service units.
 
@@ -236,7 +240,7 @@ def generate_systemd_install_script(
         unit_name = _task_name_to_unit_name(task.task_name)
         log_path = log_dir / task.log_name
         unit_files[f"{unit_name}.service"] = build_systemd_service_unit(
-            task, repo_root, python_exe, user=user, log_path=log_path
+            task, repo_root, python_exe, user=user, log_path=log_path, env_file=env_file
         )
         unit_files[f"{unit_name}.timer"] = build_systemd_timer_unit(task, wake_system=wake_system)
         timer_unit_names.append(f"{unit_name}.timer")
@@ -343,6 +347,7 @@ def register_tasks_for_platform(
     dry_run: bool,
     scheduler_type: Literal["auto", "cron", "systemd"] = "auto",
     wake_system: bool = True,
+    env_file: Path | None = None,
 ) -> int:
     resolved_system = platform.system().lower()
     resolved_repo_root = repo_root.expanduser().resolve()
@@ -373,6 +378,7 @@ def register_tasks_for_platform(
                 user=getpass.getuser(),
                 wake_system=wake_system,
                 dry_run=dry_run,
+                env_file=env_file,
             )
 
         existing_lines = load_crontab_lines()
