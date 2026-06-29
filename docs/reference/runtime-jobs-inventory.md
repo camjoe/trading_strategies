@@ -16,21 +16,61 @@ All commands should be run from the repository root with the repo-local virtual 
 
 ## Install Scheduled Jobs
 
-`manage_job_schedules.py` installs OS-level schedules. On Windows it creates Task Scheduler entries. On Linux it writes cron lines.
+`manage_job_schedules.py` installs OS-level schedules. On Windows it creates Task Scheduler entries. On Linux it auto-detects systemd and creates systemd timer units with `WakeSystem=yes` (wake from sleep); falls back to cron if systemd is unavailable. Use `--scheduler cron` or `--scheduler systemd` to override.
+
+### Linux (systemd — current host)
+
+Always `--dry-run` first to preview the unit files that will be generated:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+  --daily-paper-trading-time 13:00 \
+  --daily-paper-trading-fallback-time 13:20 \
+  --health-check-time 13:35 \
+  --weekly-db-backup-day-of-week Sunday \
+  --weekly-db-backup-time 12:58 \
+  --dry-run
+```
+
+Re-run without `--dry-run` to generate the install script, then run it with sudo:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+  --daily-paper-trading-time 13:00 \
+  --daily-paper-trading-fallback-time 13:20 \
+  --health-check-time 13:35 \
+  --weekly-db-backup-day-of-week Sunday \
+  --weekly-db-backup-time 12:58
+
+sudo bash local/install_trading_timers.sh
+```
+
+Also set the AC inactivity timeout to 60 minutes so the machine stays up through the full job window (12:58–13:35) before auto-suspending:
+
+```bash
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
+```
+
+To remove registered timers:
+
+```bash
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister --dry-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister
+sudo bash local/uninstall_trading_timers.sh
+```
+
+### Windows
 
 Use `--dry-run` first to preview the generated scheduler entries:
 
 ```powershell
 .\.venv\Scripts\python.exe -m trading.interfaces.runtime.jobs.manage_job_schedules `
   --python .\.venv\Scripts\python.exe `
-  --daily-paper-trading-time 13:10 `
-  --daily-paper-trading-fallback-time 15:45 `
-  --daily-challenger-shadow-eval-time 12:50 --enable-daily-challenger-shadow-eval `
-  --health-check-time 16:15 `
-  --daily-snapshot-time 16:30 --enable-daily-snapshot `
-  --daily-backtest-refresh-time 17:00 --enable-daily-backtest-refresh `
+  --daily-paper-trading-time 13:00 `
+  --daily-paper-trading-fallback-time 13:20 `
+  --health-check-time 13:35 `
   --weekly-db-backup-day-of-week Sunday `
-  --weekly-db-backup-time 02:00 `
+  --weekly-db-backup-time 12:58 `
   --dry-run
 ```
 
@@ -39,14 +79,11 @@ Re-run without `--dry-run` to install:
 ```powershell
 .\.venv\Scripts\python.exe -m trading.interfaces.runtime.jobs.manage_job_schedules `
   --python .\.venv\Scripts\python.exe `
-  --daily-paper-trading-time 13:10 `
-  --daily-paper-trading-fallback-time 15:45 `
-  --daily-challenger-shadow-eval-time 12:50 --enable-daily-challenger-shadow-eval `
-  --health-check-time 16:15 `
-  --daily-snapshot-time 16:30 --enable-daily-snapshot `
-  --daily-backtest-refresh-time 17:00 --enable-daily-backtest-refresh `
+  --daily-paper-trading-time 13:00 `
+  --daily-paper-trading-fallback-time 13:20 `
+  --health-check-time 13:35 `
   --weekly-db-backup-day-of-week Sunday `
-  --weekly-db-backup-time 02:00
+  --weekly-db-backup-time 12:58
 ```
 
 Remove registered entries:

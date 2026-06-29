@@ -42,12 +42,19 @@ Repo URL (already filled into the commands below): `https://github.com/camjoe/tr
    timedatectl                       # check current
    sudo timedatectl set-timezone America/New_York   # set to your market timezone
    ```
-3. **Disable sleep/suspend** so the host stays up unattended:
-   ```bash
-   sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-   ```
-   On a laptop lid, also set `HandleLidSwitch=ignore` in `/etc/systemd/logind.conf`, then
-   `sudo systemctl restart systemd-logind`.
+3. **Sleep/suspend.** Choose one of two approaches (decision recorded in Part 5):
+   - **Always-on (simpler):** Disable sleep so the host never misses a job:
+     ```bash
+     sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+     ```
+     On a laptop lid also set `HandleLidSwitch=ignore` in `/etc/systemd/logind.conf`, then
+     `sudo systemctl restart systemd-logind`.
+   - **Suspend+wake (power-saving):** Keep auto-suspend enabled and rely on `WakeSystem=yes` in
+     the systemd timer units (§1.5) to wake the machine before each job. Extend the AC inactivity
+     timeout to at least 60 minutes so jobs finish before the machine re-suspends:
+     ```bash
+     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
+     ```
 4. **Ensure cron runs and starts on boot:**
    ```bash
    sudo systemctl enable --now cron
@@ -118,30 +125,36 @@ At minimum set:
   host into the same relative path under `~/trading-prod/`, or initialize fresh and run migrations.
 - Confirm migrations are current (see [db-migration-system.md](../reference/db-migration-system.md)).
 
-### 1.5 Register the schedule (cron)
+### 1.5 Register the schedule (systemd timers)
 
-`manage_job_schedules` writes cron lines that `cd` into the checkout it is run from, so run it from
-`~/trading-prod` and point `--python` at the production venv — or, if you used the env wrapper from
-§1.3, at `~/trading-prod/run-job.sh` instead (so jobs inherit `.env`). **Always `--dry-run` first** and
-read the lines it would write:
+`manage_job_schedules` auto-detects systemd on Linux and generates systemd timer + service units with `WakeSystem=yes`, so the machine wakes from sleep before each job fires. It writes a sudo-ready install script to `local/install_trading_timers.sh`. Run from `~/trading-prod`. **Always `--dry-run` first:**
 
 ```bash
 cd ~/trading-prod
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
-    --python /home/<user>/trading-prod/.venv/bin/python \
-    --daily-paper-trading-time 13:10 \
-    --daily-paper-trading-fallback-time 14:10 \
-    --health-check-time 16:30 \
-    --weekly-db-backup-time 02:00 --weekly-db-backup-day-of-week Sunday \
+    --daily-paper-trading-time 13:00 \
+    --daily-paper-trading-fallback-time 13:20 \
+    --health-check-time 13:35 \
+    --weekly-db-backup-time 12:58 --weekly-db-backup-day-of-week Sunday \
     --dry-run
 ```
 
-Re-run without `--dry-run` to install. See the
-[Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available
-entry (snapshot, backtest-refresh, challenger shadow-eval) and their flags. Verify:
+Re-run without `--dry-run` to generate the install script, then apply it:
 
 ```bash
-crontab -l        # confirm the expected lines, each cd-ing into ~/trading-prod
+./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+    --daily-paper-trading-time 13:00 \
+    --daily-paper-trading-fallback-time 13:20 \
+    --health-check-time 13:35 \
+    --weekly-db-backup-time 12:58 --weekly-db-backup-day-of-week Sunday
+
+sudo bash ~/trading-prod/local/install_trading_timers.sh
+```
+
+See the [Runtime Jobs Reference](../reference/runtime-jobs.md#registering-schedules) for every available entry (snapshot, backtest-refresh, challenger shadow-eval) and their flags. Verify timers are active:
+
+```bash
+systemctl list-timers --all | grep trading
 ```
 
 ### 1.6 Verify end to end
@@ -273,29 +286,24 @@ This splits the problem into two states:
   auto-power-on after AC loss can start it.
 - **From SUSPEND** → a systemd timer with `WakeSystem=true`, or `rtcwake`, can resume it.
 
-### Recommended pattern: always-on + self-recover + scheduled-power-on safety net
+### Recommended pattern: suspend overnight, wake on schedule
 
-This is the most reliable for unattended daily runs and needs the least moving parts:
+This machine runs jobs for ~35 minutes per day (12:58–13:35) and suspends the rest of the time.
+The systemd timers installed in §1.5 include `WakeSystem=yes`, which sets the RTC alarm so the
+machine wakes from suspend automatically before each job fires. No cron daemon or always-on
+requirement needed.
 
-1. **Disable sleep/suspend** (already in §1.1) so the host never drops into a state a missed wake
-   could strand it during the trading day.
-2. **Auto-recover from power loss.** In BIOS/UEFI set **"Restore on AC Power Loss" / "AC Power
-   Recovery" → On (or Last State)**. A power blip then brings the machine back by itself.
-3. **No login required to run jobs.** cron (and systemd services) run without an interactive login;
-   confirm `systemctl enable --now cron` (§1.1) and that the runtime user's crontab is installed.
-   Do not gate jobs behind a desktop session/auto-login.
-4. **Scheduled power-on safety net (optional but recommended).** In BIOS/UEFI enable **"Power On by
-   RTC Alarm" / "Wake on RTC"** to power the machine on daily a bit before market open. Then even a
-   full shutdown self-corrects before the first job.
+Setup (already applied on this host):
 
-### Alternative: suspend overnight, wake on schedule (power saving)
-
-Only if you care about idle power draw and accept an extra failure mode:
-
-- Let the host suspend when idle, and schedule an RTC wake before the daily run. Either a systemd
-  timer unit with `WakeSystem=true`, or an `rtcwake` call (e.g. `rtcwake -m no -t $(date +%s -d 'tomorrow 06:00')`
-  to arm the next wake). Validate it actually wakes *before* relying on it — RTC-from-suspend support
-  varies by board.
+1. **AC inactivity timeout set to 60 minutes** — machine stays up through the full job window then
+   auto-suspends:
+   ```bash
+   gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
+   ```
+2. **Systemd timers with `WakeSystem=yes`** — installed via `local/install_trading_timers.sh`.
+   Verify with `systemctl list-timers --all | grep trading`.
+3. **AC Power Recovery in BIOS/UEFI** — set to **On** or **Last State** so a power blip brings
+   the machine back. (Board-specific menu path — capture below.)
 
 ### Missed-run safety net (independent of wake reliability)
 
@@ -309,15 +317,12 @@ Even with the above, treat a missed run as expected-occasionally, not catastroph
 
 ### TODO — capture machine-specific details on the Linux host
 
-The exact settings below are board/distro-specific and should be filled in **while on the Linux PC**.
-Until then this section stays `Draft`.
-
 - [ ] BIOS/UEFI vendor + version, and the exact menu path + label for **AC power recovery**
 - [ ] Whether the board supports **RTC wake / Power On by Alarm**, and its menu path (or note "not supported")
-- [ ] Confirm `rtcwake`/systemd `WakeSystem` behavior from suspend on this hardware (works / doesn't)
+- [x] Confirmed `systemd WakeSystem=yes` wakes from suspend on this hardware (verified 2026-06-29)
 - [ ] NIC **Wake-on-LAN** capability (`ethtool <iface> | grep Wake-on`) and whether to enable it
-- [ ] Distro + version, init/power-management specifics (`systemd-logind` lid/idle settings as configured)
-- [ ] Decision recorded: **always-on** vs **suspend+wake**, and which power-on safety net is enabled
+- [ ] Distro + version noted; `systemd-logind` AC inactivity timeout set to 3600 s (60 min) on 2026-06-29
+- [x] Decision recorded: **suspend+wake** (systemd `WakeSystem=yes`); AC power recovery TBD
 
 ---
 
@@ -325,15 +330,14 @@ Until then this section stays `Draft`.
 
 Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 007 follow-ups.)
 
-- [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend disabled, cron enabled,
-      auto-reboot kept out of market hours
+- [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend configured (suspend+wake or always-on), auto-reboot kept out of market hours
 - [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base)
 - [ ] 1.3 Secrets in `.env` on the host only (mode 600), loading mechanism chosen; no `.env` on dev machine
 - [ ] 1.4 Database seeded and migrations current
-- [ ] 1.5 Cron schedule registered from `~/trading-prod` with prod venv; `crontab -l` verified
+- [ ] 1.5 Systemd timers registered from `~/trading-prod`; `systemctl list-timers --all | grep trading` verified
 - [ ] 1.6 End-to-end manual run + health check pass; monitoring confirmed
-- [ ] Confirmed cron survives a reboot (reboot the host, verify next run fires)
-- [ ] Part 5 uptime configured: AC-power-recovery on, sleep disabled, (optional) RTC power-on enabled
+- [ ] Confirmed systemd timers survive a reboot (reboot the host, verify next run fires)
+- [ ] Part 5 uptime configured: AC-power-recovery on, suspend+wake with `WakeSystem=yes`, AC inactivity timeout set to 3600 s
 - [ ] Part 5 machine-specific details captured on the Linux host (fills in the TODO list)
 - [ ] Decided whether to stand up the optional staging checkout (Part 3) now or later
 - [ ] Old Windows host scheduled tasks unregistered so jobs don't double-run

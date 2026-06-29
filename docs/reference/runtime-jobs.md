@@ -54,34 +54,39 @@ The direct job scripts are the source of truth — run the job you want directly
 
 ## Registering schedules
 
-`manage_job_schedules` writes Windows Task Scheduler entries on Windows and cron entries on Linux.
+`manage_job_schedules` writes Windows Task Scheduler entries on Windows. On Linux it auto-detects systemd and creates systemd timer units; falls back to cron if systemd is unavailable. Pass `--scheduler cron` or `--scheduler systemd` to override.
 
 ```sh
-# Register runtime jobs on the scheduler with the active venv interpreter
+# Register the core 4 runtime jobs (Linux — generates local/install_trading_timers.sh)
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
-  --daily-paper-trading-time 13:10 \
-  --daily-paper-trading-fallback-time 15:45 \
-  --daily-challenger-shadow-eval-time 12:50 --enable-daily-challenger-shadow-eval \
-  --health-check-time 16:15 \
-  --daily-snapshot-time 16:30 \
-  --daily-backtest-refresh-time 17:00 \
+  --daily-paper-trading-time 13:00 \
+  --daily-paper-trading-fallback-time 13:20 \
+  --health-check-time 13:35 \
   --weekly-db-backup-day-of-week Sunday \
-  --weekly-db-backup-time 02:00
+  --weekly-db-backup-time 12:58
+
+# Then install with sudo (systemd timers require root to write to /etc/systemd/system/)
+sudo bash local/install_trading_timers.sh
+
+# Set AC inactivity timeout to 60 min so the machine stays up through the job window
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
 
 # Alternatively, auto-derive the shadow-eval time as a lead before daily paper trading
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
-  --daily-paper-trading-time 13:10 \
+  --daily-paper-trading-time 13:00 \
   --auto-shadow-eval-from-daily-paper --shadow-eval-lead-minutes 20
 
 # Remove previously registered entries (preview with --dry-run first)
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister --dry-run
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister
+sudo bash local/uninstall_trading_timers.sh
 ```
 
 ### Behavior notes
 
-- `manage_job_schedules.py` is a thin schedule entrypoint, while `scheduler_installer.py` handles the platform-specific cron/Task Scheduler installation details.
-- It uses the interpreter passed via `--python` (default: the current `sys.executable`), so it does not rely on a host-level `python` shim.
+- `manage_job_schedules.py` is a thin schedule entrypoint; `scheduler_installer.py` handles platform-specific installation.
+- On Linux with systemd, the installer generates `local/install_trading_timers.sh` (requires `sudo bash` to apply). Each timer includes `WakeSystem=yes` so the machine wakes from sleep before the job fires. Pass `--no-wake-system` to disable this.
+- `--python` defaults to the venv's python when running inside a venv; override explicitly if needed.
 - Snapshot, daily backtest refresh, and challenger shadow-evaluation entries can be installed before they are operator-enabled. They only execute real work when the scheduled command includes `--enable-run` (via `--enable-daily-snapshot` / `--enable-daily-backtest-refresh` / `--enable-daily-challenger-shadow-eval`) or the matching environment variable is set. The `--auto-shadow-eval-from-daily-paper` form enables the shadow-eval run automatically.
 - Windows Task Scheduler task names default to `Trading\DailyPaperTrading`, `Trading\DailyPaperTradingFallback`, `Trading\DailyChallengerShadowEval`, `Trading\DailySnapshot`, `Trading\DailyBacktestRefresh`, `Trading\DailyTraderHealthCheck`, and `Trading\WeeklyDbBackup`.
 
