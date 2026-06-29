@@ -8,14 +8,14 @@ from tests.support.seed.accounts import ACCT_TREND, PROMOTION_STRATEGY, seed_acc
 
 
 def seed_promotion_review(conn: sqlite3.Connection) -> None:
-    from trading.domain.evaluation_models import (
+    from trading.models.evaluation import (
         EvaluationBacktestEvidence,
         EvaluationBasicScope,
         EvaluationConfidence,
         StrategyEvaluationArtifact,
     )
-    from trading.domain.promotion_models import PromotionAssessment
-    from trading.repositories.promotion import insert_promotion_review
+    from trading.models.promotion import PromotionAssessment
+    from trading.repositories.promotion import PromotionReviewRepository
 
     acct_id = seed_account_id(conn, ACCT_TREND)
 
@@ -44,8 +44,7 @@ def seed_promotion_review(conn: sqlite3.Connection) -> None:
         overall_confidence=0.82,
         next_action="Request operator review.",
     )
-    insert_promotion_review(
-        conn,
+    PromotionReviewRepository(conn).insert_review(
         assessment=assessment,
         evaluation=evaluation,
         requested_by="seed",

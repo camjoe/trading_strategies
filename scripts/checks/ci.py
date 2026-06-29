@@ -6,7 +6,11 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
+from scripts.checks.db_schema_check import run_db_schema_check
 from scripts.checks.layer_check import run_layer_check
+from scripts.checks.link_check import run_link_check
+from scripts.checks.maps_check import run_maps_check
+from scripts.checks.module_ref_check import run_module_ref_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
@@ -25,6 +29,26 @@ def parse_args() -> argparse.Namespace:
         "--skip-readme-consistency",
         action="store_true",
         help="Skip README consistency check.",
+    )
+    parser.add_argument(
+        "--skip-db-schema-check",
+        action="store_true",
+        help="Skip DB schema drift check.",
+    )
+    parser.add_argument(
+        "--skip-maps-check",
+        action="store_true",
+        help="Skip maps drift check.",
+    )
+    parser.add_argument(
+        "--skip-link-check",
+        action="store_true",
+        help="Skip doc link check.",
+    )
+    parser.add_argument(
+        "--skip-module-ref-check",
+        action="store_true",
+        help="Skip doc `-m` module reference check.",
     )
     parser.add_argument(
         "--readme-max-age-days",
@@ -47,7 +71,7 @@ def parse_args() -> argparse.Namespace:
 
 def _run_frontend_ci(repo_root: Path) -> None:
     npm_exe = resolve_npm_exe()
-    frontend_dir = repo_root / "paper_trading_ui" / "frontend"
+    frontend_dir = repo_root / "apps" / "paper_trading_web" / "frontend"
     run_step("Frontend: npm ci", [npm_exe, "ci"], frontend_dir)
     run_step("Frontend quality: lint", [npm_exe, "run", "lint"], frontend_dir)
     run_step("Frontend quality: typecheck", [npm_exe, "run", "typecheck"], frontend_dir)
@@ -60,6 +84,10 @@ def run_ci(
     skip_python: bool = False,
     skip_frontend: bool = False,
     skip_readme_consistency: bool = False,
+    skip_db_schema_check: bool = False,
+    skip_maps_check: bool = False,
+    skip_link_check: bool = False,
+    skip_module_ref_check: bool = False,
     readme_max_age_days: int = 90,
     install_python_tools: bool = False,
     with_reference_doc_checks: bool = False,
@@ -70,7 +98,16 @@ def run_ci(
                 run_readme_consistency(
                     repo_root=repo_root,
                     max_age_days=readme_max_age_days,
+                    quiet=True,
                 )
+            if not skip_maps_check:
+                run_maps_check(repo_root=repo_root, quiet=True)
+            if not skip_db_schema_check:
+                run_db_schema_check(repo_root=repo_root, quiet=True)
+            if not skip_link_check:
+                run_link_check(repo_root=repo_root, quiet=True)
+            if not skip_module_ref_check:
+                run_module_ref_check(repo_root=repo_root, quiet=True)
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit
@@ -80,18 +117,18 @@ def run_ci(
                     return reference_doc_exit
             run_step(
                 "Python: upgrade pip",
-                [python_exe, "-m", "pip", "install", "--upgrade", "pip"],
+                [python_exe, "-m", "pip", "install", "-q", "--upgrade", "pip"],
                 repo_root,
             )
             run_step(
                 "Python: install requirements-dev.txt",
-                [python_exe, "-m", "pip", "install", "-r", "requirements-dev.txt"],
+                [python_exe, "-m", "pip", "install", "-q", "-r", "requirements-dev.txt"],
                 repo_root,
             )
             if install_python_tools:
                 run_step(
                     "Python: install quality tools",
-                    [python_exe, "-m", "pip", "install", "ruff", "mypy"],
+                    [python_exe, "-m", "pip", "install", "-q", "ruff", "mypy"],
                     repo_root,
                 )
 
@@ -120,6 +157,10 @@ def main() -> int:
         skip_python=args.skip_python,
         skip_frontend=args.skip_frontend,
         skip_readme_consistency=args.skip_readme_consistency,
+        skip_db_schema_check=args.skip_db_schema_check,
+        skip_maps_check=args.skip_maps_check,
+        skip_link_check=args.skip_link_check,
+        skip_module_ref_check=args.skip_module_ref_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,

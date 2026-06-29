@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - trading/**
-      - trends/**
+      - src/trading/**
+      - apps/trends/**
       - tests/**
-      - paper_trading_ui/backend/**
-      - paper_trading_ui/__init__.py
+      - apps/paper_trading_web/backend/**
+      - apps/paper_trading_web/__init__.py
       - requirements-base.txt
       - requirements-dev.txt
       - pytest.ini
@@ -36,11 +36,11 @@ jobs:
         with:
           filters: |
             python_related:
-              - trading/**
-              - trends/**
+              - src/trading/**
+              - apps/trends/**
               - tests/**
-              - paper_trading_ui/backend/**
-              - paper_trading_ui/__init__.py
+              - apps/paper_trading_web/backend/**
+              - apps/paper_trading_web/__init__.py
               - requirements-base.txt
               - requirements-dev.txt
               - pytest.ini
@@ -61,7 +61,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: "pip"
           cache-dependency-path: |
             requirements-base.txt

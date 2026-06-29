@@ -1,12 +1,19 @@
 # Trading Service API — Developer Cookbook
 
+Type: architecture
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-17
+Purpose: Answer "which function do I call to do X?" — stable import patterns and service function mappings for common tasks.
+Related: [Service/Repository Boundary](service-repository-boundary.md), [Navigation Guide](nav-guide.md), [Trading Package Map](../maps/trading-package-map.md)
+
 ## Purpose
 
 Answer the question: **"Which function do I call to do X?"**
 
-This is a task-oriented companion to [trading-package-map.md](trading-package-map.md),
+This is a task-oriented companion to [trading-package-map.md](../maps/trading-package-map.md),
 which covers structural conventions.  Use this guide when writing CLI commands,
-runtime jobs, or new UI backend routes that need to reach into `trading/services/`.
+runtime jobs, or new UI backend routes that need to reach into `src/trading/services/`.
 
 ---
 
@@ -21,7 +28,7 @@ from trading.services.accounts import get_account, list_account_records
 from trading.services.reporting import build_account_stats, build_live_benchmark_overlay
 
 # Avoid — internal submodule (subject to change without notice)
-from trading.services.accounts.core import get_account
+from trading.services.accounts.queries import get_account
 ```
 
 ---
@@ -141,6 +148,17 @@ from trading.services.accounts.core import get_account
 
 ---
 
+## Sleeve performance & portfolio risk
+
+These live as **flat service modules** (single files, not packages) — import them directly rather than from a package surface.
+
+| Task | Function | Module |
+|---|---|---|
+| Fetch a sleeve's performance window | `fetch_sleeve_performance_window(conn, *, sleeve_id, start_date, end_date)` | `trading.services.analysis` |
+| Fetch the latest portfolio risk snapshot | `fetch_latest_risk_snapshot(conn, *, account_id)` | `trading.services.analysis` |
+
+---
+
 ## Promotion review
 
 | Task | Function | Package |
@@ -175,7 +193,7 @@ from trading.services.accounts.core import get_account
 | Task | Function | Package |
 |---|---|---|
 | Delete accounts and all dependents | `delete_accounts(conn, names)` | `trading.services.admin` |
-| Count records that would be deleted | `build_managed_account_delete_counts(conn, names)` | `trading.services.admin` |
+| Iterate canonical delete-count rows | `iter_delete_count_items(counts)` | `trading.services.admin` |
 
 ---
 
@@ -183,16 +201,16 @@ from trading.services.accounts.core import get_account
 
 | Task | Function | Package |
 |---|---|---|
-| Fetch runtime throttle settings | `fetch_runtime_throttle_settings(conn)` | `trading.services.runtime_settings` |
-| Update runtime throttle settings | `set_runtime_throttle_settings(conn, settings)` | `trading.services.runtime_settings` |
-| Fetch promotion policy settings | `fetch_promotion_policy_settings(conn)` | `trading.services.runtime_settings` |
-| Enforce trade count throttle limits | `enforce_runtime_trade_throttles(conn, account_id, count)` | `trading.services.runtime_throttle` |
+| Fetch runtime throttle settings | `fetch_runtime_throttle_settings(conn)` | `trading.services.operational_settings` |
+| Update runtime throttle settings | `set_runtime_throttle_settings(conn, settings)` | `trading.services.operational_settings` |
+| Fetch promotion policy settings | `fetch_promotion_policy_settings(conn)` | `trading.services.operational_settings` |
+| Enforce trade count throttle limits | `enforce_runtime_trade_throttles(conn, account_id, count)` | `trading.services.operational_settings` |
 
 ---
 
 ## UI Backend boundary rule
 
-`paper_trading_ui/backend/services/` is a **transport-only** layer.
+`apps/paper_trading_web/backend/services/` is a **transport-only** layer.
 
 - ✅ HTTP request → domain model conversion
 - ✅ FastAPI error handling (`raise HTTPException`)
@@ -200,13 +218,13 @@ from trading.services.accounts.core import get_account
 - ❌ Domain calculations, business rules, or data assembly
 
 If a calculation would be useful to a CLI command or a runtime job, it belongs
-in `trading/services/` — not in the UI backend.  See
-`.github/BOT_ARCHITECTURE_CONVENTIONS.md` for the full rule.
+in `src/trading/services/` — not in the UI backend.  See
+`docs/architecture/architecture-conventions.md` for the full rule.
 
 ---
 
 ## Related references
 
-- [trading-package-map.md](trading-package-map.md) — structural overview and placement rules
+- [trading-package-map.md](../maps/trading-package-map.md) — structural overview and placement rules
 - [service-repository-boundary.md](service-repository-boundary.md) — how to split service vs repository responsibilities
-- `.github/BOT_ARCHITECTURE_CONVENTIONS.md` — canonical architecture rules for all bots
+- `docs/architecture/architecture-conventions.md` — canonical architecture rules for all bots

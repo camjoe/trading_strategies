@@ -12,7 +12,7 @@ python -m scripts.screenshot_ui
 python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab backtesting
 python -m scripts.screenshot_ui --tab compare
-python -m scripts.screenshot_ui --tab trades
+python -m scripts.screenshot_ui --tab ibkr-paper-monitor
 python -m scripts.screenshot_ui --tab admin
 
 # Open an account detail on the Accounts tab
@@ -29,7 +29,7 @@ python -m scripts.screenshot_ui --url http://127.0.0.1:5174
 
 Available tabs
 --------------
-  accounts, compare, trades, backtesting,
+  accounts, compare, backtesting, ibkr-paper-monitor,
   alt-strategies, docs, admin
 """
 
@@ -45,6 +45,18 @@ if __package__ in (None, ""):
 
 from common.paths.project_paths import SCREENSHOTS_DIR
 from scripts.ui_config import FRONTEND_PORT, UI_HOST
+
+
+def _force_utf8_streams() -> None:
+    """Force UTF-8 on stdout/stderr so status glyphs (→, ✓, ✗) print on Windows.
+
+    The console defaults to a legacy codepage (cp1252) that can't encode them,
+    which would otherwise crash the script before any screenshot is taken.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
 
 
 DEFAULT_URL = f"http://{UI_HOST}:{FRONTEND_PORT}"
@@ -139,6 +151,7 @@ def capture(
 
 
 def main() -> int:
+    _force_utf8_streams()
     parser = argparse.ArgumentParser(
         description="Capture a screenshot of the paper trading UI.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -148,7 +161,7 @@ def main() -> int:
         "--tab",
         default="accounts",
         help="Tab to open (default: accounts). Options: accounts, "
-        "compare, trades, backtesting, alt-strategies, docs, admin",
+        "compare, backtesting, ibkr-paper-monitor, alt-strategies, docs, admin",
     )
     parser.add_argument(
         "--account",

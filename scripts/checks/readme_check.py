@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
 
@@ -20,7 +21,7 @@ class ReadmeReport:
 
 
 def normalize_rel(path: Path, repo_root: Path) -> str:
-    return str(path.relative_to(repo_root)).replace("\\", "/")
+    return relative_posix(path, repo_root)
 
 
 def discover_readmes(repo_root: Path) -> list[Path]:
@@ -132,6 +133,7 @@ def run_readme_consistency(
     max_age_days: int = 90,
     enforce_style: bool = False,
     enforce_staleness: bool = False,
+    quiet: bool = False,
 ) -> int:
     if not repo_root.exists():
         print(f"ERROR: repo root does not exist: {repo_root}")
@@ -160,6 +162,12 @@ def run_readme_consistency(
 
     style_issue_count = sum(len(report.style_issues) for report in reports)
     stale_count = sum(1 for report in reports if report.staleness_issue)
+
+    # Quiet mode: when everything is clean, collapse to a single line. Any issue
+    # falls through to the full advisory report below so warnings stay visible.
+    if quiet and not (style_issue_count or stale_count):
+        print(f"PASS: README consistency - {len(reports)} files scanned, no issues.")
+        return 0
 
     print("README Consistency Audit")
     print(f"Repo root: {repo_root}")

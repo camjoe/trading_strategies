@@ -7,8 +7,8 @@ from pathlib import Path
 from scripts.documentation_ui.registry_utils import sort_registry_rows
 
 
-ROUTES_DIR = "paper_trading_ui/backend/routes"
-API_REGISTRY_REL = "paper_trading_ui/frontend/src/assets/api.json"
+ROUTES_DIR = "apps/paper_trading_web/backend/routes"
+API_REGISTRY_REL = "apps/paper_trading_web/frontend/src/assets/api.json"
 
 GROUP_ORDER = [
     "Accounts & Snapshots Endpoints",

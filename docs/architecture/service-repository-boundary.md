@@ -1,7 +1,14 @@
 # Service vs Repository Boundary
 
+Type: architecture
+Status: Active
+Created: 2026-03-01
+Last Reviewed: 2026-06-16
+Purpose: Define the repeatable boundary between service and repository layers — what belongs where and why.
+Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md)
+
 This note defines the repeatable boundary for modules that have both a
-`trading/services/*` and `trading/repositories/*` layer.
+`src/trading/services/*` and `src/trading/repositories/*` layer.
 
 ## Goal
 
@@ -23,7 +30,7 @@ Repositories own persistence details:
 4. generic persistence primitives that services can compose
 
 Repository functions may still be specific and useful. For example,
-`fetch_account_by_name()` is an acceptable repository helper because it is a
+`fetch_by_name()` is an acceptable repository helper because it is a
 common persistence query, not business logic.
 
 Repository functions should **not**:
@@ -68,8 +75,7 @@ for example:
 - `trading.services.admin`
 - `trading.services.auto_trading`
 - `trading.services.profiles`
-- `trading.services.runtime_settings`
-- `trading.services.runtime_throttle`
+- `trading.services.operational_settings`
 
 Do **not** keep a second sibling facade such as `accounts_service.py` once the
 package root already serves as the stable import surface. That creates two
@@ -78,8 +84,8 @@ public APIs for the same capability and reintroduces redirect-only wrappers.
 Avoid public service helpers that are only passthroughs like:
 
 ```python
-def fetch_account_by_name(conn, name):
-    return repo_fetch_account_by_name(conn, name)
+def fetch_by_name(conn, name):
+    return AccountRepository(conn).fetch_by_name(name)
 ```
 
 If a service function adds no validation, orchestration, fallback behavior, or
@@ -97,7 +103,7 @@ For writes, prefer:
 
 Example:
 
-- repository: `update_account_fields(...)`
+- repository: `update(...)`
 - service: `set_account_strategy(...)`, `set_benchmark(...)`, `configure_account(...)`
 
 This keeps SQL assembly in the repository while keeping validation and policy in
@@ -125,10 +131,10 @@ Use this checklist when cleaning another service/repository pair:
 For `accounts`:
 
 - repository remains responsible for:
-  - `fetch_account_by_name`
-  - `fetch_account_rows`
-  - `fetch_account_listing_rows`
-  - `update_account_fields`
+  - `fetch_by_name`
+  - `fetch`
+  - `fetch_listing`
+  - `update`
 - service should expose:
   - `find_account`
   - `get_account`
@@ -145,16 +151,16 @@ That split keeps repository files table-shaped and service files workflow-shaped
 
 ## Runtime example
 
-For the small runtime slice:
+For the operational-settings slice:
 
-- `trading.services.runtime_settings` is the caller-facing package root for
-  runtime throttle, evaluation-confidence, and promotion-policy settings,
+- `trading.services.operational_settings` is the caller-facing package root for
+  trade throttle, evaluation-confidence, and promotion-policy settings,
   even though those reads still use `global_settings` underneath.
-- `trading.services.runtime_settings` should also own validation for write-side
-  invariants such as normalized evaluation-confidence weights; the repository
-  should only persist the provided row shape.
-- `trading.services.runtime_throttle` is the caller-facing package root for
-  enforcing trade-cap policy, even though it still uses `trades`
+- It should also own validation for write-side invariants such as normalized
+  evaluation-confidence weights; the repository should only persist the provided
+  row shape.
+- The same package root also owns trade-cap throttle enforcement
+  (`enforce_runtime_trade_throttles`), even though it still uses `trades`
   for the persistence query.
 
 Not every `runtime_*` module needs to become a package. A tiny constants module

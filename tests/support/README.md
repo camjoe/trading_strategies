@@ -2,56 +2,22 @@
 
 ## Purpose
 
-`tests/support/` is the shared helper layer for repeated test fixtures, fakes, seed data, and small harnesses.
+`tests/support/` is the shared helper layer for repeated test fixtures, fakes, seed data, and small harnesses used across multiple test suites. It is intentionally organized by test area rather than as one large utility module.
 
-The package is intentionally organized by test area rather than as one large utility module. Examples include:
+For the full per-file inventory, see the **Test Support Layout** section in [`tests/README.md`](../README.md#test-support-layout). Highlights:
 
-- `tests.support.auto_trading`
-- `tests.support.backtesting`
-- `tests.trading.interfaces.cli.helpers` — `FakeConn`, `FakeParser`, `install_main_harness`, `configure_account_args`
-- `tests.trading.interfaces.cli.factories` — backtest and walk-forward arg/result factories
-- `tests.support.runtime_jobs`
-- `tests.support.seed_db`
+- `seed/` — session-scoped DB population. `seed/db.py` is the orchestrator called by `tests/conftest.py`; the named constants it defines (`ACCT_TREND`, `ACCT_MOMENTUM`, `SLEEVE_TREND`, `SNAPSHOT_T1`, …) are the shared vocabulary for `seeded_conn` tests — reference them instead of hard-coding string literals.
+- `account_records.py`, `accounts.py`, `analysis.py`, `backtesting.py`, `brokers.py`, `evaluation.py`, `promotion.py`, `reporting.py`, `repositories.py`, `sleeves.py` — per-area factory/insert helpers that return **real production types** (dataclasses, domain models), not `SimpleNamespace`.
 
-## Key Modules
-
-### `seed_db.py`
-
-Defines `seed_session_db(conn)` and the named constants used by `seeded_conn` tests:
-
-```
-ACCT_TREND, ACCT_MOMENTUM, ACCT_PASSIVE
-SLEEVE_TREND, SLEEVE_MOMENTUM
-SNAPSHOT_T1, SNAPSHOT_T2, SNAPSHOT_T3
-```
-
-Reference these constants instead of hard-coding string literals. New entities added to the seed should get a named constant here.
-
-### `auto_trading.py`
-
-Factory helpers that return **real production types** (not `SimpleNamespace`):
-
-- `make_account_state(*, cash, positions, avg_cost, realized_pnl)` → `AccountState`
-- `make_feature_bundle(*, available, **features)` → `ExternalFeatureBundle`
-- `make_feature_fetcher(bundles_by_ticker, *, available)` → `Callable[[str], ExternalFeatureBundle]`
-- `make_runtime_scenario(...)` → `RuntimeScenario`
-
-### `backtesting.py`
-
-- `make_backtest_result(**overrides)` → `BacktestResult` with sensible zero defaults.
-- `make_backtest_leaderboard_entry(**overrides)` → `BacktestLeaderboardEntry`.
-
-### `repositories.py`
-
-Raw-SQL insert helpers for repository-layer tests that need to write data without going through service validation (e.g. `insert_repository_account`).
+Helpers used by only one suite live co-located with that suite rather than here (e.g. `tests/src/trading/services/auto_trading/factories.py`). Convention: if a co-located `factories.py` is imported from outside its own directory, move it to `tests/support/` under a domain-based name.
 
 ## Usage
 
 - Prefer adding new helpers to the most specific module possible.
 - Prefer direct imports from the specific helper module when a helper is only used by one area.
-- Use real production types (dataclasses, domain models) in helpers — not `SimpleNamespace` — unless the type comes from an external boundary that is impractical to construct.
+- Use real production types in helpers — not `SimpleNamespace` — unless the type comes from an external boundary that is impractical to construct.
 - Avoid treating `tests/support/__init__.py` as the default place to expose every helper.
 
 ## Notes
 
-- The main risk of drift is `tests/support/__init__.py` becoming a broad utility dump that hides ownership and encourages unrelated coupling. When this area drifts, review `__init__.py` first before splitting into more files.
+- The main drift risk is `tests/support/__init__.py` becoming a broad utility dump that hides ownership and encourages unrelated coupling. When this area drifts, review `__init__.py` first before splitting into more files.

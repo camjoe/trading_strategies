@@ -33,7 +33,7 @@ def run_build(repo_root: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build paper_trading_ui/frontend/src/assets/api.json from FastAPI route modules.",
+        description="Build apps/paper_trading_web/frontend/src/assets/api.json from FastAPI route modules.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     parser.add_argument("--registry", default=API_REGISTRY_REL)

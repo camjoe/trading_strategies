@@ -15,11 +15,13 @@ This repository provides tools for:
 
 | Folder | Purpose |
 |--------|---------|
-| `trends/` | Stock trends analysis and indicator calculations. |
-| `trading/` | Core trading logic: accounts, pricing, orders, broker integration (paper + Interactive Brokers), reporting, backtesting. |
-| `paper_trading_ui/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `.github/agents/` | Repo-specific agent definitions for project-only execution flows. |
-| `.github/skills/` | Reusable skill definitions and templates for localized overlays. |
+| `apps/trends/` | Stock trends analysis and indicator calculations. |
+| `src/trading/` | Core trading logic: accounts, pricing, orders, reporting, backtesting. |
+| `src/infrastructure/` | Concrete adapters isolated from the domain: brokers, market-data, feature providers, database. |
+| `src/common/` | Shared kernel utilities used across packages (coercion, constants, paths, tickers, time). |
+| `apps/paper_trading_web/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
+| `.ai/agents/` | Repo-specific agent definitions for project-only execution flows. |
+| `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |
 
@@ -36,9 +38,10 @@ pip install -r requirements-dev.txt
 ```
 
 **Execution Note:**
-- Run trading scripts as Python modules from the repository root, preferably with the active venv interpreter, e.g.,
+- Run trading scripts as Python modules from the repository root using the active venv interpreter:
   ```sh
-  ./.venv/bin/python -m trading.interfaces.cli.main init
+  .venv\Scripts\python -m trading.interfaces.cli.main init   # Windows
+  .venv/bin/python -m trading.interfaces.cli.main init        # macOS/Linux
   ```
 
 ## CI Smoke Check
@@ -62,24 +65,19 @@ python -m scripts.run_checks --profile ci --skip-python
 python -m scripts.run_checks --profile ci --install-python-tools
 ```
 
-Single-source validation guidance lives in:
-
-- [scripts/README.md](scripts/README.md) for script behavior and flags.
-- [.github/DOCS_PRECOMMIT_POLICY.md](.github/DOCS_PRECOMMIT_POLICY.md) for docs-impact audit workflow and bot request templates.
-
 ## Quick Start
 
 ### Trends Analysis
 
-See [trends/README.md](trends/README.md) for full documentation and usage examples.
+See [apps/trends/README.md](apps/trends/README.md) for full documentation and usage examples.
 
 ### Backtesting
 
-See [docs/reference/notes-backtesting.md](docs/reference/notes-backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
+See [docs/reference/backtesting.md](docs/reference/backtesting.md) for backtest, walk-forward, and scheduled refresh documentation.
 
 ### Paper Trading
 
-See [trading/README.md](trading/README.md) for paper trading commands, account profiles, and scheduler operations.
+See [src/trading/README.md](src/trading/README.md) for paper trading commands, account profiles, and scheduler operations.
 
 ### UI Dashboard
 
@@ -93,10 +91,10 @@ Or start each service separately (required when using the Python debugger — se
 
 ```sh
 # Terminal 1 — FastAPI backend (no --reload so pdb stdin works)
-python -m uvicorn paper_trading_ui.backend.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn paper_trading_web.backend.main:app --host 127.0.0.1 --port 8000
 
 # Terminal 2 — Vite frontend dev server
-cd paper_trading_ui/frontend
+cd apps/paper_trading_web/frontend
 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
@@ -120,3 +118,4 @@ Tests cover both `trading` and `trends` packages with a minimum 70% coverage thr
 ## Documentation Index
 
 For detailed documentation on all components, see [docs/README.md](docs/README.md).
+

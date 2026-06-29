@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - paper_trading_ui/frontend/**
+      - apps/paper_trading_web/frontend/**
       - .github/workflows/frontend-tests.yml
   pull_request:
 
@@ -28,7 +28,7 @@ jobs:
         with:
           filters: |
             frontend_related:
-              - paper_trading_ui/frontend/**
+              - apps/paper_trading_web/frontend/**
               - .github/workflows/frontend-tests.yml
 
   test:
@@ -43,20 +43,20 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
-          cache-dependency-path: paper_trading_ui/frontend/package-lock.json
+          cache-dependency-path: apps/paper_trading_web/frontend/package-lock.json
 
       - name: Install frontend dependencies
-        working-directory: paper_trading_ui/frontend
+        working-directory: apps/paper_trading_web/frontend
         run: npm ci
 
       - name: Run frontend tests with coverage
-        working-directory: paper_trading_ui/frontend
+        working-directory: apps/paper_trading_web/frontend
         run: npm run test:coverage
 
       - name: Upload frontend coverage report
         uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
-          path: paper_trading_ui/frontend/coverage
+          path: apps/paper_trading_web/frontend/coverage

@@ -1,0 +1,45 @@
+# Packaging config for the trading_strategies workspace.
+#
+# Purpose: expose the first-party packages that live under non-root directories
+# (`src/` and `apps/`) so they import by their top-level names —
+# `infrastructure`, `paper_trading_web`, `trends` — from any working directory
+# and any entry point (scripts, pytest, a REPL, an IDE).
+#
+# Install once into the repo-local virtualenv (editable, so source edits are
+# picked up without reinstalling):
+#
+#   Windows:  .venv\Scripts\pip.exe install -e . --no-build-isolation
+#   POSIX:    ./.venv/bin/pip install -e . --no-build-isolation
+#
+# This replaces the two sys.path workarounds:
+#   - the `pythonpath = apps src` line in pytest.ini
+#   - the sys.path bootstrap in scripts/__init__.py
+#
+# `trading` and `common` now live under `src/` and are discovered automatically
+# by the package finder below (re-run `pip install -e .` once after relocating a
+# package so the editable finder learns it).
+#
+# Runtime/third-party dependencies are NOT duplicated here — they remain owned
+# by requirements-base.txt / requirements-dev.txt. Install those as usual:
+#   pip install -r requirements-dev.txt
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trading-strategies"
+version = "0.0.0"
+description = "Trading strategies workspace — editable install exposes src/ and apps/ packages."
+requires-python = ">=3.14"
+
+[tool.setuptools.packages.find]
+# Discover every package under src/ and apps/ automatically — no per-package
+# allowlist to maintain. Anything moved under src/ later (e.g. `trading`) is
+# picked up with no change here.
+where = ["src", "apps"]
+# Prune the JS frontend (and its node_modules) from package discovery.
+exclude = ["paper_trading_web.frontend*"]
+# `infrastructure` (and a future src/trading) are PEP 420 namespace packages
+# with no top-level __init__.py, so namespace discovery must be enabled.
+namespaces = true

@@ -8,10 +8,10 @@ Import helpers from their specific module, for example:
 - ``tests.support.seed.db``
 
 CLI test helpers (``FakeConn``, ``install_main_harness``, backtest arg factories)
-live co-located with the CLI tests in ``tests.trading.interfaces.cli``:
+live co-located with the CLI tests in ``tests.src.trading.interfaces.cli``:
 
-- ``tests.trading.interfaces.cli.helpers``
-- ``tests.trading.interfaces.cli.factories``
+- ``tests.src.trading.interfaces.cli.helpers``
+- ``tests.src.trading.interfaces.cli.factories``
 
 This package intentionally avoids acting as a catch-all re-export surface.
 """

@@ -4,27 +4,36 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Core rules
 
-- Before editing any file under `trading/`, read `.github/BOT_ARCHITECTURE_CONVENTIONS.md` in full.
+- Before editing any file under `src/trading/`, read `docs/architecture/architecture-conventions.md` in full.
 - Respect the layering and ownership rules there. Do not invert dependency direction such as `interfaces -> services -> repositories/domain -> database`.
 - If a requested change would violate those conventions, stop and flag it before proceeding.
 
 ## Python environment
 
-- Always run Python tools from the repo virtualenv:
-  - `./.venv/bin/python`
-  - `./.venv/bin/pytest`
-  - `./.venv/bin/pip`
+- Always run Python tools from the repo-local `.venv` virtual environment.
+- Use the platform-appropriate interpreter and tool paths:
+  - Windows: `.venv\Scripts\python.exe`, `.venv\Scripts\pytest.exe`, `.venv\Scripts\pip.exe`
+  - POSIX: `./.venv/bin/python`, `./.venv/bin/pytest`, `./.venv/bin/pip`
+- If a command example elsewhere in the repo uses a POSIX `.venv/bin/...` path, Windows agents should use the equivalent `.venv\Scripts\...` executable.
 - Do not use system `python`, `python3`, or `pytest`.
 - If `./.venv` is missing, stop and ask before proceeding.
 
 ## Working references
 
-- Architecture boundaries: `.github/BOT_ARCHITECTURE_CONVENTIONS.md`
-- Style and formatting expectations: `.github/BOT_STYLE_GUIDE.md`
-- Docs freshness policy: `.github/DOCS_PRECOMMIT_POLICY.md`
-- Skill authoring and localization guidance: `.github/skills/README.md`
-- Legacy Copilot-specific guidance: `.github/copilot-instructions.md`
+- Architecture boundaries: `docs/architecture/architecture-conventions.md`
+- Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
+- Skill authoring and localization guidance: `.ai/skills/README.md`
+- Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
+  - `AGENTS.md` is the source of truth for durable repo instructions.
+  - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
 - For a readable current DB schema view, run `python -m scripts.data_ops.describe_db_schema` or `python -m scripts.data_ops.describe_db_schema --source live` instead of relying on a hand-maintained schema markdown mirror.
+
+## Output style
+
+- Apply a **balanced** style (see `docs/conventions/general-style.md`): prefer a touched file's existing local style, make consistency improvements only when they reduce ambiguity, and avoid broad style-only churn. Keep behavior unchanged unless asked.
+- Do **not** do style-only rewrites unless explicitly requested.
+- Explain any non-trivial style decision in your summary.
+- For new code, apply the relevant language guide by default — `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend).
 
 ## Task surfaces
 
@@ -34,18 +43,22 @@ This repository uses two task surfaces:
 
 Use a skill by default when the task is generic enough to be reusable.
 
+**Skills layout:** Canonical definitions live in folder-based files (`.ai/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
+
 Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `architecture-review/` | Layering, dependency direction, and structure review |
-| `code-cleanup/` | Backend, frontend, or mixed cleanup and refactor work |
-| `code-review/` | Diff-based review plus deep audit mode for stale code and redundancy |
-| `docs-sync/` | Documentation drift detection and targeted sync |
+| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
+| `create-skill/` | Authoring new skills following the skills guide |
+| `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
+| `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
-| `python-stat-modeling/` | Time-series and finance/statistical modeling workflows |
-| `test-expansion/` | Coverage growth and regression-test expansion |
-| `ui-api-contract/` | Frontend/backend contract stewardship |
+| `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
+| `update-documentation/` | Docs drift sync and passive staleness check |
+| `update-skill/` | Improving or refactoring existing skills |
+| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
 ### 2. Repo-specific agents
 
@@ -73,17 +86,23 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 
 | Task shape | Preferred surface |
 |---|---|
-| Architecture, layering, dependency direction | `architecture-review/` |
-| Pre-commit or pre-merge audit | `code-review/` |
-| Whole-area simplification or stale-code audit | `code-review/` in deep mode |
-| README, reference, or API drift | `docs-sync/` |
-| Frontend-only cleanup in `paper_trading_ui/frontend` | `code-cleanup/` |
-| Generic Python cleanup or refactor | `code-cleanup/` |
-| Mixed backend and frontend cleanup | `code-cleanup/` |
-| Generic test additions or edge-case coverage | `test-expansion/` |
+| Architecture, layering, dependency direction | `code-review/` (Architecture mode) |
+| Pre-commit or pre-merge audit | `code-review/` (Standard mode) |
+| Lightweight quick diff check | `code-review/` (Baseline mode) |
+| High-risk or safety-critical review (broker, DB, admin) | `code-review/` (Aggressive mode) |
+| Whole-area simplification or stale-code audit | `code-review/` (Cleanup mode) |
+| Create or update a reference doc or ADR | `reference-doc/` |
+| README, reference, or API drift | `update-documentation/` |
+| Frontend-only cleanup in `apps/paper_trading_web/frontend` | `code-review/` (Cleanup mode) |
+| Generic Python cleanup or refactor | `code-review/` (Cleanup mode) |
+| Mixed backend and frontend cleanup | `code-review/` (Cleanup mode) |
+| Generic test additions or edge-case coverage | `expand-tests/` |
 | Financial concept or strategy explanation | `finance-strategy/` |
-| Modeling, alpha research, feature engineering | `python-stat-modeling/` |
-| Cross-stack route/schema/UI contract work | `ui-api-contract/` |
+| Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
+| Pre-PR readiness check (any scope) | `check-pr-readiness/` |
+| Run deterministic checks (lint, tests, layer) | `validate-code/` |
+| Create a new skill | `create-skill/` |
+| Update or improve a skill | `update-skill/` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
 | Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |
@@ -113,30 +132,30 @@ These phrases are repo conventions for common tasks.
 - `code review`: review staged and unstaged changes against `HEAD`
 - `code review: <branch>`: review the diff between the current branch and the given base branch
 - `code review: <file-or-folder>`: review a specific area
-- Follow `.github/skills/code-review/SKILL.md`.
+- Follow `.ai/skills/code-review/SKILL.md` (Standard mode).
 
 ### `deep code review`
 
-- `deep code review`: review `trading/` and `paper_trading_ui/` together
-- `deep code review: trading`: review `trading/`
-- `deep code review: paper_trading_ui`: review `paper_trading_ui/`
+- `deep code review`: review `src/trading/` and `apps/paper_trading_web/` together
+- `deep code review: trading`: review `src/trading/`
+- `deep code review: paper_trading_web`: review `apps/paper_trading_web/`
 - `deep code review: <file-or-folder>`: review a specific area with the same deep audit workflow
-- Follow `.github/skills/code-review/SKILL.md` in deep-review mode.
+- Follow `.ai/skills/code-review/SKILL.md` (Aggressive mode).
 
 ### `sync docs` or `docs sync`
 
 - Audit changed areas for documentation drift and apply targeted updates.
-- Follow `.github/skills/docs-sync/SKILL.md`.
+- Follow `.ai/skills/update-documentation/SKILL.md`.
 - After edits, run `python -m scripts.checks.readme_check`.
 
 ### `run suite`
 
 Run a focused subset of tests by suite name or individual file path.
 
-- `run suite trading/services` — run all trading services tests
-- `run suite trading/services/market_data` — run tests for one service
-- `run suite trading/services/market_data trading/services/promotion` — combine suites
-- `run suite trading/services/market_data/test_features.py` — target a single file
+- `run suite src/trading/services` — run all trading services tests
+- `run suite src/trading/services/market_data` — run tests for one service
+- `run suite src/trading/services/market_data src/trading/services/promotion` — combine suites
+- `run suite src/trading/services/market_data/test_features.py` — target a single file
 - `run suite all` — run the full test suite
 - `run suite --changed` — auto-detect suites from uncommitted changes
 - `run suite --base main` — auto-detect suites from changes vs a branch (PR workflow)
@@ -147,30 +166,29 @@ source area, run the matching suite to validate before committing:
 
 | Changed source area | Run suite |
 |---|---|
-| `trading/services/accounting/` | `trading/services/accounting` |
-| `trading/services/accounts/` | `trading/services/accounts` |
-| `trading/services/admin/` | `trading/services/admin` |
-| `trading/services/analysis/` | `trading/services/analysis` |
-| `trading/services/auto_trading/` | `trading/services/auto_trading` |
-| `trading/services/evaluation/` | `trading/services/evaluation` |
-| `trading/services/ibkr_paper_monitor/` | `trading/services/ibkr_paper_monitor` |
-| `trading/services/market_data/` | `trading/services/market_data` |
-| `trading/services/pricing/` | `trading/services/pricing` |
-| `trading/services/profiles/` | `trading/services/profiles` |
-| `trading/services/promotion/` | `trading/services/promotion` |
-| `trading/services/reporting/` | `trading/services/reporting` |
-| `trading/services/runtime_settings/` | `trading/services` _(no dedicated subdir yet)_ |
-| `trading/services/runtime_throttle/` | `trading/services` _(no dedicated subdir yet)_ |
-| `trading/services/sleeves/` | `trading/services/sleeves` |
-| `trading/services/` (multiple) | `trading/services` |
-| `trading/interfaces/runtime/jobs/daily/` | `trading/interfaces/runtime/jobs/daily` |
-| `trading/interfaces/runtime/jobs/governance/` | `trading/interfaces/runtime/jobs/governance` |
-| `trading/interfaces/runtime/jobs/maintenance/` | `trading/interfaces/runtime/jobs/maintenance` |
-| `trading/brokers/legacy/` | `trading/brokers/legacy` |
-| `trading/backtesting/` | `trading/backtesting` |
-| `trading/repositories/` | `trading/repositories` |
-| `trading/interfaces/` | `trading/interfaces` |
-| `paper_trading_ui/backend/` | `paper_trading_ui` |
+| `src/trading/services/accounting/` | `src/trading/services/accounting` |
+| `src/trading/services/accounts/` | `src/trading/services/accounts` |
+| `src/trading/services/admin/` | `src/trading/services/admin` |
+| `src/trading/services/analysis/` | `src/trading/services/analysis` |
+| `src/trading/services/auto_trading/` | `src/trading/services/auto_trading` |
+| `src/trading/services/evaluation/` | `src/trading/services/evaluation` |
+| `src/trading/services/ibkr_paper_monitor/` | `src/trading/services/ibkr_paper_monitor` |
+| `src/trading/services/market_data/` | `src/trading/services/market_data` |
+| `src/trading/services/pricing/` | `src/trading/services/pricing` |
+| `src/trading/services/profiles/` | `src/trading/services/profiles` |
+| `src/trading/services/promotion/` | `src/trading/services/promotion` |
+| `src/trading/services/reporting/` | `src/trading/services/reporting` |
+| `src/trading/services/operational_settings/` | `src/trading/services/operational_settings` |
+| `src/trading/services/sleeves/` | `src/trading/services/sleeves` |
+| `src/trading/services/` (multiple) | `src/trading/services` |
+| `src/trading/interfaces/runtime/jobs/daily/` | `src/trading/interfaces/runtime/jobs/daily` |
+| `src/trading/interfaces/runtime/jobs/governance/` | `src/trading/interfaces/runtime/jobs/governance` |
+| `src/trading/interfaces/runtime/jobs/maintenance/` | `src/trading/interfaces/runtime/jobs/maintenance` |
+| `src/infrastructure/brokers/legacy/` | `src/infrastructure/brokers/legacy` |
+| `src/trading/backtesting/` | `src/trading/backtesting` |
+| `src/trading/repositories/` | `src/trading/repositories` |
+| `src/trading/interfaces/` | `src/trading/interfaces` |
+| `apps/paper_trading_web/backend/` | `apps/paper_trading_web` |
 | Any area | `all` |
 
 Command: `python -m scripts.checks.run_suite <suite> [extra pytest flags]`
@@ -192,6 +210,91 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 - Run `python -m scripts.checks.readme_check --repo-root . --max-age-days 90`.
 - Report which README files need updates.
 
-## Notes
+### `pr ready`
 
-- Copilot-era details that are too tool-specific to keep as repo-global policy remain in `.github/copilot-instructions.md` for reference.
+Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+
+- `pr ready` — full 6-step workflow vs `develop` (default base)
+- `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
+
+Follow `.ai/skills/check-pr-readiness/SKILL.md`.
+
+**Step sequence (fail-fast):**
+
+| Step | Type | What runs |
+|---|---|---|
+| 1 | Deterministic | Layer boundary check + ruff lint + mypy + branch-targeted tests |
+| 2 | AI | Architecture review — layer violations, dependency direction |
+| 3 | AI | Style review — naming, docs, consistency beyond ruff |
+| 4 | AI | Quality review — SRP, modularity, unnecessary patterns |
+| 5 | AI | Docs check — README staleness (advisory, never blocks) |
+| Report | AI | Saved to `local/pr_readiness_report.md` + printed |
+
+**Individual step shortcuts** — run any step on its own:
+
+| Shortcut | What it does |
+|---|---|
+| `pr tests` | Branch-targeted tests only (`--base develop`) |
+| `pr tests: <base>` | Branch-targeted tests vs a custom base |
+| `pr lint` | Layer check + ruff + mypy only |
+| `pr code review` | AI style + quality review for branch diff vs develop |
+| `pr code review: <base>` | AI style + quality review vs a custom base |
+| `pr arch review` | AI architecture review for branch diff vs develop |
+| `pr arch review: <base>` | AI architecture review vs a custom base |
+
+**Deterministic-only command** (no AI, no tokens):
+
+```
+python -m scripts.checks.pr_ready
+python -m scripts.checks.pr_ready --base main
+python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
+python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
+```
+
+---
+
+## Agent shortcuts
+
+These phrases launch a **repo-specific agent** in a separate context window. Use them when you want to delegate a full task rather than ask in the current conversation. Each agent has exact repo paths, safety constraints, and permitted commands baked in.
+
+### `migrate:` — DB Migration Steward
+
+Validates schema changes and migration safety. Use for any `ColumnMigration` addition, column guard check, nullability change, or destructive data-op review.
+
+- `migrate: add column <name> to <table>` — validate a proposed migration
+- `migrate: review` — audit recent or uncommitted migration changes
+- `migrate: backup check` — verify backup hygiene before a destructive op
+
+Agent: `.ai/agents/db-migration-steward.agent.md`
+Skills: `.ai/skills/db-migration/` (create, validate, estimate-risk, generate-rollback)
+
+### `broker:` — Broker Live Safety Steward
+
+Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `src/infrastructure/brokers/`, `broker_type` routing, or any live-trading config flow.
+
+- `broker: <description>` — implement or review broker adapter work
+- `broker review` — review broker-facing changes in the current diff
+- `broker: add <adapter>` — implement a new broker adapter safely
+
+Agent: `.ai/agents/broker-live-safety.agent.md`
+
+### `runtime:` — Trading Runtime Investigator
+
+Works on paper-trading runtime jobs, scheduler flows, account lifecycle, and operational debugging. Use when touching `src/trading/interfaces/runtime/` or runtime CLI commands.
+
+- `runtime: <description>` — implement or debug a runtime job or scheduler flow
+- `runtime review` — review runtime-facing changes in the current diff
+- `runtime: debug <job or symptom>` — investigate a runtime failure or unexpected behavior
+
+Agent: `.ai/agents/trading-runtime.agent.md`
+
+### `backtest:` — Backtesting Analyst
+
+Implements and interprets backtesting, walk-forward analysis, persisted run reporting, and leaderboard comparisons. Use when touching `src/trading/backtesting/` or backtest-related UI surfaces.
+
+- `backtest: <description>` — implement or extend a backtesting workflow
+- `backtest review` — review backtesting changes in the current diff
+- `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
+
+Agent: `.ai/agents/backtesting-analyst.agent.md`
+

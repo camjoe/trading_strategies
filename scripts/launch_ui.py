@@ -26,7 +26,7 @@ def build_commands() -> tuple[list[str], list[str]]:
         sys.executable,
         "-m",
         "uvicorn",
-        "paper_trading_ui.backend.main:app",
+        "paper_trading_web.backend.main:app",
         "--reload",
         "--host",
         UI_HOST,
@@ -77,7 +77,7 @@ def _exit_code_or_zero(*exit_codes: int | None) -> int:
 def main() -> int:
     scripts_dir = Path(__file__).resolve().parent
     repo_root = scripts_dir.parent
-    ui_dir = repo_root / "paper_trading_ui"
+    ui_dir = repo_root / "apps" / "paper_trading_web"
     backend_command, frontend_command = build_commands()
     env = {
         **os.environ,
