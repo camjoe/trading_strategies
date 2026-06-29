@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from collections.abc import Callable
 
+from common.files import sorted_by_mtime_desc
 from infrastructure.database.init import ensure_db
 from trading.services.accounts.queries import find_account
 from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
@@ -14,11 +15,7 @@ SHADOW_EVAL_EXPORT_DIR = Path("local") / "exports" / "daily_challenger_shadow_ev
 
 def latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
     export_dir = repo_root / SHADOW_EVAL_EXPORT_DIR
-    artifacts = sorted(
-        export_dir.glob("daily_challenger_shadow_eval_*.json"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
+    artifacts = sorted_by_mtime_desc(export_dir.glob("daily_challenger_shadow_eval_*.json"))
     if not artifacts:
         return None
     latest = artifacts[0]

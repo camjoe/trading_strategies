@@ -29,6 +29,7 @@ from trading.backtesting.repositories.report_repository import (
     fetch_recent_backtest_runs as _repo_fetch_recent_backtest_runs,
 )
 from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float, row_str
+from trading.domain.exceptions import NotFoundError
 from trading.backtesting.report_models import (
     BacktestFullReport,
     BacktestReportSnapshot,
@@ -46,7 +47,7 @@ def fetch_backtest_report_data(
 ) -> BacktestFullReport:
     run = fetch_backtest_report_run(conn, run_id)
     if run is None:
-        raise ValueError(f"Backtest run id {run_id} not found")
+        raise NotFoundError(f"Backtest run id {run_id} not found")
 
     snapshots = fetch_backtest_report_snapshots(conn, run_id)
     trades = fetch_backtest_report_trades(conn, run_id)

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import HTTPException
-
 from trading.models import AccountRecord
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.services.accounts import (
@@ -13,10 +11,8 @@ from trading.services.accounts import (
 
 
 def require_account_row(conn: sqlite3.Connection, account_name: str) -> AccountRecord:
-    try:
-        return get_account(conn, account_name)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found.") from exc
+    # get_account raises NotFoundError, mapped to HTTP 404 by the app-level handler.
+    return get_account(conn, account_name)
 
 
 def fetch_visible_account_rows(conn: sqlite3.Connection) -> list[AccountRecord]:

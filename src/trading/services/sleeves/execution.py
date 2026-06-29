@@ -1,39 +1,17 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 import random
 import sqlite3
 
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
+from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
+from trading.models.sleeves.sleeve_trade_state import SleeveTradeState
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.universe import resolve_named_universes
-
-
-@dataclass(frozen=True, slots=True)
-class SleeveTradeState:
-    cash: float
-    positions: dict[str, float]
-    avg_cost: dict[str, float]
-    realized_pnl: float = 0.0
-
-
-@dataclass(frozen=True, slots=True)
-class SleeveTradeIntent:
-    account_id: int
-    sleeve_id: int
-    strategy_name: str
-    param_set_id: int | None
-    side: str
-    symbol: str
-    qty: int
-    requested_price: float
-    forced_sell: str | None
-    delta_est: float | None
-    iv_est: float | None
 
 
 def _prepare_trade_selection(*args, **kwargs):

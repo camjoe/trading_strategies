@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
 
@@ -108,10 +109,6 @@ class MapCheckReport:
     stale: list[str] = field(default_factory=list)  # named in the map, no matching file
 
 
-def _rel_posix(path: Path, repo_root: Path) -> str:
-    return str(path.relative_to(repo_root)).replace("\\", "/")
-
-
 def _collect_modules(root: Path, repo_root: Path, skip: tuple[str, ...]) -> set[str]:
     modules: set[str] = set()
     for path in root.rglob("*.py"):
@@ -119,7 +116,7 @@ def _collect_modules(root: Path, repo_root: Path, skip: tuple[str, ...]) -> set[
             continue
         if path.name == "__init__.py":
             continue
-        rel = _rel_posix(path, repo_root)
+        rel = relative_posix(path, repo_root)
         if any(rel == prefix or rel.startswith(prefix + "/") for prefix in skip):
             continue
         modules.add(rel)
@@ -228,7 +225,7 @@ def run_maps_check(repo_root: Path, *, enforce: bool = False, quiet: bool = Fals
     if total_undocumented or total_stale:
         print("\nFindings:")
         for report in reports:
-            rel = _rel_posix(report.map_path, repo_root)
+            rel = relative_posix(report.map_path, repo_root)
             if report.undocumented:
                 print(f"- {rel} - {len(report.undocumented)} undocumented under {report.source_root}/:")
                 for module in report.undocumented:

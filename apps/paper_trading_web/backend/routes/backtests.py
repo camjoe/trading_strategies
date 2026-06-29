@@ -43,10 +43,8 @@ def api_latest_backtest_for_account(account_name: str) -> dict[str, object]:
 @router.get("/api/backtests/runs/{run_id}")
 def api_backtest_run_report(run_id: int) -> dict[str, object]:
     with db_conn() as conn:
-        try:
-            return backtest_report_full(conn, run_id).to_payload()
-        except ValueError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
+        # NotFoundError -> 404 is handled by the app-level exception handler.
+        return backtest_report_full(conn, run_id).to_payload()
 
 
 @router.post("/api/backtests/run")

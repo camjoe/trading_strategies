@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from trading.interfaces.runtime.jobs.job_helpers import (
+    already_completed_for_period,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
@@ -32,8 +34,27 @@ def test_latest_log_contains_sentinel_uses_newest_match(tmp_path: Path):
     newer = tmp_path / "job_newer.log"
     older.write_text("COMPLETE\n", encoding="utf-8")
     newer.write_text("incomplete\n", encoding="utf-8")
+    os.utime(older, (100, 100))
+    os.utime(newer, (200, 200))
 
     assert latest_log_contains_sentinel(tmp_path, "job_*.log", "COMPLETE") is False
+
+
+def test_already_completed_for_period_checks_older_completed_logs(tmp_path: Path):
+    completed = tmp_path / "job_2026_06_20260601_000000.log"
+    current = tmp_path / "job_2026_06_20260629_120000.log"
+    completed.write_text("COMPLETE\n", encoding="utf-8")
+    current.write_text("RUN META\n", encoding="utf-8")
+
+    assert (
+        already_completed_for_period(
+            log_dir=tmp_path,
+            job_name="job",
+            period_tag="2026_06",
+            sentinel="COMPLETE",
+        )
+        is True
+    )
 
 
 def test_latest_log_contains_sentinel_returns_false_without_matches(tmp_path: Path):

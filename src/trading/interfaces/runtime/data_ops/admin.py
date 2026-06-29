@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable, cast
 
 from common.paths.project_paths import DB_BACKUPS_DIR
-from infrastructure.database.init import ensure_db
+from infrastructure.database.init import db_session
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from trading.services.accounts.listing import list_accounts
 from trading.services.admin import delete_accounts, iter_delete_count_items
@@ -70,11 +70,8 @@ def _cmd_backup_db(args: argparse.Namespace) -> int:
 
 
 def _cmd_list_accounts(_args: argparse.Namespace) -> int:
-    conn = ensure_db()
-    try:
+    with db_session() as conn:
         lines = list_accounts(conn)
-    finally:
-        conn.close()
     if not lines:
         print("No accounts found.")
         return 0
@@ -96,16 +93,13 @@ def _cmd_delete_accounts(args: argparse.Namespace) -> int:
         backup_path = backup_database(args.backup_destination)
         print(f"Backup created before delete: {backup_path}")
 
-    conn = ensure_db()
-    try:
+    with db_session() as conn:
         counts = delete_accounts(
             conn,
             account_names=names,
             delete_all=bool(args.all),
             dry_run=bool(args.dry_run),
         )
-    finally:
-        conn.close()
 
     action = "Dry-run delete" if args.dry_run else "Delete"
     _print_delete_summary(action, counts)

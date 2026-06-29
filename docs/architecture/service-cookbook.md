@@ -193,7 +193,7 @@ These live as **flat service modules** (single files, not packages) — import t
 | Task | Function | Package |
 |---|---|---|
 | Delete accounts and all dependents | `delete_accounts(conn, names)` | `trading.services.admin` |
-| Count records that would be deleted | `build_managed_account_delete_counts(conn, names)` | `trading.services.admin` |
+| Iterate canonical delete-count rows | `iter_delete_count_items(counts)` | `trading.services.admin` |
 
 ---
 

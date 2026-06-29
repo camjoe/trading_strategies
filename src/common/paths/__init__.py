@@ -19,6 +19,8 @@ from .project_paths import (
     TRADING_CONFIG_DIR,
     TRADING_DIR,
 )
+from .executables import resolve_repo_python_exe
+from .formatting import relative_posix
 from .repo_paths import get_repo_root
 
 __all__ = [
@@ -40,4 +42,6 @@ __all__ = [
     "TRADING_CONFIG_DIR",
     "TRADING_DIR",
     "get_repo_root",
+    "relative_posix",
+    "resolve_repo_python_exe",
 ]

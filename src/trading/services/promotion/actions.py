@@ -10,6 +10,7 @@ import sqlite3
 from dataclasses import replace
 
 from common.time import utc_now_iso
+from trading.domain.exceptions import NotFoundError
 from trading.domain.strategy_signals import validate_strategy_name
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models.promotion import (
@@ -65,7 +66,7 @@ def _ensure_no_open_review_for_request(
 def _fetch_review_or_raise(conn: sqlite3.Connection, *, review_id: int) -> PromotionReviewRecord:
     review = PromotionReviewRepository(conn).fetch_by_id(review_id=review_id)
     if review is None:
-        raise ValueError(f"Promotion review {review_id} not found.")
+        raise NotFoundError(f"Promotion review {review_id} not found.")
     return review
 
 

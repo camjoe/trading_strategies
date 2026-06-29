@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-06-16
 Purpose: Index of operational runbooks for the IBKR Paper Autonomy trading system with quick-start commands.
-Related: [Runtime Operations](runtime-operations.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
+Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
 
 ## Overview
 
@@ -16,6 +16,7 @@ daily and weekly runtime jobs, manage the burn-in period, and conduct weekly/mon
 
 | Runbook | When to use |
 |---|---|
+| [production-runtime-host.md](production-runtime-host.md) | One-time Linux host setup + the test-and-deploy workflow that promotes code to it |
 | [runtime-operations.md](runtime-operations.md) | Daily + weekly-backup monitoring, failure recovery, log inspection |
 | [burn-in-protocol.md](burn-in-protocol.md) | Burn-in period definition, stability thresholds, go-live checklist |
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |

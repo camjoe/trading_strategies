@@ -7,7 +7,7 @@ from collections.abc import Callable
 from common.coercion import expect_float, expect_int
 from common.time import utc_now_iso
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
-from trading.domain.exceptions import AccountAlreadyExistsError
+from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.queries import find_account
@@ -33,7 +33,7 @@ from trading.services.accounts.config import (
 def get_account(conn: sqlite3.Connection, name: str) -> AccountRecord:
     row = find_account(conn, name)
     if row is None:
-        raise ValueError(f"Account '{name}' not found.")
+        raise NotFoundError(f"Account '{name}' not found.")
     return row
 
 

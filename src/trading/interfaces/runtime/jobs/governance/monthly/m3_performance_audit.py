@@ -5,25 +5,18 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import sys
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from infrastructure.database.init import ensure_db
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
     logs_dir_for_repo,
-    month_tag,
-    resolve_accounts,
-    skip_if_already_completed_for_period,
-    tee_line,
     ts,
-    write_artifact,
 )
+from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL
 from trading.services.analysis import fetch_sleeve_performance_window
 from trading.repositories.sleeves import SleeveRepository
-from trading.services.accounts import load_runtime_eligible_account_names
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -43,28 +36,19 @@ def already_completed_this_month(log_dir: Path, tag: str) -> bool:
     )
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="M3 monthly governance: 90-day long-horizon performance audit across all sleeves.",
-    )
-    parser.add_argument(
-        "--accounts",
-        default="all",
-        help="Comma-separated account names, or 'all' (default: all)",
-    )
-    parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-month run")
-    parser.add_argument(
-        "--repo-root",
-        default=str(REPO_ROOT),
-        help="Repository root path (default: inferred from script location)",
-    )
+def _add_audit_window_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--audit-window-days",
         type=int,
         default=90,
         help="Historical lookback window in days for the performance audit (default: 90)",
     )
-    return parser.parse_args()
+
+
+def _validate_args(args: argparse.Namespace) -> str | None:
+    if int(args.audit_window_days) < 1:
+        return "--audit-window-days must be >= 1"
+    return None
 
 
 def _compute_audit_stats(metrics: list) -> dict[str, object]:
@@ -101,109 +85,62 @@ def _compute_audit_stats(metrics: list) -> dict[str, object]:
     }
 
 
-def main() -> int:
-    args = parse_args()
+@governance_job(
+    job_name=JOB_NAME,
+    sentinel=COMPLETE_SENTINEL,
+    period="month",
+    description="M3 monthly governance: 90-day long-horizon performance audit across all sleeves.",
+    add_arguments=_add_audit_window_arg,
+    validate=_validate_args,
+)
+def main(ctx: JobContext) -> dict[str, object]:
+    audit_window_days = int(ctx.args.audit_window_days)
+    today = ctx.now.date()
+    today_str = today.isoformat()
+    start_str = (today - dt.timedelta(days=audit_window_days - 1)).isoformat()
 
-    if int(args.audit_window_days) < 1:
-        print("--audit-window-days must be >= 1", file=sys.stderr)
-        return 1
+    account_results: list[dict[str, object]] = []
+    for account_name in ctx.accounts:
+        account = find_account(ctx.conn, account_name)
+        if account is None:
+            ctx.log(f"WARN: account not found in DB: {account_name}")
+            continue
 
-    repo_root = Path(args.repo_root).expanduser().resolve()
-    logs_dir = logs_dir_for_repo(repo_root)
-    artifacts_dir = repo_root / "local" / "artifacts"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
+        sleeve_repo = SleeveRepository(ctx.conn)
+        sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
+        sleeve_rows: list[dict[str, object]] = []
 
-    now = dt.datetime.now()
-    tag = month_tag(now)
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = logs_dir / f"{JOB_NAME}_{tag}_{timestamp}.log"
-    artifact_path = artifacts_dir / f"{JOB_NAME}_{tag}_{timestamp}.json"
+        for sleeve in sleeves:
+            assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+            strategy_name = assignment.strategy_name if assignment is not None else None
 
-    tee_line(log_path, f"[{ts()}] RUN META: job={JOB_NAME} month={tag} force={bool(args.force_run)}")
+            metrics = fetch_sleeve_performance_window(
+                ctx.conn,
+                sleeve_id=sleeve.id,
+                start_date=start_str,
+                end_date=today_str,
+            )
+            stats = _compute_audit_stats(metrics)
 
-    if skip_if_already_completed_for_period(
-        log_path=log_path,
-        log_dir=logs_dir,
-        job_name=JOB_NAME,
-        period_name="month",
-        period_tag=tag,
-        sentinel=COMPLETE_SENTINEL,
-        force_run=bool(args.force_run),
-    ):
-        return 0
-
-    try:
-        accounts = resolve_accounts(args.accounts, load_runtime_eligible_account_names())
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    if not accounts:
-        print("No accounts specified.", file=sys.stderr)
-        return 1
-
-    conn = ensure_db()
-    try:
-        audit_window_days = int(args.audit_window_days)
-        today = now.date()
-        today_str = today.isoformat()
-        start_str = (today - dt.timedelta(days=audit_window_days - 1)).isoformat()
-
-        account_results: list[dict[str, object]] = []
-        for account_name in accounts:
-            account = find_account(conn, account_name)
-            if account is None:
-                tee_line(log_path, f"[{ts()}] WARN: account not found in DB: {account_name}")
-                continue
-
-            sleeve_repo = SleeveRepository(conn)
-            sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
-            sleeve_rows: list[dict[str, object]] = []
-
-            for sleeve in sleeves:
-                assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
-                strategy_name = assignment.strategy_name if assignment is not None else None
-
-                metrics = fetch_sleeve_performance_window(
-                    conn,
-                    sleeve_id=sleeve.id,
-                    start_date=start_str,
-                    end_date=today_str,
-                )
-                stats = _compute_audit_stats(metrics)
-
-                sleeve_rows.append(
-                    {
-                        "sleeve_name": sleeve.name,
-                        "strategy_name": strategy_name,
-                        **stats,
-                    }
-                )
-
-            account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
-            tee_line(
-                log_path,
-                (
-                    f"[{ts()}] PERFORMANCE_AUDIT: account={account_name} "
-                    f"sleeves={len(sleeve_rows)} window_days={audit_window_days}"
-                ),
+            sleeve_rows.append(
+                {
+                    "sleeve_name": sleeve.name,
+                    "strategy_name": strategy_name,
+                    **stats,
+                }
             )
 
-        payload: dict[str, object] = {
-            "month": tag,
-            "generated_at": ts(),
-            "audit_window_days": audit_window_days,
-            "accounts": account_results,
-        }
-        write_artifact(artifact_path, payload)
-        tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
-        return 0
+        account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
+        ctx.log(
+            f"PERFORMANCE_AUDIT: account={account_name} sleeves={len(sleeve_rows)} window_days={audit_window_days}"
+        )
 
-    except Exception as exc:
-        tee_line(log_path, f"[{ts()}] ERROR: {exc}")
-        return 1
-    finally:
-        conn.close()
+    return {
+        "month": ctx.tag,
+        "generated_at": ts(),
+        "audit_window_days": audit_window_days,
+        "accounts": account_results,
+    }
 
 
 if __name__ == "__main__":

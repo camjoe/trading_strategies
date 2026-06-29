@@ -56,6 +56,8 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/broker-setup-alpaca.md`](reference/broker-setup-alpaca.md) — Alpaca setup guide (Draft — adapter not yet implemented)
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
+- [`adr/007-production-runtime-hosting-and-deployment.md`](adr/007-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
+- [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders
 - [`adr/004-runtime-naming-and-operational-settings.md`](adr/004-runtime-naming-and-operational-settings.md) — disambiguate "runtime" naming; operational_settings package
 - [`adr/003-sleeve-virtualization-architecture.md`](adr/003-sleeve-virtualization-architecture.md) — sleeve virtualization architecture decision record
@@ -72,6 +74,7 @@ Full listing: [`reference/`](reference/). Key entries:
 ## Runbooks
 
 - [`runbooks/README.md`](runbooks/README.md) — runbook index with quick-start commands
+- [`runbooks/production-runtime-host.md`](runbooks/production-runtime-host.md) — Linux production host setup + test-and-deploy workflow
 - [`runbooks/runtime-operations.md`](runbooks/runtime-operations.md) — daily + weekly-backup job monitoring and recovery
 - [`runbooks/burn-in-protocol.md`](runbooks/burn-in-protocol.md) — burn-in protocol for new strategies
 - [`runbooks/governance-review.md`](runbooks/governance-review.md) — weekly/monthly governance review

@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from common.time import parse_utc_iso
-from trading.services.sleeves.risk_gate import DEFAULT_SYMBOL_SECTOR_MAP, resolve_sector_for_symbol
+from trading.domain.sleeve_risk_gate import resolve_sector_for_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ def compute_current_exposure_snapshot(
     account_id: int,
     fetch_sleeve_positions_for_account_fn: Callable[..., list[Any]],
     fetch_strategy_sleeves_for_account_fn: Callable[..., list[Any]],
+    symbol_sector_map: dict[str, str],
 ) -> tuple[float, float, float, float]:
     position_rows = fetch_sleeve_positions_for_account_fn(conn, account_id=account_id)
     gross_exposure = 0.0
@@ -33,7 +34,7 @@ def compute_current_exposure_snapshot(
         gross_exposure += abs_value
         net_exposure += market_value
         symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + abs_value
-        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=DEFAULT_SYMBOL_SECTOR_MAP)
+        sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + abs_value
 
@@ -58,6 +59,7 @@ def persist_sleeve_risk_snapshot(
     fetch_sleeve_positions_for_account_fn: Callable[..., list[Any]],
     fetch_strategy_sleeves_for_account_fn: Callable[..., list[Any]],
     upsert_portfolio_risk_snapshot_fn: Callable[..., object],
+    symbol_sector_map: dict[str, str],
 ) -> None:
     gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct = (
         compute_current_exposure_snapshot(
@@ -65,6 +67,7 @@ def persist_sleeve_risk_snapshot(
             account_id=account_id,
             fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account_fn,
             fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account_fn,
+            symbol_sector_map=symbol_sector_map,
         )
     )
     upsert_portfolio_risk_snapshot_fn(

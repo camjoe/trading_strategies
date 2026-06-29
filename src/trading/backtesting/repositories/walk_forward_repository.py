@@ -4,6 +4,7 @@ import sqlite3
 
 from common.coercion import row_expect_int, row_expect_str
 from common.time import utc_now_iso
+from trading.domain.exceptions import NotFoundError
 
 
 def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> dict[str, object] | None:
@@ -38,7 +39,7 @@ def insert_walk_forward_group(
 ) -> int:
     run_scope = _fetch_backtest_run_scope(conn, run_id=primary_run_id)
     if run_scope is None:
-        raise ValueError(f"Backtest run {primary_run_id} not found.")
+        raise NotFoundError(f"Backtest run {primary_run_id} not found.")
 
     cursor = conn.execute(
         """

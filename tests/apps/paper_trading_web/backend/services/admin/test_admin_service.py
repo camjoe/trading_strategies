@@ -1,18 +1,33 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import HTTPException
 
 from common.time import utc_now_iso
 from paper_trading_web.backend.services import admin as services_admin
 from paper_trading_web.backend.services.admin import create_account_with_rotation
 from trading.domain import AccountAlreadyExistsError
+from trading.domain.exceptions import NotFoundError
+from trading.services.admin import DELETE_COUNT_KEYS
+
+
+def test_managed_account_delete_count_mapping_uses_known_service_keys() -> None:
+    assert set(services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS) <= set(DELETE_COUNT_KEYS)
+
+
+def test_managed_account_delete_count_mapping_exposes_stable_web_subset() -> None:
+    assert services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS == {
+        "accounts": "accounts",
+        "trades": "trades",
+        "equity_snapshots": "equitySnapshots",
+        "backtest_runs": "backtestRuns",
+        "backtest_trades": "backtestTrades",
+        "backtest_equity_snapshots": "backtestEquitySnapshots",
+    }
 
 
 def test_delete_account_and_dependents_not_found_raises(conn) -> None:
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(NotFoundError):
         services_admin.delete_account_and_dependents("missing")
-    assert exc_info.value.status_code == 404
 
 
 def test_delete_account_and_dependents_removes_related_rows(conn, create_account_row) -> None:

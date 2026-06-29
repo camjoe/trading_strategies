@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from trading.domain.exceptions import NotFoundError
 
 from .config import CORS_ORIGINS
 from .routes import (
@@ -26,6 +29,13 @@ app.add_middleware(
     allow_methods=ALLOW_ALL_CORS,
     allow_headers=ALLOW_ALL_CORS,
 )
+
+
+@app.exception_handler(NotFoundError)
+async def _not_found_handler(_request: Request, exc: NotFoundError) -> JSONResponse:
+    """Map a domain not-found error to HTTP 404 (see docs/adr/007-ui-error-mapping.md)."""
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
 
 app.include_router(health_router)
 app.include_router(accounts_router)

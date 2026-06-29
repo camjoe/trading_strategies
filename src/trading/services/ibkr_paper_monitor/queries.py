@@ -9,6 +9,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from trading.domain.exceptions import NotFoundError
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.accounts import AccountRepository
@@ -157,11 +158,11 @@ def fetch_ibkr_paper_account_detail(
     Returns account overview, sleeves, recent rotations, and risk summary.
     Uses repositories for all data access.
 
-    Raises ValueError if account not found.
+    Raises NotFoundError if account not found.
     """
     account = AccountRepository(conn).fetch_by_name(account_name)
     if account is None:
-        raise ValueError(f"Account not found: {account_name}")
+        raise NotFoundError(f"Account not found: {account_name}")
 
     sleeve_list = _fetch_account_sleeves(conn, account.id)
     total_equity = sum(s["current_equity"] for s in sleeve_list)
