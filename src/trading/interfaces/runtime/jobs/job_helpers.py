@@ -70,12 +70,14 @@ def already_completed_for_period(
     period_tag: str,
     sentinel: str,
 ) -> bool:
-    """Return True when latest log for job+period contains completion sentinel."""
-    return latest_log_contains_sentinel(
-        log_dir,
-        f"{job_name}_{period_tag}_*.log",
-        sentinel,
-    )
+    """Return True when any log for job+period contains completion sentinel."""
+    for log_path in log_dir.glob(f"{job_name}_{period_tag}_*.log"):
+        try:
+            if sentinel in log_path.read_text(encoding="utf-8", errors="replace"):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def skip_if_already_completed_for_period(
