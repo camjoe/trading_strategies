@@ -132,8 +132,7 @@ def main(ctx: JobContext) -> dict[str, object]:
 
         account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
         ctx.log(
-            f"PERFORMANCE_AUDIT: account={account_name} "
-            f"sleeves={len(sleeve_rows)} window_days={audit_window_days}"
+            f"PERFORMANCE_AUDIT: account={account_name} sleeves={len(sleeve_rows)} window_days={audit_window_days}"
         )
 
     return {

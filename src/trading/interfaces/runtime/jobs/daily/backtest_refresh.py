@@ -188,9 +188,7 @@ def run_backtest_refresh_with_retry(
         if exit_code == 0 and run_id is not None:
             return AttemptOutcome(succeeded=True, retryable=False, extras={"run_id": run_id})
         if exit_code == 0 and run_id is None:
-            return AttemptOutcome(
-                succeeded=False, retryable=False, extras={"run_id": None, "error": "missing_run_id"}
-            )
+            return AttemptOutcome(succeeded=False, retryable=False, extras={"run_id": None, "error": "missing_run_id"})
         return AttemptOutcome(succeeded=False, retryable=True, extras={"run_id": run_id})
 
     return run_command_with_retry(

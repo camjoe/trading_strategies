@@ -133,9 +133,7 @@ def main(ctx: JobContext) -> dict[str, object]:
 
         # Sort by avg_risk_adjusted_score descending; nulls last.
         sleeve_rows.sort(
-            key=lambda r: (
-                float(r.avg_risk_adjusted_score) if r.avg_risk_adjusted_score is not None else float("-inf")
-            ),
+            key=lambda r: float(r.avg_risk_adjusted_score) if r.avg_risk_adjusted_score is not None else float("-inf"),
             reverse=True,
         )
         ranked_sleeves = [replace(sleeve_row, rank=rank) for rank, sleeve_row in enumerate(sleeve_rows, start=1)]

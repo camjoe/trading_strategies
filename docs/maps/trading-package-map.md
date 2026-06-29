@@ -164,6 +164,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `sleeves/reconciliation.py` | Sleeve equity reconciliation (vs account and snapshot) |
 | `sleeves/risk_gate.py` | Sleeve-level risk gate enforcement |
 | `sleeves/rotation.py` | Sleeve rotation execution |
+| `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
 | `sleeves/universe_config.py` | Sleeve trade-universe configuration |
 | `universe/resolver.py` | Trade-universe name resolution |
@@ -177,7 +178,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | Module | Responsibility |
 |---|---|
 | `accounts.py` | Equity snapshot and account snapshot persistence |
-| `admin.py` | Admin/maintenance DB operations (row counts, deletions) |
+| `admin_deletions.py` | Admin/maintenance deletion operations (row counts, dependent deletes) |
 | `backtest_history.py` | Backtest run history records |
 | `broker_orders.py` | Broker-submitted order records |
 | `daily_metrics.py` | Daily performance metric snapshots |
@@ -215,6 +216,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `returns.py` | Return calculation math |
 | `rotation.py` | Rotation state-transition logic + `RotationConfig` persistence serialization |
 | `sleeve_accounting.py` | Sleeve-level accounting math (builds `models.sleeves.SleeveFillTransition`) |
+| `sleeve_risk_gate.py` | Sleeve risk-gate decision policy |
 | `sleeve_rotation.py` | Sleeve rotation scoring/decision logic (builds `models.sleeves` rotation value objects) |
 | `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
 

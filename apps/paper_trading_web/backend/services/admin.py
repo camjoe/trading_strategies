@@ -24,8 +24,7 @@ _MANAGED_ACCOUNT_DELETE_COUNT_KEYS = {
 
 def _build_managed_account_delete_counts(counts: dict[str, int]) -> dict[str, int]:
     return {
-        ui_key: int(counts.get(service_key, 0))
-        for service_key, ui_key in _MANAGED_ACCOUNT_DELETE_COUNT_KEYS.items()
+        ui_key: int(counts.get(service_key, 0)) for service_key, ui_key in _MANAGED_ACCOUNT_DELETE_COUNT_KEYS.items()
     }
 
 

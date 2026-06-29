@@ -48,12 +48,7 @@ export TRADING_ALPACA_API_SECRET="your-api-secret"
 export TRADING_ALPACA_BASE_URL="https://paper-api.alpaca.markets"
 ```
 
-3. **Verify connectivity** with a smoke test (script to be created):
-
-```sh
-.venv\Scripts\python -m scripts.alpaca_smoke_test   # Windows
-.venv/bin/python -m scripts.alpaca_smoke_test        # macOS/Linux
-```
+3. **Verify connectivity** with a smoke test once the Alpaca adapter and smoke-test entrypoint are implemented.
 
 4. **Run the module or script** as needed.
 

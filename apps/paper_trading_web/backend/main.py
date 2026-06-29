@@ -36,6 +36,7 @@ async def _not_found_handler(_request: Request, exc: NotFoundError) -> JSONRespo
     """Map a domain not-found error to HTTP 404 (see docs/adr/007-ui-error-mapping.md)."""
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
+
 app.include_router(health_router)
 app.include_router(accounts_router)
 app.include_router(ibkr_paper_monitor_router)

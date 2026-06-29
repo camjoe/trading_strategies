@@ -178,7 +178,9 @@ def test_weekly_leaderboard_module_main_entrypoint(monkeypatch, tmp_path: Path) 
 
 def test_main_returns_1_when_account_resolution_fails(monkeypatch, tmp_path: Path, capsys) -> None:
     stub_runtime_job_basics(monkeypatch, module)
-    monkeypatch.setattr(job_runner, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts")))
+    monkeypatch.setattr(
+        job_runner, "resolve_accounts", lambda *_args: (_ for _ in ()).throw(ValueError("bad accounts"))
+    )
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
     assert "bad accounts" in capsys.readouterr().err

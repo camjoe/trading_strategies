@@ -236,9 +236,7 @@ def stub_runtime_job_basics(
             monkeypatch.setattr(target, "ensure_db", lambda: resolved_conn)
     for target in (module, job_runner):
         if hasattr(target, "load_runtime_eligible_account_names"):
-            monkeypatch.setattr(
-                target, "load_runtime_eligible_account_names", lambda: list(resolved_accounts)
-            )
+            monkeypatch.setattr(target, "load_runtime_eligible_account_names", lambda: list(resolved_accounts))
     if hasattr(module, "find_account"):
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 
