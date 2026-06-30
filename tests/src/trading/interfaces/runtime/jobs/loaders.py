@@ -110,6 +110,9 @@ def make_manage_job_schedules_args(**overrides):
         "unregister": False,
         "dry_run": False,
         "python": "/tmp/.venv/bin/python",
+        "scheduler": "auto",
+        "wake_system": True,
+        "env_file": "",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)

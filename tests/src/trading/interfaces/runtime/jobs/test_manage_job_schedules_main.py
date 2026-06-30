@@ -33,7 +33,7 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path, _run_m
     captured: dict[str, object] = {}
     monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
 
-    def fake_register(tasks, *, repo_root, python_exe, dry_run):
+    def fake_register(tasks, *, repo_root, python_exe, dry_run, **_kwargs):
         captured["tasks"] = tasks
         captured["repo_root"] = repo_root
         captured["python_exe"] = python_exe
@@ -61,7 +61,7 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
     captured: dict[str, object] = {}
     monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
 
-    def fake_register(tasks, *, repo_root, python_exe, dry_run):
+    def fake_register(tasks, *, repo_root, python_exe, dry_run, **_kwargs):
         captured["tasks"] = tasks
         return 0
 
@@ -86,7 +86,7 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
 def test_main_unregisters_all_default_task_names(monkeypatch, _run_main_with_args) -> None:
     captured: dict[str, object] = {}
 
-    def fake_unregister(task_names, *, dry_run):
+    def fake_unregister(task_names, *, dry_run, **_kwargs):
         captured["task_names"] = task_names
         captured["dry_run"] = dry_run
         return 0

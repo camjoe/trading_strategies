@@ -114,7 +114,7 @@ embedded in the unit files or any logs.
 
 #### Approach B — `run-job.sh` wrapper (for cron setups, or if EnvironmentFile is not available)
 
-`run-job.sh` is a tiny shell wrapper committed to the repo root. It sources `.env` and then
+Create a tiny shell wrapper at `~/trading-prod/run-job.sh`. It sources `.env` and then
 forwards all arguments to the venv Python, so every job it launches inherits the full environment:
 
 ```bash
