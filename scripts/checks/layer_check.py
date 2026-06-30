@@ -116,7 +116,7 @@ LAYER_RULES: list[LayerRule] = [
         # injected instance, never the concrete adapter.
         exceptions=(
             "src/trading/interfaces/cli/main.py",
-            "src/trading/interfaces/runtime/jobs/run_auto_trades.py",
+            "src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py",
             "src/trading/backtesting/backtest.py",
         ),
     ),

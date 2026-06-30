@@ -65,11 +65,12 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `daily/paper_trading.py` | Main daily paper-trading execution job |
-| `daily/paper_trading_dag.py` | DAG/sequencing logic for the daily job |
+| `daily/paper_trading/` | Daily paper-trading job package; entrypoint in `__main__` (run via `-m …daily.paper_trading`) |
+| `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
+| `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
+| `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
+| `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
 | `daily/snapshot.py` | Daily equity snapshot job |
-| `daily/paper_trading_reporting.py` | Daily reporting artifact generation job |
-| `daily/paper_trading_caps.py` | Daily trade-cap enforcement job |
 | `daily/backtest_refresh.py` | Daily backtest result refresh job |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
 | `daily/trader_health.py` | Daily health-check job |
@@ -85,7 +86,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |
 | `job_runner/` | Shared job-lifecycle package: `governance_job`, `daily_account_job`, and `maintenance_job` decorators over a private `_core` (ADR 006) |
-| `run_auto_trades.py` | Auto-trade execution runner (worker the daily job shells out to) |
 
 **Runtime scheduling** (`src/trading/interfaces/runtime/scheduling/`)
 

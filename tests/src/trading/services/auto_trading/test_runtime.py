@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from common.time import utc_now_iso
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
-from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
 from trading.services.operational_settings import set_runtime_throttle_settings

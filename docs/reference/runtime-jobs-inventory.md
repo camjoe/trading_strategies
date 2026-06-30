@@ -109,7 +109,7 @@ Remove registered entries:
 
 | Job | Entrypoint | Scheduled by installer? | Frequency | Why it exists / how it is used |
 |---|---|---:|---|---|
-| Run auto trades | `python -m trading.interfaces.runtime.jobs.run_auto_trades` | No | Indirect/manual | Executes per-account simulated trade batches. The daily paper-trading job shells out to this module; operators can also run it manually. |
+| Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | No | Indirect/manual | Executes per-account simulated trade batches. The daily paper-trading job shells out to this module; operators can also run it manually. |
 | Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | No | Manual/ad hoc daily-style guard | Scans daily paper-trading artifacts to report burn-in stability and go-live readiness. Current code appears to count artifact status `"ok"`, while daily paper trading writes `"success"`. |
 | Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | No | Manual recovery | Finds dates in a range without successful daily paper-trading logs and replays them with `--as-of-date --force-run`. |
 
@@ -131,8 +131,9 @@ Governance jobs are runnable entrypoints with weekly or monthly duplicate guards
 These files support the jobs above but are not standalone jobs:
 
 - `job_helpers.py`
-- `job_runner.py`
-- `scheduler_installer.py`
-- `paper_trading_caps.py`
-- `paper_trading_dag.py`
-- `paper_trading_reporting.py`
+- `job_runner/` (package: `governance_job`, `daily_account_job`, `maintenance_job`)
+- `scheduling/scheduler_installer.py`
+- `daily/paper_trading/caps.py`
+- `daily/paper_trading/dag.py`
+- `daily/paper_trading/reporting.py`
+- `daily/paper_trading/run_auto_trades.py` (worker; also runnable standalone)

@@ -4,7 +4,7 @@ import datetime as dt
 from pathlib import Path
 
 import pytest
-import trading.interfaces.runtime.jobs.daily.paper_trading_dag as dag_module
+import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
 from tests.src.trading.interfaces.runtime.jobs.loaders import daily_paper_trading as module
 
 

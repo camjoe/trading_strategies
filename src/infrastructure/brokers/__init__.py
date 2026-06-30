@@ -9,7 +9,7 @@ Concrete adapters live alongside this package:
 Legacy socket/TWS support lives under ``brokers/legacy/``.
 
 This package is injected at the interface layer
-(``trading/interfaces/runtime/jobs/run_auto_trades.py``).
+(``trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py``).
 ``trading/`` must never import directly from ``brokers/``.
 """
 
