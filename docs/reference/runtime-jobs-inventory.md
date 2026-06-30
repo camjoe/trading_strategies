@@ -23,7 +23,7 @@ All commands should be run from the repository root with the repo-local virtual 
 Always `--dry-run` first to preview the unit files that will be generated:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
   --daily-paper-trading-time 13:00 \
   --daily-paper-trading-fallback-time 13:20 \
   --health-check-time 13:35 \
@@ -35,7 +35,7 @@ Always `--dry-run` first to preview the unit files that will be generated:
 Re-run without `--dry-run` to generate the install script, then run it with sudo:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
   --daily-paper-trading-time 13:00 \
   --daily-paper-trading-fallback-time 13:20 \
   --health-check-time 13:35 \
@@ -54,8 +54,8 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 
 To remove registered timers:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister --dry-run
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
 sudo bash local/uninstall_trading_timers.sh
 ```
 
@@ -64,7 +64,7 @@ sudo bash local/uninstall_trading_timers.sh
 Use `--dry-run` first to preview the generated scheduler entries:
 
 ```powershell
-.\.venv\Scripts\python.exe -m trading.interfaces.runtime.jobs.manage_job_schedules `
+.\.venv\Scripts\python.exe -m trading.interfaces.runtime.scheduling.manage_job_schedules `
   --python .\.venv\Scripts\python.exe `
   --daily-paper-trading-time 13:00 `
   --daily-paper-trading-fallback-time 13:20 `
@@ -77,7 +77,7 @@ Use `--dry-run` first to preview the generated scheduler entries:
 Re-run without `--dry-run` to install:
 
 ```powershell
-.\.venv\Scripts\python.exe -m trading.interfaces.runtime.jobs.manage_job_schedules `
+.\.venv\Scripts\python.exe -m trading.interfaces.runtime.scheduling.manage_job_schedules `
   --python .\.venv\Scripts\python.exe `
   --daily-paper-trading-time 13:00 `
   --daily-paper-trading-fallback-time 13:20 `
@@ -89,8 +89,8 @@ Re-run without `--dry-run` to install:
 Remove registered entries:
 
 ```powershell
-.\.venv\Scripts\python.exe -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister --dry-run
-.\.venv\Scripts\python.exe -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister
+.\.venv\Scripts\python.exe -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
+.\.venv\Scripts\python.exe -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
 ```
 
 ## Scheduled Jobs

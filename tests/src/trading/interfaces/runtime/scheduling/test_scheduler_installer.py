@@ -5,7 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from trading.interfaces.runtime.jobs import job_helpers, scheduler_installer
+from trading.interfaces.runtime.jobs import job_helpers
+from trading.interfaces.runtime.scheduling import scheduler_installer
 
 
 def test_validate_day_normalizes_valid_input() -> None:

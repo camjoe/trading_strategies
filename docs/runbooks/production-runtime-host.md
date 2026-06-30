@@ -103,7 +103,7 @@ generated service unit, so systemd loads the file automatically at job launch. T
 a missing file is silently ignored rather than failing the job:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --env-file /home/<user>/trading-prod/.env \
     --daily-paper-trading-time 13:00 \
     ...
@@ -134,7 +134,7 @@ chmod +x ~/trading-prod/run-job.sh
 Register with `--python /home/<user>/trading-prod/run-job.sh` instead of the venv python directly:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --python /home/<user>/trading-prod/run-job.sh \
     --scheduler cron \
     --daily-paper-trading-time 13:00 \
@@ -172,7 +172,7 @@ At minimum set:
 
 ```bash
 cd ~/trading-prod
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time 13:00 \
     --daily-paper-trading-fallback-time 13:20 \
     --health-check-time 13:35 \
@@ -183,7 +183,7 @@ cd ~/trading-prod
 Re-run without `--dry-run` to generate the install script, then apply it:
 
 ```bash
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
     --daily-paper-trading-time 13:00 \
     --daily-paper-trading-fallback-time 13:20 \
     --health-check-time 13:35 \

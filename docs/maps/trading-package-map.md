@@ -18,7 +18,7 @@ Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 
 ### Layered Backbone
 
-- `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
+- `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/scheduling`, `runtime/data_ops`)
 - `src/trading/services/`: orchestration/composition workflows
 - `src/trading/repositories/`: SQL persistence adapters
 - `src/trading/domain/`: side-effect-free policy/math/state-transition logic and DI contracts (`BrokerConnection`, `FeatureFetcherSet`, `StrategySpec`)
@@ -84,10 +84,15 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |
-| `job_runner.py` | `governance_job` decorator + `_db_session` context manager: shared lifecycle wrapper for account-scoped governance jobs (ADR 006) |
-| `manage_job_schedules.py` | Install/update OS-level job schedules |
-| `run_auto_trades.py` | Auto-trade execution runner |
-| `scheduler_installer.py` | Scheduler installation logic |
+| `job_runner/` | Shared job-lifecycle package: `governance_job`, `daily_account_job`, and `maintenance_job` decorators over a private `_core` (ADR 006) |
+| `run_auto_trades.py` | Auto-trade execution runner (worker the daily job shells out to) |
+
+**Runtime scheduling** (`src/trading/interfaces/runtime/scheduling/`)
+
+| Module | Responsibility |
+|---|---|
+| `manage_job_schedules.py` | Operator entrypoint: install/remove OS-level schedules that invoke the runtime jobs |
+| `scheduler_installer.py` | Platform schedule-installation logic (cron, systemd timers, Windows Task Scheduler) |
 
 **Runtime data ops** (`src/trading/interfaces/runtime/data_ops/`)
 

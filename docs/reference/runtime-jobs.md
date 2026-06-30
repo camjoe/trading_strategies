@@ -58,7 +58,7 @@ The direct job scripts are the source of truth — run the job you want directly
 
 ```sh
 # Register the core 4 runtime jobs (Linux — generates local/install_trading_timers.sh)
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
   --daily-paper-trading-time 13:00 \
   --daily-paper-trading-fallback-time 13:20 \
   --health-check-time 13:35 \
@@ -72,13 +72,13 @@ sudo bash local/install_trading_timers.sh
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
 
 # Alternatively, auto-derive the shadow-eval time as a lead before daily paper trading
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules \
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules \
   --daily-paper-trading-time 13:00 \
   --auto-shadow-eval-from-daily-paper --shadow-eval-lead-minutes 20
 
 # Remove previously registered entries (preview with --dry-run first)
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister --dry-run
-./.venv/bin/python -m trading.interfaces.runtime.jobs.manage_job_schedules --unregister
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister --dry-run
+./.venv/bin/python -m trading.interfaces.runtime.scheduling.manage_job_schedules --unregister
 sudo bash local/uninstall_trading_timers.sh
 ```
 
