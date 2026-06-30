@@ -89,9 +89,7 @@ def run_snapshot_with_retry(
     description="Run daily account snapshots.",
     per_account=True,
     enabled_env=DAILY_SNAPSHOT_ENABLED_ENV,
-    disabled_message=(
-        "Daily snapshot run is disabled. Use --enable-run or set DAILY_SNAPSHOT_ENABLED=1 to execute."
-    ),
+    disabled_message=("Daily snapshot run is disabled. Use --enable-run or set DAILY_SNAPSHOT_ENABLED=1 to execute."),
     run_source_default="scheduled-daily-snapshot",
     export_subdir="daily_snapshots",
     label="Snapshot",

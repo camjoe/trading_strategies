@@ -315,7 +315,11 @@ def test_systemd_calendar_expression_for_daily_and_weekly() -> None:
 
 def test_build_systemd_timer_unit_sets_wake_system() -> None:
     task = scheduler_installer.ScheduledTaskSpec(
-        task_name=r"Trading\WeeklyDbBackup", module="pkg.mod", time="12:58", schedule_kind="weekly", day_of_week="Sunday"
+        task_name=r"Trading\WeeklyDbBackup",
+        module="pkg.mod",
+        time="12:58",
+        schedule_kind="weekly",
+        day_of_week="Sunday",
     )
 
     enabled = scheduler_installer.build_systemd_timer_unit(task, wake_system=True)
@@ -355,7 +359,9 @@ def test_build_systemd_service_unit_includes_user_command_and_optional_env_file(
 
 def test_generate_systemd_install_script_dry_run_prints_units(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(job_helpers, "logs_dir_for_repo", lambda repo_root: repo_root / "logs")
-    task = scheduler_installer.ScheduledTaskSpec(task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:00")
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:00"
+    )
 
     exit_code = scheduler_installer.generate_systemd_install_script(
         [task], repo_root=tmp_path, python_exe=tmp_path / "python", user="cam", wake_system=True, dry_run=True
@@ -371,7 +377,13 @@ def test_generate_systemd_install_script_dry_run_prints_units(monkeypatch, tmp_p
 
 def test_generate_systemd_install_script_writes_executable_script(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(job_helpers, "logs_dir_for_repo", lambda repo_root: repo_root / "logs")
-    task = scheduler_installer.ScheduledTaskSpec(task_name=r"Trading\WeeklyDbBackup", module="pkg.mod", time="12:58", schedule_kind="weekly", day_of_week="Sunday")
+    task = scheduler_installer.ScheduledTaskSpec(
+        task_name=r"Trading\WeeklyDbBackup",
+        module="pkg.mod",
+        time="12:58",
+        schedule_kind="weekly",
+        day_of_week="Sunday",
+    )
 
     exit_code = scheduler_installer.generate_systemd_install_script(
         [task], repo_root=tmp_path, python_exe=tmp_path / "python", user="cam", wake_system=True, dry_run=False
@@ -409,7 +421,11 @@ def test_register_tasks_for_platform_linux_uses_systemd_when_available(monkeypat
     monkeypatch.setattr(job_helpers, "logs_dir_for_repo", lambda repo_root: repo_root / "logs")
 
     exit_code = scheduler_installer.register_tasks_for_platform(
-        [scheduler_installer.ScheduledTaskSpec(task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:00")],
+        [
+            scheduler_installer.ScheduledTaskSpec(
+                task_name=r"Trading\DailyPaperTrading", module="pkg.mod", time="13:00"
+            )
+        ],
         repo_root=tmp_path,
         python_exe=tmp_path / "python",
         dry_run=True,

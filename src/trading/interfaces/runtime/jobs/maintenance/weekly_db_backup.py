@@ -15,6 +15,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     run_command,
     tee_line,
     ts,
+    week_tag,
 )
 from trading.interfaces.runtime.job_status import WEEKLY_DB_BACKUP_COMPLETE_SENTINEL
 
@@ -29,11 +30,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backup-dir", default="", help="Optional backup destination directory or .db file path")
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-week run")
     return parser.parse_args()
-
-
-def week_tag(now: dt.datetime) -> str:
-    iso_year, iso_week, _ = now.isocalendar()
-    return f"{iso_year}_W{iso_week:02d}"
 
 
 def already_completed_this_week(log_dir: Path, tag: str) -> bool:
