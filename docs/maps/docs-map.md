@@ -46,6 +46,7 @@ Orientation docs — typically the first thing read when entering a package. Go 
 | `docs/README.md` | Docs folder navigation index; links to all maps and conventions | A doc file is added, moved, or removed |
 | `src/trading/README.md` | `src/trading/` package overview and layering summary | Top-level `src/trading/` structure changes |
 | `src/trading/backtesting/README.md` | Backtesting subsystem orientation | `src/trading/backtesting/` entry points change |
+| `src/trading/interfaces/runtime/README.md` | Runtime surface index: which modules are runnable (scheduled/operator/worker) vs library | A runtime job, scheduling, or data-ops module is added/moved |
 | `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
 | `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
 | `apps/trends/README.md` | Trend/signal data assets | `apps/trends/` layout or data sources change |
