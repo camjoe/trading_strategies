@@ -40,6 +40,57 @@ def test_parse_args_reads_cli_flags(monkeypatch) -> None:
     assert args.python == "./.venv/bin/python"
 
 
+def test_parse_args_reads_scheduler_options(monkeypatch) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "manage_job_schedules",
+            "--daily-paper-trading-time",
+            "13:00",
+            "--scheduler",
+            "systemd",
+            "--no-wake-system",
+            "--env-file",
+            "/etc/trading/.env",
+        ],
+    )
+
+    args = module.parse_args()
+
+    assert args.scheduler == "systemd"
+    assert args.wake_system is False
+    assert args.env_file == "/etc/trading/.env"
+
+
+def test_parse_args_scheduler_option_defaults(monkeypatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["manage_job_schedules", "--daily-paper-trading-time", "13:00"])
+
+    args = module.parse_args()
+
+    assert args.scheduler == "auto"
+    assert args.wake_system is True
+    assert args.env_file == ""
+
+
+def test_default_python_prefers_venv_interpreter(monkeypatch, tmp_path) -> None:
+    venv_python = tmp_path / "bin" / "python"
+    venv_python.parent.mkdir(parents=True)
+    venv_python.write_text("")
+    monkeypatch.setattr(module.sys, "prefix", str(tmp_path))
+    monkeypatch.setattr(module.sys, "base_prefix", str(tmp_path / "base"))
+
+    assert module._default_python() == str(venv_python)
+
+
+def test_default_python_falls_back_to_sys_executable_outside_venv(monkeypatch) -> None:
+    monkeypatch.setattr(module.sys, "prefix", "/same")
+    monkeypatch.setattr(module.sys, "base_prefix", "/same")
+    monkeypatch.setattr(module.sys, "executable", "/usr/bin/python3")
+
+    assert module._default_python() == "/usr/bin/python3"
+
+
 def test_derive_shadow_eval_time_wraps_to_previous_day() -> None:
     assert module._derive_shadow_eval_time_from_daily_paper("00:10", lead_minutes=20) == "23:50"
 
