@@ -1,4 +1,5 @@
-local/
+local/*
+!local/README.md
 trading/database/*.db
 trading/database/backups/*.db
 
