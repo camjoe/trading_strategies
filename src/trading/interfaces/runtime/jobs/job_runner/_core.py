@@ -1,22 +1,10 @@
-"""Shared lifecycle runner for account-scoped runtime jobs.
+"""Private shared lifecycle core for runtime jobs.
 
-Implements the sanctioned cross-cutting pattern from
-`docs/adr/006-cross-cutting-decorators.md`: a decorator factory (`account_job`)
-owns the call-flow (arg parsing, optional enable-gate, dedup skip-guard,
-error-to-exit-code mapping, success sentinel) while a context manager
-(`db_session`) owns the DB resource lifecycle. Each job supplies only the per-job
-body, which receives a `JobContext`.
-
-Two body shapes are supported:
-
-- **whole-run** (default): `body(ctx) -> payload` runs once and returns the
-  artifact payload. Used by the weekly/monthly governance jobs.
-- **per-account** (`per_account=True`): `body(ctx, account) -> result` runs once
-  per account; the runner collects results, stops on the first non-success, and
-  writes a combined ``results`` artifact. Used by the daily account jobs, which
-  also opt into an enable-gate and an ``exports/<subdir>`` artifact location.
-
-`governance_job` is a thin wrapper that pins the whole-run governance defaults.
+Not imported directly by jobs — use the public `governance_job` /
+`daily_account_job` decorators (re-exported from the package `__init__`). This
+module owns the call-flow (arg parsing, optional enable-gate, dedup skip-guard,
+DB session, error-to-exit-code mapping, artifact write, success sentinel) and the
+`JobContext` passed to each job body.
 """
 
 from __future__ import annotations
@@ -398,9 +386,10 @@ def account_job(
     open_db: bool = True,
     extra_meta: MetaAugmenter | None = None,
 ) -> Callable[[JobBody | AccountJobBody], Callable[[], int]]:
-    """Wrap an account-scoped job body with the shared runtime lifecycle.
+    """Shared lifecycle core behind the public `governance_job` /
+    `daily_account_job` decorators — not called directly by jobs.
 
-    The wrapper owns parsing, optional ``validate``, an optional enable-gate
+    Owns parsing, optional ``validate``, an optional enable-gate
     (``enabled_env``), the dedup skip-guard, the DB session, error-to-exit-code
     mapping, artifact write, and the completion sentinel. ``per_account`` selects
     the body shape and the daily-job behaviors (enable-gate, ``exports``
@@ -453,27 +442,3 @@ def account_job(
         return main
 
     return decorator
-
-
-def governance_job(
-    *,
-    job_name: str,
-    sentinel: str,
-    period: Period,
-    description: str,
-    add_arguments: ArgAugmenter | None = None,
-    validate: ArgValidator | None = None,
-) -> Callable[[JobBody], Callable[[], int]]:
-    """Whole-run governance flow — a thin wrapper over `account_job`.
-
-    Preserves the original governance behavior: a `local/artifacts` tagged
-    artifact, period-glob dedup, and a DB-backed `body(ctx) -> payload`.
-    """
-    return account_job(  # type: ignore[return-value]
-        job_name=job_name,
-        sentinel=sentinel,
-        period=period,
-        description=description,
-        add_arguments=add_arguments,
-        validate=validate,
-    )

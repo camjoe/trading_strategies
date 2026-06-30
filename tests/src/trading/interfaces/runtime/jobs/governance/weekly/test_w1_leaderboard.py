@@ -6,7 +6,7 @@ import sys
 import pytest
 
 import trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard as module
-import trading.interfaces.runtime.jobs.job_runner as job_runner
+import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 from trading.interfaces.runtime.jobs.job_helpers import week_tag
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (

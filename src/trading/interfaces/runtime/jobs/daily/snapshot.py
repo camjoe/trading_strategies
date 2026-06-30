@@ -15,7 +15,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     run_command,
     run_command_with_retry,
 )
-from trading.interfaces.runtime.jobs.job_runner import JobContext, account_job
+from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 
 JOB_NAME = "daily_snapshot"
 COMPLETE_SENTINEL = DAILY_SNAPSHOT_COMPLETE_SENTINEL
@@ -82,12 +82,10 @@ def run_snapshot_with_retry(
     )
 
 
-@account_job(
+@daily_account_job(
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
-    period="day",
     description="Run daily account snapshots.",
-    per_account=True,
     enabled_env=DAILY_SNAPSHOT_ENABLED_ENV,
     disabled_message=("Daily snapshot run is disabled. Use --enable-run or set DAILY_SNAPSHOT_ENABLED=1 to execute."),
     run_source_default="scheduled-daily-snapshot",

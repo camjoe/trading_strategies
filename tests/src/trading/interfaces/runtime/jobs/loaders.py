@@ -225,7 +225,7 @@ def stub_runtime_job_basics(
     from unittest.mock import MagicMock
 
     import infrastructure.database.init as db_init
-    import trading.interfaces.runtime.jobs.job_runner as job_runner
+    import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 
     resolved_accounts = list(runtime_accounts or ["acct1"])
     resolved_conn = db_conn or SimpleNamespace(close=lambda: None)

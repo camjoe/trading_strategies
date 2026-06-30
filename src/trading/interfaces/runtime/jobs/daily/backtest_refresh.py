@@ -15,7 +15,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     run_command,
     run_command_with_retry,
 )
-from trading.interfaces.runtime.jobs.job_runner import JobContext, account_job
+from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
@@ -182,12 +182,10 @@ def run_backtest_refresh_with_retry(
     )
 
 
-@account_job(
+@daily_account_job(
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
-    period="day",
     description="Run daily backtest refreshes for existing accounts.",
-    per_account=True,
     enabled_env=BACKTEST_REFRESH_ENABLED_ENV,
     disabled_message=(
         "Daily backtest refresh is disabled. Use --enable-run or set DAILY_BACKTEST_REFRESH_ENABLED=1 to execute."

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import trading.interfaces.runtime.jobs.job_runner as job_runner
+import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 from trading.interfaces.runtime.jobs.job_helpers import day_tag
 from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
 from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation

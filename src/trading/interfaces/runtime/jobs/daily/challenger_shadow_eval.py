@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 
 from trading.interfaces.runtime.jobs.job_helpers import ts
-from trading.interfaces.runtime.jobs.job_runner import JobContext, account_job
+from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 from trading.interfaces.runtime.job_status import (
     DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL,
 )
@@ -92,12 +92,10 @@ def run_shadow_eval_for_account(
     )
 
 
-@account_job(
+@daily_account_job(
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
-    period="day",
     description="Run daily challenger shadow evaluation for runtime-eligible accounts.",
-    per_account=True,
     enabled_env=CHALLENGER_SHADOW_EVAL_ENABLED_ENV,
     disabled_message=(
         "Daily challenger shadow evaluation is disabled. "
