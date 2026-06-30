@@ -51,6 +51,7 @@ Current skill inventory:
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
+| `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
@@ -101,6 +102,7 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
 | Run deterministic checks (lint, tests, layer) | `validate-code/` |
+| Add or scaffold a new runtime job | `create-runtime-job/` |
 | Create a new skill | `create-skill/` |
 | Update or improve a skill | `update-skill/` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
