@@ -5,7 +5,11 @@ Status: Active
 Created: 2026-06-29
 Last Reviewed: 2026-07-01
 Purpose: Single living backlog and progress tracker for outstanding product improvements — partials to finish and Now/Next/Later work — each pointing at the code it touches.
-Related: [Docs Map](maps/docs-map.md), [Trading Package Map](maps/trading-package-map.md), [UI Map](maps/ui-map.md)
+Related: [Overview](overview.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [Docs Map](maps/docs-map.md), [Trading Package Map](maps/trading-package-map.md), [UI Map](maps/ui-map.md)
+
+> The definitive north star and authoritative priority order live in [overview.md](overview.md).
+> This file is the detailed, itemized backlog. Item numbers are identifiers, not priority — see the
+> overview's "Direction & plan" and the "Current cycle sequencing" section below for order.
 
 ## Product Goal
 
@@ -54,21 +58,21 @@ Time windows:
 
 ### Current cycle sequencing
 
-The two `Now` initiatives interlock. Recommended order for this cycle:
+Authoritative order (item numbers below are identifiers, not priority):
 
-1. **1a — decision-score contract.** Self-contained; touches evaluation code only. No entanglement
-   with the sleeves-accounts convergence and no rework risk from the virtual-vs-table-rework (A/B)
-   decision — safe to build regardless of how that lands.
-2. **1b — rotation scoring repoint (narrow).** Make the incumbent and challengers score from the
-   same source via the 1a contract, leaving the two rotation paradigms in place. This is the first
-   time evaluation work edits sleeve rotation code but still needs no A/B decision.
-3. **1c — contract regression tests** across compare, promotion, and rotation.
+1. **Close the execution loop (Now #3, keystone).** Wire strategy signals + parameter sets into
+   live/paper execution so the trader actually runs the strategy and params it is evaluated on.
+   Everything else in the evaluate → rotate → trade loop is premature until this lands, because the
+   live path currently does not execute strategy signals at all (see Now #3).
+2. **1a — decision-score contract.** ✅ Done. Self-contained; evaluation-only; no A/B entanglement.
+3. **1b — rotation scoring repoint (narrow).** ✅ Done. Incumbent + challengers score from the 1a
+   contract; two rotation paradigms left intact.
+4. **1c — contract regression tests** across compare, promotion, and rotation.
 
-**Decision gate — end of 1b.** With scoring unified you will be standing in the rotation code. Decide
-then whether to cross into the convergence work (2b paradigm collapse, then 2a/2c). Going past narrow
-1b into 2b forces resolving the trading-unit stance and the A/B realization — see
-[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md). Until that gate, keep 1b
-narrow and leave the convergence details deferred.
+**Decision gate — end of 1b (reached).** Crossing into convergence work (2b paradigm collapse, then
+2a/2c) forces resolving the trading-unit stance and the A/B realization — see
+[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md). Recommended: close the
+execution loop (Now #3) and finish 1c before opening 2b.
 
 ### Now
 
@@ -159,6 +163,60 @@ narrow and leave the convergence details deferred.
   - [ ] pre-submit safety gates are shared, not asymmetric
   - [ ] rotation/selection reads the unified decision-score contract (with Now #1)
   - [ ] ledger updates flow through a single accounting path
+
+#### 3. Close the execution loop (keystone)
+
+- Scope: make the live/paper trader actually run the strategy signal functions and the selected
+  parameter sets, so the evaluate → rotate → trade loop is closed end to end.
+- Why it matters: today the live/paper trade path selects trades with a legacy random/style-biased
+  placeholder — an early proof-of-concept (auto-check trades + IBKR hookup) built before the
+  strategy/evaluation features existed. Strategy signal functions run **only in backtests**
+  (`resolve_signal` is called solely from `src/trading/backtesting/services/execution_service.py`),
+  and parameter sets are never applied to signal evaluation. So rotation switches the strategy label
+  and `strategy_style` bias, but the live path does not execute the selected strategy or its params.
+- Current state (evidence):
+  - live/paper selection: `prepare_trade_selection` → `prepare_buy_trade`/`prepare_sell_trade` →
+    `auto_trading_policy.choose_buy_ticker`/`choose_side` (random or recent-return heuristic, biased
+    by `strategy_style`) — no `signal_fn`.
+  - signals: `resolve_signal(strategy, history, feature_history)` uses `spec.default_params` (code
+    defaults), backtest-only.
+  - params: `StrategyParamSetRepository` is read only for a `param_set_id` label and by the
+    governance job — never fed into signal evaluation.
+- Sub-features:
+  - [ ] **3-E1. Run strategy signals in live/paper execution** — the runtime trade path resolves and
+    evaluates the active strategy's `signal_fn` per candidate, so paper trades the strategy it is
+    evaluated on. Keystone.
+  - [ ] **3-E2. Apply parameter sets to signal evaluation** end-to-end (backtest + live), so
+    per-account/param-set tuning is a real, data-driven lever rather than stored metadata.
+- Decisions to resolve first: how `signal_fn` output (buy/sell/hold per candidate) maps onto the
+  existing sizing/risk/selection flow; how backtest and live share the same signal+param path so
+  backtest evidence reflects live behavior; and where resolved params come from (param set vs
+  account override vs strategy default) with a clear precedence.
+- Done when:
+  - live/paper trades are driven by the active strategy's signal function
+  - parameter sets flow into both backtest and live signal evaluation
+  - backtest and live execute the same strategy+param decision path
+  - rotation to a strategy actually changes what the trader does
+
+#### 4. Plug-and-play strategy & provider catalog
+
+- Scope: make adding strategy variants and feature providers a data/contained-code change, so new
+  ideas can be tried quickly.
+- Direction: keep signal **primitives** as small, tested code; make strategy **definitions**
+  (`{id, primitive, params, style, required_features}`) data-loaded (config/DB) instead of the
+  hard-coded `STRATEGY_REGISTRY` dict. New variant/tuning = data; genuinely new logic = one new
+  primitive (code) + data to expose it. No arbitrary-logic scripting DSL (safety/testability).
+- Dependency: Now #3 (params must actually flow into signals for data-defined variants to mean
+  anything).
+- Sub-features:
+  - [ ] **4a. Data-driven strategy registry** — load strategy definitions from config/DB against a
+    code primitive catalog; `available_strategy_ids()` and rotation read the data-defined set.
+  - [ ] **4b. Feature-provider registry** — pluggable registration so a new
+    `ExternalFeatureProvider` is a contained code addition + data enable.
+- Done when:
+  - a new strategy variant of existing logic can be added without code changes
+  - a new feature provider is a contained, registered addition
+  - data-defined strategies flow into rotation candidates automatically
 
 ### Next
 
