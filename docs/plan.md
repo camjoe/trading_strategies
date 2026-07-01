@@ -237,17 +237,21 @@ Priority: P1 · Committed
   - [ ] **3-E1. Run strategy signals in live/paper execution** — the runtime trade path resolves and
     evaluates the active strategy's `signal_fn` per candidate, so paper trades the strategy it is
     evaluated on. Keystone.
-  - [ ] **3-E2. Apply parameter sets to signal evaluation** end-to-end (backtest + live), so
-    per-account/param-set tuning is a real, data-driven lever rather than stored metadata.
-- Decisions to resolve first: [D1](decisions.md#d1) — signal→selection mapping, the runtime history
-  source, backtest/live parity, and param precedence.
+  - [ ] **3-E2. Apply resolved params to signal evaluation** end-to-end (backtest + live), reading
+    knobs from the account/defaults. Does **not** depend on the `strategy_param_sets` table — the
+    param-store shape is deferred to the rewrite ([D4](decisions.md#d4)).
+- Decisions ([D1](decisions.md#d1)) — **resolved:** trade **only when the strategy signals**, no
+  forced minimum, keep a **max cap** per run; read params from account/defaults (param-store deferred
+  to the rewrite); fetch per-ticker history via `MarketDataProvider.fetch_close_series` (~1y, cached);
+  backtest and live share one `evaluate_signal(...)`.
 - Estimate: **L**. Touches the core trade loop for both account and sleeve modes, adds a runtime
   history fetch, aligns backtest, and threads param resolution — plus test rewrites.
 - Code areas that will change:
   - `src/trading/domain/strategy_signals.py` — add a params-accepting signal-evaluation entry
     (today `resolve_signal` uses `spec.default_params`); keep one shared eval used by backtest + live.
   - `src/trading/domain/auto_trading_policy.py` — `choose_buy_ticker` / `choose_sell_ticker` /
-    `choose_side` change from random/heuristic to signal-driven selection (per D1 policy).
+    `choose_side` change from random/heuristic to signal-driven selection: act only on signaled
+    tickers, drop the forced-minimum trade count, keep a per-run max cap (D1 policy).
   - `src/trading/services/auto_trading/execution.py` — `prepare_trade_selection` /
     `prepare_buy_trade` / `prepare_sell_trade` evaluate the active strategy's signal per candidate.
   - `src/trading/services/auto_trading/runtime.py` — wire the injected `MarketDataProvider` into the
@@ -255,14 +259,11 @@ Priority: P1 · Committed
     existing `feature_fetchers`.
   - `src/trading/services/sleeves/execution.py` — `generate_sleeve_trade_intents` uses the same
     signal path (sleeve mode shares `prepare_trade_selection`).
-  - `src/trading/repositories/strategy_param_sets.py` + a new param-resolution helper — resolve
-    effective params (default → account → param set) for signals. (E2)
+  - a param-resolution helper — resolve effective params (default → account) for signals, **without**
+    depending on `strategy_param_sets`. (E2)
   - `src/trading/backtesting/services/execution_service.py` — switch `resolve_signal` to the shared
     params-aware eval so backtest and live use identical params. (E2)
   - Tests: `auto_trading`, `sleeves`, `backtesting`, and `domain/strategy_signals` suites.
-- Newly surfaced holes (see D1): the live path has **no per-ticker history source** today (only
-  latest `prices`), and there is **no per-ticker→which-to-act-on selection policy** — both must be
-  defined before E1 is implementable.
 - Done when:
   - live/paper trades are driven by the active strategy's signal function
   - parameter sets flow into both backtest and live signal evaluation

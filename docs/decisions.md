@@ -18,7 +18,7 @@ yet) · **decided** (resolved — record the outcome and date).
 
 | ID | Decision | Gates | Status |
 |---|---|---|---|
-| [D1](#d1) | Execution-loop signal/param mapping | P1 | open (near-term) |
+| [D1](#d1) | Execution-loop signal/param mapping | P1 | **mostly resolved** (defaults recorded) |
 | [D2](#d2) | Convergence realization: virtual (A) vs physical rework (B) | P4, DB rewrite | **decided: B (rewrite)** |
 | [D3](#d3) | Incremental convergence vs DB-rewrite-first | convergence approach & timelines | **decided: rewrite-first, after execution loop** |
 | [D4](#d4) | Parameters model shape | parameter source, DB rewrite | open |
@@ -41,25 +41,29 @@ rewrite.
 <a id="d1"></a>
 ### D1 — Execution-loop signal/param mapping
 
-Gates: Plan P1 (close the execution loop). **Open, near-term.**
+Gates: Plan P1 (close the execution loop). **Mostly resolved; implementation defaults recorded.**
 
 The backtest model to mirror ([`backtesting/services/execution_service.py`](../src/trading/backtesting/services/execution_service.py)):
 per ticker in the universe, `history = close.loc[:signal_date, ticker]` → `resolve_signal(strategy,
 history, feature_history)` → act on buy/sell/hold. Live should evaluate the same way.
 
-- **Runtime history source.** Live selection today receives only latest `prices` (a dict), not the
-  per-ticker `pd.Series` history signals need. Decide how the runtime fetches history —
-  `MarketDataProvider.fetch_close_series(ticker, period)` exists and `run_for_account` already accepts
-  an injectable `provider`; decide period/lookback, caching, and per-run cost across the universe.
-- **Selection policy.** `signal_fn` yields buy/sell/hold *per ticker*, but the live loop currently
-  picks one ticker via `min_trades/max_trades`. Decide how per-ticker signals map to "which tickers
-  to act on this run" (all buy-signaled subject to cash/sizing, like backtest? capped? ranked how?).
-- **Sizing/risk mapping.** How signal output feeds the existing `choose_buy_qty`, forced-sell, and
-  sleeve risk-gate flow.
-- **Backtest/live parity.** Ensure both call one shared signal+param evaluation path so backtest
-  evidence reflects live behavior.
-- **Param precedence.** Where resolved params come from — param set vs account override vs strategy
-  default — and the precedence order.
+- **Selection policy — decided (2026-07-01).** Trade **only when the strategy signals** — act on the
+  stocks it labels buy (not already held) and sell (held). **No forced minimum** (remove today's
+  min-trades floor that manufactures trades when nothing signals). **Keep a maximum cap** per run so
+  an account/unit can't over-trade. In plain terms: never trade out of "nervousness," but bound the
+  number of trades.
+- **Param source — deferred to the rewrite.** P1 will read strategy knobs from the account/defaults
+  and **will not depend on the `strategy_param_sets` table**. Whether tunable knobs live on the
+  account/unit or in a param-set table is decided with the schema rewrite — see [D4](#d4).
+- **Runtime history source — default.** Fetch per-ticker history via
+  `MarketDataProvider.fetch_close_series(ticker, period)` (already injectable into `run_for_account`),
+  a fixed lookback (~1y, covering the largest indicator window), cached per run. Implementation
+  detail, revisit only if cost is a problem.
+- **Backtest/live parity — default.** Both paths call one shared
+  `evaluate_signal(strategy, history, params, feature_history)` so backtest evidence reflects live
+  behavior.
+- **Sizing/risk mapping — default.** Signal output feeds the existing `choose_buy_qty`, forced-sell,
+  and sleeve risk-gate flow unchanged.
 
 <a id="d2"></a>
 ### D2 — Convergence realization: virtual (A) vs physical rework (B)
@@ -81,6 +85,10 @@ migrating two live paths first. Avoids building convergence twice; leverages the
 
 Gates: Plan P7 (unified parameter source), DB rewrite (`parameters` table). **Open.**
 
+- **Do we keep `strategy_param_sets` at all?** (Raised 2026-07-01.) The named/versioned param-set
+  table is currently empty and unused. Option: put tunable strategy knobs directly on the
+  account/trading-unit (simpler), and only reintroduce a param-set table if/when sharing across
+  accounts or auto-optimization (P11) actually needs it. Decide with the rewrite.
 - Typed key/value rows with scope precedence (default → account → unit) vs a few typed config tables
   per concern (risk / options / rotation).
 - Read-through view/API over existing stores vs a consolidated store.
