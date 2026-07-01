@@ -52,6 +52,37 @@ describe("renderPromotionOverview", () => {
         warnings: ["Needs operator sign-off."],
         next_action: "Approve or reject promotion review.",
       },
+      evaluation: {
+        backtest: {
+          available: true,
+          returnPct: 12.5,
+          tradeCount: 44,
+          snapshotCount: 18,
+          maxDrawdownPct: -4.2,
+        },
+        walkForward: {
+          available: true,
+          grouped: true,
+          averageReturnPct: 3.1,
+          bestReturnPct: 6.4,
+          worstReturnPct: -1.5,
+        },
+        paperLive: {
+          available: true,
+          returnPct: 2.7,
+          snapshotCount: 9,
+          sourceLevel: "strategy",
+          strategyIsolated: true,
+        },
+        confidence: {
+          blendedScore: 8.6,
+          overallConfidence: 0.91,
+          backtestConfidence: 0.95,
+          paperLiveConfidence: 0.82,
+          dataGaps: [],
+        },
+        dataGaps: [],
+      },
       history: [
         {
           review: {
@@ -92,5 +123,66 @@ describe("renderPromotionOverview", () => {
     expect(html).toContain("Review #7");
     expect(html).toContain("Needs operator sign-off.");
     expect(html).toContain("Ready for ops review.");
+    expect(html).toContain("Backtest Return");
+    expect(html).toContain("+12.50%");
+    expect(html).toContain("Paper/Live Snapshots");
+    expect(html).toContain("Strategy Isolated");
+    expect(html).toContain("Blended Score");
+  });
+
+  it("renders missing evidence states", () => {
+    const payload: PromotionOverviewResponse = {
+      assessment: {
+        account_name: "alpha_account",
+        strategy_name: "trend",
+        evaluation_generated_at: null,
+        stage: "candidate",
+        status: "blocked",
+        ready_for_live: false,
+        live_trading_enabled: false,
+        overall_confidence: 0,
+        data_gaps: ["missing_backtest_evidence"],
+        blockers: ["Backtest evidence is required."],
+        warnings: [],
+        next_action: null,
+      },
+      evaluation: {
+        backtest: {
+          available: false,
+          returnPct: null,
+          tradeCount: null,
+          snapshotCount: null,
+          maxDrawdownPct: null,
+        },
+        walkForward: {
+          available: false,
+          grouped: false,
+          averageReturnPct: null,
+          bestReturnPct: null,
+          worstReturnPct: null,
+        },
+        paperLive: {
+          available: false,
+          returnPct: null,
+          snapshotCount: null,
+          sourceLevel: null,
+          strategyIsolated: false,
+        },
+        confidence: {
+          blendedScore: null,
+          overallConfidence: 0,
+          backtestConfidence: 0,
+          paperLiveConfidence: 0,
+          dataGaps: ["missing_backtest_evidence"],
+        },
+        dataGaps: ["missing_backtest_evidence"],
+      },
+      history: [],
+    };
+
+    const html = renderPromotionOverview(payload);
+    expect(html).toContain("n/a");
+    expect(html).toContain("missing_backtest_evidence");
+    expect(html).toContain("No persisted promotion reviews found");
   });
 });
