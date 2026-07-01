@@ -34,6 +34,11 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Do **not** do style-only rewrites unless explicitly requested.
 - Explain any non-trivial style decision in your summary.
 - For new code, apply the relevant language guide by default — `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend).
+- After each completed implementation phase and in final summaries, include:
+  - `Developer verification`: exact UI route/tab/control, API endpoint and expected payload, report path, command output, or behavioral expectation a developer can inspect.
+  - `Validation run`: tests and checks executed, or why validation was not run.
+  - `Cleanup/robustness notes`: obsolete code removed, evidence-based cleanup candidates found in the touched scope, or `none found in touched scope`.
+- Cleanup reporting is advisory by default. Do not broaden a feature branch with unrelated removals unless the obsolete path is directly created or exposed by the current change and validation proves removal is safe.
 
 ## Task surfaces
 
