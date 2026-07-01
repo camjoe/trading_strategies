@@ -137,7 +137,8 @@ Priority: P2 · Committed
     metric builders where possible.
   - [ ] **1c. Contract regression tests** — prove compare, promotion, and rotation read the same
     score/confidence contract and handle complete evidence, missing backtest evidence, missing
-    paper/live evidence, and null blended score identically.
+    paper/live evidence, and null blended score identically. **Work order:**
+    [implementation/p2-evaluation-contract-tests.md](implementation/p2-evaluation-contract-tests.md).
 - Remaining work is 1c only. Estimate: **S** (test-only).
 - Code areas that will change (1c):
   - `tests/src/trading/domain/test_evaluation_decision_score.py` (extend) and/or a new
