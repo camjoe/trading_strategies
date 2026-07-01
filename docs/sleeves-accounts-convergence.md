@@ -38,6 +38,46 @@ same trade lifecycle differently. Converge them onto shared services so that:
 4. **SRP per service.** Each shared service owns one responsibility (submission, rotation/selection,
    accounting). Mode-specific behavior enters through explicit injected handlers, not branches.
 
+## Design stance: unify at the trading-unit level
+
+The organizing model for this convergence is a **composite**, aligned with ADR 003:
+
+- **Account = custody/broker aggregate root.** Owns the broker connection, the `live_trading_enabled`
+  safety gate, and reconciliation-to-broker-truth. These are account-scoped and stay there.
+- **Sleeve = the trading unit.** Owns cash, positions, ledger, and strategy/param-set assignment —
+  the primitive that accounting, submission attribution, and rotation/selection operate on.
+- **A plain account is one account with a single default trading unit** spanning the whole balance.
+
+Under this model the shared services (2a/2b/2c) do not special-case "account mode vs sleeve mode";
+they operate on one **trading-unit contract**, and account mode is just the default unit. This is a
+refinement of — not a replacement for — the 2a/2b/2c workstreams: it names the contract they share.
+
+Consistent with ADR 003: accounts stay broker/custody entities (Decision #1), sleeve attribution
+reconciles to account truth (Decision #4), and the account submission/reconciliation flow is the
+reuse base with attribution lifted to unit-aware persistence (Reuse #3). Note the account cannot
+literally *be* a sleeve: broker + `live_trading_enabled` + reconciliation-to-truth are genuinely
+account-scoped and must not be pushed onto a sleeve.
+
+### Realization options (open decision)
+
+The default trading unit can be modeled two ways:
+
+- **(A) Virtual default unit — current short-term lean.** The trading-unit contract has two backings
+  (sleeve-backed and account-backed); a plain account presents a *synthesized* default unit over the
+  existing account tables. No migration of the hot ledger/positions/orders tables. Costs a small
+  amount of polymorphism (two backings) in exchange for keeping account semantics unchanged. Matches
+  ADR Reuse #3.
+- **(B) Physical table rework.** Give every account a real default trading-unit row and reparent
+  ledger/positions/orders onto units. Purest single-backing model, but a backfill on the most
+  safety-critical tables. Because we are **not yet live production**, there is a genuine window to
+  re-evaluate whether the current tables meet our needs and, if so, do this rework before that window
+  closes. Higher up-front risk/effort; cleanest end state.
+
+**Decision status:** leaning (A) virtual short-term to unblock convergence without a hot-table
+migration. Keep (B) open: schedule a deliberate pre-live table review and decide before live
+enablement, when schema changes are cheapest. Do not commit 2a/2c to a specific persistence shape
+until this is settled.
+
 ## Scope
 
 **In scope (accounts-vs-sleeves axis):**
@@ -106,15 +146,21 @@ Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ 
   intentionally position-scoped?
 - [ ] Risk snapshots: should account mode gain an equivalent of the sleeve risk snapshot /
   decisions, or is that intrinsically a sleeve concept?
-- [ ] Order repositories: is `sleeve_orders` a necessary extension of `broker_orders`, or can it be
-  a linked detail table behind one submission service?
-- [ ] Intent model: is a shared trade-intent contract worthwhile, or does `SleeveTradeIntent` stay
-  a sleeve-specific superset?
+- [ ] Order repositories: under the trading-unit stance, `broker_orders` stays broker/custody truth
+  and unit attribution links to it. Provisional direction is to bridge `sleeve_orders` behind the
+  submission service rather than merge tables; the final shape depends on realization (A) vs (B).
+- [ ] Intent model: the trading-unit stance favors a shared trade-intent contract (the account
+  selection tuple becomes the default-unit intent); confirm scope when 2a lands.
 
 ## Dependencies & sequencing
 
 - **1a → 1b and 2b.** The shared decision-score contract (Roadmap Now #1a) unblocks both the
   rotation migration (1b) and the unified rotation/selection here (2b).
+- **1b checkpoint (entry point to this plan).** Narrow 1b (repoint rotation scoring onto the 1a
+  contract, both paradigms intact) needs neither the trading-unit stance nor the A/B decision. The
+  end of 1b is the natural gate for deciding whether to cross into this convergence work: going past
+  narrow 1b into 2b forces resolving the design stance (A vs B). Until then these workstreams stay
+  deferred.
 - **2a is independent.** The broker seam is already clean, so the submission-service extraction can
   start immediately without waiting on the scoring work.
 - Suggested order: **2a** (safety + biggest duplication) → **2c** (ledger) alongside 2a → **2b**
@@ -122,14 +168,23 @@ Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ 
 
 ## Open questions
 
+- **Realization: virtual default unit (A) vs physical table rework (B)** — see Design stance.
+  Leaning (A) short-term; revisit (B) in a pre-live table review before live enablement. This gates
+  the persistence shape for 2a/2c.
 - Package/name for the shared submission service (`services/execution/` vs extending
   `services/auto_trading/`).
 - Whether the shared submission service should own the pre-submit safety gates directly, or accept
   them as an injected policy so sleeve-specific gates stay pluggable.
-- How far to unify the order-persistence tables vs keep `sleeve_orders` as a mode-specific detail.
+- Order-persistence shape depends on the realization decision above: under (A), bridge
+  `broker_orders`/`sleeve_orders` behind the submission service; under (B), reparent onto units.
 
 ## Progress log
 
 - 2026-07-01 — Document created. Captured current-state map, confirmed 2a/2b/2c workstreams,
   investigation candidates, and sequencing. Environment axis confirmed already converged and marked
-  out of scope. (Elaboration to follow.)
+  out of scope.
+- 2026-07-01 — Added "unify at the trading-unit level" design stance (account = custody root
+  containing trading units; a plain account is one default unit), aligned with ADR 003. Recorded
+  virtual (A) vs physical-table-rework (B) as an open realization decision; current lean is virtual
+  short-term, with a pre-live table review to revisit (B). Updated open questions and investigation
+  items accordingly.

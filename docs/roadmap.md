@@ -52,6 +52,24 @@ Time windows:
 - `Next`: follow-on work after `Now` ships
 - `Later`: defer until higher-priority operational value is complete
 
+### Current cycle sequencing
+
+The two `Now` initiatives interlock. Recommended order for this cycle:
+
+1. **1a — decision-score contract.** Self-contained; touches evaluation code only. No entanglement
+   with the sleeves-accounts convergence and no rework risk from the virtual-vs-table-rework (A/B)
+   decision — safe to build regardless of how that lands.
+2. **1b — rotation scoring repoint (narrow).** Make the incumbent and challengers score from the
+   same source via the 1a contract, leaving the two rotation paradigms in place. This is the first
+   time evaluation work edits sleeve rotation code but still needs no A/B decision.
+3. **1c — contract regression tests** across compare, promotion, and rotation.
+
+**Decision gate — end of 1b.** With scoring unified you will be standing in the rotation code. Decide
+then whether to cross into the convergence work (2b paradigm collapse, then 2a/2c). Going past narrow
+1b into 2b forces resolving the trading-unit stance and the A/B realization — see
+[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md). Until that gate, keep 1b
+narrow and leave the convergence details deferred.
+
 ### Now
 
 #### 1. Unify evaluation across decision surfaces
