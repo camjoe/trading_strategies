@@ -85,6 +85,22 @@
     },
     {
       "method": "GET",
+      "path": "/api/ibkr-paper-accounts",
+      "handler": "api_ibkr_paper_accounts",
+      "module": "ibkr_paper_monitor",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": "Return list of IBKR paper accounts with sleeve summary and latest run status."
+    },
+    {
+      "method": "GET",
+      "path": "/api/ibkr-paper-accounts/{account_name}",
+      "handler": "api_ibkr_paper_account_detail",
+      "module": "ibkr_paper_monitor",
+      "group": "Accounts & Snapshots Endpoints",
+      "description": "Return comprehensive IBKR paper account dashboard data. Includes: - Account overview (total equity, cash, positions) - Sleeve status and performance metrics - Latest daily workflow run details - Governance check status (W1-W3, M1-M3) - Burn-in progress - Recent rotations - Risk summary (kill switch, violations)"
+    },
+    {
+      "method": "GET",
       "path": "/health",
       "handler": "health",
       "module": "health",

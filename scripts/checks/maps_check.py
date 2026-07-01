@@ -86,6 +86,7 @@ MAP_SPECS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "scripts",
         (
             "scripts/documentation_ui/api",
+            "scripts/documentation_ui/finance",
             "scripts/documentation_ui/software",
         ),
     ),

@@ -41,6 +41,11 @@ Repository workflow scripts (`scripts/`):
 
 Documentation page workflows:
 
+Finance (`scripts/documentation_ui/finance/`):
+
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/finance.json` from `docs/reference/financial-market-knowledge.md`.
+- `check.py`: standalone sync check that validates the finance UI asset matches the canonical reference doc.
+
 Software (`scripts/documentation_ui/software/`):
 
 - `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/software.json` from `requirements-base.txt` and `requirements-dev.txt` while preserving curated package purposes.
@@ -52,8 +57,8 @@ API Reference (`scripts/documentation_ui/api/`):
 
 Reference orchestration (`scripts/documentation_ui/`):
 
-- `check.py`: runs Software and API reference checks together.
-- `sync.py`: syncs assets/api.json from FastAPI routes and assets/software.json from requirements.
+- `check.py`: runs Finance, Software, and API reference checks together.
+- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, and assets/software.json from requirements.
 
 Modular check scripts (`scripts/checks/`):
 
@@ -125,6 +130,8 @@ python -m scripts.documentation_ui.check
 python -m scripts.documentation_ui.sync
 
 # Underlying section workflows (for automation/internal use)
+python -m scripts.documentation_ui.finance.build_registry
+python -m scripts.documentation_ui.finance.check
 python -m scripts.documentation_ui.software.build_registry
 python -m scripts.documentation_ui.software.check
 python -m scripts.documentation_ui.api.build_registry

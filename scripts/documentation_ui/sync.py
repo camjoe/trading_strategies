@@ -5,6 +5,7 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 from scripts.documentation_ui.api.build_registry import run_build as build_api
+from scripts.documentation_ui.finance.build_registry import run_build as build_finance
 from scripts.documentation_ui.software.build_registry import run_build as build_software
 
 
@@ -19,9 +20,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
+    build_finance(repo_root)
     build_api(repo_root)
     build_software(repo_root)
-    print("\nSync completed. finance.json is manually curated — edit it directly.")
+    print("\nSync completed. Edit finance terms in docs/reference/financial-market-knowledge.md.")
     return 0
 
 

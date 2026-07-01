@@ -66,7 +66,7 @@ def normalize_package_name(raw: str) -> str:
 
 def parse_requirement_entry(raw: str) -> tuple[str, str] | None:
     line = raw.strip()
-    if not line or line.startswith("#") or line.startswith("-r"):
+    if not line or line.startswith("#") or line.startswith(("-r", "-e ", "--editable ")):
         return None
 
     for marker in ("==", ">=", "<=", "~=", "!=", ">", "<"):
