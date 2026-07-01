@@ -179,6 +179,25 @@ narrow and leave the convergence details deferred.
   - trigger classes are explicit (failure, recovery, optional success)
   - delivery failures are non-fatal and observable in logs/tests
 
+#### 2. Unified parameter source
+
+- Scope: one legible place to view and edit the parameters that drive strategy behavior,
+  evaluation, and rotation — supporting the goal of tuning the automated trader without hunting
+  across the codebase.
+- Motivation: parameters are currently scattered across ~5 locations with no single view —
+  `StrategyParamSetRepository` (versioned strategy params), `src/trading/services/operational_settings/`
+  (evaluation confidence, promotion policy, trade throttles), `SleeveRotationConfig` code defaults
+  (rotation weights), `src/infrastructure/config/account_profiles/*.json`, and account DB columns
+  (risk policy, stops, `learning_enabled`, rotation schedule/lookback/cooldown).
+- Decisions to resolve first: which parameters are operator-tunable at runtime vs. code-owned
+  defaults; whether the single source is a read-through view/API over the existing stores or a
+  consolidated store; and how versioning/auditing works for changes.
+- Done when:
+  - operator-tunable parameters are viewable and editable through one service, usable from the CLI
+    and runtime without the UI (UI is an optional view over the same service)
+  - rotation/evaluation weights are no longer buried as code-only defaults where they should be tunable
+  - parameter changes are audited consistently
+
 ### Later
 
 #### 1. True adaptive learning
@@ -197,10 +216,11 @@ narrow and leave the convergence details deferred.
   - update policy is deterministic and test-covered
   - ranking/trade/live-eligibility effects are explicit and observable
 
-#### 2. Portfolio-level risk dashboard
+#### 2. Portfolio-level risk rollup
 
-- Scope: cross-account risk visibility, split by data dependency.
-- Surface: `src/trading/` aggregation service + `apps/paper_trading_web` API/view.
+- Scope: cross-account risk visibility, split by data dependency. The deliverable is the aggregation
+  service (usable from CLI/runtime); a dashboard view is an optional follow-on.
+- Surface: `src/trading/` aggregation service; optional `apps/paper_trading_web` view.
 - Sub-features:
   - [ ] **2a. Exposure rollup (v1)** — cross-account equity, cash, and market-value aggregate.
     Data already exists in equity snapshots; low risk, read-only.
@@ -208,8 +228,9 @@ narrow and leave the convergence details deferred.
     aggregation across accounts and a definition decision first (concentration by symbol, sector,
     or strategy).
 - Done when:
-  - backend returns aggregate exposure payloads and a dedicated UI section renders them (2a)
-  - backend returns overlap/concentration payloads with tests validating the math (2b)
+  - the aggregation service returns exposure and overlap/concentration payloads, usable from the CLI
+    without the UI, with tests validating the math
+  - an optional dashboard view renders them once the payload contract is stable
 
 #### 3. Strategy parameter optimization workflow
 
@@ -226,11 +247,51 @@ narrow and leave the convergence details deferred.
   - optimization runs are tagged and stored separately (3a)
   - reports clearly distinguish optimization vs ordinary validation runs (3b)
 
+#### 4. Decisioning legibility & naming pass
+
+- Scope: make the decision flow (evidence → score → promotion/rotation) legible from the package and
+  symbol names, without changing behavior.
+- Motivation: the current naming does not reveal the flow. Concrete offenders:
+  - `shadow_evaluation` names a separate challenger-scoring path that no longer exists after Now #1b
+    (both incumbent and challengers now score through the decision-score contract) — it is now a
+    thin candidate-enumeration step and a rename/absorb candidate.
+  - "rotation" means two different things (account-episode rotation vs sleeve champion/challenger) —
+    disambiguate.
+  - `evaluation`, `promotion`, `analysis/performance`, and `reporting` crowd the same
+    "how did it do" space with unclear boundaries.
+- Direction: keep evaluation, promotion, and rotation as small SRP pieces, but make them share the
+  one decision-score contract and sit under a legible "decisioning" grouping so the relationship is
+  obvious. This is behavior-preserving structure/naming work, best done alongside the
+  [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md) 2b step.
+- Boundary to preserve: feature providers (news/sentiment) are strategy-signal inputs, not
+  evaluation evidence — their effect reaches evaluation only through realized paper/live P&L. Do not
+  fold them into the evaluation artifact.
+- Done when:
+  - the decision flow is derivable from package/symbol names
+  - "rotation" is unambiguous at the name level
+  - `shadow_evaluation` is renamed or absorbed
+
 ## Notes
 
 - Multi-universe support is already partially present (`--tickers-file`,
   `--universe-history-dir`); richer UX can wait until higher-priority slices land.
 - Keep live activation explicitly human-gated.
+
+### Design principles
+
+- **Interface primacy: scheduler jobs and the CLI are the primary drivers; the UI is optional.**
+  Core logic lives in `src/trading/` (services/domain) and every capability must be usable from the
+  scheduler and CLI without the UI. The UI (`apps/paper_trading_web`) is a thin, optional consumer
+  that views results and edits parameters over the same services — never the place a capability
+  lives. Do not design around the UI. This is the existing "UI Backend Boundary Rule" in
+  `docs/architecture/architecture-conventions.md`, applied as a product principle.
+- **UI follows the contract, per feature.** Convergence and decisioning work is contract-preserving
+  (no UI change — proven in Now #1a, which kept the compare/promotion JSON keys stable). For
+  operator-facing features, the "done when" is the service + CLI/programmatic path; the UI slice is
+  an optional follow-on designed *after* that feature's backend contract stabilizes, not batched to
+  the end and not designed on unsettled contracts. Whether the eventual operator surface is a new
+  consolidated console or incremental additions to the existing tabs is an open decision, premature
+  until the parameter-source and risk contracts exist.
 
 ## Dropped (reviewed 2026-07-01)
 

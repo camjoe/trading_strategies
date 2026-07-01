@@ -108,14 +108,14 @@ Confirmed by reading `src/trading/services/auto_trading/runtime.py`,
 | On-fill ledger update | `record_trade` | `apply_sleeve_fill` + `record_trade` | ❌ divergent |
 | Pre-submit safety gates | throttles only | kill switches: stale price, reconciliation mismatch/staleness | ❌ asymmetric |
 | Rotation / selection | account episode rotation | sleeve champion/challenger | ❌ two paradigms |
-| Scoring metrics | daily-metrics-derived | backtest-returns-derived (challengers) + `StrategyEvaluationArtifact` | ❌ three notions (see Roadmap Now #1) |
+| Scoring metrics | account-episode rotation still separate | incumbent + challengers via the decision-score contract (Now #1b) | ◑ sleeve side unified (1b); account rotation pending 2b |
 | Reconciliation | `reconcile_open_broker_orders` | `reconcile_sleeves_vs_latest_snapshot` | ⚠️ to investigate |
 | Account/equity state | `refresh_account_state` → `compute_account_state` | `_build_sleeve_state` (from sleeve positions) | ⚠️ to investigate |
 | Risk snapshots | (none) | `portfolio_risk_snapshots` + `sleeve_risk_decisions` | ⚠️ to investigate |
 | Order repositories | `broker_orders` | `broker_orders` + `sleeve_orders` | ⚠️ to investigate |
 | Intent model | selection tuple `(side, ticker, qty, ...)` | `SleeveTradeIntent` dataclass | ⚠️ to investigate |
 
-Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ candidate, not yet deeply verified.
+Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplication/divergence · ⚠️ candidate, not yet deeply verified.
 
 ## Workstreams
 
@@ -132,6 +132,13 @@ Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ 
   - Collapse account episode rotation and sleeve champion/challenger onto the Now #1 decision-score
     contract; reduce the rotation module sprawl (`auto_trading/rotation.py`, `runtime_rotation.py`,
     `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`).
+  - Post-1b, `shadow_evaluation` is a thin candidate-enumeration step — its separate challenger
+    scoring path is gone, so it is a rename/absorb candidate. The behavior-preserving naming work
+    (rename `shadow_evaluation`, disambiguate the two "rotation" meanings, clarify the
+    evaluation/promotion/analysis/reporting boundaries) is tracked as Roadmap Later #4
+    (Decisioning legibility & naming pass) and is best done alongside this step.
+  - Keep evaluation, promotion, and rotation as small SRP pieces that share the one decision-score
+    contract under a legible "decisioning" grouping — not a monolith.
   - **Depends on Roadmap Now #1a** (shared decision-score contract).
 - [ ] **2c. Unified accounting/ledger path**
   - Make sleeve fills a clean extension of the single ledger-update path rather than a divergent copy
@@ -188,3 +195,8 @@ Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ 
   virtual (A) vs physical-table-rework (B) as an open realization decision; current lean is virtual
   short-term, with a pre-live table review to revisit (B). Updated open questions and investigation
   items accordingly.
+- 2026-07-01 — Now #1b landed: sleeve rotation now scores incumbent + challengers through the
+  decision-score contract (current-state "Scoring metrics" row now partial). Marked
+  `shadow_evaluation` as a rename/absorb candidate under 2b and recorded the decisioning
+  legibility/naming direction (tracked as Roadmap Later #4). Added the Roadmap Next item for a
+  unified parameter source (param sprawl across ~5 stores).
