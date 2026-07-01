@@ -33,7 +33,7 @@ def test_main_registers_tasks_with_repo_root(monkeypatch, tmp_path: Path, _run_m
     captured: dict[str, object] = {}
     monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
 
-    def fake_register(tasks, *, repo_root, python_exe, dry_run):
+    def fake_register(tasks, *, repo_root, python_exe, dry_run, **_kwargs):
         captured["tasks"] = tasks
         captured["repo_root"] = repo_root
         captured["python_exe"] = python_exe
@@ -61,7 +61,7 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
     captured: dict[str, object] = {}
     monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
 
-    def fake_register(tasks, *, repo_root, python_exe, dry_run):
+    def fake_register(tasks, *, repo_root, python_exe, dry_run, **_kwargs):
         captured["tasks"] = tasks
         return 0
 
@@ -86,7 +86,7 @@ def test_main_registers_weekly_backup_with_daily_tasks(monkeypatch, tmp_path: Pa
 def test_main_unregisters_all_default_task_names(monkeypatch, _run_main_with_args) -> None:
     captured: dict[str, object] = {}
 
-    def fake_unregister(task_names, *, dry_run):
+    def fake_unregister(task_names, *, dry_run, **_kwargs):
         captured["task_names"] = task_names
         captured["dry_run"] = dry_run
         return 0
@@ -103,6 +103,62 @@ def test_main_unregisters_all_default_task_names(monkeypatch, _run_main_with_arg
         r"Trading\DailyTraderHealthCheck",
         r"Trading\WeeklyDbBackup",
     ]
+
+
+def test_main_forwards_scheduler_options_to_register(monkeypatch, tmp_path: Path, _run_main_with_args) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
+
+    def fake_register(tasks, *, repo_root, python_exe, dry_run, scheduler_type, wake_system, env_file):
+        captured["scheduler_type"] = scheduler_type
+        captured["wake_system"] = wake_system
+        captured["env_file"] = env_file
+        return 0
+
+    monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
+
+    assert (
+        _run_main_with_args(
+            daily_paper_trading_time="13:00",
+            scheduler="systemd",
+            wake_system=False,
+            env_file="/etc/trading/.env",
+        )
+        == 0
+    )
+    assert captured["scheduler_type"] == "systemd"
+    assert captured["wake_system"] is False
+    assert captured["env_file"] == Path("/etc/trading/.env")
+
+
+def test_main_register_converts_empty_env_file_to_none(monkeypatch, tmp_path: Path, _run_main_with_args) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
+
+    def fake_register(tasks, *, env_file, **_kwargs):
+        captured["env_file"] = env_file
+        return 0
+
+    monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
+
+    assert _run_main_with_args(daily_paper_trading_time="13:00") == 0
+    assert captured["env_file"] is None
+
+
+def test_main_unregister_forwards_scheduler_and_repo_root(monkeypatch, tmp_path: Path, _run_main_with_args) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
+
+    def fake_unregister(task_names, *, dry_run, scheduler_type, repo_root):
+        captured["scheduler_type"] = scheduler_type
+        captured["repo_root"] = repo_root
+        return 0
+
+    monkeypatch.setattr(module, "unregister_tasks_for_platform", fake_unregister)
+
+    assert _run_main_with_args(unregister=True, scheduler="cron") == 0
+    assert captured["scheduler_type"] == "cron"
+    assert captured["repo_root"] == tmp_path
 
 
 def test_main_rejects_non_positive_health_check_threshold(_run_main_with_args, capsys) -> None:

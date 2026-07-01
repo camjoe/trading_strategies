@@ -29,6 +29,7 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
+| `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
 | `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
@@ -54,6 +55,7 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `db-migration/validate-migration.md` | `db-migration/` | Validate safety and correctness checklist |
 | `db-migration/estimate-risk.md` | `db-migration/` | Blast radius, index needs, backtest impact |
 | `db-migration/generate-rollback.md` | `db-migration/` | Rollback strategy for SQLite schema changes |
+| `create-runtime-job/templates.md` | `create-runtime-job/` | Module + test + sentinel + schedule scaffolding templates |
 | `update-documentation/docs-sync.md` | `update-documentation/` | Active docs drift sync |
 | `validate-code/layer-check.md` | `validate-code/` | Layer boundary check |
 | `validate-code/lint.md` | `validate-code/` | Ruff + eslint/tsc lint |

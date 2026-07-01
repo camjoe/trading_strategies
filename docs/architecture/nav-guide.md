@@ -76,8 +76,8 @@ The maps and this guide serve different questions:
 | Add a new daily job | `src/trading/interfaces/runtime/jobs/daily/` |
 | Add a governance review job | `src/trading/interfaces/runtime/jobs/governance/weekly/` or `monthly/` |
 | Add a maintenance job | `src/trading/interfaces/runtime/jobs/maintenance/` |
-| Change daily DAG sequencing | `src/trading/interfaces/runtime/jobs/daily/paper_trading_dag.py` |
-| Install/update job schedules | `src/trading/interfaces/runtime/jobs/manage_job_schedules.py` |
+| Change daily DAG sequencing | `src/trading/interfaces/runtime/jobs/daily/paper_trading/dag.py` |
+| Install/update job schedules | `src/trading/interfaces/runtime/scheduling/manage_job_schedules.py` |
 | Check current job status | `python scripts/check_jobs.py` |
 
 ---

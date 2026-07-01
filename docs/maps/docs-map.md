@@ -46,6 +46,7 @@ Orientation docs — typically the first thing read when entering a package. Go 
 | `docs/README.md` | Docs folder navigation index; links to all maps and conventions | A doc file is added, moved, or removed |
 | `src/trading/README.md` | `src/trading/` package overview and layering summary | Top-level `src/trading/` structure changes |
 | `src/trading/backtesting/README.md` | Backtesting subsystem orientation | `src/trading/backtesting/` entry points change |
+| `src/trading/interfaces/runtime/README.md` | Runtime surface index: which modules are runnable (scheduled/operator/worker) vs library | A runtime job, scheduling, or data-ops module is added/moved |
 | `tests/README.md` | Test suite layout and how to run tests | Test runner, directory structure, or CI config changes |
 | `tests/support/README.md` | Test support utilities and shared fixtures | `tests/support/` contents change |
 | `apps/trends/README.md` | Trend/signal data assets | `apps/trends/` layout or data sources change |
@@ -88,6 +89,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
+| `docs/roadmap.md` | Outstanding product improvements backlog (partials + Now/Next/Later) | A roadmap item ships or product priorities change |
 
 ### ADRs
 

@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
 import trading.services.auto_trading.runtime_rotation as rotation_runtime_service

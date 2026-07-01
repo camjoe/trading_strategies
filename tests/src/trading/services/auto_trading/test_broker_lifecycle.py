@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from trading.interfaces.runtime.jobs.run_auto_trades import run_for_account
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
 import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import (

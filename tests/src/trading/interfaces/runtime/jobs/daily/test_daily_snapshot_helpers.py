@@ -7,14 +7,6 @@ from trading.interfaces.runtime.jobs.job_helpers import retry_delay_seconds
 from tests.src.trading.interfaces.runtime.jobs.loaders import daily_snapshot as module
 
 
-def test_already_completed_today_detects_sentinel(tmp_path: Path) -> None:
-    day_tag = "20260325"
-    log = tmp_path / f"daily_snapshot_{day_tag}_010101.log"
-    log.write_text(f"anything\n{module.COMPLETE_SENTINEL}\n", encoding="utf-8")
-
-    assert module.already_completed_today(tmp_path, day_tag) is True
-
-
 def test_retry_delay_seconds_doubles_each_attempt() -> None:
     assert retry_delay_seconds(2.0, 1) == 2.0
     assert retry_delay_seconds(2.0, 2) == 4.0

@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timedelta
+from pathlib import Path
 import sys
 
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import DAILY_CHALLENGER_SHADOW_EVAL_MODULE
-from trading.interfaces.runtime.jobs.scheduler_installer import (
+from trading.interfaces.runtime.scheduling.scheduler_installer import (
     ScheduledTaskSpec,
     register_tasks_for_platform,
     unregister_tasks_for_platform,
@@ -35,6 +36,15 @@ SCHEDULE_TIME_FORMAT = "%H:%M"
 MINUTES_PER_DAY = 24 * 60
 # Default lead time to run shadow evaluation before daily paper trading.
 DEFAULT_SHADOW_EVAL_LEAD_MINUTES = 20
+
+
+def _default_python() -> str:
+    """Return the venv python path when running inside a venv, else sys.executable."""
+    if sys.prefix != sys.base_prefix:
+        venv_python = Path(sys.prefix) / "bin" / "python"
+        if venv_python.exists():
+            return str(venv_python)
+    return sys.executable
 
 
 def _scheduled_task(
@@ -165,7 +175,38 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--unregister", action="store_true", help="Remove schedule entries")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without applying")
-    parser.add_argument("--python", default=sys.executable, help="Python executable used by scheduler")
+    parser.add_argument(
+        "--python",
+        default=_default_python(),
+        help="Python executable used by scheduler (default: auto-detected venv python)",
+    )
+    parser.add_argument(
+        "--scheduler",
+        choices=["auto", "cron", "systemd"],
+        default="auto",
+        help="Scheduler backend: 'auto' picks systemd on Linux if available, else cron (default: auto)",
+    )
+    parser.add_argument(
+        "--wake-system",
+        action="store_true",
+        default=True,
+        help="Configure systemd timers to wake the system from sleep (default: true)",
+    )
+    parser.add_argument(
+        "--no-wake-system",
+        action="store_false",
+        dest="wake_system",
+        help="Disable WakeSystem on systemd timers",
+    )
+    parser.add_argument(
+        "--env-file",
+        default="",
+        help=(
+            "Path to a .env file to inject into each systemd service unit via EnvironmentFile=. "
+            "The file is treated as optional (missing file is not an error). "
+            "Has no effect when using cron or Windows Task Scheduler."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -310,6 +351,8 @@ def main() -> int:
             code = unregister_tasks_for_platform(
                 default_task_names(args),
                 dry_run=args.dry_run,
+                scheduler_type=args.scheduler,
+                repo_root=repo_root,
             )
         else:
             tasks = build_scheduled_tasks(args)
@@ -325,6 +368,9 @@ def main() -> int:
                 repo_root=repo_root,
                 python_exe=args.python,
                 dry_run=args.dry_run,
+                scheduler_type=args.scheduler,
+                wake_system=args.wake_system,
+                env_file=Path(args.env_file) if args.env_file else None,
             )
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)

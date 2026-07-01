@@ -18,7 +18,7 @@ Explain the top-level `src/trading/` structure as a **hybrid architecture**:
 
 ### Layered Backbone
 
-- `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/data_ops`)
+- `src/trading/interfaces/`: transport and operator entrypoints (`cli`, `runtime/jobs`, `runtime/scheduling`, `runtime/data_ops`)
 - `src/trading/services/`: orchestration/composition workflows
 - `src/trading/repositories/`: SQL persistence adapters
 - `src/trading/domain/`: side-effect-free policy/math/state-transition logic and DI contracts (`BrokerConnection`, `FeatureFetcherSet`, `StrategySpec`)
@@ -49,27 +49,29 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `commands/accounts.py` | Click commands for account actions |
-| `commands/backtesting.py` | Click commands for backtesting |
-| `commands/reporting.py` | Click commands for reporting |
-| `commands/builder.py` | Shared Click group/command builder helpers |
-| `commands/options.py` | Reusable Click option definitions |
+| `commands/accounts.py` | argparse subcommands for account actions |
+| `commands/backtesting.py` | argparse subcommands for backtesting |
+| `commands/reporting.py` | argparse subcommands for reporting |
+| `commands/builder.py` | Assembles the argparse parser + subcommand groups |
+| `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
 | `handlers/router.py` | Top-level command-to-handler routing |
 | `handlers/shared.py` | Shared handler utilities |
-| `main.py` | CLI entry point (`@click.group`) |
+| `main.py` | CLI entrypoint (argparse); builds the parser, injects service deps, dispatches to handlers |
 
 **Runtime jobs** (`src/trading/interfaces/runtime/jobs/`)
 
 | Module | Responsibility |
 |---|---|
-| `daily/paper_trading.py` | Main daily paper-trading execution job |
-| `daily/paper_trading_dag.py` | DAG/sequencing logic for the daily job |
+| `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
+| `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
+| `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
+| `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
+| `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
+| `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
 | `daily/snapshot.py` | Daily equity snapshot job |
-| `daily/paper_trading_reporting.py` | Daily reporting artifact generation job |
-| `daily/paper_trading_caps.py` | Daily trade-cap enforcement job |
 | `daily/backtest_refresh.py` | Daily backtest result refresh job |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
 | `daily/trader_health.py` | Daily health-check job |
@@ -84,10 +86,17 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |
-| `job_runner.py` | `governance_job` decorator + `_db_session` context manager: shared lifecycle wrapper for account-scoped governance jobs (ADR 006) |
-| `manage_job_schedules.py` | Install/update OS-level job schedules |
-| `run_auto_trades.py` | Auto-trade execution runner |
-| `scheduler_installer.py` | Scheduler installation logic |
+| `job_runner/_core.py` | Private shared job-lifecycle core (parser, dedup, DB session, flows) behind the decorators (ADR 006) |
+| `job_runner/governance.py` | `governance_job` decorator — whole-run governance jobs |
+| `job_runner/daily.py` | `daily_account_job` decorator — per-account daily jobs |
+| `job_runner/maintenance.py` | `maintenance_job` decorator — non-account maintenance jobs |
+
+**Runtime scheduling** (`src/trading/interfaces/runtime/scheduling/`)
+
+| Module | Responsibility |
+|---|---|
+| `manage_job_schedules.py` | Operator entrypoint: install/remove OS-level schedules that invoke the runtime jobs |
+| `scheduler_installer.py` | Platform schedule-installation logic (cron, systemd timers, Windows Task Scheduler) |
 
 **Runtime data ops** (`src/trading/interfaces/runtime/data_ops/`)
 
