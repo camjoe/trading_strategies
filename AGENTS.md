@@ -210,7 +210,7 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 ### `fix checks`
 
 - Run `python -m scripts.fix_checks`.
-- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes and formatting.
+- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, and generated reference-doc asset sync.
 - Afterward, run `python -m scripts.run_checks --profile quick` unless the user asked only for the fixer.
 
 ### `run all checks`
@@ -310,4 +310,3 @@ Implements and interprets backtesting, walk-forward analysis, persisted run repo
 - `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
 
 Agent: `.ai/agents/backtesting-analyst.agent.md`
-

@@ -8,6 +8,8 @@ from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.ruff_check import DEFAULT_TARGETS
 from scripts.checks.shared import resolve_python_exe, run_step
+from scripts.documentation_ui.api.build_registry import run_build as build_api_reference
+from scripts.documentation_ui.software.build_registry import run_build as build_software_reference
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +32,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip `ruff format`.",
     )
+    parser.add_argument(
+        "--skip-reference-doc-sync",
+        action="store_true",
+        help="Skip generated API/software reference JSON sync.",
+    )
     return parser.parse_args()
 
 
@@ -39,6 +46,7 @@ def run_fix_checks(
     targets: list[str] | None = None,
     skip_ruff_fix: bool = False,
     skip_format: bool = False,
+    skip_reference_doc_sync: bool = False,
 ) -> int:
     selected_targets = targets or DEFAULT_TARGETS
     try:
@@ -54,6 +62,10 @@ def run_fix_checks(
                 [python_exe, "-m", "ruff", "format", *selected_targets],
                 repo_root,
             )
+        if not skip_reference_doc_sync:
+            print("\n==> Reference docs: sync generated API/software assets")
+            build_api_reference(repo_root)
+            build_software_reference(repo_root)
     except subprocess.CalledProcessError as exc:
         print(f"\nStep failed with exit code {exc.returncode}: {' '.join(exc.cmd)}")
         return exc.returncode
@@ -72,6 +84,7 @@ def main() -> int:
         targets=args.targets or None,
         skip_ruff_fix=args.skip_ruff_fix,
         skip_format=args.skip_format,
+        skip_reference_doc_sync=args.skip_reference_doc_sync,
     )
 
 

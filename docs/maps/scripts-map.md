@@ -28,8 +28,9 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 
 | Command | What it fixes |
 |---|---|
-| `python -m scripts.fix_checks` | Runs `ruff check --fix` and `ruff format` on the default Python targets |
-| `python -m scripts.fix_checks <path> [...]` | Runs the same fixes on selected Python paths |
+| `python -m scripts.fix_checks` | Runs `ruff check --fix`, `ruff format`, and generated API/software reference-doc asset sync |
+| `python -m scripts.fix_checks <path> [...]` | Runs the same fixes on selected Python paths, plus generated reference-doc asset sync |
+| `python -m scripts.fix_checks --skip-reference-doc-sync` | Runs Python lint/format fixes without generated reference-doc asset sync |
 
 ---
 
@@ -111,7 +112,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | Script | Responsibility |
 |---|---|
 | `run_checks.py` | Check runner entry point (see above) |
-| `fix_checks.py` | Deterministic local auto-fix entry point for Python lint and format drift |
+| `fix_checks.py` | Deterministic local auto-fix entry point for Python lint/format drift and generated API/software reference-doc assets |
 | `launch_ui.py` | Launch the paper trading UI (backend + frontend dev server) |
 | `ui_config.py` | UI launch configuration (ports, paths) |
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |
