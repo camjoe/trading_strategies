@@ -49,17 +49,17 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `commands/accounts.py` | Click commands for account actions |
-| `commands/backtesting.py` | Click commands for backtesting |
-| `commands/reporting.py` | Click commands for reporting |
-| `commands/builder.py` | Shared Click group/command builder helpers |
-| `commands/options.py` | Reusable Click option definitions |
+| `commands/accounts.py` | argparse subcommands for account actions |
+| `commands/backtesting.py` | argparse subcommands for backtesting |
+| `commands/reporting.py` | argparse subcommands for reporting |
+| `commands/builder.py` | Assembles the argparse parser + subcommand groups |
+| `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
 | `handlers/router.py` | Top-level command-to-handler routing |
 | `handlers/shared.py` | Shared handler utilities |
-| `main.py` | CLI entry point (`@click.group`) |
+| `main.py` | CLI entrypoint (argparse); builds the parser, injects service deps, dispatches to handlers |
 
 **Runtime jobs** (`src/trading/interfaces/runtime/jobs/`)
 

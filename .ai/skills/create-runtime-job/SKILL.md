@@ -72,6 +72,10 @@ python -m scripts.checks.pr_ready --skip-tests        # layer + lint
 - Set `open_db=True` only when the body runs against the DB in-process; leave it `False` for
   bodies that shell out to subprocesses.
 - Keep the module to constants + helpers + body. There is no `main()` logic to write.
+- If a job grows into a multi-file package (like `daily/paper_trading/`), put the entrypoint in
+  `__main__.py` and have the entrypoint smoke test run `run_module_as_main(pkg + ".__main__")` —
+  targeting the package itself pops/re-executes `__init__` and corrupts the shared module object
+  for sibling tests under xdist.
 
 ## Repo references
 
