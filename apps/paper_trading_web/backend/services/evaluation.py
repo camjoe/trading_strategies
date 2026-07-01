@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from trading.domain.evaluation_decision_score import derive_decision_score
 from trading.models.evaluation import StrategyEvaluationArtifact
 
 
 def build_evaluation_summary_payload(artifact: StrategyEvaluationArtifact) -> dict[str, object]:
-    confidence = artifact.confidence
+    decision = derive_decision_score(artifact)
     return {
-        "blendedScore": confidence.blended_score,
-        "overallConfidence": confidence.overall_confidence,
-        "backtestConfidence": confidence.backtest_confidence,
-        "paperLiveConfidence": confidence.paper_live_confidence,
-        "dataGaps": list(artifact.diagnostics.data_gaps),
+        "blendedScore": decision.score,
+        "overallConfidence": decision.confidence,
+        "backtestConfidence": decision.backtest_confidence,
+        "paperLiveConfidence": decision.paper_live_confidence,
+        "dataGaps": list(decision.data_gaps),
     }
 
 

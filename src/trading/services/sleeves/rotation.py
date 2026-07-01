@@ -7,18 +7,13 @@ import sqlite3
 
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
-from trading.services.sleeves.helpers import mean as _sleeve_mean
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 from trading.domain.sleeve_rotation import evaluate_champion_challenger_rotation
 from trading.models.sleeves.sleeve_rotation_decision import SleeveRotationDecision
 from trading.models.sleeves.sleeve_rotation_score_weights import SleeveRotationScoreWeights
 from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
-from trading.models.portfolio.daily_metric_record import DailyMetricRecord
-from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
-
-BASIS_POINTS_TO_PERCENT = 0.01
 
 DEFAULT_ROLLING_WINDOW_DAYS = 30
 DEFAULT_MIN_TRADES_IN_WINDOW = 20
@@ -51,10 +46,6 @@ class SleeveRotationRunResult:
     window_end_date: str
 
 
-def _average(values: list[float]) -> float:
-    return _sleeve_mean(values)
-
-
 def _weights_from_config(config: SleeveRotationConfig) -> SleeveRotationScoreWeights:
     return SleeveRotationScoreWeights(
         risk_adjusted_return_weight=float(config.risk_adjusted_return_weight),
@@ -67,35 +58,6 @@ def _weights_from_config(config: SleeveRotationConfig) -> SleeveRotationScoreWei
 
 def _resolve_window_bounds(*, as_of_iso: str, rolling_window_days: int) -> tuple[str, str]:
     return _resolve_window_bounds_shared(as_of_iso=as_of_iso, rolling_window_days=rolling_window_days)
-
-
-def _build_incumbent_metrics(
-    *,
-    strategy_name: str,
-    param_set_id: int | None,
-    rows: list[DailyMetricRecord],
-) -> SleeveStrategyMetrics:
-    risk_adjusted_scores = [row.risk_adjusted_score for row in rows if row.risk_adjusted_score is not None]
-    return_pcts = [row.return_pct for row in rows if row.return_pct is not None]
-    hit_rates = [row.hit_rate for row in rows if row.hit_rate is not None]
-    drawdown_values = [row.drawdown_pct for row in rows if row.drawdown_pct is not None]
-    slippage_bps_values = [row.slippage_bps for row in rows if row.slippage_bps is not None]
-    trade_count = sum(row.trade_count for row in rows if row.trade_count is not None)
-    drawdown_penalty = abs(min(drawdown_values)) if drawdown_values else 0.0
-
-    risk_adjusted_return = _average(risk_adjusted_scores) if risk_adjusted_scores else _average(return_pcts)
-    stability = _average(hit_rates)
-    cost_penalty = _average(slippage_bps_values) * BASIS_POINTS_TO_PERCENT
-    return SleeveStrategyMetrics(
-        strategy_name=strategy_name,
-        param_set_id=param_set_id,
-        trade_count=trade_count,
-        risk_adjusted_return=risk_adjusted_return,
-        stability=stability,
-        drawdown_penalty=drawdown_penalty,
-        cost_penalty=cost_penalty,
-        regime_fit=0.0,
-    )
 
 
 def _is_cooldown_active(
@@ -135,6 +97,7 @@ def evaluate_and_apply_sleeve_rotation(
     conn: sqlite3.Connection,
     *,
     sleeve_id: int,
+    incumbent: SleeveStrategyMetrics,
     challengers: list[SleeveStrategyMetrics],
     config: SleeveRotationConfig = SleeveRotationConfig(),
     decision_time: str | None = None,
@@ -150,16 +113,6 @@ def evaluate_and_apply_sleeve_rotation(
     window_start_date, window_end_date = _resolve_window_bounds(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
-    )
-    metric_rows = DailyMetricsRepository(conn).fetch_for_sleeve_window(
-        sleeve_id=int(sleeve_id),
-        start_date=window_start_date,
-        end_date=window_end_date,
-    )
-    incumbent_metrics = _build_incumbent_metrics(
-        strategy_name=incumbent_strategy,
-        param_set_id=incumbent_param_set_id,
-        rows=metric_rows,
     )
     latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=int(sleeve_id))
     latest_rotate_time = (
@@ -179,7 +132,7 @@ def evaluate_and_apply_sleeve_rotation(
         challengers=challengers,
     )
     decision = evaluate_champion_challenger_rotation(
-        incumbent=incumbent_metrics,
+        incumbent=incumbent,
         challengers=normalized_challengers,
         min_trades_in_window=max(1, int(config.min_trades_in_window)),
         outperformance_threshold_bps=float(config.outperformance_threshold_bps),
