@@ -8,6 +8,7 @@ Purpose: Definitive top-level explainer and guiding north star for the app — w
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the detailed backlog in [roadmap.md](roadmap.md) and the plans it references.
 Related: [Roadmap](roadmap.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md),
 [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline. When priorities or capabilities change, update this

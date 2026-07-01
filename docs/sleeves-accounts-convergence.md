@@ -68,10 +68,12 @@ The default trading unit can be modeled two ways:
   amount of polymorphism (two backings) in exchange for keeping account semantics unchanged. Matches
   ADR Reuse #3.
 - **(B) Physical table rework.** Give every account a real default trading-unit row and reparent
-  ledger/positions/orders onto units. Purest single-backing model, but a backfill on the most
-  safety-critical tables. Because we are **not yet live production**, there is a genuine window to
-  re-evaluate whether the current tables meet our needs and, if so, do this rework before that window
-  closes. Higher up-front risk/effort; cleanest end state.
+  ledger/positions/orders onto units. Purest single-backing model. Because we are **not yet live
+  production** and are willing to drop existing data, this is a **greenfield schema init with no data
+  migration** — which removes the backfill risk that would otherwise dominate. A concrete target
+  schema is drafted in the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md); adopting it
+  is this option. Cleanest end state; larger up-front build, but it collapses much of 2a/2b/2c into
+  "build once on the new schema."
 
 **Decision status:** leaning (A) virtual short-term to unblock convergence without a hot-table
 migration. Keep (B) open: schedule a deliberate pre-live table review and decide before live
@@ -200,3 +202,7 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
   `shadow_evaluation` as a rename/absorb candidate under 2b and recorded the decisioning
   legibility/naming direction (tracked as Roadmap Later #4). Added the Roadmap Next item for a
   unified parameter source (param sprawl across ~5 stores).
+- 2026-07-01 — Drafted the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md) concretizing
+  realization option (B). Reframed (B) as greenfield (no data migration, old data dropped), which
+  removes the backfill risk and means adopting the spec collapses much of 2a/2b/2c into a
+  build-once-on-clean-schema effort. Realization decision (A vs B) remains open.

@@ -28,6 +28,9 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 - [`roadmap.md`](roadmap.md) — outstanding product improvements backlog (partials + Now/Next/Later)
 - [`sleeves-accounts-convergence.md`](sleeves-accounts-convergence.md) — living plan + progress tracker for converging account and sleeve trading paths onto shared services
+- [`db-schema-rewrite-spec.md`](db-schema-rewrite-spec.md) — draft target schema for a clean, goals-aligned database rewrite (the convergence "option B", greenfield, no data migration)
+- [`db-schema-target.md`](db-schema-target.md) — the proposed final schema on its own (WIP), without old-schema/change framing
+- [`developer-notes.md`](developer-notes.md) — developer working notes, pre-implementation checks, and a quick task/timeline snapshot
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
