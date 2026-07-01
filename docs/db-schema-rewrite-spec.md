@@ -7,7 +7,7 @@ Last Reviewed: 2026-07-01
 Purpose: Capture a target database schema aligned with the app's goals, so a clean rewrite can be
 executed quickly when the time is right. This is the concrete form of the convergence plan's
 "physical table rework (option B)". No decision to execute has been made.
-Related: [Overview](overview.md), [Roadmap](roadmap.md),
+Related: [Overview](overview.md), [Plan](plan.md),
 [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
 [Architecture Conventions](architecture/architecture-conventions.md),
 [DB Migration System](reference/db-migration-system.md),
@@ -24,7 +24,7 @@ Related: [Overview](overview.md), [Roadmap](roadmap.md),
   of the [trading-unit design stance](sleeves-accounts-convergence.md). If we do it, several
   incremental convergence sub-features (2a/2b/2c) become "build once on the clean schema" instead of
   "migrate two live paths."
-- **When to pull the trigger (proposed):** after the execution loop is closed (Roadmap Now #3) and
+- **When to pull the trigger (proposed):** after the execution loop is closed (Plan Now #3) and
   before live enablement — when schema changes are cheapest and the runtime behavior is known-good.
 
 ## Data-loss assessment (2026-07-01)
@@ -109,7 +109,7 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
 
 - **`strategies`** (new) — data-driven registry bound to a code **primitive**: `id`, `strategy_key`,
   `primitive` (the code signal-primitive name), `style`, `required_features` (json), `description`,
-  `enabled`. Enables Roadmap Now #4 (plug-and-play).
+  `enabled`. Enables Plan Now #4 (plug-and-play).
 - **`strategy_param_sets`** — as today but FK to `strategies.id`: `id`, `strategy_id`, `version`,
   `params_json`, `is_active`, lifecycle timestamps, `notes`.
 - **`parameters`** (new, single parameter source) — operator-tunable settings as typed rows
@@ -189,6 +189,8 @@ that assemble unit-vs-account reads — which the convergence plan already targe
 
 ## Cross-cutting open decisions
 
+Canonical status for these is tracked in [decisions.md](decisions.md) (D2, D4, D5, D6, D7); detail here.
+
 1. **Default unit: real row vs virtual** — a rewrite makes a real default-unit row natural and cheap
    (no backfill). Leaning real-row here, which resolves the convergence A/B question toward B.
 2. **`parameters` model shape** — typed key/value rows with scope precedence vs a small set of typed
@@ -206,7 +208,7 @@ that assemble unit-vs-account reads — which the convergence plan already targe
 
 ## Trigger checklist (when to execute)
 
-- [ ] Execution loop closed (Roadmap Now #3) so runtime behavior is known-good on the new tables.
+- [ ] Execution loop closed (Plan Now #3) so runtime behavior is known-good on the new tables.
 - [ ] Convergence A/B decision has landed on B (physical rework).
 - [ ] Parameter model shape (open decision #2) chosen.
 - [ ] A pre-live window confirmed (cheapest time to change schema).

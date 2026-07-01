@@ -89,7 +89,13 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
-| `docs/roadmap.md` | Outstanding product improvements backlog (partials + Now/Next/Later) | A roadmap item ships or product priorities change |
+| `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
+| `docs/plan.md` | Tasks/order/status/timelines tracker (status board + Now/Next/Later) | A task ships, priorities change, or estimates are set |
+| `docs/decisions.md` | Consolidated open decisions ("what needs defining") | A decision is made, added, or its status changes |
+| `docs/sleeves-accounts-convergence.md` | Design detail for converging account/sleeve trading paths | Convergence design, workstreams, or the A/B stance change |
+| `docs/db-schema-rewrite-spec.md` | Rationale + target for a clean DB rewrite (option B, greenfield) | DB rewrite scope, data-loss picture, or open decisions change |
+| `docs/db-schema-target.md` | Proposed final schema on its own (WIP) | Target tables/columns change |
+| `docs/developer-notes.md` | Developer gotchas + pre-implementation checks | Recurring dev pitfalls or required checks change |
 
 ### ADRs
 

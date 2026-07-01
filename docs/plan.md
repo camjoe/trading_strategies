@@ -1,15 +1,35 @@
-# Product Roadmap
+# Execution Plan & Task Tracker
 
-Type: notes
+Type: plan
 Status: Active
 Created: 2026-06-29
 Last Reviewed: 2026-07-01
-Purpose: Single living backlog and progress tracker for outstanding product improvements — partials to finish and Now/Next/Later work — each pointing at the code it touches.
-Related: [Overview](overview.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [Docs Map](maps/docs-map.md), [Trading Package Map](maps/trading-package-map.md), [UI Map](maps/ui-map.md)
+Purpose: The single source for tasks, order, status, and timelines — the itemized backlog and progress tracker. What needs to be *defined* (open decisions) lives in [decisions.md](decisions.md); the entry-point north star is [overview.md](overview.md).
+Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Developer Notes](developer-notes.md)
 
-> The definitive north star and authoritative priority order live in [overview.md](overview.md).
-> This file is the detailed, itemized backlog. Item numbers are identifiers, not priority — see the
-> overview's "Direction & plan" and the "Current cycle sequencing" section below for order.
+> Single source for **tasks / order / status / timelines**. Open decisions ("what needs defining")
+> are consolidated in [decisions.md](decisions.md). Entry-point overview is [overview.md](overview.md).
+> Item numbers are identifiers, not priority — see the Status board and Current cycle sequencing for order.
+
+## Status board
+
+Glance-level status. Detailed items below. Estimates are TBD (next planning pass).
+
+| # | Initiative | Status | Est. | Key open decisions |
+|---|---|---|---|---|
+| Now #3 | Close the execution loop (keystone) | ☐ not started | TBD | [D1](decisions.md#d1) |
+| Now #1 | Unify evaluation | ◑ 1a ✅ · 1b ✅ · 1c ☐ | TBD | — |
+| Now #4 | Plug-and-play strategy & provider catalog | ☐ not started | TBD | [D5](decisions.md#d5) |
+| Now #2 | Converge accounts & sleeves | ☐ not started | TBD | [D2](decisions.md#d2), [D3](decisions.md#d3) |
+| — | DB schema rewrite (option B) | ✎ spec drafted | TBD | [D2](decisions.md#d2), [D3](decisions.md#d3), [D4](decisions.md#d4) |
+| Next #1 | Email notifications | ☐ not started | TBD | [D8](decisions.md#d8) |
+| Next #2 | Unified parameter source | ☐ not started | TBD | [D4](decisions.md#d4) |
+| Later #1 | Adaptive learning | ☐ deferred | TBD | [D9](decisions.md#d9) |
+| Later #2 | Portfolio risk rollup | ☐ deferred | TBD | [D10](decisions.md#d10) |
+| Later #3 | Strategy parameter optimization | ☐ deferred | TBD | [D11](decisions.md#d11) |
+| Later #4 | Decisioning legibility & naming pass | ☐ deferred | TBD | [D13](decisions.md#d13) |
+
+Legend: ✅ done · ◑ in progress · ✎ spec/plan only · ☐ not started.
 
 ## Product Goal
 

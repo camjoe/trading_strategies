@@ -7,8 +7,8 @@ Last Reviewed: 2026-07-01
 Purpose: Living implementation and progress tracker for converging the parallel account-mode and
 sleeve-mode trading paths onto shared, single-responsibility services — so behavior, safety, and
 scoring are consistent and the test/paper/live environments require minimal per-path change.
-Related: [Roadmap Now #2](roadmap.md#2-converge-accounts-and-sleeves-on-shared-services),
-[Roadmap Now #1](roadmap.md#1-unify-evaluation-across-decision-surfaces),
+Related: [Plan Now #2](plan.md#2-converge-accounts-and-sleeves-on-shared-services),
+[Plan Now #1](plan.md#1-unify-evaluation-across-decision-surfaces),
 [Architecture Conventions](architecture/architecture-conventions.md),
 [ADR 003 — Sleeve Virtualization](adr/003-sleeve-virtualization-architecture.md),
 [Broker Integration](reference/broker-integration.md)
@@ -137,11 +137,11 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
   - Post-1b, `shadow_evaluation` is a thin candidate-enumeration step — its separate challenger
     scoring path is gone, so it is a rename/absorb candidate. The behavior-preserving naming work
     (rename `shadow_evaluation`, disambiguate the two "rotation" meanings, clarify the
-    evaluation/promotion/analysis/reporting boundaries) is tracked as Roadmap Later #4
+    evaluation/promotion/analysis/reporting boundaries) is tracked as Plan Later #4
     (Decisioning legibility & naming pass) and is best done alongside this step.
   - Keep evaluation, promotion, and rotation as small SRP pieces that share the one decision-score
     contract under a legible "decisioning" grouping — not a monolith.
-  - **Depends on Roadmap Now #1a** (shared decision-score contract).
+  - **Depends on Plan Now #1a** (shared decision-score contract).
 - [ ] **2c. Unified accounting/ledger path**
   - Make sleeve fills a clean extension of the single ledger-update path rather than a divergent copy
     of `record_trade`.
@@ -163,7 +163,7 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 
 ## Dependencies & sequencing
 
-- **1a → 1b and 2b.** The shared decision-score contract (Roadmap Now #1a) unblocks both the
+- **1a → 1b and 2b.** The shared decision-score contract (Plan Now #1a) unblocks both the
   rotation migration (1b) and the unified rotation/selection here (2b).
 - **1b checkpoint (entry point to this plan).** Narrow 1b (repoint rotation scoring onto the 1a
   contract, both paradigms intact) needs neither the trading-unit stance nor the A/B decision. The
@@ -176,6 +176,8 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
   once 1a lands.
 
 ## Open questions
+
+Canonical status is tracked in [decisions.md](decisions.md) (D2, D3, D7); design detail here.
 
 - **Realization: virtual default unit (A) vs physical table rework (B)** — see Design stance.
   Leaning (A) short-term; revisit (B) in a pre-live table review before live enablement. This gates
@@ -200,7 +202,7 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 - 2026-07-01 — Now #1b landed: sleeve rotation now scores incumbent + challengers through the
   decision-score contract (current-state "Scoring metrics" row now partial). Marked
   `shadow_evaluation` as a rename/absorb candidate under 2b and recorded the decisioning
-  legibility/naming direction (tracked as Roadmap Later #4). Added the Roadmap Next item for a
+  legibility/naming direction (tracked as Plan Later #4). Added the Plan Next item for a
   unified parameter source (param sprawl across ~5 stores).
 - 2026-07-01 — Drafted the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md) concretizing
   realization option (B). Reframed (B) as greenfield (no data migration, old data dropped), which

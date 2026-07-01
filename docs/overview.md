@@ -6,13 +6,13 @@ Created: 2026-07-01
 Last Reviewed: 2026-07-01
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
-frames the detailed backlog in [roadmap.md](roadmap.md) and the plans it references.
-Related: [Roadmap](roadmap.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
+frames the detailed backlog in [plan.md](plan.md) and the plans it references.
+Related: [Plan](plan.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
 [DB Schema Rewrite Spec](db-schema-rewrite-spec.md),
 [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline. When priorities or capabilities change, update this
-> file first, then reconcile the detailed items in [roadmap.md](roadmap.md).
+> file first, then reconcile the detailed items in [plan.md](plan.md).
 
 ## What this app is
 
@@ -91,7 +91,7 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   but only once parameters are wired through (above).
 - **Two rotation paradigms and duplicated account/sleeve orchestration** — see the
   [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
-- **Parameters are scattered** across ~5 stores with no single view — see Roadmap Next "Unified
+- **Parameters are scattered** across ~5 stores with no single view — see Plan Next "Unified
   parameter source".
 
 ## How it works (architecture)
@@ -124,9 +124,10 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 
 ## Direction & plan (north star)
 
-The definitive priority order. Detailed, itemized tracking lives in [roadmap.md](roadmap.md);
-convergence detail lives in the [convergence plan](sleeves-accounts-convergence.md). Item numbers in
-the roadmap are identifiers, not priority — this section is the authoritative order.
+The high-level priority order below is the strategic north star. The **authoritative, itemized
+tracker** (tasks / order / status / timelines) is [plan.md](plan.md); open decisions ("what needs
+defining") are consolidated in [decisions.md](decisions.md); convergence detail lives in the
+[convergence plan](sleeves-accounts-convergence.md).
 
 1. **Close the execution loop (keystone).** Wire strategy signals into live/paper execution and apply
    parameter sets to signal evaluation end-to-end, so the trader actually runs the strategy (and
