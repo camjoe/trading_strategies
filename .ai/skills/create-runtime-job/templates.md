@@ -222,7 +222,7 @@ def test_runs_and_writes_sentinel(monkeypatch, tmp_path) -> None:
 
 ## Governance test
 
-Mirror `tests/.../governance/weekly/test_w1_leaderboard.py`: it uses
+Mirror `tests/src/trading/interfaces/runtime/jobs/governance/weekly/test_w1_leaderboard.py`: it uses
 `run_runtime_job_with_args` plus `stub_runtime_job_basics(monkeypatch, module, ...)` to stub
 the DB/account surfaces, and reads the artifact from `tmp_path / "local" / "artifacts"`.
 

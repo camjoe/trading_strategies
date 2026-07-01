@@ -65,7 +65,8 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 
 | Module | Responsibility |
 |---|---|
-| `daily/paper_trading/` | Daily paper-trading job package; entrypoint in `__main__` (run via `-m …daily.paper_trading`) |
+| `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
+| `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
@@ -85,7 +86,10 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |
-| `job_runner/` | Shared job-lifecycle package: `governance_job`, `daily_account_job`, and `maintenance_job` decorators over a private `_core` (ADR 006) |
+| `job_runner/_core.py` | Private shared job-lifecycle core (parser, dedup, DB session, flows) behind the decorators (ADR 006) |
+| `job_runner/governance.py` | `governance_job` decorator — whole-run governance jobs |
+| `job_runner/daily.py` | `daily_account_job` decorator — per-account daily jobs |
+| `job_runner/maintenance.py` | `maintenance_job` decorator — non-account maintenance jobs |
 
 **Runtime scheduling** (`src/trading/interfaces/runtime/scheduling/`)
 
