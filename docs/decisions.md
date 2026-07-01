@@ -42,12 +42,23 @@ approach and its timelines).
 
 Gates: Plan Now #3 (close the execution loop). **Open, near-term.**
 
-- How does `signal_fn` output (buy/sell/hold per candidate) map onto the existing sizing/risk/
-  selection flow (`prepare_trade_selection`, `choose_buy_qty`, forced-sell/risk gates)?
-- How do backtest and live share the *same* signal+param path so backtest evidence reflects live
-  behavior?
-- Where do resolved params come from — param set vs account override vs strategy default — and what
-  is the precedence?
+The backtest model to mirror ([`backtesting/services/execution_service.py`](../src/trading/backtesting/services/execution_service.py)):
+per ticker in the universe, `history = close.loc[:signal_date, ticker]` → `resolve_signal(strategy,
+history, feature_history)` → act on buy/sell/hold. Live should evaluate the same way.
+
+- **Runtime history source.** Live selection today receives only latest `prices` (a dict), not the
+  per-ticker `pd.Series` history signals need. Decide how the runtime fetches history —
+  `MarketDataProvider.fetch_close_series(ticker, period)` exists and `run_for_account` already accepts
+  an injectable `provider`; decide period/lookback, caching, and per-run cost across the universe.
+- **Selection policy.** `signal_fn` yields buy/sell/hold *per ticker*, but the live loop currently
+  picks one ticker via `min_trades/max_trades`. Decide how per-ticker signals map to "which tickers
+  to act on this run" (all buy-signaled subject to cash/sizing, like backtest? capped? ranked how?).
+- **Sizing/risk mapping.** How signal output feeds the existing `choose_buy_qty`, forced-sell, and
+  sleeve risk-gate flow.
+- **Backtest/live parity.** Ensure both call one shared signal+param evaluation path so backtest
+  evidence reflects live behavior.
+- **Param precedence.** Where resolved params come from — param set vs account override vs strategy
+  default — and the precedence order.
 
 <a id="d2"></a>
 ### D2 — Convergence realization: virtual (A) vs physical rework (B)

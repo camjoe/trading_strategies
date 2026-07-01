@@ -13,21 +13,25 @@ Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts
 
 ## Status board
 
-Glance-level status. Detailed items below. Estimates are TBD (next planning pass).
+Glance-level status. Detailed items below. Estimates are rough t-shirt sizes:
+**S** ≈ ≤1 day · **M** ≈ a few days · **L** ≈ ~1–2 weeks. Remaining estimates are filled in per pass.
 
 | # | Initiative | Status | Est. | Key open decisions |
 |---|---|---|---|---|
-| Now #3 | Close the execution loop (keystone) | ☐ not started | TBD | [D1](decisions.md#d1) |
-| Now #1 | Unify evaluation | ◑ 1a ✅ · 1b ✅ · 1c ☐ | TBD | — |
-| Now #4 | Plug-and-play strategy & provider catalog | ☐ not started | TBD | [D5](decisions.md#d5) |
-| Now #2 | Converge accounts & sleeves | ☐ not started | TBD | [D2](decisions.md#d2), [D3](decisions.md#d3) |
-| — | DB schema rewrite (option B) | ✎ spec drafted | TBD | [D2](decisions.md#d2), [D3](decisions.md#d3), [D4](decisions.md#d4) |
-| Next #1 | Email notifications | ☐ not started | TBD | [D8](decisions.md#d8) |
-| Next #2 | Unified parameter source | ☐ not started | TBD | [D4](decisions.md#d4) |
-| Later #1 | Adaptive learning | ☐ deferred | TBD | [D9](decisions.md#d9) |
-| Later #2 | Portfolio risk rollup | ☐ deferred | TBD | [D10](decisions.md#d10) |
-| Later #3 | Strategy parameter optimization | ☐ deferred | TBD | [D11](decisions.md#d11) |
-| Later #4 | Decisioning legibility & naming pass | ☐ deferred | TBD | [D13](decisions.md#d13) |
+| Now #3 | Close the execution loop (keystone) | ☐ not started | L | [D1](decisions.md#d1) |
+| Now #1 | Unify evaluation | ◑ 1a ✅ · 1b ✅ · 1c ☐ | S (1c) | — |
+| Now #4 | Plug-and-play strategy & provider catalog | ☐ not started | L | [D5](decisions.md#d5) |
+| Now #2 | Converge accounts & sleeves | ☐ not started | L* | [D2](decisions.md#d2), [D3](decisions.md#d3) |
+| — | DB schema rewrite (option B) | ✎ spec drafted | L | [D2](decisions.md#d2), [D3](decisions.md#d3), [D4](decisions.md#d4) |
+| Next #1 | Email notifications | ☐ not started | M | [D8](decisions.md#d8) |
+| Next #2 | Unified parameter source | ☐ not started | L | [D4](decisions.md#d4) |
+| Later #1 | Adaptive learning | ☐ deferred | L | [D9](decisions.md#d9) |
+| Later #2 | Portfolio risk rollup | ☐ deferred | M | [D10](decisions.md#d10) |
+| Later #3 | Strategy parameter optimization | ☐ deferred | L | [D11](decisions.md#d11) |
+| Later #4 | Decisioning legibility & naming pass | ☐ deferred | M | [D13](decisions.md#d13) |
+
+`L*` = size depends on the A/B decision ([D3](decisions.md#d3)): under the DB rewrite (B), much of
+Now #2 is built once on the clean schema rather than migrated incrementally.
 
 Legend: ✅ done · ◑ in progress · ✎ spec/plan only · ☐ not started.
 
@@ -135,6 +139,14 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - [ ] **1c. Contract regression tests** — prove compare, promotion, and rotation read the same
     score/confidence contract and handle complete evidence, missing backtest evidence, missing
     paper/live evidence, and null blended score identically.
+- Remaining work is 1c only. Estimate: **S** (test-only).
+- Code areas that will change (1c):
+  - `tests/src/trading/domain/test_evaluation_decision_score.py` (extend) and/or a new
+    `tests/src/trading/services/test_decision_contract_consistency.py` proving compare
+    (`apps/paper_trading_web/backend/services/evaluation.py`), promotion
+    (`src/trading/domain/promotion_policy.py` confidence/data-gap reads), and rotation
+    (`src/trading/services/sleeves/shadow_evaluation.py`) all derive from `derive_decision_score` and
+    handle missing evidence identically. Reuse `tests/support/evaluation.py` fixtures.
 - Done when:
   - [x] compare surfaces expose canonical score/confidence fields
   - [ ] a single decision-score contract backs compare, promotion, and rotation (1a)
@@ -178,6 +190,21 @@ execution loop (Now #3) and finish 1c before opening 2b.
     sprawl. Depends on Now #1a.
   - [ ] **2c. Unified accounting/ledger path** — make sleeve fills a clean extension of the single
     ledger-update path rather than a divergent copy.
+- Estimate: **L\*** — gated by the A/B decision ([D3](decisions.md#d3)); under the DB rewrite (B),
+  2a/2b/2c are built once on the clean schema instead of migrated incrementally.
+- Code areas that will change:
+  - 2a: new `src/trading/services/execution/` submission service; refactor
+    `src/trading/services/auto_trading/runtime.py` (the inline `_run_sleeve_mode_for_account` loop and
+    `_broker_aware_record_trade`) and `auto_trading/execution.py` `run_for_account` to call it, with an
+    injected on-fill handler (`record_trade` vs `apply_sleeve_fill`) and the pre-submit safety gates
+    (`sleeves/risk_gate.py`, reconciliation, kill switches) folded in; bridge `broker_orders` /
+    `sleeve_orders` repositories.
+  - 2b: unify rotation across `domain/rotation.py` + `domain/sleeve_rotation.py` +
+    `services/auto_trading/rotation*.py` + `services/sleeves/rotation.py` + `shadow_evaluation.py` onto
+    the decision-score contract and one trading-unit paradigm (depends on 1a ✅ and D2/D3/D7).
+  - 2c: unify `services/accounting` (`record_trade`) with `services/sleeves/accounting`
+    (`apply_sleeve_fill`) and the `sleeve_ledger` vs account `trades` ledgers onto one path.
+  - tests across `auto_trading`, `sleeves`, `accounting`.
 - Done when:
   - [ ] account and sleeve modes submit orders through one submission service with one on-fill seam
   - [ ] pre-submit safety gates are shared, not asymmetric
@@ -208,10 +235,30 @@ execution loop (Now #3) and finish 1c before opening 2b.
     evaluated on. Keystone.
   - [ ] **3-E2. Apply parameter sets to signal evaluation** end-to-end (backtest + live), so
     per-account/param-set tuning is a real, data-driven lever rather than stored metadata.
-- Decisions to resolve first: how `signal_fn` output (buy/sell/hold per candidate) maps onto the
-  existing sizing/risk/selection flow; how backtest and live share the same signal+param path so
-  backtest evidence reflects live behavior; and where resolved params come from (param set vs
-  account override vs strategy default) with a clear precedence.
+- Decisions to resolve first: [D1](decisions.md#d1) — signal→selection mapping, the runtime history
+  source, backtest/live parity, and param precedence.
+- Estimate: **L**. Touches the core trade loop for both account and sleeve modes, adds a runtime
+  history fetch, aligns backtest, and threads param resolution — plus test rewrites.
+- Code areas that will change:
+  - `src/trading/domain/strategy_signals.py` — add a params-accepting signal-evaluation entry
+    (today `resolve_signal` uses `spec.default_params`); keep one shared eval used by backtest + live.
+  - `src/trading/domain/auto_trading_policy.py` — `choose_buy_ticker` / `choose_sell_ticker` /
+    `choose_side` change from random/heuristic to signal-driven selection (per D1 policy).
+  - `src/trading/services/auto_trading/execution.py` — `prepare_trade_selection` /
+    `prepare_buy_trade` / `prepare_sell_trade` evaluate the active strategy's signal per candidate.
+  - `src/trading/services/auto_trading/runtime.py` — wire the injected `MarketDataProvider` into the
+    selection path to fetch per-ticker history (`fetch_close_series`); pass feature history via the
+    existing `feature_fetchers`.
+  - `src/trading/services/sleeves/execution.py` — `generate_sleeve_trade_intents` uses the same
+    signal path (sleeve mode shares `prepare_trade_selection`).
+  - `src/trading/repositories/strategy_param_sets.py` + a new param-resolution helper — resolve
+    effective params (default → account → param set) for signals. (E2)
+  - `src/trading/backtesting/services/execution_service.py` — switch `resolve_signal` to the shared
+    params-aware eval so backtest and live use identical params. (E2)
+  - Tests: `auto_trading`, `sleeves`, `backtesting`, and `domain/strategy_signals` suites.
+- Newly surfaced holes (see D1): the live path has **no per-ticker history source** today (only
+  latest `prices`), and there is **no per-ticker→which-to-act-on selection policy** — both must be
+  defined before E1 is implementable.
 - Done when:
   - live/paper trades are driven by the active strategy's signal function
   - parameter sets flow into both backtest and live signal evaluation
@@ -233,6 +280,16 @@ execution loop (Now #3) and finish 1c before opening 2b.
     code primitive catalog; `available_strategy_ids()` and rotation read the data-defined set.
   - [ ] **4b. Feature-provider registry** — pluggable registration so a new
     `ExternalFeatureProvider` is a contained code addition + data enable.
+- Estimate: **L** (4a data-driven registry ≈ M, 4b provider registry ≈ M).
+- Code areas that will change:
+  - 4a: `src/trading/domain/strategy_signals.py` — split into a code **primitive catalog** (signal-fn
+    map) + a loader that builds `StrategySpec`s from data definitions; `STRATEGY_REGISTRY` /
+    `resolve_strategy` / `available_strategy_ids` read the data-defined set. Catalog source is config
+    or a `strategies` table (ties to [D5](decisions.md#d5) and the DB rewrite).
+  - 4b: `src/infrastructure/feature_providers/` + a provider registry (`provider_key` → class) with
+    interface-layer wiring reading enabled providers from data; shared contracts stay in
+    `src/trading/domain/feature_provider.py`.
+  - `src/trading/repositories/strategy_param_sets.py` referencing strategies by id; tests.
 - Done when:
   - a new strategy variant of existing logic can be added without code changes
   - a new feature provider is a contained, registered addition
@@ -252,6 +309,11 @@ execution loop (Now #3) and finish 1c before opening 2b.
   `notify_runtime_event` dispatcher that fans out to a list of transports, so the three call sites
   (`reporting.py`, `trader_health.py`, `jobs/daily/paper_trading/__init__.py`) stay
   transport-agnostic.
+- Estimate: **M**.
+- Code areas that will change: `src/trading/interfaces/runtime/notifications.py` (add SMTP transport;
+  generalize `notify_webhook_best_effort` → a `notify_runtime_event` dispatcher); SMTP config source
+  ([D8](decisions.md#d8)); the three call sites (`jobs/daily/paper_trading/reporting.py`,
+  `jobs/daily/trader_health.py`, `jobs/daily/paper_trading/__init__.py`); tests with a fake SMTP.
 - Done when:
   - runtime jobs can emit to webhook and/or email
   - trigger classes are explicit (failure, recovery, optional success)
@@ -270,6 +332,12 @@ execution loop (Now #3) and finish 1c before opening 2b.
 - Decisions to resolve first: which parameters are operator-tunable at runtime vs. code-owned
   defaults; whether the single source is a read-through view/API over the existing stores or a
   consolidated store; and how versioning/auditing works for changes.
+- Estimate: **L** (shape-dependent; heavy overlap with the DB rewrite `parameters` table).
+- Code areas that will change: a new parameter service (extend
+  `src/trading/services/operational_settings/` or a new `services/parameters/`); a store or
+  read-through view over the ~5 existing sources ([D4](decisions.md#d4)); a CLI to view/edit; migrate
+  account config columns + `global_settings` + `SleeveRotationConfig` defaults over time. Sequence with
+  the DB rewrite.
 - Done when:
   - operator-tunable parameters are viewable and editable through one service, usable from the CLI
     and runtime without the UI (UI is an optional view over the same service)
@@ -289,6 +357,10 @@ execution loop (Now #3) and finish 1c before opening 2b.
 - Decisions to resolve first: what learned state is (per-strategy / per-account /
   regime-conditioned), the deterministic update policy, and the explicit downstream effects on
   ranking and eligibility.
+- Estimate: **L** (deferred; design-heavy).
+- Code areas (sketch): `src/trading/domain` (deterministic update policy), a learned-state store
+  (DB — ties to [D6](decisions.md#d6)/rewrite), runtime execution hooks, and evaluation/promotion
+  integration. Mostly TBD until [D9](decisions.md#d9) is defined.
 - Done when:
   - learned state is stored, versioned, and replayable
   - update policy is deterministic and test-covered
@@ -305,6 +377,11 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - [ ] **2b. Overlap & concentration** — symbol-level cross-account analysis. Needs holdings
     aggregation across accounts and a definition decision first (concentration by symbol, sector,
     or strategy).
+- Estimate: **M** (2a ≈ S, 2b ≈ M).
+- Code areas that will change: a new cross-account aggregation service in `src/trading/services/`
+  (exposure from `equity_snapshots` + positions); a CLI entry; optional `apps/paper_trading_web` view.
+  2b needs holdings aggregation across accounts and a concentration definition
+  ([D10](decisions.md#d10)); tests validating the math.
 - Done when:
   - the aggregation service returns exposure and overlap/concentration payloads, usable from the CLI
     without the UI, with tests validating the math
@@ -321,6 +398,12 @@ execution loop (Now #3) and finish 1c before opening 2b.
     optimization results cannot leak into promotion evidence. Foundational guardrail; land first.
   - [ ] **3b. Optimization engine + reporting** — the parameter sweeps plus a report surface that
     visually distinguishes optimization from ordinary validation runs.
+- Estimate: **L** (3a ≈ S–M, 3b ≈ L).
+- Code areas that will change: `src/trading/backtesting/` repositories (tag runs
+  optimization-vs-validation — a `backtest_runs` flag/column or a new table) plus the evaluation
+  guardrail so `services/evaluation/evidence.py` never reads optimization runs; an optimization engine
+  reusing the backtest engine over param-set sweeps; reporting surfaces. Guardrails per
+  [D11](decisions.md#d11).
 - Done when:
   - optimization runs are tagged and stored separately (3a)
   - reports clearly distinguish optimization vs ordinary validation runs (3b)
@@ -344,6 +427,12 @@ execution loop (Now #3) and finish 1c before opening 2b.
 - Boundary to preserve: feature providers (news/sentiment) are strategy-signal inputs, not
   evaluation evidence — their effect reaches evaluation only through realized paper/live P&L. Do not
   fold them into the evaluation artifact.
+- Estimate: **M** (behavior-preserving rename/restructure).
+- Code areas that will change: rename/absorb `src/trading/services/sleeves/shadow_evaluation.py`;
+  disambiguate the two "rotation" concepts across `domain/rotation.py` vs `domain/sleeve_rotation.py`
+  and `services/auto_trading/rotation*.py` vs `services/sleeves/rotation.py`; clarify the
+  evaluation/promotion/analysis/reporting grouping; update imports/tests/docs. Best done with 2b.
+  Specifics in [D13](decisions.md#d13).
 - Done when:
   - the decision flow is derivable from package/symbol names
   - "rotation" is unambiguous at the name level
@@ -351,6 +440,12 @@ execution loop (Now #3) and finish 1c before opening 2b.
 
 ## Notes
 
+- **Holistic restructure review (pending).** After this per-item gap pass (estimates + code areas),
+  step back and look at the whole picture for a larger restructure. The DB rewrite fork
+  ([D3](decisions.md#d3)) is the big lever — under it, several items (Now #2, Next #2 parameter store,
+  parts of Now #4) may be built once on the clean schema rather than incrementally, which would
+  reorder and resize this plan. Keep an open mind for bigger changes; decide the fork before
+  committing to the incremental estimates above.
 - Multi-universe support is already partially present (`--tickers-file`,
   `--universe-history-dir`); richer UX can wait until higher-priority slices land.
 - Keep live activation explicitly human-gated.
