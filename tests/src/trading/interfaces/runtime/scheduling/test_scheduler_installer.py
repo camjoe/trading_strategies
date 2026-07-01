@@ -203,6 +203,9 @@ def test_register_tasks_for_platform_linux_replaces_existing_entries(monkeypatch
     existing_line = "0 1 * * * old-command # Trading\\DailySnapshot"
 
     monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Linux")
+    # Pin the systemd probe so the auto->cron fallback is deterministic on every
+    # host (CI Linux has /run/systemd/system; a dev box may not).
+    monkeypatch.setattr(scheduler_installer, "_systemd_available", lambda: False)
     monkeypatch.setattr(scheduler_installer, "load_crontab_lines", lambda: [existing_line, "keep-me"])
     monkeypatch.setattr(job_helpers, "logs_dir_for_repo", lambda repo_root: repo_root / "logs")
 
@@ -270,6 +273,8 @@ def test_unregister_tasks_for_platform_windows_attempts_all_deletes(monkeypatch)
 def test_unregister_tasks_for_platform_linux_removes_matching_entries(monkeypatch) -> None:
     captured: dict[str, object] = {}
     monkeypatch.setattr(scheduler_installer.platform, "system", lambda: "Linux")
+    # Force the cron path regardless of whether the host runs systemd.
+    monkeypatch.setattr(scheduler_installer, "_systemd_available", lambda: False)
     monkeypatch.setattr(
         scheduler_installer,
         "load_crontab_lines",
