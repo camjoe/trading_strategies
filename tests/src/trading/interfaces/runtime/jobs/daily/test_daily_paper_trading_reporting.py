@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from trading.interfaces.runtime.jobs.daily import paper_trading_reporting as module
+from trading.interfaces.runtime.jobs.daily.paper_trading import reporting as module
 
 
 def test_latest_shadow_eval_summary_returns_none_when_no_artifacts(tmp_path: Path) -> None:

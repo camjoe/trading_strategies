@@ -17,7 +17,7 @@ RUNTIME_ALERT_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 # Subprocess module path constants — update here if a module is ever relocated.
 CLI_MAIN_MODULE = "trading.interfaces.cli.main"
 ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
-RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.run_auto_trades"
+RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 
 # Transient connectivity/rate-limit strings that indicate a retry may succeed.

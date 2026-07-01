@@ -12,13 +12,13 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
-from trading.interfaces.runtime.jobs.daily.paper_trading_caps import (
+from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
     group_accounts_by_caps,
     load_trade_caps_config,
     parse_account_trade_caps,
     resolve_trade_caps,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading_dag import (
+from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
     DAILY_DAG_STEPS as _DAILY_DAG_STEPS,
     completed_steps_from_dag,
     failed_step_id,
@@ -27,7 +27,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading_dag import (
     serialize_step_results,
     skip_dag_step,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading_reporting import (
+from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     build_daily_operator_report as _build_daily_operator_report,
     latest_shadow_eval_summary,
     maybe_send_notification,
@@ -531,7 +531,3 @@ def main() -> int:
             },
         )
         return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

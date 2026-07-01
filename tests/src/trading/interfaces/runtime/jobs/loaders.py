@@ -11,12 +11,12 @@ from types import SimpleNamespace
 RUN_ALL_ACCOUNTS_ARGS: tuple[str, ...] = ("--accounts", "all")
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
-DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading_reporting"
+DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reporting"
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
-MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"
+MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.scheduling.manage_job_schedules"
 DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
-RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.run_auto_trades"
+RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 
 
@@ -110,6 +110,9 @@ def make_manage_job_schedules_args(**overrides):
         "unregister": False,
         "dry_run": False,
         "python": "/tmp/.venv/bin/python",
+        "scheduler": "auto",
+        "wake_system": True,
+        "env_file": "",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -222,7 +225,7 @@ def stub_runtime_job_basics(
     from unittest.mock import MagicMock
 
     import infrastructure.database.init as db_init
-    import trading.interfaces.runtime.jobs.job_runner as job_runner
+    import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 
     resolved_accounts = list(runtime_accounts or ["acct1"])
     resolved_conn = db_conn or SimpleNamespace(close=lambda: None)

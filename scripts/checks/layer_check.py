@@ -114,9 +114,12 @@ LAYER_RULES: list[LayerRule] = [
         # the interface layer (CLI / runtime jobs) and the backtest entry seam.
         # All other trading code depends on the MarketDataProvider port + an
         # injected instance, never the concrete adapter.
+        # NOTE: these are exact file paths — if you move or rename a listed
+        # composition root, update its path here or the layer check will start
+        # flagging it as a violation.
         exceptions=(
             "src/trading/interfaces/cli/main.py",
-            "src/trading/interfaces/runtime/jobs/run_auto_trades.py",
+            "src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py",
             "src/trading/backtesting/backtest.py",
         ),
     ),

@@ -22,8 +22,8 @@ Relevant facts that constrain the solution:
 
 - Jobs are **short-lived processes** fired by the OS scheduler (cron on Linux, Task Scheduler on
   Windows) via `python -m <module>` — there is no long-running daemon to keep alive. See
-  [scheduler_installer.py](../../src/trading/interfaces/runtime/jobs/scheduler_installer.py).
-- [manage_job_schedules.py](../../src/trading/interfaces/runtime/jobs/manage_job_schedules.py)
+  [scheduler_installer.py](../../src/trading/interfaces/runtime/scheduling/scheduler_installer.py).
+- [manage_job_schedules.py](../../src/trading/interfaces/runtime/scheduling/manage_job_schedules.py)
   registers cron lines that `cd` into the checkout it is run from and accepts `--python`, so a
   separate production checkout + venv produces a self-contained schedule with no extra tooling.
 - Persistence is **SQLite** — a single file, single-writer. This is the dominant constraint: two

@@ -4,59 +4,31 @@
 from __future__ import annotations
 
 import argparse
-import datetime as dt
-import json
 import re
-import sys
 import time
 from pathlib import Path
 from typing import Callable
 
-from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.job_helpers import (
     AttemptOutcome,
-    day_tag,
-    is_env_truthy,
-    latest_log_contains_sentinel,
-    logs_dir_for_repo,
-    resolve_accounts,
+    CLI_MAIN_MODULE,
     run_command,
     run_command_with_retry,
-    tee_line,
-    ts,
-    write_artifact,
-    CLI_MAIN_MODULE,
 )
-from trading.services.accounts import load_runtime_eligible_account_names
+from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
-REPO_ROOT = get_repo_root(__file__)
-LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
+JOB_NAME = "daily_backtest_refresh"
+COMPLETE_SENTINEL = DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 # Explicit opt-in env var so daily reruns remain operator-controlled.
 BACKTEST_REFRESH_ENABLED_ENV = "DAILY_BACKTEST_REFRESH_ENABLED"
 
-# Successful daily refresh runs write this sentinel into the newest log.
-COMPLETE_SENTINEL = DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
-
 RUN_ID_PATTERN = re.compile(r"run_id=(?P<run_id>\d+)")
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run daily backtest refreshes for existing accounts.")
-    parser.add_argument(
-        "--accounts",
-        default="all",
-        help="Comma-separated account names, or 'all' for every account in DB (default: all)",
-    )
-    parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
-    parser.add_argument("--run-source", default="daily-backtest-refresh")
-    parser.add_argument(
-        "--enable-run",
-        action="store_true",
-        help="Explicitly enable backtest refresh execution for this invocation",
-    )
+def _add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--max-attempts",
         type=int,
@@ -99,26 +71,30 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow approximate LEAPs backtest mode using underlying price proxies",
     )
-    parser.add_argument(
-        "--repo-root",
-        default=str(REPO_ROOT),
-        help="Repository root path (default: inferred from script location)",
-    )
-    return parser.parse_args()
 
 
-def is_run_enabled(args: argparse.Namespace) -> bool:
-    if bool(args.enable_run):
-        return True
-    return is_env_truthy(BACKTEST_REFRESH_ENABLED_ENV)
+def _validate(args: argparse.Namespace) -> str | None:
+    if int(args.max_attempts) < 1:
+        return "--max-attempts must be >= 1"
+    if float(args.backoff_seconds) < 0:
+        return "--backoff-seconds must be >= 0"
+    return None
 
 
-def already_completed_today(log_dir: Path, day_tag_str: str) -> bool:
-    return latest_log_contains_sentinel(
-        log_dir,
-        f"daily_backtest_refresh_{day_tag_str}_*.log",
-        COMPLETE_SENTINEL,
-    )
+def _run_meta(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "tickers_file": args.tickers_file,
+        "universe_history_dir": args.universe_history_dir,
+        "start": args.start,
+        "end": args.end,
+        "lookback_months": args.lookback_months,
+        "slippage_bps": args.slippage_bps,
+        "fee": args.fee,
+        "run_name_prefix": args.run_name_prefix,
+        "allow_approximate_leaps": bool(args.allow_approximate_leaps),
+        "max_attempts": args.max_attempts,
+        "backoff_seconds": args.backoff_seconds,
+    }
 
 
 def build_run_name(*, run_name_prefix: str, day_tag: str, account: str) -> str:
@@ -206,119 +182,30 @@ def run_backtest_refresh_with_retry(
     )
 
 
-def main() -> int:
-    args = parse_args()
-    if int(args.max_attempts) < 1:
-        print("--max-attempts must be >= 1", file=sys.stderr)
-        return 1
-    if float(args.backoff_seconds) < 0:
-        print("--backoff-seconds must be >= 0", file=sys.stderr)
-        return 1
-
-    if not is_run_enabled(args):
-        print(
-            "Daily backtest refresh is disabled. "
-            f"Use --enable-run or set {BACKTEST_REFRESH_ENABLED_ENV}=1 to execute.",
-            file=sys.stderr,
-        )
-        return 0
-
-    repo_root = Path(args.repo_root).expanduser().resolve()
-    logs_dir = logs_dir_for_repo(repo_root)
-    export_dir = repo_root / "local" / "exports" / "daily_backtest_refresh"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    export_dir.mkdir(parents=True, exist_ok=True)
-
-    now = dt.datetime.now()
-    today = day_tag(now)
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = logs_dir / f"daily_backtest_refresh_{today}_{timestamp}.log"
-    artifact_path = export_dir / f"daily_backtest_refresh_{timestamp}.json"
-
-    try:
-        accounts = resolve_accounts(args.accounts, load_runtime_eligible_account_names())
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    if not accounts:
-        print("No accounts specified.", file=sys.stderr)
-        return 1
-
-    run_meta = {
-        "job": "daily_backtest_refresh",
-        "run_source": args.run_source,
-        "force_run": bool(args.force_run),
-        "day_tag": today,
-        "accounts": accounts,
-        "tickers_file": args.tickers_file,
-        "universe_history_dir": args.universe_history_dir,
-        "start": args.start,
-        "end": args.end,
-        "lookback_months": args.lookback_months,
-        "slippage_bps": args.slippage_bps,
-        "fee": args.fee,
-        "run_name_prefix": args.run_name_prefix,
-        "allow_approximate_leaps": bool(args.allow_approximate_leaps),
-        "max_attempts": args.max_attempts,
-        "backoff_seconds": args.backoff_seconds,
-        "log_path": str(log_path.relative_to(repo_root)),
-        "artifact_path": str(artifact_path.relative_to(repo_root)),
-        "started_at": ts(),
-    }
-    tee_line(log_path, f"[{ts()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
-
-    if not args.force_run and already_completed_today(logs_dir, today):
-        message = "Daily backtest refresh already completed today; skipping duplicate run."
-        tee_line(log_path, f"[{ts()}] SKIP: {message}")
-        write_artifact(
-            artifact_path,
-            {
-                **run_meta,
-                "status": "skipped",
-                "skip_reason": "already-completed-today",
-                "results": [],
-                "finished_at": ts(),
-            },
-        )
-        print(message)
-        return 0
-
-    results: list[dict[str, object]] = []
-    failed = False
-    for account in accounts:
-        result = run_backtest_refresh_with_retry(
-            log_path=log_path,
-            repo_root=repo_root,
-            account=account,
-            args=args,
-            day_tag=day_tag,
-        )
-        results.append(result)
-        if result["status"] != "success":
-            failed = True
-            tee_line(
-                log_path,
-                (
-                    f"[{ts()}] "
-                    f"ERROR: Backtest refresh failed for account={account} "
-                    f"attempts={result['attempts']} transient={result.get('transient', False)}"
-                ),
-            )
-            break
-
-    if not failed:
-        tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
-
-    write_artifact(
-        artifact_path,
-        {
-            **run_meta,
-            "status": "success" if not failed else "failed",
-            "results": results,
-            "finished_at": ts(),
-        },
+@daily_account_job(
+    job_name=JOB_NAME,
+    sentinel=COMPLETE_SENTINEL,
+    description="Run daily backtest refreshes for existing accounts.",
+    enabled_env=BACKTEST_REFRESH_ENABLED_ENV,
+    disabled_message=(
+        "Daily backtest refresh is disabled. Use --enable-run or set DAILY_BACKTEST_REFRESH_ENABLED=1 to execute."
+    ),
+    run_source_default="daily-backtest-refresh",
+    export_subdir="daily_backtest_refresh",
+    label="Backtest refresh",
+    open_db=False,
+    add_arguments=_add_arguments,
+    validate=_validate,
+    extra_meta=_run_meta,
+)
+def main(ctx: JobContext, account: str) -> dict[str, object]:
+    return run_backtest_refresh_with_retry(
+        log_path=ctx.log_path,
+        repo_root=ctx.repo_root,
+        account=account,
+        args=ctx.args,
+        day_tag=ctx.tag,
     )
-    return 0 if not failed else 1
 
 
 if __name__ == "__main__":
