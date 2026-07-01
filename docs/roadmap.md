@@ -100,6 +100,48 @@ Time windows:
     and challengers scored from the same source (1b)
   - [ ] regression tests cover score usage across all three surfaces (1c)
 
+#### 2. Converge accounts and sleeves on shared services
+
+- Scope: remove the parallel account-mode vs sleeve-mode orchestration by routing both through
+  shared, single-responsibility services. Consolidation is incremental and opportunistic — build
+  each shared service as roadmap work touches that code and migrate the account and sleeve paths one
+  seam at a time, so pre-submit safety only ever strengthens. No big-bang rewrite of the live path.
+- Full plan and progress tracker: [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
+- Surface: `src/trading/services/auto_trading/`, `src/trading/services/sleeves/`,
+  `src/trading/services/accounting/`.
+- Architecture direction: the environment axis (test/UI paper sim, IBKR paper, future live) is
+  already converged behind the `BrokerConnection` port + `get_broker_for_account` factory and the
+  `live_trading_enabled` guard — a new environment is one adapter plus one factory branch. Keep new
+  code honoring the injected `broker_factory` (never construct brokers inline). The duplication to
+  remove is the accounts-vs-sleeves axis, not the environment axis.
+- Current duplication (evidence):
+  - order submission + broker-order persistence + on-fill ledger update is implemented twice: the
+    account path via `_broker_aware_record_trade` and the sleeve path inline in
+    `_run_sleeve_mode_for_account`, both in `src/trading/services/auto_trading/runtime.py`.
+  - pre-submit safety is asymmetric: sleeve mode has kill switches (stale price, reconciliation
+    mismatch/staleness) that account mode lacks.
+  - ledger updates diverge: account mode calls `record_trade`; sleeve mode calls `apply_sleeve_fill`
+    then `record_trade`.
+  - rotation is split across two paradigms and several modules (`auto_trading/rotation.py`,
+    `runtime_rotation.py`, `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`) — the
+    same root cause as Now #1.
+- Sub-features (independent; each migrates account + sleeve one seam at a time):
+  - [ ] **2a. Shared order-submission service** — extract "submit intent → persist broker order →
+    on-fill ledger update" into one service (e.g. `src/trading/services/execution/`) that both modes
+    call, differing only by an injected on-fill handler (account ledger vs sleeve ledger). Fold the
+    pre-submit safety gates in so account mode inherits the sleeve kill switches. Highest-value slice
+    and directly reduces live-path risk.
+  - [ ] **2b. Unified rotation/selection** — collapse account episode rotation and sleeve
+    champion/challenger onto the Now #1 decision-score contract, and reduce the rotation module
+    sprawl. Depends on Now #1a.
+  - [ ] **2c. Unified accounting/ledger path** — make sleeve fills a clean extension of the single
+    ledger-update path rather than a divergent copy.
+- Done when:
+  - [ ] account and sleeve modes submit orders through one submission service with one on-fill seam
+  - [ ] pre-submit safety gates are shared, not asymmetric
+  - [ ] rotation/selection reads the unified decision-score contract (with Now #1)
+  - [ ] ledger updates flow through a single accounting path
+
 ### Next
 
 #### 1. Notification expansion beyond webhook-only
