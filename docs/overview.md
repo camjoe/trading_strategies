@@ -91,8 +91,8 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   but only once parameters are wired through (above).
 - **Two rotation paradigms and duplicated account/sleeve orchestration** — see the
   [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
-- **Parameters are scattered** across ~5 stores with no single view — see Plan Next "Unified
-  parameter source".
+- **Parameters are scattered** across ~5 stores with no single view — see P7 (unified parameter
+  source).
 
 ## How it works (architecture)
 
@@ -129,23 +129,20 @@ tracker** (tasks / order / status / timelines) is [plan.md](plan.md); open decis
 defining") are consolidated in [decisions.md](decisions.md); convergence detail lives in the
 [convergence plan](sleeves-accounts-convergence.md).
 
-1. **Close the execution loop (keystone).** Wire strategy signals into live/paper execution and apply
-   parameter sets to signal evaluation end-to-end, so the trader actually runs the strategy (and
-   params) it is evaluated on. Without this, the evaluation/rotation machinery selects strategies the
-   live path never executes. *This is the highest priority and should precede polishing the
-   evaluate/rotate loop.*
-2. **Finish unified evaluation** — the shared decision-score contract now backs compare, promotion,
-   and sleeve rotation (Now #1a/#1b done); complete the cross-surface regression tests (1c).
-3. **Plug-and-play strategy & provider catalog.** Make the strategy registry data-driven (a code
-   catalog of tested signal *primitives* + data-defined strategy definitions), and make feature
-   providers pluggable, so new variants/accounts are data changes.
-4. **Converge accounts and sleeves** onto shared services (submission, rotation, accounting) — see
-   the convergence plan.
-5. **Unified parameter source** — one place to view/edit tunable parameters (service-first, UI
-   optional).
-6. **Decisioning legibility & naming pass** — behavior-preserving structure/naming so the
-   evidence → score → promotion/rotation flow is legible.
-7. **Later:** adaptive learning, portfolio-level risk rollup, strategy parameter optimization.
+1. **P1 — Close the execution loop (keystone).** Wire strategy signals + parameter sets into
+   live/paper execution so the trader actually runs the strategy (and params) it is evaluated on.
+   Schema-agnostic; do it first on the current schema.
+2. **P2 — Finish unified evaluation** — the shared decision-score contract backs compare, promotion,
+   and sleeve rotation (1a/1b done); complete the cross-surface regression tests (1c).
+3. **P3 — DB schema rewrite (greenfield, option B).** Decided rewrite-first (no data to lose,
+   pre-live is the cheapest time). The clean trading-unit schema is built before convergence.
+4. **P4–P5 — Converge accounts and sleeves once on the clean schema** (submission/rotation/
+   accounting), with the decisioning legibility/naming pass alongside.
+5. **P6–P7 — Plug-and-play strategy/provider catalog and a unified parameter source**, on the new
+   schema (service-first, UI optional).
+6. **P8–P9** — email notifications (independent) and the portfolio risk rollup.
+7. **P10–P11 (Exploratory)** — adaptive learning and strategy parameter optimization, only if
+   evidence justifies.
 
 ## Guiding constraints
 

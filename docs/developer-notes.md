@@ -48,13 +48,13 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 
 - **CRLF warnings on commit are harmless** — the repo enforces line endings; `git` prints
   "CRLF will be replaced by LF" on commit. Not an error.
-- **Live/paper does not run strategy signals yet** (Plan Now #3). The paper trader is a legacy
+- **Live/paper does not run strategy signals yet** (Plan P1). The paper trader is a legacy
   random/style-biased placeholder; strategy `signal_fn`s run only in backtests. Do not assume paper
   results reflect the strategies until the execution loop is closed.
 - **Parameter sets are not wired into signals** — `strategy_param_sets` is stored/governed only;
   backtests use code `default_params`. "Different parameters" is not yet a real lever.
 - **`shadow_evaluation` is thin post-1b** — its separate challenger-scoring path is gone; it's a
-  rename/absorb candidate (Plan Later #4).
+  rename/absorb candidate (Plan P5).
 - **`mypy` must be run via the project runner** — `python -m scripts.checks.mypy_check` (ad-hoc
   `mypy <file>` fails to resolve the `src/` layout and reports false import errors).
 - **Two rotation paradigms still exist** — account-episode vs sleeve champion/challenger. The
@@ -65,4 +65,4 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 - **Tasks / order / status / timelines** → [plan.md](plan.md) (the status board + Current cycle
   sequencing are the single source).
 - **Open decisions ("what needs defining")** → [decisions.md](decisions.md).
-- **Recommended next action** → close the execution loop (Plan Now #3, the keystone), then finish 1c.
+- **Recommended next action** → close the execution loop (Plan P1, the keystone), then finish 1c.

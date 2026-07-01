@@ -7,33 +7,31 @@ Last Reviewed: 2026-07-01
 Purpose: The single source for tasks, order, status, and timelines — the itemized backlog and progress tracker. What needs to be *defined* (open decisions) lives in [decisions.md](decisions.md); the entry-point north star is [overview.md](overview.md).
 Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Developer Notes](developer-notes.md)
 
-> Single source for **tasks / order / status / timelines**. Open decisions ("what needs defining")
-> are consolidated in [decisions.md](decisions.md). Entry-point overview is [overview.md](overview.md).
-> Item numbers are identifiers, not priority — see the Status board and Current cycle sequencing for order.
+> Single source for **priority order / status / timelines**. Open decisions ("what needs defining")
+> are in [decisions.md](decisions.md); the entry-point overview is [overview.md](overview.md).
 
-## Status board
+## Priority board
 
-Glance-level status. Detailed items below. Estimates are rough t-shirt sizes:
-**S** ≈ ≤1 day · **M** ≈ a few days · **L** ≈ ~1–2 weeks. Remaining estimates are filled in per pass.
+One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ ≤1 day ·
+**M** ≈ a few days · **L** ≈ ~1–2 weeks.
 
-| # | Initiative | Status | Est. | Key open decisions |
-|---|---|---|---|---|
-| Now #3 | Close the execution loop (keystone) | ☐ not started | L | [D1](decisions.md#d1) |
-| Now #1 | Unify evaluation | ◑ 1a ✅ · 1b ✅ · 1c ☐ | S (1c) | — |
-| Now #4 | Plug-and-play strategy & provider catalog | ☐ not started | L | [D5](decisions.md#d5) |
-| Now #2 | Converge accounts & sleeves | ☐ not started | L* | [D2](decisions.md#d2), [D3](decisions.md#d3) |
-| — | DB schema rewrite (option B) | ✎ spec drafted | L | [D2](decisions.md#d2), [D3](decisions.md#d3), [D4](decisions.md#d4) |
-| Next #1 | Email notifications | ☐ not started | M | [D8](decisions.md#d8) |
-| Next #2 | Unified parameter source | ☐ not started | L | [D4](decisions.md#d4) |
-| Later #1 | Adaptive learning | ☐ deferred | L | [D9](decisions.md#d9) |
-| Later #2 | Portfolio risk rollup | ☐ deferred | M | [D10](decisions.md#d10) |
-| Later #3 | Strategy parameter optimization | ☐ deferred | L | [D11](decisions.md#d11) |
-| Later #4 | Decisioning legibility & naming pass | ☐ deferred | M | [D13](decisions.md#d13) |
+| P | Initiative | Commitment | Status | Est | Gate |
+|---|---|---|---|---|---|
+| 1 | Close the execution loop (keystone) | Committed | ☐ next up | L | [D1](decisions.md#d1) |
+| 2 | Finish unified evaluation (1c) | Committed | ◑ 1a✅ · 1b✅ · 1c☐ | S | — |
+| 3 | DB schema rewrite (greenfield, option B) | Committed | ✎ spec ready | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
+| 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
+| 5 | Decisioning legibility & naming pass | Committed | ☐ | M | [D13](decisions.md#d13) |
+| 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | L | [D5](decisions.md#d5) |
+| 7 | Unified parameter source | Committed | ☐ | L | [D4](decisions.md#d4) |
+| 8 | Email notifications (independent) | Committed | ☐ | M | [D8](decisions.md#d8) |
+| 9 | Portfolio risk rollup | Committed | ☐ | M | [D10](decisions.md#d10) |
+| 10 | Adaptive learning | Exploratory | ☐ | L | [D9](decisions.md#d9) |
+| 11 | Strategy parameter optimization | Exploratory | ☐ | L | [D11](decisions.md#d11) |
 
-`L*` = size depends on the A/B decision ([D3](decisions.md#d3)): under the DB rewrite (B), much of
-Now #2 is built once on the clean schema rather than migrated incrementally.
-
-Legend: ✅ done · ◑ in progress · ✎ spec/plan only · ☐ not started.
+**Commitment:** Committed = will build, in order · Conditional = committed but gated on an open
+decision · Exploratory = only if evidence justifies. **Status:** ✅ done · ◑ in progress ·
+✎ spec ready · ☐ not started.
 
 ## Product Goal
 
@@ -67,40 +65,41 @@ These baseline capabilities are in place and are not tracked as future work:
   (`apps/paper_trading_web/backend/routes/accounts.py`) read the canonical evaluation artifact.
   Sleeve rotation (`src/trading/services/sleeves/rotation.py`) still scores on return-based
   metrics instead of canonical score/confidence. See
-  [Now #1](#1-unify-evaluation-across-decision-surfaces).
+  [P2 — Unify evaluation](#unify-evaluation-across-decision-surfaces).
 - **`learning_enabled`** — active as heuristic exploration (account-profile flag in
   `src/infrastructure/config/account_profiles/*.json` plus a DB column), but with no persisted,
-  versioned learned state. See [Later #1](#1-true-adaptive-learning).
+  versioned learned state. See [P10 — Adaptive learning](#true-adaptive-learning).
 
-## Now / Next / Later
+## Sequencing
 
-Time windows:
+Rationale for the priority board order (the board above is the canonical ordered list):
 
-- `Now`: next implementation cycle (start immediately)
-- `Next`: follow-on work after `Now` ships
-- `Later`: defer until higher-priority operational value is complete
+1. **P1 — Close the execution loop (keystone).** Schema-agnostic and the highest-value gap: the live
+   path does not run strategy signals today. Do it first, on the current schema.
+2. **P2 — Finish unified evaluation (1c).** 1a/1b are done; add the cross-surface regression tests.
+3. **P3 — DB schema rewrite (greenfield, option B).** Decided ([D2](decisions.md#d2)/[D3](decisions.md#d3)):
+   rewrite-first. No data to lose and pre-live is the cheapest time to change schema.
+4. **P4 — Converge accounts & sleeves, built once on the clean schema** (submission/rotation/
+   accounting) rather than migrating two live paths — with **P5** (naming pass) done alongside.
+5. **P6–P7** land on the new schema (plug-and-play catalog, parameter source). **P8** (email) is
+   independent and can slot in anytime; **P9** (risk rollup) follows.
+6. **P10–P11** are Exploratory — pursued only if evidence justifies.
 
-### Current cycle sequencing
+## Initiatives (detail)
 
-Authoritative order (item numbers below are identifiers, not priority):
+Reference entries. Ordered priority, commitment, and status live in the priority board above.
 
-1. **Close the execution loop (Now #3, keystone).** Wire strategy signals + parameter sets into
-   live/paper execution so the trader actually runs the strategy and params it is evaluated on.
-   Everything else in the evaluate → rotate → trade loop is premature until this lands, because the
-   live path currently does not execute strategy signals at all (see Now #3).
-2. **1a — decision-score contract.** ✅ Done. Self-contained; evaluation-only; no A/B entanglement.
-3. **1b — rotation scoring repoint (narrow).** ✅ Done. Incumbent + challengers score from the 1a
-   contract; two rotation paradigms left intact.
-4. **1c — contract regression tests** across compare, promotion, and rotation.
+#### DB schema rewrite (greenfield, option B)
 
-**Decision gate — end of 1b (reached).** Crossing into convergence work (2b paradigm collapse, then
-2a/2c) forces resolving the trading-unit stance and the A/B realization — see
-[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md). Recommended: close the
-execution loop (Now #3) and finish 1c before opening 2b.
+Priority: P3 · Committed
 
-### Now
+Decided B ([D2](decisions.md#d2)/[D3](decisions.md#d3)). Full detail in the
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md) and [DB Schema Target](db-schema-target.md);
+open schema-detail decisions: [D4](decisions.md#d4), [D5](decisions.md#d5), [D6](decisions.md#d6).
 
-#### 1. Unify evaluation across decision surfaces
+#### Unify evaluation across decision surfaces
+
+Priority: P2 · Committed
 
 - Scope: one canonical evaluation output drives compare, rotation selection, and promotion decisions.
 - Surface: `src/trading/`, `apps/paper_trading_web` (backend + frontend compare/admin views).
@@ -154,7 +153,9 @@ execution loop (Now #3) and finish 1c before opening 2b.
     and challengers scored from the same source (1b)
   - [ ] regression tests cover score usage across all three surfaces (1c)
 
-#### 2. Converge accounts and sleeves on shared services
+#### Converge accounts and sleeves on shared services
+
+Priority: P4 · Committed
 
 - Scope: remove the parallel account-mode vs sleeve-mode orchestration by routing both through
   shared, single-responsibility services. Consolidation is incremental and opportunistic — build
@@ -178,7 +179,7 @@ execution loop (Now #3) and finish 1c before opening 2b.
     then `record_trade`.
   - rotation is split across two paradigms and several modules (`auto_trading/rotation.py`,
     `runtime_rotation.py`, `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`) — the
-    same root cause as Now #1.
+    same root cause as P2.
 - Sub-features (independent; each migrates account + sleeve one seam at a time):
   - [ ] **2a. Shared order-submission service** — extract "submit intent → persist broker order →
     on-fill ledger update" into one service (e.g. `src/trading/services/execution/`) that both modes
@@ -186,8 +187,8 @@ execution loop (Now #3) and finish 1c before opening 2b.
     pre-submit safety gates in so account mode inherits the sleeve kill switches. Highest-value slice
     and directly reduces live-path risk.
   - [ ] **2b. Unified rotation/selection** — collapse account episode rotation and sleeve
-    champion/challenger onto the Now #1 decision-score contract, and reduce the rotation module
-    sprawl. Depends on Now #1a.
+    champion/challenger onto the P2 decision-score contract, and reduce the rotation module
+    sprawl. Depends on 1a.
   - [ ] **2c. Unified accounting/ledger path** — make sleeve fills a clean extension of the single
     ledger-update path rather than a divergent copy.
 - Estimate: **L\*** — gated by the A/B decision ([D3](decisions.md#d3)); under the DB rewrite (B),
@@ -208,10 +209,12 @@ execution loop (Now #3) and finish 1c before opening 2b.
 - Done when:
   - [ ] account and sleeve modes submit orders through one submission service with one on-fill seam
   - [ ] pre-submit safety gates are shared, not asymmetric
-  - [ ] rotation/selection reads the unified decision-score contract (with Now #1)
+  - [ ] rotation/selection reads the unified decision-score contract (with P2)
   - [ ] ledger updates flow through a single accounting path
 
-#### 3. Close the execution loop (keystone)
+#### Close the execution loop (keystone)
+
+Priority: P1 · Committed
 
 - Scope: make the live/paper trader actually run the strategy signal functions and the selected
   parameter sets, so the evaluate → rotate → trade loop is closed end to end.
@@ -265,7 +268,9 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - backtest and live execute the same strategy+param decision path
   - rotation to a strategy actually changes what the trader does
 
-#### 4. Plug-and-play strategy & provider catalog
+#### Plug-and-play strategy & provider catalog
+
+Priority: P6 · Committed
 
 - Scope: make adding strategy variants and feature providers a data/contained-code change, so new
   ideas can be tried quickly.
@@ -273,7 +278,7 @@ execution loop (Now #3) and finish 1c before opening 2b.
   (`{id, primitive, params, style, required_features}`) data-loaded (config/DB) instead of the
   hard-coded `STRATEGY_REGISTRY` dict. New variant/tuning = data; genuinely new logic = one new
   primitive (code) + data to expose it. No arbitrary-logic scripting DSL (safety/testability).
-- Dependency: Now #3 (params must actually flow into signals for data-defined variants to mean
+- Dependency: P1 (params must actually flow into signals for data-defined variants to mean
   anything).
 - Sub-features:
   - [ ] **4a. Data-driven strategy registry** — load strategy definitions from config/DB against a
@@ -295,9 +300,9 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - a new feature provider is a contained, registered addition
   - data-defined strategies flow into rotation candidates automatically
 
-### Next
+#### Notification expansion beyond webhook-only
 
-#### 1. Notification expansion beyond webhook-only
+Priority: P8 · Committed (independent)
 
 - Scope: keep the webhook path and add optional email delivery for runtime events.
 - Surface: `src/trading/interfaces/runtime/` (notifications are webhook-only today in
@@ -319,7 +324,9 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - trigger classes are explicit (failure, recovery, optional success)
   - delivery failures are non-fatal and observable in logs/tests
 
-#### 2. Unified parameter source
+#### Unified parameter source
+
+Priority: P7 · Committed
 
 - Scope: one legible place to view and edit the parameters that drive strategy behavior,
   evaluation, and rotation — supporting the goal of tuning the automated trader without hunting
@@ -344,15 +351,15 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - rotation/evaluation weights are no longer buried as code-only defaults where they should be tunable
   - parameter changes are audited consistently
 
-### Later
+#### True adaptive learning
 
-#### 1. True adaptive learning
+Priority: P10 · Exploratory
 
 - Scope: persisted learned state and governed updates with explicit downstream effects.
 - Surface: `src/trading/domain`, runtime execution, evaluation/promotion flows.
 - Status today: `learning_enabled` only toggles heuristic exploration inside trade selection; there
   is no persisted learned state.
-- Hard dependency: the unified decision-score contract (Now #1a/1b). Do not design the update policy
+- Hard dependency: the unified decision-score contract (1a/1b). Do not design the update policy
   until a canonical score exists to learn against.
 - Decisions to resolve first: what learned state is (per-strategy / per-account /
   regime-conditioned), the deterministic update policy, and the explicit downstream effects on
@@ -366,7 +373,9 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - update policy is deterministic and test-covered
   - ranking/trade/live-eligibility effects are explicit and observable
 
-#### 2. Portfolio-level risk rollup
+#### Portfolio-level risk rollup
+
+Priority: P9 · Committed
 
 - Scope: cross-account risk visibility, split by data dependency. The deliverable is the aggregation
   service (usable from CLI/runtime); a dashboard view is an optional follow-on.
@@ -387,7 +396,9 @@ execution loop (Now #3) and finish 1c before opening 2b.
     without the UI, with tests validating the math
   - an optional dashboard view renders them once the payload contract is stable
 
-#### 3. Strategy parameter optimization workflow
+#### Strategy parameter optimization workflow
+
+Priority: P11 · Exploratory
 
 - Scope: dedicated optimization runs and storage, separated from regular backtests.
 - Surface: `src/trading/backtesting/` services/repositories + reporting surfaces.
@@ -408,12 +419,14 @@ execution loop (Now #3) and finish 1c before opening 2b.
   - optimization runs are tagged and stored separately (3a)
   - reports clearly distinguish optimization vs ordinary validation runs (3b)
 
-#### 4. Decisioning legibility & naming pass
+#### Decisioning legibility & naming pass
+
+Priority: P5 · Committed
 
 - Scope: make the decision flow (evidence → score → promotion/rotation) legible from the package and
   symbol names, without changing behavior.
 - Motivation: the current naming does not reveal the flow. Concrete offenders:
-  - `shadow_evaluation` names a separate challenger-scoring path that no longer exists after Now #1b
+  - `shadow_evaluation` names a separate challenger-scoring path that no longer exists after P2b
     (both incumbent and challengers now score through the decision-score contract) — it is now a
     thin candidate-enumeration step and a rename/absorb candidate.
   - "rotation" means two different things (account-episode rotation vs sleeve champion/challenger) —
@@ -442,8 +455,8 @@ execution loop (Now #3) and finish 1c before opening 2b.
 
 - **Holistic restructure review (pending).** After this per-item gap pass (estimates + code areas),
   step back and look at the whole picture for a larger restructure. The DB rewrite fork
-  ([D3](decisions.md#d3)) is the big lever — under it, several items (Now #2, Next #2 parameter store,
-  parts of Now #4) may be built once on the clean schema rather than incrementally, which would
+  ([D3](decisions.md#d3)) is the big lever — under it, several items (P4, the P7 parameter store,
+  parts of P6) may be built once on the clean schema rather than incrementally, which would
   reorder and resize this plan. Keep an open mind for bigger changes; decide the fork before
   committing to the incremental estimates above.
 - Multi-universe support is already partially present (`--tickers-file`,
@@ -459,7 +472,7 @@ execution loop (Now #3) and finish 1c before opening 2b.
   lives. Do not design around the UI. This is the existing "UI Backend Boundary Rule" in
   `docs/architecture/architecture-conventions.md`, applied as a product principle.
 - **UI follows the contract, per feature.** Convergence and decisioning work is contract-preserving
-  (no UI change — proven in Now #1a, which kept the compare/promotion JSON keys stable). For
+  (no UI change — proven in 1a, which kept the compare/promotion JSON keys stable). For
   operator-facing features, the "done when" is the service + CLI/programmatic path; the UI slice is
   an optional follow-on designed *after* that feature's backend contract stabilizes, not batched to
   the end and not designed on unsettled contracts. Whether the eventual operator surface is a new

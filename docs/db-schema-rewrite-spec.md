@@ -1,12 +1,13 @@
 # Database Schema Rewrite — Spec (Draft)
 
 Type: spec
-Status: Draft (not scheduled)
+Status: Accepted — sequenced as P3 (after the execution loop)
 Created: 2026-07-01
 Last Reviewed: 2026-07-01
-Purpose: Capture a target database schema aligned with the app's goals, so a clean rewrite can be
-executed quickly when the time is right. This is the concrete form of the convergence plan's
-"physical table rework (option B)". No decision to execute has been made.
+Purpose: Target database schema aligned with the app's goals. This is the concrete form of the
+convergence plan's "physical table rework (option B)", which was **chosen** on 2026-07-01
+([D2](decisions.md#d2)/[D3](decisions.md#d3)): rewrite-first, after the execution loop, then build
+convergence once on the clean schema. Open schema-detail decisions remain (D4, D5, D6).
 Related: [Overview](overview.md), [Plan](plan.md),
 [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
 [Architecture Conventions](architecture/architecture-conventions.md),
@@ -15,17 +16,15 @@ Related: [Overview](overview.md), [Plan](plan.md),
 
 ## Framing
 
-- **This is a spec, not a scheduled change.** It exists so the target is written down before we need
-  it.
+- **This is the chosen path (option B), not yet started.** Sequenced as P3 — after the execution
+  loop (P1) and evaluation tests (P2), before convergence (P4).
 - **We are willing to drop existing data.** No production/live data exists yet, so the rewrite is a
   **greenfield schema init with no data migration** — the single biggest simplifier. Accounts,
   strategies, and parameters are re-created from config/CLI.
-- **This is convergence "option B".** Adopting this schema is the physical-table-rework realization
-  of the [trading-unit design stance](sleeves-accounts-convergence.md). If we do it, several
-  incremental convergence sub-features (2a/2b/2c) become "build once on the clean schema" instead of
-  "migrate two live paths."
-- **When to pull the trigger (proposed):** after the execution loop is closed (Plan Now #3) and
-  before live enablement — when schema changes are cheapest and the runtime behavior is known-good.
+- **This is convergence "option B".** Convergence (submission/rotation/accounting) is built **once on
+  the clean schema** (P4) rather than migrating two live paths incrementally.
+- **When:** after the execution loop is closed (P1) and before live enablement — when schema changes
+  are cheapest and the runtime behavior is known-good.
 
 ## Data-loss assessment (2026-07-01)
 
@@ -109,7 +108,7 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
 
 - **`strategies`** (new) — data-driven registry bound to a code **primitive**: `id`, `strategy_key`,
   `primitive` (the code signal-primitive name), `style`, `required_features` (json), `description`,
-  `enabled`. Enables Plan Now #4 (plug-and-play).
+  `enabled`. Enables Plan P6 (plug-and-play).
 - **`strategy_param_sets`** — as today but FK to `strategies.id`: `id`, `strategy_id`, `version`,
   `params_json`, `is_active`, lifecycle timestamps, `notes`.
 - **`parameters`** (new, single parameter source) — operator-tunable settings as typed rows
@@ -208,7 +207,7 @@ Canonical status for these is tracked in [decisions.md](decisions.md) (D2, D4, D
 
 ## Trigger checklist (when to execute)
 
-- [ ] Execution loop closed (Plan Now #3) so runtime behavior is known-good on the new tables.
+- [ ] Execution loop closed (Plan P1) so runtime behavior is known-good on the new tables.
 - [ ] Convergence A/B decision has landed on B (physical rework).
 - [ ] Parameter model shape (open decision #2) chosen.
 - [ ] A pre-live window confirmed (cheapest time to change schema).

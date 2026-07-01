@@ -26,7 +26,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`plan.md`](plan.md) — **the tracker**: tasks, order, status, and timelines (status board + Now/Next/Later)
+- [`plan.md`](plan.md) — **the tracker**: priority board (P1..N + commitment), status, and timelines
 - [`decisions.md`](decisions.md) — **what needs defining**: the consolidated list of open decisions
 - [`sleeves-accounts-convergence.md`](sleeves-accounts-convergence.md) — design detail for converging account and sleeve trading paths onto shared services
 - [`db-schema-rewrite-spec.md`](db-schema-rewrite-spec.md) — draft target schema for a clean, goals-aligned database rewrite (the convergence "option B", greenfield, no data migration)

@@ -7,8 +7,8 @@ Last Reviewed: 2026-07-01
 Purpose: Living implementation and progress tracker for converging the parallel account-mode and
 sleeve-mode trading paths onto shared, single-responsibility services — so behavior, safety, and
 scoring are consistent and the test/paper/live environments require minimal per-path change.
-Related: [Plan Now #2](plan.md#2-converge-accounts-and-sleeves-on-shared-services),
-[Plan Now #1](plan.md#1-unify-evaluation-across-decision-surfaces),
+Related: [Plan — Converge accounts & sleeves (P4)](plan.md#converge-accounts-and-sleeves-on-shared-services),
+[Plan — Unify evaluation (P2)](plan.md#unify-evaluation-across-decision-surfaces),
 [Architecture Conventions](architecture/architecture-conventions.md),
 [ADR 003 — Sleeve Virtualization](adr/003-sleeve-virtualization-architecture.md),
 [Broker Integration](reference/broker-integration.md)
@@ -75,10 +75,11 @@ The default trading unit can be modeled two ways:
   is this option. Cleanest end state; larger up-front build, but it collapses much of 2a/2b/2c into
   "build once on the new schema."
 
-**Decision status:** leaning (A) virtual short-term to unblock convergence without a hot-table
-migration. Keep (B) open: schedule a deliberate pre-live table review and decide before live
-enablement, when schema changes are cheapest. Do not commit 2a/2c to a specific persistence shape
-until this is settled.
+**Decision status (2026-07-01): (B) chosen** — the greenfield rewrite
+([D2](decisions.md#d2)/[D3](decisions.md#d3)/[D7](decisions.md#d7)). Convergence (2a/2b/2c) is built
+**once on the clean schema** (P4), after the execution loop (P1) and the rewrite (P3), rather than
+migrating two live paths incrementally. See the
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md).
 
 ## Scope
 
@@ -110,7 +111,7 @@ Confirmed by reading `src/trading/services/auto_trading/runtime.py`,
 | On-fill ledger update | `record_trade` | `apply_sleeve_fill` + `record_trade` | ❌ divergent |
 | Pre-submit safety gates | throttles only | kill switches: stale price, reconciliation mismatch/staleness | ❌ asymmetric |
 | Rotation / selection | account episode rotation | sleeve champion/challenger | ❌ two paradigms |
-| Scoring metrics | account-episode rotation still separate | incumbent + challengers via the decision-score contract (Now #1b) | ◑ sleeve side unified (1b); account rotation pending 2b |
+| Scoring metrics | account-episode rotation still separate | incumbent + challengers via the decision-score contract (1b) | ◑ sleeve side unified (1b); account rotation pending 2b |
 | Reconciliation | `reconcile_open_broker_orders` | `reconcile_sleeves_vs_latest_snapshot` | ⚠️ to investigate |
 | Account/equity state | `refresh_account_state` → `compute_account_state` | `_build_sleeve_state` (from sleeve positions) | ⚠️ to investigate |
 | Risk snapshots | (none) | `portfolio_risk_snapshots` + `sleeve_risk_decisions` | ⚠️ to investigate |
@@ -121,7 +122,7 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 
 ## Workstreams
 
-### Confirmed (roadmap Now #2 sub-features)
+### Confirmed (P4 sub-features)
 
 - [ ] **2a. Shared order-submission service**
   - Extract "submit intent → persist broker order → on-fill ledger update" into one service
@@ -131,17 +132,17 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
   - Fold the pre-submit safety gates in so the account path inherits the sleeve kill switches.
   - Highest-value slice; directly reduces future live-path risk.
 - [ ] **2b. Unified rotation/selection**
-  - Collapse account episode rotation and sleeve champion/challenger onto the Now #1 decision-score
+  - Collapse account episode rotation and sleeve champion/challenger onto the P2 decision-score
     contract; reduce the rotation module sprawl (`auto_trading/rotation.py`, `runtime_rotation.py`,
     `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`).
   - Post-1b, `shadow_evaluation` is a thin candidate-enumeration step — its separate challenger
     scoring path is gone, so it is a rename/absorb candidate. The behavior-preserving naming work
     (rename `shadow_evaluation`, disambiguate the two "rotation" meanings, clarify the
-    evaluation/promotion/analysis/reporting boundaries) is tracked as Plan Later #4
+    evaluation/promotion/analysis/reporting boundaries) is tracked as Plan P5
     (Decisioning legibility & naming pass) and is best done alongside this step.
   - Keep evaluation, promotion, and rotation as small SRP pieces that share the one decision-score
     contract under a legible "decisioning" grouping — not a monolith.
-  - **Depends on Plan Now #1a** (shared decision-score contract).
+  - **Depends on Plan 1a** (shared decision-score contract).
 - [ ] **2c. Unified accounting/ledger path**
   - Make sleeve fills a clean extension of the single ledger-update path rather than a divergent copy
     of `record_trade`.
@@ -163,7 +164,7 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 
 ## Dependencies & sequencing
 
-- **1a → 1b and 2b.** The shared decision-score contract (Plan Now #1a) unblocks both the
+- **1a → 1b and 2b.** The shared decision-score contract (Plan 1a) unblocks both the
   rotation migration (1b) and the unified rotation/selection here (2b).
 - **1b checkpoint (entry point to this plan).** Narrow 1b (repoint rotation scoring onto the 1a
   contract, both paradigms intact) needs neither the trading-unit stance nor the A/B decision. The
@@ -199,10 +200,10 @@ Canonical status is tracked in [decisions.md](decisions.md) (D2, D3, D7); design
   virtual (A) vs physical-table-rework (B) as an open realization decision; current lean is virtual
   short-term, with a pre-live table review to revisit (B). Updated open questions and investigation
   items accordingly.
-- 2026-07-01 — Now #1b landed: sleeve rotation now scores incumbent + challengers through the
+- 2026-07-01 — 1b landed: sleeve rotation now scores incumbent + challengers through the
   decision-score contract (current-state "Scoring metrics" row now partial). Marked
   `shadow_evaluation` as a rename/absorb candidate under 2b and recorded the decisioning
-  legibility/naming direction (tracked as Plan Later #4). Added the Plan Next item for a
+  legibility/naming direction (tracked as Plan P5). Added the P7 item for a
   unified parameter source (param sprawl across ~5 stores).
 - 2026-07-01 — Drafted the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md) concretizing
   realization option (B). Reframed (B) as greenfield (no data migration, old data dropped), which
