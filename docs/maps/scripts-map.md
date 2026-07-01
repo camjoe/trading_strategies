@@ -22,6 +22,17 @@ Entry point for all validation checks. Run via `python -m scripts.run_checks --p
 
 ---
 
+## Fix Runner (`scripts/fix_checks.py`)
+
+Applies deterministic, behavior-preserving cleanup before re-running checks.
+
+| Command | What it fixes |
+|---|---|
+| `python -m scripts.fix_checks` | Runs `ruff check --fix` and `ruff format` on the default Python targets |
+| `python -m scripts.fix_checks <path> [...]` | Runs the same fixes on selected Python paths |
+
+---
+
 ## Checks (`scripts/checks/`)
 
 Individual check modules. Each is also usable directly.
@@ -100,6 +111,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | Script | Responsibility |
 |---|---|
 | `run_checks.py` | Check runner entry point (see above) |
+| `fix_checks.py` | Deterministic local auto-fix entry point for Python lint and format drift |
 | `launch_ui.py` | Launch the paper trading UI (backend + frontend dev server) |
 | `ui_config.py` | UI launch configuration (ports, paths) |
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |

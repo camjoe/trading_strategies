@@ -19,12 +19,13 @@ Use the repo-local virtual environment — never system Python.
 
 | Command | What it runs |
 |---|---|
+| `python -m scripts.fix_checks` | Safe mechanical fixes: Ruff lint fixes and formatting |
 | `python -m scripts.run_checks --profile quick` | Layer check + ruff + targeted tests |
 | `python -m scripts.run_checks --profile ci` | Full suite + mypy + frontend |
 | `python -m scripts.checks.run_suite <area>` | Tests for one area, e.g. `src/trading/services/reporting` |
 | `python -m scripts.checks.pr_ready --base <base>` | Full deterministic pre-PR gate |
 
-Lint/format directly with `ruff check .` and `ruff format .`.
+Use `scripts.fix_checks` for normal cleanup. Lint/format directly with `ruff check .` and `ruff format .` only when you need lower-level control.
 
 ## Making a change
 

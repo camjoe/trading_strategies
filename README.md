@@ -65,6 +65,12 @@ python -m scripts.run_checks --profile ci --skip-python
 python -m scripts.run_checks --profile ci --install-python-tools
 ```
 
+For deterministic local cleanup before re-running checks:
+
+```sh
+python -m scripts.fix_checks
+```
+
 ## Quick Start
 
 ### Trends Analysis

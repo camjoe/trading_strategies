@@ -21,6 +21,7 @@ Run these from the repository root:
 
 ```sh
 python -m scripts.run_checks --profile quick
+python -m scripts.fix_checks
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.documentation_ui.check
 ```
@@ -35,6 +36,7 @@ highlights the most common entrypoints.
 Repository workflow scripts (`scripts/`):
 
 - `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
+- `fix_checks.py`: deterministic local auto-fix command for safe mechanical drift (`ruff check --fix` and `ruff format`).
 - `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
 - `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test. Keep detailed setup, safety notes, and usage in `docs/reference/broker-integration.md`; this README only lists the entrypoint.
@@ -113,6 +115,7 @@ python -m scripts.run_checks --profile quick --with-reference-doc-checks
 python -m scripts.run_checks --profile ci
 python -m scripts.run_checks --profile ci --skip-frontend
 python -m scripts.run_checks --profile ci --with-reference-doc-checks
+python -m scripts.fix_checks
 
 # Manual IBKR Web API smoke test
 # See docs/reference/broker-integration.md for private config setup,

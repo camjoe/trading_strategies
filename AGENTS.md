@@ -207,6 +207,12 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 - Run `python -m scripts.run_checks --profile quick`.
 - Report pass/fail by step and include failing command details.
 
+### `fix checks`
+
+- Run `python -m scripts.fix_checks`.
+- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes and formatting.
+- Afterward, run `python -m scripts.run_checks --profile quick` unless the user asked only for the fixer.
+
 ### `run all checks`
 
 - Run `python -m scripts.run_checks --profile ci`.
