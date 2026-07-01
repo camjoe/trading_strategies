@@ -1,4 +1,4 @@
-import { esc } from "../lib/format";
+import { esc, pct } from "../lib/format";
 import type {
   OperationArtifact,
   OperationJobStatus,
@@ -124,6 +124,56 @@ function renderTextList(title: string, items: string[], emptyText: string): stri
   `;
 }
 
+function formatPctValue(value: number | null | undefined): string {
+  return value === null || value === undefined ? "n/a" : pct(value);
+}
+
+function formatCount(value: number | null | undefined): string {
+  return value === null || value === undefined ? "n/a" : value.toString();
+}
+
+function renderEvidenceStat(label: string, value: string): string {
+  return `
+    <div class="analysis-stat">
+      <span class="label">${esc(label)}</span>
+      <span>${esc(value)}</span>
+    </div>
+  `;
+}
+
+function renderPromotionEvaluation(data: PromotionOverviewResponse): string {
+  const evaluation = data.evaluation;
+  const confidence = evaluation.confidence;
+  return `
+    <section class="promotion-section">
+      <h4>Evaluation Evidence</h4>
+      <div class="promotion-summary-grid">
+        ${renderEvidenceStat("Backtest Return", formatPctValue(evaluation.backtest.returnPct))}
+        ${renderEvidenceStat("Backtest Trades", formatCount(evaluation.backtest.tradeCount))}
+        ${renderEvidenceStat("Backtest Snapshots", formatCount(evaluation.backtest.snapshotCount))}
+        ${renderEvidenceStat("Max Drawdown", formatPctValue(evaluation.backtest.maxDrawdownPct))}
+        ${renderEvidenceStat("Walk-Forward Grouped", evaluation.walkForward.grouped ? "yes" : "no")}
+        ${renderEvidenceStat("WF Average Return", formatPctValue(evaluation.walkForward.averageReturnPct))}
+        ${renderEvidenceStat("WF Best Return", formatPctValue(evaluation.walkForward.bestReturnPct))}
+        ${renderEvidenceStat("WF Worst Return", formatPctValue(evaluation.walkForward.worstReturnPct))}
+        ${renderEvidenceStat("Paper/Live Return", formatPctValue(evaluation.paperLive.returnPct))}
+        ${renderEvidenceStat("Paper/Live Snapshots", formatCount(evaluation.paperLive.snapshotCount))}
+        ${renderEvidenceStat("Source Level", evaluation.paperLive.sourceLevel ?? "n/a")}
+        ${renderEvidenceStat("Strategy Isolated", evaluation.paperLive.strategyIsolated ? "yes" : "no")}
+      </div>
+    </section>
+    <section class="promotion-section">
+      <h4>Evaluation Confidence</h4>
+      <div class="promotion-summary-grid">
+        ${renderEvidenceStat("Blended Score", formatPctValue(confidence.blendedScore))}
+        ${renderEvidenceStat("Overall", confidence.overallConfidence.toFixed(2))}
+        ${renderEvidenceStat("Backtest", confidence.backtestConfidence.toFixed(2))}
+        ${renderEvidenceStat("Paper/Live", confidence.paperLiveConfidence.toFixed(2))}
+      </div>
+    </section>
+  `;
+}
+
 export function renderPromotionOverview(data: PromotionOverviewResponse): string {
   const assessment = data.assessment;
   const historyHtml = data.history.length
@@ -201,6 +251,7 @@ export function renderPromotionOverview(data: PromotionOverviewResponse): string
         <span>${esc(assessment.next_action ?? "None recorded")}</span>
       </div>
     </div>
+    ${renderPromotionEvaluation(data)}
     ${renderTextList("Blockers", assessment.blockers, "No blockers recorded.")}
     ${renderTextList("Warnings", assessment.warnings, "No warnings recorded.")}
     ${renderTextList("Data Gaps", assessment.data_gaps, "No data gaps recorded.")}

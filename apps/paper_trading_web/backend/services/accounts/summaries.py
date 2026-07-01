@@ -175,6 +175,7 @@ def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list
 def build_comparison_account_payload(
     summary: dict[str, object],
     latest_backtest: dict[str, object] | None,
+    evaluation: dict[str, object],
 ) -> dict[str, object]:
     """Build comparison payload from a fully-enriched account summary.
 
@@ -195,4 +196,5 @@ def build_comparison_account_payload(
         "liveBenchmarkReturnPct": summary["liveBenchmarkReturnPct"],
         "liveAlphaPct": summary["liveAlphaPct"],
         "latestBacktest": latest_backtest,
+        "evaluation": evaluation,
     }

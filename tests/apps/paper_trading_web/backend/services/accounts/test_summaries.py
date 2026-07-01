@@ -105,10 +105,18 @@ def test_build_comparison_account_payload_includes_live_overlay_summary() -> Non
             "liveAlphaPct": 3.0,
         },
         None,
+        {
+            "blendedScore": 4.5,
+            "overallConfidence": 0.8,
+            "backtestConfidence": 1.0,
+            "paperLiveConfidence": 0.6,
+            "dataGaps": ["missing_walk_forward_evidence"],
+        },
     )
 
     assert payload["liveBenchmarkReturnPct"] == pytest.approx(7.0)
     assert payload["liveAlphaPct"] == pytest.approx(3.0)
+    assert payload["evaluation"]["blendedScore"] == pytest.approx(4.5)
 
 
 class TestBuildPositionsFromStats:

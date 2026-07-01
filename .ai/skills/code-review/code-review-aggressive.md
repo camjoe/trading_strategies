@@ -21,11 +21,12 @@ Use this skill when quality bar should be higher than standard review, especiall
    - dead or redundant helpers
    - duplicate tests and fixtures
    - obsolete docs wording
-5. Produce a test adequacy matrix for each changed behavior area:
+5. For each stale-code or obsolescence claim, record evidence from reference searches, public API/route/type usage, tests covering old and new paths, and migration or backward-compatibility risk.
+6. Produce a test adequacy matrix for each changed behavior area:
    - existing tests
    - missing tests
    - commands run and outcome
-6. If no hard defects are found, provide zero-findings evidence.
+7. If no hard defects are found, provide zero-findings evidence.
 
 ## High-risk triggers
 
@@ -43,6 +44,7 @@ Automatically switch to deep mode when any of these are touched:
 - Do not report style-only nits as findings.
 - Label uncertain items as `Risks/Concerns`, not defects.
 - Every hard finding must include concrete file and line evidence.
+- Cleanup findings are advisory by default unless directly tied to the reviewed change and backed by safe-removal evidence.
 
 ## Repo references
 
@@ -59,4 +61,5 @@ Automatically switch to deep mode when any of these are touched:
 4. Test adequacy matrix
 5. Cleanup and simplification opportunities
 6. Validation summary
-7. Short release-readiness verdict
+7. Developer verification guidance
+8. Short release-readiness verdict

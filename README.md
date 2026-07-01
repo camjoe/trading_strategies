@@ -65,6 +65,14 @@ python -m scripts.run_checks --profile ci --skip-python
 python -m scripts.run_checks --profile ci --install-python-tools
 ```
 
+For deterministic local cleanup before re-running checks:
+
+```sh
+python -m scripts.fix_checks
+```
+
+This runs Ruff safe fixes, Ruff formatting, and generated API/software reference-doc asset sync. Pass `--skip-reference-doc-sync` for Python-only cleanup.
+
 ## Quick Start
 
 ### Trends Analysis
@@ -118,4 +126,3 @@ Tests cover both `trading` and `trends` packages with a minimum 70% coverage thr
 ## Documentation Index
 
 For detailed documentation on all components, see [docs/README.md](docs/README.md).
-

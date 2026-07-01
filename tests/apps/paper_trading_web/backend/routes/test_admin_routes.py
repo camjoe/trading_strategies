@@ -188,7 +188,7 @@ class TestAdminRoutes:
 
     def test_promotion_overview_happy_path(self, api_client: TestClient, seed_account) -> None:
         seed_account("acct_promo_overview")
-        expected = {"assessment": {"status": "ok"}, "history": []}
+        expected = {"assessment": {"status": "ok"}, "evaluation": {"dataGaps": []}, "history": []}
         with patch(_BUILD_PROMOTION_OVERVIEW, Mock(return_value=expected)):
             response = api_client.get(
                 "/api/admin/promotion/overview",
@@ -197,6 +197,23 @@ class TestAdminRoutes:
 
         assert response.status_code == 200
         assert response.json() == expected
+
+    def test_promotion_overview_includes_evaluation_detail(self, api_client: TestClient, seed_account) -> None:
+        seed_account("acct_promo_evaluation")
+
+        response = api_client.get(
+            "/api/admin/promotion/overview",
+            params={"accountName": "acct_promo_evaluation"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert "assessment" in payload
+        assert "evaluation" in payload
+        assert "history" in payload
+        assert payload["evaluation"]["backtest"]["returnPct"] is None
+        assert payload["evaluation"]["confidence"]["blendedScore"] is None
+        assert "missing_backtest_evidence" in payload["evaluation"]["dataGaps"]
 
     def test_promotion_overview_missing_account_name_returns_422(self, api_client: TestClient) -> None:
         response = api_client.get("/api/admin/promotion/overview")

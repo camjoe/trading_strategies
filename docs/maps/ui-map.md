@@ -58,6 +58,7 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `accounts/` | Account data assembly (summaries, snapshots, detail) |
 | `admin.py` | Admin operation service |
 | `backtests.py` | Backtesting service (delegates to `src/trading/backtesting/`) |
+| `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
 | `exports.py` | Data export assembly |
 | `features/` | Feature/signal data service |
 | `ibkr_paper_monitor.py` | IBKR monitor artifact assembly |
