@@ -126,7 +126,8 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
   the strategy row carries its knobs.)
 - **`rotation_decisions`** (unifies `rotation_decisions` + `rotation_episodes`) — keyed by `unit_id`;
   carries incumbent/challenger/selected, action, gate/score json, decision reason, config version,
-  and (folding episodes) the realized-performance window fields.
+  and (folding episodes) the realized-performance window fields. Adds first-class `decision_score` +
+  `decision_confidence` columns (D6).
 
 ### Execution & accounting (one model, keyed by unit)
 
@@ -199,11 +200,11 @@ Decided:
   rows; `strategy_param_sets` dropped.
 - **Parameters split** ([D4](decisions.md#d4)) — strategy knobs in strategy rows; execution/risk
   settings on account/unit; P7 is a view, not a new store.
+- **Decision snapshots** ([D6](decisions.md#d6)) — `decision_score` + `decision_confidence` columns
+  on `rotation_decisions`; no dedicated snapshot table until adaptive learning (P10).
 
 Still open:
 - **Account/unit settings shape** (D4 tail) — typed columns vs a small typed config table per concern.
-- **Persist evaluation/decision snapshots?** ([D6](decisions.md#d6)) — storing the decision score at
-  rotation/promotion time aids auditability and future adaptive learning, at storage cost.
 
 ## Non-goals
 
@@ -217,5 +218,5 @@ Still open:
 - [x] Convergence A/B decision landed on B (physical rework) — D2/D3/D7.
 - [x] Strategy/parameter model decided — D5 + D4 (only the account/unit settings shape is a detail
       to finalize during the build).
-- [ ] D6 (persist decision snapshots?) resolved, or consciously deferred.
+- [x] D6 (persist decision snapshots?) resolved — score columns now, table deferred to P10.
 - [ ] A pre-live window confirmed (cheapest time to change schema).

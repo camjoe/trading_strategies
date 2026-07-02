@@ -86,6 +86,7 @@ service/CLI view over strategy rows + account/unit settings + a few global setti
 - `decision_time` TEXT NOT NULL
 - `incumbent_strategy_id` · `challenger_strategy_id` · `selected_strategy_id` INTEGER
 - `rotation_action` TEXT NOT NULL · `cooldown_active` INTEGER NOT NULL DEFAULT 0
+- `decision_score` REAL · `decision_confidence` REAL  *(first-class score history — D6)*
 - `score_components_json` TEXT · `gate_results_json` TEXT · `decision_reason` TEXT
 - `config_version` TEXT
 - `window_start` TEXT · `window_end` TEXT · `realized_pnl_delta` REAL  *(folds episode fields)*

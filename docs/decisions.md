@@ -23,7 +23,7 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D3](#d3) | Incremental convergence vs DB-rewrite-first | convergence approach & timelines | **decided: rewrite-first, after execution loop** |
 | [D4](#d4) | Parameters model shape | parameter source, DB rewrite | **partly decided** |
 | [D5](#d5) | Strategy catalog granularity | plug-and-play, DB rewrite | **decided: primitive + knobs** |
-| [D6](#d6) | Persist evaluation/decision snapshots? | adaptive learning, auditability | open |
+| [D6](#d6) | Persist evaluation/decision snapshots? | adaptive learning, auditability | **decided: score columns; table deferred** |
 | [D7](#d7) | Default trading unit: real row vs virtual | P4, DB rewrite | **decided: real row (under B)** |
 | [D8](#d8) | Email notifications config | P8 | open |
 | [D9](#d9) | Adaptive-learning definition | P10 | deferred |
@@ -32,10 +32,10 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D12](#d12) | Operator UI surface: console vs incremental tabs | operator-facing UI | deferred (premature) |
 | [D13](#d13) | Decisioning naming/grouping specifics | P5 | deferred |
 
-Decided so far: **D1** (trade policy), **D2/D3/D7** (rewrite-first), **D5** (strategy = primitive +
-knobs), **D4** (params split: knobs in strategy rows, settings on account/unit — a few sub-points
-still open). Remaining rewrite-detail: the account/unit settings shape (D4 tail) and **D6** (persist
-decision snapshots). D8–D13 stay deferred.
+Decided: **D1** (trade policy), **D2/D3/D7** (rewrite-first), **D5** (strategy = primitive + knobs),
+**D4** (params split), **D6** (score columns; snapshot table deferred). The rewrite decision gate is
+now clear; only the account/unit settings shape (D4 tail) is a build-time detail. **D8–D13 stay
+deferred** (feature-specific, not gating the near-term plan).
 
 ---
 
@@ -119,10 +119,12 @@ without code.
 <a id="d6"></a>
 ### D6 — Persist evaluation/decision snapshots?
 
-Gates: P10 (adaptive learning), auditability. **Open.**
+Gates: P10 (adaptive learning), auditability. **Decided (2026-07-01): cheap hedge.**
 
-Store the decision score at rotation/promotion time (aids audit + future versioned learned state) vs
-keep evaluation purely derived. Storage cost vs replayability.
+Store the decision **score + confidence as first-class columns** on `rotation_decisions` (promotion
+already freezes its full evaluation/assessment payloads). **No** dedicated `decision_snapshots` table
+until adaptive learning (P10) is actually pursued — greenfield makes adding it later cheap. Gives a
+queryable "what score did we act on" history without speculative machinery.
 
 <a id="d7"></a>
 ### D7 — Default trading unit: real row vs virtual
