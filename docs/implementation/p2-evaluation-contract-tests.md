@@ -11,6 +11,10 @@ Related: [Plan](../plan.md), [Decisions](../decisions.md), [Overview](../overvie
 > **This file is both the 1c work order and the template** for per-initiative implementation guides.
 > An agent should be able to execute it start-to-finish without further questions. When creating the
 > next guide, copy this section structure. Sections marked _(template)_ generalize to every guide.
+>
+> **Light-model handoff:** follow the execution protocol in [README.md](README.md) — make only the
+> specified changes, run the checks, commit if green, and **stop and report** on anything ambiguous
+> or red. Do not design, weaken a test, or expand scope.
 
 ---
 
@@ -97,12 +101,14 @@ construction + the four scenarios) and `tests/support/evaluation.py`.
      `a.overall_confidence == decision.confidence` and `list(a.data_gaps) == list(decision.data_gaps)`.
    - **Rotation:** monkeypatch
      `trading.services.sleeves.shadow_evaluation.fetch_strategy_evaluation_for_account_row` to return
-     the artifact, call `build_sleeve_metrics_from_evaluation(conn, account=<dummy>, strategy_name=...,
+     the artifact, call `build_sleeve_metrics_from_evaluation(conn, account=..., strategy_name=...,
      param_set_id=None)`, and assert
      `metrics.risk_adjusted_return == (decision.score if decision.score is not None else 0.0)` and
      `metrics.trade_count == (artifact.backtest.trade_count or 0)`.
-     (Use the `conn` fixture; a dummy account row is fine since fetch is stubbed.)
-4. Keep assertions exact (`==`); use `pytest.approx` only if float blending introduces rounding.
+     `conn` and `account` are only forwarded to the monkeypatched fetch, so pass placeholders
+     (`object()`) — **no DB fixture is needed**.
+4. All scenario inputs are whole numbers, so assert exact equality with `==` (do **not** use
+   `pytest.approx`).
 
 ## 7. Validation _(template — commands are exact)_
 
