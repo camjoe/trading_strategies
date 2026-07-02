@@ -133,7 +133,7 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 
 - [ ] **2a. Shared order-submission service**
   - Extract "submit intent → persist broker order → on-fill ledger update" into one service
-    (e.g. `src/trading/services/execution/`) called by both modes.
+    (for example, a future `trading.services.execution` package) called by both modes.
   - On the clean schema there is one `orders`/`order_fills`/`ledger` model keyed by trading unit, so
     "modes" collapse to the default-unit vs multi-unit case — no per-mode persistence branching.
   - The one path owns the pre-submit safety gates (kill switches, reconciliation), so every unit

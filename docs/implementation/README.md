@@ -9,6 +9,16 @@ to a lighter/cheaper model — so execution is reliable and stops safely. Indexe
 guides.
 Related: [Plan](../plan.md), [Decisions](../decisions.md), [Developer Notes](../developer-notes.md)
 
+## Purpose
+
+Define how implementation work is sliced into bounded work orders and handed off to execution
+sessions without expanding scope or weakening validation.
+
+## Usage
+
+Use these guides when preparing or executing one initiative slice. Each work order should name exact
+files, stop conditions, and validation commands before it is handed to an execution session.
+
 ## Handoff model (two roles)
 
 - **Planner (strong model / operator):** resolves decisions, writes the detailed work order, does any
