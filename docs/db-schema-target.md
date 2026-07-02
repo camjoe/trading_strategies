@@ -10,9 +10,61 @@ live in the [DB Schema Rewrite Spec](db-schema-rewrite-spec.md).
 Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overview.md),
 [Developer Notes](developer-notes.md)
 
-> **WIP.** This is the *goal* view. It will change as the spec's open decisions are resolved (default
-> unit real-vs-virtual, `parameters` model shape, persisted decision snapshots, strategy catalog
-> granularity). Items marked (TBD) are not yet settled.
+> **WIP.** This is the *goal* view. It will change as the spec's open decisions are resolved (the
+> account/unit settings shape, D4 tail). Items marked (TBD) are not yet settled.
+
+## Conventions, constraints & invariants
+
+**Storage conventions**
+- SQLite with `PRAGMA foreign_keys = ON`; every `*_id` reference is a real FK.
+- Timestamps are ISO-8601 UTC `TEXT`; `created_at`/`updated_at`/event times are `NOT NULL` (optional
+  only where genuinely absent — `effective_to`, `closed_at`, `broker_order_id` until acked).
+- Money/quantity are `REAL`, consistent with the existing codebase. **Robustness flag (decide before
+  live):** consider integer minor-units to avoid float drift.
+- Boolean flags are `INTEGER CHECK (col IN (0,1))`.
+- Status/enum columns carry `CHECK (col IN (...))` against the vocabularies below.
+- `ON DELETE`: derived/operational children of an account/unit CASCADE (`positions`, `orders`,
+  `order_fills`, `ledger`, `equity_snapshots`, `daily_metrics`, `trading_units`); **audit/history**
+  tables RESTRICT (`promotion_reviews`+events, `rotation_decisions`, `risk_snapshots`,
+  `risk_decisions`, backtests) — never silently drop history.
+
+**Status vocabularies** (CHECK-constrained)
+- `trading_units.status`: `active` | `paused` | `closed`
+- `strategies.status`: `draft` | `frozen` | `retired`
+- `orders.status`: `submitted` | `partially_filled` | `filled` | `rejected` | `cancelled`
+- `side`: `buy` | `sell` · `orders.order_type`: `market` | `limit` · `time_in_force`: `day` | `gtc`
+- `rotation_decisions.rotation_action`: `hold` | `rotate`
+- `ledger.entry_type`: `trade` | `fee` | `deposit` | `withdrawal` | `adjustment`
+- `risk_decisions.action`: `allow` | `block` | `rescale`
+- `promotion_reviews.review_state`/`assessment_stage`/`assessment_status`: today's promotion vocab
+  (preserved).
+
+**Invariants** (enforced in repositories/services, not only DB where noted)
+1. **One default unit per account** — `UNIQUE (account_id) WHERE is_default = 1`. A plain account has
+   exactly that one unit.
+2. **One open assignment per unit** — `UNIQUE (unit_id) WHERE effective_to IS NULL` (the incumbent).
+3. **Equity reconciles** — Σ unit equity == account equity == broker/custody truth (kill-switch guard).
+4. **Order ↔ unit ↔ account integrity** — `orders.unit_id` must belong to `orders.account_id`
+   (service-enforced; SQLite can't express a two-column composite FK to this shape cheaply).
+5. **Strategy immutability** — a `strategies` row is frozen (knobs immutable) once it has backtest
+   evidence or is live; tuning creates a new row. Enforced in the strategies repository/service.
+6. **Live gate** — `live_trading_enabled` is human-set only; never by code, migration, seed, or test.
+
+**Indexes** (beyond PKs / the UNIQUEs above)
+- `trading_units (account_id, status)`
+- `unit_strategy_assignments (unit_id, effective_from)`, `(strategy_id, effective_from)`
+- `rotation_decisions (unit_id, decision_time)`, `(rotation_action, decision_time)`
+- `orders (account_id, status, submitted_at)`, `(unit_id, submitted_at)`
+- `order_fills (order_id)`; UNIQUE `(order_id, exec_id)`
+- `positions (symbol, updated_at)` (PK is `(unit_id, symbol)`)
+- `ledger (unit_id, entry_time)`, `(reference_type, reference_id)`
+- `equity_snapshots (unit_id, snapshot_time)`; UNIQUE `(unit_id, snapshot_time)`
+- `daily_metrics` UNIQUE `(unit_id, metric_date)`
+- `risk_snapshots (account_id, snapshot_time)`; `risk_decisions (account_id, decision_time)`, `(unit_id, decision_time)`
+- `promotion_reviews (review_state, updated_at)`; UNIQUE open review `(account_id, strategy_id) WHERE closed_at IS NULL`; `promotion_review_events (review_id, event_seq)` UNIQUE
+- backtests: `backtest_runs (account_id, strategy_id)`, `backtest_trades (run_id)`,
+  `backtest_equity_snapshots (run_id)`, `walk_forward_groups (grouping_key)` UNIQUE,
+  `walk_forward_group_runs (group_id, window_index)` UNIQUE
 
 ## Custody & units
 
@@ -32,12 +84,13 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 - `id` INTEGER PK
 - `account_id` INTEGER NOT NULL → accounts.id
 - `name` TEXT NOT NULL
-- `status` TEXT NOT NULL
-- `is_default` INTEGER NOT NULL DEFAULT 0  *(a plain account has one default unit)*
-- `start_equity` REAL · `current_cash` REAL · `current_equity` REAL
+- `status` TEXT NOT NULL DEFAULT 'active'  *(active | paused | closed)*
+- `is_default` INTEGER NOT NULL DEFAULT 0
+- `start_equity` REAL NOT NULL · `current_cash` REAL NOT NULL · `current_equity` REAL NOT NULL
 - `trade_universes` TEXT (json)
-- `created_at` TEXT · `updated_at` TEXT
+- `created_at` TEXT NOT NULL · `updated_at` TEXT NOT NULL
 - UNIQUE (account_id, name)
+- UNIQUE (account_id) WHERE is_default = 1  *(exactly one default unit per account — invariant 1)*
 
 ## Strategy catalog & parameters (data-driven)
 
@@ -75,10 +128,10 @@ service/CLI view over strategy rows + account/unit settings + a few global setti
 - `id` INTEGER PK
 - `unit_id` INTEGER NOT NULL → trading_units.id
 - `strategy_id` INTEGER NOT NULL → strategies.id  *(the strategy row carries its own knobs — D5)*
-- `effective_from` TEXT NOT NULL · `effective_to` TEXT
-- `is_incumbent` INTEGER NOT NULL DEFAULT 1
-- `created_at` TEXT · `updated_at` TEXT
-- UNIQUE active incumbent per unit
+- `effective_from` TEXT NOT NULL · `effective_to` TEXT  *(NULL = open/incumbent)*
+- `is_incumbent` INTEGER NOT NULL DEFAULT 1 CHECK (is_incumbent IN (0,1))
+- `created_at` TEXT NOT NULL · `updated_at` TEXT NOT NULL
+- UNIQUE (unit_id) WHERE effective_to IS NULL  *(one open assignment per unit — invariant 2)*
 
 ### `rotation_decisions` — unifies sleeve champion/challenger + account episode
 - `id` INTEGER PK
@@ -158,8 +211,8 @@ service/CLI view over strategy rows + account/unit settings + a few global setti
   `operator_summary_note`, `created_at`, `updated_at`, `closed_at`.
 - `promotion_review_events`: `id`, `review_id`, `event_seq`, `event_type`, `actor_type`,
   `actor_name`, `from_review_state`, `to_review_state`, `note`, `event_payload`, `created_at`.
-- (TBD) optional `decision_snapshots` table if we choose to persist decision scores at rotation/
-  promotion time (aids adaptive learning).
+- Decision snapshots: score columns live on `rotation_decisions` (D6); a dedicated
+  `decision_snapshots` table is deferred to adaptive learning (P10).
 
 ## Backtesting (structurally stable; strategy_id FK)
 
