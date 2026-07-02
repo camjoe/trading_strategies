@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-02
 Purpose: Define the required metadata header for every file under docs/ so files are self-describing for both developers and agents.
 Related: [Reference Doc Standard](reference-doc.md), [README Layout Standard](readme-layout.md), [Docs Map](../maps/docs-map.md)
 
@@ -89,4 +89,6 @@ Related: [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](gove
 
 ## Scope
 
-All files under `docs/` follow this standard. The one exception is `docs/reference/agent-skills.md`, which is a copy of external upstream documentation and is intentionally not owned by this project.
+All files under `docs/` follow this standard, with no exceptions. (The former exception,
+`docs/reference/agent-skills.md`, was a verbatim upstream copy; it is now a repo-owned pointer doc
+with a normal header.)

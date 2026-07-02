@@ -28,5 +28,5 @@ Tracked backlog of doc-tooling work that applies the principles above. Each is s
 - **Doc-header lint** (principles 2 and 4). Add an advisory check (sibling of `link_check`) that
   verifies every `docs/` file carries the six header fields with valid `Type`/`Status` vocabulary
   per [doc-header.md](doc-header.md) — catches the missing-`Last Reviewed` class of drift
-  permanently. (`docs/reference/agent-skills.md` stays exempt.)
+  permanently.
 - **Scripts discoverability** (principles 1–2). Enrich [`docs/maps/scripts-map.md`](../maps/scripts-map.md) with per-script usage + safety notes, and cross-link operational scripts to the skills/agents that drive them (e.g. UI screenshot tooling ↔ a UI-verify skill; auto-trading runners ↔ the `trading-runtime` agent + runbooks).
