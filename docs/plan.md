@@ -22,8 +22,8 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✎ spec ready | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
 | 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
 | 5 | Decisioning legibility & naming pass | Committed | ☐ | M | [D13](decisions.md#d13) |
-| 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | L | [D5](decisions.md#d5) |
-| 7 | Unified parameter source | Committed | ☐ | L | [D4](decisions.md#d4) |
+| 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | M | [D5](decisions.md#d5) |
+| 7 | Unified parameter source | Committed | ☐ | M | [D4](decisions.md#d4) |
 | 8 | Email notifications (independent) | Committed | ☐ | M | [D8](decisions.md#d8) |
 | 9 | Portfolio risk rollup | Committed | ☐ | M | [D10](decisions.md#d10) |
 | 10 | Adaptive learning | Exploratory | ☐ | L | [D9](decisions.md#d9) |
@@ -89,13 +89,27 @@ Rationale for the priority board order (the board above is the canonical ordered
 
 Reference entries. Ordered priority, commitment, and status live in the priority board above.
 
-#### DB schema rewrite (greenfield, option B)
+#### DB schema rewrite (greenfield, option B) — the spine
 
 Priority: P3 · Committed
 
-Decided B ([D2](decisions.md#d2)/[D3](decisions.md#d3)). Full detail in the
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md) and [DB Schema Target](db-schema-target.md);
-open schema-detail decisions: [D4](decisions.md#d4), [D5](decisions.md#d5), [D6](decisions.md#d6).
+Decided B ([D2](decisions.md#d2)/[D3](decisions.md#d3)). This is the **spine** the later work hangs
+off: the clean trading-unit schema is the foundation that P4 (convergence), P6/4a (data-driven
+strategies), and P7 (parameter source) build on. Full schema:
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md) + [DB Schema Target](db-schema-target.md).
+
+- Scope (P3 = schema **and** the code that reads it): new DDL; new repositories against the clean
+  tables; re-point evaluation-evidence and backtest reads to unit-keyed tables.
+- **P3↔P4 boundary:** P3 delivers the schema + repositories + re-pointed reads; P4 builds the
+  converged submission/rotation/accounting **services** on top.
+- New tasks surfaced (whole-picture review):
+  - [ ] **Define the primitive catalog** — decide which current `signal_fn`s become primitives and
+    each primitive's knob schema (the code half of the strategy = primitive + knobs model, D5).
+  - [ ] **Seed the strategy catalog** — re-create the 14 current `STRATEGY_REGISTRY` entries as
+    `strategies` rows (primitive + their default knobs) so nothing is lost when strategies go data.
+- Delivers foundations for: P4 (trading units), P6/4a (`strategies` table), P7 (settings storage),
+  and D6 (decision-score columns).
+- Remaining open: the account/unit settings shape ([D4](decisions.md#d4) tail).
 
 #### Unify evaluation across decision surfaces
 
@@ -158,10 +172,10 @@ Priority: P2 · Committed
 
 Priority: P4 · Committed
 
-- Scope: remove the parallel account-mode vs sleeve-mode orchestration by routing both through
-  shared, single-responsibility services. Consolidation is incremental and opportunistic — build
-  each shared service as roadmap work touches that code and migrate the account and sleeve paths one
-  seam at a time, so pre-submit safety only ever strengthens. No big-bang rewrite of the live path.
+- Scope: remove the parallel account-mode vs sleeve-mode orchestration by building **one**
+  submission/rotation/accounting path. Under rewrite-first (P3), these services are built **once on
+  the clean trading-unit schema**, not by migrating two live paths — so pre-submit safety is uniform
+  by construction. Depends on P3 (the schema + repositories).
 - Full plan and progress tracker: [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
 - Surface: `src/trading/services/auto_trading/`, `src/trading/services/sleeves/`,
   `src/trading/services/accounting/`.
@@ -181,19 +195,16 @@ Priority: P4 · Committed
   - rotation is split across two paradigms and several modules (`auto_trading/rotation.py`,
     `runtime_rotation.py`, `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`) — the
     same root cause as P2.
-- Sub-features (independent; each migrates account + sleeve one seam at a time):
-  - [ ] **2a. Shared order-submission service** — extract "submit intent → persist broker order →
-    on-fill ledger update" into one service (e.g. `src/trading/services/execution/`) that both modes
-    call, differing only by an injected on-fill handler (account ledger vs sleeve ledger). Fold the
-    pre-submit safety gates in so account mode inherits the sleeve kill switches. Highest-value slice
-    and directly reduces live-path risk.
-  - [ ] **2b. Unified rotation/selection** — collapse account episode rotation and sleeve
-    champion/challenger onto the P2 decision-score contract, and reduce the rotation module
-    sprawl. Depends on 1a.
-  - [ ] **2c. Unified accounting/ledger path** — make sleeve fills a clean extension of the single
-    ledger-update path rather than a divergent copy.
-- Estimate: **L\*** — gated by the A/B decision ([D3](decisions.md#d3)); under the DB rewrite (B),
-  2a/2b/2c are built once on the clean schema instead of migrated incrementally.
+- Sub-features (built once on the clean schema; unit = default-unit for a plain account):
+  - [ ] **2a. Shared order-submission service** — one service (e.g. `src/trading/services/execution/`)
+    that submits → persists the broker order → updates the unit ledger on fill, with the pre-submit
+    safety gates (kill switches, reconciliation) owned centrally so every unit inherits them.
+    Highest-value slice; directly reduces live-path risk.
+  - [ ] **2b. Unified rotation/selection** — one rotation path on the P2 decision-score contract.
+    **Decide which paradigm survives** (champion/challenger is the developed one; retire the
+    account-episode path) and reduce the rotation module sprawl.
+  - [ ] **2c. Unified accounting/ledger path** — one unit-keyed ledger; fills flow through it.
+- Estimate: **L** — built once on the clean schema (P3), not migrated incrementally.
 - Code areas that will change:
   - 2a: new `src/trading/services/execution/` submission service; refactor
     `src/trading/services/auto_trading/runtime.py` (the inline `_run_sleeve_mode_for_account` loop and
@@ -283,6 +294,8 @@ Priority: P6 · Committed
   expose it. No arbitrary-logic scripting DSL (safety/testability).
 - Dependency: P1 (params must actually flow into signals for data-defined variants to mean
   anything).
+- Overlap with P3: the `strategies` table + catalog seeding are delivered by the rewrite (P3); P6/4a
+  is the **code** half — the primitive catalog + the loader that reads the table.
 - Sub-features:
   - [ ] **4a. Data-driven strategy registry** — load strategy definitions from config/DB against a
     code primitive catalog; `available_strategy_ids()` and rotation read the data-defined set.
@@ -339,10 +352,12 @@ Priority: P7 · Committed
   (evaluation confidence, promotion policy, trade throttles), `SleeveRotationConfig` code defaults
   (rotation weights), `src/infrastructure/config/account_profiles/*.json`, and account DB columns
   (risk policy, stops, `learning_enabled`, rotation schedule/lookback/cooldown).
+- Overlap with P3/D4: the rewrite (P3) decides **where** params live — strategy knobs in `strategies`
+  rows, execution/risk settings on the account/unit ([D4](decisions.md#d4)). P7 is the read/edit
+  **view + CLI** over those, **not** a new store. So P7 is mostly a surface once P3 lands.
 - Decisions to resolve first: which parameters are operator-tunable at runtime vs. code-owned
-  defaults; whether the single source is a read-through view/API over the existing stores or a
-  consolidated store; and how versioning/auditing works for changes.
-- Estimate: **L** (shape-dependent; heavy overlap with the DB rewrite `parameters` table).
+  defaults; and the account/unit settings shape (D4 tail).
+- Estimate: **M** (a view/CLI over P3's storage; smaller now that the store is decided).
 - Code areas that will change: a new parameter service (extend
   `src/trading/services/operational_settings/` or a new `services/parameters/`); a store or
   read-through view over the ~5 existing sources ([D4](decisions.md#d4)); a CLI to view/edit; migrate
@@ -456,12 +471,12 @@ Priority: P5 · Committed
 
 ## Notes
 
-- **Holistic restructure review (pending).** After this per-item gap pass (estimates + code areas),
-  step back and look at the whole picture for a larger restructure. The DB rewrite fork
-  ([D3](decisions.md#d3)) is the big lever — under it, several items (P4, the P7 parameter store,
-  parts of P6) may be built once on the clean schema rather than incrementally, which would
-  reorder and resize this plan. Keep an open mind for bigger changes; decide the fork before
-  committing to the incremental estimates above.
+- **Holistic review (done 2026-07-01).** The DB rewrite fork ([D3](decisions.md#d3)) resolved to
+  rewrite-first, making **P3 the spine**: P4 (convergence), P6/4a (data-driven strategies), and P7
+  (parameter source) are now built on / are consequences of the clean schema. P6 and P7 dropped to
+  M. New tasks surfaced under P3 (define the primitive catalog; seed the strategy catalog) and P4
+  (pick the surviving rotation paradigm). The convergence plan was reframed from incremental
+  migration to build-once-on-clean-schema.
 - Multi-universe support is already partially present (`--tickers-file`,
   `--universe-history-dir`); richer UX can wait until higher-priority slices land.
 - Keep live activation explicitly human-gated.
