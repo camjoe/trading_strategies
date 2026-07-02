@@ -5,14 +5,21 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 from scripts.documentation_ui.api.check import run_api_reference_check
+from scripts.documentation_ui.finance.check import run_finance_reference_check
 from scripts.documentation_ui.software.check import run_software_reference_check
 
 
 def run_reference_docs_check(
     repo_root: Path,
+    include_finance: bool = True,
     include_software: bool = True,
     include_api: bool = True,
 ) -> int:
+    if include_finance:
+        finance_exit = run_finance_reference_check(repo_root=repo_root)
+        if finance_exit != 0:
+            return finance_exit
+
     if include_software:
         software_exit = run_software_reference_check(repo_root=repo_root)
         if software_exit != 0:
@@ -29,9 +36,10 @@ def run_reference_docs_check(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check assets/software.json and assets/api.json are in sync (finance.json is manually curated).",
+        description="Check documentation UI assets are in sync with their canonical sources.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
+    parser.add_argument("--skip-finance", action="store_true", help="Skip the Finance reference check.")
     parser.add_argument("--skip-software", action="store_true", help="Skip the Software reference check.")
     parser.add_argument("--skip-api", action="store_true", help="Skip the API reference check.")
     return parser.parse_args()
@@ -42,6 +50,7 @@ def main() -> int:
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
     return run_reference_docs_check(
         repo_root=repo_root,
+        include_finance=not args.skip_finance,
         include_software=not args.skip_software,
         include_api=not args.skip_api,
     )
