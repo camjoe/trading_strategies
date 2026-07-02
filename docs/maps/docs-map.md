@@ -70,7 +70,7 @@ Structural reference — one file per major package. Go stale when module files 
 | `docs/maps/infrastructure-map.md` | `src/infrastructure/` adapters, boundary rules, and config assets | Any `src/infrastructure/` module added, removed, or its boundary changes |
 | `docs/maps/common-map.md` | `src/common/` shared-kernel utilities | Any `src/common/` module added, removed, or renamed |
 | `docs/architecture/nav-guide.md` | Task → file lookup ("I want to X → edit Y") | A new task type emerges or a mapped file changes |
-| `docs/architecture/service-cookbook.md` | Which function to call for common tasks | Service API signatures or function names change |
+| `docs/architecture/service-cookbook.md` | Capability → service-package pointers + the stable import pattern | A service package is added/removed or a capability moves packages |
 | `docs/architecture/service-repository-boundary.md` | Contract rules between service and repository layers | Layer boundary rules or exceptions change |
 
 ---
