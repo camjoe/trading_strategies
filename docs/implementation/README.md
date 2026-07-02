@@ -17,6 +17,29 @@ Related: [Plan](../plan.md), [Decisions](../decisions.md), [Developer Notes](../
   checks, and commits **only if green**. It does **not** design, resolve decisions, or expand scope —
   on any ambiguity or red check it **stops and reports**.
 
+## Operating model (running it efficiently)
+
+- **Control tower (one long-lived planning session).** Holds the full plan/decisions/schema context.
+  It resolves decisions, writes/refines work orders, does the design-heavy first slice of hard
+  initiatives, and reviews results. **It never blocks on PR merges** — it keeps the work-order queue
+  full ahead of execution.
+- **Execution sessions (short-lived, one per work order).** Light model for mechanical chunks, strong
+  for logic-heavy ones. Each is pointed at one self-contained work order, on one branch off the latest
+  `develop`. Kick off with: *"Implement `docs/implementation/<file>.md` following this README's
+  execution protocol; stop and report on any ambiguity or red check."*
+- **Branch/PR unit = one initiative** (may hold several phase-commits — e.g. P3's phases A–E on one
+  branch). Not one-commit-per-PR; never a mega-branch (that is what we escaped).
+- **Planning-doc changes** batch on their own short-lived docs branch off `develop` — they do **not**
+  ride a feature branch's PR.
+- **PR flow:** the executor pushes and opens the PR; **the human is the merge gate** (review + merge).
+  A light-model executor opens its own PR so the human just reviews.
+- **Sequencing:**
+  - *Dependent* work (e.g. P4 needs P3) — merge the prerequisite, then branch. Don't stack.
+  - *Independent* work (e.g. P2 and P8; P1 vs P3-planning) — run in parallel off `develop`, bounded by
+    the human's review bandwidth (realistically 1–2 concurrent streams for a solo reviewer).
+- **Throughput rule:** decouple planning from execution — keep ready work orders queued so execution
+  never waits on planning; dependent chains merge in order while independent ones run in parallel.
+
 ## Chunk-readiness checklist
 
 A work order may be handed to a light model only if **all** hold:
