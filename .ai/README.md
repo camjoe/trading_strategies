@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-17
 Last Reviewed: 2026-06-19
 Purpose: Define the two agent surfaces (skills and agents) and when to reach for each.
-Related: [AGENTS.md](../AGENTS.md), [Agent Skills Guide](../docs/reference/agent-skills.md), [Skill Invocation Policy](../docs/reference/skill-invocation-policy.md)
+Related: [AGENTS.md](../AGENTS.md), [Skill Invocation Policy](../docs/reference/skill-invocation-policy.md)
 
 ## Overview
 
@@ -24,7 +24,7 @@ Operational assets for AI agents working in this repo. **[`AGENTS.md`](../AGENTS
 
 - Default to the most specific matching skill — see the routing tables in [`AGENTS.md`](../AGENTS.md).
 - Use an agent only when it adds exact repo paths, project-only safety rules, domain/workflow constraints, or operator-workflow integration.
-- Authoring a new skill or agent? Use the `create-skill` skill and the [Agent Skills guide](../docs/reference/agent-skills.md); follow the invocation rules in [`skill-invocation-policy.md`](../docs/reference/skill-invocation-policy.md).
+- Authoring a new skill or agent? Use the `create-skill` skill; follow the authoring rules in [`.ai/skills/README.md`](skills/README.md) and invocation rules in [`skill-invocation-policy.md`](../docs/reference/skill-invocation-policy.md).
 
 ## Discoverability
 

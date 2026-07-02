@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-06-24
+Last Reviewed: 2026-07-02
 Purpose: Inventory the `src/infrastructure/` package — the concrete adapters and external-dependency boundaries that the trading domain depends on only through ports, plus the database backend and static config assets.
 Related: [Trading Package Map](trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Broker Integration](../reference/broker-integration.md)
 
@@ -79,7 +79,7 @@ Static file-backed configuration assets. Read at runtime; not imported as Python
 
 | Asset | Description |
 |---|---|
-| `account_profiles/` | TOML account profile presets |
+| `account_profiles/` | JSON account profile presets |
 | `trade_universes/` | Trade-universe definition files |
 | `account_trade_caps.json` | Account-level trade-cap limits |
 | `trade_universe.txt` | Default trade-universe ticker list |

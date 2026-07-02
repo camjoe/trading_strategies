@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-25
+Last Reviewed: 2026-07-02
 Purpose: Procedures for monitoring and recovering the runtime trading jobs — the daily IBKR Paper Autonomy workflow and the weekly database backup — including completion checks and artifact inspection.
 Related: [Runtime Jobs Reference](../reference/runtime-jobs.md), [Governance Review Guide](governance-review.md), [Burn-In Protocol](burn-in-protocol.md), [Broker Integration](../reference/broker-integration.md)
 
@@ -15,7 +15,10 @@ see the [Runtime Jobs Reference](../reference/runtime-jobs.md).
 
 ## Scheduled job
 
-The daily paper-trading job runs once per trading day via Windows Task Scheduler (or cron on Linux).
+The daily paper-trading job runs once per trading day via the OS scheduler — systemd timers on the
+dedicated Linux production host (per [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md)
+and the [Production Runtime Host runbook](production-runtime-host.md)); Windows Task Scheduler when
+running from a Windows dev machine.
 
 **Entrypoint:**
 ```
@@ -40,7 +43,7 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```bash
    cat local/exports/daily_paper_trading/daily_paper_trading_$(date +%Y%m%d)_*.json | python -m json.tool
    ```
-   Check: `status == "ok"`, all `step_results` entries show `status: ok` or `status: skipped`.
+   Check: top-level `status == "success"`; all `step_results` entries show `status: ok` or `status: skipped`.
 
 3. **Review daily operator report** — step 10 artifact section contains per-account sleeve performance, risk violations, and rotation decisions.
 

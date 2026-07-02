@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-04-24
 Last Reviewed: 2026-04-25
 Purpose: Define consistent README section layouts so contributors can write new README files with a predictable structure.
-Related: [Doc Header Standard](doc-header.md), [Reference Doc Standard](reference-doc.md)
+Related: [Documentation Authoring Standard](docs-authoring.md)
 
 ## Purpose
 
@@ -87,4 +87,3 @@ Before finalizing a README:
 3. Run:
    - `python -m scripts.checks.readme_check --max-age-days 90`
 4. If behavior changed, update linked docs in the same change set.
-

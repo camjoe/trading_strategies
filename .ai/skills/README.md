@@ -10,7 +10,7 @@ Define how this repository uses reusable skills vs repo-specific agents, and pro
 
 1. Choose the closest matching skill folder and follow its `SKILL.md`.
 2. Use a repo-specific agent only when the work depends on repo-only execution behavior.
-3. To add or improve a skill, follow the authoring guide at `docs/reference/agent-skills.md`.
+3. To add or improve a skill, see the authoring rules below.
 
 ## Active layout
 
@@ -87,6 +87,8 @@ Repo-specific agents live in `.ai/agents/`.
 
 ## Authoring rules
 
+### Reusability and structure
+
 Skills should:
 
 1. stay reusable in a similar repo with light localization
@@ -99,6 +101,19 @@ Skills should not:
 1. assume this repo's layout is universal
 2. present repo-specific commands as if they exist everywhere
 3. absorb project-only safety rules that belong in `AGENTS.md` or a repo-specific agent
+
+### Content philosophy
+
+When writing a skill:
+
+1. **Concise is key.** The context window is shared. Assume the model is already smart — only add
+   context it doesn't have. Every SKILL.md paragraph must justify its token cost.
+2. **Progressive disclosure.** Keep SKILL.md as the entry point; push mode- or domain-specific
+   detail into sibling reference files loaded on demand.
+3. **Match freedom to fragility.** Give text instructions for judgment tasks; give exact commands
+   or scripts for fragile, deterministic steps (validation commands, file paths).
+4. **Test with real usage.** A skill's description decides whether it triggers — write it from the
+   user's task vocabulary, not the skill's internals, and iterate on real invocations.
 
 ## When to add a new skill vs agent
 

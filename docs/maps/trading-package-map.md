@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-02
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -217,6 +217,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `evaluation_confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
+| `evaluation_decision_score.py` | `derive_decision_score` — the shared decision-score contract derived from `StrategyEvaluationArtifact` (P2/1a) |
 | `evaluation_decision_score.py` | Pure adapter from evaluation artifacts to the shared decision-score contract |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |

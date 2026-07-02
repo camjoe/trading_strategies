@@ -3,7 +3,7 @@
 Type: adr
 Status: Proposed
 Created: 2026-06-27
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-02
 Purpose: Record where the scheduled runtime jobs run in production, how code is promoted to that host, and why full blue/green is deliberately deferred for the paper-trading phase.
 Related: [Production Runtime Host Runbook](../runbooks/production-runtime-host.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 

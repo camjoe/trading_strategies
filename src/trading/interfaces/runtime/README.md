@@ -52,7 +52,7 @@ run unattended on the host:
 ## Usage
 
 - Full operator inventory (commands, schedule status, frequency):
-  [docs/reference/runtime-jobs-inventory.md](../../../../docs/reference/runtime-jobs-inventory.md).
+  [docs/reference/runtime-jobs.md](../../../../docs/reference/runtime-jobs.md).
 - Running and scheduling reference:
   [docs/reference/runtime-jobs.md](../../../../docs/reference/runtime-jobs.md).
 - To add a new job, use the `create-runtime-job` skill — it scaffolds the module,

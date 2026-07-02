@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Purpose: Developer-facing working notes, gotchas, and pre-implementation checks — a sanity check for
 the same developer picking work back up. Tasks/order/status/timelines live in [plan.md](plan.md).
 Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
@@ -29,8 +29,9 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 - [ ] **Confirm audit trails are still empty** — re-check `promotion_reviews` /
       `promotion_review_events` row counts; if any human review history has accrued since the
       2026-07-01 assessment, decide whether to preserve it.
-- [ ] **Resolve the open decisions** in the spec (default unit real-vs-virtual, `parameters` model
-      shape, whether to persist evaluation/decision snapshots, strategy catalog granularity).
+- [ ] **Settle the remaining D4 tail** — the account/unit settings shape (typed columns vs a small
+      typed config table per concern), decided at the start of P3 Phase A. The other rewrite
+      decisions (D2/D3/D5/D6/D7) were resolved 2026-07-01 — see [decisions.md](decisions.md).
 - [ ] **Keep a fresh backup** — `local/db_backups/` already holds snapshots; take one more before
       dropping.
 
@@ -65,4 +66,4 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 - **Tasks / order / status / timelines** → [plan.md](plan.md) (the status board + Current cycle
   sequencing are the single source).
 - **Open decisions ("what needs defining")** → [decisions.md](decisions.md).
-- **Recommended next action** → close the execution loop (Plan P1, the keystone), then finish 1c.
+- **Recommended next action** → close the execution loop (Plan P1, the keystone; P2 is complete).

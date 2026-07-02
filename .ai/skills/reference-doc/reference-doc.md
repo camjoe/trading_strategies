@@ -11,7 +11,7 @@ Use this skill to create a new reference document (`notes-*.md`) or Architecture
 
 1. **Determine type** — `notes` for living reference material; `adr` for a decision record.
 2. **Choose a filename** — `notes-<kebab-topic>.md` or `adr-<kebab-topic>.md`.
-3. **Fill the header block** — all required fields as defined in `docs/conventions/reference-doc.md`.
+3. **Fill the header block** — all required fields as defined in `docs/conventions/docs-authoring.md`.
 4. **Draft sections** — follow the recommended section layout for the doc type.
 5. **Apply content** — write the document with concrete, actionable content.
 6. **Link the new doc** — add an entry to `docs/README.md` under "Reference Notes and ADRs".
@@ -62,7 +62,7 @@ Superseded By: <filename>  (only when Status: Superseded)
 
 ## Repo references
 
-- `docs/conventions/reference-doc.md` — authoritative header standard and section guidance
+- `docs/conventions/docs-authoring.md` — authoritative header standard and section guidance
 - `docs/reference/TEMPLATE.notes.md` — notes template
 - `docs/adr/TEMPLATE.adr.md` — ADR template
 - `docs/README.md` — reference section to update after creating a new doc

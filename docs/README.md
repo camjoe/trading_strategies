@@ -3,9 +3,9 @@
 Type: index
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-02
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
-Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header.md)
+Related: [Docs Map](maps/docs-map.md), [Documentation Authoring Standard](conventions/docs-authoring.md)
 
 ## Overview
 
@@ -65,7 +65,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/broker-setup-alpaca.md`](reference/broker-setup-alpaca.md) — Alpaca setup guide (Draft — adapter not yet implemented)
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
-- [`adr/007-production-runtime-hosting-and-deployment.md`](adr/007-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
+- [`adr/008-production-runtime-hosting-and-deployment.md`](adr/008-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders
 - [`adr/004-runtime-naming-and-operational-settings.md`](adr/004-runtime-naming-and-operational-settings.md) — disambiguate "runtime" naming; operational_settings package
@@ -77,7 +77,7 @@ Full listing: [`reference/`](reference/). Key entries:
 
 - [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
 - [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
-- [`conventions/reference-doc.md`](conventions/reference-doc.md) — standard structure for reference notes
+- [`conventions/docs-authoring.md`](conventions/docs-authoring.md) — required doc headers, doc types, templates, and reference-doc/ADR section layouts
 - [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles + deferred doc-tooling backlog
 
 ## Runbooks

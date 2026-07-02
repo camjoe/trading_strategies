@@ -71,6 +71,6 @@ Before finishing a skill:
 
 ## Repo references
 
-- `docs/reference/agent-skills.md` — authoritative authoring guide
+- `.ai/skills/README.md` — authoring rules and skill inventory
 - `.ai/skills/` — existing skills for reference and consistency
 
