@@ -55,7 +55,7 @@ In `manage_job_schedules.py`: add `<NAME>_MODULE`, a `DEFAULT_..._TASK_NAME`, a
 
 ## 6. Add the inventory row
 
-Add a row to `docs/reference/runtime-jobs-inventory.md` in the Scheduled / Manual /
+Add a row to `docs/reference/runtime-jobs.md` in the Scheduled / Manual /
 Governance table that matches the job.
 
 ## 7. Validate
@@ -83,4 +83,4 @@ python -m scripts.checks.pr_ready --skip-tests        # layer + lint
 - `src/trading/interfaces/runtime/jobs/daily/snapshot.py` — daily example
 - `src/trading/interfaces/runtime/jobs/governance/weekly/w1_leaderboard.py` — governance example
 - `src/trading/interfaces/runtime/jobs/maintenance/weekly_db_backup.py` — maintenance example
-- `docs/reference/runtime-jobs-inventory.md` — operator-facing inventory
+- `docs/reference/runtime-jobs.md` — operator-facing inventory

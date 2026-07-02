@@ -90,7 +90,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `src/trading/models/` sleeve shapes change |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
-| `docs/reference/runtime-jobs-inventory.md` | Operator-facing job inventory: names, schedules, install commands | A job is added/removed or its schedule/install flags change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
 | `docs/reference/broker-setup-ibkr.md` | IBKR Client Portal Gateway operator setup checklist | IBKR gateway setup steps or connection config change |
 | `docs/reference/broker-setup-alpaca.md` | Alpaca setup guide (Draft — adapter not implemented) | Alpaca adapter work starts or is dropped |
