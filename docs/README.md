@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-07-02
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
-Related: [Docs Map](maps/docs-map.md), [Doc Header Standard](conventions/doc-header.md)
+Related: [Docs Map](maps/docs-map.md), [Documentation Authoring Standard](conventions/docs-authoring.md)
 
 ## Overview
 
@@ -76,7 +76,7 @@ Full listing: [`reference/`](reference/). Key entries:
 
 - [`conventions/python-style.md`](conventions/python-style.md) — Python coding conventions for this repo
 - [`conventions/readme-layout.md`](conventions/readme-layout.md) — standard README section layout
-- [`conventions/doc-header.md`](conventions/doc-header.md) — required doc headers + reference-doc/ADR section layouts
+- [`conventions/docs-authoring.md`](conventions/docs-authoring.md) — required doc headers, doc types, templates, and reference-doc/ADR section layouts
 - [`conventions/documentation-maintenance.md`](conventions/documentation-maintenance.md) — anti-doc-rot principles + deferred doc-tooling backlog
 
 ## Runbooks

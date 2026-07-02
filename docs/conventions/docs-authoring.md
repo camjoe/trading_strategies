@@ -1,10 +1,10 @@
-# Doc Header Standard
+# Documentation Authoring Standard
 
 Type: convention
 Status: Active
 Created: 2026-06-16
 Last Reviewed: 2026-07-02
-Purpose: Define the required metadata header for every file under docs/ so files are self-describing for both developers and agents.
+Purpose: Define the required metadata header, document types, templates, and reference/ADR layouts for docs/ files.
 Related: [README Layout Standard](readme-layout.md), [File Naming Convention](naming.md), [Docs Map](../maps/docs-map.md)
 
 ## Header Format

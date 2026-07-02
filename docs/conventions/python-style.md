@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-07-02
 Purpose: Repo-specific Python guidance that ruff cannot enforce: type-hint best practices, docstring expectations, and filesystem path handling.
-Related: [General Style](general-style.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Doc Header Standard](doc-header.md)
+Related: [General Style](general-style.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Documentation Authoring Standard](docs-authoring.md)
 
 Baseline PEP 8 (whitespace, blank lines, comparison idioms, comprehensions, f-strings) is enforced by `ruff` and is deliberately not restated here. For the cross-cutting style approach, see [General Style](general-style.md). For naming conventions, constants, imports, and line-length rules, see [Naming Conventions](../architecture/architecture-conventions.md#naming-conventions) and `ruff.toml`.
 

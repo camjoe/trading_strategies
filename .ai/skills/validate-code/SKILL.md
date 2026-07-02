@@ -47,7 +47,7 @@ Stop. Report the exact failing command and output — do not paraphrase. Do not 
 
 This suite is deterministic and does not check everything. These are **advisory** — confirm them by review, not by this suite:
 
-- Doc-header metadata present and accurate (`docs/conventions/doc-header.md`)
+- Doc-header metadata present and accurate (`docs/conventions/docs-authoring.md`)
 - Naming conventions beyond what ruff covers (`docs/conventions/naming.md`)
 - Reference notes and maps reflect current behavior
 - An ADR exists for any architectural decision

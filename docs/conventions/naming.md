@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-16
 Last Reviewed: 2026-07-02
 Purpose: Define how documentation files and folders are named so paths are predictable for both developers and agents.
-Related: [Doc Header Standard](doc-header.md), [Docs Map](../maps/docs-map.md)
+Related: [Documentation Authoring Standard](docs-authoring.md), [Docs Map](../maps/docs-map.md)
 
 ## Case
 
@@ -27,7 +27,7 @@ A file's folder already says what kind of doc it is, so don't restate it in the 
 | Folder | Don't write | Write | Rule |
 |---|---|---|---|
 | `reference/` | `notes-backtesting.md` | `backtesting.md` | no `notes-` prefix |
-| `conventions/` | `doc-header-standard.md` | `doc-header.md` | no `-standard` / `-guide` / `-convention` suffix |
+| `conventions/` | `docs-authoring-standard.md` | `docs-authoring.md` | no `-standard` / `-guide` / `-convention` suffix |
 | `conventions/` | `python-general-style.md` | `python-style.md` | same |
 | `runbooks/` | `governance-review-guide.md` | `governance-review.md` | a runbook is already a procedure; no `-guide` |
 

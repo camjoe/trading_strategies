@@ -151,7 +151,7 @@ Rules and standards this project follows — coding style, doc structure, naming
 | `docs/conventions/frontend-style.md` | TypeScript/Vite frontend style | Frontend conventions change |
 | `docs/conventions/naming.md` | File/folder naming convention | Naming rules change |
 | `docs/conventions/readme-layout.md` | Standard layout for README files | README section structure changes |
-| `docs/conventions/doc-header.md` | Required metadata header format for all docs/ files | Header fields, type vocabulary, or status vocabulary change |
+| `docs/conventions/docs-authoring.md` | Required metadata header, doc types, templates, and reference/ADR layouts for docs/ files | Header fields, type vocabulary, template, or section-layout rules change |
 | `docs/conventions/branching.md` | Branch model, naming rules, and commit restrictions | Branching strategy or naming conventions change |
 
 ---
@@ -208,4 +208,3 @@ Use this when auditing documentation health:
 - [ ] `docs/architecture/architecture-conventions.md` agrees with the architecture maps on import boundaries.
 - [ ] `docs/README.md` links are not broken (no missing or renamed files).
 - [ ] No two files in the same section cover the same scope without cross-referencing each other.
-
