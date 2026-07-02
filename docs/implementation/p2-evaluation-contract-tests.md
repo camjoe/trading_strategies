@@ -84,8 +84,10 @@ construction + the four scenarios) and `tests/support/evaluation.py`.
 
 ## 6. Implementation steps
 
-1. **Create** `tests/apps/paper_trading_web/backend/services/test_decision_contract_consistency.py`
-   (apps-side location so both `apps.paper_trading_web.backend...` and `trading...` imports resolve).
+1. **Create** `tests/apps/paper_trading_web/backend/services/test_decision_contract_consistency.py`.
+   Import the compare payload builder as `from paper_trading_web.backend.services.evaluation import
+   build_evaluation_summary_payload` (the apps backend is importable as `paper_trading_web...`, **not**
+   `apps.paper_trading_web...`); all `trading...` imports resolve normally.
 2. Add an `_artifact(*, blended_score, backtest_confidence, paper_live_confidence, overall_confidence,
    backtest_trade_count, data_gaps)` helper building a `StrategyEvaluationArtifact` from
    `EvaluationConfidence`, `EvaluationBacktestEvidence`, and `EvaluationDiagnostics` (mirror the

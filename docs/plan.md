@@ -18,7 +18,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 | P | Initiative | Commitment | Status | Est | Gate |
 |---|---|---|---|---|---|
 | 1 | Close the execution loop (keystone) | Committed | ☐ next up | L | [D1](decisions.md#d1) |
-| 2 | Finish unified evaluation (1c) | Committed | ◑ 1a✅ · 1b✅ · 1c☐ | S | — |
+| 2 | Finish unified evaluation | Committed | ✅ done (1a·1b·1c) | S | — |
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✎ spec ready | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
 | 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
 | 5 | Decisioning legibility & naming pass | Committed | ☐ | M | [D13](decisions.md#d13) |
@@ -151,11 +151,12 @@ Priority: P2 · Committed
     keeping cooldown, trade-count, and outperformance gates explicit and re-deriving the
     outperformance-bps gate against the new score. Collapses the parallel incumbent/challenger
     metric builders where possible.
-  - [ ] **1c. Contract regression tests** — prove compare, promotion, and rotation read the same
-    score/confidence contract and handle complete evidence, missing backtest evidence, missing
-    paper/live evidence, and null blended score identically. **Work order:**
-    [implementation/p2-evaluation-contract-tests.md](implementation/p2-evaluation-contract-tests.md).
-- Remaining work is 1c only. Estimate: **S** (test-only).
+  - [x] **1c. Contract regression tests** — compare, promotion, and rotation proven to read the same
+    score/confidence contract and handle complete / missing-backtest / missing-paper-live / null-score
+    evidence identically. **Work order:**
+    [implementation/p2-evaluation-contract-tests.md](implementation/p2-evaluation-contract-tests.md);
+    test at `tests/apps/paper_trading_web/backend/services/test_decision_contract_consistency.py`.
+- **P2 complete** (1a ✅ · 1b ✅ · 1c ✅).
 - Code areas that will change (1c):
   - `tests/src/trading/domain/test_evaluation_decision_score.py` (extend) and/or a new
     `tests/src/trading/services/test_decision_contract_consistency.py` proving compare
@@ -165,10 +166,10 @@ Priority: P2 · Committed
     handle missing evidence identically. Reuse `tests/support/evaluation.py` fixtures.
 - Done when:
   - [x] compare surfaces expose canonical score/confidence fields
-  - [ ] a single decision-score contract backs compare, promotion, and rotation (1a)
-  - [ ] rotation scoring reads the contract rather than separate return-only paths, with incumbent
+  - [x] a single decision-score contract backs compare, promotion, and rotation (1a)
+  - [x] rotation scoring reads the contract rather than separate return-only paths, with incumbent
     and challengers scored from the same source (1b)
-  - [ ] regression tests cover score usage across all three surfaces (1c)
+  - [x] regression tests cover score usage across all three surfaces (1c)
 
 #### Converge accounts and sleeves on shared services
 
