@@ -276,10 +276,11 @@ Priority: P6 · Committed
 
 - Scope: make adding strategy variants and feature providers a data/contained-code change, so new
   ideas can be tried quickly.
-- Direction: keep signal **primitives** as small, tested code; make strategy **definitions**
-  (`{id, primitive, params, style, required_features}`) data-loaded (config/DB) instead of the
-  hard-coded `STRATEGY_REGISTRY` dict. New variant/tuning = data; genuinely new logic = one new
-  primitive (code) + data to expose it. No arbitrary-logic scripting DSL (safety/testability).
+- Direction ([D5](decisions.md#d5)): keep signal **primitives** as small, tested code; a **strategy**
+  is a data row = primitive + its knobs (`{id, key, primitive, params_json, style,
+  required_features, status}`), loaded from the DB instead of the hard-coded `STRATEGY_REGISTRY` dict.
+  New variant/tuning = a new strategy row; genuinely new logic = one new primitive (code) + data to
+  expose it. No arbitrary-logic scripting DSL (safety/testability).
 - Dependency: P1 (params must actually flow into signals for data-defined variants to mean
   anything).
 - Sub-features:
@@ -290,13 +291,13 @@ Priority: P6 · Committed
 - Estimate: **L** (4a data-driven registry ≈ M, 4b provider registry ≈ M).
 - Code areas that will change:
   - 4a: `src/trading/domain/strategy_signals.py` — split into a code **primitive catalog** (signal-fn
-    map) + a loader that builds `StrategySpec`s from data definitions; `STRATEGY_REGISTRY` /
-    `resolve_strategy` / `available_strategy_ids` read the data-defined set. Catalog source is config
-    or a `strategies` table (ties to [D5](decisions.md#d5) and the DB rewrite).
+    map keyed by `primitive`, with each primitive's knob schema) + a loader that builds a `StrategySpec`
+    from a `strategies` row (primitive + `params_json` knobs); `resolve_strategy` /
+    `available_strategy_ids` read the data-defined set from the DB.
   - 4b: `src/infrastructure/feature_providers/` + a provider registry (`provider_key` → class) with
     interface-layer wiring reading enabled providers from data; shared contracts stay in
     `src/trading/domain/feature_provider.py`.
-  - `src/trading/repositories/strategy_param_sets.py` referencing strategies by id; tests.
+  - a new `strategies` repository (catalog reads/writes); tests.
 - Done when:
   - a new strategy variant of existing logic can be added without code changes
   - a new feature provider is a contained, registered addition

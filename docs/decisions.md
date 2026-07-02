@@ -21,8 +21,8 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D1](#d1) | Execution-loop signal/param mapping | P1 | **mostly resolved** (defaults recorded) |
 | [D2](#d2) | Convergence realization: virtual (A) vs physical rework (B) | P4, DB rewrite | **decided: B (rewrite)** |
 | [D3](#d3) | Incremental convergence vs DB-rewrite-first | convergence approach & timelines | **decided: rewrite-first, after execution loop** |
-| [D4](#d4) | Parameters model shape | parameter source, DB rewrite | open |
-| [D5](#d5) | Strategy catalog granularity | plug-and-play, DB rewrite | open |
+| [D4](#d4) | Parameters model shape | parameter source, DB rewrite | **partly decided** |
+| [D5](#d5) | Strategy catalog granularity | plug-and-play, DB rewrite | **decided: primitive + knobs** |
 | [D6](#d6) | Persist evaluation/decision snapshots? | adaptive learning, auditability | open |
 | [D7](#d7) | Default trading unit: real row vs virtual | P4, DB rewrite | **decided: real row (under B)** |
 | [D8](#d8) | Email notifications config | P8 | open |
@@ -32,9 +32,10 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D12](#d12) | Operator UI surface: console vs incremental tabs | operator-facing UI | deferred (premature) |
 | [D13](#d13) | Decisioning naming/grouping specifics | P5 | deferred |
 
-Near-term to resolve: **D1** (unblocks the keystone). **D2/D3/D7 are now decided** (rewrite-first);
-next definition work is **D4** (parameters) and **D5** (strategy catalog), both needed for the DB
-rewrite.
+Decided so far: **D1** (trade policy), **D2/D3/D7** (rewrite-first), **D5** (strategy = primitive +
+knobs), **D4** (params split: knobs in strategy rows, settings on account/unit — a few sub-points
+still open). Remaining rewrite-detail: the account/unit settings shape (D4 tail) and **D6** (persist
+decision snapshots). D8–D13 stay deferred.
 
 ---
 
@@ -83,25 +84,37 @@ migrating two live paths first. Avoids building convergence twice; leverages the
 <a id="d4"></a>
 ### D4 — Parameters model shape
 
-Gates: Plan P7 (unified parameter source), DB rewrite (`parameters` table). **Open.**
+Gates: Plan P7 (unified parameter source), DB rewrite. **Partly decided (2026-07-01).**
 
-- **Do we keep `strategy_param_sets` at all?** (Raised 2026-07-01.) The named/versioned param-set
-  table is currently empty and unused. Option: put tunable strategy knobs directly on the
-  account/trading-unit (simpler), and only reintroduce a param-set table if/when sharing across
-  accounts or auto-optimization (P11) actually needs it. Decide with the rewrite.
-- Typed key/value rows with scope precedence (default → account → unit) vs a few typed config tables
-  per concern (risk / options / rotation).
-- Read-through view/API over existing stores vs a consolidated store.
-- Versioning/audit of changes.
-- Which parameters are operator-tunable at runtime vs code-owned defaults.
+Two kinds of "parameters", stored in two places:
+
+- **Strategy knobs** (fast/slow windows, RSI thresholds) → **decided:** live inside the strategy row
+  (see [D5](#d5)). The separate `strategy_param_sets` table is **dropped**.
+- **Account/execution settings** (risk policy, stop-loss, position sizing, max-trades-per-run,
+  rotation cooldown, instrument/option config) → live on the **account / trading-unit**, no longer in
+  a 50-column god-table.
+- **Unified parameter source (P7)** = a service/CLI **view** over strategy rows (knobs) + account/unit
+  settings + a few global settings — not a new consolidated store.
+
+Still open (settle during the rewrite): whether account/unit settings are typed columns vs a small
+typed config table per concern; and the change-audit approach for account/unit settings.
 
 <a id="d5"></a>
 ### D5 — Strategy catalog granularity
 
-Gates: Plan P6 (plug-and-play), DB rewrite (`strategies` table). **Open.**
+Gates: Plan P6 (plug-and-play), DB rewrite (`strategies` table). **Decided (2026-07-01).**
 
-Does a `strategies` row capture only (primitive + defaults), with variants living entirely in
-`strategy_param_sets`, or can a strategy row itself pin a specific param set?
+A **strategy = a code primitive + its knobs**, stored as one data row:
+`{ id, name, primitive, params_json (knobs), style, required_features, enabled, status }`. Variants
+are **new rows** using the same primitive with different knobs. The **primitive** (the signal
+function + its knob schema) stays in code; the strategy row is data, so new variants are added
+without code.
+
+- **Versioning / tuning — decided:** a strategy is **fixed once it has backtest evidence or is live**;
+  tuning creates a **new** strategy row (old + new both persist → automatic history, replacing the
+  param-set table's purpose). Draft strategies (no evidence yet) are freely editable.
+- Accounts/units and rotation reference strategies **by id**; `strategy_param_sets`, `param_set_id`
+  columns, and per-assignment param sets are removed.
 
 <a id="d6"></a>
 ### D6 — Persist evaluation/decision snapshots?

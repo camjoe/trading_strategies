@@ -106,22 +106,24 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
 
 ### Strategy catalog & parameters (data-driven)
 
-- **`strategies`** (new) — data-driven registry bound to a code **primitive**: `id`, `strategy_key`,
-  `primitive` (the code signal-primitive name), `style`, `required_features` (json), `description`,
-  `enabled`. Enables Plan P6 (plug-and-play).
-- **`strategy_param_sets`** — as today but FK to `strategies.id`: `id`, `strategy_id`, `version`,
-  `params_json`, `is_active`, lifecycle timestamps, `notes`.
-- **`parameters`** (new, single parameter source) — operator-tunable settings as typed rows
-  (`scope`, `scope_id`, `key`, `value`, `value_type`, `updated_at`, audit), replacing the risk/
-  option/rotation columns on `accounts` and consolidating `global_settings`. Precedence:
-  default → account → unit. (Shape is an open decision below.)
+- **`strategies`** (new) — a strategy = a code **primitive** + its **knobs** (D5): `id`,
+  `strategy_key`, `primitive`, `params_json` (the knobs), `style`, `required_features` (json),
+  `description`, `status` (draft/frozen), `enabled`. Variants/tuning = new rows; frozen once a
+  strategy has evidence or is live (automatic history). **No `strategy_param_sets` table** — its
+  purpose is folded in here. Enables Plan P6 (plug-and-play).
+- **Account/unit settings** (D4) — execution/risk/rotation settings (risk policy, stops, sizing,
+  max-trades-per-run, rotation cooldown, instrument/option config) live on `accounts`/`trading_units`
+  (not a god-table, not strategy knobs). The **unified parameter source (P7)** is a service/CLI view
+  over strategy rows + account/unit settings + a few global settings. Exact settings shape (typed
+  columns vs a small typed config table) is the open tail of D4.
 - **`feature_providers`** (optional, new) — pluggable provider catalog: `id`, `provider_key`,
   `enabled`, `config_json`. Fetch logic stays code; enablement is data.
 
 ### Assignment & rotation (one model)
 
 - **`unit_strategy_assignments`** (replaces `sleeve_strategy_assignments`) — `id`, `unit_id`,
-  `strategy_id`, `param_set_id`, `effective_from`, `effective_to`, `is_incumbent`, timestamps.
+  `strategy_id`, `effective_from`, `effective_to`, `is_incumbent`, timestamps. (No `param_set_id` —
+  the strategy row carries its knobs.)
 - **`rotation_decisions`** (unifies `rotation_decisions` + `rotation_episodes`) — keyed by `unit_id`;
   carries incumbent/challenger/selected, action, gate/score json, decision reason, config version,
   and (folding episodes) the realized-performance window fields.
@@ -129,7 +131,7 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
 ### Execution & accounting (one model, keyed by unit)
 
 - **`orders`** (unifies `broker_orders` + `sleeve_orders`) — `id`, `unit_id`, `account_id`,
-  `strategy_id`, `param_set_id`, `rotation_decision_id`, `broker_order_id`, symbol/side/qty/type/
+  `strategy_id`, `rotation_decision_id`, `broker_order_id`, symbol/side/qty/type/
   tif/requested_price/status/filled_qty/avg_fill_price/commission, timestamps. Broker linkage stays
   first-class (custody truth).
 - **`order_fills`** (unifies `order_fills` + `sleeve_fills`) — `id`, `order_id`, `broker_fill_id`,
@@ -165,8 +167,9 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
 | `equity_snapshots` (account) + `strategy_sleeves.current_equity` | `equity_snapshots` (per unit) + account roll-up |
 | `rotation_decisions` + `rotation_episodes` | `rotation_decisions` (unit-keyed) |
 | `portfolio_risk_snapshots` + `sleeve_risk_decisions` | `risk_snapshots` + `risk_decisions` |
-| `accounts` risk/option/rotation columns + `global_settings` | `parameters` (+ slimmed `accounts`) |
-| `strategy_name` strings | `strategies` catalog + `strategy_id` FKs |
+| `accounts` risk/option/rotation columns + `global_settings` | settings on slimmed `accounts`/`trading_units` (+ `global_settings`) |
+| `strategy_name` strings | `strategies` catalog (primitive + knobs) + `strategy_id` FKs |
+| `strategy_param_sets` | folded into `strategies` rows (variants = new rows) |
 | (none) | `feature_providers` catalog |
 
 ## What stays stable / reusable (not a rewrite)
@@ -186,18 +189,21 @@ Recent refactors mean much of the stack re-points at new repositories without re
 The heavy work is at the **repositories** layer (rewritten against new tables) and the **services**
 that assemble unit-vs-account reads — which the convergence plan already targets.
 
-## Cross-cutting open decisions
+## Cross-cutting decisions
 
-Canonical status for these is tracked in [decisions.md](decisions.md) (D2, D4, D5, D6, D7); detail here.
+Canonical status in [decisions.md](decisions.md); detail here.
 
-1. **Default unit: real row vs virtual** — a rewrite makes a real default-unit row natural and cheap
-   (no backfill). Leaning real-row here, which resolves the convergence A/B question toward B.
-2. **`parameters` model shape** — typed key/value rows with scope precedence vs a small set of typed
-   config tables per concern (risk/options/rotation). Trade-off: flexibility vs schema legibility.
-3. **Persist evaluation/decision snapshots?** — storing the decision score at rotation/promotion time
-   aids auditability and future adaptive learning (versioned state), at storage cost.
-4. **Strategy catalog granularity** — does `strategies` capture only (primitive + defaults), with
-   variants living entirely in `strategy_param_sets`, or can a strategy row itself pin a param set?
+Decided:
+- **Default unit: real row** ([D7](decisions.md#d7)) — cheap under greenfield; resolves A/B toward B.
+- **Strategy catalog** ([D5](decisions.md#d5)) — a strategy = primitive + knobs; variants are new
+  rows; `strategy_param_sets` dropped.
+- **Parameters split** ([D4](decisions.md#d4)) — strategy knobs in strategy rows; execution/risk
+  settings on account/unit; P7 is a view, not a new store.
+
+Still open:
+- **Account/unit settings shape** (D4 tail) — typed columns vs a small typed config table per concern.
+- **Persist evaluation/decision snapshots?** ([D6](decisions.md#d6)) — storing the decision score at
+  rotation/promotion time aids auditability and future adaptive learning, at storage cost.
 
 ## Non-goals
 
@@ -208,6 +214,8 @@ Canonical status for these is tracked in [decisions.md](decisions.md) (D2, D4, D
 ## Trigger checklist (when to execute)
 
 - [ ] Execution loop closed (Plan P1) so runtime behavior is known-good on the new tables.
-- [ ] Convergence A/B decision has landed on B (physical rework).
-- [ ] Parameter model shape (open decision #2) chosen.
+- [x] Convergence A/B decision landed on B (physical rework) — D2/D3/D7.
+- [x] Strategy/parameter model decided — D5 + D4 (only the account/unit settings shape is a detail
+      to finalize during the build).
+- [ ] D6 (persist decision snapshots?) resolved, or consciously deferred.
 - [ ] A pre-live window confirmed (cheapest time to change schema).

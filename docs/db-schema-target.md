@@ -41,34 +41,28 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 
 ## Strategy catalog & parameters (data-driven)
 
-### `strategies` — data-defined registry bound to a code primitive
+### `strategies` — data-defined catalog; a strategy = a code primitive + its knobs (D5)
 - `id` INTEGER PK
-- `strategy_key` TEXT UNIQUE NOT NULL
+- `strategy_key` TEXT UNIQUE NOT NULL  *(the strategy's name)*
 - `primitive` TEXT NOT NULL  *(name of the code signal-primitive it binds to)*
+- `params_json` TEXT NOT NULL  *(the knobs — e.g. `{"fast_window":5,"slow_window":15}`)*
 - `style` TEXT NOT NULL  *(trend / mean_reversion / neutral / alternative)*
 - `required_features` TEXT (json)
 - `description` TEXT
+- `status` TEXT NOT NULL DEFAULT 'draft'  *(draft = editable; frozen once it has evidence / is live)*
 - `enabled` INTEGER NOT NULL DEFAULT 1
 - `created_at` TEXT · `updated_at` TEXT
+- **Variants/tuning = new rows** (same primitive, different knobs). No separate param-set table;
+  frozen-once-used gives history automatically (D5).
 
-### `strategy_param_sets`
-- `id` INTEGER PK
-- `strategy_id` INTEGER NOT NULL → strategies.id
-- `version` TEXT NOT NULL
-- `params_json` TEXT NOT NULL
-- `is_active` INTEGER NOT NULL DEFAULT 0
-- `activated_at` TEXT · `deactivated_at` TEXT · `notes` TEXT
-- `created_at` TEXT · `updated_at` TEXT
-- UNIQUE (strategy_id, version)
+*(`strategy_param_sets` is removed — its purpose is folded into `strategies` rows.)*
 
-### `parameters` — single tunable-parameter source (TBD shape)
-- `id` INTEGER PK
-- `scope` TEXT NOT NULL  *('global' | 'account' | 'unit')*
-- `scope_id` INTEGER  *(null for global)*
-- `key` TEXT NOT NULL · `value` TEXT NOT NULL · `value_type` TEXT NOT NULL
-- `updated_at` TEXT · `updated_by` TEXT
-- Precedence: default → account → unit. Replaces account risk/option/rotation columns + `global_settings`.
-- (TBD) typed key/value rows vs. a few typed config tables per concern.
+### Account / unit settings (D4)
+Execution/risk/rotation settings (risk policy, stop-loss, position sizing, max-trades-per-run,
+rotation cooldown, instrument/option config) live on `accounts` and/or `trading_units` — **not** in a
+god-table and **not** strategy knobs. Exact shape (typed columns vs a small typed config table per
+concern) is the open tail of [D4](decisions.md#d4). The **unified parameter source (P7)** is a
+service/CLI view over strategy rows + account/unit settings + a few global settings, not a new store.
 
 ### `feature_providers` — pluggable provider catalog
 - `id` INTEGER PK · `provider_key` TEXT UNIQUE NOT NULL
@@ -80,8 +74,7 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 ### `unit_strategy_assignments`
 - `id` INTEGER PK
 - `unit_id` INTEGER NOT NULL → trading_units.id
-- `strategy_id` INTEGER NOT NULL → strategies.id
-- `param_set_id` INTEGER → strategy_param_sets.id
+- `strategy_id` INTEGER NOT NULL → strategies.id  *(the strategy row carries its own knobs — D5)*
 - `effective_from` TEXT NOT NULL · `effective_to` TEXT
 - `is_incumbent` INTEGER NOT NULL DEFAULT 1
 - `created_at` TEXT · `updated_at` TEXT
@@ -92,7 +85,6 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 - `unit_id` INTEGER NOT NULL → trading_units.id
 - `decision_time` TEXT NOT NULL
 - `incumbent_strategy_id` · `challenger_strategy_id` · `selected_strategy_id` INTEGER
-- `param_set_id` INTEGER
 - `rotation_action` TEXT NOT NULL · `cooldown_active` INTEGER NOT NULL DEFAULT 0
 - `score_components_json` TEXT · `gate_results_json` TEXT · `decision_reason` TEXT
 - `config_version` TEXT
@@ -104,7 +96,7 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 ### `orders` — unifies broker_orders + sleeve_orders
 - `id` INTEGER PK
 - `unit_id` INTEGER NOT NULL → trading_units.id · `account_id` INTEGER NOT NULL → accounts.id
-- `strategy_id` INTEGER · `param_set_id` INTEGER · `rotation_decision_id` INTEGER
+- `strategy_id` INTEGER · `rotation_decision_id` INTEGER
 - `broker_order_id` TEXT  *(custody linkage; nullable until acked)*
 - `symbol` TEXT · `side` TEXT · `qty` REAL
 - `order_type` TEXT NOT NULL DEFAULT 'market' · `time_in_force` TEXT NOT NULL DEFAULT 'day'
