@@ -134,7 +134,8 @@ The maps and this guide serve different questions:
 | Add shared utility (HTTP, formatting, DOM) | `apps/paper_trading_web/frontend/src/lib/` |
 | Add/change an API response type | `apps/paper_trading_web/frontend/src/types/<area>.ts` |
 | Change design tokens or base styles | `apps/paper_trading_web/frontend/src/styles/tokens.css` or `base.css` |
-| Update in-app documentation content | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
+| Update finance/market terms in the in-app docs | `docs/reference/financial-market-knowledge.md`, then run `python -m scripts.documentation_ui.sync` |
+| Update API or software reference content in the in-app docs | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
 
 ---
 
@@ -180,7 +181,8 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Task | Where |
 |---|---|
 | Find which docs to update after a code change | [`docs/maps/docs-map.md`](../maps/docs-map.md) — "Goes stale when" column |
-| Update in-app documentation content | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
+| Update finance/market terms in the in-app docs | `docs/reference/financial-market-knowledge.md`, then run `python -m scripts.documentation_ui.sync` |
+| Update API or software reference content in the in-app docs | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
 | Add a new reference note or ADR | `docs/reference/` — use `TEMPLATE.notes.md` or `TEMPLATE.adr.md` |
 | Update a runbook | `docs/runbooks/<runbook>.md` |
 | Check README freshness | `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` |
