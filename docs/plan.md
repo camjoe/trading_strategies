@@ -3,7 +3,7 @@
 Type: plan
 Status: Active
 Created: 2026-06-29
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Purpose: The single source for tasks, order, status, and timelines — the itemized backlog and progress tracker. What needs to be *defined* (open decisions) lives in [decisions.md](decisions.md); the entry-point north star is [overview.md](overview.md).
 Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Developer Notes](developer-notes.md)
 
@@ -102,6 +102,10 @@ strategies), and P7 (parameter source) build on. Full schema:
   tables; re-point evaluation-evidence and backtest reads to unit-keyed tables.
 - **P3↔P4 boundary:** P3 delivers the schema + repositories + re-pointed reads; P4 builds the
   converged submission/rotation/accounting **services** on top.
+- **Operational note — runtime pause (accepted 2026-07-02):** because P3 drops the old operational
+  tables and the write services arrive only with P4, the paper-trading scheduler jobs are **paused
+  from P3 Phase A until P4's shared submission service (2a) lands**. Expected and accepted (pre-live,
+  paper only); sequence P4 with 2a first to shorten the dark window.
 - New tasks surfaced (whole-picture review):
   - [ ] **Define the primitive catalog** — decide which current `signal_fn`s become primitives and
     each primitive's knob schema (the code half of the strategy = primitive + knobs model, D5).

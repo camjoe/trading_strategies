@@ -78,8 +78,9 @@ construction + the four scenarios) and `tests/support/evaluation.py`.
 
   <1-3 line body: why / scope>
 
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+  Co-Authored-By: <model name> <noreply@anthropic.com>
   ```
+  (Use the **executing model's own** name in the `Co-Authored-By` line.)
 - Do **not** commit if any check in §8 fails. Commit only after green.
 
 ## 6. Implementation steps

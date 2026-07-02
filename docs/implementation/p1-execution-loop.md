@@ -5,7 +5,7 @@ Status: Ready (large; multi-commit; mixed light/strong steps)
 Initiative: P1 (Close the execution loop)
 Estimate: L
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Related: [Plan](../plan.md), [Decisions](../decisions.md#d1), [Overview](../overview.md),
 [Implementation README](README.md)
 
@@ -89,19 +89,34 @@ live **parity** on one `evaluate_signal(strategy, history, params, feature_histo
   - for each ticker in the universe: `sig = evaluate_signal(strategy, histories.get(ticker), params,
     feature_history_for(ticker))`; collect **buy** candidates (sig=="buy", not held) and **sell**
     candidates (sig=="sell", held). Keep the existing `forced_sell` risk-stop path.
+  - **`feature_history_for(ticker)` (defined here so no executor judgment is needed):** for the three
+    `strategy_style="alternative"` strategies, build a per-ticker frame from the already-injected
+    `FeatureFetcherSet` — `policy_regime` → `fetch_policy`, `news_sentiment` → `fetch_news`,
+    `social_trend_rotation` → `fetch_social` — as `bundle = fetcher(ticker)` then
+    `bundle.to_feature_row()`. If the fetcher is `None` or the bundle is unavailable, pass
+    `feature_history=None` (each signal fn already falls back safely). All other styles pass `None`.
+    This is parity-correct: every signal fn reads features only via `_feature_value`, which takes the
+    **last row** (`iloc[-1]`), so the live single-row frame matches what backtest evaluation sees.
   - size via the existing `choose_buy_qty` / sell sizing and the existing risk gates.
   - submit candidates **up to `max_trades`** (the cap); **no forced minimum** — if nothing signals,
     submit nothing.
-- `min_trades` becomes unused for the floor (leave the param but ignore it, or remove; note for config
-  cleanup). `choose_buy_ticker`/`choose_sell_ticker`/`choose_side` become dead → remove (cleanup).
+- `min_trades` becomes unused for the floor — **decided: leave the param but ignore it** (keep
+  `validate_trade_count_range` in `auto_trading/inputs.py` unchanged; flag the param for config
+  cleanup with P7). `choose_buy_ticker`/`choose_sell_ticker`/`choose_side` become dead → remove
+  (cleanup).
 - **`learning_enabled` no longer drives selection** — it becomes a no-op here; note it for P10, do not
-  try to preserve its old meaning.
+  try to preserve its old meaning. The flag stays visible in the web-backend account contract/UI —
+  leave that surface untouched (a dead toggle until P10 is accepted).
 - Check: new/updated selection unit tests (Step 7) green.
 
 ### Step 5 — Runtime job supplies histories  **[strong]**
 - Find the caller(s): `grep -rn "run_for_account(" src` (the daily paper-trading auto-trades job).
 - Where it builds `prices`, also build `histories` via the injected `MarketDataProvider.fetch_close_series(ticker, period)`
   (fixed lookback ~1y per D1; cache per run). Pass `histories` into `run_for_account`.
+- **Reuse, don't double-fetch:** `build_iv_rank_proxy` (`auto_trading/market.py`) already fetches the
+  1y close series per universe ticker each run and discards it. Build `histories` and the IV proxy
+  from **one** fetch pass (or have both read one per-run cached series map) — this satisfies D1's
+  "cached per run" requirement without a second round of provider calls.
 - Check: the job's tests (`run_suite src/trading/interfaces/runtime/jobs/daily`) green with a stubbed provider.
 
 ### Step 6 — Sleeve path parity  **[strong]**
