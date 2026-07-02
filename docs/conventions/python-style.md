@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-29
+Last Reviewed: 2026-07-02
 Purpose: Project-specific interpretation of PEP 8, covering indentation, imports, naming, type hints, and ruff enforcement.
 Related: [Doc Header Standard](doc-header.md)
 
@@ -31,7 +31,6 @@ Automated enforcement uses `ruff` (see [Enforcement](#enforcement) below).
 12. [Programming idioms](#programming-idioms)
 13. [File and path portability](#file-and-path-portability)
 14. [Enforcement](#enforcement)
-15. [Current state assessment](#current-state-assessment)
 
 ---
 
@@ -423,50 +422,19 @@ provided route parameter.
 
 ## Enforcement
 
-`ruff` is the linter. It runs in the CI check profile:
+`ruff` is the linter, configured in `ruff.toml` at the repo root (`line-length = 119`). It runs in
+**both** check profiles:
 
 ```bash
-# CI (includes ruff)
-.venv/bin/python -m scripts.run_checks --profile ci
-
-# Quick local (mypy + pytest, no ruff yet)
+# Quick local (README, layer, ruff, mypy, pytest)
 .venv/bin/python -m scripts.run_checks --profile quick
+
+# CI (quick gates plus doc-drift checks, dependency install, frontend)
+.venv/bin/python -m scripts.run_checks --profile ci
 ```
 
-When ruff enforcement is added to the quick profile, the config will live in `ruff.toml` at the repo root
-with `line-length = 119` and the rule selections agreed by the team.
+For deterministic, behavior-preserving auto-fixes (ruff safe fixes + formatting):
 
-To run a manual style check now (assessment mode, no enforcement):
 ```bash
-.venv/bin/ruff check src/trading/ apps/paper_trading_web/backend/ tests/ --select E,W,N --line-length 119 --statistics
+.venv/bin/python -m scripts.fix_checks
 ```
-
----
-
-## Current state assessment
-
-Ruff scan run against `src/trading/`, `apps/paper_trading_web/backend/`, `tests/` on 2026-05-10
-with `--select E,W,N --line-length 119`:
-
-| Code | Count | Issue | Auto-fixable |
-|---|---|---|---|
-| E501 | 112 | Line exceeds 119 chars | No |
-| N815 | 97 | Mixed-case variable in class scope | No |
-| W293 | 51 | Trailing whitespace on blank line | Yes |
-| W191 | 16 | Tab indentation | No |
-| N803 | 4 | Invalid argument name (not snake_case) | No |
-| W292 | 3 | Missing newline at end of file | Yes |
-| W291 | 1 | Trailing whitespace | Yes |
-| **Total** | **284** | | 46 auto-fixable |
-
-**Observations:**
-- **W191 (tabs)** — 16 files use tab indentation. This is a hard violation; editors typically hide it.
-- **W293/W291 (invisible whitespace)** — 52 combined. Auto-fixable with `ruff check --fix`.
-- **N815 (mixed-case in class scope)** — 97 occurrences likely reflect domain naming patterns (e.g., `camelCase` variables from third-party API shapes). Should be reviewed per file before enforcing.
-- **E501 (line length)** — 112 violations even at 119 chars. These are genuine long lines that need manual wrapping.
-
-This snapshot is a starting point. When the team decides to add enforcement, the recommended first pass is:
-1. Auto-fix W293/W291/W292 (no behavior risk).
-2. Address W191 (tab indentation) file by file.
-3. Decide on N815 exclusions before enabling.
-4. Work down E501 incrementally.

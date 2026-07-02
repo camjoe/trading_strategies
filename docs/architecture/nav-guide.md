@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-17
+Last Reviewed: 2026-07-02
 Purpose: Task-oriented lookup table — given "I want to X", tells you which file to touch.
 Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md), [UI Map](../maps/ui-map.md)
 
@@ -56,7 +56,7 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Change an account profile (strategy params, caps) | `src/trading/config/account_profiles/<profile>.toml` |
+| Change an account profile (strategy params, caps) | `src/infrastructure/config/account_profiles/<profile>.json` |
 | Change trade universe tickers | `src/infrastructure/config/trade_universes/` |
 | Change account-level trade caps | `src/infrastructure/config/account_trade_caps.json` |
 
@@ -128,7 +128,7 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Add a new page/view | `apps/paper_trading_web/frontend/src/views/<name>.html` + new feature in `src/infrastructure/feature_providers/` |
+| Add a new page/view | `apps/paper_trading_web/frontend/src/views/<name>.html` + new feature in `apps/paper_trading_web/frontend/src/features/<area>/` |
 | Add or change a feature module | `apps/paper_trading_web/frontend/src/features/<area>/` |
 | Add or change a reusable component | `apps/paper_trading_web/frontend/src/components/` |
 | Add shared utility (HTTP, formatting, DOM) | `apps/paper_trading_web/frontend/src/lib/` |

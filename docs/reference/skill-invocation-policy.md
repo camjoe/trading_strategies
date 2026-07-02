@@ -3,7 +3,7 @@
 Type: policy
 Status: Active
 Created: 2026-06-13
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-02
 Purpose: Define who is allowed to invoke each skill and how that restriction is declared and enforced via the invoker field.
 Related: [Agent Skills Reference](agent-skills.md)
 
@@ -70,7 +70,7 @@ Do not execute any workflow steps below until the invoker check passes.
 |---|---|---|
 | `check-pr-readiness` | `any` | General workflow tool |
 | `code-review` | `any` | General review tool |
-| `create-memory` | `any` | Reference doc authoring |
+| `create-runtime-job` | `any` | Scaffolding tool against the shared job runner |
 | `create-skill` | `any` | Skill authoring |
 | `db-migration` | `agent:db-migration-steward` | Schema changes carry production risk; the steward agent enforces additive-only rules and backup hygiene |
 | `expand-tests` | `any` | General testing tool |
@@ -81,6 +81,9 @@ Do not execute any workflow steps below until the invoker check passes.
 | `update-skill` | `any` | Skill maintenance |
 | `validate-code` | `any` | Deterministic checks, no side effects |
 
+*(This table mirrors the `invoker` frontmatter in `.ai/skills/*/SKILL.md` — the frontmatter is the
+source of truth; update both together.)*
+
 ---
 
 ## Adding a New Restriction
@@ -88,13 +91,13 @@ Do not execute any workflow steps below until the invoker check passes.
 1. Set `invoker: agent:<agent-name>` in the skill's frontmatter.
 2. Add the enforcement preamble (template above) at the top of the skill body.
 3. Update the roster table in this document.
-4. Update the `AGENTS.md` routing table "Who can invoke" column.
+4. Update the `AGENTS.md` routing guide if the restriction changes how the skill is routed.
 
 ## Removing a Restriction
 
 1. Change `invoker` back to `any`.
 2. Remove the enforcement preamble from the skill body.
-3. Update the roster table and `AGENTS.md` routing entry.
+3. Update the roster table (and `AGENTS.md` routing if affected).
 
 ---
 

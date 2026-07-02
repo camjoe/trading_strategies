@@ -3,11 +3,11 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-02
 Purpose: Step-by-step setup of the dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it, with a trackable setup checklist.
-Related: [Production Runtime Hosting ADR](../adr/007-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
+Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
-This runbook implements [ADR 007](../adr/007-production-runtime-hosting-and-deployment.md): one dedicated
+This runbook implements [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): one dedicated
 Linux host runs the scheduled jobs from a production checkout that tracks `main`, development happens
 elsewhere, and every deploy passes a pre-deploy test gate. Read the ADR first for the *why* (including
 why blue/green is deferred). This runbook is the *how*.
@@ -216,7 +216,7 @@ artifacts in `local/exports/`, and `python -m scripts.check_jobs` summarizes sta
 
 ## Part 2 — Ongoing deploy workflow
 
-The rule from [ADR 007](../adr/007-production-runtime-hosting-and-deployment.md): **the scheduler only
+The rule from [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): **the scheduler only
 ever runs promoted `main` code from a checkout no one edits.** Development never touches the host
 directly.
 
@@ -273,7 +273,7 @@ Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
 
 ## Part 3 — Optional staging checkout (pre-deploy smoke test)
 
-A lightweight stand-in for blue/green (see [ADR 007 §4](../adr/007-production-runtime-hosting-and-deployment.md#decision)).
+A lightweight stand-in for blue/green (see [ADR 008 §4](../adr/008-production-runtime-hosting-and-deployment.md#decision)).
 It has **no cron**, so it never trades — it exists only for manual dry-runs.
 
 ```bash
@@ -300,7 +300,7 @@ git pull origin develop
 
 ## Part 4 — Rollback
 
-No hot standby (by design — ADR 007 §4). Rollback is a git checkout, plus DB restore only if data was
+No hot standby (by design — ADR 008 §4). Rollback is a git checkout, plus DB restore only if data was
 affected:
 
 ```bash
@@ -370,7 +370,7 @@ Even with the above, treat a missed run as expected-occasionally, not catastroph
 
 ## Setup progress checklist
 
-Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 007 follow-ups.)
+Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 008 follow-ups.)
 
 - [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend configured (suspend+wake or always-on), auto-reboot kept out of market hours
 - [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base)

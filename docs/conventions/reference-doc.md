@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-06-13
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-02
 Purpose: Define the standard header format and document types for files under docs/reference/.
 Related: [Doc Header Standard](doc-header.md), [README Layout Standard](readme-layout.md)
 
@@ -15,12 +15,12 @@ Define the standard header format and document types for all files under `docs/r
 
 ## Document Types
 
-Two types are used in `docs/reference/`:
+Two types are covered here:
 
-| Type | Purpose | Naming |
+| Type | Purpose | Location & naming |
 |---|---|---|
-| `notes` | Living reference material — how something works, current state, usage patterns | `notes-<topic>.md` |
-| `adr` | Architecture Decision Record — a decision made, its context, and rationale | `adr-<topic>.md` |
+| `notes` | Living reference material — how something works, current state, usage patterns | `docs/reference/<topic>.md` (plain kebab-case; no `notes-` prefix — see [naming.md](naming.md)) |
+| `adr` | Architecture Decision Record — a decision made, its context, and rationale | `docs/adr/NNN-<topic>.md` (three-digit sequential prefix — see [naming.md](naming.md)) |
 
 ### Notes
 
@@ -40,35 +40,17 @@ Decision records. Once accepted, the `Status` and `Date` fields should not chang
 
 ## Required Header Fields
 
-Every file in `docs/reference/` must start with the following metadata block, immediately after the `# Title` line:
+Every reference doc and ADR uses the repo-wide header defined in the
+[Doc Header Standard](doc-header.md) (`Type` / `Status` / `Created` / `Last Reviewed` / `Purpose` /
+`Related`), immediately after the `# Title` line.
 
-### Notes header
+- **Notes** use `Type: notes` with `Status: Active | Draft | Superseded`.
+- **ADRs** use `Type: adr` with `Status: Proposed | Accepted | Superseded`. When superseding an ADR,
+  set `Status: Superseded` and link the replacement in `Related` — do not edit the original decision
+  content.
 
-```
-Type: notes
-Status: Active | Draft | Deprecated
-Created: YYYY-MM-DD
-Last Reviewed: YYYY-MM-DD
-```
-
-**Status values:**
-- `Active` — current and maintained
-- `Draft` — work in progress, not yet authoritative
-- `Deprecated` — superseded or no longer relevant; leave in place for history with a note pointing to the replacement
-
-### ADR header
-
-```
-Type: adr
-Status: Proposed | Accepted | Superseded
-Date: YYYY-MM-DD
-Superseded By: <filename> (only when Status: Superseded)
-```
-
-**Status values:**
-- `Proposed` — under discussion
-- `Accepted` — decision finalized and in effect
-- `Superseded` — replaced by a newer decision; always add `Superseded By:` pointing to the replacement file
+See [doc-header.md](doc-header.md) for the full field rules and vocabularies — that file is the
+single source for header format.
 
 ---
 
@@ -94,7 +76,7 @@ Superseded By: <filename> (only when Status: Superseded)
 
 Before finalizing a new or updated reference doc:
 
-1. ✅ File name follows `notes-<topic>.md` or `adr-<topic>.md` pattern
+1. ✅ File name follows [naming.md](naming.md): plain kebab-case in `docs/reference/`; `NNN-<topic>.md` in `docs/adr/`
 2. ✅ Header block is complete with all required fields
 3. ✅ `Last Reviewed` date updated when making substantive changes (notes only)
 4. ✅ Link added to `docs/README.md` reference section if it's a new file

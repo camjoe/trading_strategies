@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-25
+Last Reviewed: 2026-07-02
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -104,6 +104,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `registry_utils.py` | Shared registry lookup utilities |
 | `api/` | API documentation source content |
 | `software/` | Software/architecture documentation source content |
+| `finance/` | Finance/strategy documentation source content |
 
 ---
 
