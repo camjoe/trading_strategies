@@ -6,6 +6,7 @@ from pathlib import Path
 
 from paper_trading_web.backend.services import operations as services_operations
 from paper_trading_web.backend.services import promotion as services_promotion
+from trading.models.evaluation import StrategyEvaluationArtifact
 
 
 def _write(path: Path, text: str) -> None:
@@ -80,22 +81,25 @@ class _FakeHistoryEntry:
 def test_build_promotion_overview_serializes_assessment_and_history(monkeypatch) -> None:
     monkeypatch.setattr(
         services_promotion,
-        "fetch_current_promotion_assessment",
-        lambda *_args, **_kwargs: _FakePayload(
-            {
-                "account_name": "acct_ops",
-                "strategy_name": "trend",
-                "stage": "promotion_review",
-                "status": "ready_for_review",
-                "ready_for_live": True,
-                "live_trading_enabled": False,
-                "overall_confidence": 0.9,
-                "data_gaps": [],
-                "blockers": [],
-                "warnings": [],
-                "next_action": "Approve review",
-                "evaluation_generated_at": "2026-04-17T13:15:00Z",
-            }
+        "fetch_current_promotion_snapshot",
+        lambda *_args, **_kwargs: (
+            StrategyEvaluationArtifact(),
+            _FakePayload(
+                {
+                    "account_name": "acct_ops",
+                    "strategy_name": "trend",
+                    "stage": "promotion_review",
+                    "status": "ready_for_review",
+                    "ready_for_live": True,
+                    "live_trading_enabled": False,
+                    "overall_confidence": 0.9,
+                    "data_gaps": [],
+                    "blockers": [],
+                    "warnings": [],
+                    "next_action": "Approve review",
+                    "evaluation_generated_at": "2026-04-17T13:15:00Z",
+                }
+            ),
         ),
     )
     monkeypatch.setattr(
@@ -112,5 +116,6 @@ def test_build_promotion_overview_serializes_assessment_and_history(monkeypatch)
     )
 
     assert payload["assessment"]["account_name"] == "acct_ops"
+    assert payload["evaluation"]["confidence"]["blendedScore"] is None
     assert payload["history"][0]["review"]["review_state"] == "requested"
     assert payload["history"][0]["events"][0]["event_type"] == "requested"

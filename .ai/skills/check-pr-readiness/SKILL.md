@@ -109,6 +109,12 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 ### Step 5 — Docs Check (Advisory)
 <staleness findings, or "No stale docs detected">
 
+### Developer Verification Guide
+<UI path, API endpoint, command/report path, or expected behavior a developer can use to inspect the result>
+
+### Cleanup and Obsolescence Review
+<obsolete code removed, cleanup candidates with evidence and classification, or "None found in touched scope">
+
 ### Overall: READY / NOT READY
 <one sentence: blocking issues or "No blocking issues found.">
 ```
@@ -123,6 +129,8 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 - Do not run Steps 5–6 if Step 4 has a BLOCKER.
 - Do not implement fixes. Report only.
 - Do not review unchanged files.
+- Preserve developer verification and cleanup/obsolescence notes in the saved report.
+- Cleanup notes are advisory unless they identify a directly related obsolete path with safe removal evidence.
 
 ## Repo references
 

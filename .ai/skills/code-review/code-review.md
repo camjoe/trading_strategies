@@ -13,7 +13,8 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 2. Check for correctness risks, contract drift, and missing coverage.
 3. When the scope is broad, look for stale paths, redundant implementations, and simplification opportunities.
 4. Cross-check architecture and safety rules that apply in this repo.
-5. Report only supported findings with file and line evidence.
+5. For stale-code or obsolescence claims, collect evidence from reference searches, public API/route/type usage, tests covering old and new paths, and migration or backward-compatibility risk.
+6. Report only supported findings with file and line evidence.
 
 ## Modes
 
@@ -27,6 +28,7 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 - Do not elevate style-only comments into findings.
 - Do not report guesses without evidence.
 - Keep broader cleanup recommendations evidence-based and separate from hard defects.
+- Treat cleanup as advisory by default. Do not recommend removal without usage evidence and a compatibility risk assessment.
 
 ## Repo references
 
@@ -42,4 +44,5 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 1. Findings by severity
 2. Cleanup or simplification opportunities when relevant
 3. Validation summary
-4. Short overall risk summary
+4. Developer verification guidance when implementation effects are reviewed
+5. Short overall risk summary

@@ -15,6 +15,7 @@ from trading.services.promotion.actions import (
 )
 from trading.services.promotion.assessment import (
     fetch_current_promotion_assessment,
+    fetch_current_promotion_snapshot,
     fetch_promotion_assessment,
 )
 from trading.services.promotion.history import (
@@ -36,6 +37,7 @@ __all__ = [
     "execute_promotion_review_action",
     "execute_promotion_review_request",
     "fetch_current_promotion_assessment",
+    "fetch_current_promotion_snapshot",
     "fetch_promotion_assessment",
     "fetch_promotion_review_history",
     "render_promotion_review_history_lines",

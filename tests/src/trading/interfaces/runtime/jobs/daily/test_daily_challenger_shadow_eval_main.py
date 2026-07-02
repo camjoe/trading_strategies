@@ -50,6 +50,16 @@ def _sample_run(account_name: str) -> ShadowEvaluationRun:
             SleeveShadowEvaluation(
                 sleeve_id=10,
                 incumbent_strategy="trend",
+                incumbent=SleeveStrategyMetrics(
+                    strategy_name="trend",
+                    param_set_id=None,
+                    trade_count=15,
+                    risk_adjusted_return=0.5,
+                    stability=0.0,
+                    drawdown_penalty=0.0,
+                    cost_penalty=0.0,
+                    regime_fit=0.0,
+                ),
                 challengers=[
                     SleeveStrategyMetrics(
                         strategy_name="meanrev",

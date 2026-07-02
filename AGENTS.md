@@ -34,6 +34,11 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 - Do **not** do style-only rewrites unless explicitly requested.
 - Explain any non-trivial style decision in your summary.
 - For new code, apply the relevant language guide by default — `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend).
+- After each completed implementation phase and in final summaries, include:
+  - `Developer verification`: exact UI route/tab/control, API endpoint and expected payload, report path, command output, or behavioral expectation a developer can inspect.
+  - `Validation run`: tests and checks executed, or why validation was not run.
+  - `Cleanup/robustness notes`: obsolete code removed, evidence-based cleanup candidates found in the touched scope, or `none found in touched scope`.
+- Cleanup reporting is advisory by default. Do not broaden a feature branch with unrelated removals unless the obsolete path is directly created or exposed by the current change and validation proves removal is safe.
 
 ## Task surfaces
 
@@ -202,6 +207,12 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 - Run `python -m scripts.run_checks --profile quick`.
 - Report pass/fail by step and include failing command details.
 
+### `fix checks`
+
+- Run `python -m scripts.fix_checks`.
+- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, and generated reference-doc asset sync.
+- Afterward, run `python -m scripts.run_checks --profile quick` unless the user asked only for the fixer.
+
 ### `run all checks`
 
 - Run `python -m scripts.run_checks --profile ci`.
@@ -299,4 +310,3 @@ Implements and interprets backtesting, walk-forward analysis, persisted run repo
 - `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
 
 Agent: `.ai/agents/backtesting-analyst.agent.md`
-

@@ -92,8 +92,9 @@ chmod 600 .env              # readable only by the runtime user
 > and do not run coding agents on this host. (Optional defense in depth on the dev machine: a Claude
 > Code `permissions.deny` read rule for `**/.env` and secret paths.)
 
-**Important — the runtime jobs do not auto-load `.env`.** Unlike the web backend (which loads
-`apps/paper_trading_web/backend/.env` via dotenv), the job entrypoints read `os.environ` directly.
+**Important — the runtime jobs do not auto-load `.env`.** Unlike the web backend (which loads its
+own dotenv file from the committed `apps/paper_trading_web/backend/.env.example` template), the job
+entrypoints read `os.environ` directly.
 Choose one of the approaches below to get secrets into each job's environment.
 
 #### Approach A — systemd `EnvironmentFile` (recommended for systemd setups)

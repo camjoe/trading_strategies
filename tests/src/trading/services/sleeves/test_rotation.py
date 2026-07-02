@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
-from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.rotation import (
@@ -22,38 +21,16 @@ def _insert_sleeve(conn, *, account_id: int, name: str = "core") -> int:
     )
 
 
-def _seed_incumbent_metrics(conn, *, account_id: int, sleeve_id: int) -> None:
-    DailyMetricsRepository(conn).upsert(
-        account_id=account_id,
-        sleeve_id=sleeve_id,
-        metric_date="2026-05-03",
-        return_pct=0.8,
-        drawdown_pct=-0.6,
-        turnover_pct=3.0,
-        slippage_bps=8.0,
-        hit_rate=0.50,
-        expectancy=0.10,
-        risk_adjusted_score=0.9,
+def _incumbent_metrics(*, strategy_name: str, param_set_id: int | None) -> SleeveStrategyMetrics:
+    return SleeveStrategyMetrics(
+        strategy_name=strategy_name,
+        param_set_id=param_set_id,
         trade_count=12,
-        fees_total=2.5,
-        created_at="2026-05-03T23:59:00Z",
-        updated_at="2026-05-03T23:59:00Z",
-    )
-    DailyMetricsRepository(conn).upsert(
-        account_id=account_id,
-        sleeve_id=sleeve_id,
-        metric_date="2026-05-04",
-        return_pct=0.7,
-        drawdown_pct=-0.5,
-        turnover_pct=2.8,
-        slippage_bps=7.0,
-        hit_rate=0.48,
-        expectancy=0.09,
-        risk_adjusted_score=0.85,
-        trade_count=11,
-        fees_total=2.1,
-        created_at="2026-05-04T23:59:00Z",
-        updated_at="2026-05-04T23:59:00Z",
+        risk_adjusted_return=0.9,
+        stability=0.5,
+        drawdown_penalty=0.2,
+        cost_penalty=0.05,
+        regime_fit=0.0,
     )
 
 
@@ -70,7 +47,6 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
         created_at="2026-05-01T00:00:00Z",
         updated_at="2026-05-01T00:00:00Z",
     )
-    _seed_incumbent_metrics(conn, account_id=account_id, sleeve_id=sleeve_id)
 
     challenger = SleeveStrategyMetrics(
         strategy_name="meanrev",
@@ -85,6 +61,7 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
     result = evaluate_and_apply_sleeve_rotation(
         conn,
         sleeve_id=sleeve_id,
+        incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=101),
         challengers=[challenger],
         config=SleeveRotationConfig(
             rolling_window_days=30,
@@ -128,7 +105,6 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         created_at="2026-05-01T00:00:00Z",
         updated_at="2026-05-01T00:00:00Z",
     )
-    _seed_incumbent_metrics(conn, account_id=account_id, sleeve_id=sleeve_id)
     RotationDecisionRepository(conn).insert(
         sleeve_id=sleeve_id,
         decision_time="2026-05-04T18:00:00Z",
@@ -158,6 +134,7 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
     result = evaluate_and_apply_sleeve_rotation(
         conn,
         sleeve_id=sleeve_id,
+        incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=111),
         challengers=[challenger],
         config=SleeveRotationConfig(cooldown_days=7),
         decision_time="2026-05-05T12:00:00Z",

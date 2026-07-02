@@ -291,6 +291,13 @@ Domain logic belongs in `src/trading/`.  If a calculation is needed by any inter
 `src/trading/domain/`.  The UI backend then delegates to those functions and shapes
 the result for the HTTP response.
 
+**Interface primacy.**  The scheduler (runtime jobs) and CLI are the primary drivers of
+this system; the UI is an optional consumer that views results and edits parameters over
+the same services.  Every capability must be reachable from the scheduler and CLI without
+the UI — never make a capability, contract, or parameter editable *only* through the UI,
+and do not design contracts around UI convenience.  UI-shaping (camelCase JSON, response
+payloads) stays at the UI backend boundary only.
+
 Violation example: settlement-corrected equity math or benchmark return
 calculations in `apps/paper_trading_web/backend/services/accounts/` — these were
 migrated to `src/trading/services/reporting/` and must not be re-introduced into

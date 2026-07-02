@@ -30,7 +30,7 @@ from trading.services.sleeves.shadow_evaluation import (
     DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
     ShadowEvaluationRun,
     SleeveShadowEvaluation,
-    build_challenger_metrics_from_backtest_returns,
+    build_sleeve_metrics_from_evaluation,
     build_sleeve_shadow_evaluation,
 )
 
@@ -53,6 +53,6 @@ __all__ = [
     "DEFAULT_SHADOW_ROLLING_WINDOW_DAYS",
     "ShadowEvaluationRun",
     "SleeveShadowEvaluation",
-    "build_challenger_metrics_from_backtest_returns",
+    "build_sleeve_metrics_from_evaluation",
     "build_sleeve_shadow_evaluation",
 ]

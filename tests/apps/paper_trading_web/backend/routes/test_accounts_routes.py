@@ -86,6 +86,23 @@ def test_accounts_compare_lists_visible_accounts(
     assert "acct_compare_visible" in names
 
 
+def test_accounts_compare_includes_evaluation_summary(
+    api_client: TestClient,
+    seed_account: Callable[..., None],
+) -> None:
+    seed_account("acct_compare_evaluation")
+
+    response = api_client.get("/api/accounts/compare")
+    assert response.status_code == 200
+
+    account = next(item for item in response.json()["accounts"] if item["name"] == "acct_compare_evaluation")
+    assert account["evaluation"]["blendedScore"] is None
+    assert account["evaluation"]["overallConfidence"] == pytest.approx(0.0)
+    assert account["evaluation"]["backtestConfidence"] == pytest.approx(0.0)
+    assert account["evaluation"]["paperLiveConfidence"] == pytest.approx(0.0)
+    assert "missing_backtest_evidence" in account["evaluation"]["dataGaps"]
+
+
 class TestAccountParamsEndpoint:
     def test_patch_params_updates_strategy(
         self,

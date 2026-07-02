@@ -11,7 +11,11 @@ import traceback
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from trading.interfaces.runtime.job_status import DAILY_PAPER_TRADING_COMPLETE_SENTINEL
+from trading.interfaces.runtime.job_status import (
+    DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
+    DAILY_RUN_STATUS_FAILED,
+    DAILY_RUN_STATUS_SUCCESS,
+)
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import (
     group_accounts_by_caps,
     load_trade_caps_config,
@@ -479,7 +483,7 @@ def main() -> int:
         tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
         success_payload = {
             **run_meta,
-            "status": "success",
+            "status": DAILY_RUN_STATUS_SUCCESS,
             "completed_steps": completed_steps_from_dag(step_results),
             "step_results": serialize_step_results(step_results),
             "finished_at": ts(),
@@ -506,7 +510,7 @@ def main() -> int:
         tee_line(log_path, f"[{ts()}] ERROR: {exc}")
         failure_payload = {
             **run_meta,
-            "status": "failed",
+            "status": DAILY_RUN_STATUS_FAILED,
             "completed_steps": completed_steps_from_dag(step_results),
             "step_results": serialize_step_results(step_results),
             "failed_step": failed_step_id(step_results),

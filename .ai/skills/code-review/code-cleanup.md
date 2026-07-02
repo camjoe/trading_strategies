@@ -13,6 +13,12 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 2. Simplify tangled logic, extract helpers where they clarify intent, and remove duplication.
 3. Preserve type safety, public contracts, and layer boundaries.
 4. Update tests when moved logic is behavior-sensitive.
+5. Check the touched scope for obsolete helpers, duplicate serializers, compatibility shims, dead types, stale tests, and docs or routes that still describe prior behavior.
+6. Classify cleanup candidates as:
+   - `safe to remove now`
+   - `needs targeted verification`
+   - `intentional compatibility path`
+   - `defer/backlog`
 
 ## Scope guidance
 
@@ -26,6 +32,8 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 - Do not add abstraction for its own sake.
 - Do not loosen types to make refactors easier.
 - Read `docs/architecture/architecture-conventions.md` before editing `src/trading/`.
+- Do not remove code based on name alone. Require no references, or references that can be safely migrated inside the task.
+- Keep cleanup advisory by default; avoid broad unrelated removals unless the obsolete path is directly in scope and validation proves removal is safe.
 
 ## Repo references
 
@@ -44,3 +52,5 @@ Use this skill for behavior-preserving refactors across backend, frontend, or mi
 2. Files changed
 3. Behavior-preservation notes
 4. Validation commands used
+5. Developer verification instructions
+6. Cleanup/robustness notes with candidate classification
