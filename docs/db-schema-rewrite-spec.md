@@ -3,7 +3,7 @@
 Type: spec
 Status: Accepted — sequenced as P3 (after the execution loop)
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Purpose: Target database schema aligned with the app's goals. This is the concrete form of the
 convergence plan's "physical table rework (option B)", which was **chosen** on 2026-07-01
 ([D2](decisions.md#d2)/[D3](decisions.md#d3)): rewrite-first, after the execution loop, then build
@@ -25,6 +25,9 @@ Related: [Overview](overview.md), [Plan](plan.md),
   the clean schema** (P4) rather than migrating two live paths incrementally.
 - **When:** after the execution loop is closed (P1) and before live enablement — when schema changes
   are cheapest and the runtime behavior is known-good.
+- **Runtime pause (accepted 2026-07-02):** the paper-trading scheduler jobs are paused from P3
+  Phase A until P4's shared submission service lands — the old operational tables are dropped and
+  the writers arrive with P4. Expected downtime, pre-live and paper-only.
 
 ## Data-loss assessment (2026-07-01)
 

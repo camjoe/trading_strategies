@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Purpose: The single consolidated list of decisions that must be made before or during implementation
 — "what needs to be defined." Tasks/order/status live in [plan.md](plan.md); design detail lives in
 the referenced specs.
@@ -63,6 +63,12 @@ history, feature_history)` → act on buy/sell/hold. Live should evaluate the sa
 - **Backtest/live parity — default.** Both paths call one shared
   `evaluate_signal(strategy, history, params, feature_history)` so backtest evidence reflects live
   behavior.
+- **Parity nuance (recorded 2026-07-02).** The shared function gives *function* parity, not *window*
+  parity: live evaluates on a fixed ~1y history while backtest history grows from the run's start
+  date. Tail-window indicators (the SMA family, ≤~60-day windows) are unaffected; whole-series
+  computations (e.g. MACD's EWM) can differ slightly for the same date. Accepted — a small
+  backtest/live signal divergence is **not a bug**; revisit (e.g. fix one shared lookback window in
+  both paths) only if it proves material.
 - **Sizing/risk mapping — default.** Signal output feeds the existing `choose_buy_qty`, forced-sell,
   and sleeve risk-gate flow unchanged.
 

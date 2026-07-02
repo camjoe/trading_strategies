@@ -5,7 +5,7 @@ Status: Ready (large; multi-commit)
 Initiative: P3 (DB schema rewrite, option B)
 Estimate: L
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Related: [Plan](../plan.md), [Decisions](../decisions.md),
 [DB Schema Rewrite Spec](../db-schema-rewrite-spec.md), [DB Schema Target](../db-schema-target.md),
 [Architecture Conventions](../architecture/architecture-conventions.md)
@@ -40,6 +40,12 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 - `./.venv` exists; you can run the migration/DB-init tooling.
 
 ## 3. Guardrails
+- **Runtime pause (accepted 2026-07-02).** P3 drops the old operational tables while the write
+  services (orders/positions/ledger/snapshots) arrive only with P4 — so the paper-trading scheduler
+  jobs **cannot run between Phase A and P4's shared submission service**. This downtime is expected
+  and accepted (pre-live, paper only). At the start of Phase A, pause/disable the daily paper-trading
+  jobs and note the pause in the PR; P4 should sequence **2a (shared submission service) first** so
+  the write path revives quickly.
 - Use the venv interpreter; respect layering (`models` lowest → `repositories` SQL-only → `services`).
 - **Greenfield:** dropping old data is intended and pre-approved (see the data-loss assessment). Still
   take one fresh `local/db_backups/` snapshot first (see [Developer Notes](../developer-notes.md)).
@@ -52,7 +58,8 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 ## 4. Branch & commit strategy
 - Dedicated branch, e.g. `features/p3-db-schema-rewrite`.
 - **One commit per phase below** (A→E), each after its checks are green. Never commit on red.
-- Commit message format per the template (summary + body + `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`).
+- Commit message format per the template (summary + body + the **executing model's own**
+  `Co-Authored-By: <model name> <noreply@anthropic.com>` line).
 
 ## 5. Build plan (ordered phases)
 
