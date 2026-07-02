@@ -278,6 +278,8 @@ Priority: P1 · Committed
   - `src/trading/backtesting/services/execution_service.py` — switch `resolve_signal` to the shared
     params-aware eval so backtest and live use identical params. (E2)
   - Tests: `auto_trading`, `sleeves`, `backtesting`, and `domain/strategy_signals` suites.
+- **Work order:** [implementation/p1-execution-loop.md](implementation/p1-execution-loop.md)
+  (8 ordered steps, marked [light]/[strong]).
 - Done when:
   - live/paper trades are driven by the active strategy's signal function
   - parameter sets flow into both backtest and live signal evaluation

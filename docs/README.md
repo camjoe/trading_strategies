@@ -32,7 +32,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`db-schema-rewrite-spec.md`](db-schema-rewrite-spec.md) — draft target schema for a clean, goals-aligned database rewrite (the convergence "option B", greenfield, no data migration)
 - [`db-schema-target.md`](db-schema-target.md) — the proposed final schema on its own (WIP), without old-schema/change framing
 - [`developer-notes.md`](developer-notes.md) — developer working notes, gotchas, and pre-implementation checks
-- [`implementation/`](implementation/) — per-initiative implementation guides (self-contained work orders an agent can execute end-to-end): [p2-evaluation-contract-tests.md](implementation/p2-evaluation-contract-tests.md) (template + example), [p3-db-schema-rewrite.md](implementation/p3-db-schema-rewrite.md) (the schema rewrite)
+- [`implementation/`](implementation/) — per-initiative implementation guides (self-contained work orders an agent can execute end-to-end): [p2-evaluation-contract-tests.md](implementation/p2-evaluation-contract-tests.md) (template + example), [p1-execution-loop.md](implementation/p1-execution-loop.md) (the keystone), [p3-db-schema-rewrite.md](implementation/p3-db-schema-rewrite.md) (the schema rewrite)
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
