@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-06-27
+Last Reviewed: 2026-07-02
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
 Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -82,7 +82,7 @@ Disallowed:
 8. `src/infrastructure/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
    - Migration system reference: `docs/reference/db-migration-system.md`
-   - For migration reviews and schema-change validation, use the `DB Migration Steward` bot.
+   - For migration reviews and schema-change validation, use the `db-migration-steward` agent (`.ai/agents/db-migration-steward.agent.md`).
 
 9. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
@@ -144,7 +144,7 @@ Rules for all alternative-strategy development (strategy_style = "alternative"):
 
 ## Constants and Magic Numbers
 
-All bots must follow this rule when writing or reviewing Python code:
+All agents must follow this rule when writing or reviewing Python code:
 
 1. Do not introduce numeric or string literals that represent a named financial, mathematical, or domain concept inline in logic.
 2. Any value that has a name in the domain (e.g., RSI window, annualization factor, basis points divisor, threshold, floor, cap) must be extracted to a named constant in `UPPER_SNAKE_CASE`.
@@ -309,11 +309,11 @@ Before creating or moving code in `src/trading/`:
 
 1. Classify change target: interface/service/domain/repository/database.
 2. Place any shared symbol (constant, type, value object) at its **lowest owning
-   layer** — the lowest layer that owns the concept and is reachable by all
-   consumers without an upward import. Layer direction: `domain` → `models`/`common`;
-   `models` → `common`; nothing imports upward. Passive data contracts and their
-   field vocabulary live in `models/`; domain policy/logic and policy-knob configs
-   live in `domain/`; generic primitives in `common/`.
+   layer** — see the placement table and layer-direction rule in
+   [Constants and Magic Numbers](#constants-and-magic-numbers) §3, which is the
+   canonical statement. In short: passive data contracts and their field
+   vocabulary → `models/`; domain policy/logic and policy-knob configs →
+   `domain/`; generic primitives → `common/`.
 3. Place scheduler operations in `src/trading/interfaces/runtime/jobs/`.
 4. Place operator data ops in `src/trading/interfaces/runtime/data_ops/`.
 5. Keep SQL in repositories, not in handlers/routes.
@@ -326,7 +326,7 @@ For a task-oriented "where do I put X" reference, see `docs/architecture/nav-gui
 The `live_trading_enabled` column on the `accounts` table is a hard safety gate
 that prevents live broker orders from being submitted accidentally.
 
-**Rules that all bots must follow without exception:**
+**Rules that all agents must follow without exception:**
 
 1. **Never set `live_trading_enabled = 1`** in any generated code, migration,
    script, fixture, test factory, or seed data.  This flag must only be set
@@ -344,5 +344,5 @@ that prevents live broker orders from being submitted accidentally.
    default).  Never override this in test fixtures or helper factories.
 
 Rationale: `live_trading_enabled = 1` causes real money to move through a
-live broker.  No automated process — including bots, CI pipelines, or scripts
+live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.

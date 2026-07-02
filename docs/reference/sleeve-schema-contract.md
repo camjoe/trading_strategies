@@ -3,9 +3,15 @@
 Type: notes
 Status: Draft
 Created: 2026-05-03
-Last Reviewed: 2026-05-03
+Last Reviewed: 2026-07-02
 Purpose: Define the concrete sleeve table and index contract for IBKR paper autonomy before coding migrations and repositories.
 Related: [ADR: Sleeve Virtualization](../adr/003-sleeve-virtualization-architecture.md), [Accounts Schema Usage](accounts-schema-usage.md), [DB Migration System](db-migration-system.md)
+
+> **Pre-P3 schema.** This describes the *current* sleeve tables, which the greenfield DB rewrite
+> (Plan P3) replaces with the trading-unit schema in
+> [db-schema-target.md](../db-schema-target.md) (`strategy_sleeves` → `trading_units`,
+> `sleeve_*` tables folded into unit-keyed `orders`/`order_fills`/`positions`/`ledger`). Treat this
+> doc as historical once P3 lands — do not use it as a design target.
 
 ## Purpose
 

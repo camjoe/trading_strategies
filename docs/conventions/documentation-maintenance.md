@@ -25,4 +25,8 @@ Tracked backlog of doc-tooling work that applies the principles above. Each is s
 
 - **In-app docs seam audit** (principle 3). The in-app doc assets (`api.json`, `software.json`, `finance.json`) are generated from `scripts/documentation_ui/` sources via `sync.py`. Periodically verify the generated JSON is never hand-edited (e.g. a check that regenerating produces no diff), so the seam stays genuinely derived.
 - **Skills/agents drift-check + generated `help/` catalog** (principle 2). Add a `maps_check` sibling that validates `AGENTS.md` routing against the actual `.ai/skills/` + `.ai/agents/` so routing can't silently lie, and generate a `help/` catalog from each skill/agent's `when-to-use` frontmatter (one source feeding help catalog + routing). Push (auto-trigger / routing) beats pull (remembering to run `help`).
+- **Doc-header lint** (principles 2 and 4). Add an advisory check (sibling of `link_check`) that
+  verifies every `docs/` file carries the six header fields with valid `Type`/`Status` vocabulary
+  per [doc-header.md](doc-header.md) — catches the missing-`Last Reviewed` class of drift
+  permanently. (`docs/reference/agent-skills.md` stays exempt.)
 - **Scripts discoverability** (principles 1–2). Enrich [`docs/maps/scripts-map.md`](../maps/scripts-map.md) with per-script usage + safety notes, and cross-link operational scripts to the skills/agents that drive them (e.g. UI screenshot tooling ↔ a UI-verify skill; auto-trading runners ↔ the `trading-runtime` agent + runbooks).

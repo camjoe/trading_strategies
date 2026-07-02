@@ -3,6 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-29
+Last Reviewed: 2026-07-02
 Purpose: Operator-facing inventory of runtime job names, entrypoints, schedule status, install command, and usage.
 Related: [Runtime Jobs Reference](runtime-jobs.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md)
 
@@ -110,7 +111,7 @@ Remove registered entries:
 | Job | Entrypoint | Scheduled by installer? | Frequency | Why it exists / how it is used |
 |---|---|---:|---|---|
 | Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | No | Indirect/manual | Executes per-account simulated trade batches. The daily paper-trading job shells out to this module; operators can also run it manually. |
-| Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | No | Manual/ad hoc daily-style guard | Scans daily paper-trading artifacts to report burn-in stability and go-live readiness. Current code appears to count artifact status `"ok"`, while daily paper trading writes `"success"`. |
+| Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | No | Manual/ad hoc daily-style guard | Scans daily paper-trading artifacts to report burn-in stability and go-live readiness (counts consecutive artifacts with top-level `status == "success"`). |
 | Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | No | Manual recovery | Finds dates in a range without successful daily paper-trading logs and replays them with `--as-of-date --force-run`. |
 
 ## Governance Jobs
