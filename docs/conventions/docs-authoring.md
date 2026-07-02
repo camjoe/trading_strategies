@@ -122,6 +122,4 @@ Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy
 
 ## Scope
 
-All files under `docs/` follow this standard, with no exceptions. (The former exception,
-`docs/reference/agent-skills.md`, was a verbatim upstream copy; it is now a repo-owned pointer doc
-with a normal header.)
+All files under `docs/` follow this standard, with no exceptions.

@@ -162,8 +162,8 @@ Priority: P2 · Committed
     test at `tests/apps/paper_trading_web/backend/services/test_decision_contract_consistency.py`.
 - **P2 complete** (1a ✅ · 1b ✅ · 1c ✅).
 - Code areas that will change (1c):
-  - `tests/src/trading/domain/test_evaluation_decision_score.py` (extend) and/or a new
-    `tests/src/trading/services/test_decision_contract_consistency.py` proving compare
+  - `tests/src/trading/domain/test_evaluation_decision_score.py` (extend) and the existing
+    `tests/apps/paper_trading_web/backend/services/test_decision_contract_consistency.py` proving compare
     (`apps/paper_trading_web/backend/services/evaluation.py`), promotion
     (`src/trading/domain/promotion_policy.py` confidence/data-gap reads), and rotation
     (`src/trading/services/sleeves/shadow_evaluation.py`) all derive from `derive_decision_score` and
@@ -203,7 +203,8 @@ Priority: P4 · Committed
     `runtime_rotation.py`, `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`) — the
     same root cause as P2.
 - Sub-features (built once on the clean schema; unit = default-unit for a plain account):
-  - [ ] **2a. Shared order-submission service** — one service (e.g. `src/trading/services/execution/`)
+  - [ ] **2a. Shared order-submission service** — one service (for example,
+    a future `trading.services.execution` package)
     that submits → persists the broker order → updates the unit ledger on fill, with the pre-submit
     safety gates (kill switches, reconciliation) owned centrally so every unit inherits them.
     Highest-value slice; directly reduces live-path risk.
@@ -213,7 +214,7 @@ Priority: P4 · Committed
   - [ ] **2c. Unified accounting/ledger path** — one unit-keyed ledger; fills flow through it.
 - Estimate: **L** — built once on the clean schema (P3), not migrated incrementally.
 - Code areas that will change:
-  - 2a: new `src/trading/services/execution/` submission service; refactor
+  - 2a: new submission service package; refactor
     `src/trading/services/auto_trading/runtime.py` (the inline `_run_sleeve_mode_for_account` loop and
     `_broker_aware_record_trade`) and `auto_trading/execution.py` `run_for_account` to call it, with an
     injected on-fill handler (`record_trade` vs `apply_sleeve_fill`) and the pre-submit safety gates

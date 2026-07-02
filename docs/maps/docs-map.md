@@ -123,7 +123,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/TEMPLATE.adr.md` | Template for new ADR files |
 | `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
 | `docs/reference/skill-invocation-policy.md` | Who can invoke which skill; `invoker` frontmatter schema and enforcement preamble convention |
-| `docs/reference/agent-skills.md` | Pointer to the upstream skill-authoring guide + the principles this repo reviews skills against |
 
 ---
 
