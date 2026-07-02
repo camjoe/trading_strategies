@@ -110,6 +110,8 @@ strategies), and P7 (parameter source) build on. Full schema:
 - Delivers foundations for: P4 (trading units), P6/4a (`strategies` table), P7 (settings storage),
   and D6 (decision-score columns).
 - Remaining open: the account/unit settings shape ([D4](decisions.md#d4) tail).
+- **Work order:** [implementation/p3-db-schema-rewrite.md](implementation/p3-db-schema-rewrite.md)
+  (phased build + per-table code-area map).
 
 #### Unify evaluation across decision surfaces
 
