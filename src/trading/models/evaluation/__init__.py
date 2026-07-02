@@ -9,6 +9,7 @@ from trading.models.evaluation.constants import EVALUATION_ARTIFACT_VERSION, EVA
 from trading.models.evaluation.evaluation_backtest_evidence import EvaluationBacktestEvidence
 from trading.models.evaluation.evaluation_basic_scope import EvaluationBasicScope
 from trading.models.evaluation.evaluation_confidence import EvaluationConfidence
+from trading.models.evaluation.evaluation_decision_score import EvaluationDecisionScore
 from trading.models.evaluation.evaluation_diagnostics import EvaluationDiagnostics
 from trading.models.evaluation.evaluation_meta import EvaluationMeta
 from trading.models.evaluation.evaluation_paper_live_evidence import EvaluationPaperLiveEvidence
@@ -21,6 +22,7 @@ __all__ = [
     "EvaluationBacktestEvidence",
     "EvaluationBasicScope",
     "EvaluationConfidence",
+    "EvaluationDecisionScore",
     "EvaluationDiagnostics",
     "EvaluationMeta",
     "EvaluationPaperLiveEvidence",

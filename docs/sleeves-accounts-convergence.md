@@ -7,11 +7,17 @@ Last Reviewed: 2026-07-01
 Purpose: Living implementation and progress tracker for converging the parallel account-mode and
 sleeve-mode trading paths onto shared, single-responsibility services — so behavior, safety, and
 scoring are consistent and the test/paper/live environments require minimal per-path change.
-Related: [Roadmap Now #2](roadmap.md#2-converge-accounts-and-sleeves-on-shared-services),
-[Roadmap Now #1](roadmap.md#1-unify-evaluation-across-decision-surfaces),
+Related: [Plan — Converge accounts & sleeves (P4)](plan.md#converge-accounts-and-sleeves-on-shared-services),
+[Plan — Unify evaluation (P2)](plan.md#unify-evaluation-across-decision-surfaces),
 [Architecture Conventions](architecture/architecture-conventions.md),
 [ADR 003 — Sleeve Virtualization](adr/003-sleeve-virtualization-architecture.md),
 [Broker Integration](reference/broker-integration.md)
+
+> **Realized via the rewrite.** With rewrite-first chosen ([D2/D3](decisions.md#d2)), convergence is
+> **built once on the clean trading-unit schema** during Plan P3 (rewrite) → P4 (services), not by
+> incrementally migrating two live paths. This doc is the **design reference** for the converged
+> services; the schema itself is in the [DB Schema Rewrite Spec](db-schema-rewrite-spec.md). The
+> current-state map below documents the duplication the rewrite removes.
 
 ## Goal
 
@@ -27,9 +33,10 @@ same trade lifecycle differently. Converge them onto shared services so that:
 
 ## Guiding principles
 
-1. **Incremental and opportunistic.** Build each shared service as roadmap work touches that code;
-   migrate the account and sleeve paths one seam at a time. No big-bang rewrite of the hot,
-   safety-critical live path.
+1. **Build once on the clean schema.** With the greenfield rewrite chosen (P3), the shared services
+   are built directly on the clean trading-unit tables (P4) — one submission/rotation/accounting path
+   — rather than migrating two live paths incrementally. There is no live data to protect
+   (greenfield), which is what makes the clean build the low-risk option.
 2. **Safety only strengthens.** When paths merge, the stricter path's guards become the shared
    default — never remove a kill switch to make merging easier.
 3. **Honor the existing seams.** The `BrokerConnection` port + `get_broker_for_account` factory and
@@ -58,25 +65,28 @@ reuse base with attribution lifted to unit-aware persistence (Reuse #3). Note th
 literally *be* a sleeve: broker + `live_trading_enabled` + reconciliation-to-truth are genuinely
 account-scoped and must not be pushed onto a sleeve.
 
-### Realization options (open decision)
+### Realization options (decided: B)
 
-The default trading unit can be modeled two ways:
+The default trading unit was modeled two ways; **(B) was chosen** (see Decision status below):
 
-- **(A) Virtual default unit — current short-term lean.** The trading-unit contract has two backings
+- **(A) Virtual default unit — rejected.** The trading-unit contract has two backings
   (sleeve-backed and account-backed); a plain account presents a *synthesized* default unit over the
   existing account tables. No migration of the hot ledger/positions/orders tables. Costs a small
   amount of polymorphism (two backings) in exchange for keeping account semantics unchanged. Matches
   ADR Reuse #3.
 - **(B) Physical table rework.** Give every account a real default trading-unit row and reparent
-  ledger/positions/orders onto units. Purest single-backing model, but a backfill on the most
-  safety-critical tables. Because we are **not yet live production**, there is a genuine window to
-  re-evaluate whether the current tables meet our needs and, if so, do this rework before that window
-  closes. Higher up-front risk/effort; cleanest end state.
+  ledger/positions/orders onto units. Purest single-backing model. Because we are **not yet live
+  production** and are willing to drop existing data, this is a **greenfield schema init with no data
+  migration** — which removes the backfill risk that would otherwise dominate. A concrete target
+  schema is drafted in the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md); adopting it
+  is this option. Cleanest end state; larger up-front build, but it collapses much of 2a/2b/2c into
+  "build once on the new schema."
 
-**Decision status:** leaning (A) virtual short-term to unblock convergence without a hot-table
-migration. Keep (B) open: schedule a deliberate pre-live table review and decide before live
-enablement, when schema changes are cheapest. Do not commit 2a/2c to a specific persistence shape
-until this is settled.
+**Decision status (2026-07-01): (B) chosen** — the greenfield rewrite
+([D2](decisions.md#d2)/[D3](decisions.md#d3)/[D7](decisions.md#d7)). Convergence (2a/2b/2c) is built
+**once on the clean schema** (P4), after the execution loop (P1) and the rewrite (P3), rather than
+migrating two live paths incrementally. See the
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md).
 
 ## Scope
 
@@ -108,31 +118,39 @@ Confirmed by reading `src/trading/services/auto_trading/runtime.py`,
 | On-fill ledger update | `record_trade` | `apply_sleeve_fill` + `record_trade` | ❌ divergent |
 | Pre-submit safety gates | throttles only | kill switches: stale price, reconciliation mismatch/staleness | ❌ asymmetric |
 | Rotation / selection | account episode rotation | sleeve champion/challenger | ❌ two paradigms |
-| Scoring metrics | daily-metrics-derived | backtest-returns-derived (challengers) + `StrategyEvaluationArtifact` | ❌ three notions (see Roadmap Now #1) |
+| Scoring metrics | account-episode rotation still separate | incumbent + challengers via the decision-score contract (1b) | ◑ sleeve side unified (1b); account rotation pending 2b |
 | Reconciliation | `reconcile_open_broker_orders` | `reconcile_sleeves_vs_latest_snapshot` | ⚠️ to investigate |
 | Account/equity state | `refresh_account_state` → `compute_account_state` | `_build_sleeve_state` (from sleeve positions) | ⚠️ to investigate |
 | Risk snapshots | (none) | `portfolio_risk_snapshots` + `sleeve_risk_decisions` | ⚠️ to investigate |
 | Order repositories | `broker_orders` | `broker_orders` + `sleeve_orders` | ⚠️ to investigate |
 | Intent model | selection tuple `(side, ticker, qty, ...)` | `SleeveTradeIntent` dataclass | ⚠️ to investigate |
 
-Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ candidate, not yet deeply verified.
+Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplication/divergence · ⚠️ candidate, not yet deeply verified.
 
 ## Workstreams
 
-### Confirmed (roadmap Now #2 sub-features)
+### Confirmed (P4 sub-features)
 
 - [ ] **2a. Shared order-submission service**
   - Extract "submit intent → persist broker order → on-fill ledger update" into one service
     (e.g. `src/trading/services/execution/`) called by both modes.
-  - Difference between modes enters only via an injected on-fill handler (account ledger vs sleeve
-    ledger) and an injected order-persistence seam (`broker_orders` vs `broker_orders` + `sleeve_orders`).
-  - Fold the pre-submit safety gates in so the account path inherits the sleeve kill switches.
+  - On the clean schema there is one `orders`/`order_fills`/`ledger` model keyed by trading unit, so
+    "modes" collapse to the default-unit vs multi-unit case — no per-mode persistence branching.
+  - The one path owns the pre-submit safety gates (kill switches, reconciliation), so every unit
+    inherits them uniformly.
   - Highest-value slice; directly reduces future live-path risk.
 - [ ] **2b. Unified rotation/selection**
-  - Collapse account episode rotation and sleeve champion/challenger onto the Now #1 decision-score
+  - Collapse account episode rotation and sleeve champion/challenger onto the P2 decision-score
     contract; reduce the rotation module sprawl (`auto_trading/rotation.py`, `runtime_rotation.py`,
     `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`).
-  - **Depends on Roadmap Now #1a** (shared decision-score contract).
+  - Post-1b, `shadow_evaluation` is a thin candidate-enumeration step — its separate challenger
+    scoring path is gone, so it is a rename/absorb candidate. The behavior-preserving naming work
+    (rename `shadow_evaluation`, disambiguate the two "rotation" meanings, clarify the
+    evaluation/promotion/analysis/reporting boundaries) is tracked as Plan P5
+    (Decisioning legibility & naming pass) and is best done alongside this step.
+  - Keep evaluation, promotion, and rotation as small SRP pieces that share the one decision-score
+    contract under a legible "decisioning" grouping — not a monolith.
+  - **Depends on Plan 1a** (shared decision-score contract).
 - [ ] **2c. Unified accounting/ledger path**
   - Make sleeve fills a clean extension of the single ledger-update path rather than a divergent copy
     of `record_trade`.
@@ -146,37 +164,30 @@ Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ 
   intentionally position-scoped?
 - [ ] Risk snapshots: should account mode gain an equivalent of the sleeve risk snapshot /
   decisions, or is that intrinsically a sleeve concept?
-- [ ] Order repositories: under the trading-unit stance, `broker_orders` stays broker/custody truth
-  and unit attribution links to it. Provisional direction is to bridge `sleeve_orders` behind the
-  submission service rather than merge tables; the final shape depends on realization (A) vs (B).
-- [ ] Intent model: the trading-unit stance favors a shared trade-intent contract (the account
-  selection tuple becomes the default-unit intent); confirm scope when 2a lands.
+- [x] Order repositories: resolved by the rewrite — one `orders`/`order_fills` model keyed by unit;
+  `broker_order_id` keeps custody linkage. No bridging of two tables.
+- [x] Intent model: resolved — one trade-intent contract on the trading unit (the account selection
+  tuple becomes the default-unit intent).
 
 ## Dependencies & sequencing
 
-- **1a → 1b and 2b.** The shared decision-score contract (Roadmap Now #1a) unblocks both the
-  rotation migration (1b) and the unified rotation/selection here (2b).
-- **1b checkpoint (entry point to this plan).** Narrow 1b (repoint rotation scoring onto the 1a
-  contract, both paradigms intact) needs neither the trading-unit stance nor the A/B decision. The
-  end of 1b is the natural gate for deciding whether to cross into this convergence work: going past
-  narrow 1b into 2b forces resolving the design stance (A vs B). Until then these workstreams stay
-  deferred.
-- **2a is independent.** The broker seam is already clean, so the submission-service extraction can
-  start immediately without waiting on the scoring work.
-- Suggested order: **2a** (safety + biggest duplication) → **2c** (ledger) alongside 2a → **2b**
-  once 1a lands.
+- **Sequenced by the plan:** P1 (execution loop) → P2 (1c) → **P3 (rewrite)** → **P4 (these services,
+  built once on the clean schema)**, with P5 (naming) alongside. See [plan.md](plan.md).
+- **1a/1b are done** — the decision-score contract already backs sleeve rotation; 2b builds on it.
+- Within P4, suggested internal order: **2a** (submission service + safety gates) → **2c** (ledger)
+  → **2b** (unified rotation/selection).
 
 ## Open questions
 
-- **Realization: virtual default unit (A) vs physical table rework (B)** — see Design stance.
-  Leaning (A) short-term; revisit (B) in a pre-live table review before live enablement. This gates
-  the persistence shape for 2a/2c.
+Canonical decision status in [decisions.md](decisions.md). Remaining design detail:
+
+- **Which rotation paradigm survives on units** — account-episode vs champion/challenger. The
+  champion/challenger model + the decision-score contract is the developed path; confirm it wins and
+  retire the episode path during 2b. (Surfaced in the whole-picture review.)
 - Package/name for the shared submission service (`services/execution/` vs extending
   `services/auto_trading/`).
-- Whether the shared submission service should own the pre-submit safety gates directly, or accept
-  them as an injected policy so sleeve-specific gates stay pluggable.
-- Order-persistence shape depends on the realization decision above: under (A), bridge
-  `broker_orders`/`sleeve_orders` behind the submission service; under (B), reparent onto units.
+- Whether the shared submission service owns the pre-submit safety gates directly, or accepts them as
+  an injected policy so unit-specific gates stay pluggable.
 
 ## Progress log
 
@@ -188,3 +199,17 @@ Legend: ✅ already converged · ❌ confirmed duplication/divergence · ⚠️ 
   virtual (A) vs physical-table-rework (B) as an open realization decision; current lean is virtual
   short-term, with a pre-live table review to revisit (B). Updated open questions and investigation
   items accordingly.
+- 2026-07-01 — 1b landed: sleeve rotation now scores incumbent + challengers through the
+  decision-score contract (current-state "Scoring metrics" row now partial). Marked
+  `shadow_evaluation` as a rename/absorb candidate under 2b and recorded the decisioning
+  legibility/naming direction (tracked as Plan P5). Added the P7 item for a
+  unified parameter source (param sprawl across ~5 stores).
+- 2026-07-01 — Drafted the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md) concretizing
+  realization option (B). Reframed (B) as greenfield (no data migration, old data dropped), which
+  removes the backfill risk and means adopting the spec collapses much of 2a/2b/2c into a
+  build-once-on-clean-schema effort. Realization decision (A vs B) remains open.
+- 2026-07-01 — Rewrite-first (B) decided. Reframed this plan from incremental migration to
+  "build the converged services once on the clean schema" (P3 → P4): updated guiding principles,
+  the workstream persistence framing, sequencing, and open questions; resolved the order-repository
+  and intent-model investigations (one `orders`/`ledger`/`positions` model on units). Flagged the
+  surviving-rotation-paradigm question.

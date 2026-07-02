@@ -6,6 +6,11 @@ from unittest.mock import Mock
 
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.sleeves import SleeveRepository
+from trading.models.evaluation import (
+    EvaluationBacktestEvidence,
+    EvaluationConfidence,
+    StrategyEvaluationArtifact,
+)
 from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.services.auto_trading.runtime import run_for_account
@@ -16,6 +21,24 @@ from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
+
+
+def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_count: int = 30) -> None:
+    """Drive sleeve rotation scoring via stubbed evaluation artifacts per strategy."""
+
+    def _fake_fetch(_conn, _account, *, strategy_name):
+        return StrategyEvaluationArtifact(
+            backtest=EvaluationBacktestEvidence(available=True, trade_count=trade_count),
+            confidence=EvaluationConfidence(
+                blended_score=scores.get(strategy_name, 0.0),
+                overall_confidence=0.3,
+            ),
+        )
+
+    monkeypatch.setattr(
+        "trading.services.sleeves.shadow_evaluation.fetch_strategy_evaluation_for_account_row",
+        _fake_fetch,
+    )
 
 
 def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> SleeveTradeIntent:
@@ -72,10 +95,7 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
     sleeve_id = rotation_sleeve_env.sleeve_id
 
     _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
-    monkeypatch.setattr(
-        "trading.services.sleeves.shadow_evaluation.fetch_strategy_backtest_returns",
-        lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
-    )
+    _patch_rotation_evaluation(monkeypatch, {"trend": 0.0, "meanrev": 5.0})
     captured = {"active_strategy": None}
 
     def _capture_intents(*_args, **_kwargs):
@@ -146,10 +166,7 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
     conn.commit()
 
     _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
-    monkeypatch.setattr(
-        "trading.services.sleeves.shadow_evaluation.fetch_strategy_backtest_returns",
-        lambda *_args, **_kwargs: [("meanrev", 1.0)] * 30,
-    )
+    _patch_rotation_evaluation(monkeypatch, {"trend": 0.0, "meanrev": 5.0})
     captured = {"active_strategy": None}
 
     def _capture_intents(*_args, **_kwargs):

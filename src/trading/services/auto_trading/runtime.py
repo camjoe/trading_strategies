@@ -333,6 +333,7 @@ def _run_sleeve_rotation_decisions(
         evaluate_and_apply_sleeve_rotation(
             conn,
             sleeve_id=sleeve_eval.sleeve_id,
+            incumbent=sleeve_eval.incumbent,
             challengers=sleeve_eval.challengers,
             config=config,
             decision_time=decision_time,

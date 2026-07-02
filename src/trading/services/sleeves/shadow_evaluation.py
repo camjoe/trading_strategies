@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import sqlite3
 
-from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
+from trading.domain.evaluation_decision_score import derive_decision_score
 from trading.domain.rotation import parse_rotation_schedule
 from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
 from trading.models import AccountRecord
 from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
-from trading.services.sleeves.helpers import mean as _sleeve_mean
+from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 
 DEFAULT_SHADOW_ROLLING_WINDOW_DAYS = 30
@@ -19,6 +19,7 @@ DEFAULT_SHADOW_ROLLING_WINDOW_DAYS = 30
 class SleeveShadowEvaluation:
     sleeve_id: int
     incumbent_strategy: str
+    incumbent: SleeveStrategyMetrics
     challengers: list[SleeveStrategyMetrics]
 
 
@@ -29,10 +30,6 @@ class ShadowEvaluationRun:
     window_start_day: str
     window_end_day: str
     sleeves: list[SleeveShadowEvaluation]
-
-
-def _mean(values: list[float]) -> float:
-    return _sleeve_mean(values)
 
 
 def _resolve_strategy_schedule(account: AccountRecord) -> list[str]:
@@ -50,35 +47,31 @@ def _resolve_window_bounds(*, as_of_iso: str, rolling_window_days: int) -> tuple
     return _resolve_window_bounds_shared(as_of_iso=as_of_iso, rolling_window_days=rolling_window_days)
 
 
-def build_challenger_metrics_from_backtest_returns(
+def build_sleeve_metrics_from_evaluation(
     conn: sqlite3.Connection,
     *,
-    account_id: int,
+    account: AccountRecord,
     strategy_name: str,
-    start_day: str,
-    end_day: str,
+    param_set_id: int | None,
 ) -> SleeveStrategyMetrics:
-    rows = fetch_strategy_backtest_returns(
-        conn,
-        account_id=account_id,
-        strategy_names=[strategy_name],
-        start_day=start_day,
-        end_day=end_day,
-    )
-    returns = [float(return_pct) for candidate, return_pct in rows if str(candidate).strip() == strategy_name]
-    trade_count = len(returns)
-    risk_adjusted_return = _mean(returns)
-    stability = float(sum(1 for value in returns if value > 0.0)) / float(trade_count) if trade_count > 0 else 0.0
-    drawdown_penalty = abs(min(returns)) if returns and min(returns) < 0 else 0.0
-    param_set = StrategyParamSetRepository(conn).fetch_active(strategy_name=strategy_name)
-    param_set_id = param_set.id if param_set is not None else None
+    """Build sleeve rotation metrics from the canonical evaluation artifact.
+
+    Both the incumbent and each challenger are scored through the same source —
+    the strategy evaluation artifact's decision score — so champion/challenger
+    comparison is apples-to-apples. The multi-component ``SleeveStrategyMetrics``
+    collapses onto the single blended decision score for now; the richer
+    component decomposition is deferred to the rotation-paradigm unification (2b).
+    """
+    artifact = fetch_strategy_evaluation_for_account_row(conn, account, strategy_name=strategy_name)
+    decision = derive_decision_score(artifact)
+    comparable_score = decision.score if decision.score is not None else 0.0
     return SleeveStrategyMetrics(
         strategy_name=strategy_name,
         param_set_id=param_set_id,
-        trade_count=trade_count,
-        risk_adjusted_return=risk_adjusted_return,
-        stability=stability,
-        drawdown_penalty=drawdown_penalty,
+        trade_count=artifact.backtest.trade_count or 0,
+        risk_adjusted_return=comparable_score,
+        stability=0.0,
+        drawdown_penalty=0.0,
         cost_penalty=0.0,
         regime_fit=0.0,
     )
@@ -98,6 +91,7 @@ def build_sleeve_shadow_evaluation(
         rolling_window_days=rolling_window_days,
     )
     sleeve_repo = SleeveRepository(conn)
+    param_set_repo = StrategyParamSetRepository(conn)
     all_sleeves = sleeve_repo.fetch_for_account(account_id=account_id)
     sleeves: list[SleeveShadowEvaluation] = []
     for sleeve in all_sleeves:
@@ -107,23 +101,30 @@ def build_sleeve_shadow_evaluation(
         if assignment is None:
             continue
         incumbent_strategy = assignment.strategy_name.strip()
+        incumbent = build_sleeve_metrics_from_evaluation(
+            conn,
+            account=account,
+            strategy_name=incumbent_strategy,
+            param_set_id=assignment.param_set_id,
+        )
         challengers: list[SleeveStrategyMetrics] = []
         for strategy_name in schedule:
             if strategy_name == incumbent_strategy:
                 continue
+            active_param_set = param_set_repo.fetch_active(strategy_name=strategy_name)
             challengers.append(
-                build_challenger_metrics_from_backtest_returns(
+                build_sleeve_metrics_from_evaluation(
                     conn,
-                    account_id=account_id,
+                    account=account,
                     strategy_name=strategy_name,
-                    start_day=window_start_day,
-                    end_day=window_end_day,
+                    param_set_id=active_param_set.id if active_param_set is not None else None,
                 )
             )
         sleeves.append(
             SleeveShadowEvaluation(
                 sleeve_id=sleeve.id,
                 incumbent_strategy=incumbent_strategy,
+                incumbent=incumbent,
                 challengers=challengers,
             )
         )
