@@ -191,7 +191,7 @@ Static JSON assets consumed by the in-app docs renderer.
 | File | Content |
 |---|---|
 | `api.json` | API reference documentation content |
-| `finance.json` | Finance/strategy documentation content |
+| `finance.json` | Generated finance/strategy documentation content from `docs/reference/financial-market-knowledge.md` |
 | `software.json` | Software architecture documentation content |
 
 ---

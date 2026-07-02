@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from common.runtime_job_status import DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS
 from tests.src.trading.interfaces.helpers import run_module_as_main
 
 MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
@@ -83,7 +84,7 @@ class TestReadyForLiveWhenConsecutiveThresholdMet:
         today = _real_dt.date(2026, 5, 20)
         for i in range(10):
             d = today - _real_dt.timedelta(days=9 - i)
-            _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
+            _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", DAILY_RUN_STATUS_SUCCESS)
 
         rc = _run_main_at_now(
             monkeypatch,
@@ -108,7 +109,7 @@ class TestNotReadyWhenBelowConsecutiveThreshold:
         today = _real_dt.date(2026, 5, 20)
         for i in range(5):
             d = today - _real_dt.timedelta(days=4 - i)
-            _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
+            _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", DAILY_RUN_STATUS_SUCCESS)
 
         rc = _run_main_at_now(
             monkeypatch,
@@ -131,14 +132,18 @@ class TestNotReadyWhenFailureRateExceeded:
     def test_not_ready_when_failure_rate_exceeded(self, monkeypatch, tmp_path: Path) -> None:
         export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
         today = _real_dt.date(2026, 5, 20)
-        # Write a failure on day 0 of the window, then 9 ok runs after it.
+        # Write a failure on day 0 of the window, then 9 successful runs after it.
         failed_date = today - _real_dt.timedelta(days=9)
         _write_artifact(
-            export_dir, failed_date.strftime("%Y%m%d"), "120000", "failed", failed_step="07_submit_ibkr_orders"
+            export_dir,
+            failed_date.strftime("%Y%m%d"),
+            "120000",
+            DAILY_RUN_STATUS_FAILED,
+            failed_step="07_submit_ibkr_orders",
         )
         for i in range(1, 10):
             d = today - _real_dt.timedelta(days=9 - i)
-            _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", "ok")
+            _write_artifact(export_dir, d.strftime("%Y%m%d"), "130000", DAILY_RUN_STATUS_SUCCESS)
 
         rc = _run_main_at_now(
             monkeypatch,
@@ -231,8 +236,8 @@ class TestLatestArtifactUsedWhenMultipleOnSameDate:
         date_str = today.strftime("%Y%m%d")
 
         # Earlier artifact: ok; later artifact (higher time): failed.
-        _write_artifact(export_dir, date_str, "120000", "ok")
-        _write_artifact(export_dir, date_str, "150000", "failed", failed_step="07_submit_ibkr_orders")
+        _write_artifact(export_dir, date_str, "120000", DAILY_RUN_STATUS_SUCCESS)
+        _write_artifact(export_dir, date_str, "150000", DAILY_RUN_STATUS_FAILED, failed_step="07_submit_ibkr_orders")
 
         rc = _run_main_at_now(
             monkeypatch,

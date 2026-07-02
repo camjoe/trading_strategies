@@ -102,6 +102,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `sync.py` | Syncs documentation source content to frontend static JSON assets |
 | `check.py` | Validates documentation registry completeness |
 | `registry_utils.py` | Shared registry lookup utilities |
+| `finance/` | Finance and market terminology documentation source sync |
 | `api/` | API documentation source content |
 | `software/` | Software/architecture documentation source content |
 | `finance/` | Finance/strategy documentation source content |

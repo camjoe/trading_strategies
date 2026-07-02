@@ -29,10 +29,6 @@ const FINANCE_SECTION_HEADERS: Record<string, [string, string]> = {
   "Asset Classes": ["Asset Class", "Notes"],
 };
 
-const UI_TERM_LABELS: Record<string, string> = {
-  DTE: "DTE (Days to Expiration)",
-};
-
 const TRADING_STRATEGIES_EVAL_LIST = `      <p class="ref-subsection-label">Evaluation Framework</p>
       <ul class="ref-eval-list">
         <li>Universe and timeframe</li>
@@ -49,7 +45,7 @@ function buildFinanceSection(title: string, terms: FinanceTerm[]): string {
   const [col1, col2] = FINANCE_SECTION_HEADERS[title] ?? ["Term", "Definition"];
   const rows = terms
     .map((term) => {
-      const label = esc(UI_TERM_LABELS[term.term] ?? term.term);
+      const label = esc(term.ui_label ?? term.term);
       const def = esc(term.definition);
       return `          <tr><td>${label}</td><td>${def}</td></tr>`;
     })
