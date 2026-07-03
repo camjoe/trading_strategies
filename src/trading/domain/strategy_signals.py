@@ -795,11 +795,22 @@ def validate_strategy_name(strategy_name: str) -> str:
     return resolve_strategy(strategy_name).strategy_id
 
 
+def evaluate_signal(
+    strategy_name: str,
+    history: pd.Series,
+    params: StrategyParams,
+    feature_history: pd.DataFrame | None = None,
+) -> str:
+    """Evaluate a strategy's signal with explicit params — the shared backtest/live entry."""
+    spec = resolve_strategy(strategy_name)
+    return spec.signal_fn(history, params, feature_history)
+
+
 def resolve_signal(
     strategy_name: str,
     history: pd.Series,
     feature_history: pd.DataFrame | None = None,
 ) -> str:
-    """Resolve strategy labels to explicit signal models used during backtesting."""
+    """Resolve strategy labels to explicit signal models evaluated with default params."""
     spec = resolve_strategy(strategy_name)
-    return spec.signal_fn(history, spec.default_params, feature_history)
+    return evaluate_signal(strategy_name, history, spec.default_params, feature_history)
