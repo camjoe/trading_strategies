@@ -17,6 +17,22 @@ invoker: any
 5. **Add reference files** if needed — for domain detail that only loads on demand. One level deep only.
 6. **Place in** `.ai/skills/<skill-name>/SKILL.md`
 
+## Layout rules
+
+Skills live as folder-based entries:
+
+```text
+.ai/skills/
+└── <skill-name>/
+    ├── SKILL.md
+    └── <reference>.md
+```
+
+- `SKILL.md` is the only skill entry point.
+- Sibling `.md` files are reference files loaded on demand by `SKILL.md`; they are not skills.
+- Single-file skills are the norm when the workflow fits in one page.
+- Do not maintain a hand-written reference-file inventory; each `SKILL.md` should link only the references it may load.
+
 ## Frontmatter rules
 
 ```yaml
@@ -57,6 +73,14 @@ description: Does X and Y. Use when Z or when the user asks about W.  # third-pe
 | Preferred pattern with some variation | Medium | Template with parameters |
 | Fragile, exact sequence required | Low | Exact commands, no variation |
 
+## Localization boundaries
+
+- Keep skills reusable in a similar repo with light localization.
+- Do not assume this repo's layout is universal.
+- Do not present repo-specific commands as if they exist everywhere.
+- Keep project-only safety rules in `AGENTS.md` or architecture docs, not inside reusable skills.
+- Do not reintroduce retired flat `.skill.md` shims, blank skill templates, or retired standalone skills without a fresh decision.
+
 ## Quality checklist
 
 Before finishing a skill:
@@ -71,6 +95,5 @@ Before finishing a skill:
 
 ## Repo references
 
-- `.ai/skills/README.md` — authoring rules and skill inventory
+- `AGENTS.md` — repo routing guide and current skill inventory
 - `.ai/skills/` — existing skills for reference and consistency
-

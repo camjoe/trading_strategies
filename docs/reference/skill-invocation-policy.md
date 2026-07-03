@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-13
 Last Reviewed: 2026-07-02
 Purpose: Define who is allowed to invoke each skill and how that restriction is declared and enforced via the invoker field.
-Related: [Skills README](../../.ai/skills/README.md)
+Related: [AGENTS.md](../../AGENTS.md), [AI Index](../../.ai/README.md)
 
 Defines who is allowed to invoke each skill and how that restriction is declared and enforced.
 

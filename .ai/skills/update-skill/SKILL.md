@@ -28,6 +28,14 @@ invoker: any
 | Body is too long | Move detail into reference files, keep SKILL.md as table of contents |
 | Nested reference chains | Flatten — all refs must link directly from SKILL.md |
 
+## Layout rules
+
+- `SKILL.md` is the only skill entry point in a skill folder.
+- Sibling `.md` files are reference files loaded on demand by `SKILL.md`; they are not skills.
+- Single-file skills are the norm when the workflow fits in one page.
+- Do not maintain hand-written reference-file inventories; the parent `SKILL.md` links the references it may load.
+- Do not reintroduce retired flat `.skill.md` shims, blank skill templates, or retired standalone skills without a fresh decision.
+
 ## Quality checklist
 
 - [ ] Description is third-person and includes both WHAT and WHEN
@@ -44,9 +52,10 @@ invoker: any
 - Make the minimum change needed to fix the observed problem.
 - Do not add explanations Claude already knows.
 - Do not rewrite a working skill without an observed failure case.
+- Keep skills reusable in a similar repo with light localization.
+- Keep project-only safety rules in `AGENTS.md` or architecture docs, not inside reusable skills.
 
 ## Repo references
 
-- `.ai/skills/README.md` — authoring rules and skill inventory
+- `AGENTS.md` — repo routing guide and current skill inventory
 - `.ai/skills/` — existing skills for structure reference
-

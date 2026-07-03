@@ -22,7 +22,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
 - Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
-- Skill authoring and localization guidance: `.ai/skills/README.md`
+- Skill authoring and localization guidance: `.ai/skills/create-skill/SKILL.md`, `.ai/skills/update-skill/SKILL.md`
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
@@ -50,6 +50,8 @@ Skills are the repository's single task surface. (Repo-specific `.agent.md` pers
 Use a skill whenever the task matches one.
 
 **Skills layout:** Canonical definitions live in folder-based files (`.ai/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
+
+Do not reintroduce retired flat `.skill.md` shims, blank skill templates, or retired standalone skills without a fresh decision.
 
 Current skill inventory:
 
