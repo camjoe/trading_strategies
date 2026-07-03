@@ -346,3 +346,7 @@ that prevents live broker orders from being submitted accidentally.
 Rationale: `live_trading_enabled = 1` causes real money to move through a
 live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.
+
+Enforcement: `python -m scripts.checks.live_safety_check` blocks generated code,
+fixtures, migrations, and scripts from setting `live_trading_enabled` to true/1
+(enforced in the CI profile).

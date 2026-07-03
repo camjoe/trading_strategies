@@ -27,6 +27,8 @@ Tracked backlog of doc-tooling work that applies the principles above.
 
 Implemented (2026-07-02) — the enforcement now exists; listed here so the backlog history is legible:
 
-- **Doc-header lint** → `python -m scripts.checks.doc_header_check` (required fields + Type/Status vocabulary; advisory, in the CI profile).
-- **Skills drift-check** → `python -m scripts.checks.skills_check` (AGENTS.md inventory ↔ `.ai/skills/` both directions + SKILL.md frontmatter completeness; advisory, in the CI profile). The "generated help catalog" half was resolved differently: the `help/` skill enumerates skills from disk at runtime.
+- **Doc-header lint** → `python -m scripts.checks.doc_header_check` (required fields + Type/Status vocabulary; enforced in the CI profile).
+- **Doc filename lint** → `python -m scripts.checks.doc_naming_check` (kebab-case docs filenames + sequential ADR numbering; enforced in the CI profile).
+- **Skills drift-check** → `python -m scripts.checks.skills_check` (AGENTS.md inventory ↔ `.ai/skills/` both directions + SKILL.md frontmatter completeness; enforced in the CI profile). The "generated help catalog" half was resolved differently: the `help/` skill enumerates skills from disk at runtime.
+- **Live-trading safety check** → `python -m scripts.checks.live_safety_check` (enforced in the CI profile; blocks generated code, fixtures, scripts, and migrations from setting `live_trading_enabled` to true/1).
 - **In-app docs seam audit** → already existed as `python -m scripts.documentation_ui.check`; now runs **by default** in the CI profile (`--skip-reference-doc-checks` opts out).

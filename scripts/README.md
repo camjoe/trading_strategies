@@ -70,7 +70,7 @@ Modular check scripts (`scripts/checks/`):
 - `mypy_check.py`: standalone mypy runner with default backend/trading targets.
 - `pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
-- `ci.py`: broader CI-shaped checks (README/maps/link/`-m`/DB-schema doc checks, dependency installs, ruff, mypy, pytest, frontend).
+- `ci.py`: broader CI-shaped checks (README/maps/link/`-m`/DB-schema/doc-header/doc-name/skills/live-safety checks, dependency installs, ruff, mypy, pytest, frontend).
 
 Data operation scripts (`scripts/data_ops/`):
 

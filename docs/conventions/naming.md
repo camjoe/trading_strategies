@@ -48,3 +48,9 @@ Some suffixes carry information tooling reads — keep these:
 ## Quick test
 
 Before naming a file, ask: *"Does any part of this name repeat what the folder already tells me?"* If yes, drop that part. The exceptions above (reserved names, ADR numbers, tool-read suffixes) are the only information worth keeping that the folder doesn't already provide.
+
+## Enforcement
+
+`python -m scripts.checks.doc_naming_check` verifies docs filenames and ADR numbering mechanically
+(enforced in the CI profile). Keep this file and the checker in sync when adding a reserved
+filename or a new naming exception.

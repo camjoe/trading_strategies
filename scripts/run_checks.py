@@ -95,6 +95,26 @@ def parse_args() -> argparse.Namespace:
         help="CI profile: skip doc `-m` module reference check.",
     )
     parser.add_argument(
+        "--skip-doc-header-check",
+        action="store_true",
+        help="CI profile: skip doc header check.",
+    )
+    parser.add_argument(
+        "--skip-doc-naming-check",
+        action="store_true",
+        help="CI profile: skip doc filename and ADR numbering check.",
+    )
+    parser.add_argument(
+        "--skip-skills-check",
+        action="store_true",
+        help="CI profile: skip skills drift check.",
+    )
+    parser.add_argument(
+        "--skip-live-safety-check",
+        action="store_true",
+        help="CI profile: skip live-trading safety check.",
+    )
+    parser.add_argument(
         "--install-python-tools",
         action="store_true",
         help="CI profile: install ruff and mypy before quality gates.",
@@ -128,6 +148,10 @@ def main() -> int:
         skip_maps_check=args.skip_maps_check,
         skip_link_check=args.skip_link_check,
         skip_module_ref_check=args.skip_module_ref_check,
+        skip_doc_header_check=args.skip_doc_header_check,
+        skip_doc_naming_check=args.skip_doc_naming_check,
+        skip_skills_check=args.skip_skills_check,
+        skip_live_safety_check=args.skip_live_safety_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         # The generated in-app doc assets are checked by default in CI; --skip opts out.

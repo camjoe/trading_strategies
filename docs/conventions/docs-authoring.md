@@ -135,5 +135,5 @@ All files under `docs/` follow this standard, with no exceptions (`TEMPLATE.*.md
 placeholder values and are skipped by tooling).
 
 **Enforcement:** `python -m scripts.checks.doc_header_check` verifies the required fields and
-Type/Status vocabulary across `docs/` (advisory; runs in the CI profile). Keep this file's
+Type/Status vocabulary across `docs/` (enforced in the CI profile). Keep this file's
 vocabulary tables and the check's vocabulary in sync when adding a type or status.

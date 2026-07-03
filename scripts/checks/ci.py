@@ -8,8 +8,10 @@ from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.db_schema_check import run_db_schema_check
 from scripts.checks.doc_header_check import run_doc_header_check
+from scripts.checks.doc_naming_check import run_doc_naming_check
 from scripts.checks.layer_check import run_layer_check
 from scripts.checks.link_check import run_link_check
+from scripts.checks.live_safety_check import run_live_safety_check
 from scripts.checks.maps_check import run_maps_check
 from scripts.checks.module_ref_check import run_module_ref_check
 from scripts.checks.skills_check import run_skills_check
@@ -58,9 +60,19 @@ def parse_args() -> argparse.Namespace:
         help="Skip doc header check.",
     )
     parser.add_argument(
+        "--skip-doc-naming-check",
+        action="store_true",
+        help="Skip doc filename and ADR numbering check.",
+    )
+    parser.add_argument(
         "--skip-skills-check",
         action="store_true",
         help="Skip skills drift check.",
+    )
+    parser.add_argument(
+        "--skip-live-safety-check",
+        action="store_true",
+        help="Skip live-trading safety check.",
     )
     parser.add_argument(
         "--readme-max-age-days",
@@ -101,7 +113,9 @@ def run_ci(
     skip_link_check: bool = False,
     skip_module_ref_check: bool = False,
     skip_doc_header_check: bool = False,
+    skip_doc_naming_check: bool = False,
     skip_skills_check: bool = False,
+    skip_live_safety_check: bool = False,
     readme_max_age_days: int = 90,
     install_python_tools: bool = False,
     with_reference_doc_checks: bool = False,
@@ -123,9 +137,21 @@ def run_ci(
             if not skip_module_ref_check:
                 run_module_ref_check(repo_root=repo_root, quiet=True)
             if not skip_doc_header_check:
-                run_doc_header_check(repo_root=repo_root, quiet=True)
+                doc_header_exit = run_doc_header_check(repo_root=repo_root, quiet=True, enforce=True)
+                if doc_header_exit != 0:
+                    return doc_header_exit
+            if not skip_doc_naming_check:
+                doc_naming_exit = run_doc_naming_check(repo_root=repo_root, quiet=True, enforce=True)
+                if doc_naming_exit != 0:
+                    return doc_naming_exit
             if not skip_skills_check:
-                run_skills_check(repo_root=repo_root, quiet=True)
+                skills_exit = run_skills_check(repo_root=repo_root, quiet=True, enforce=True)
+                if skills_exit != 0:
+                    return skills_exit
+            if not skip_live_safety_check:
+                live_safety_exit = run_live_safety_check(repo_root=repo_root, quiet=True, enforce=True)
+                if live_safety_exit != 0:
+                    return live_safety_exit
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit
@@ -180,7 +206,9 @@ def main() -> int:
         skip_link_check=args.skip_link_check,
         skip_module_ref_check=args.skip_module_ref_check,
         skip_doc_header_check=args.skip_doc_header_check,
+        skip_doc_naming_check=args.skip_doc_naming_check,
         skip_skills_check=args.skip_skills_check,
+        skip_live_safety_check=args.skip_live_safety_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,

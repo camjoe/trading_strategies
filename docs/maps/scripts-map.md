@@ -52,8 +52,10 @@ Individual check modules. Each is also usable directly.
 | `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
 | `module_ref_check.py` | Doc `-m` module-reference checker — flags `python -m <module>` invocations in docs whose first-party module does not resolve; advisory |
 | `db_schema_check.py` | DB schema drift checker — verifies db-schema.md's Quick Reference covers every live table; advisory |
-| `doc_header_check.py` | Doc header checker — required fields + Type/Status vocabulary across `docs/` per docs-authoring.md; advisory |
-| `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; advisory |
+| `doc_header_check.py` | Doc header checker — required fields + Type/Status vocabulary across `docs/` per docs-authoring.md; enforced in CI profile |
+| `doc_naming_check.py` | Doc filename checker — kebab-case docs names + sequential ADR numbering per naming.md; enforced in CI profile |
+| `live_safety_check.py` | Live-trading safety checker — blocks automated `live_trading_enabled = 1` code paths |
+| `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; enforced in CI profile |
 | `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
 | `shared.py` | Shared utilities for check modules (result types, formatting) |
 
