@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
-import random
 import sqlite3
+from typing import TYPE_CHECKING, Mapping
+
+import pandas as pd
 
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.domain.rotation import resolve_active_strategy
@@ -12,6 +14,9 @@ from trading.models.sleeves.sleeve_trade_state import SleeveTradeState
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.universe import resolve_named_universes
+
+if TYPE_CHECKING:
+    from trading.services.auto_trading.execution import FeatureHistoryFn
 
 
 def _prepare_trade_selection(*args, **kwargs):
@@ -46,9 +51,13 @@ def generate_sleeve_trade_intents(
     min_trades: int,
     max_trades: int,
     fee: float,
+    histories: Mapping[str, pd.Series] | None = None,
+    feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[SleeveTradeIntent]:
+    # D1 policy: intents come only from strategy signals — no forced minimum;
+    # min_trades is retained for call compatibility until P7 cleans it up.
+    del min_trades
     account_id = account.id
-    learning_enabled = bool(int(account.learning_enabled or 0))
     risk_policy = str(account.risk_policy).strip().lower()
     stop_loss_pct = account.stop_loss_pct
     take_profit_pct = account.take_profit_pct
@@ -61,8 +70,7 @@ def generate_sleeve_trade_intents(
     if not active_sleeves:
         return []
 
-    target = random.randint(min_trades, max_trades)
-    max_intents = min(target, len(active_sleeves))
+    max_intents = min(max_trades, len(active_sleeves))
     intents: list[SleeveTradeIntent] = []
     for sleeve in active_sleeves:
         if len(intents) >= max_intents:
@@ -92,14 +100,14 @@ def generate_sleeve_trade_intents(
             account,
             strategy_name,
             state,
-            can_sell,
             forced_sell,
             effective_universe,
             prices,
+            histories or {},
             iv_rank_proxy,
-            learning_enabled,
             instrument_mode,
             fee,
+            feature_history_fn=feature_history_fn,
         )
         if selection is None:
             continue
@@ -132,6 +140,8 @@ def run_sleeve_mode_for_account(
     min_trades: int,
     max_trades: int,
     fee: float,
+    histories: Mapping[str, pd.Series] | None = None,
+    feature_history_fn: FeatureHistoryFn | None = None,
 ) -> int:
     return len(
         generate_sleeve_trade_intents(
@@ -143,5 +153,7 @@ def run_sleeve_mode_for_account(
             min_trades=min_trades,
             max_trades=max_trades,
             fee=fee,
+            histories=histories,
+            feature_history_fn=feature_history_fn,
         )
     )

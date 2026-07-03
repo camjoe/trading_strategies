@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+
+import pandas as pd
 
 from common.tickers import load_tickers_from_file
 from trading.domain.broker_connection import BrokerConnection
@@ -88,6 +90,7 @@ def run_accounts(
     max_trades: int,
     fee: float,
     execution_mode: str = EXECUTION_MODE_ACCOUNT,
+    histories: Mapping[str, pd.Series] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
@@ -108,6 +111,7 @@ def run_accounts(
             max_trades=max_trades,
             fee=fee,
             execution_mode=resolved_execution_mode,
+            histories=histories,
         )
         results.append((account_name, executed))
     return results

@@ -53,7 +53,6 @@ def test_run_for_account_executes_buy_and_records_trade(monkeypatch) -> None:
         now_values=[MARKET_OPEN_TIME_ISO, MARKET_OPEN_TIME_ISO, MARKET_OPEN_TIME_ISO],
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
 
     executed = run_for_account(
         conn=object(),
@@ -93,7 +92,6 @@ def test_run_for_account_forced_sell_passes_risk_selection(monkeypatch) -> None:
         forced_sell_ticker="AAPL",
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
 
     executed = run_for_account(
         conn=object(),
@@ -123,7 +121,6 @@ def test_run_for_account_skips_iteration_when_trade_not_preparable(monkeypatch) 
         now_values=[MARKET_OPEN_TIME_ISO, MARKET_OPEN_TIME_ISO],
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
 
     executed = run_for_account(
         conn=object(),
@@ -165,7 +162,6 @@ def test_run_for_account_stops_cleanly_when_global_runtime_day_cap_is_hit(monkey
         now_values=["2026-03-14T00:00:30Z"] * 3,
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 2)
 
     executed = run_for_account(
         conn=conn,
@@ -192,7 +188,6 @@ def test_run_for_account_breaks_only_on_runtime_throttle_exception(monkeypatch) 
         now_values=["2026-03-14T00:00:00Z"] * 3,
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
     monkeypatch.setattr(
         execution_service,
         "enforce_runtime_trade_throttles",

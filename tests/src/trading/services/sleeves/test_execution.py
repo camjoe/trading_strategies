@@ -47,7 +47,6 @@ def test_generate_sleeve_trade_intents_uses_active_sleeves_and_assignments(conn,
     )
     account = get_account(conn, account_name)
 
-    monkeypatch.setattr(sleeve_execution.random, "randint", lambda _a, _b: 2)
     monkeypatch.setattr(
         sleeve_execution.auto_trader_policy,
         "choose_sell_ticker_by_risk",
@@ -81,10 +80,10 @@ def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch
     recorder = Mock(return_value=("buy", "SPY", 1, 100.0, None, None))
     monkeypatch.setattr("trading.services.auto_trading.execution.prepare_trade_selection", recorder)
 
-    result = sleeve_execution._prepare_trade_selection("account", "trend")
+    result = sleeve_execution._prepare_trade_selection("account", "trend", feature_history_fn=None)
 
     assert result == ("buy", "SPY", 1, 100.0, None, None)
-    recorder.assert_called_once_with("account", "trend")
+    recorder.assert_called_once_with("account", "trend", feature_history_fn=None)
 
 
 def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
@@ -161,7 +160,6 @@ def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_u
     account = get_account(conn, account_name)
     captured_universes: list[list[str]] = []
 
-    monkeypatch.setattr(sleeve_execution.random, "randint", lambda _a, _b: 1)
     monkeypatch.setattr(
         sleeve_execution.auto_trader_policy,
         "choose_sell_ticker_by_risk",
@@ -175,7 +173,7 @@ def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_u
     monkeypatch.setattr(
         sleeve_execution,
         "_prepare_trade_selection",
-        lambda *_args: captured_universes.append(list(_args[5])) or None,
+        lambda *_args, **_kwargs: captured_universes.append(list(_args[4])) or None,
     )
 
     intents = sleeve_execution.generate_sleeve_trade_intents(
@@ -200,7 +198,6 @@ def test_run_sleeve_mode_for_account_returns_generated_intent_count(conn, monkey
     _insert_sleeve(conn, account_id=account_id, name="s2")
     account = get_account(conn, account_name)
 
-    monkeypatch.setattr(sleeve_execution.random, "randint", lambda _a, _b: 1)
     monkeypatch.setattr(
         sleeve_execution.auto_trader_policy,
         "choose_sell_ticker_by_risk",
