@@ -16,10 +16,11 @@ python -m scripts.checks.layer_check
 Or as part of the full gate:
 
 ```
-python -m scripts.checks.pr_ready --base <ref>
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base <ref>
 ```
 
-Layer check always runs first in `pr_ready`.
+Run repository checks before the branch-targeted Python gate.
 
 ## What it checks
 

@@ -14,7 +14,7 @@ python -m scripts.checks.mypy_check
 Or as part of the full gate:
 
 ```
-python -m scripts.checks.pr_ready --base <ref>
+python -m scripts.run_checks python --base <ref>
 ```
 
 ## What it checks

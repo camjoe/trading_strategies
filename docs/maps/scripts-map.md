@@ -65,9 +65,7 @@ Individual check modules. Each is also usable directly.
 | `doc_naming_check.py` | Doc filename checker — kebab-case docs names + sequential ADR numbering per naming.md; enforced in CI profile |
 | `live_safety_check.py` | Live-trading safety checker — blocks automated `live_trading_enabled = 1` code paths |
 | `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; enforced in CI profile |
-| `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
 | `_runner.py` | Internal shared check-runner helpers for steps and tool executable resolution |
-| `shared.py` | Compatibility re-export for older imports of check-runner helpers |
 
 **Run a targeted suite:**
 ```
@@ -85,8 +83,8 @@ python -m scripts.run_checks ci
 
 **Deterministic pre-PR gate (no AI, no tokens):**
 ```
-python -m scripts.checks.pr_ready
-python -m scripts.checks.pr_ready --base main --no-cov
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base main --no-cov
 ```
 
 ---

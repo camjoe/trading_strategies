@@ -33,7 +33,7 @@ cd apps/paper_trading_web/frontend && npm test
 cd apps/paper_trading_web/frontend && npm run test:coverage   # with coverage report
 ```
 
-<!-- TODO: add frontend test detection + run to scripts/checks/pr_ready.py based on diff -->
+Use `python -m scripts.run_checks quick --with-frontend` or `python -m scripts.run_checks ci` when frontend files are in the diff.
 
 ## On failure
 

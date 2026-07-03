@@ -12,26 +12,24 @@ All checks are deterministic — no AI, no reasoning. Each check has its own ref
 
 | Step | What | Reference |
 |---|---|---|
-| 1 | Layer boundary check | [layer-check.md](layer-check.md) |
-| 2 | Lint (ruff + eslint/tsc if frontend changed) | [lint.md](lint.md) |
-| 3 | Type check (mypy) | [type-check.md](type-check.md) |
-| 4 | Tests (branch-targeted pytest + vitest if frontend changed) | [tests.md](tests.md) |
+| 1 | Repository checks | [layer-check.md](layer-check.md) |
+| 2 | Python conventions, lint, type check, and tests | [lint.md](lint.md), [type-check.md](type-check.md), [tests.md](tests.md) |
 
 ## Run all checks at once
 
 ```
-python -m scripts.checks.pr_ready --base develop
-python -m scripts.checks.pr_ready --base main
-python -m scripts.checks.pr_ready --no-cov        # skip coverage overhead
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base develop
+python -m scripts.run_checks python --base main --no-cov
 ```
 
-`pr_ready` runs all four steps in order and stops at the first failure.
+Run `repo` first, then `python`. Stop at the first failure.
 
 ## Day-to-day profiles
 
 ```
-python -m scripts.run_checks --profile quick      # README, layer, ruff, mypy, pytest
-python -m scripts.run_checks --profile ci         # quick gates + doc-drift checks + frontend
+python -m scripts.run_checks quick
+python -m scripts.run_checks ci
 ```
 
 ## On failure
@@ -54,5 +52,6 @@ This suite is deterministic and does not check everything. These are **advisory*
 
 ## Repo references
 
-- `scripts/checks/pr_ready.py`
 - `scripts/run_checks.py`
+- `scripts/checks/repo_check.py`
+- `scripts/checks/python_check.py`

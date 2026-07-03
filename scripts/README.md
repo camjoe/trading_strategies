@@ -75,7 +75,6 @@ Modular check scripts (`scripts/checks/`):
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
 - `ci.py`: broader CI-shaped checks (documentation drift, repo safety, dependency installs, ruff, mypy, pytest, frontend).
 - `_runner.py`: internal check-runner helpers for step execution and tool resolution.
-- `shared.py`: compatibility re-export for older imports of check-runner helpers.
 
 Data operation scripts (`scripts/data_ops/`):
 

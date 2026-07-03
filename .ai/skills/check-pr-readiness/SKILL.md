@@ -10,7 +10,7 @@ Runs six ordered steps. Stop at the first blocking failure — do not run subseq
 
 | Step | Type | What runs | Stops on |
 |---|---|---|---|
-| 1 | Deterministic | Layer + lint + type check + tests | Any non-zero exit |
+| 1 | Deterministic | Repo checks + Python lint/type/test checks | Any non-zero exit |
 | 2 | AI | Architecture review (branch diff) | VIOLATION finding |
 | 3 | AI | Style review (branch diff) | BLOCKER finding |
 | 4 | AI | Quality review (branch diff) | BLOCKER finding |
@@ -31,10 +31,11 @@ pr ready: main         # vs custom base
 ## Step 1 — Deterministic gate
 
 ```
-python -m scripts.checks.pr_ready --base <base_ref>
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base <base_ref>
 ```
 
-If exit code is non-zero, **stop immediately**. Report which check failed. Do not run Steps 2–6. Hand back to the user.
+Run the commands in order. If either exit code is non-zero, **stop immediately**. Report which command failed. Do not run Steps 2–6. Hand back to the user.
 
 Reference: [validate-code/SKILL.md](../validate-code/SKILL.md)
 
@@ -73,10 +74,10 @@ Reference: [code-review/pr-review-quality.md](../code-review/pr-review-quality.m
 ## Step 5 — Docs check (advisory)
 
 ```
-python -m scripts.checks.readme_check
+python -m scripts.run_checks docs --advisory
 ```
 
-Reports README files not updated within the staleness threshold. Use `docs/maps/docs-map.md` ("Goes stale when" column) to map any changed source files to their owning docs. Never blocks. Collect findings for the report.
+Runs documentation drift checks, including README consistency and generated reference-doc asset checks. Use `docs/maps/docs-map.md` ("Goes stale when" column) to map any changed source files to their owning docs. Never blocks the AI review workflow; collect findings for the report.
 
 ---
 
@@ -92,8 +93,8 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 ### Step 1 — Deterministic Checks
 | Check | Result |
 |---|---|
-| Layer boundaries | Clean / FAILED |
-| Ruff + eslint/tsc | Clean / FAILED |
+| Repository checks | Clean / FAILED |
+| Ruff | Clean / FAILED |
 | Mypy | Clean / FAILED |
 | Tests | N tests, M suites / FAILED / No changed suites |
 
@@ -134,7 +135,9 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 
 ## Repo references
 
-- `scripts/checks/pr_ready.py`
+- `scripts/run_checks.py`
+- `scripts/checks/repo_check.py`
+- `scripts/checks/python_check.py`
 - `docs/architecture/architecture-conventions.md`
 - `docs/conventions/general-style.md`
 - `AGENTS.md`

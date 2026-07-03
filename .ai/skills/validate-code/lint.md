@@ -32,7 +32,7 @@ cd apps/paper_trading_web/frontend && npm run typecheck
 `npm run lint` runs `eslint src --ext .ts`.
 `npm run typecheck` runs `tsc --noEmit`.
 
-<!-- TODO: add frontend lint + typecheck to scripts/checks/pr_ready.py when frontend files are in the diff -->
+Use `python -m scripts.run_checks quick --with-frontend` or `python -m scripts.run_checks ci` when frontend files are in the diff.
 
 ## On failure
 

@@ -181,7 +181,7 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `pr ready`
 
-Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+Full pre-PR readiness workflow. Runs deterministic aggregate checks and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
 
 - `pr ready` — full 6-step workflow vs `develop` (default base)
 - `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
@@ -194,19 +194,18 @@ Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step s
 
 | Shortcut | What it does |
 |---|---|
-| `pr tests` | Branch-targeted tests only (`--base develop`) |
+| `pr tests` | Branch-targeted Python checks only (`--base develop`) |
 | `pr tests: <base>` | Branch-targeted tests vs a custom base |
-| `pr lint` | Layer check + ruff + mypy only |
+| `pr lint` | Repository checks + Python lint/type checks |
 | `pr code review` | AI style + quality review for branch diff vs develop |
 | `pr code review: <base>` | AI style + quality review vs a custom base |
 | `pr arch review` | AI architecture review for branch diff vs develop |
 | `pr arch review: <base>` | AI architecture review vs a custom base |
 
-**Deterministic-only command** (no AI, no tokens):
+**Deterministic-only commands** (no AI, no tokens):
 
 ```
-python -m scripts.checks.pr_ready
-python -m scripts.checks.pr_ready --base main
-python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
-python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base develop
+python -m scripts.run_checks python --base main --no-cov
 ```
