@@ -9,10 +9,12 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 
 ## Workflow
 
-1. Survey the changed surface.
-2. Check for correctness risks, contract drift, and missing coverage.
-3. When the scope is broad, look for stale paths, redundant implementations, and simplification opportunities.
-4. Cross-check architecture and safety rules that apply in this repo.
+1. Run or inspect deterministic context first:
+   - `python -m scripts.checks.review_scope_check --base <base_ref>` for branch reviews, or without `--base` for local changes.
+   - `validate-code` results for lint, type, tests, layer, and safety checks.
+2. Survey the changed surface using the suggested mode/high-risk triggers.
+3. Review residual judgment areas: behavior regressions, semantic contract drift, missing edge-case coverage, wrong ownership that static layer checks cannot catch, and safe-removal risk.
+4. When the scope is broad, look for stale paths, redundant implementations, and simplification opportunities.
 5. For stale-code or obsolescence claims, collect evidence from reference searches, public API/route/type usage, tests covering old and new paths, and migration or backward-compatibility risk.
 6. Report only supported findings with file and line evidence.
 
@@ -25,6 +27,7 @@ Use this skill for read-only review of a diff, branch, or focused area, includin
 ## Constraints
 
 - Do not implement fixes during the review.
+- Do not report deterministic lint/type/layer/test failures as AI findings unless they reveal a separate judgment-based risk.
 - Do not elevate style-only comments into findings.
 - Do not report guesses without evidence.
 - Keep broader cleanup recommendations evidence-based and separate from hard defects.

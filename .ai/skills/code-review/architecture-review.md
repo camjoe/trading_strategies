@@ -9,10 +9,11 @@ Use this skill when the task is primarily about structure rather than implementa
 
 ## Workflow
 
-1. Classify each changed or reviewed module by responsibility.
-2. Check dependency direction, import boundaries, and layer ownership.
-3. Flag logic that appears to live in the wrong layer.
-4. Recommend the correct target layer for questionable changes.
+1. Run or inspect `python -m scripts.checks.review_scope_check` for changed-file classification.
+2. Classify each changed or reviewed module by responsibility.
+3. Use `validate-code` / `layer_check` for mechanical import-boundary failures.
+4. Check residual dependency direction, layer ownership, and wrong-layer logic that static imports cannot detect.
+5. Recommend the correct target layer for questionable changes.
 
 ## Constraints
 
@@ -24,6 +25,7 @@ Use this skill when the task is primarily about structure rather than implementa
 
 - `docs/architecture/architecture-conventions.md`
 - `AGENTS.md`
+- `scripts/checks/review_scope_check.py`
 
 ## Expected output
 

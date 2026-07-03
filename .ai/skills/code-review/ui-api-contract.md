@@ -9,11 +9,12 @@ Use this skill when frontend and backend changes must agree on one contract.
 
 ## Workflow
 
-1. Trace each affected route to its request and response shapes.
-2. Check frontend assumptions against backend schema, nullability, and payload semantics.
-3. Keep route handlers thin and move business logic into service or canonical trading modules.
-4. Reuse existing runtime or service modules instead of duplicating operator workflows in UI-specific code.
-5. Update docs when route behavior or payload shape changes.
+1. Run or inspect `python -m scripts.checks.review_scope_check` to identify contract-scope files.
+2. Trace each affected route to its request and response shapes.
+3. Check frontend assumptions against backend schema, nullability, and payload semantics.
+4. Keep route handlers thin and move business logic into service or canonical trading modules.
+5. Reuse existing runtime or service modules instead of duplicating operator workflows in UI-specific code.
+6. Update docs when route behavior or payload shape changes.
 
 ## Constraints
 

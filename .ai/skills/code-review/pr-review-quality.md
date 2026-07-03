@@ -9,12 +9,13 @@ Scope: branch diff only. Focus on structural and design quality — not style, n
 
 ## What to check
 
-1. **Single responsibility** — does each function or class do one thing? Flag functions with multiple unrelated concerns or that are clearly doing too much.
-2. **Modularity** — is new logic reusable or tightly coupled to one caller? Could it be extracted into a helper without effort?
-3. **Unnecessary complexity** — is there a simpler approach? Look for nested conditionals that could be flattened, loops that could be comprehensions, or state management that could be stateless.
-4. **New patterns** — is a new design pattern or abstraction introduced when an existing one would work? Flag it as a concern if no clear reason is evident.
-5. **Readability** — would a reviewer unfamiliar with this area understand the intent in under 30 seconds? If not, the code likely needs restructuring or better naming.
-6. **Test coverage** — are new public functions or branches covered by tests? If not, flag missing coverage as an advisory item.
+1. **Deterministic context** — use `review_scope_check` and `validate-code` output to avoid repeating scripted findings.
+2. **Single responsibility** — does each function or class do one thing? Flag functions with multiple unrelated concerns or that are clearly doing too much.
+3. **Modularity** — is new logic reusable or tightly coupled to one caller? Could it be extracted into a helper without effort?
+4. **Unnecessary complexity** — is there a simpler approach? Look for nested conditionals that could be flattened, loops that could be comprehensions, or state management that could be stateless.
+5. **New patterns** — is a new design pattern or abstraction introduced when an existing one would work? Flag it as a concern if no clear reason is evident.
+6. **Readability** — would a reviewer unfamiliar with this area understand the intent in under 30 seconds? If not, the code likely needs restructuring or better naming.
+7. **Test adequacy** — are new behavior paths and important edge cases covered? Do not rely only on whether a test file changed.
 
 ## Severity
 

@@ -5,17 +5,17 @@ description: Reviews style compliance in a PR diff — naming, structure, and co
 
 # PR Review — Style
 
-Scope: branch diff only. Do not flag ruff-catchable violations — those are handled by `validate-code`.
+Scope: branch diff only. Do not flag ruff-catchable or `python_conventions_check` violations — those are handled by `validate-code`.
 
 ## What to check
 
-Ruff handles formatting and basic lint. This pass covers what ruff does **not** enforce:
+Ruff and `python_conventions_check` handle formatting, basic lint, future annotations, and public return annotations. This pass covers what they do **not** enforce:
 
 1. **Naming** — are names consistent with the surrounding codebase? (snake_case functions, PascalCase classes, UPPER_CASE constants, `_private` prefix for internals)
 2. **Docstrings and comments** — are public functions and classes documented? Are inline comments explaining "why", not "what"?
 3. **Module organization** — are imports grouped (stdlib → third-party → local)? Are large functions split into helper functions with meaningful names?
 4. **Consistency** — does the new code match patterns already established in the same file or service? No unexplained style drift.
-5. **Dead code** — commented-out blocks, unused imports ruff didn't catch, `TODO` items without a ticket reference.
+5. **Dead code** — unused compatibility paths or helpers with reference-search evidence. Do not flag TODO/comment style by itself.
 
 Read `docs/conventions/general-style.md` and `docs/conventions/python-style.md` before reviewing.
 

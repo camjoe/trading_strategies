@@ -9,10 +9,11 @@ Scope: branch diff only (`git diff --name-only <base>...HEAD`). Do not expand to
 
 ## What to check
 
-1. **Layer violations** — does any changed file import across a forbidden boundary? Run `layer_check` first; if it passed, look for subtler violations not caught statically.
-2. **Dependency direction** — do services depend on interfaces? Do repositories call services? Flag it.
-3. **Wrong-layer logic** — business rules in repositories, data access in services, HTTP concerns leaking into domain code.
-4. **New abstractions** — is a new base class, mixin, or protocol being introduced? Does it belong in this layer?
+1. **Review scope** — run or inspect `python -m scripts.checks.review_scope_check --base <base>` to confirm whether architecture/aggressive review is indicated.
+2. **Layer violations** — static import violations belong to `validate-code` / `layer_check`; if it passed, look for subtler responsibility problems not caught statically.
+3. **Dependency direction** — do services depend on interfaces? Do repositories call services? Flag it.
+4. **Wrong-layer logic** — business rules in repositories, data access in services, HTTP concerns leaking into domain code.
+5. **New abstractions** — is a new base class, mixin, or protocol being introduced? Does it belong in this layer?
 
 Read `docs/architecture/architecture-conventions.md` before reviewing `src/trading/`.
 
@@ -34,4 +35,5 @@ One line per finding. File and line required. No findings → `Architecture: Cle
 
 - [architecture-review.md](architecture-review.md)
 - `docs/architecture/architecture-conventions.md`
+- `scripts/checks/review_scope_check.py`
 - `scripts/checks/layer_check.py`

@@ -30,6 +30,8 @@ invoker: any
 
 ## Constraints (all modes)
 
+- Consult deterministic checks first when available: `validate-code` for lint/type/tests/safety checks, and `scripts.checks.review_scope_check` for suggested review mode/high-risk triggers.
+- Do not duplicate deterministic findings already covered by scripts unless the script passed and there is a subtler judgment-based issue.
 - Do not implement fixes. Report only.
 - Do not elevate style-only comments into findings.
 - Every finding needs file and line evidence.

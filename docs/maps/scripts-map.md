@@ -48,6 +48,7 @@ Individual check modules. Each is also usable directly.
 | `docs_check.py` | Human-facing aggregate documentation check: README, maps, links, `-m` refs, DB schema, doc headers, doc naming, and generated in-app doc assets |
 | `repo_check.py` | Human-facing aggregate repository check: layer boundaries, skills drift, live-trading safety, path safety, and secret hygiene |
 | `python_check.py` | Human-facing aggregate Python check: conventions, ruff, mypy, and pytest or targeted suites |
+| `review_scope_check.py` | Advisory review classifier — maps changed files to suggested code-review modes and high-risk triggers |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
 | `path_safety_check.py` | Cross-platform path safety checker — flags clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards |
