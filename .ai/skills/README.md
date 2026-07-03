@@ -26,7 +26,7 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 
 | Skill folder | Covers |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
@@ -36,7 +36,15 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `manage-skill/` | Create, improve, or refactor skills following the skills guide |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
-| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
+| `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
+
+## Workflows vs skills
+
+Some skills are executable workflows that orchestrate other skills and commands. For example,
+`check-pr-readiness/` runs deterministic validation, invokes code-review judgment, runs advisory
+docs checks, and saves a report. Keep workflow skills when ordering, stop conditions, or output
+artifacts matter; keep capability skills like `validate-code/` and `code-review/` focused on one
+kind of work.
 
 ### Reference files (inside skill folders, not skills themselves)
 
