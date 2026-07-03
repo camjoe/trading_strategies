@@ -28,7 +28,9 @@ __all__ = ["parse_args", "main", "run_for_account"]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Execute 1-5 simulated daily paper trades per account.")
+    parser = argparse.ArgumentParser(
+        description="Execute signal-driven daily paper trades per account (up to --max-trades)."
+    )
     parser.add_argument(
         "--accounts",
         required=True,
@@ -39,7 +41,12 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_TICKERS_FILE,
         help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
-    parser.add_argument("--min-trades", type=int, default=1, help="Minimum trades per account")
+    parser.add_argument(
+        "--min-trades",
+        type=int,
+        default=1,
+        help="Retained for compatibility; no longer forces a minimum (trades happen only on signals)",
+    )
     parser.add_argument("--max-trades", type=int, default=5, help="Maximum trades per account")
     parser.add_argument("--fee", type=float, default=0.0, help="Per-trade fee")
     parser.add_argument("--seed", type=int, default=None, help="Optional random seed")
