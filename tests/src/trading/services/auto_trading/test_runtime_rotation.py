@@ -4,7 +4,6 @@ import pytest
 
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
-import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
 import trading.services.auto_trading.runtime_rotation as rotation_runtime_service
 from tests.src.trading.services.auto_trading.factories import (
@@ -229,7 +228,6 @@ def test_run_for_account_uses_rotated_active_strategy(monkeypatch) -> None:
         now_values=["2026-03-17T00:00:00Z"] * 3,
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 1)
 
     executed = run_for_account(
         conn=object(),

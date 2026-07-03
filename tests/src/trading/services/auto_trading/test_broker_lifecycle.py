@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
-import trading.services.auto_trading.execution as execution_service
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import (
     FakeBroker,
@@ -26,7 +25,6 @@ def test_multi_trade_run_creates_one_broker_and_disconnects_once(monkeypatch) ->
         broker=broker,
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 3)
     broker_factory = Mock(return_value=broker)
 
     executed = run_for_account(
@@ -58,7 +56,6 @@ def test_broker_disconnects_once_even_when_no_trades_execute(monkeypatch) -> Non
         broker=broker,
     )
     scenario.install(monkeypatch, runtime_service)
-    monkeypatch.setattr(execution_service.random, "randint", lambda _a, _b: 2)
     broker_factory = Mock(return_value=broker)
 
     executed = run_for_account(

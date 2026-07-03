@@ -84,7 +84,7 @@ The rules a light model follows for **any** work order here:
 | Work order | Ready for light model? | Notes |
 |---|---|---|
 | [p2-evaluation-contract-tests.md](p2-evaluation-contract-tests.md) (P2/1c) | ✅ **done** (PR #162) | Test-only; dogfooded the guide. |
-| [p1-execution-loop.md](p1-execution-loop.md) (P1) | ◑ **ready — mixed** | Steps 1–2, 8 [light]; 3–6 [strong]. The keystone. |
+| [p1-execution-loop.md](p1-execution-loop.md) (P1) | ✅ **done** (`features/p1-execution-loop`) | Signal-driven selection live; E2 delivered as backtest↔live parity. |
 | [p3-db-schema-rewrite.md](p3-db-schema-rewrite.md) Phase A (DDL) | ❌ Planner | Needs D4 settings-shape; design work. |
 | p3 Phases B/C (models, repositories) | ◑ after A | Mechanical **per-table** fan-out — carve one chunk per table. |
 | p3 Phase D (seed) | ◑ after A | Mechanical. |

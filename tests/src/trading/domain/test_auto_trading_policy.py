@@ -131,14 +131,6 @@ def test_build_trade_note_for_leaps_buy() -> None:
     assert "strategy=trend" in note
 
 
-def test_choose_side_prioritizes_forced_sell(monkeypatch) -> None:
-    monkeypatch.setattr(auto_trader_policy.random, "random", lambda: 0.0)
-    assert auto_trader_policy.choose_side("AAPL", ["AAPL"]) == "sell"
-    assert auto_trader_policy.choose_side(None, ["AAPL"]) == "sell"
-    monkeypatch.setattr(auto_trader_policy.random, "random", lambda: 0.99)
-    assert auto_trader_policy.choose_side(None, ["AAPL"]) == "buy"
-
-
 def test_choose_sell_ticker_by_risk_stop_and_target(monkeypatch) -> None:
     state = SimpleNamespace(avg_cost={"LOSS": 100.0, "WIN": 100.0})
     prices = {"LOSS": 90.0, "WIN": 120.0}
@@ -154,20 +146,3 @@ def test_choose_sell_ticker_by_risk_stop_and_target(monkeypatch) -> None:
         take_profit_pct=10.0,
     )
     assert ticker in {"LOSS", "WIN"}
-
-
-def test_choose_buy_ticker_learning_and_fallback(monkeypatch) -> None:
-    state = SimpleNamespace(avg_cost={"A": 100.0, "B": 50.0})
-    prices = {"A": 110.0, "B": 40.0}
-
-    monkeypatch.setattr(auto_trader_policy.random, "choice", lambda seq: seq[0])
-    assert auto_trader_policy.choose_buy_ticker(["A", "B"], prices, state, learning_enabled=True) == "A"
-    assert auto_trader_policy.choose_buy_ticker(["A", "B"], {"A": -1.0}, state, learning_enabled=True) == "A"
-
-
-def test_choose_sell_ticker_learning(monkeypatch) -> None:
-    state = SimpleNamespace(avg_cost={"A": 100.0, "B": 100.0})
-    prices = {"A": 80.0, "B": 130.0}
-
-    monkeypatch.setattr(auto_trader_policy.random, "choice", lambda seq: seq[0])
-    assert auto_trader_policy.choose_sell_ticker(["A", "B"], prices, state, learning_enabled=True) == "A"

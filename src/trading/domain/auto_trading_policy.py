@@ -49,34 +49,6 @@ DELTA_BASE_FACTOR = 0.4
 # Minimum option premium in dollars; prevents near-zero or negative estimates
 OPTION_PREMIUM_FLOOR = 0.5
 
-# ---------------------------------------------------------------------------
-# Side-selection sell bias by strategy type
-# ---------------------------------------------------------------------------
-
-# Default probability of choosing to sell when no strategy context is available
-SELL_BIAS_DEFAULT = 0.35
-
-# Lower sell pressure for trend-following / momentum / breakout strategies
-# (let winners run)
-SELL_BIAS_TREND_MOMENTUM = 0.20
-
-# Higher sell pressure for mean-reversion / RSI strategies
-# (take profits closer to the mean)
-SELL_BIAS_MEAN_REVERSION = 0.45
-
-# Alternative strategies (external-data driven: news, social, policy) exit
-# more aggressively on signal reversal than neutral strategies, but less so
-# than pure mean-reversion.
-SELL_BIAS_ALTERNATIVE = 0.30
-
-# Maps StrategySpec.strategy_style values to their sell bias probability.
-# Extend this when adding new style families.
-_STYLE_TO_SELL_BIAS: dict[str, float] = {
-    "trend": SELL_BIAS_TREND_MOMENTUM,
-    "mean_reversion": SELL_BIAS_MEAN_REVERSION,
-    "alternative": SELL_BIAS_ALTERNATIVE,
-}
-
 
 class AccountPolicyInput(Protocol):
     def __getitem__(self, key: str) -> Any: ...
@@ -167,12 +139,6 @@ def estimate_option_premium(
     return max(OPTION_PREMIUM_FLOOR, premium)
 
 
-def _return_score(price: float | None, avg_cost: float) -> float | None:
-    if price is None or price <= 0 or avg_cost <= 0:
-        return None
-    return (price / avg_cost) - 1.0
-
-
 def option_candidate_allowed(
     account: AccountPolicyInput,
     ticker: str,
@@ -234,49 +200,6 @@ def choose_sell_ticker_by_risk(
     return random.choice(list(dict.fromkeys(candidates)))
 
 
-def choose_buy_ticker(
-    universe: list[str],
-    prices: dict[str, float],
-    state: AccountState,
-    learning_enabled: bool,
-) -> str:
-    if not learning_enabled:
-        return random.choice(universe)
-
-    scored: list[tuple[float, str]] = []
-    for ticker in universe:
-        score = _return_score(prices.get(ticker), state.avg_cost.get(ticker, 0.0))
-        if score is None and (prices.get(ticker) is None or prices.get(ticker, 0.0) <= 0):
-            continue
-        scored.append((score if score is not None else 0.0, ticker))
-
-    if not scored:
-        return random.choice(universe)
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top_n = max(1, len(scored) // 2)
-    return random.choice([ticker for _score, ticker in scored[:top_n]])
-
-
-def choose_sell_ticker(
-    can_sell: list[str],
-    prices: dict[str, float],
-    state: AccountState,
-    learning_enabled: bool,
-) -> str:
-    if not learning_enabled:
-        return random.choice(can_sell)
-
-    scored: list[tuple[float, str]] = []
-    for ticker in can_sell:
-        score = _return_score(prices.get(ticker), state.avg_cost.get(ticker, 0.0))
-        scored.append((score if score is not None else 0.0, ticker))
-
-    scored.sort(key=lambda x: x[0])
-    worst_n = max(1, len(scored) // 2)
-    return random.choice([ticker for _score, ticker in scored[:worst_n]])
-
-
 def apply_leaps_buy_qty_limits(
     qty: int,
     option_price: float,
@@ -324,18 +247,3 @@ def build_trade_note(
         note_parts.append(f"strategy={strategy_name}")
 
     return ";".join(note_parts)
-
-
-def choose_side(
-    forced_sell: str | None,
-    can_sell: list[str],
-    strategy_style: str | None = None,
-) -> str:
-    if forced_sell is not None:
-        return "sell"
-
-    bias = _STYLE_TO_SELL_BIAS.get(strategy_style or "", SELL_BIAS_DEFAULT)
-
-    if can_sell and random.random() < bias:
-        return "sell"
-    return "buy"

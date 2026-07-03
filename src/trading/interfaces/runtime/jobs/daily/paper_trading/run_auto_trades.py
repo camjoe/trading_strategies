@@ -28,7 +28,9 @@ __all__ = ["parse_args", "main", "run_for_account"]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Execute 1-5 simulated daily paper trades per account.")
+    parser = argparse.ArgumentParser(
+        description="Execute signal-driven daily paper trades per account (up to --max-trades)."
+    )
     parser.add_argument(
         "--accounts",
         required=True,
@@ -39,7 +41,12 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_TICKERS_FILE,
         help=f"Path to ticker universe file (default: {DEFAULT_TICKERS_FILE})",
     )
-    parser.add_argument("--min-trades", type=int, default=1, help="Minimum trades per account")
+    parser.add_argument(
+        "--min-trades",
+        type=int,
+        default=1,
+        help="Retained for compatibility; no longer forces a minimum (trades happen only on signals)",
+    )
     parser.add_argument("--max-trades", type=int, default=5, help="Maximum trades per account")
     parser.add_argument("--fee", type=float, default=0.0, help="Per-trade fee")
     parser.add_argument("--seed", type=int, default=None, help="Optional random seed")
@@ -64,7 +71,7 @@ def main() -> None:
     # Composition root: build the market-data provider once and inject it through
     # the market-input + rotation paths (no global locator access inside services).
     provider = build_provider()
-    universe, prices, iv_rank_proxy = resolve_market_inputs(args.tickers_file, provider=provider)
+    universe, prices, iv_rank_proxy, histories = resolve_market_inputs(args.tickers_file, provider=provider)
     policy_provider = PolicyFeatureProvider()
     news_provider = NewsFeatureProvider()
     social_provider = SocialFeatureProvider()
@@ -85,6 +92,7 @@ def main() -> None:
             max_trades=args.max_trades,
             fee=args.fee,
             execution_mode=execution_mode,
+            histories=histories,
             broker_factory=get_broker_for_account,
             feature_fetchers=feature_fetchers,
             provider=provider,

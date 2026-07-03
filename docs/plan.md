@@ -3,7 +3,7 @@
 Type: plan
 Status: Active
 Created: 2026-06-29
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-03
 Purpose: The single source for tasks, order, status, and timelines — the itemized backlog and progress tracker. What needs to be *defined* (open decisions) lives in [decisions.md](decisions.md); the entry-point north star is [overview.md](overview.md).
 Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Developer Notes](developer-notes.md)
 
@@ -17,7 +17,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 
 | P | Initiative | Commitment | Status | Est | Gate |
 |---|---|---|---|---|---|
-| 1 | Close the execution loop (keystone) | Committed | ☐ next up | L | [D1](decisions.md#d1) |
+| 1 | Close the execution loop (keystone) | Committed | ✅ done (E1 · E2 parity) | L | [D1](decisions.md#d1) |
 | 2 | Finish unified evaluation | Committed | ✅ done (1a·1b·1c) | S | — |
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✎ spec ready | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
 | 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
@@ -74,9 +74,9 @@ These baseline capabilities are in place and are not tracked as future work:
 
 Rationale for the priority board order (the board above is the canonical ordered list):
 
-1. **P1 — Close the execution loop (keystone).** Schema-agnostic and the highest-value gap: the live
-   path does not run strategy signals today. Do it first, on the current schema.
-2. **P2 — Finish unified evaluation (1c).** 1a/1b are done; add the cross-surface regression tests.
+1. **P1 — Close the execution loop (keystone) — ✅ done 2026-07-03.** Schema-agnostic and the
+   highest-value gap; done first, on the current schema.
+2. **P2 — Finish unified evaluation — ✅ done (1a·1b·1c).**
 3. **P3 — DB schema rewrite (greenfield, option B).** Decided ([D2](decisions.md#d2)/[D3](decisions.md#d3)):
    rewrite-first. No data to lose and pre-live is the cheapest time to change schema.
 4. **P4 — Converge accounts & sleeves, built once on the clean schema** (submission/rotation/
@@ -144,13 +144,13 @@ Priority: P2 · Committed
   - **Evidence source per role** — pick one evidence source per role so the incumbent and
     challengers stop being scored from different data.
 - Sub-features (independent, shippable separately):
-  - [ ] **1a. Shared decision-score contract** — define the contract shape in
+  - [x] **1a. Shared decision-score contract** — define the contract shape in
     `src/trading/models/evaluation/` (or the sleeve decision-model boundary, no UI-only fields in
     trading services) and add a `trading.services.evaluation`/`trading.domain` adapter that derives
     decision-ready score, confidence, and data-gap status from `StrategyEvaluationArtifact`. Wire
     compare and promotion payload builders onto the adapter instead of reading confidence fields
     directly. No behavior change.
-  - [ ] **1b. Rotation migration** — repoint both the incumbent and the challengers in
+  - [x] **1b. Rotation migration** — repoint both the incumbent and the challengers in
     `src/trading/services/sleeves/rotation.py` and `shadow_evaluation.py` onto the 1a contract,
     keeping cooldown, trade-count, and outperformance gates explicit and re-deriving the
     outperformance-bps gate against the new score. Collapses the parallel incumbent/challenger
@@ -238,58 +238,53 @@ Priority: P1 · Committed
 
 - Scope: make the live/paper trader actually run the strategy signal functions and the selected
   parameter sets, so the evaluate → rotate → trade loop is closed end to end.
-- Why it matters: today the live/paper trade path selects trades with a legacy random/style-biased
-  placeholder — an early proof-of-concept (auto-check trades + IBKR hookup) built before the
-  strategy/evaluation features existed. Strategy signal functions run **only in backtests**
-  (`resolve_signal` is called solely from `src/trading/backtesting/services/execution_service.py`),
-  and parameter sets are never applied to signal evaluation. So rotation switches the strategy label
-  and `strategy_style` bias, but the live path does not execute the selected strategy or its params.
-- Current state (evidence):
-  - live/paper selection: `prepare_trade_selection` → `prepare_buy_trade`/`prepare_sell_trade` →
-    `auto_trading_policy.choose_buy_ticker`/`choose_side` (random or recent-return heuristic, biased
-    by `strategy_style`) — no `signal_fn`.
-  - signals: `resolve_signal(strategy, history, feature_history)` uses `spec.default_params` (code
-    defaults), backtest-only.
-  - params: `StrategyParamSetRepository` is read only for a `param_set_id` label and by the
-    governance job — never fed into signal evaluation.
+- Why it mattered: before P1 the live/paper trade path selected trades with a legacy
+  random/style-biased placeholder — an early proof-of-concept (auto-check trades + IBKR hookup)
+  built before the strategy/evaluation features existed. Strategy signal functions ran **only in
+  backtests**, and parameter sets were never applied to signal evaluation, so rotation switched the
+  strategy label without changing what the trader did.
+- Delivered (2026-07-03, `features/p1-execution-loop`):
+  - live/paper selection evaluates the active strategy's signal per candidate ticker through the
+    shared `evaluate_signal(...)` entry (same function the backtester uses via `resolve_signal`).
+  - D1 policy in force: trade only on signals, no forced minimum (`min_trades` retained but
+    ignored — config cleanup with P7), `max_trades` cap kept; the forced risk-stop sell path is
+    unchanged and runs first.
+  - per-ticker ~1y histories are fetched once per run (`fetch_close_histories`) and shared with the
+    IV-rank proxy; alternative-style strategies get single-row feature frames from the injected
+    `FeatureFetcherSet`.
+  - sleeve mode shares the same selection path; sleeve intents are signal-driven.
+  - `resolve_strategy_params(account, strategy)` is the params seam — registry `default_params`
+    today; P3 extends it to data-defined knobs without touching callers.
+  - `learning_enabled` no longer influences selection (note kept for P10); the random choosers
+    (`choose_buy_ticker`/`choose_sell_ticker`/`choose_side`) were removed.
 - Sub-features:
-  - [ ] **3-E1. Run strategy signals in live/paper execution** — the runtime trade path resolves and
+  - [x] **3-E1. Run strategy signals in live/paper execution** — the runtime trade path resolves and
     evaluates the active strategy's `signal_fn` per candidate, so paper trades the strategy it is
     evaluated on. Keystone.
-  - [ ] **3-E2. Apply resolved params to signal evaluation** end-to-end (backtest + live), reading
+  - [x] **3-E2. Apply resolved params to signal evaluation** end-to-end (backtest + live), reading
     knobs from the account/defaults. Does **not** depend on the `strategy_param_sets` table — the
-    param-store shape is deferred to the rewrite ([D4](decisions.md#d4)).
+    param-store shape is deferred to the rewrite ([D4](decisions.md#d4)). *Delivered as parity:
+    backtest and live share `evaluate_signal(...)` through the `resolve_strategy_params` seam
+    (registry defaults today); the data-knob layer arrives with P3.*
 - Decisions ([D1](decisions.md#d1)) — **resolved:** trade **only when the strategy signals**, no
   forced minimum, keep a **max cap** per run; read params from account/defaults (param-store deferred
   to the rewrite); fetch per-ticker history via `MarketDataProvider.fetch_close_series` (~1y, cached);
   backtest and live share one `evaluate_signal(...)`.
-- Estimate: **L**. Touches the core trade loop for both account and sleeve modes, adds a runtime
-  history fetch, aligns backtest, and threads param resolution — plus test rewrites.
-- Code areas that will change:
-  - `src/trading/domain/strategy_signals.py` — add a params-accepting signal-evaluation entry
-    (today `resolve_signal` uses `spec.default_params`); keep one shared eval used by backtest + live.
-  - `src/trading/domain/auto_trading_policy.py` — `choose_buy_ticker` / `choose_sell_ticker` /
-    `choose_side` change from random/heuristic to signal-driven selection: act only on signaled
-    tickers, drop the forced-minimum trade count, keep a per-run max cap (D1 policy).
-  - `src/trading/services/auto_trading/execution.py` — `prepare_trade_selection` /
-    `prepare_buy_trade` / `prepare_sell_trade` evaluate the active strategy's signal per candidate.
-  - `src/trading/services/auto_trading/runtime.py` — wire the injected `MarketDataProvider` into the
-    selection path to fetch per-ticker history (`fetch_close_series`); pass feature history via the
-    existing `feature_fetchers`.
-  - `src/trading/services/sleeves/execution.py` — `generate_sleeve_trade_intents` uses the same
-    signal path (sleeve mode shares `prepare_trade_selection`).
-  - a param-resolution helper — resolve effective params (default → account) for signals, **without**
-    depending on `strategy_param_sets`. (E2)
-  - `src/trading/backtesting/services/execution_service.py` — switch `resolve_signal` to the shared
-    params-aware eval so backtest and live use identical params. (E2)
-  - Tests: `auto_trading`, `sleeves`, `backtesting`, and `domain/strategy_signals` suites.
+- Estimate: **L** (actual: one branch, 7 commits).
+- Code areas changed: `src/trading/domain/strategy_signals.py` (shared `evaluate_signal`),
+  `src/trading/domain/auto_trading_policy.py` (random choosers removed),
+  `src/trading/services/auto_trading/execution.py` (signal-driven selection +
+  `resolve_strategy_params` seam), `runtime.py` + `inputs.py` + `market.py` (histories threading +
+  one-pass fetch), `src/trading/services/sleeves/execution.py` (shared path), and the
+  `auto_trading` / `sleeves` / `domain` test suites.
 - **Work order:** [implementation/p1-execution-loop.md](implementation/p1-execution-loop.md)
-  (8 ordered steps, marked [light]/[strong]).
-- Done when:
-  - live/paper trades are driven by the active strategy's signal function
-  - parameter sets flow into both backtest and live signal evaluation
-  - backtest and live execute the same strategy+param decision path
-  - rotation to a strategy actually changes what the trader does
+  (complete; kept as the historical record).
+- Done when (all met 2026-07-03):
+  - [x] live/paper trades are driven by the active strategy's signal function
+  - [x] parameter sets flow into both backtest and live signal evaluation *(as the shared
+    params-aware eval + seam; data-defined knobs arrive with P3 — see 3-E2 note above)*
+  - [x] backtest and live execute the same strategy+param decision path
+  - [x] rotation to a strategy actually changes what the trader does
 
 #### Plug-and-play strategy & provider catalog
 

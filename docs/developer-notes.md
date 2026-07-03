@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-03
 Purpose: Developer-facing working notes, gotchas, and pre-implementation checks — a sanity check for
 the same developer picking work back up. Tasks/order/status/timelines live in [plan.md](plan.md).
 Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
@@ -49,11 +49,13 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 
 - **CRLF warnings on commit are harmless** — the repo enforces line endings; `git` prints
   "CRLF will be replaced by LF" on commit. Not an error.
-- **Live/paper does not run strategy signals yet** (Plan P1). The paper trader is a legacy
-  random/style-biased placeholder; strategy `signal_fn`s run only in backtests. Do not assume paper
-  results reflect the strategies until the execution loop is closed.
-- **Parameter sets are not wired into signals** — `strategy_param_sets` is stored/governed only;
-  backtests use code `default_params`. "Different parameters" is not yet a real lever.
+- **Live/paper runs strategy signals as of P1 (2026-07-03)** — selection goes through the shared
+  `evaluate_signal(...)`; trades happen only on signals (no forced minimum, `--max-trades` cap).
+  Paper results **before** that date reflect the old random placeholder — do not read them as
+  strategy evidence.
+- **Strategy knobs are not data yet** — `resolve_strategy_params` (the P1 seam) still returns the
+  registry `default_params`; `strategy_param_sets` remains stored/governed only. The data-knob
+  layer lands with the rewrite (P3/D4/D5). "Different parameters" is not yet a real lever.
 - **`shadow_evaluation` is thin post-1b** — its separate challenger-scoring path is gone; it's a
   rename/absorb candidate (Plan P5).
 - **`mypy` must be run via the project runner** — `python -m scripts.checks.mypy_check` (ad-hoc
@@ -66,4 +68,6 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 - **Tasks / order / status / timelines** → [plan.md](plan.md) (the status board + Current cycle
   sequencing are the single source).
 - **Open decisions ("what needs defining")** → [decisions.md](decisions.md).
-- **Recommended next action** → close the execution loop (Plan P1, the keystone; P2 is complete).
+- **Recommended next action** → the DB schema rewrite (Plan P3; P1 and P2 are complete). Start with
+  the [pre-rewrite checks](#before-the-database-rewrite-ifwhen-we-execute-it) above — the D4 tail
+  (account/unit settings shape) is decided at the start of Phase A.

@@ -237,11 +237,7 @@ def test_runtime_settings_package_reintroduction_is_reported(tmp_path: Path) -> 
 
 
 def test_real_banned_path_rules_are_present() -> None:
-    banned = {
-        rel_path
-        for rule in BANNED_PATH_RULES
-        for rel_path in rule.banned_paths
-    }
+    banned = {rel_path for rule in BANNED_PATH_RULES for rel_path in rule.banned_paths}
 
     assert "src/trading/services/runtime_settings" in banned
     assert "src/trading/services/runtime_throttle" in banned
