@@ -217,8 +217,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `evaluation_confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
-| `evaluation_decision_score.py` | `derive_decision_score` — the shared decision-score contract derived from `StrategyEvaluationArtifact` (P2/1a) |
-| `evaluation_decision_score.py` | Pure adapter from evaluation artifacts to the shared decision-score contract |
+| `evaluation_decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `indicators.py` | Technical indicator calculations (MACD, RS/RSI) |

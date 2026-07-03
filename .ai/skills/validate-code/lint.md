@@ -13,11 +13,11 @@ python -m scripts.checks.ruff_check
 
 Runs ruff lint and ruff format check. Does not auto-fix. Reports each violation with file and line.
 
-To auto-fix (only when explicitly asked):
+To auto-fix (only when explicitly asked), use the sanctioned deterministic fixer — it runs ruff
+safe fixes + formatting over the full configured scope and syncs generated reference-doc assets:
 
 ```
-.venv/Scripts/python.exe -m ruff check --fix src/trading/ apps/paper_trading_web/backend/
-.venv/Scripts/python.exe -m ruff format src/trading/ apps/paper_trading_web/backend/
+python -m scripts.fix_checks
 ```
 
 ## Frontend — eslint + tsc

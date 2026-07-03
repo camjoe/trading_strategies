@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-13
 Last Reviewed: 2026-07-02
 Purpose: Define who is allowed to invoke each skill and how that restriction is declared and enforced via the invoker field.
-Related: [Skills README](./.ai/skills/README.md)
+Related: [AGENTS.md](../../AGENTS.md)
 
 Defines who is allowed to invoke each skill and how that restriction is declared and enforced.
 
@@ -27,83 +27,33 @@ invoker: any          # anyone may invoke this skill
 
 | Value | Meaning |
 |---|---|
-| `any` | Any human user or agent may invoke this skill directly |
-| `human` | Human users only — agents should not invoke this skill on their own |
-| `agent:<agent-name>` | Only the named agent may invoke this skill; human users must route through that agent |
+| `any` | Any human user or AI session may invoke this skill directly |
+| `human` | Human users only — AI sessions should not invoke this skill on their own |
 
-`<agent-name>` matches the `name` field in the agent's `.agent.md` frontmatter, lowercased and hyphenated (e.g. `agent:db-migration-steward`).
-
----
+Historical note: an `agent:<name>` value existed while the repo had agent personas; the
+agents were retired 2026-07-02 and the value with them. The safety rules those restrictions
+protected (additive-only migrations, backup hygiene, the live-trading guard) live in the skills
+themselves and in `docs/architecture/architecture-conventions.md`, and apply to every session.
 
 ## How Enforcement Works
 
-Enforcement is **convention-based**: restricted skills include a standard preamble at the top of their body that instructs Claude to check invoker context and refuse if the restriction is not met.
-
-Claude determines invoker context from its active system prompt:
-- If Claude is operating under an `.agent.md` system prompt, it is acting as that agent.
-- If Claude is operating in a general session with a human user, the invoker is `human`.
-
-### Enforcement preamble (for `invoker: agent:<name>` skills)
-
-Restricted skills place this block immediately after the title, before any workflow content:
-
-```markdown
-## Invocation Check
-
-This skill is restricted to the **<Agent Display Name>** agent.
-
-- If you are the <Agent Display Name> agent, proceed with the workflow below.
-- If you are a human user or a different agent, **stop** and respond:
-
-  > "This skill is restricted to the **<Agent Display Name>** agent. To proceed safely, invoke the agent instead:
-  > `@<agent-shortcut> <your task description>`
-  > The agent will use this skill to complete the task within its safety guardrails."
-
-Do not execute any workflow steps below until the invoker check passes.
-```
-
----
+Enforcement is **convention-based**: a restricted skill states its restriction in a short preamble
+at the top of its body, instructing the model to check invoker context and refuse if unmet.
 
 ## Current Skill Roster
 
-| Skill | `invoker` | Rationale |
-|---|---|---|
-| `check-pr-readiness` | `any` | General workflow tool |
-| `code-review` | `any` | General review tool |
-| `create-runtime-job` | `any` | Scaffolding tool against the shared job runner |
-| `create-skill` | `any` | Skill authoring |
-| `db-migration` | `agent:db-migration-steward` | Schema changes carry production risk; the steward agent enforces additive-only rules and backup hygiene |
-| `expand-tests` | `any` | General testing tool |
-| `finance-strategy` | `any` | Domain knowledge, no side effects |
-| `help` | `any` | Discovery tool |
-| `reference-doc` | `any` | Documentation authoring |
-| `update-documentation` | `any` | Documentation maintenance |
-| `update-skill` | `any` | Skill maintenance |
-| `validate-code` | `any` | Deterministic checks, no side effects |
+All skills are currently `invoker: any` — none are restricted. The roster is the `invoker`
+frontmatter across `.ai/skills/*/SKILL.md`; the frontmatter is the source of truth.
 
-*(This table mirrors the `invoker` frontmatter in `.ai/skills/*/SKILL.md` — the frontmatter is the
-source of truth; update both together.)*
+## Adding a Restriction
 
----
-
-## Adding a New Restriction
-
-1. Set `invoker: agent:<agent-name>` in the skill's frontmatter.
-2. Add the enforcement preamble (template above) at the top of the skill body.
-3. Update the roster table in this document.
-4. Update the `AGENTS.md` routing guide if the restriction changes how the skill is routed.
-
-## Removing a Restriction
-
-1. Change `invoker` back to `any`.
-2. Remove the enforcement preamble from the skill body.
-3. Update the roster table (and `AGENTS.md` routing if affected).
+1. Set `invoker: human` in the skill's frontmatter.
+2. Add a short refusal preamble at the top of the skill body.
+3. Update the `AGENTS.md` routing guide if the restriction changes how the skill is routed.
 
 ---
 
 ## Related References
 
-- `AGENTS.md` — full routing table of skills and agents with invocation rules
-- `.ai/skills/help/SKILL.md` — `/help` skill for interactive discovery
-- `.ai/agents/` — agent definitions
-- `.ai/skills/` — skill definitions
+- `AGENTS.md` — routing guide for skills
+- `.ai/skills/` — skill definitions (frontmatter is the invoker source of truth)

@@ -35,7 +35,7 @@ If `post_sql` is not `None`, check whether it runs `UPDATE` or `DELETE` on exist
 
 ```
 python -m pytest tests/ -k "db or migration or schema" -x --no-cov
-python -m mypy src/infrastructure/database/ --ignore-missing-imports
+python -m scripts.checks.mypy_check
 ```
 
 ## Output

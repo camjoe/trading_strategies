@@ -30,8 +30,8 @@ python -m scripts.checks.pr_ready --no-cov        # skip coverage overhead
 ## Day-to-day profiles
 
 ```
-python -m scripts.run_checks --profile quick      # layer + lint + tests
-python -m scripts.run_checks --profile ci         # full suite + frontend
+python -m scripts.run_checks --profile quick      # README, layer, ruff, mypy, pytest
+python -m scripts.run_checks --profile ci         # quick gates + doc-drift checks + frontend
 ```
 
 ## On failure
@@ -47,9 +47,9 @@ Stop. Report the exact failing command and output — do not paraphrase. Do not 
 
 This suite is deterministic and does not check everything. These are **advisory** — confirm them by review, not by this suite:
 
-- Doc-header metadata present and accurate (`docs/conventions/docs-authoring.md`)
 - Naming conventions beyond what ruff covers (`docs/conventions/naming.md`)
-- Reference notes and maps reflect current behavior
+- Reference notes and maps reflect current behavior (content accuracy — the CI profile's drift
+  checks cover the mechanical: headers, links, maps, skills, generated assets)
 - An ADR exists for any architectural decision
 
 ## Repo references

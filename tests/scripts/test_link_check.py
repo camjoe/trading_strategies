@@ -116,14 +116,12 @@ def test_check_file_flags_broken_and_skips_fences(tmp_path: Path) -> None:
     assert ("link", "also-missing.md") not in broken  # inside a fence -> skipped
 
 
-def test_discover_docs_excludes_migration_and_agent_skills(tmp_path: Path) -> None:
+def test_discover_docs_excludes_migration_dirs(tmp_path: Path) -> None:
     _write(tmp_path / "docs/keep.md", "x")
     _write(tmp_path / "docs-migration/plan.md", "x")
-    _write(tmp_path / "docs/reference/agent-skills.md", "x")
     names = {path.name for path in discover_docs(tmp_path)}
     assert "keep.md" in names
     assert "plan.md" not in names  # docs-migration excluded
-    assert "agent-skills.md" not in names  # upstream exception excluded
 
 
 # ---------------------------------------------------------------------------

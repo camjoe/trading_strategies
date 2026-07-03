@@ -50,6 +50,10 @@ Related: [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](gove
 | `convention` | Coding or doc standards (style, naming, headers) |
 | `template` | Blank starter files |
 | `policy` | Access control, invocation rules |
+| `overview` | The top-level app explainer (entry point) |
+| `plan` | Task/priority trackers and living plans |
+| `spec` | Target-state design specs (e.g. schema targets) |
+| `implementation` | Per-initiative work orders in `docs/implementation/` |
 
 ---
 
@@ -59,9 +63,14 @@ Related: [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](gove
 |---|---|
 | `Active` | Current and accurate |
 | `Draft` | Being written, not yet authoritative |
+| `Ready` | Work order ready to execute (implementation guides) |
+| `Complete` | Finished work retained for the record |
 | `Proposed` | ADR under discussion |
 | `Accepted` | ADR decision finalized |
 | `Superseded` | Replaced by another doc — link the replacement in `Related` |
+
+The status is the leading token; a parenthetical or dash suffix may add context (e.g.
+`Ready (multi-commit)`, `Complete (foundation phase)`).
 
 ---
 
@@ -122,4 +131,9 @@ Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy
 
 ## Scope
 
-All files under `docs/` follow this standard, with no exceptions.
+All files under `docs/` follow this standard, with no exceptions (`TEMPLATE.*.md` files hold
+placeholder values and are skipped by tooling).
+
+**Enforcement:** `python -m scripts.checks.doc_header_check` verifies the required fields and
+Type/Status vocabulary across `docs/` (advisory; runs in the CI profile). Keep this file's
+vocabulary tables and the check's vocabulary in sync when adding a type or status.

@@ -18,7 +18,7 @@ Entry point for all validation checks. Run via `python -m scripts.run_checks --p
 | Profile | When to use | What it runs |
 |---|---|---|
 | `quick` | Day-to-day, before committing | README consistency, layer check, ruff, mypy, pytest (optional: frontend, reference-doc checks, targeted suites) |
-| `ci` | CI-shaped smoke before a PR | Everything in `quick` plus the doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend lint/typecheck/tests |
+| `ci` | CI-shaped smoke before a PR | Everything in `quick` plus the doc-drift checks (maps, links, `-m` refs, DB schema, doc headers, skills, generated in-app doc assets), dependency install, and frontend lint/typecheck/tests |
 
 ---
 
@@ -52,6 +52,8 @@ Individual check modules. Each is also usable directly.
 | `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
 | `module_ref_check.py` | Doc `-m` module-reference checker — flags `python -m <module>` invocations in docs whose first-party module does not resolve; advisory |
 | `db_schema_check.py` | DB schema drift checker — verifies db-schema.md's Quick Reference covers every live table; advisory |
+| `doc_header_check.py` | Doc header checker — required fields + Type/Status vocabulary across `docs/` per docs-authoring.md; advisory |
+| `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; advisory |
 | `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
 | `shared.py` | Shared utilities for check modules (result types, formatting) |
 

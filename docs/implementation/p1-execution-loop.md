@@ -2,6 +2,7 @@
 
 Type: implementation
 Status: Ready (large; multi-commit; mixed light/strong steps)
+Purpose: Work order for P1 — wire strategy signals into live/paper execution; ordered steps with light/strong handoff markings.
 Initiative: P1 (Close the execution loop)
 Estimate: L
 Created: 2026-07-01

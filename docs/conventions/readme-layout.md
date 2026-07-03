@@ -69,7 +69,6 @@ Recommended section order:
 Examples in this repo:
 
 - `tests/support/README.md`
-- `.ai/skills/README.md`
 
 ## Section Naming Conventions
 
