@@ -132,6 +132,9 @@ Rules for all alternative-strategy development (strategy_style = "alternative"):
    `trading.domain.feature_provider.ExternalFeatureProvider`. Do not create
    ad-hoc fetch functions that bypass the caching/TTL/degradation contract.
 
+Enforcement: `python -m scripts.checks.secret_hygiene_check --enforce` flags committed literal
+credentials in source/config files.
+
 ## Constants and Magic Numbers
 
 All agents must follow this rule when writing or reviewing Python code:
@@ -261,6 +264,9 @@ error-to-result mapping, registration. Full rationale and the first application
 3. Keep command examples runnable from repo root and prefer `python -m ...`.
 4. Avoid reliance on case-insensitive path behavior.
 5. Make type narrowing explicit where mypy/platform inference may differ.
+
+Enforcement: `python -m scripts.checks.path_safety_check --enforce` flags clear
+cross-platform path hazards in production/tooling Python modules.
 
 ## UI Backend Boundary Rule
 

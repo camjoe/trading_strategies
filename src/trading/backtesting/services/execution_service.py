@@ -49,7 +49,7 @@ def run_backtest(
     insert_snapshot_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
     feature_provider: FeatureDataProvider | None = None,
-):
+) -> BacktestResult:
     account = get_account_fn(conn, cfg.account_name)
     start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
     warnings = warnings_for_config_fn(account, cfg.allow_approximate_leaps)

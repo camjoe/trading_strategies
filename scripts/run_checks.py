@@ -115,6 +115,21 @@ def parse_args() -> argparse.Namespace:
         help="CI profile: skip live-trading safety check.",
     )
     parser.add_argument(
+        "--skip-python-conventions-check",
+        action="store_true",
+        help="CI profile: skip Python convention check.",
+    )
+    parser.add_argument(
+        "--skip-path-safety-check",
+        action="store_true",
+        help="CI profile: skip cross-platform path safety check.",
+    )
+    parser.add_argument(
+        "--skip-secret-hygiene-check",
+        action="store_true",
+        help="CI profile: skip committed secret hygiene check.",
+    )
+    parser.add_argument(
         "--install-python-tools",
         action="store_true",
         help="CI profile: install ruff and mypy before quality gates.",
@@ -152,6 +167,9 @@ def main() -> int:
         skip_doc_naming_check=args.skip_doc_naming_check,
         skip_skills_check=args.skip_skills_check,
         skip_live_safety_check=args.skip_live_safety_check,
+        skip_python_conventions_check=args.skip_python_conventions_check,
+        skip_path_safety_check=args.skip_path_safety_check,
+        skip_secret_hygiene_check=args.skip_secret_hygiene_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         # The generated in-app doc assets are checked by default in CI; --skip opts out.

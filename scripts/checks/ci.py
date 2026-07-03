@@ -15,6 +15,9 @@ from scripts.checks.live_safety_check import run_live_safety_check
 from scripts.checks.maps_check import run_maps_check
 from scripts.checks.module_ref_check import run_module_ref_check
 from scripts.checks.skills_check import run_skills_check
+from scripts.checks.path_safety_check import run_path_safety_check
+from scripts.checks.python_conventions_check import run_python_conventions_check
+from scripts.checks.secret_hygiene_check import run_secret_hygiene_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
@@ -75,6 +78,21 @@ def parse_args() -> argparse.Namespace:
         help="Skip live-trading safety check.",
     )
     parser.add_argument(
+        "--skip-python-conventions-check",
+        action="store_true",
+        help="Skip Python convention check.",
+    )
+    parser.add_argument(
+        "--skip-path-safety-check",
+        action="store_true",
+        help="Skip cross-platform path safety check.",
+    )
+    parser.add_argument(
+        "--skip-secret-hygiene-check",
+        action="store_true",
+        help="Skip committed secret hygiene check.",
+    )
+    parser.add_argument(
         "--readme-max-age-days",
         type=int,
         default=90,
@@ -116,6 +134,9 @@ def run_ci(
     skip_doc_naming_check: bool = False,
     skip_skills_check: bool = False,
     skip_live_safety_check: bool = False,
+    skip_python_conventions_check: bool = False,
+    skip_path_safety_check: bool = False,
+    skip_secret_hygiene_check: bool = False,
     readme_max_age_days: int = 90,
     install_python_tools: bool = False,
     with_reference_doc_checks: bool = False,
@@ -152,6 +173,18 @@ def run_ci(
                 live_safety_exit = run_live_safety_check(repo_root=repo_root, quiet=True, enforce=True)
                 if live_safety_exit != 0:
                     return live_safety_exit
+            if not skip_python_conventions_check:
+                python_conventions_exit = run_python_conventions_check(repo_root=repo_root, quiet=True, enforce=True)
+                if python_conventions_exit != 0:
+                    return python_conventions_exit
+            if not skip_path_safety_check:
+                path_safety_exit = run_path_safety_check(repo_root=repo_root, quiet=True, enforce=True)
+                if path_safety_exit != 0:
+                    return path_safety_exit
+            if not skip_secret_hygiene_check:
+                secret_hygiene_exit = run_secret_hygiene_check(repo_root=repo_root, quiet=True, enforce=True)
+                if secret_hygiene_exit != 0:
+                    return secret_hygiene_exit
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit
@@ -209,6 +242,9 @@ def main() -> int:
         skip_doc_naming_check=args.skip_doc_naming_check,
         skip_skills_check=args.skip_skills_check,
         skip_live_safety_check=args.skip_live_safety_check,
+        skip_python_conventions_check=args.skip_python_conventions_check,
+        skip_path_safety_check=args.skip_path_safety_check,
+        skip_secret_hygiene_check=args.skip_secret_hygiene_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,

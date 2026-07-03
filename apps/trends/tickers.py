@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from common.tickers import load_ticker_categories, load_tickers_from_file

@@ -48,3 +48,6 @@ Use `pathlib.Path` for filesystem paths. For repo-relative paths, logging, and c
 - `common.files.sorted_by_mtime_desc(paths)` / `latest_by_mtime(paths)` for newest-file selection.
 
 Keep platform-specific string normalization only at input boundaries (e.g. user-provided route parameters), never for filesystem paths.
+
+Enforcement: `python -m scripts.checks.python_conventions_check --enforce` verifies future
+annotations and public function return annotations for production/tooling modules.

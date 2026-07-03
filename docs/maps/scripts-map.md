@@ -44,6 +44,9 @@ Individual check modules. Each is also usable directly.
 | `ci.py` | CI profile: the quick gates plus doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
+| `path_safety_check.py` | Cross-platform path safety checker — flags clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards |
+| `python_conventions_check.py` | Python convention checker — verifies future annotations and public function return annotations in production/tooling modules |
+| `secret_hygiene_check.py` | Secret hygiene checker — flags committed literal credentials in source/config files |
 | `mypy_check.py` | Mypy type-check runner (`src/trading/` + `apps/paper_trading_web/backend/`) |
 | `pytest_check.py` | Pytest runner (full suite) |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |

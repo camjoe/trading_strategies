@@ -92,6 +92,12 @@ jobs:
       - name: Run layer boundary gate
         run: python -m scripts.checks.layer_check
 
+      - name: Run Python convention gate
+        run: python -m scripts.checks.python_conventions_check --enforce
+
+      - name: Run path safety gate
+        run: python -m scripts.checks.path_safety_check --enforce
+
       - name: Run ruff lint gate
         run: ruff check src/trading apps/trends apps/paper_trading_web/backend --select F,E9
 
@@ -155,4 +161,5 @@ jobs:
           python -m scripts.checks.doc_naming_check --enforce
           python -m scripts.checks.skills_check --enforce
           python -m scripts.checks.live_safety_check --enforce
+          python -m scripts.checks.secret_hygiene_check --enforce
           python -m scripts.documentation_ui.check
