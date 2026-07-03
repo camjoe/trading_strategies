@@ -61,8 +61,8 @@ Current skill inventory:
 | `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
-| `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
-| `help/` | Interactive discovery: list available agents, skills, and common prompts |
+| `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
+| `help/` | Interactive discovery: list available skills and common prompts |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
 | `update-skill/` | Improving or refactoring existing skills |
@@ -146,35 +146,12 @@ Run a focused subset of tests by suite name or individual file path.
 - `run suite --base main` — auto-detect suites from changes vs a branch (PR workflow)
 - `run suite --list` — show all available suite names
 
-Suite names mirror the `tests/` directory tree. After editing files under a
-source area, run the matching suite to validate before committing:
-
-| Changed source area | Run suite |
-|---|---|
-| `src/trading/services/accounting/` | `src/trading/services/accounting` |
-| `src/trading/services/accounts/` | `src/trading/services/accounts` |
-| `src/trading/services/admin/` | `src/trading/services/admin` |
-| `src/trading/services/analysis/` | `src/trading/services/analysis` |
-| `src/trading/services/auto_trading/` | `src/trading/services/auto_trading` |
-| `src/trading/services/evaluation/` | `src/trading/services/evaluation` |
-| `src/trading/services/ibkr_paper_monitor/` | `src/trading/services/ibkr_paper_monitor` |
-| `src/trading/services/market_data/` | `src/trading/services/market_data` |
-| `src/trading/services/pricing/` | `src/trading/services/pricing` |
-| `src/trading/services/profiles/` | `src/trading/services/profiles` |
-| `src/trading/services/promotion/` | `src/trading/services/promotion` |
-| `src/trading/services/reporting/` | `src/trading/services/reporting` |
-| `src/trading/services/operational_settings/` | `src/trading/services/operational_settings` |
-| `src/trading/services/sleeves/` | `src/trading/services/sleeves` |
-| `src/trading/services/` (multiple) | `src/trading/services` |
-| `src/trading/interfaces/runtime/jobs/daily/` | `src/trading/interfaces/runtime/jobs/daily` |
-| `src/trading/interfaces/runtime/jobs/governance/` | `src/trading/interfaces/runtime/jobs/governance` |
-| `src/trading/interfaces/runtime/jobs/maintenance/` | `src/trading/interfaces/runtime/jobs/maintenance` |
-| `src/infrastructure/brokers/legacy/` | `src/infrastructure/brokers/legacy` |
-| `src/trading/backtesting/` | `src/trading/backtesting` |
-| `src/trading/repositories/` | `src/trading/repositories` |
-| `src/trading/interfaces/` | `src/trading/interfaces` |
-| `apps/paper_trading_web/backend/` | `apps/paper_trading_web` |
-| Any area | `all` |
+**Suite names mirror the `tests/` directory tree** — the suite for a source area is its
+source path (e.g. changed `src/trading/services/promotion/` → `run suite
+src/trading/services/promotion`; changed `apps/paper_trading_web/backend/` →
+`run suite apps/paper_trading_web`). Discover all valid names with `run suite --list`.
+After editing files under a source area, run its matching suite before committing —
+or use `run suite --changed` to auto-detect.
 
 Command: `python -m scripts.checks.run_suite <suite> [extra pytest flags]`
 
@@ -208,18 +185,9 @@ Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, test
 - `pr ready` — full 6-step workflow vs `develop` (default base)
 - `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
 
-Follow `.ai/skills/check-pr-readiness/SKILL.md`.
-
-**Step sequence (fail-fast):**
-
-| Step | Type | What runs |
-|---|---|---|
-| 1 | Deterministic | Layer boundary check + ruff lint + mypy + branch-targeted tests |
-| 2 | AI | Architecture review — layer violations, dependency direction |
-| 3 | AI | Style review — naming, docs, consistency beyond ruff |
-| 4 | AI | Quality review — SRP, modularity, unnecessary patterns |
-| 5 | AI | Docs check — README staleness (advisory, never blocks) |
-| Report | AI | Saved to `local/pr_readiness_report.md` + printed |
+Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step sequence
+(deterministic gate → architecture → style → quality → docs check → report saved to
+`local/pr_readiness_report.md`).
 
 **Individual step shortcuts** — run any step on its own:
 

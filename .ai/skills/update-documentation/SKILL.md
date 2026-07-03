@@ -32,3 +32,9 @@ Use the `reference-doc/` skill instead — it handles new reference documents an
 - `docs/architecture/nav-guide.md` — start here to locate which files a task touches
 - `docs/maps/docs-map.md` — maps code surfaces to owning documentation files
 - `README.md` files across the repo
+
+## Expected output
+
+1. Impacted docs
+2. Exact updates made
+3. Remaining drift or follow-up items

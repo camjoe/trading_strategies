@@ -32,7 +32,8 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
-| `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
+| `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
+| `help/` | Interactive discovery: list available skills and common prompts |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
 | `update-skill/` | Improving or refactoring existing skills |
@@ -40,36 +41,14 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 
 ### Reference files (inside skill folders, not skills themselves)
 
-| File | Parent skill | Contains |
-|---|---|---|
-| `code-review/code-review.md` | `code-review/` | Standard, Baseline, and Deep diff review |
-| `code-review/code-review-aggressive.md` | `code-review/` | High-scrutiny safety-critical review |
-| `code-review/architecture-review.md` | `code-review/` | Layering and boundary review |
-| `code-review/code-cleanup.md` | `code-review/` | Behavior-preserving refactor |
-| `code-review/ui-api-contract.md` | `code-review/` | Frontend/backend contract alignment |
-| `code-review/pr-review-arch.md` | `code-review/` | PR architecture constraints pass |
-| `code-review/pr-review-style.md` | `code-review/` | PR style compliance pass |
-| `code-review/pr-review-quality.md` | `code-review/` | PR quality standards pass |
-| `db-migration/create-migration.md` | `db-migration/` | Write a new ColumnMigration entry |
-| `db-migration/validate-migration.md` | `db-migration/` | Validate safety and correctness checklist |
-| `db-migration/estimate-risk.md` | `db-migration/` | Blast radius, index needs, backtest impact |
-| `db-migration/generate-rollback.md` | `db-migration/` | Rollback strategy for SQLite schema changes |
-| `create-runtime-job/templates.md` | `create-runtime-job/` | Module + test + sentinel + schedule scaffolding templates |
-| `update-documentation/docs-sync.md` | `update-documentation/` | Active docs drift sync |
-| `validate-code/layer-check.md` | `validate-code/` | Layer boundary check |
-| `validate-code/lint.md` | `validate-code/` | Ruff + eslint/tsc lint |
-| `validate-code/type-check.md` | `validate-code/` | Mypy type check |
-| `validate-code/tests.md` | `validate-code/` | Branch-targeted pytest + vitest |
-| `reference-doc/reference-doc.md` | `reference-doc/` | Reference doc and ADR creation |
+Do not maintain a file inventory here — it drifts. Each `SKILL.md` links the reference files it
+loads; the folders on disk are the source of truth. A reference file exists only when its parent
+`SKILL.md` links to it; single-file skills are the norm when the workflow fits in one page.
 
-Retired from the active set:
-
-- `code-review/code-review-baseline.md` (folded into `code-review.md` Baseline mode)
-- `deep-code-review` (merged into `code-review` Aggressive mode)
-- `frontend-cleanup` (merged into `code-review/code-cleanup.md`)
-- `python-cleanup` (merged into `code-review/code-cleanup.md`)
-- flat `.skill.md` shims (removed — not needed by Copilot CLI)
-- `templates/` (removed — blank placeholders, not referenced by any workflow)
+Retired from the active set (do not reintroduce without a fresh decision): the standalone
+`deep-code-review`, `frontend-cleanup`, and `python-cleanup` skills (merged into `code-review/`
+modes); flat `.skill.md` shims; blank `templates/`; `update-documentation/docs-sync.md` and
+`reference-doc/reference-doc.md` (folded into their `SKILL.md`s, 2026-07-02).
 
 ## Authoring rules
 
