@@ -340,13 +340,15 @@ that prevents live broker orders from being submitted accidentally.
    `trading.brokers.factory`).  If this error surfaces, it must propagate so
    the operator can investigate.
 
-4. **Test accounts must always have `live_trading_enabled = 0`** (the column
-   default).  Never override this in test fixtures or helper factories.
+4. **Shared test fixtures and helper factories must default to
+   `live_trading_enabled = 0`**. Tests that explicitly exercise the live guard
+   may model an already-enabled account locally, but must not make that state a
+   reusable default.
 
 Rationale: `live_trading_enabled = 1` causes real money to move through a
 live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.
 
-Enforcement: `python -m scripts.checks.live_safety_check` blocks generated code,
-fixtures, migrations, and scripts from setting `live_trading_enabled` to true/1
+Enforcement: `python -m scripts.checks.live_safety_check --enforce` blocks
+state-mutating automation surfaces from setting `live_trading_enabled` to true/1
 (enforced in the CI profile).
