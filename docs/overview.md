@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-03
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the detailed backlog in [plan.md](plan.md) and the plans it references.
@@ -132,8 +132,9 @@ defining") are consolidated in [decisions.md](decisions.md); convergence detail 
 1. **P1 — Close the execution loop (keystone).** Wire strategy signals + parameter sets into
    live/paper execution so the trader actually runs the strategy (and params) it is evaluated on.
    Schema-agnostic; do it first on the current schema.
-2. **P2 — Finish unified evaluation** — the shared decision-score contract backs compare, promotion,
-   and sleeve rotation (1a/1b done); complete the cross-surface regression tests (1c).
+2. **P2 — Unified evaluation — done.** The shared decision-score contract backs compare, promotion,
+   and sleeve rotation, with cross-surface regression tests proving all three surfaces read it
+   identically (1a/1b/1c complete).
 3. **P3 — DB schema rewrite (greenfield, option B).** Decided rewrite-first (no data to lose,
    pre-live is the cheapest time). The clean trading-unit schema is built before convergence.
 4. **P4–P5 — Converge accounts and sleeves once on the clean schema** (submission/rotation/

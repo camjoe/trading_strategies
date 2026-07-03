@@ -3,7 +3,7 @@
 Type: plan
 Status: Active
 Created: 2026-06-29
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-03
 Purpose: The single source for tasks, order, status, and timelines — the itemized backlog and progress tracker. What needs to be *defined* (open decisions) lives in [decisions.md](decisions.md); the entry-point north star is [overview.md](overview.md).
 Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Developer Notes](developer-notes.md)
 
@@ -144,13 +144,13 @@ Priority: P2 · Committed
   - **Evidence source per role** — pick one evidence source per role so the incumbent and
     challengers stop being scored from different data.
 - Sub-features (independent, shippable separately):
-  - [ ] **1a. Shared decision-score contract** — define the contract shape in
+  - [x] **1a. Shared decision-score contract** — define the contract shape in
     `src/trading/models/evaluation/` (or the sleeve decision-model boundary, no UI-only fields in
     trading services) and add a `trading.services.evaluation`/`trading.domain` adapter that derives
     decision-ready score, confidence, and data-gap status from `StrategyEvaluationArtifact`. Wire
     compare and promotion payload builders onto the adapter instead of reading confidence fields
     directly. No behavior change.
-  - [ ] **1b. Rotation migration** — repoint both the incumbent and the challengers in
+  - [x] **1b. Rotation migration** — repoint both the incumbent and the challengers in
     `src/trading/services/sleeves/rotation.py` and `shadow_evaluation.py` onto the 1a contract,
     keeping cooldown, trade-count, and outperformance gates explicit and re-deriving the
     outperformance-bps gate against the new score. Collapses the parallel incumbent/challenger
