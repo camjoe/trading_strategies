@@ -6,7 +6,8 @@ import json
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Callable, TypedDict
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 from common.time import utc_now_iso
 
@@ -93,3 +94,31 @@ def notify_webhook_best_effort(
         )
         return False
     return True
+
+
+def notify_runtime_event(
+    *,
+    event: str,
+    status: str,
+    message: str,
+    details: dict[str, object] | None = None,
+    webhook_url: str | None = None,
+    urlopen_fn: Callable[..., Any] = urllib.request.urlopen,
+) -> bool:
+    """Fan a runtime event out to the configured transports (webhook only today).
+
+    The event-level seam runtime jobs call so they stay transport-agnostic:
+    an unset/blank transport config skips that transport, and delivery
+    failures are non-fatal (logged to stderr). Email delivery is added here
+    with Plan P8 once D8 settles where SMTP config lives.
+
+    Returns True if any transport delivered.
+    """
+    return notify_webhook_best_effort(
+        webhook_url=webhook_url,
+        event=event,
+        status=status,
+        message=message,
+        details=details,
+        urlopen_fn=urlopen_fn,
+    )

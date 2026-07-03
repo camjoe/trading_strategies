@@ -9,6 +9,7 @@ import pytest
 from trading.interfaces.runtime.notifications import (
     WEBHOOK_TIMEOUT_SECONDS,
     build_runtime_notification_payload,
+    notify_runtime_event,
     notify_webhook_best_effort,
     send_webhook_notification,
 )
@@ -116,3 +117,27 @@ def test_notify_webhook_best_effort_returns_true_on_success() -> None:
     )
 
     assert sent is True
+
+
+def test_notify_runtime_event_delivers_via_webhook_transport() -> None:
+    sent = notify_runtime_event(
+        event="daily-paper-trading",
+        status="ok",
+        message="Completed",
+        details={"account_count": 2},
+        webhook_url="https://example.test/webhook",
+        urlopen_fn=lambda *_a, **_k: _FakeResponse(204),
+    )
+
+    assert sent is True
+
+
+def test_notify_runtime_event_returns_false_without_transport_config() -> None:
+    sent = notify_runtime_event(
+        event="daily-paper-trading",
+        status="fail",
+        message="Failed",
+        urlopen_fn=lambda *_a, **_k: pytest.fail("no transport configured; nothing should be sent"),
+    )
+
+    assert sent is False

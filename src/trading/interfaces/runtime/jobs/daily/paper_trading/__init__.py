@@ -49,7 +49,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     ts,
     write_artifact,
 )
-from trading.interfaces.runtime.notifications import notify_webhook_best_effort
+from trading.interfaces.runtime.notifications import notify_runtime_event
 from trading.services.auto_trading import EXECUTION_MODE_SLEEVE
 
 REPO_ROOT = get_repo_root(__file__)
@@ -493,7 +493,7 @@ def main() -> int:
             success_payload,
         )
         maybe_send_notification(
-            notifier=notify_webhook_best_effort,
+            notifier=notify_runtime_event,
             webhook_url=args.notify_webhook_url,
             notify_on_success=args.notify_on_success,
             status="ok",
@@ -522,7 +522,7 @@ def main() -> int:
             failure_payload,
         )
         maybe_send_notification(
-            notifier=notify_webhook_best_effort,
+            notifier=notify_runtime_event,
             webhook_url=args.notify_webhook_url,
             notify_on_success=args.notify_on_success,
             status="fail",

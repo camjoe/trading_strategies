@@ -46,9 +46,7 @@ def test_handle_backtest_report_prints_run_id(capsys) -> None:
     }
     deps = {"backtest_report": lambda _conn, _run_id: report}
 
-    handle_backtest_report(
-        object(), types.SimpleNamespace(run_id=42), _parser(), deps=deps, module_file="", db_path=""
-    )
+    handle_backtest_report(object(), types.SimpleNamespace(run_id=42), _parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "42" in out
@@ -81,7 +79,7 @@ def test_handle_backtest_leaderboard_prints_csv_header(capsys) -> None:
     deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: [row]}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
-    handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "run_id" in out
@@ -92,7 +90,7 @@ def test_handle_backtest_leaderboard_prints_no_results_when_empty(capsys) -> Non
     deps = {"backtest_leaderboard_entries": lambda *_a, **_kw: []}
     args = types.SimpleNamespace(limit=10, account=None, strategy=None)
 
-    handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
 
     assert "No backtest runs" in capsys.readouterr().out
 
@@ -106,7 +104,7 @@ def test_handle_backtest_leaderboard_routes_value_error_to_parser_error() -> Non
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_backtest_leaderboard(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_backtest_leaderboard(object(), args, _parser(), deps=deps)
 
 
 def test_handle_backtest_walk_forward_report_prints_window_rows(capsys) -> None:
@@ -141,7 +139,7 @@ def test_handle_backtest_walk_forward_report_prints_window_rows(capsys) -> None:
     deps = {"walk_forward_report": lambda *_a, **_kw: report}
     args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
 
-    handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "Walk-forward Group 7" in out
@@ -156,7 +154,7 @@ def test_handle_backtest_walk_forward_report_routes_value_error_to_parser_error(
     args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
 
     with pytest.raises(SystemExit, match="Walk-forward group 7 not found."):
-        handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_backtest_walk_forward_report(object(), args, _parser(), deps=deps)
 
 
 class _RecordingParser:
@@ -174,7 +172,7 @@ def test_handle_backtest_leaderboard_records_parser_error_without_printing_heade
     }
     args = types.SimpleNamespace(limit=10, account=None, strategy="mystery_strategy")
 
-    handle_backtest_leaderboard(object(), args, parser, deps=deps, module_file="", db_path="")
+    handle_backtest_leaderboard(object(), args, parser, deps=deps)
 
     assert parser.message == "bad leaderboard"
     assert "run_id,run_name" not in capsys.readouterr().out
@@ -187,7 +185,7 @@ def test_handle_backtest_walk_forward_report_records_parser_error_without_printi
     }
     args = types.SimpleNamespace(group_id=7, account=None, strategy=None)
 
-    handle_backtest_walk_forward_report(object(), args, parser, deps=deps, module_file="", db_path="")
+    handle_backtest_walk_forward_report(object(), args, parser, deps=deps)
 
     assert parser.message == "bad report"
     assert "window,range,run_id" not in capsys.readouterr().out
