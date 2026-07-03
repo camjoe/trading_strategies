@@ -57,7 +57,7 @@ def _parser():
 
 
 def test_handle_init_prints_db_path(capsys) -> None:
-    handle_init(None, types.SimpleNamespace(), _parser(), deps={}, module_file="", db_path="/data/paper.db")
+    handle_init(None, types.SimpleNamespace(), _parser(), deps={"db_path": "/data/paper.db"})
     assert "/data/paper.db" in capsys.readouterr().out
 
 
@@ -66,7 +66,7 @@ def test_handle_create_account_calls_create_account_dep() -> None:
     deps = {"create_account": lambda *a, **kw: calls.append((a, kw))}
     args = _config_args(name="alice", strategy="trend", initial_cash=10000.0, benchmark="spy")
 
-    handle_create_account(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_create_account(object(), args, _parser(), deps=deps)
 
     assert len(calls) == 1
     positional, _ = calls[0]
@@ -80,7 +80,7 @@ def test_handle_create_account_routes_invalid_strategy_to_parser_error() -> None
     args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery'"):
-        handle_create_account(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_create_account(object(), args, _parser(), deps=deps)
 
 
 def test_handle_configure_account_calls_configure_account_dep() -> None:
@@ -88,7 +88,7 @@ def test_handle_configure_account_calls_configure_account_dep() -> None:
     deps = {"configure_account": lambda *a, **kw: calls.append(kw)}
     args = _config_args(account="bob")
 
-    handle_configure_account(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_configure_account(object(), args, _parser(), deps=deps)
 
     assert calls[0]["account_name"] == "bob"
 
@@ -98,7 +98,7 @@ def test_handle_configure_account_routes_value_error_to_parser_error() -> None:
     args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)
 
     with pytest.raises(SystemExit):
-        handle_configure_account(object(), args, _parser(), deps={}, module_file="", db_path="")
+        handle_configure_account(object(), args, _parser(), deps={})
 
 
 def test_handle_apply_account_profiles_delegates_load_and_apply() -> None:
@@ -109,7 +109,7 @@ def test_handle_apply_account_profiles_delegates_load_and_apply() -> None:
     }
     args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
 
-    handle_apply_account_profiles(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_apply_account_profiles(object(), args, _parser(), deps=deps)
 
     assert loaded == ["profiles.yaml"]
 
@@ -124,7 +124,7 @@ def test_handle_apply_account_profiles_routes_validation_error_to_parser_error()
     args = types.SimpleNamespace(file="profiles.yaml", no_create_missing=False)
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_apply_account_profiles(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_apply_account_profiles(object(), args, _parser(), deps=deps)
 
 
 def test_handle_apply_account_preset_resolves_preset_path_and_loads(
@@ -145,7 +145,7 @@ def test_handle_apply_account_preset_resolves_preset_path_and_loads(
     }
     args = types.SimpleNamespace(preset="starter", no_create_missing=True)
 
-    handle_apply_account_preset(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_apply_account_preset(object(), args, _parser(), deps=deps)
 
     assert loaded == [str(preset_path)]
 
@@ -170,7 +170,7 @@ def test_handle_apply_account_preset_routes_validation_error_to_parser_error(
     args = types.SimpleNamespace(preset="starter", no_create_missing=True)
 
     with pytest.raises(SystemExit, match="Unknown strategy 'mystery_strategy'"):
-        handle_apply_account_preset(object(), args, _parser(), deps=deps, module_file="", db_path="")
+        handle_apply_account_preset(object(), args, _parser(), deps=deps)
 
 
 def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
@@ -178,7 +178,7 @@ def test_handle_set_benchmark_calls_dep_with_correct_args() -> None:
     deps = {"set_benchmark": lambda _conn, account, benchmark: calls.append((account, benchmark))}
     args = types.SimpleNamespace(account="alice", benchmark="qqq")
 
-    handle_set_benchmark(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_set_benchmark(object(), args, _parser(), deps=deps)
 
     assert calls == [("alice", "qqq")]
 
@@ -187,7 +187,7 @@ def test_handle_list_accounts_prints_lines(capsys) -> None:
     conn = object()
     deps = {"list_accounts": lambda c: ["[1] acct1", "[2] acct2"]}
 
-    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps, module_file="", db_path="")
+    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps)
 
     out = capsys.readouterr().out
     assert "[1] acct1" in out
@@ -198,7 +198,7 @@ def test_handle_list_accounts_prints_empty_message(capsys) -> None:
     conn = object()
     deps = {"list_accounts": lambda c: []}
 
-    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps, module_file="", db_path="")
+    handle_list_accounts(conn, types.SimpleNamespace(), _parser(), deps=deps)
 
     assert "No accounts found." in capsys.readouterr().out
 
@@ -210,7 +210,7 @@ def test_handle_trade_delegates_all_fields_to_record_trade_dep() -> None:
         account="alice", side="buy", ticker="AAPL", qty=10, price=150.0, fee=1.0, time=None, note="test"
     )
 
-    handle_trade(object(), args, _parser(), deps=deps, module_file="", db_path="")
+    handle_trade(object(), args, _parser(), deps=deps)
 
     assert calls[0]["account_name"] == "alice"
     assert calls[0]["ticker"] == "AAPL"
@@ -230,7 +230,7 @@ def test_handle_create_account_records_parser_error_without_printing_success(cap
     deps = {"create_account": lambda *_a, **_kw: (_ for _ in ()).throw(ValueError("bad create"))}
     args = _config_args(name="alice", strategy="mystery", initial_cash=10000.0, benchmark="spy")
 
-    handle_create_account(object(), args, parser, deps=deps, module_file="", db_path="")
+    handle_create_account(object(), args, parser, deps=deps)
 
     assert parser.message == "bad create"
     assert "Created account" not in capsys.readouterr().out
@@ -240,7 +240,7 @@ def test_handle_configure_account_records_parser_error_without_printing_success(
     parser = _RecordingParser()
     args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)
 
-    handle_configure_account(object(), args, parser, deps={}, module_file="", db_path="")
+    handle_configure_account(object(), args, parser, deps={})
 
     assert parser.message == "Use only one of --learning-enabled or --learning-disabled"
     assert "Updated account configuration" not in capsys.readouterr().out
@@ -258,8 +258,6 @@ def test_handle_apply_account_profiles_records_parser_error_without_printing_sum
         types.SimpleNamespace(file="profiles.yaml", no_create_missing=False),
         parser,
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert parser.message == "bad profiles"
@@ -288,8 +286,6 @@ def test_handle_apply_account_preset_records_parser_error_without_printing_summa
         types.SimpleNamespace(preset="starter", no_create_missing=True),
         parser,
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert parser.message == "bad preset"

@@ -31,8 +31,6 @@ def test_handle_report_calls_account_report_dep() -> None:
         types.SimpleNamespace(account="alice"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == ["alice"]
@@ -47,8 +45,6 @@ def test_handle_snapshot_calls_snapshot_account_dep() -> None:
         types.SimpleNamespace(account="alice", time="2026-03-01T00:00:00"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", "2026-03-01T00:00:00")]
@@ -63,8 +59,6 @@ def test_handle_promotion_status_calls_show_promotion_status_dep() -> None:
         types.SimpleNamespace(account="alice", strategy="trend_v1"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", "trend_v1")]
@@ -93,8 +87,6 @@ def test_handle_promotion_request_review_calls_request_dep() -> None:
         ),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [
@@ -120,8 +112,6 @@ def test_handle_promotion_review_history_calls_history_dep() -> None:
         types.SimpleNamespace(account="alice", strategy="trend_v1", limit=5),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", "trend_v1", 5)]
@@ -140,8 +130,6 @@ def test_handle_promotion_review_action_calls_action_dep() -> None:
         types.SimpleNamespace(review_id=7, action="approve", actor="cam", note="ship it"),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [{"review_id": 7, "action": "approve", "actor_name": "cam", "note": "ship it"}]
@@ -156,8 +144,6 @@ def test_handle_snapshot_history_calls_show_snapshots_dep() -> None:
         types.SimpleNamespace(account="alice", limit=10),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [("alice", 10)]
@@ -172,8 +158,6 @@ def test_handle_compare_strategies_calls_compare_dep() -> None:
         types.SimpleNamespace(lookback=30),
         _parser(),
         deps=deps,
-        module_file="",
-        db_path="",
     )
 
     assert calls == [30]

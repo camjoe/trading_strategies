@@ -7,7 +7,7 @@ def _format_metric(value: float | None, *, suffix: str = "") -> str:
     return "n/a" if value is None else f"{value:.2f}{suffix}"
 
 
-def handle_backtest(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
     try:
         result = deps["run_backtest"](
             conn,
@@ -58,7 +58,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any], module_file: st
             print(f"- {warning}")
 
 
-def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any]) -> None:
     report = deps["backtest_report"](conn, args.run_id)
     print(
         f"Backtest Run {report['run_id']} ({report['run_name'] or 'unnamed'}) | "
@@ -92,7 +92,7 @@ def handle_backtest_report(conn, args, parser, *, deps: dict[str, Any], module_f
         print(f"Safeguards / notes: {report['warnings']}")
 
 
-def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any]) -> None:
     try:
         rows = deps["backtest_leaderboard_entries"](
             conn,
@@ -136,7 +136,7 @@ def handle_backtest_leaderboard(conn, args, parser, *, deps: dict[str, Any], mod
         )
 
 
-def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any]) -> None:
     account_names = [name.strip() for name in args.accounts.split(",") if name.strip()]
     try:
         results = deps["run_backtest_batch"](
@@ -167,7 +167,7 @@ def handle_backtest_batch(conn, args, parser, *, deps: dict[str, Any], module_fi
         )
 
 
-def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any], module_file: str, db_path: str) -> None:
+def handle_backtest_walk_forward(conn, args, parser, *, deps: dict[str, Any]) -> None:
     try:
         summary = deps["run_walk_forward_backtest"](
             conn,
@@ -210,8 +210,6 @@ def handle_backtest_walk_forward_report(
     parser,
     *,
     deps: dict[str, Any],
-    module_file: str,
-    db_path: str,
 ) -> None:
     try:
         report = deps["walk_forward_report"](

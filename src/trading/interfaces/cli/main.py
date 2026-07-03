@@ -32,6 +32,7 @@ def _handler_deps() -> dict[str, object]:
     # reporting flows that read live prices/benchmarks (no global locator access).
     provider = build_provider()
     return {
+        "db_path": get_db_path(),
         "record_trade": record_trade,
         "configure_account": configure_account,
         "create_account": create_account,
@@ -64,14 +65,7 @@ def main() -> None:
     args = parser.parse_args()
 
     with db_session() as conn:
-        dispatch_command(
-            conn,
-            args,
-            parser,
-            deps=_handler_deps(),
-            module_file=__file__,
-            db_path=get_db_path(),
-        )
+        dispatch_command(conn, args, parser, deps=_handler_deps())
 
 
 if __name__ == "__main__":

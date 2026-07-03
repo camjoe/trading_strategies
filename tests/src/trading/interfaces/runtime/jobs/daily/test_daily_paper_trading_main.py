@@ -59,7 +59,7 @@ def _runtime_harness(monkeypatch):
     )
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", _stream)
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
+        f"{DAILY_PAPER_TRADING_MODULE}.notify_runtime_event",
         lambda **kwargs: state.notifications.append(kwargs) or True,
     )
     return state

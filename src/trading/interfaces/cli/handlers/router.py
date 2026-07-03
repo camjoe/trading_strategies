@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from trading.interfaces.cli.handlers.accounts_handlers import (
@@ -65,12 +64,10 @@ def dispatch_command(
     parser,
     *,
     deps: dict[str, Any],
-    module_file: str,
-    db_path: str | Path,
 ) -> None:
     command_handler = COMMAND_HANDLERS.get(args.command)
     if command_handler is None:
         parser.error(f"Unsupported command: {args.command}")
         return
 
-    command_handler(conn, args, parser, deps=deps, module_file=module_file, db_path=db_path)
+    command_handler(conn, args, parser, deps=deps)
