@@ -42,11 +42,12 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 ## Task surfaces
 
-This repository uses two task surfaces:
+Skills are the repository's single task surface. (Repo-specific `.agent.md` personas were retired
+2026-07-02 — their unique safety content moved into skills and `docs/architecture/architecture-conventions.md`.)
 
-### 1. Skills
+### Skills
 
-Use a skill by default when the task is generic enough to be reusable.
+Use a skill whenever the task matches one.
 
 **Skills layout:** Canonical definitions live in folder-based files (`.ai/skills/<skill-name>/SKILL.md`). Reference files (mode-specific or domain-specific detail) live as flat `.md` files inside the same skill folder and are loaded on demand.
 
@@ -67,29 +68,9 @@ Current skill inventory:
 | `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
-### 2. Repo-specific agents
-
-Use an agent only when a skill is not enough and repo-specific execution value matters.
-
-Current agent inventory:
-
-| Agent | Why it still exists |
-|---|---|
-| `backtesting-analyst.agent.md` | Repo-specific backtesting and walk-forward flows tied to project paths, reports, and UI surfaces |
-| `broker-live-safety.agent.md` | Repo-specific broker safety constraints and live-trading guardrails |
-| `db-migration-steward.agent.md` | Repo-specific SQLite migration safety and backup hygiene |
-| `trading-runtime.agent.md` | Repo-specific runtime jobs, scheduler flows, and operator-facing runtime behavior |
-
-Keep an agent only if it adds one or more of:
-
-- exact repo paths or command entrypoints
-- project-only safety rules
-- domain or workflow constraints too specific for a reusable skill
-- operator workflow integration
-
 ## Routing guide
 
-Default to the most specific matching skill. Escalate to a repo-specific agent only when repo-specific execution detail is materially important.
+Default to the most specific matching skill; work without one when nothing matches.
 
 | Task shape | Preferred surface |
 |---|---|
@@ -111,27 +92,22 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Add or scaffold a new runtime job | `create-runtime-job/` |
 | Create a new skill | `create-skill/` |
 | Update or improve a skill | `update-skill/` |
-| Discover available skills, agents, and prompts | `help/` |
-| Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
-| Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
-| Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |
-| Schema migration safety | `db-migration-steward.agent.md` |
-
-Overlap rules:
-
-1. If a skill and an agent overlap, use the skill unless the agent adds repo-specific execution value.
-2. `backtesting-analyst.agent.md` remains useful for repo-specific evaluation, reporting, and walk-forward flows.
+| Discover available skills and prompts | `help/` |
+| Schema migration work or safety review | `db-migration/` |
+| Broker adapters or live-trading safety review | `code-review/` (Aggressive mode) + the Live Trading Safety Guard in `docs/architecture/architecture-conventions.md` |
+| Runtime job / scheduler work | `create-runtime-job/` for new jobs; `docs/reference/runtime-jobs.md` + `docs/runbooks/` for operating existing ones |
+| Backtest methodology, walk-forward, evaluation honesty | `finance-strategy/` (Evaluation honesty) + `docs/reference/backtesting.md` |
 
 ## Shortcut workflows
 
 These phrases are repo conventions for common tasks.
 
-### `select bot:`
+### `select skill:` (alias: `select bot:`)
 
 - Treat this as a routing request before normal execution.
-- Parse the text after `select bot:` as the task description.
+- Parse the text after the prefix as the task description.
 - Return:
-  1. recommended skill or agent name
+  1. recommended skill name (or "no skill — plain session")
   2. one-sentence reason
   3. whether to proceed with that surface now
 - If no task text is provided, ask a short follow-up question.
@@ -268,47 +244,13 @@ python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
 
 ---
 
-## Agent shortcuts
+## Retired agent shortcuts
 
-These phrases launch a **repo-specific agent** in a separate context window. Use them when you want to delegate a full task rather than ask in the current conversation. Each agent has exact repo paths, safety constraints, and permitted commands baked in.
+The repo-specific agents (and their `migrate:` / `broker:` / `runtime:` / `backtest:` shortcut
+prefixes) were retired 2026-07-02. If a user types one of those prefixes, handle it in the current
+session using the routing-guide destination for that task shape:
 
-### `migrate:` — DB Migration Steward
-
-Validates schema changes and migration safety. Use for any `ColumnMigration` addition, column guard check, nullability change, or destructive data-op review.
-
-- `migrate: add column <name> to <table>` — validate a proposed migration
-- `migrate: review` — audit recent or uncommitted migration changes
-- `migrate: backup check` — verify backup hygiene before a destructive op
-
-Agent: `.ai/agents/db-migration-steward.agent.md`
-Skills: `.ai/skills/db-migration/` (create, validate, estimate-risk, generate-rollback)
-
-### `broker:` — Broker Live Safety Steward
-
-Works on broker adapters, factory routing, and live-trading safety guards. Use when touching `src/infrastructure/brokers/`, `broker_type` routing, or any live-trading config flow.
-
-- `broker: <description>` — implement or review broker adapter work
-- `broker review` — review broker-facing changes in the current diff
-- `broker: add <adapter>` — implement a new broker adapter safely
-
-Agent: `.ai/agents/broker-live-safety.agent.md`
-
-### `runtime:` — Trading Runtime Investigator
-
-Works on paper-trading runtime jobs, scheduler flows, account lifecycle, and operational debugging. Use when touching `src/trading/interfaces/runtime/` or runtime CLI commands.
-
-- `runtime: <description>` — implement or debug a runtime job or scheduler flow
-- `runtime review` — review runtime-facing changes in the current diff
-- `runtime: debug <job or symptom>` — investigate a runtime failure or unexpected behavior
-
-Agent: `.ai/agents/trading-runtime.agent.md`
-
-### `backtest:` — Backtesting Analyst
-
-Implements and interprets backtesting, walk-forward analysis, persisted run reporting, and leaderboard comparisons. Use when touching `src/trading/backtesting/` or backtest-related UI surfaces.
-
-- `backtest: <description>` — implement or extend a backtesting workflow
-- `backtest review` — review backtesting changes in the current diff
-- `backtest: explain <metric or result>` — interpret a backtest result or leaderboard output
-
-Agent: `.ai/agents/backtesting-analyst.agent.md`
+- `migrate: <task>` → the `db-migration/` skill (all four sub-tasks in order for a full change)
+- `broker: <task>` → do the work under the Live Trading Safety Guard rules; review with `code-review/` (Aggressive)
+- `runtime: <task>` → `create-runtime-job/` for new jobs; runtime docs/runbooks for operations
+- `backtest: <task>` → `finance-strategy/` evaluation-honesty rules + `docs/reference/backtesting.md`

@@ -43,7 +43,6 @@ Files in `adr/` use a **three-digit sequential prefix**: `NNN-title.md`.
 
 Some suffixes carry information tooling reads — keep these:
 
-- `*.agent.md` — marks an agent definition (e.g. `backtesting-analyst.agent.md`).
 - `TEMPLATE.*.md` — blank starter files (e.g. `TEMPLATE.adr.md`, `TEMPLATE.notes.md`).
 
 ## Quick test

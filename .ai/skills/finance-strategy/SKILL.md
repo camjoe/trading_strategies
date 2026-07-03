@@ -21,6 +21,17 @@ Use this skill for domain explanation, not for personalized investing advice.
 - Do not give personalized investment advice.
 - Do not treat concept explanation as a substitute for a full modeling pipeline.
 
+## Evaluation honesty (applies to any backtest/evaluation work this skill informs)
+
+- Never use random splits for temporally ordered data — evaluation must be chronological
+  (walk-forward / out-of-sample); flag any non-chronological split as a defect.
+- Flag look-ahead bias: signals may only use data available at signal time (this repo's backtest
+  evaluates on prior-day history and executes on the next bar — preserve that property).
+- Do not make up performance characteristics or dataset properties; benchmark handling must be
+  consistent across compared runs.
+- Keep evaluation policy out of UI routes and transport layers; extract finance-specific numbers
+  to named constants per `docs/architecture/architecture-conventions.md`.
+
 ## Repo references
 
 - `src/trading/domain/`

@@ -20,7 +20,6 @@ This repository provides tools for:
 | `src/infrastructure/` | Concrete adapters isolated from the domain: brokers, market-data, feature providers, database. |
 | `src/common/` | Shared kernel utilities used across packages (coercion, constants, paths, tickers, time). |
 | `apps/paper_trading_web/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `.ai/agents/` | Repo-specific agent definitions for project-only execution flows. |
 | `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |

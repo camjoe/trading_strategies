@@ -4,7 +4,6 @@ The canonical source of truth for this repository's guidance is **[`AGENTS.md`](
 
 Quick map:
 - **Skills** — `.ai/skills/` (each `<skill>/SKILL.md`)
-- **Agents** — `.ai/agents/` (`*.agent.md`)
 - **Documentation** — `docs/` (index: [`docs/README.md`](../docs/README.md))
 - **Architecture & conventions** — `docs/architecture/architecture-conventions.md`, `docs/conventions/`
 

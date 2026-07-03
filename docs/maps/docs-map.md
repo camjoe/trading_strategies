@@ -24,7 +24,7 @@ Directory of all documentation files across the repository. Use this to audit fo
 | `docs/` | Architecture docs, runbooks, reference notes, ADRs, conventions |
 | `src/common/` | Shared utilities available to all packages (used sparingly) |
 | `apps/trends/` | Trend/signal data assets |
-| `.ai/` | Agent definitions (`agents/`) and skill definitions (`skills/`) — the canonical agent-guidance surfaces |
+| `.ai/` | Skill definitions (`skills/`) — the repo's reusable task surface |
 | `.github/` | Copilot-specific supplemental instructions (redirects to `AGENTS.md`) and CI workflows |
 
 ---
@@ -166,15 +166,6 @@ Canonical rules loaded by Claude and other agents (`AGENTS.md` is the source of 
 |---|---|---|
 | `docs/architecture/architecture-conventions.md` | Layering rules, dependency direction, import boundaries, package ownership | Any architectural boundary decision changes |
 
-### Agents
-
-| File | Agent scope | Goes stale when |
-|---|---|---|
-| `.ai/agents/backtesting-analyst.agent.md` | Backtesting analysis and reporting tasks | Backtesting API or workflow changes |
-| `.ai/agents/broker-live-safety.agent.md` | Live-trading safety guardrails | Broker integration or live-trading safeguards change |
-| `.ai/agents/db-migration-steward.agent.md` | DB migration authoring and review | Migration system conventions change |
-| `.ai/agents/trading-runtime.agent.md` | Daily runtime job monitoring and intervention | Runtime job structure or job names change |
-
 ### Skills
 
 Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus zero or more sub-documents. The sub-documents refine or extend the skill; they go stale when the workflow they describe changes.
@@ -185,10 +176,10 @@ Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus ze
 | `code-review/` | Code review at multiple thoroughness levels; sub-docs cover architecture, quality, style, UI/API contract |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner |
 | `create-skill/` | Skill authoring workflow |
-| `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback); restricted to the DB Migration Steward agent |
+| `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback) |
 | `expand-tests/` | Test expansion workflow |
 | `finance-strategy/` | Finance and strategy domain knowledge |
-| `help/` | Interactive skill/agent discovery |
+| `help/` | Interactive skill discovery |
 | `reference-doc/` | Reference-doc creation workflow |
 | `update-documentation/` | Documentation update workflow; sub-doc covers docs-sync (staleness detection lives in CI) |
 | `update-skill/` | Skill update workflow |

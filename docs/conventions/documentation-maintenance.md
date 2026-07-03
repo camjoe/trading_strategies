@@ -24,7 +24,7 @@ The folder/file shuffle is the easy, low-value part of keeping docs healthy. The
 Tracked backlog of doc-tooling work that applies the principles above. Each is self-contained; none is started.
 
 - **In-app docs seam audit** (principle 3). The in-app doc assets (`api.json`, `software.json`, `finance.json`) are generated from `scripts/documentation_ui/` sources via `sync.py`. Periodically verify the generated JSON is never hand-edited (e.g. a check that regenerating produces no diff), so the seam stays genuinely derived.
-- **Skills/agents drift-check + generated `help/` catalog** (principle 2). Add a `maps_check` sibling that validates `AGENTS.md` routing against the actual `.ai/skills/` + `.ai/agents/` so routing can't silently lie, and generate a `help/` catalog from each skill/agent's `when-to-use` frontmatter (one source feeding help catalog + routing). Push (auto-trigger / routing) beats pull (remembering to run `help`).
+- **Skills drift-check + generated `help/` catalog** (principle 2). Add a `maps_check` sibling that validates the `AGENTS.md` skill inventory/routing against the actual `.ai/skills/` folders so routing can't silently lie, and generate the `help/` catalog from each skill's `description` frontmatter (one source feeding help catalog + routing). Push (auto-trigger / routing) beats pull (remembering to run `help`).
 - **Doc-header lint** (principles 2 and 4). Add an advisory check (sibling of `link_check`) that
   verifies every `docs/` file carries the six header fields with valid `Type`/`Status` vocabulary
   per [docs-authoring.md](docs-authoring.md) — catches the missing-`Last Reviewed` class of drift

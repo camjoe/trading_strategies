@@ -4,13 +4,12 @@ This folder is the repo's primary reusable task surface.
 
 ## Purpose
 
-Define how this repository uses reusable skills vs repo-specific agents, and provide guardrails for maintaining both.
+Define how this repository uses reusable skills, and provide guardrails for maintaining them.
 
 ## Usage
 
 1. Choose the closest matching skill folder and follow its `SKILL.md`.
-2. Use a repo-specific agent only when the work depends on repo-only execution behavior.
-3. To add or improve a skill, see the authoring rules below.
+2. To add or improve a skill, see the authoring rules below.
 
 ## Active layout
 
@@ -72,19 +71,6 @@ Retired from the active set:
 - flat `.skill.md` shims (removed — not needed by Copilot CLI)
 - `templates/` (removed — blank placeholders, not referenced by any workflow)
 
-## Remaining repo-specific agents
-
-These agents still exist because they encode repo-specific execution behavior that the skills should not absorb:
-
-| Agent | Repo-specific value |
-|---|---|
-| `backtesting-analyst.agent.md` | Exact backtesting, reporting, and UI flows |
-| `broker-live-safety.agent.md` | Live-trading safety rules |
-| `db-migration-steward.agent.md` | SQLite migration and backup rules |
-| `trading-runtime.agent.md` | Runtime job and operator flows |
-
-Repo-specific agents live in `.ai/agents/`.
-
 ## Authoring rules
 
 ### Reusability and structure
@@ -100,7 +86,7 @@ Skills should not:
 
 1. assume this repo's layout is universal
 2. present repo-specific commands as if they exist everywhere
-3. absorb project-only safety rules that belong in `AGENTS.md` or a repo-specific agent
+3. absorb project-only safety rules that belong in `AGENTS.md` or `docs/architecture/architecture-conventions.md`
 
 ### Content philosophy
 
@@ -115,9 +101,10 @@ When writing a skill:
 4. **Test with real usage.** A skill's description decides whether it triggers — write it from the
    user's task vocabulary, not the skill's internals, and iterate on real invocations.
 
-## When to add a new skill vs agent
+## When to add a new skill
 
-Add a new skill when the capability should be reusable outside this repo with only light localization.
-
-Add a new agent only when the task depends on repo-specific execution behavior that would make the skill less reusable or more confusing.
+Add a new skill when the capability should be reusable outside this repo with only light
+localization. Repo-only safety rules and routing belong in `AGENTS.md` /
+`docs/architecture/architecture-conventions.md`, not inside a skill. (The former agent-persona
+surface was retired 2026-07-02 — do not reintroduce it without a fresh decision.)
 

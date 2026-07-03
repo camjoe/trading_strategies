@@ -30,7 +30,7 @@ A `ColumnMigration` entry ready to append to the migrations tuple in `src/infras
 
 - `NOT NULL` without `DEFAULT` is a blocker — SQLite will reject it on existing tables.
 - `post_sql` that runs `UPDATE` or `DELETE` on existing rows requires human review before applying.
-- Do not use `DROP COLUMN` or `RENAME COLUMN` — these are destructive; use a separate steward review.
+- Do not use `DROP COLUMN` or `RENAME COLUMN` — these are destructive and need an explicit human decision plus a verified backup.
 
 ## Output
 

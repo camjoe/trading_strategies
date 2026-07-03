@@ -82,7 +82,7 @@ Disallowed:
 8. `src/infrastructure/database/`: DB infrastructure/config/coercion only
    - Schema init/evolution, backend selection, path/config, and coercion helpers.
    - Migration system reference: `docs/reference/db-migration-system.md`
-   - For migration reviews and schema-change validation, use the `db-migration-steward` agent (`.ai/agents/db-migration-steward.agent.md`).
+   - For migration reviews and schema-change validation, use the `db-migration` skill (`.ai/skills/db-migration/`).
 
 9. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
