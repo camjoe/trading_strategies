@@ -14,7 +14,7 @@ from trading.domain.accounting import compute_account_state
 import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.domain.rotation import resolve_active_strategy
-from trading.models import AccountRecord
+from trading.models import AccountRecord, AccountState
 from trading.services.accounting import list_account_trades
 from trading.services.operational_settings import enforce_runtime_trade_throttles
 
@@ -105,7 +105,7 @@ def _current_position_value(
 def refresh_account_state(
     conn: sqlite3.Connection,
     account: AccountRecord,
-):
+) -> AccountState:
     return compute_account_state(
         row_float(account, "initial_cash") or 0.0,
         list_account_trades(conn, row_expect_int(account, "id")),

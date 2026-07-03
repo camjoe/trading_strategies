@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from apps.trends.charts import plot_trends
 from apps.trends.cli import parse_args
 from apps.trends.data import fetch_data

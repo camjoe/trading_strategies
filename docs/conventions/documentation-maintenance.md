@@ -25,8 +25,6 @@ Tracked backlog of doc-tooling work that applies the principles above.
 
 - **Scripts discoverability** (principles 1–2). Enrich [`docs/maps/scripts-map.md`](../maps/scripts-map.md) with per-script usage + safety notes, and cross-link operational scripts to the skills and runbooks that drive them (e.g. UI screenshot tooling ↔ a UI-verify skill; auto-trading runners ↔ the runtime runbooks).
 
-Implemented (2026-07-02) — the enforcement now exists; listed here so the backlog history is legible:
-
-- **Doc-header lint** → `python -m scripts.checks.doc_header_check` (required fields + Type/Status vocabulary; advisory, in the CI profile).
-- **Skills drift-check** → `python -m scripts.checks.skills_check` (AGENTS.md inventory ↔ `.ai/skills/` both directions + SKILL.md frontmatter completeness; advisory, in the CI profile). The "generated help catalog" half was resolved differently: the `help/` skill enumerates skills from disk at runtime.
-- **In-app docs seam audit** → already existed as `python -m scripts.documentation_ui.check`; now runs **by default** in the CI profile (`--skip-reference-doc-checks` opts out).
+Implemented enforcement lives in `scripts/checks/`, `scripts/documentation_ui/check.py`, and the
+`docs-enforcement` job in `.github/workflows/quality-gates.yml`; see
+[`scripts-map.md`](../maps/scripts-map.md) for the current inventory.

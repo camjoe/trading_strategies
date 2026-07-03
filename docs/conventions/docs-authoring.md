@@ -9,7 +9,7 @@ Related: [README Layout Standard](readme-layout.md), [File Naming Convention](na
 
 ## Header Format
 
-Every file under `docs/` gets this block immediately after the H1 title:
+Every non-template file under `docs/` gets this metadata block immediately after the H1 title:
 
 ```markdown
 # Title
@@ -22,55 +22,9 @@ Purpose: One sentence describing what this doc is for.
 Related: [Name](relative/path.md), [Name](relative/path.md)
 ```
 
-Example:
-
-```markdown
-# Daily Operations Runbook
-
-Type: runbook
-Status: Active
-Created: 2026-03-15
-Last Reviewed: 2026-06-16
-Purpose: Procedures for monitoring and recovering the daily IBKR Paper Autonomy workflow.
-Related: [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
-```
-
----
-
-## Type Vocabulary
-
-| Type | Used for |
-|---|---|
-| `index` | Navigation/index files (`README.md`, `runbooks/README.md`) |
-| `map` | File/directory inventory maps |
-| `architecture` | Layer design, service boundaries, task-to-file lookup |
-| `runbook` | Step-by-step operational procedures |
-| `notes` | Living reference — subsystem deep-dives, schema audits |
-| `adr` | Architecture Decision Records |
-| `convention` | Coding or doc standards (style, naming, headers) |
-| `template` | Blank starter files |
-| `policy` | Access control, invocation rules |
-| `overview` | The top-level app explainer (entry point) |
-| `plan` | Task/priority trackers and living plans |
-| `spec` | Target-state design specs (e.g. schema targets) |
-| `implementation` | Per-initiative work orders in `docs/implementation/` |
-
----
-
-## Status Vocabulary
-
-| Status | Meaning |
-|---|---|
-| `Active` | Current and accurate |
-| `Draft` | Being written, not yet authoritative |
-| `Ready` | Work order ready to execute (implementation guides) |
-| `Complete` | Finished work retained for the record |
-| `Proposed` | ADR under discussion |
-| `Accepted` | ADR decision finalized |
-| `Superseded` | Replaced by another doc — link the replacement in `Related` |
-
-The status is the leading token; a parenthetical or dash suffix may add context (e.g.
-`Ready (multi-commit)`, `Complete (foundation phase)`).
+Allowed `Type` and `Status` values live in `scripts/checks/doc_header_check.py`; the CI profile
+enforces them. A status may include a parenthetical or dash suffix after a valid leading token
+(for example, `Ready (multi-commit)`).
 
 ---
 
@@ -92,7 +46,9 @@ The status is the leading token; a parenthetical or dash suffix may add context 
 
 ## Templates
 
-`TEMPLATE.adr.md` and `TEMPLATE.notes.md` use placeholder values. When creating a new file from a template, fill in all six fields before writing any content.
+`TEMPLATE.adr.md` and `TEMPLATE.notes.md` use placeholder values and are skipped by the header
+checker. When creating a new file from a template, fill in the metadata block before writing body
+content.
 
 ---
 
@@ -117,13 +73,6 @@ ADR (set `Status: Superseded` on the old one and link the replacement in `Relate
 2. `## Decision` — what was decided and how it works
 3. `## Consequences` — trade-offs, constraints imposed, follow-up work
 
-**Authoring checklist** (new or updated reference doc / ADR):
-
-1. ✅ File name follows [naming.md](naming.md) (plain kebab-case in `reference/`; `NNN-<topic>.md` in `adr/`)
-2. ✅ Header block complete (six fields above); `Last Reviewed` updated on substantive changes
-3. ✅ Linked from `docs/README.md` (and `docs/maps/docs-map.md`) if it's a new file
-4. ✅ For a new ADR: linked from any affected architecture doc
-
 Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy
 `docs/reference/TEMPLATE.notes.md` / `docs/adr/TEMPLATE.adr.md`.
 
@@ -131,9 +80,7 @@ Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy
 
 ## Scope
 
-All files under `docs/` follow this standard, with no exceptions (`TEMPLATE.*.md` files hold
-placeholder values and are skipped by tooling).
+All files under `docs/` follow this standard, with `TEMPLATE.*.md` as placeholder-only templates.
 
-**Enforcement:** `python -m scripts.checks.doc_header_check` verifies the required fields and
-Type/Status vocabulary across `docs/` (advisory; runs in the CI profile). Keep this file's
-vocabulary tables and the check's vocabulary in sync when adding a type or status.
+**Enforcement:** `python -m scripts.checks.doc_header_check --enforce` verifies the required fields
+and Type/Status vocabulary across `docs/` in the CI profile.

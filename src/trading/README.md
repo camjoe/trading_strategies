@@ -209,4 +209,5 @@ CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 - SQL access is owned by repository modules under `src/trading/repositories/`.
 - Orchestration and composition are owned by service modules under `src/trading/services/`.
 - Policy logic is owned by domain modules under `src/trading/domain/`.
-- **External-data feature providers** live in `src/infrastructure/feature_providers/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `src/trading/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.
+- Concrete broker, market-data, and external-data adapters live in `src/infrastructure/`; import
+  ownership is enforced by `scripts/checks/layer_check.py`.

@@ -1,5 +1,7 @@
 """Financial and technical indicator constants shared across modules."""
 
+from __future__ import annotations
+
 # ---------------------------------------------------------------------------
 # Settlement
 # ---------------------------------------------------------------------------

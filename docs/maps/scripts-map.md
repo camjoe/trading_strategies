@@ -43,7 +43,10 @@ Individual check modules. Each is also usable directly.
 | `quick.py` | Quick profile: README consistency + layer check + ruff + mypy + pytest |
 | `ci.py` | CI profile: the quick gates plus doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend |
 | `ruff_check.py` | Ruff linting runner |
-| `layer_check.py` | Import boundary enforcement — verifies layering rules (services → no database imports, etc.) |
+| `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
+| `path_safety_check.py` | Cross-platform path safety checker — flags clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards |
+| `python_conventions_check.py` | Python convention checker — verifies future annotations and public function return annotations in production/tooling modules |
+| `secret_hygiene_check.py` | Secret hygiene checker — flags committed literal credentials in source/config files |
 | `mypy_check.py` | Mypy type-check runner (`src/trading/` + `apps/paper_trading_web/backend/`) |
 | `pytest_check.py` | Pytest runner (full suite) |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |
@@ -52,8 +55,10 @@ Individual check modules. Each is also usable directly.
 | `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
 | `module_ref_check.py` | Doc `-m` module-reference checker — flags `python -m <module>` invocations in docs whose first-party module does not resolve; advisory |
 | `db_schema_check.py` | DB schema drift checker — verifies db-schema.md's Quick Reference covers every live table; advisory |
-| `doc_header_check.py` | Doc header checker — required fields + Type/Status vocabulary across `docs/` per docs-authoring.md; advisory |
-| `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; advisory |
+| `doc_header_check.py` | Doc header checker — required fields + Type/Status vocabulary across `docs/` per docs-authoring.md; enforced in CI profile |
+| `doc_naming_check.py` | Doc filename checker — kebab-case docs names + sequential ADR numbering per naming.md; enforced in CI profile |
+| `live_safety_check.py` | Live-trading safety checker — blocks automated `live_trading_enabled = 1` code paths |
+| `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; enforced in CI profile |
 | `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
 | `shared.py` | Shared utilities for check modules (result types, formatting) |
 
