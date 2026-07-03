@@ -112,6 +112,16 @@ def refresh_account_state(
     )
 
 
+def resolve_strategy_params(account: AccountRecord, strategy_name: str) -> dict[str, object]:
+    """Resolve the effective signal params for an account's active strategy.
+
+    Single seam for param resolution: today this is the registry's ``default_params``;
+    the P3 schema rewrite extends it to account/strategy-row knobs without touching callers.
+    """
+    del account  # account-level knobs arrive with the P3 schema rewrite
+    return dict(resolve_strategy(strategy_name).default_params)
+
+
 def _resolve_strategy_style(strategy_name: str | None) -> str | None:
     """Resolve a strategy name to its style for side-selection bias."""
     if not strategy_name:

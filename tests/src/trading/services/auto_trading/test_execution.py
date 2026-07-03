@@ -6,6 +6,23 @@ import trading.services.auto_trading.execution as trade_execution_service
 from tests.src.trading.services.auto_trading.factories import make_auto_trading_account
 
 
+def test_resolve_strategy_params_returns_registry_defaults() -> None:
+    account = make_auto_trading_account()
+
+    params = trade_execution_service.resolve_strategy_params(account, "trend")
+
+    assert params == {"fast_window": 10, "slow_window": 20}
+
+
+def test_resolve_strategy_params_returns_a_copy() -> None:
+    account = make_auto_trading_account()
+
+    params = trade_execution_service.resolve_strategy_params(account, "trend")
+    params["fast_window"] = 1
+
+    assert trade_execution_service.resolve_strategy_params(account, "trend")["fast_window"] == 10
+
+
 def test_build_leaps_candidates_filters() -> None:
     account = make_auto_trading_account()
     prices = {"A": 100.0, "B": 200.0}
