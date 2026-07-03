@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+import pandas as pd
+
 import trading.services.sleeves.execution as sleeve_execution
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
@@ -74,6 +76,43 @@ def test_generate_sleeve_trade_intents_uses_active_sleeves_and_assignments(conn,
     strategies_by_sleeve = {intent.sleeve_id: intent.strategy_name for intent in intents}
     assert strategies_by_sleeve[sleeve_assigned] == "mean_reversion"
     assert strategies_by_sleeve[sleeve_default] == "Trend"
+
+
+def test_generate_sleeve_trade_intents_are_signal_driven(conn) -> None:
+    account_name = "acct_sleeve_signal"
+    account_id = insert_repository_account(conn, name=account_name)
+    _insert_sleeve(conn, account_id=account_id, name="signal")
+    account = get_account(conn, account_name)
+
+    rising = pd.Series([float(i) for i in range(1, 41)])
+    flat = pd.Series([100.0] * 40)
+
+    buy_intents = sleeve_execution.generate_sleeve_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL"],
+        prices={"AAPL": 10.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=2,
+        fee=0.0,
+        histories={"AAPL": rising},
+    )
+    assert [(intent.side, intent.symbol) for intent in buy_intents] == [("buy", "AAPL")]
+
+    # No forced minimum: a flat (hold) history yields zero intents.
+    hold_intents = sleeve_execution.generate_sleeve_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL"],
+        prices={"AAPL": 10.0},
+        iv_rank_proxy={},
+        min_trades=1,
+        max_trades=2,
+        fee=0.0,
+        histories={"AAPL": flat},
+    )
+    assert hold_intents == []
 
 
 def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch) -> None:

@@ -560,6 +560,73 @@ def test_run_for_account_breaks_when_submission_window_closes_mid_loop(monkeypat
     record_trade.assert_not_called()
 
 
+def test_run_for_account_caps_trades_at_max_and_ignores_min_floor(monkeypatch) -> None:
+    account = make_auto_trading_account(id=5, risk_policy="none", instrument_mode="equity")
+    rising = _rising_history()
+    monkeypatch.setattr(
+        trade_execution_service,
+        "refresh_account_state",
+        lambda _conn, _account: SimpleNamespace(positions={}, avg_cost={}, cash=1000.0),
+    )
+    monkeypatch.setattr(trade_execution_service, "enforce_runtime_trade_throttles", lambda *_a, **_k: None)
+    record_trade = Mock()
+
+    executed = trade_execution_service.run_for_account(
+        conn=object(),
+        account_name="acct",
+        universe=["A", "B", "C"],
+        prices={"A": 10.0, "B": 10.0, "C": 10.0},
+        iv_rank_proxy={},
+        min_trades=3,
+        max_trades=2,
+        fee=0.0,
+        histories={"A": rising, "B": rising, "C": rising},
+        get_account_fn=lambda _conn, _name: account,
+        utc_now_iso_fn=lambda: "2026-03-14T14:00:00Z",
+        rotate_account_if_due_fn=lambda _conn, _name, acc, _now: acc,
+        record_prepared_trade_fn=record_trade,
+        is_submission_window_open_fn=lambda _now: True,
+    )
+
+    # Three tickers signal buy, but the max cap bounds the run at 2 trades.
+    assert executed == 2
+    assert record_trade.call_count == 2
+    for call in record_trade.call_args_list:
+        assert call.args[8][0] == "buy"
+
+
+def test_run_for_account_executes_nothing_when_no_signals(monkeypatch) -> None:
+    account = make_auto_trading_account(id=6, risk_policy="none", instrument_mode="equity")
+    flat = trade_execution_service.pd.Series([100.0] * 40)
+    monkeypatch.setattr(
+        trade_execution_service,
+        "refresh_account_state",
+        lambda _conn, _account: SimpleNamespace(positions={}, avg_cost={}, cash=1000.0),
+    )
+    record_trade = Mock()
+
+    executed = trade_execution_service.run_for_account(
+        conn=object(),
+        account_name="acct",
+        universe=["A"],
+        prices={"A": 100.0},
+        iv_rank_proxy={},
+        min_trades=2,
+        max_trades=5,
+        fee=0.0,
+        histories={"A": flat},
+        get_account_fn=lambda _conn, _name: account,
+        utc_now_iso_fn=lambda: "2026-03-14T14:00:00Z",
+        rotate_account_if_due_fn=lambda _conn, _name, acc, _now: acc,
+        record_prepared_trade_fn=record_trade,
+        is_submission_window_open_fn=lambda _now: True,
+    )
+
+    # No forced minimum: all-hold signals mean zero trades despite min_trades=2.
+    assert executed == 0
+    record_trade.assert_not_called()
+
+
 def test_run_for_account_returns_zero_when_window_closed_initially() -> None:
     executed = trade_execution_service.run_for_account(
         conn=object(),
