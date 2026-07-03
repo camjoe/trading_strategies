@@ -15,7 +15,6 @@ Root cause: Windows tolerates backslashes (`\`) in path strings that Python cons
 
 ## Rules to Follow
 
-- Always use `pathlib.Path` for path construction; never concatenate paths with string literals or `os.sep`.
-- When building relative path strings for display or comparison (for example in `layer_check.py`), normalise with `.as_posix()` so the result is always forward-slash regardless of OS.
-- When asserting against path strings in tests, compare `.as_posix()` values or use `pathlib.Path` equality, not raw string equality.
-- Run `python -m scripts.run_checks --profile ci` before pushing; also verify that any new path-handling code follows the above rules before assuming local green means CI green.
+- Use `pathlib.Path` for path construction, and `.as_posix()` only when building stable display/comparison strings.
+- In tests, compare `Path` values or `.as_posix()` strings instead of raw platform-specific strings.
+- `python -m scripts.checks.path_safety_check --enforce` catches the common hazards; run the CI profile before pushing when path-handling code changes.

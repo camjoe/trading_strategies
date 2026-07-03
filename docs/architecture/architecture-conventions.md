@@ -124,16 +124,13 @@ Rules for all alternative-strategy development (strategy_style = "alternative"):
    must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
    Signal functions must check `bundle.available` first and return `"hold"` if `False`.
 
-2. **No API keys in source code** — all credentials are read exclusively from
-   environment variables (e.g. `NEWS_API_KEY`, `REDDIT_CLIENT_ID`). Never
-   commit secrets to source.
+2. **Credentials stay out of source** — read them from environment variables
+   or other non-committed configuration; `secret_hygiene_check` blocks committed
+   literal credentials in source/config files.
 
 3. **Use the base class** — all external providers must subclass
    `trading.domain.feature_provider.ExternalFeatureProvider`. Do not create
    ad-hoc fetch functions that bypass the caching/TTL/degradation contract.
-
-Enforcement: `python -m scripts.checks.secret_hygiene_check --enforce` flags committed literal
-credentials in source/config files.
 
 ## Constants and Magic Numbers
 
@@ -259,14 +256,11 @@ error-to-result mapping, registration. Full rationale and the first application
 
 ## Cross-Platform Safety
 
-1. Use `pathlib`/OS-agnostic joins in Python code.
-2. Do not hardcode slash direction (`/` vs `\\`) in runtime logic.
-3. Keep command examples runnable from repo root and prefer `python -m ...`.
-4. Avoid reliance on case-insensitive path behavior.
-5. Make type narrowing explicit where mypy/platform inference may differ.
-
-Enforcement: `python -m scripts.checks.path_safety_check --enforce` flags clear
-cross-platform path hazards in production/tooling Python modules.
+1. Use `pathlib`/OS-agnostic joins in Python code; `path_safety_check` blocks
+   clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards.
+2. Keep command examples runnable from repo root and prefer `python -m ...`.
+3. Avoid platform assumptions such as case-insensitive paths or implicit type
+   narrowing where mypy/platform inference may differ.
 
 ## UI Backend Boundary Rule
 
