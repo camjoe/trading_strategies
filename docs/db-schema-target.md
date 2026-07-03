@@ -1,17 +1,17 @@
 # Database Schema — Target (WIP)
 
 Type: spec
-Status: Draft
+Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-03
 Purpose: The proposed final database schema on its own — the clean end-state, without the old schema
 or change/consolidation framing. Rationale, old→new mapping, data-loss assessment, and open decisions
 live in the [DB Schema Rewrite Spec](db-schema-rewrite-spec.md).
 Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overview.md),
 [Developer Notes](developer-notes.md)
 
-> **WIP.** This is the *goal* view. It will change as the spec's open decisions are resolved (the
-> account/unit settings shape, D4 tail). Items marked (TBD) are not yet settled.
+> All schema-gating decisions are resolved (D4 settings shape settled 2026-07-03). This is the
+> build target for P3 Phase A.
 
 ## Conventions, constraints & invariants
 
@@ -88,6 +88,8 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 - `is_default` INTEGER NOT NULL DEFAULT 0
 - `start_equity` REAL NOT NULL · `current_cash` REAL NOT NULL · `current_equity` REAL NOT NULL
 - `trade_universes` TEXT (json)
+- `goal_min_return_pct` REAL · `goal_max_return_pct` REAL · `goal_period` TEXT  *(unit mandate
+  metadata — reporting targets, not execution settings)*
 - `created_at` TEXT NOT NULL · `updated_at` TEXT NOT NULL
 - UNIQUE (account_id, name)
 - UNIQUE (account_id) WHERE is_default = 1  *(exactly one default unit per account — invariant 1)*
@@ -110,12 +112,47 @@ Related: [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Overview](overvie
 
 *(`strategy_param_sets` is removed — its purpose is folded into `strategies` rows.)*
 
-### Account / unit settings (D4)
-Execution/risk/rotation settings (risk policy, stop-loss, position sizing, max-trades-per-run,
-rotation cooldown, instrument/option config) live on `accounts` and/or `trading_units` — **not** in a
-god-table and **not** strategy knobs. Exact shape (typed columns vs a small typed config table per
-concern) is the open tail of [D4](decisions.md#d4). The **unified parameter source (P7)** is a
-service/CLI view over strategy rows + account/unit settings + a few global settings, not a new store.
+### Unit settings — per-concern typed config tables (D4, decided 2026-07-03)
+
+One row per unit per concern, keyed 1:1 to `trading_units` (`unit_id` INTEGER PK →
+trading_units.id, ON DELETE CASCADE). **Missing row → code defaults.** Change-audit deferred to P7
+(settings change only via seed/bootstrap CLI until then); each table carries
+`created_at`/`updated_at` NOT NULL. The **unified parameter source (P7)** is a service/CLI view
+over strategy rows + these settings + a few global settings, not a new store.
+
+#### `unit_execution_settings`
+- `unit_id` INTEGER PK → trading_units.id
+- `learning_enabled` INTEGER NOT NULL DEFAULT 0  *(selection-inert since P1; retained for P10)*
+- `risk_policy` TEXT NOT NULL DEFAULT 'none'  *(none | fixed_stop | take_profit | stop_and_target)*
+- `stop_loss_pct` REAL · `take_profit_pct` REAL · `profit_take_pct` REAL · `max_loss_pct` REAL
+- `trade_size_pct` REAL · `max_position_pct` REAL
+- `max_trades_per_run` INTEGER  *(per-run cap; NULL = runtime/CLI default)*
+- `instrument_mode` TEXT NOT NULL DEFAULT 'equity'  *(equity | leaps)*
+- `created_at` TEXT NOT NULL · `updated_at` TEXT NOT NULL
+
+#### `unit_option_settings` *(row exists only for option-capable units)*
+- `unit_id` INTEGER PK → trading_units.id
+- `option_strike_offset_pct` REAL · `option_min_dte` INTEGER · `option_max_dte` INTEGER
+- `option_type` TEXT  *(call | put)*
+- `target_delta_min` REAL · `target_delta_max` REAL
+- `max_premium_per_trade` REAL · `max_contracts_per_trade` INTEGER
+- `iv_rank_min` REAL · `iv_rank_max` REAL
+- `roll_dte_threshold` INTEGER
+- `created_at` TEXT NOT NULL · `updated_at` TEXT NOT NULL
+
+#### `unit_rotation_settings` *(settings only — rotation **state** is the open
+`unit_strategy_assignments` row + `rotation_decisions` history, not columns here)*
+- `unit_id` INTEGER PK → trading_units.id
+- `rotation_enabled` INTEGER NOT NULL DEFAULT 0
+- `rotation_mode` TEXT · `rotation_optimality_mode` TEXT
+- `rotation_interval_days` INTEGER · `rotation_interval_minutes` INTEGER
+- `rotation_lookback_days` INTEGER
+- `rotation_schedule` TEXT (json)  *(ordered candidate strategy keys)*
+- `regime_strategy_risk_on_id` · `regime_strategy_neutral_id` · `regime_strategy_risk_off_id`
+  INTEGER → strategies.id
+- `overlay_mode` TEXT · `overlay_min_tickers` INTEGER · `overlay_confidence_threshold` REAL
+- `overlay_watchlist` TEXT (json)
+- `created_at` TEXT NOT NULL · `updated_at` TEXT NOT NULL
 
 ### `feature_providers` — pluggable provider catalog
 - `id` INTEGER PK · `provider_key` TEXT UNIQUE NOT NULL
