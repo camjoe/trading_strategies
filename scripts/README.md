@@ -20,7 +20,7 @@ Keep new scripts in the narrowest folder that matches their purpose so runtime o
 Run these from the repository root:
 
 ```sh
-python -m scripts.run_checks --profile quick
+python -m scripts.run_checks quick
 python -m scripts.fix_checks
 python -m scripts.checks.readme_check --max-age-days 90
 python -m scripts.documentation_ui.check
@@ -35,7 +35,7 @@ highlights the most common entrypoints.
 
 Repository workflow scripts (`scripts/`):
 
-- `run_checks.py`: unified entrypoint for quick and CI-style checks via `--profile quick|ci`.
+- `run_checks.py`: unified entrypoint for aggregate checks (`docs`, `repo`, `python`, `quick`, `ci`).
 - `fix_checks.py`: deterministic local auto-fix command for safe mechanical drift (`ruff check --fix`, `ruff format`, generated API/software reference-doc asset sync).
 - `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
@@ -65,6 +65,8 @@ Reference orchestration (`scripts/documentation_ui/`):
 Modular check scripts (`scripts/checks/`):
 
 - `docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
+- `repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
+- `python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
 - `readme_check.py`: standalone README consistency runner. Ignores vendored or local
   virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
   pollute repository documentation audits.
@@ -117,12 +119,15 @@ If a script changes trading runtime behavior, place it in `src/trading/interface
 
 ```sh
 # Unified top-level entrypoint
-python -m scripts.run_checks --profile quick
-python -m scripts.run_checks --profile quick --with-frontend
-python -m scripts.run_checks --profile quick --with-reference-doc-checks
-python -m scripts.run_checks --profile ci
-python -m scripts.run_checks --profile ci --skip-frontend
-python -m scripts.run_checks --profile ci --with-reference-doc-checks
+python -m scripts.run_checks
+python -m scripts.run_checks docs
+python -m scripts.run_checks repo
+python -m scripts.run_checks python
+python -m scripts.run_checks python --suite scripts/test_run_checks.py --no-cov
+python -m scripts.run_checks quick
+python -m scripts.run_checks quick --with-frontend
+python -m scripts.run_checks ci
+python -m scripts.run_checks ci --skip-frontend
 python -m scripts.fix_checks
 python -m scripts.fix_checks --skip-reference-doc-sync
 
@@ -147,9 +152,11 @@ python -m scripts.documentation_ui.api.check
 # Modular checks (direct use)
 python -m scripts.checks.mypy_check
 python -m scripts.checks.pytest_check -- -q
+python -m scripts.checks.docs_check
+python -m scripts.checks.repo_check
+python -m scripts.checks.python_check
 python -m scripts.checks.quick
 python -m scripts.checks.ci --skip-frontend
-python -m scripts.checks.docs_check
 
 # Focused docs checker
 python -m scripts.checks.readme_check --max-age-days 90

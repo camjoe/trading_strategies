@@ -143,12 +143,15 @@ The maps and this guide serve different questions:
 
 | Task | Where |
 |---|---|
-| Run quick local validation (README, layer, ruff, mypy, pytest) | `python -m scripts.run_checks --profile quick` |
-| Run full CI validation | `python -m scripts.run_checks --profile ci` |
+| Run quick local validation | `python -m scripts.run_checks quick` |
+| Run documentation validation | `python -m scripts.run_checks docs` |
+| Run repository safety and structure validation | `python -m scripts.run_checks repo` |
+| Run Python lint/type/test validation | `python -m scripts.run_checks python` |
+| Run full CI validation | `python -m scripts.run_checks ci` |
 | Run tests for a specific area | `python -m scripts.checks.run_suite <path-prefix> --no-cov` |
 | Add a new check to CI | `scripts/checks/<new_check>.py` + register in `scripts/checks/ci.py` |
 | Change layer/import boundary rules | `scripts/checks/layer_check.py` |
-| Check README freshness | `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` |
+| Check README freshness only | `python -m scripts.checks.readme_check --repo-root . --max-age-days 90` |
 
 ---
 

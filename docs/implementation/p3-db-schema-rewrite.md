@@ -28,7 +28,7 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 - [ ] The strategy catalog is seeded from the 14 current `STRATEGY_REGISTRY` entries (primitive + knobs).
 - [ ] Read-side consumers (evaluation evidence, backtesting, reporting, analysis) read the new tables
       via `strategy_id`/`unit_id`.
-- [ ] `python -m scripts.run_checks --profile ci` green; `python -m scripts.data_ops.describe_db_schema`
+- [ ] `python -m scripts.run_checks ci` green; `python -m scripts.data_ops.describe_db_schema`
       shows the target; layer check clean.
 - [ ] Plan P3 status updated.
 
@@ -124,8 +124,8 @@ Run from repo root with the venv interpreter, after each phase:
 .venv\Scripts\python.exe -m scripts.data_ops.describe_db_schema      # confirms target tables/indexes
 .venv\Scripts\python.exe -m scripts.checks.layer_check
 .venv\Scripts\python.exe -m scripts.checks.mypy_check
-.venv\Scripts\python.exe -m scripts.run_checks --profile quick        # per-phase
-.venv\Scripts\python.exe -m scripts.run_checks --profile ci           # final
+.venv\Scripts\python.exe -m scripts.run_checks quick        # per-phase
+.venv\Scripts\python.exe -m scripts.run_checks ci           # final
 ```
 Add repository tests per table (round-trip insert/fetch; the invariant guards: default-unit uniqueness,
 open-assignment uniqueness, strategy-immutability rejection).

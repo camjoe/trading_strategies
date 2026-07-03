@@ -30,7 +30,7 @@ no production behavior changes.
 - [ ] One test module asserts the three surfaces derive score/confidence/data-gaps from the same
       contract for the same artifact.
 - [ ] Four evidence scenarios are covered: complete, missing-backtest, missing-paper/live, null score.
-- [ ] `python -m scripts.run_checks --profile quick` is green (layer + ruff + mypy + targeted tests).
+- [ ] `python -m scripts.run_checks quick` is green (repo safety + Python lint/type/test checks).
 - [ ] Committed with the message format in §7; branch pushed (PR optional per §9).
 - [ ] Plan P2 status updated (1c ☐ → ✅).
 
@@ -122,11 +122,11 @@ Run from repo root with the venv interpreter:
 .venv\Scripts\python.exe -m scripts.checks.run_suite apps/paper_trading_web --no-cov
 .venv\Scripts\python.exe -m scripts.checks.layer_check
 .venv\Scripts\python.exe -m scripts.checks.mypy_check
-.venv\Scripts\python.exe -m scripts.run_checks --profile quick
+.venv\Scripts\python.exe -m scripts.run_checks quick
 ```
 
-Expected: the new test passes; layer check clean; mypy clean; quick profile green. If `run_checks
---profile quick` already runs the suite + lint + types, it is the single gate — the individual
+Expected: the new test passes; layer check clean; mypy clean; quick check green. If `run_checks
+quick` already runs the suite + lint + types, it is the single gate — the individual
 commands above are for fast iteration.
 
 ## 8. Failure handling _(template)_

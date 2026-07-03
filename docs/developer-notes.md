@@ -41,7 +41,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
       services/domain boundaries.
 - [ ] Use the repo venv interpreter (`.venv/Scripts/python.exe` on Windows). Never system Python.
 - [ ] After edits, run the matching suite (`python -m scripts.checks.run_suite <suite>`), then
-      `python -m scripts.run_checks --profile quick` (layer + ruff + mypy + targeted tests).
+      `python -m scripts.run_checks quick` (repo safety + Python lint/type/test checks).
 - [ ] Build capability at the **service/CLI layer first**; the UI is an optional consumer. Never make
       a capability reachable only through the UI.
 

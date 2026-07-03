@@ -160,18 +160,18 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `run checks`
 
-- Run `python -m scripts.run_checks --profile quick`.
+- Run `python -m scripts.run_checks quick`.
 - Report pass/fail by step and include failing command details.
 
 ### `fix checks`
 
 - Run `python -m scripts.fix_checks`.
 - Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, and generated reference-doc asset sync.
-- Afterward, run `python -m scripts.run_checks --profile quick` unless the user asked only for the fixer.
+- Afterward, run `python -m scripts.run_checks quick` unless the user asked only for the fixer.
 
 ### `run all checks`
 
-- Run `python -m scripts.run_checks --profile ci`.
+- Run `python -m scripts.run_checks ci`.
 - Report pass/fail by step and include failing command details.
 
 ### `update documentation`

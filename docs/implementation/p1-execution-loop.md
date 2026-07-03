@@ -32,7 +32,7 @@ live **parity** on one `evaluate_signal(strategy, history, params, feature_histo
 - [ ] No forced-minimum trades; a per-run **max cap** bounds trade count.
 - [ ] Backtest and live both evaluate signals through one shared function with the same params.
 - [ ] Rotating a unit/account to a strategy changes what the trader actually does.
-- [ ] `python -m scripts.run_checks --profile ci` green.
+- [ ] `python -m scripts.run_checks ci` green.
 - [ ] Plan P1 status updated.
 
 ## 2. Preconditions
@@ -143,7 +143,7 @@ live **parity** on one `evaluate_signal(strategy, history, params, feature_histo
 .venv\Scripts\python.exe -m scripts.checks.run_suite src/trading/services/auto_trading src/trading/services/sleeves src/trading/domain src/trading/backtesting --no-cov
 .venv\Scripts\python.exe -m scripts.checks.layer_check
 .venv\Scripts\python.exe -m scripts.checks.mypy_check
-.venv\Scripts\python.exe -m scripts.run_checks --profile ci      # final
+.venv\Scripts\python.exe -m scripts.run_checks ci      # final
 ```
 
 ## 7. Failure handling

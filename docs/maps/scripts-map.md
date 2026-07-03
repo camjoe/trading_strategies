@@ -13,12 +13,15 @@ Dev and ops tooling. Not part of the application runtime — these are invoked b
 
 ## Check Runner (`scripts/run_checks.py`)
 
-Entry point for all validation checks. Run via `python -m scripts.run_checks --profile <name>`.
+Entry point for aggregate validation checks. Run via `python -m scripts.run_checks <command>`.
 
-| Profile | When to use | What it runs |
+| Command | When to use | What it runs |
 |---|---|---|
-| `quick` | Day-to-day, before committing | README consistency, layer check, ruff, mypy, pytest (optional: frontend, reference-doc checks, targeted suites) |
-| `ci` | CI-shaped smoke before a PR | Everything in `quick` plus the doc-drift checks (maps, links, `-m` refs, DB schema, doc headers, skills, generated in-app doc assets), dependency install, and frontend lint/typecheck/tests |
+| `docs` | Documentation drift checks | README consistency, maps, links, `-m` refs, DB schema docs, doc headers, doc naming, generated in-app doc assets |
+| `repo` | Repository safety and structure checks | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
+| `python` | Python quality gate | Python conventions, ruff, mypy, pytest or targeted suites |
+| `quick` | Day-to-day, before committing | `repo` + `python` (optional frontend and targeted suites) |
+| `ci` | CI-shaped smoke before a PR | `docs` + `repo` + `python` + frontend lint/typecheck/tests |
 
 ---
 
@@ -40,9 +43,11 @@ Individual check modules. Each is also usable directly.
 
 | Module | Responsibility |
 |---|---|
-| `quick.py` | Quick profile: README consistency + layer check + ruff + mypy + pytest |
-| `ci.py` | CI profile: the quick gates plus doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend |
-| `docs_check.py` | Human-facing aggregate documentation check: README, maps, links, `-m` refs, DB schema, doc headers, and doc naming |
+| `quick.py` | Quick aggregate: repository checks + Python checks, with optional frontend |
+| `ci.py` | CI aggregate: docs + repo + Python + frontend |
+| `docs_check.py` | Human-facing aggregate documentation check: README, maps, links, `-m` refs, DB schema, doc headers, doc naming, and generated in-app doc assets |
+| `repo_check.py` | Human-facing aggregate repository check: layer boundaries, skills drift, live-trading safety, path safety, and secret hygiene |
+| `python_check.py` | Human-facing aggregate Python check: conventions, ruff, mypy, and pytest or targeted suites |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
 | `path_safety_check.py` | Cross-platform path safety checker — flags clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards |
@@ -71,9 +76,12 @@ python -m scripts.checks.run_suite src/trading/services/reporting --no-cov
 
 **Run checks:**
 ```
-python -m scripts.run_checks --profile quick
-python -m scripts.run_checks --profile ci
-python -m scripts.checks.docs_check
+python -m scripts.run_checks quick
+python -m scripts.run_checks docs
+python -m scripts.run_checks repo
+python -m scripts.run_checks python
+python -m scripts.run_checks python --suite scripts/test_run_checks.py --no-cov
+python -m scripts.run_checks ci
 ```
 
 **Deterministic pre-PR gate (no AI, no tokens):**

@@ -19,7 +19,7 @@ The foundation phase is **done**. The repo has a clean three-sibling base — `s
 
 - **DI at composition seams, not globals.** Define the port in the domain/service layer; build the concrete adapter via a factory imported only at interface/composition seams (CLI, runtime jobs, web routes, the backtest entry). Mirror `broker_factory` / `build_provider`.
 - **Move the concrete adapter LAST.** Thread the dependency injection first while the adapter (and any global) stay put; relocating the adapter before DI causes a circular import (infra → the package `__init__` → back into the half-initialised infra module).
-- **One move per commit, always green.** `git mv` + import codemod + move tests + update tooling (layer check / ruff / mypy / coverage / maps / docs) in the *same* commit; finish with `python -m scripts.run_checks --profile quick` green.
+- **One move per commit, always green.** `git mv` + import codemod + move tests + update tooling (layer check / ruff / mypy / coverage / maps / docs) in the *same* commit; finish with `python -m scripts.run_checks quick` green.
 - **Relocating a package under `src/` is a pure `git mv`** — the package name is unchanged and `src/` is a discovery root via the editable install, so there are no import rewrites; re-run `pip install -e .` once. NB: a package entering `src/` also enters mypy's checked set, which can surface latent type issues in its consumers.
 
 ## Open question — domain slicing

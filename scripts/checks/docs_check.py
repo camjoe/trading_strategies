@@ -13,6 +13,7 @@ from scripts.checks.link_check import run_link_check
 from scripts.checks.maps_check import run_maps_check
 from scripts.checks.module_ref_check import run_module_ref_check
 from scripts.checks.readme_check import run_readme_consistency
+from scripts.documentation_ui.check import run_reference_docs_check
 
 
 def run_docs_check(
@@ -21,6 +22,7 @@ def run_docs_check(
     enforce: bool = False,
     quiet: bool = False,
     readme_max_age_days: int = 90,
+    include_reference_docs: bool = True,
 ) -> int:
     exit_code = run_check_steps(
         [
@@ -51,6 +53,11 @@ def run_docs_check(
             CheckStep(
                 "Doc naming",
                 lambda: run_doc_naming_check(repo_root=repo_root, enforce=enforce, quiet=quiet),
+            ),
+            CheckStep(
+                "Reference docs",
+                lambda: run_reference_docs_check(repo_root=repo_root),
+                skip=not include_reference_docs,
             ),
         ]
     )
@@ -86,6 +93,11 @@ def parse_args() -> argparse.Namespace:
         default=90,
         help="Max README age in days for consistency checks.",
     )
+    parser.add_argument(
+        "--skip-reference-docs",
+        action="store_true",
+        help="Skip generated documentation UI asset checks.",
+    )
     return parser.parse_args()
 
 
@@ -97,6 +109,7 @@ def main() -> int:
         enforce=args.enforce,
         quiet=args.quiet,
         readme_max_age_days=args.readme_max_age_days,
+        include_reference_docs=not args.skip_reference_docs,
     )
 
 
