@@ -42,7 +42,7 @@ from scripts.checks.layer_check import run_layer_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.ruff_check import run_ruff
 from scripts.checks.run_suite import detect_suites_from_changes, run_suite
-from scripts.checks.shared import resolve_python_exe
+from scripts.checks._runner import resolve_python_exe
 
 _SEPARATOR = "-" * 60
 

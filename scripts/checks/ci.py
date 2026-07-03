@@ -23,7 +23,7 @@ from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
 from scripts.checks.ruff_check import run_ruff
 from scripts.documentation_ui.check import run_reference_docs_check
-from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
+from scripts.checks._runner import CheckStep, resolve_npm_exe, resolve_python_exe, run_check_steps, run_step
 
 
 def parse_args() -> argparse.Namespace:
@@ -143,48 +143,68 @@ def run_ci(
 ) -> int:
     try:
         if not skip_python:
-            if not skip_readme_consistency:
-                run_readme_consistency(
-                    repo_root=repo_root,
-                    max_age_days=readme_max_age_days,
-                    quiet=True,
-                )
-            if not skip_maps_check:
-                run_maps_check(repo_root=repo_root, quiet=True)
-            if not skip_db_schema_check:
-                run_db_schema_check(repo_root=repo_root, quiet=True)
-            if not skip_link_check:
-                run_link_check(repo_root=repo_root, quiet=True)
-            if not skip_module_ref_check:
-                run_module_ref_check(repo_root=repo_root, quiet=True)
-            if not skip_doc_header_check:
-                doc_header_exit = run_doc_header_check(repo_root=repo_root, quiet=True, enforce=True)
-                if doc_header_exit != 0:
-                    return doc_header_exit
-            if not skip_doc_naming_check:
-                doc_naming_exit = run_doc_naming_check(repo_root=repo_root, quiet=True, enforce=True)
-                if doc_naming_exit != 0:
-                    return doc_naming_exit
-            if not skip_skills_check:
-                skills_exit = run_skills_check(repo_root=repo_root, quiet=True, enforce=True)
-                if skills_exit != 0:
-                    return skills_exit
-            if not skip_live_safety_check:
-                live_safety_exit = run_live_safety_check(repo_root=repo_root, quiet=True, enforce=True)
-                if live_safety_exit != 0:
-                    return live_safety_exit
-            if not skip_python_conventions_check:
-                python_conventions_exit = run_python_conventions_check(repo_root=repo_root, quiet=True, enforce=True)
-                if python_conventions_exit != 0:
-                    return python_conventions_exit
-            if not skip_path_safety_check:
-                path_safety_exit = run_path_safety_check(repo_root=repo_root, quiet=True, enforce=True)
-                if path_safety_exit != 0:
-                    return path_safety_exit
-            if not skip_secret_hygiene_check:
-                secret_hygiene_exit = run_secret_hygiene_check(repo_root=repo_root, quiet=True, enforce=True)
-                if secret_hygiene_exit != 0:
-                    return secret_hygiene_exit
+            check_exit = run_check_steps(
+                [
+                    CheckStep(
+                        "README consistency",
+                        lambda: run_readme_consistency(
+                            repo_root=repo_root,
+                            max_age_days=readme_max_age_days,
+                            quiet=True,
+                        ),
+                        skip=skip_readme_consistency,
+                    ),
+                    CheckStep("Maps drift", lambda: run_maps_check(repo_root=repo_root, quiet=True), skip=skip_maps_check),
+                    CheckStep(
+                        "DB schema docs",
+                        lambda: run_db_schema_check(repo_root=repo_root, quiet=True),
+                        skip=skip_db_schema_check,
+                    ),
+                    CheckStep("Doc links", lambda: run_link_check(repo_root=repo_root, quiet=True), skip=skip_link_check),
+                    CheckStep(
+                        "Doc module refs",
+                        lambda: run_module_ref_check(repo_root=repo_root, quiet=True),
+                        skip=skip_module_ref_check,
+                    ),
+                    CheckStep(
+                        "Doc headers",
+                        lambda: run_doc_header_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_doc_header_check,
+                    ),
+                    CheckStep(
+                        "Doc naming",
+                        lambda: run_doc_naming_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_doc_naming_check,
+                    ),
+                    CheckStep(
+                        "Skills drift",
+                        lambda: run_skills_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_skills_check,
+                    ),
+                    CheckStep(
+                        "Live-trading safety",
+                        lambda: run_live_safety_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_live_safety_check,
+                    ),
+                    CheckStep(
+                        "Python conventions",
+                        lambda: run_python_conventions_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_python_conventions_check,
+                    ),
+                    CheckStep(
+                        "Path safety",
+                        lambda: run_path_safety_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_path_safety_check,
+                    ),
+                    CheckStep(
+                        "Secret hygiene",
+                        lambda: run_secret_hygiene_check(repo_root=repo_root, quiet=True, enforce=True),
+                        skip=skip_secret_hygiene_check,
+                    ),
+                ]
+            )
+            if check_exit != 0:
+                return check_exit
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit

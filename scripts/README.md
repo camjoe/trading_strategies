@@ -64,13 +64,16 @@ Reference orchestration (`scripts/documentation_ui/`):
 
 Modular check scripts (`scripts/checks/`):
 
+- `docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
 - `readme_check.py`: standalone README consistency runner. Ignores vendored or local
   virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
   pollute repository documentation audits.
 - `mypy_check.py`: standalone mypy runner with default backend/trading targets.
 - `pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
-- `ci.py`: broader CI-shaped checks (README/maps/link/`-m`/DB-schema/doc-header/doc-name/skills/live-safety/Python-convention/path-safety/secret-hygiene checks, dependency installs, ruff, mypy, pytest, frontend).
+- `ci.py`: broader CI-shaped checks (documentation drift, repo safety, dependency installs, ruff, mypy, pytest, frontend).
+- `_runner.py`: internal check-runner helpers for step execution and tool resolution.
+- `shared.py`: compatibility re-export for older imports of check-runner helpers.
 
 Data operation scripts (`scripts/data_ops/`):
 
@@ -146,6 +149,7 @@ python -m scripts.checks.mypy_check
 python -m scripts.checks.pytest_check -- -q
 python -m scripts.checks.quick
 python -m scripts.checks.ci --skip-frontend
+python -m scripts.checks.docs_check
 
 # Focused docs checker
 python -m scripts.checks.readme_check --max-age-days 90

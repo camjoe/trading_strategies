@@ -13,7 +13,7 @@ from scripts.checks.readme_check import run_readme_consistency
 from scripts.checks.run_suite import run_suite_targeted
 from scripts.checks.ruff_check import run_ruff
 from scripts.documentation_ui.check import run_reference_docs_check
-from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
+from scripts.checks._runner import resolve_npm_exe, resolve_python_exe, run_step
 
 
 def parse_args() -> argparse.Namespace:

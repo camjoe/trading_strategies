@@ -42,6 +42,7 @@ Individual check modules. Each is also usable directly.
 |---|---|
 | `quick.py` | Quick profile: README consistency + layer check + ruff + mypy + pytest |
 | `ci.py` | CI profile: the quick gates plus doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend |
+| `docs_check.py` | Human-facing aggregate documentation check: README, maps, links, `-m` refs, DB schema, doc headers, and doc naming |
 | `ruff_check.py` | Ruff linting runner |
 | `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
 | `path_safety_check.py` | Cross-platform path safety checker — flags clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards |
@@ -60,7 +61,8 @@ Individual check modules. Each is also usable directly.
 | `live_safety_check.py` | Live-trading safety checker — blocks automated `live_trading_enabled = 1` code paths |
 | `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; enforced in CI profile |
 | `pr_ready.py` | Deterministic pre-PR gate — runs layer check, ruff, mypy, and branch-targeted tests in order (fail-fast) |
-| `shared.py` | Shared utilities for check modules (result types, formatting) |
+| `_runner.py` | Internal shared check-runner helpers for steps and tool executable resolution |
+| `shared.py` | Compatibility re-export for older imports of check-runner helpers |
 
 **Run a targeted suite:**
 ```
@@ -71,6 +73,7 @@ python -m scripts.checks.run_suite src/trading/services/reporting --no-cov
 ```
 python -m scripts.run_checks --profile quick
 python -m scripts.run_checks --profile ci
+python -m scripts.checks.docs_check
 ```
 
 **Deterministic pre-PR gate (no AI, no tokens):**
