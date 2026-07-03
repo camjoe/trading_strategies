@@ -36,7 +36,7 @@ Follow [validate-code/SKILL.md](../validate-code/SKILL.md) with `<base_ref>`. If
 
 ## Step 2 — Architecture review
 
-Follow [code-review/pr-review-arch.md](../code-review/pr-review-arch.md), scoped to `git diff --name-only <base_ref>...HEAD`.
+Follow [code-review/SKILL.md](../code-review/SKILL.md) in PR mode, Architecture section, scoped to `git diff --name-only <base_ref>...HEAD`.
 
 - If any VIOLATION found: **stop**. Do not run Steps 3–6. Print VIOLATION findings and hand back to user.
 
@@ -44,7 +44,7 @@ Follow [code-review/pr-review-arch.md](../code-review/pr-review-arch.md), scoped
 
 ## Step 3 — Style review
 
-Follow [code-review/pr-review-style.md](../code-review/pr-review-style.md), scoped to the same branch diff.
+Follow [code-review/SKILL.md](../code-review/SKILL.md) in PR mode, Style section, scoped to the same branch diff.
 
 - If any BLOCKER found: **stop**. Do not run Steps 4–6. Print BLOCKER findings and hand back to user.
 
@@ -52,7 +52,7 @@ Follow [code-review/pr-review-style.md](../code-review/pr-review-style.md), scop
 
 ## Step 4 — Quality review
 
-Follow [code-review/pr-review-quality.md](../code-review/pr-review-quality.md), scoped to the same branch diff.
+Follow [code-review/SKILL.md](../code-review/SKILL.md) in PR mode, Quality section, scoped to the same branch diff.
 
 - If any BLOCKER found: **stop**. Do not run Steps 5–6. Print BLOCKER findings and hand back to user.
 

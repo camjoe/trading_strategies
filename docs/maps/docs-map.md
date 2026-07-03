@@ -173,7 +173,7 @@ Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus ze
 | Skill folder | What it covers |
 |---|---|
 | `check-pr-readiness/` | Pre-merge readiness checklist |
-| `code-review/` | Code review at multiple thoroughness levels; sub-docs cover architecture, quality, style, UI/API contract |
+| `code-review/` | Code review at multiple thoroughness levels, including architecture, quality, style, cleanup, and UI/API contract review |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner |
 | `db-migration/` | Schema migration lifecycle (create, validate, estimate risk, rollback) |
 | `expand-tests/` | Test expansion workflow |
