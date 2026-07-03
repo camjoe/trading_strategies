@@ -80,7 +80,6 @@ python -m scripts.run_checks quick
 python -m scripts.run_checks docs
 python -m scripts.run_checks repo
 python -m scripts.run_checks python
-python -m scripts.run_checks python --suite scripts/test_run_checks.py --no-cov
 python -m scripts.run_checks ci
 ```
 

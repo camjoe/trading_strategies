@@ -123,11 +123,8 @@ python -m scripts.run_checks
 python -m scripts.run_checks docs
 python -m scripts.run_checks repo
 python -m scripts.run_checks python
-python -m scripts.run_checks python --suite scripts/test_run_checks.py --no-cov
 python -m scripts.run_checks quick
-python -m scripts.run_checks quick --with-frontend
 python -m scripts.run_checks ci
-python -m scripts.run_checks ci --skip-frontend
 python -m scripts.fix_checks
 python -m scripts.fix_checks --skip-reference-doc-sync
 
@@ -156,7 +153,7 @@ python -m scripts.checks.docs_check
 python -m scripts.checks.repo_check
 python -m scripts.checks.python_check
 python -m scripts.checks.quick
-python -m scripts.checks.ci --skip-frontend
+python -m scripts.checks.ci
 
 # Focused docs checker
 python -m scripts.checks.readme_check --max-age-days 90
