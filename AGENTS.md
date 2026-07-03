@@ -22,7 +22,7 @@ Purpose: define the repo-level guidance, routing rules, and shortcut workflows f
 
 - Architecture boundaries: `docs/architecture/architecture-conventions.md`
 - Style guides: `docs/conventions/general-style.md` (cross-cutting approach + docs/markdown), `docs/conventions/python-style.md` (Python), `docs/conventions/frontend-style.md` (TypeScript/frontend)
-- Skill authoring and localization guidance: `.ai/skills/create-skill/SKILL.md`, `.ai/skills/update-skill/SKILL.md`
+- Skill authoring and localization guidance: `.ai/skills/manage-skill/SKILL.md`
 - Supplemental Copilot-specific guidance: `.github/copilot-instructions.md`
   - `AGENTS.md` is the source of truth for durable repo instructions.
   - Read `.github/copilot-instructions.md` after `AGENTS.md` when Copilot/tool-specific legacy context is needed.
@@ -60,14 +60,13 @@ Current skill inventory:
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
-| `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
 | `help/` | Interactive discovery: list available skills and common prompts |
+| `manage-skill/` | Create, improve, or refactor skills following the skills guide |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
-| `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
 ## Routing guide
@@ -92,8 +91,8 @@ Default to the most specific matching skill; work without one when nothing match
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
 | Run deterministic checks (lint, tests, layer) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
-| Create a new skill | `create-skill/` |
-| Update or improve a skill | `update-skill/` |
+| Create a new skill | `manage-skill/` |
+| Update or improve a skill | `manage-skill/` |
 | Discover available skills and prompts | `help/` |
 | Schema migration work or safety review | `db-migration/` |
 | Broker adapters or live-trading safety review | `code-review/` (Aggressive mode) + the Live Trading Safety Guard in `docs/architecture/architecture-conventions.md` |

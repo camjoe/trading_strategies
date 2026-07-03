@@ -29,14 +29,13 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
-| `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
 | `help/` | Interactive discovery: list available skills and common prompts |
+| `manage-skill/` | Create, improve, or refactor skills following the skills guide |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewriting stale prose, descriptions, and responsibilities |
-| `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
 ### Reference files (inside skill folders, not skills themselves)
@@ -86,4 +85,3 @@ Add a new skill when the capability should be reusable outside this repo with on
 localization. Repo-only safety rules and routing belong in `AGENTS.md` /
 `docs/architecture/architecture-conventions.md`, not inside a skill. (The former agent-persona
 surface was retired 2026-07-02 — do not reintroduce it without a fresh decision.)
-
