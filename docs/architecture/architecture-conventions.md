@@ -93,32 +93,23 @@ Disallowed:
 
 11. `src/infrastructure/feature_providers/` (repo root): external-data feature providers for alternative strategies
     - Houses concrete `ExternalFeatureProvider` subclasses (news, social, policy, etc.).
-    - This package is the **only** place that may import external API libraries
-      (`praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, etc.) or make
-      network calls to third-party services.
+    - Owns third-party external-data SDK imports and network calls.
     - Shared contracts and signal keys live in `src/trading/domain/feature_provider.py`.
-    - `src/trading/` must never import from `src/infrastructure/feature_providers/`; the interface layer (`src/trading/interfaces/`)
-      is the sole wiring point.
     - Signal functions in `src/trading/domain/strategy_signals.py` must
-      consume feature bundles via injected callables — they must never call external
-      APIs directly.
+      consume feature bundles via injected callables.
 
 12. `src/infrastructure/brokers/` (repo root): broker connection adapters and factory
-   - Keep all broker SDK imports (ib_async, ibapi) inside this package.
+   - Owns broker SDK imports and broker connection adapters.
    - Service and domain layers must depend only on `BrokerConnection` from `src/trading/domain/broker_connection.py`.
    - The factory (`src/infrastructure/brokers/factory.py`) is the sole location for `broker_type` routing logic.
    - `live_trading_enabled` guard lives here — see Live Trading Safety Guard below.
-   - `src/trading/` must never import from `src/infrastructure/brokers/`; the interface layer (`src/trading/interfaces/`) is the sole wiring point.
 
 13. `src/infrastructure/market_data/` (repo root): concrete market-data adapters and provider factory
-   - Keep the `yfinance` SDK import inside this package (`providers.py`).
+   - Owns market-data SDK imports and concrete market-data providers.
    - Service and domain layers must depend only on the `MarketDataProvider` port from
      `src/trading/services/market_data/protocols.py` and an injected instance — never the concrete adapter.
    - The factory (`src/infrastructure/market_data/factory.py`) is the sole location for `provider` routing
      (env/config resolution) and concrete-adapter construction (`build_provider`).
-   - `src/trading/` must never import from `src/infrastructure/market_data/`; the interface layer
-     (`src/trading/interfaces/`) and the backtest composition seam (`src/trading/backtesting/backtest.py`)
-     are the only wiring points. This boundary is enforced by `scripts/checks/layer_check.py`.
    - The feature provider (`ProxyFeatureDataProvider`) stays in `src/trading/services/market_data/` — it is a
      trading-domain computation over an injected market-data provider, with no external-library dependency.
 
@@ -129,19 +120,15 @@ enforced by `python -m scripts.checks.layer_check`.
 
 Rules for all alternative-strategy development (strategy_style = "alternative"):
 
-1. **External calls are isolated in `src/infrastructure/feature_providers/`** — no direct imports of
-   `praw`, `pytrends`, `vaderSentiment`, `newsapi`, or any other third-party
-   external-data library outside of `src/infrastructure/feature_providers/` submodules.
-
-2. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
+1. **Graceful degradation** — every `ExternalFeatureProvider._fetch()` implementation
    must catch all exceptions and return `ExternalFeatureBundle(available=False, ...)`.
    Signal functions must check `bundle.available` first and return `"hold"` if `False`.
 
-3. **No API keys in source code** — all credentials are read exclusively from
+2. **No API keys in source code** — all credentials are read exclusively from
    environment variables (e.g. `NEWS_API_KEY`, `REDDIT_CLIENT_ID`). Never
    commit secrets to source.
 
-4. **Use the base class** — all external providers must subclass
+3. **Use the base class** — all external providers must subclass
    `trading.domain.feature_provider.ExternalFeatureProvider`. Do not create
    ad-hoc fetch functions that bypass the caching/TTL/degradation contract.
 
