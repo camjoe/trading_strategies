@@ -13,9 +13,6 @@ Operational assets for AI agents working in this repo. **[`AGENTS.md`](../AGENTS
 is the canonical entrypoint and routing guide; this folder holds the **skills** it routes to
 (`.ai/skills/<skill>/`, each with a `SKILL.md` entrypoint plus on-demand reference files).
 
-Repo-specific `.agent.md` personas were retired 2026-07-02: their safety content lives in the
-skills and `docs/architecture/architecture-conventions.md`; their routing lives in `AGENTS.md`.
-
 ## Usage
 
 - Default to the most specific matching skill — see the routing table in [`AGENTS.md`](../AGENTS.md).

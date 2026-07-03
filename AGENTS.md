@@ -241,16 +241,3 @@ python -m scripts.checks.pr_ready --base main
 python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
 python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
 ```
-
----
-
-## Retired agent shortcuts
-
-The repo-specific agents (and their `migrate:` / `broker:` / `runtime:` / `backtest:` shortcut
-prefixes) were retired 2026-07-02. If a user types one of those prefixes, handle it in the current
-session using the routing-guide destination for that task shape:
-
-- `migrate: <task>` → the `db-migration/` skill (all four sub-tasks in order for a full change)
-- `broker: <task>` → do the work under the Live Trading Safety Guard rules; review with `code-review/` (Aggressive)
-- `runtime: <task>` → `create-runtime-job/` for new jobs; runtime docs/runbooks for operations
-- `backtest: <task>` → `finance-strategy/` evaluation-honesty rules + `docs/reference/backtesting.md`
