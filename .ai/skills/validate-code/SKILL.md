@@ -30,8 +30,8 @@ python -m scripts.checks.pr_ready --no-cov        # skip coverage overhead
 ## Day-to-day profiles
 
 ```
-python -m scripts.run_checks --profile quick      # layer + lint + tests
-python -m scripts.run_checks --profile ci         # full suite + frontend
+python -m scripts.run_checks --profile quick      # README, layer, ruff, mypy, pytest
+python -m scripts.run_checks --profile ci         # quick gates + doc-drift checks + frontend
 ```
 
 ## On failure

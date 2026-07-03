@@ -55,14 +55,15 @@ Current skill inventory:
 | Skill | Purpose |
 |---|---|
 | `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
-| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `create-skill/` | Authoring new skills following the skills guide |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `expand-tests/` | Coverage growth and regression-test expansion |
 | `finance-strategy/` | Financial terminology, strategy classification, and market mechanics |
+| `help/` | Interactive discovery: list available agents, skills, and common prompts |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
-| `update-documentation/` | Docs drift sync and passive staleness check |
+| `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
 | `update-skill/` | Improving or refactoring existing skills |
 | `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
 
@@ -110,6 +111,7 @@ Default to the most specific matching skill. Escalate to a repo-specific agent o
 | Add or scaffold a new runtime job | `create-runtime-job/` |
 | Create a new skill | `create-skill/` |
 | Update or improve a skill | `update-skill/` |
+| Discover available skills, agents, and prompts | `help/` |
 | Runtime jobs, schedulers, snapshots, account ops | `trading-runtime.agent.md` |
 | Broker adapters or live-trading safety | `broker-live-safety.agent.md` |
 | Backtest execution, walk-forward reporting, leaderboard behavior | `backtesting-analyst.agent.md` |

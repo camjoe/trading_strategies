@@ -39,7 +39,7 @@ Your job is to improve and explain backtesting workflows while keeping evaluatio
 - `python -m trading.interfaces.cli.main backtest-walk-forward-report --help`
 - `python -m scripts.run_checks --profile quick`
 - `python -m pytest tests/ -k "backtest or walk_forward or leaderboard"`
-- `python -m mypy src/trading/backtesting/ apps/paper_trading_web/backend --ignore-missing-imports`
+- `python -m scripts.checks.mypy_check`
 
 ## Output
 

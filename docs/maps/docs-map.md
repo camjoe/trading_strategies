@@ -190,7 +190,7 @@ Skills live under `.ai/skills/`. Each skill has a `SKILL.md` entry point plus ze
 | `finance-strategy/` | Finance and strategy domain knowledge |
 | `help/` | Interactive skill/agent discovery |
 | `reference-doc/` | Reference-doc creation workflow |
-| `update-documentation/` | Documentation update workflow; sub-docs cover docs-check and docs-sync |
+| `update-documentation/` | Documentation update workflow; sub-doc covers docs-sync (staleness detection lives in CI) |
 | `update-skill/` | Skill update workflow |
 | `validate-code/` | Code validation (lint, type-check, tests, layer-check) |
 

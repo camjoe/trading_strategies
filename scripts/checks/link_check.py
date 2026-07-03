@@ -43,9 +43,9 @@ IGNORED_DIR_PARTS = {
     "docs-migration",  # migration record: intentionally references moved/removed paths
 }
 
-# Files excluded from scanning. agent-skills.md is a verbatim upstream copy (the doc-header
-# standard's documented exception); its example links are not repo paths.
-EXCLUDED_DOCS = ("docs/reference/agent-skills.md",)
+# Files excluded from scanning. (None currently — the former exclusion, the verbatim upstream
+# copy at docs/reference/agent-skills.md, was deleted.)
+EXCLUDED_DOCS: tuple[str, ...] = ()
 
 # Directory prefixes excluded from scanning. (None currently — the restructure
 # planning docs that needed this were retired once the migration completed.)

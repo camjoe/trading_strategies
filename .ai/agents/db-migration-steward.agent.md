@@ -42,7 +42,7 @@ For a complete schema change, run all four sub-tasks in order unless the user as
 
 ```
 python -m pytest tests/ -k "db or migration or schema" -x --no-cov
-python -m mypy src/infrastructure/database/ --ignore-missing-imports
+python -m scripts.checks.mypy_check
 python -m scripts.run_checks --profile quick
 ```
 

@@ -67,20 +67,9 @@ Shortcuts for frequent tasks:
 
 ## Repo references
 
-- `.ai/agents/backtesting-analyst.agent.md`
-- `.ai/agents/broker-live-safety.agent.md`
-- `.ai/agents/db-migration-steward.agent.md`
-- `.ai/agents/trading-runtime.agent.md`
-- `.ai/skills/check-pr-readiness/SKILL.md`
-- `.ai/skills/code-review/SKILL.md`
-- `.ai/skills/create-skill/SKILL.md`
-- `.ai/skills/db-migration/SKILL.md`
-- `.ai/skills/expand-tests/SKILL.md`
-- `.ai/skills/finance-strategy/SKILL.md`
-- `.ai/skills/help/SKILL.md`
-- `.ai/skills/reference-doc/SKILL.md`
-- `.ai/skills/update-documentation/SKILL.md`
-- `.ai/skills/update-skill/SKILL.md`
-- `.ai/skills/validate-code/SKILL.md`
-- `docs/reference/skill-invocation-policy.md`
+Do **not** work from a hard-coded file list (it drifts). Enumerate the current inventory from disk:
+
+- Agents: every `.ai/agents/*.agent.md`
+- Skills: every `.ai/skills/*/SKILL.md`
+- Invocation rules: `docs/reference/skill-invocation-policy.md`
 

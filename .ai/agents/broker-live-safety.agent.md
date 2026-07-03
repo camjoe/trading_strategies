@@ -40,7 +40,7 @@ Run only the commands listed below. Do not run git commands.
 
 - `python -m scripts.run_checks --profile quick`
 - `python -m pytest tests/ -k "broker or live_trading or reconciliation"`
-- `python -m mypy brokers/ src/trading/services/ --ignore-missing-imports`
+- `python -m scripts.checks.mypy_check`
 
 ## Output Format
 
