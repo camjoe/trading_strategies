@@ -1,6 +1,6 @@
 ---
 name: check-pr-readiness
-description: Runs the full pre-PR gatekeeping workflow: deterministic checks (layer, lint, tests), then AI code review and architecture review, then saves a readiness report. Use when preparing to submit a pull request or when asked to run a PR readiness check.
+description: Orchestrates the full pre-PR workflow: deterministic validation, AI architecture/style/quality review, advisory docs check, and a saved readiness report. Use when preparing to submit a pull request or when asked to run a PR readiness check.
 invoker: any
 ---
 
@@ -10,10 +10,10 @@ Runs six ordered steps. Stop at the first blocking failure — do not run subseq
 
 | Step | Type | What runs | Stops on |
 |---|---|---|---|
-| 1 | Deterministic | Repo checks + Python lint/type/test checks | Any non-zero exit |
-| 2 | AI | Architecture review (branch diff) | VIOLATION finding |
-| 3 | AI | Style review (branch diff) | BLOCKER finding |
-| 4 | AI | Quality review (branch diff) | BLOCKER finding |
+| 1 | Deterministic | Follow `validate-code` PR commands | Any non-zero exit |
+| 2 | AI | `code-review` PR architecture review | VIOLATION finding |
+| 3 | AI | `code-review` PR style review | BLOCKER finding |
+| 4 | AI | `code-review` PR quality review | BLOCKER finding |
 | 5 | AI | Docs check (advisory) | Never |
 | 6 | AI | PR readiness report | — |
 
@@ -30,43 +30,30 @@ pr ready: main         # vs custom base
 
 ## Step 1 — Deterministic gate
 
-```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base <base_ref>
-```
-
-Run the commands in order. If either exit code is non-zero, **stop immediately**. Report which command failed. Do not run Steps 2–6. Hand back to the user.
-
-Reference: [validate-code/SKILL.md](../validate-code/SKILL.md)
+Follow [validate-code/SKILL.md](../validate-code/SKILL.md) with `<base_ref>`. If any command exits non-zero, **stop immediately**. Report which command failed. Do not run Steps 2–6.
 
 ---
 
 ## Step 2 — Architecture review
 
-Reference: [code-review/pr-review-arch.md](../code-review/pr-review-arch.md)
+Follow [code-review/pr-review-arch.md](../code-review/pr-review-arch.md), scoped to `git diff --name-only <base_ref>...HEAD`.
 
-- Scope: `git diff --name-only <base_ref>...HEAD` only.
-- Severity: VIOLATION (blocks) vs CONCERN (advisory).
 - If any VIOLATION found: **stop**. Do not run Steps 3–6. Print VIOLATION findings and hand back to user.
 
 ---
 
 ## Step 3 — Style review
 
-Reference: [code-review/pr-review-style.md](../code-review/pr-review-style.md)
+Follow [code-review/pr-review-style.md](../code-review/pr-review-style.md), scoped to the same branch diff.
 
-- Scope: same branch diff.
-- Severity: BLOCKER (blocks) vs ADVISORY.
 - If any BLOCKER found: **stop**. Do not run Steps 4–6. Print BLOCKER findings and hand back to user.
 
 ---
 
 ## Step 4 — Quality review
 
-Reference: [code-review/pr-review-quality.md](../code-review/pr-review-quality.md)
+Follow [code-review/pr-review-quality.md](../code-review/pr-review-quality.md), scoped to the same branch diff.
 
-- Scope: same branch diff.
-- Severity: BLOCKER (blocks) vs ADVISORY.
 - If any BLOCKER found: **stop**. Do not run Steps 5–6. Print BLOCKER findings and hand back to user.
 
 ---
@@ -108,7 +95,7 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 <BLOCKER/ADVISORY findings, or "Clean">
 
 ### Step 5 — Docs Check (Advisory)
-<staleness findings, or "No stale docs detected">
+<docs findings, or "Clean">
 
 ### Developer Verification Guide
 <UI path, API endpoint, command/report path, or expected behavior a developer can use to inspect the result>

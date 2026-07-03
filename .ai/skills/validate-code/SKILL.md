@@ -6,21 +6,21 @@ invoker: any
 
 # Validate Code
 
-All checks are deterministic — no AI, no reasoning. Each check has its own reference file.
+All checks are deterministic — no AI, no reasoning.
 
 ## Checks (run in this order)
 
-| Step | What | Reference |
+| Step | Command | What it covers |
 |---|---|---|
-| 1 | Repository checks | [layer-check.md](layer-check.md) |
-| 2 | Python conventions, lint, type check, and tests | [lint.md](lint.md), [type-check.md](type-check.md), [tests.md](tests.md) |
+| 1 | `python -m scripts.run_checks repo` | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
+| 2 | `python -m scripts.run_checks python --base <base_ref>` | Python conventions, ruff, mypy, branch-targeted pytest |
 
 ## Run all checks at once
 
 ```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base develop
-python -m scripts.run_checks python --base main --no-cov
+.venv\Scripts\python.exe -m scripts.run_checks repo
+.venv\Scripts\python.exe -m scripts.run_checks python --base develop
+.venv\Scripts\python.exe -m scripts.run_checks python --base main --no-cov
 ```
 
 Run `repo` first, then `python`. Stop at the first failure.
@@ -28,8 +28,21 @@ Run `repo` first, then `python`. Stop at the first failure.
 ## Day-to-day profiles
 
 ```
-python -m scripts.run_checks quick
-python -m scripts.run_checks ci
+.venv\Scripts\python.exe -m scripts.run_checks quick
+.venv\Scripts\python.exe -m scripts.run_checks ci
+```
+
+Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `python --suite <suite> --no-cov` for focused iteration.
+
+## Single checks
+
+Use these only when isolating a failure:
+
+```sh
+.venv\Scripts\python.exe -m scripts.checks.layer_check
+.venv\Scripts\python.exe -m scripts.checks.ruff_check
+.venv\Scripts\python.exe -m scripts.checks.mypy_check
+.venv\Scripts\python.exe -m scripts.checks.run_suite <suite> --no-cov
 ```
 
 ## On failure
