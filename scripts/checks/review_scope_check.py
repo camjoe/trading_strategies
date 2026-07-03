@@ -34,8 +34,11 @@ SCOPE_RULES = (
     ScopeRule("apps/paper_trading_web/backend/schemas/", "contract", "backend API schema change"),
     ScopeRule("apps/paper_trading_web/frontend/src/", "contract", "frontend API consumer change"),
     ScopeRule("src/trading/", "architecture", "trading-layer change"),
-    ScopeRule("docs/", "docs", "documentation change"),
-    ScopeRule(".ai/skills/", "skill", "skill workflow change"),
+)
+
+NOTE_RULES = (
+    ScopeRule("docs/", "standard", "documentation change"),
+    ScopeRule(".ai/skills/", "standard", "skill workflow change"),
 )
 
 
@@ -54,8 +57,12 @@ def classify_paths(paths: list[str]) -> ScopeReport:
                     report.high_risk.append(note)
                 else:
                     report.notes.append(note)
+        for rule in NOTE_RULES:
+            if normalized == rule.prefix.rstrip("/") or normalized.startswith(rule.prefix):
+                matched_files.add(path)
+                report.notes.append(f"{normalized}: {rule.reason}")
 
-    if not report.modes and report.changed_files:
+    if not report.modes and any(path not in matched_files for path in report.changed_files):
         report.modes.add("standard")
     if not report.changed_files:
         report.notes.append("No changed files detected.")
@@ -86,7 +93,7 @@ def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quie
     print(f"Repo root: {repo_root}")
     print(f"Diff: {base_ref + '...HEAD' if base_ref else 'HEAD'}")
     print(f"Changed files: {len(report.changed_files)}")
-    print("Suggested review modes: " + ", ".join(sorted(report.modes or {'standard'})))
+    print("Suggested review modes: " + ", ".join(sorted(report.modes)) if report.modes else "Suggested review modes: none")
 
     if report.high_risk:
         print("\nHigh-risk triggers:")

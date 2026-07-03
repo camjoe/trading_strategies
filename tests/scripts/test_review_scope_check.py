@@ -42,6 +42,17 @@ def test_defaults_to_standard_for_unmatched_changes() -> None:
     assert report.notes == []
 
 
+def test_docs_and_skills_are_scope_notes_not_modes() -> None:
+    report = classify_paths(["docs/maps/scripts-map.md", ".ai/skills/code-review/SKILL.md"])
+
+    assert report.modes == set()
+    assert report.high_risk == []
+    assert report.notes == [
+        ".ai/skills/code-review/SKILL.md: skill workflow change",
+        "docs/maps/scripts-map.md: documentation change",
+    ]
+
+
 def test_empty_changes_get_note() -> None:
     report = classify_paths([])
 

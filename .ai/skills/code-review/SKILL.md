@@ -34,6 +34,8 @@ Choose the lightest mode that fits the request and classifier output:
 | Cleanup | refactor, simplification, stale-code audit | safe removal evidence, duplication, compatibility risk |
 | PR | called from `check-pr-readiness` | separate Architecture, Style, and Quality sections |
 
+`review_scope_check` only suggests `standard`, `aggressive`, `architecture`, or `contract`. Treat documentation and skill changes as scope notes, not review modes.
+
 ## Review Focus
 
 AI review should cover what scripts cannot prove:
