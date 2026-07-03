@@ -60,11 +60,7 @@ def discover_docs(repo_root: Path) -> list[Path]:
     docs_dir = repo_root / "docs"
     if not docs_dir.is_dir():
         return []
-    return sorted(
-        path
-        for path in docs_dir.rglob("*.md")
-        if not path.name.startswith("TEMPLATE.")
-    )
+    return sorted(path for path in docs_dir.rglob("*.md") if not path.name.startswith("TEMPLATE."))
 
 
 def parse_header(text: str) -> dict[str, str] | None:

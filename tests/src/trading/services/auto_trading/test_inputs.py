@@ -42,7 +42,9 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
     close_series = pd.Series(range(1, 50), dtype=float)
     monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {"AAPL": 101.0})
-    monkeypatch.setattr(auto_trading_inputs, "fetch_close_histories", lambda _universe, **_kwargs: {"AAPL": close_series})
+    monkeypatch.setattr(
+        auto_trading_inputs, "fetch_close_histories", lambda _universe, **_kwargs: {"AAPL": close_series}
+    )
     monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
     universe, prices, iv_rank, histories = auto_trading_service.resolve_market_inputs("tickers.txt")

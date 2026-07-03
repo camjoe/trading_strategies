@@ -17,7 +17,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 
 | P | Initiative | Commitment | Status | Est | Gate |
 |---|---|---|---|---|---|
-| 1 | Close the execution loop (keystone) | Committed | ☐ next up | L | [D1](decisions.md#d1) |
+| 1 | Close the execution loop (keystone) | Committed | ✅ done (E1 · E2 parity) | L | [D1](decisions.md#d1) |
 | 2 | Finish unified evaluation | Committed | ✅ done (1a·1b·1c) | S | — |
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✎ spec ready | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
 | 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
@@ -253,12 +253,14 @@ Priority: P1 · Committed
   - params: `StrategyParamSetRepository` is read only for a `param_set_id` label and by the
     governance job — never fed into signal evaluation.
 - Sub-features:
-  - [ ] **3-E1. Run strategy signals in live/paper execution** — the runtime trade path resolves and
+  - [x] **3-E1. Run strategy signals in live/paper execution** — the runtime trade path resolves and
     evaluates the active strategy's `signal_fn` per candidate, so paper trades the strategy it is
     evaluated on. Keystone.
-  - [ ] **3-E2. Apply resolved params to signal evaluation** end-to-end (backtest + live), reading
+  - [x] **3-E2. Apply resolved params to signal evaluation** end-to-end (backtest + live), reading
     knobs from the account/defaults. Does **not** depend on the `strategy_param_sets` table — the
-    param-store shape is deferred to the rewrite ([D4](decisions.md#d4)).
+    param-store shape is deferred to the rewrite ([D4](decisions.md#d4)). *Delivered as parity:
+    backtest and live share `evaluate_signal(...)` through the `resolve_strategy_params` seam
+    (registry defaults today); the data-knob layer arrives with P3.*
 - Decisions ([D1](decisions.md#d1)) — **resolved:** trade **only when the strategy signals**, no
   forced minimum, keep a **max cap** per run; read params from account/defaults (param-store deferred
   to the rewrite); fetch per-ticker history via `MarketDataProvider.fetch_close_series` (~1y, cached);

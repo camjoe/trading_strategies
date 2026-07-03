@@ -81,7 +81,9 @@ def run_skills_check(repo_root: Path, *, enforce: bool = False, quiet: bool = Fa
     for name in sorted(on_disk - in_inventory):
         findings.append(f"- `{SKILLS_DIR.as_posix()}/{name}/` exists but has no {AGENTS_FILE} inventory row")
     for name in sorted(in_inventory - on_disk):
-        findings.append(f"- {AGENTS_FILE} inventory lists `{name}/` but `{SKILLS_DIR.as_posix()}/{name}/SKILL.md` does not exist")
+        findings.append(
+            f"- {AGENTS_FILE} inventory lists `{name}/` but `{SKILLS_DIR.as_posix()}/{name}/SKILL.md` does not exist"
+        )
     for name in sorted(on_disk):
         skill_md = repo_root / SKILLS_DIR / name / "SKILL.md"
         for problem in frontmatter_problems(skill_md):

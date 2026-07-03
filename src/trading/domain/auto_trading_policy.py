@@ -49,6 +49,7 @@ DELTA_BASE_FACTOR = 0.4
 # Minimum option premium in dollars; prevents near-zero or negative estimates
 OPTION_PREMIUM_FLOOR = 0.5
 
+
 class AccountPolicyInput(Protocol):
     def __getitem__(self, key: str) -> Any: ...
 
