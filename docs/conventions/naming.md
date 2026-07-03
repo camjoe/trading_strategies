@@ -10,7 +10,7 @@ Related: [Documentation Authoring Standard](docs-authoring.md), [Docs Map](../ma
 ## Case
 
 Use lowercase kebab-case for docs files. The exact filename pattern is enforced by
-`scripts/checks/doc_naming_check.py`.
+`scripts/checks/docs/doc_naming_check.py`.
 
 ## Reserved names (kept UPPERCASE)
 
@@ -31,5 +31,5 @@ Files in `adr/` use a three-digit sequential prefix: `NNN-title.md`. The number 
 
 ## Enforcement
 
-`python -m scripts.checks.doc_naming_check --enforce` verifies docs filenames and ADR numbering in
+`python -m scripts.checks.docs.doc_naming_check --enforce` verifies docs filenames and ADR numbering in
 the CI profile.

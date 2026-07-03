@@ -39,9 +39,9 @@ Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `py
 Use these only when isolating a failure:
 
 ```sh
-.venv\Scripts\python.exe -m scripts.checks.layer_check
-.venv\Scripts\python.exe -m scripts.checks.ruff_check
-.venv\Scripts\python.exe -m scripts.checks.mypy_check
+.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
+.venv\Scripts\python.exe -m scripts.checks.python.ruff_check
+.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
 .venv\Scripts\python.exe -m scripts.checks.run_suite <suite> --no-cov
 ```
 
@@ -66,5 +66,5 @@ This suite is deterministic and does not check everything. These are **advisory*
 ## Repo references
 
 - `scripts/run_checks.py`
-- `scripts/checks/repo_check.py`
-- `scripts/checks/python_check.py`
+- `scripts/checks/repo/repo_check.py`
+- `scripts/checks/python/python_check.py`

@@ -39,34 +39,20 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 
 ## Checks (`scripts/checks/`)
 
-Individual check modules. Each is also usable directly.
+Root files are orchestration and shared helpers. Concrete checks live under `docs/`, `repo/`, or `python/`.
 
 | Module | Responsibility |
 |---|---|
 | `quick.py` | Quick aggregate: repository checks + Python checks, with optional frontend |
 | `ci.py` | CI aggregate: docs + repo + Python + frontend |
-| `docs_check.py` | Human-facing aggregate documentation check: README, maps, links, `-m` refs, DB schema, doc headers, doc naming, and generated in-app doc assets |
-| `repo_check.py` | Human-facing aggregate repository check: layer boundaries, skills drift, live-trading safety, path safety, and secret hygiene |
-| `python_check.py` | Human-facing aggregate Python check: conventions, ruff, mypy, and pytest or targeted suites |
-| `review_scope_check.py` | Advisory review classifier — maps changed files to suggested code-review modes, high-risk triggers, and scope notes |
-| `ruff_check.py` | Ruff linting runner |
-| `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
-| `path_safety_check.py` | Cross-platform path safety checker — flags clear `os.path.join`, `os.sep`, and hardcoded backslash path hazards |
-| `python_conventions_check.py` | Python convention checker — verifies future annotations and public function return annotations in production/tooling modules |
-| `secret_hygiene_check.py` | Secret hygiene checker — flags committed literal credentials in source/config files |
-| `mypy_check.py` | Mypy type-check runner (`src/trading/` + `apps/paper_trading_web/backend/`) |
-| `pytest_check.py` | Pytest runner (full suite) |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |
-| `readme_check.py` | README freshness checker — flags docs older than a configurable age threshold |
-| `maps_check.py` | Map drift checker — flags modules on disk missing from (or stale in) the structural maps; advisory |
-| `link_check.py` | Doc link checker — flags broken markdown links and repo-root path references in docs; advisory |
-| `module_ref_check.py` | Doc `-m` module-reference checker — flags `python -m <module>` invocations in docs whose first-party module does not resolve; advisory |
-| `db_schema_check.py` | DB schema drift checker — verifies db-schema.md's Quick Reference covers every live table; advisory |
-| `doc_header_check.py` | Doc header checker — required fields + Type/Status vocabulary across `docs/` per docs-authoring.md; enforced in CI profile |
-| `doc_naming_check.py` | Doc filename checker — kebab-case docs names + sequential ADR numbering per naming.md; enforced in CI profile |
-| `live_safety_check.py` | Live-trading safety checker — blocks automated `live_trading_enabled = 1` code paths |
-| `skills_check.py` | Skills drift checker — AGENTS.md skill inventory ↔ `.ai/skills/` folders + SKILL.md frontmatter completeness; enforced in CI profile |
 | `_runner.py` | Internal shared check-runner helpers for steps and tool executable resolution |
+
+| Package | Checks |
+|---|---|
+| `scripts/checks/docs/` | `scripts/checks/docs/docs_check.py`, `scripts/checks/docs/readme_check.py`, `scripts/checks/docs/maps_check.py`, `scripts/checks/docs/link_check.py`, `scripts/checks/docs/module_ref_check.py`, `scripts/checks/docs/db_schema_check.py`, `scripts/checks/docs/doc_header_check.py`, `scripts/checks/docs/doc_naming_check.py` |
+| `scripts/checks/repo/` | `scripts/checks/repo/repo_check.py`, `scripts/checks/repo/layer_check.py`, `scripts/checks/repo/skills_check.py`, `scripts/checks/repo/live_safety_check.py`, `scripts/checks/repo/path_safety_check.py`, `scripts/checks/repo/secret_hygiene_check.py`, `scripts/checks/repo/review_scope_check.py` |
+| `scripts/checks/python/` | `scripts/checks/python/python_check.py`, `scripts/checks/python/python_conventions_check.py`, `scripts/checks/python/ruff_check.py`, `scripts/checks/python/mypy_check.py`, `scripts/checks/python/pytest_check.py` |
 
 **Run a targeted suite:**
 ```

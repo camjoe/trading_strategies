@@ -10,7 +10,7 @@ Each rule declares:
 
 Run standalone::
 
-    python -m scripts.checks.layer_check
+    python -m scripts.checks.repo.layer_check
 
 Or call ``run_layer_check(repo_root)`` from other check scripts.
 """

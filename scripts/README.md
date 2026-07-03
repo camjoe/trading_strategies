@@ -22,7 +22,7 @@ Run these from the repository root:
 ```sh
 python -m scripts.run_checks quick
 python -m scripts.fix_checks
-python -m scripts.checks.readme_check --max-age-days 90
+python -m scripts.checks.docs.readme_check --max-age-days 90
 python -m scripts.documentation_ui.check
 ```
 
@@ -64,15 +64,15 @@ Reference orchestration (`scripts/documentation_ui/`):
 
 Modular check scripts (`scripts/checks/`):
 
-- `docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
-- `repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
-- `python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
-- `review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, and scope notes.
-- `readme_check.py`: standalone README consistency runner. Ignores vendored or local
+- `scripts/checks/docs/docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
+- `scripts/checks/repo/repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
+- `scripts/checks/python/python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
+- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, and scope notes.
+- `scripts/checks/docs/readme_check.py`: standalone README consistency runner. Ignores vendored or local
   virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
   pollute repository documentation audits.
-- `mypy_check.py`: standalone mypy runner with default backend/trading targets.
-- `pytest_check.py`: standalone pytest runner with passthrough args.
+- `scripts/checks/python/mypy_check.py`: standalone mypy runner with default backend/trading targets.
+- `scripts/checks/python/pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
 - `ci.py`: broader CI-shaped checks (documentation drift, repo safety, dependency installs, ruff, mypy, pytest, frontend).
 - `_runner.py`: internal check-runner helpers for step execution and tool resolution.
@@ -113,7 +113,7 @@ If a script changes trading runtime behavior, place it in `src/trading/interface
 ## README Quality
 
 - Default check entrypoint: `run_checks.py`.
-- Focused docs quality audit: `scripts.checks.readme_check`.
+- Focused docs quality audit: `scripts.checks.docs.readme_check`.
 
 ### Usage
 
@@ -147,16 +147,16 @@ python -m scripts.documentation_ui.api.build_registry
 python -m scripts.documentation_ui.api.check
 
 # Modular checks (direct use)
-python -m scripts.checks.mypy_check
-python -m scripts.checks.pytest_check -- -q
-python -m scripts.checks.docs_check
-python -m scripts.checks.repo_check
-python -m scripts.checks.python_check
-python -m scripts.checks.review_scope_check --base main
+python -m scripts.checks.python.mypy_check
+python -m scripts.checks.python.pytest_check -- -q
+python -m scripts.checks.docs.docs_check
+python -m scripts.checks.repo.repo_check
+python -m scripts.checks.python.python_check
+python -m scripts.checks.repo.review_scope_check --base main
 python -m scripts.checks.quick
 python -m scripts.checks.ci
 
 # Focused docs checker
-python -m scripts.checks.readme_check --max-age-days 90
-python -m scripts.checks.readme_check --enforce-style --enforce-staleness
+python -m scripts.checks.docs.readme_check --max-age-days 90
+python -m scripts.checks.docs.readme_check --enforce-style --enforce-staleness
 ```

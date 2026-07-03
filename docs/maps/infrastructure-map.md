@@ -16,7 +16,7 @@ Related: [Trading Package Map](trading-package-map.md), [Architecture Convention
 - `src/infrastructure/` owns concrete adapters and third-party SDK imports. Trading code consumes
   ports and receives adapters at composition seams.
 - `src/infrastructure/database/` is the one infrastructure package the domain reaches *through repositories*: only `src/trading/repositories/` (and the documented `accounts/runtime_loader.py` exception) import it.
-- Import ownership is enforced by `python -m scripts.checks.layer_check`.
+- Import ownership is enforced by `python -m scripts.checks.repo.layer_check`.
 
 ## Module Directory
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scripts.checks.review_scope_check import classify_paths
+from scripts.checks.repo.review_scope_check import classify_paths
 
 
 def test_classifies_runtime_jobs_as_aggressive_high_risk() -> None:

@@ -1,11 +1,11 @@
-"""Tests for scripts.checks.live_safety_check."""
+"""Tests for scripts.checks.repo.live_safety_check."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from scripts.checks.live_safety_check import check_file, run_live_safety_check
+from scripts.checks.repo.live_safety_check import check_file, run_live_safety_check
 
 
 def _write(path: Path, content: str) -> Path:

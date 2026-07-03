@@ -97,7 +97,7 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 ## How it works (architecture)
 
 - **Layering:** `interfaces → services → repositories/domain → database`, with `models/` as the
-  lowest passive-data layer. Enforced by `scripts/checks/layer_check.py`. See
+  lowest passive-data layer. Enforced by `scripts/checks/repo/layer_check.py`. See
   [architecture conventions](architecture/architecture-conventions.md).
 - **Interface primacy:** the scheduler (runtime jobs) and CLI are the primary drivers; the web UI is
   an optional consumer over the same `src/trading/` services. Every capability must be reachable from

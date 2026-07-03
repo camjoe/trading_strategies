@@ -13,7 +13,7 @@ The foundation phase is **done**. The repo has a clean three-sibling base — `s
 
 - The former root `trading` and `common` packages now live under `src/`; infrastructure subpackages live under `src/infrastructure` (brokers, feature_providers, market_data, database, config).
 - Market data: the `MarketDataProvider` port and the proxy feature provider stay in `src/trading/services/market_data`; the concrete yfinance adapter + factory + transport cache live in `src/infrastructure/market_data`, wired at composition seams. No global provider locator.
-- Boundaries are enforced by `scripts/checks/layer_check.py` — e.g. `src/trading` code must not import the `infrastructure.market_data` adapter (mirroring brokers/feature_providers).
+- Boundaries are enforced by `scripts/checks/repo/layer_check.py` — e.g. `src/trading` code must not import the `infrastructure.market_data` adapter (mirroring brokers/feature_providers).
 
 ## Reusable patterns (for any future structural move)
 

@@ -122,8 +122,8 @@ Retired: `strategy_param_sets` (+ its repo/model), `sleeve_*` tables (+ repos) â
 Run from repo root with the venv interpreter, after each phase:
 ```
 .venv\Scripts\python.exe -m scripts.data_ops.describe_db_schema      # confirms target tables/indexes
-.venv\Scripts\python.exe -m scripts.checks.layer_check
-.venv\Scripts\python.exe -m scripts.checks.mypy_check
+.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
+.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
 .venv\Scripts\python.exe -m scripts.run_checks quick        # per-phase
 .venv\Scripts\python.exe -m scripts.run_checks ci           # final
 ```

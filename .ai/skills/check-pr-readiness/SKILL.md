@@ -123,8 +123,8 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 ## Repo references
 
 - `scripts/run_checks.py`
-- `scripts/checks/repo_check.py`
-- `scripts/checks/python_check.py`
+- `scripts/checks/repo/repo_check.py`
+- `scripts/checks/python/python_check.py`
 - `docs/architecture/architecture-conventions.md`
 - `docs/conventions/general-style.md`
 - `AGENTS.md`

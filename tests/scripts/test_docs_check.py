@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.checks import docs_check
+from scripts.checks.docs import docs_check
 
 
 def test_docs_check_runs_expected_steps_in_order(monkeypatch) -> None:

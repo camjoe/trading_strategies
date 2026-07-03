@@ -51,7 +51,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
 
-*Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.db_schema_check`.*
+*Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 
 ---
 

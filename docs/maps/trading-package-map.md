@@ -236,7 +236,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 
 Passive data contracts — the **lowest layer**. No business logic, no I/O, and no
 imports from `domain`/`services`/`repositories`/`interfaces`/`infrastructure`
-(enforced by `scripts/checks/layer_check.py`). Organized into feature subfolders;
+(enforced by `scripts/checks/repo/layer_check.py`). Organized into feature subfolders;
 each holds one contract per file. The package root and each subpackage re-export
 their public types.
 

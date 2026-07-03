@@ -56,7 +56,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
   backtests use code `default_params`. "Different parameters" is not yet a real lever.
 - **`shadow_evaluation` is thin post-1b** — its separate challenger-scoring path is gone; it's a
   rename/absorb candidate (Plan P5).
-- **`mypy` must be run via the project runner** — `python -m scripts.checks.mypy_check` (ad-hoc
+- **`mypy` must be run via the project runner** — `python -m scripts.checks.python.mypy_check` (ad-hoc
   `mypy <file>` fails to resolve the `src/` layout and reports false import errors).
 - **Two rotation paradigms still exist** — account-episode vs sleeve champion/challenger. The
   decision-score contract is shared for sleeve rotation (1a/1b); account rotation is not yet migrated.

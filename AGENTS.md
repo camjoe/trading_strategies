@@ -132,7 +132,7 @@ These phrases are repo conventions for common tasks.
 
 - Audit changed areas for documentation drift and apply targeted updates.
 - Follow `.ai/skills/update-documentation/SKILL.md`.
-- After edits, run `python -m scripts.checks.readme_check`.
+- After edits, run `python -m scripts.checks.docs.readme_check`.
 
 ### `run suite`
 
@@ -176,7 +176,7 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `update documentation`
 
-- Run `python -m scripts.checks.readme_check --repo-root . --max-age-days 90`.
+- Run `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`.
 - Report which README files need updates.
 
 ### `pr ready`

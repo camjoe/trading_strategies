@@ -120,8 +120,8 @@ Run from repo root with the venv interpreter:
 
 ```
 .venv\Scripts\python.exe -m scripts.checks.run_suite apps/paper_trading_web --no-cov
-.venv\Scripts\python.exe -m scripts.checks.layer_check
-.venv\Scripts\python.exe -m scripts.checks.mypy_check
+.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
+.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
 .venv\Scripts\python.exe -m scripts.run_checks quick
 ```
 

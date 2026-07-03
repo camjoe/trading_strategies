@@ -13,7 +13,7 @@ Use this skill for read-only review. Do not implement fixes during review.
 Consult deterministic checks first when available:
 
 ```sh
-python -m scripts.checks.review_scope_check --base <base_ref>
+python -m scripts.checks.repo.review_scope_check --base <base_ref>
 python -m scripts.run_checks repo
 python -m scripts.run_checks python --base <base_ref>
 ```
@@ -96,7 +96,7 @@ For general review:
 
 ## Repo References
 
-- `scripts/checks/review_scope_check.py`
+- `scripts/checks/repo/review_scope_check.py`
 - `scripts/run_checks.py`
 - `docs/architecture/architecture-conventions.md`
 - `docs/conventions/general-style.md`

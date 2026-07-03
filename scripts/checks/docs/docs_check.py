@@ -6,13 +6,13 @@ from pathlib import Path
 from common.paths.repo_paths import get_repo_root
 
 from scripts.checks._runner import CheckStep, run_check_steps
-from scripts.checks.db_schema_check import run_db_schema_check
-from scripts.checks.doc_header_check import run_doc_header_check
-from scripts.checks.doc_naming_check import run_doc_naming_check
-from scripts.checks.link_check import run_link_check
-from scripts.checks.maps_check import run_maps_check
-from scripts.checks.module_ref_check import run_module_ref_check
-from scripts.checks.readme_check import run_readme_consistency
+from scripts.checks.docs.db_schema_check import run_db_schema_check
+from scripts.checks.docs.doc_header_check import run_doc_header_check
+from scripts.checks.docs.doc_naming_check import run_doc_naming_check
+from scripts.checks.docs.link_check import run_link_check
+from scripts.checks.docs.maps_check import run_maps_check
+from scripts.checks.docs.module_ref_check import run_module_ref_check
+from scripts.checks.docs.readme_check import run_readme_consistency
 from scripts.documentation_ui.check import run_reference_docs_check
 
 
