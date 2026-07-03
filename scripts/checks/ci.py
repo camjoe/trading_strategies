@@ -7,10 +7,12 @@ from pathlib import Path
 from common.paths.repo_paths import get_repo_root
 
 from scripts.checks.db_schema_check import run_db_schema_check
+from scripts.checks.doc_header_check import run_doc_header_check
 from scripts.checks.layer_check import run_layer_check
 from scripts.checks.link_check import run_link_check
 from scripts.checks.maps_check import run_maps_check
 from scripts.checks.module_ref_check import run_module_ref_check
+from scripts.checks.skills_check import run_skills_check
 from scripts.checks.mypy_check import run_mypy
 from scripts.checks.pytest_check import run_pytest
 from scripts.checks.readme_check import run_readme_consistency
@@ -51,6 +53,16 @@ def parse_args() -> argparse.Namespace:
         help="Skip doc `-m` module reference check.",
     )
     parser.add_argument(
+        "--skip-doc-header-check",
+        action="store_true",
+        help="Skip doc header check.",
+    )
+    parser.add_argument(
+        "--skip-skills-check",
+        action="store_true",
+        help="Skip skills drift check.",
+    )
+    parser.add_argument(
         "--readme-max-age-days",
         type=int,
         default=90,
@@ -88,6 +100,8 @@ def run_ci(
     skip_maps_check: bool = False,
     skip_link_check: bool = False,
     skip_module_ref_check: bool = False,
+    skip_doc_header_check: bool = False,
+    skip_skills_check: bool = False,
     readme_max_age_days: int = 90,
     install_python_tools: bool = False,
     with_reference_doc_checks: bool = False,
@@ -108,6 +122,10 @@ def run_ci(
                 run_link_check(repo_root=repo_root, quiet=True)
             if not skip_module_ref_check:
                 run_module_ref_check(repo_root=repo_root, quiet=True)
+            if not skip_doc_header_check:
+                run_doc_header_check(repo_root=repo_root, quiet=True)
+            if not skip_skills_check:
+                run_skills_check(repo_root=repo_root, quiet=True)
             layer_exit = run_layer_check(repo_root=repo_root)
             if layer_exit != 0:
                 return layer_exit
@@ -161,6 +179,8 @@ def main() -> int:
         skip_maps_check=args.skip_maps_check,
         skip_link_check=args.skip_link_check,
         skip_module_ref_check=args.skip_module_ref_check,
+        skip_doc_header_check=args.skip_doc_header_check,
+        skip_skills_check=args.skip_skills_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,

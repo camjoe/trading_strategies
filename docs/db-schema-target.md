@@ -1,9 +1,9 @@
 # Database Schema — Target (WIP)
 
 Type: spec
-Status: WIP
+Status: Draft
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Purpose: The proposed final database schema on its own — the clean end-state, without the old schema
 or change/consolidation framing. Rationale, old→new mapping, data-loss assessment, and open decisions
 live in the [DB Schema Rewrite Spec](db-schema-rewrite-spec.md).

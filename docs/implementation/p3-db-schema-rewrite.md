@@ -2,6 +2,7 @@
 
 Type: implementation
 Status: Ready (large; multi-commit)
+Purpose: Work order for P3 — greenfield trading-unit schema rewrite in phased commits (DDL, models, repositories, seed, re-pointed reads).
 Initiative: P3 (DB schema rewrite, option B)
 Estimate: L
 Created: 2026-07-01

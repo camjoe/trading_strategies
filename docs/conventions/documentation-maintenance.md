@@ -21,12 +21,12 @@ The folder/file shuffle is the easy, low-value part of keeping docs healthy. The
 
 ## Deferred improvements
 
-Tracked backlog of doc-tooling work that applies the principles above. Each is self-contained; none is started.
+Tracked backlog of doc-tooling work that applies the principles above.
 
-- **In-app docs seam audit** (principle 3). The in-app doc assets (`api.json`, `software.json`, `finance.json`) are generated from `scripts/documentation_ui/` sources via `sync.py`. Periodically verify the generated JSON is never hand-edited (e.g. a check that regenerating produces no diff), so the seam stays genuinely derived.
-- **Skills drift-check + generated `help/` catalog** (principle 2). Add a `maps_check` sibling that validates the `AGENTS.md` skill inventory/routing against the actual `.ai/skills/` folders so routing can't silently lie, and generate the `help/` catalog from each skill's `description` frontmatter (one source feeding help catalog + routing). Push (auto-trigger / routing) beats pull (remembering to run `help`).
-- **Doc-header lint** (principles 2 and 4). Add an advisory check (sibling of `link_check`) that
-  verifies every `docs/` file carries the six header fields with valid `Type`/`Status` vocabulary
-  per [docs-authoring.md](docs-authoring.md) — catches the missing-`Last Reviewed` class of drift
-  permanently.
-- **Scripts discoverability** (principles 1–2). Enrich [`docs/maps/scripts-map.md`](../maps/scripts-map.md) with per-script usage + safety notes, and cross-link operational scripts to the skills/agents that drive them (e.g. UI screenshot tooling ↔ a UI-verify skill; auto-trading runners ↔ the `trading-runtime` agent + runbooks).
+- **Scripts discoverability** (principles 1–2). Enrich [`docs/maps/scripts-map.md`](../maps/scripts-map.md) with per-script usage + safety notes, and cross-link operational scripts to the skills and runbooks that drive them (e.g. UI screenshot tooling ↔ a UI-verify skill; auto-trading runners ↔ the runtime runbooks).
+
+Implemented (2026-07-02) — the enforcement now exists; listed here so the backlog history is legible:
+
+- **Doc-header lint** → `python -m scripts.checks.doc_header_check` (required fields + Type/Status vocabulary; advisory, in the CI profile).
+- **Skills drift-check** → `python -m scripts.checks.skills_check` (AGENTS.md inventory ↔ `.ai/skills/` both directions + SKILL.md frontmatter completeness; advisory, in the CI profile). The "generated help catalog" half was resolved differently: the `help/` skill enumerates skills from disk at runtime.
+- **In-app docs seam audit** → already existed as `python -m scripts.documentation_ui.check`; now runs **by default** in the CI profile (`--skip-reference-doc-checks` opts out).

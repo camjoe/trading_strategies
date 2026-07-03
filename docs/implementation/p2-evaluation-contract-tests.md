@@ -2,10 +2,11 @@
 
 Type: implementation
 Status: Ready
+Purpose: Work order for P2/1c — cross-surface regression tests proving compare, promotion, and rotation read one decision-score contract; doubles as the work-order template.
 Initiative: P2 (Unify evaluation) — sub-feature 1c
 Estimate: S (test-only, ~half day)
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-02
 Related: [Plan](../plan.md), [Decisions](../decisions.md), [Overview](../overview.md)
 
 > **This file is both the 1c work order and the template** for per-initiative implementation guides.

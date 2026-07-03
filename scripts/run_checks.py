@@ -38,7 +38,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--with-reference-doc-checks",
         action="store_true",
-        help="Quick/CI profile: run Financial & Market, Software, and API reference sync checks.",
+        help="Quick profile: also run Financial & Market, Software, and API reference sync checks (CI runs them by default).",
+    )
+    parser.add_argument(
+        "--skip-reference-doc-checks",
+        action="store_true",
+        help="CI profile: skip the reference-doc asset sync checks (they run by default in CI).",
     )
     parser.add_argument(
         "--suite",
@@ -125,7 +130,8 @@ def main() -> int:
         skip_module_ref_check=args.skip_module_ref_check,
         readme_max_age_days=args.readme_max_age_days,
         install_python_tools=args.install_python_tools,
-        with_reference_doc_checks=args.with_reference_doc_checks,
+        # The generated in-app doc assets are checked by default in CI; --skip opts out.
+        with_reference_doc_checks=not args.skip_reference_doc_checks,
     )
 
 
