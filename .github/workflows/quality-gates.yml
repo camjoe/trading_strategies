@@ -89,6 +89,9 @@ jobs:
           pip install -r requirements-dev.txt
           pip install ruff mypy
 
+      - name: Run layer boundary gate
+        run: python -m scripts.checks.layer_check
+
       - name: Run ruff lint gate
         run: ruff check src/trading apps/trends apps/paper_trading_web/backend --select F,E9
 

@@ -4,7 +4,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.checks.layer_check import LAYER_RULES, LayerRule, check_rule, run_layer_check
+from scripts.checks.layer_check import (
+    BANNED_PATH_RULES,
+    LAYER_RULES,
+    BannedPathRule,
+    LayerRule,
+    check_banned_path_rule,
+    check_rule,
+    run_layer_check,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -87,6 +95,27 @@ def test_check_rule_honours_exceptions(tmp_path: Path) -> None:
     assert violations == []
 
 
+def test_check_rule_honours_excluded_prefixes(tmp_path: Path) -> None:
+    allowed = tmp_path / "src" / "infrastructure" / "brokers"
+    disallowed = tmp_path / "src" / "infrastructure" / "database"
+    allowed.mkdir(parents=True)
+    disallowed.mkdir(parents=True)
+    _write_py(allowed, "adapter.py", "import ib_async\n")
+    _write_py(disallowed, "config.py", "import ib_async\n")
+
+    rule = LayerRule(
+        label="test-rule",
+        source_glob="src/infrastructure/**/*.py",
+        forbidden_prefixes=("ib_async",),
+        excluded_prefixes=("src/infrastructure/brokers/",),
+    )
+
+    violations = check_rule(tmp_path, rule)
+
+    assert len(violations) == 1
+    assert violations[0].file.name == "config.py"
+
+
 def test_check_rule_skips_syntax_errors_gracefully(tmp_path: Path) -> None:
     src = tmp_path / "services"
     src.mkdir()
@@ -132,6 +161,90 @@ def test_backtest_seam_may_import_market_data_adapter(tmp_path: Path) -> None:
 
     violations = check_rule(tmp_path, _market_data_rule())
     assert violations == []
+
+
+# ---------------------------------------------------------------------------
+# SDK ownership and retired package rules
+# ---------------------------------------------------------------------------
+
+
+def _rule_with_label(label: str) -> LayerRule:
+    rule = next((r for r in LAYER_RULES if r.label == label), None)
+    assert rule is not None, f"Expected layer rule {label!r}"
+    return rule
+
+
+def test_trading_must_not_import_broker_sdk(tmp_path: Path) -> None:
+    src = tmp_path / "src" / "trading" / "services"
+    src.mkdir(parents=True)
+    _write_py(src, "broker.py", "import ib_async\n")
+
+    violations = check_rule(tmp_path, _rule_with_label("trading → no direct broker SDK imports"))
+
+    assert len(violations) == 1
+    assert violations[0].import_text == "ib_async"
+
+
+def test_broker_infrastructure_may_import_broker_sdk(tmp_path: Path) -> None:
+    brokers = tmp_path / "src" / "infrastructure" / "brokers"
+    brokers.mkdir(parents=True)
+    _write_py(brokers, "adapter.py", "import ib_async\n")
+
+    violations = check_rule(
+        tmp_path,
+        _rule_with_label("non-broker infrastructure → no direct broker SDK imports"),
+    )
+
+    assert violations == []
+
+
+def test_trading_must_not_import_external_data_sdk(tmp_path: Path) -> None:
+    src = tmp_path / "src" / "trading" / "domain"
+    src.mkdir(parents=True)
+    _write_py(src, "signals.py", "from pytrends.request import TrendReq\n")
+
+    violations = check_rule(tmp_path, _rule_with_label("trading → no direct external-data SDK imports"))
+
+    assert len(violations) == 1
+    assert violations[0].import_text == "pytrends.request"
+
+
+def test_feature_provider_infrastructure_may_import_external_data_sdk(tmp_path: Path) -> None:
+    providers = tmp_path / "src" / "infrastructure" / "feature_providers"
+    providers.mkdir(parents=True)
+    _write_py(providers, "social.py", "import praw\n")
+
+    violations = check_rule(
+        tmp_path,
+        _rule_with_label("non-feature-provider infrastructure → no direct external-data SDK imports"),
+    )
+
+    assert violations == []
+
+
+def test_runtime_settings_package_reintroduction_is_reported(tmp_path: Path) -> None:
+    path = tmp_path / "src" / "trading" / "services" / "runtime_settings"
+    path.mkdir(parents=True)
+    rule = BannedPathRule(
+        label="test-banned-path",
+        banned_paths=("src/trading/services/runtime_settings",),
+    )
+
+    violations = check_banned_path_rule(tmp_path, rule)
+
+    assert len(violations) == 1
+    assert violations[0].path == path
+
+
+def test_real_banned_path_rules_are_present() -> None:
+    banned = {
+        rel_path
+        for rule in BANNED_PATH_RULES
+        for rel_path in rule.banned_paths
+    }
+
+    assert "src/trading/services/runtime_settings" in banned
+    assert "src/trading/services/runtime_throttle" in banned
 
 
 # ---------------------------------------------------------------------------

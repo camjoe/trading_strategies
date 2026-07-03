@@ -122,6 +122,9 @@ Disallowed:
    - The feature provider (`ProxyFeatureDataProvider`) stays in `src/trading/services/market_data/` — it is a
      trading-domain computation over an injected market-data provider, with no external-library dependency.
 
+Broker SDK, external-data SDK, market-data adapter, and retired runtime package-name boundaries are
+enforced by `python -m scripts.checks.layer_check`.
+
 ## External Data Strategies
 
 Rules for all alternative-strategy development (strategy_style = "alternative"):

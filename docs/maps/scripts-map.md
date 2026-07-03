@@ -43,7 +43,7 @@ Individual check modules. Each is also usable directly.
 | `quick.py` | Quick profile: README consistency + layer check + ruff + mypy + pytest |
 | `ci.py` | CI profile: the quick gates plus doc-drift checks (maps, links, `-m` refs, DB schema), dependency install, and frontend |
 | `ruff_check.py` | Ruff linting runner |
-| `layer_check.py` | Import boundary enforcement — verifies layering rules (services → no database imports, etc.) |
+| `layer_check.py` | Import/path boundary enforcement — verifies layering, SDK ownership, and retired package-name rules |
 | `mypy_check.py` | Mypy type-check runner (`src/trading/` + `apps/paper_trading_web/backend/`) |
 | `pytest_check.py` | Pytest runner (full suite) |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |

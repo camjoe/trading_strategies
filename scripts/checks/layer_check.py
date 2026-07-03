@@ -35,9 +35,18 @@ class LayerRule:
     label: str
     source_glob: str
     forbidden_prefixes: tuple[str, ...]
+    # Relative path prefixes (posix) exempted from this rule. Use for package-level
+    # ownership carve-outs such as "all infrastructure except brokers".
+    excluded_prefixes: tuple[str, ...] = ()
     # Relative paths (posix) exempted from this rule. Use sparingly and
     # only when the import is at a deliberate architectural boundary.
     exceptions: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class BannedPathRule:
+    label: str
+    banned_paths: tuple[str, ...]
 
 
 LAYER_RULES: list[LayerRule] = [
@@ -133,6 +142,59 @@ LAYER_RULES: list[LayerRule] = [
         source_glob="apps/paper_trading_web/backend/routes/**/*.py",
         forbidden_prefixes=("trading.backtesting.domain.",),
     ),
+    LayerRule(
+        label="trading → no direct broker SDK imports",
+        source_glob="src/trading/**/*.py",
+        forbidden_prefixes=("ib_async", "ibapi"),
+    ),
+    LayerRule(
+        label="apps → no direct broker SDK imports",
+        source_glob="apps/**/*.py",
+        forbidden_prefixes=("ib_async", "ibapi"),
+    ),
+    LayerRule(
+        label="scripts → no direct broker SDK imports",
+        source_glob="scripts/**/*.py",
+        forbidden_prefixes=("ib_async", "ibapi"),
+    ),
+    LayerRule(
+        label="non-broker infrastructure → no direct broker SDK imports",
+        source_glob="src/infrastructure/**/*.py",
+        forbidden_prefixes=("ib_async", "ibapi"),
+        excluded_prefixes=("src/infrastructure/brokers/",),
+    ),
+    LayerRule(
+        label="trading → no direct external-data SDK imports",
+        source_glob="src/trading/**/*.py",
+        forbidden_prefixes=("praw", "pytrends", "vaderSentiment", "newsapi"),
+    ),
+    LayerRule(
+        label="apps → no direct external-data SDK imports",
+        source_glob="apps/**/*.py",
+        forbidden_prefixes=("praw", "pytrends", "vaderSentiment", "newsapi"),
+    ),
+    LayerRule(
+        label="scripts → no direct external-data SDK imports",
+        source_glob="scripts/**/*.py",
+        forbidden_prefixes=("praw", "pytrends", "vaderSentiment", "newsapi"),
+    ),
+    LayerRule(
+        label="non-feature-provider infrastructure → no direct external-data SDK imports",
+        source_glob="src/infrastructure/**/*.py",
+        forbidden_prefixes=("praw", "pytrends", "vaderSentiment", "newsapi"),
+        excluded_prefixes=("src/infrastructure/feature_providers/",),
+    ),
+]
+
+
+BANNED_PATH_RULES: list[BannedPathRule] = [
+    BannedPathRule(
+        label="retired runtime settings package names must not be reintroduced",
+        banned_paths=(
+            "src/trading/services/runtime_settings",
+            "src/trading/services/runtime_throttle",
+        ),
+    ),
 ]
 
 
@@ -147,6 +209,13 @@ class Violation:
     file: Path
     line: int
     import_text: str
+
+
+@dataclass
+class PathViolation:
+    rule_label: str
+    path: Path
+    message: str
 
 
 def _extract_imports(source: str) -> list[tuple[int, str]]:
@@ -196,6 +265,8 @@ def check_rule(repo_root: Path, rule: LayerRule) -> list[Violation]:
     violations: list[Violation] = []
     for path in _discover_files(repo_root, rule.source_glob):
         rel_posix = path.relative_to(repo_root).as_posix()
+        if any(rel_posix.startswith(prefix) for prefix in rule.excluded_prefixes):
+            continue
         if rel_posix in rule.exceptions:
             continue
         try:
@@ -216,28 +287,62 @@ def check_rule(repo_root: Path, rule: LayerRule) -> list[Violation]:
     return violations
 
 
-def run_layer_check(repo_root: Path, *, rules: list[LayerRule] | None = None) -> int:
+def check_banned_path_rule(repo_root: Path, rule: BannedPathRule) -> list[PathViolation]:
+    violations: list[PathViolation] = []
+    for rel_path in rule.banned_paths:
+        path = repo_root / rel_path
+        if path.exists():
+            violations.append(
+                PathViolation(
+                    rule_label=rule.label,
+                    path=path,
+                    message="retired path exists",
+                )
+            )
+    return violations
+
+
+def run_layer_check(
+    repo_root: Path,
+    *,
+    rules: list[LayerRule] | None = None,
+    banned_path_rules: list[BannedPathRule] | None = None,
+) -> int:
     """Run all layer rules and print a report. Returns 0 if clean, 1 if violations found."""
     active_rules = rules if rules is not None else LAYER_RULES
+    active_path_rules = banned_path_rules if banned_path_rules is not None else BANNED_PATH_RULES
     all_violations: list[Violation] = []
+    all_path_violations: list[PathViolation] = []
 
     for rule in active_rules:
         all_violations.extend(check_rule(repo_root, rule))
+    for rule in active_path_rules:
+        all_path_violations.extend(check_banned_path_rule(repo_root, rule))
 
-    if not all_violations:
+    if not all_violations and not all_path_violations:
         print("Layer check passed. No boundary violations found.")
         return 0
 
-    print(f"Layer check FAILED — {len(all_violations)} violation(s) found:\n")
+    total = len(all_violations) + len(all_path_violations)
+    print(f"Layer check FAILED — {total} violation(s) found:\n")
     by_rule: dict[str, list[Violation]] = {}
     for v in all_violations:
         by_rule.setdefault(v.rule_label, []).append(v)
+    by_path_rule: dict[str, list[PathViolation]] = {}
+    for v in all_path_violations:
+        by_path_rule.setdefault(v.rule_label, []).append(v)
 
     for label, violations in by_rule.items():
         print(f"  Rule: {label}")
         for v in violations:
             rel = v.file.relative_to(repo_root)
             print(f"    {rel}:{v.line}  import {v.import_text}")
+        print()
+    for label, violations in by_path_rule.items():
+        print(f"  Rule: {label}")
+        for v in violations:
+            rel = v.path.relative_to(repo_root)
+            print(f"    {rel}  {v.message}")
         print()
 
     return 1
