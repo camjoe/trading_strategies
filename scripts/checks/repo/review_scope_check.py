@@ -93,7 +93,11 @@ def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quie
     print(f"Repo root: {repo_root}")
     print(f"Diff: {base_ref + '...HEAD' if base_ref else 'HEAD'}")
     print(f"Changed files: {len(report.changed_files)}")
-    print("Suggested review modes: " + ", ".join(sorted(report.modes)) if report.modes else "Suggested review modes: none")
+    print(
+        "Suggested review modes: " + ", ".join(sorted(report.modes))
+        if report.modes
+        else "Suggested review modes: none"
+    )
 
     if report.high_risk:
         print("\nHigh-risk triggers:")

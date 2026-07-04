@@ -56,9 +56,7 @@ def test_docstring_mentions_are_not_reported(tmp_path: Path) -> None:
 def test_false_and_zero_are_allowed(tmp_path: Path) -> None:
     path = _write(
         tmp_path / "tests/example.py",
-        "row = {'live_trading_enabled': 0}\n"
-        "build_account(live_trading_enabled=False)\n"
-        "live_trading_enabled = 0\n",
+        "row = {'live_trading_enabled': 0}\nbuild_account(live_trading_enabled=False)\nlive_trading_enabled = 0\n",
     )
 
     assert check_file(path) == []

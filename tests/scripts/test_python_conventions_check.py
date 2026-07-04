@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from scripts.checks.python.python_conventions_check import check_file, discover_python_files, run_python_conventions_check
+from scripts.checks.python.python_conventions_check import (
+    check_file,
+    discover_python_files,
+    run_python_conventions_check,
+)
 
 
 def _write(path: Path, content: str) -> Path:
