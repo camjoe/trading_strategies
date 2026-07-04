@@ -133,7 +133,7 @@ Both tuples are processed by `init_schema()`. Any new table requiring additive m
 
 Do not maintain a table list here — it drifts. For the full current inventory (all tables, purposes,
 FK relationships) see [db-schema.md](db-schema.md) (drift-checked by
-`python -m scripts.checks.db_schema_check`), or run
+`python -m scripts.checks.docs.db_schema_check`), or run
 `python -m scripts.data_ops.describe_db_schema` for a live snapshot.
 
 ---

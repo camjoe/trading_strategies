@@ -8,7 +8,7 @@ from pathlib import Path
 from common.paths.formatting import relative_posix
 from common.paths.repo_paths import get_repo_root
 
-from scripts.checks.link_check import discover_docs
+from scripts.checks.docs.link_check import discover_docs
 
 # A `python -m <module>` invocation. Captures the dotted module path.
 # Breakdown: (?<![\w-])-m\s+ = a standalone `-m` flag (not part of `--mod`/`xx-m`) + whitespace,

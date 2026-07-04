@@ -1,11 +1,11 @@
-"""Tests for scripts.checks.doc_header_check."""
+"""Tests for scripts.checks.docs.doc_header_check."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from scripts.checks.doc_header_check import check_file, discover_docs, parse_header, run_doc_header_check
+from scripts.checks.docs.doc_header_check import check_file, discover_docs, parse_header, run_doc_header_check
 
 VALID_HEADER = (
     "# Some Doc\n"

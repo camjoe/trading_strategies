@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def _run_check(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "scripts.checks.readme_check", "--repo-root", str(repo), *args],
+        [sys.executable, "-m", "scripts.checks.docs.readme_check", "--repo-root", str(repo), *args],
         cwd=str(PROJECT_ROOT),
         capture_output=True,
         text=True,

@@ -22,7 +22,7 @@ Purpose: One sentence describing what this doc is for.
 Related: [Name](relative/path.md), [Name](relative/path.md)
 ```
 
-Allowed `Type` and `Status` values live in `scripts/checks/doc_header_check.py`; the CI profile
+Allowed `Type` and `Status` values live in `scripts/checks/docs/doc_header_check.py`; the CI profile
 enforces them. A status may include a parenthetical or dash suffix after a valid leading token
 (for example, `Ready (multi-commit)`).
 
@@ -82,5 +82,5 @@ Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy
 
 All files under `docs/` follow this standard, with `TEMPLATE.*.md` as placeholder-only templates.
 
-**Enforcement:** `python -m scripts.checks.doc_header_check --enforce` verifies the required fields
+**Enforcement:** `python -m scripts.checks.docs.doc_header_check --enforce` verifies the required fields
 and Type/Status vocabulary across `docs/` in the CI profile.

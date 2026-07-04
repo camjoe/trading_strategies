@@ -1,11 +1,11 @@
-"""Tests for scripts.checks.skills_check."""
+"""Tests for scripts.checks.repo.skills_check."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from scripts.checks.skills_check import (
+from scripts.checks.repo.skills_check import (
     frontmatter_problems,
     run_skills_check,
     skills_in_inventory,

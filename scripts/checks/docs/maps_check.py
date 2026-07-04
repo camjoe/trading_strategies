@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -140,19 +141,19 @@ def _resolve_token(token: str, current_dir: str) -> str:
     return token if _is_full_path(token) else f"{current_dir}/{token}"
 
 
-def _extract_documented_paths(text: str, source_rel: str) -> set[str]:
-    """Resolve each `.py` token (table rows only) to a full repo path using its section context.
+def iter_table_row_paths(text: str, source_rel: str) -> Iterator[tuple[int, list[str]]]:
+    """Yield (line index, resolved repo paths) for each table row naming at least one `.py` file.
 
-    Section directories may be full (``### `trading/services/` ``) or relative to a parent
+    Each `.py` token is resolved to a full repo path using its section context. Section
+    directories may be full (``### `trading/services/` ``) or relative to a parent
     section (``### Routes (`routes/`)`` under ``## Backend (`apps/paper_trading_web/backend/`)``).
     Heading level disambiguates: a level-1/2 heading starts a top-level section (resolved against
     the source root); a deeper heading or bold label is a subsection (resolved against the current
     section base). Only table rows count as file-claims, so prose mentions are ignored.
     """
-    documented: set[str] = set()
     section_base = source_rel  # dir set by the most recent top-level (#/##) section
     current_dir = source_rel  # dir the current table rows resolve against
-    for line in text.splitlines():
+    for line_no, line in enumerate(text.splitlines()):
         heading = HEADER_RE.match(line)
         if heading:
             path = _heading_path(heading.group(2))
@@ -180,10 +181,20 @@ def _extract_documented_paths(text: str, source_rel: str) -> set[str]:
         # are not, so they should not be resolved into (often non-existent) section paths.
         if not line.lstrip().startswith("|"):
             continue
+        paths: list[str] = []
         for span in CODE_SPAN_RE.findall(line):
             candidate = span.strip().replace("\\", "/")
             if PY_PATH_RE.match(candidate):
-                documented.add(_resolve_token(candidate, current_dir))
+                paths.append(_resolve_token(candidate, current_dir))
+        if paths:
+            yield line_no, paths
+
+
+def _extract_documented_paths(text: str, source_rel: str) -> set[str]:
+    """All resolved `.py` paths claimed by the map's table rows (see iter_table_row_paths)."""
+    documented: set[str] = set()
+    for _, paths in iter_table_row_paths(text, source_rel):
+        documented.update(paths)
     return documented
 
 

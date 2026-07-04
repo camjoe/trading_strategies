@@ -230,8 +230,11 @@ def _bollinger_mean_reversion_signal(
     close = float(segment.iloc[-1])
     if not math.isfinite(close):
         return "hold"
-    middle = float(segment.mean())
-    std = float(segment.std(ddof=0))
+    segment_finite = segment[segment.map(lambda value: math.isfinite(float(value)))]
+    if len(segment_finite) < len(segment):
+        return "hold"
+    middle = float(segment_finite.mean())
+    std = float(segment_finite.std(ddof=0))
     if not math.isfinite(std) or std <= 0:
         return "hold"
 

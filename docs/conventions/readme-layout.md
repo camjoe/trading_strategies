@@ -39,7 +39,7 @@ Optional sections:
 
 Notes:
 
-- `scripts.checks.readme_check` already validates the required root sections.
+- `scripts.checks.docs.readme_check` already validates the required root sections.
 
 ### 2. Module or Package README
 
@@ -84,5 +84,5 @@ Before finalizing a README:
 1. Confirm at least one context section (`Purpose` or `Overview`).
 2. Confirm at least one operational section (`Quick Start`, `Commands`, `Usage`, or `Workflows`).
 3. Run:
-   - `python -m scripts.checks.readme_check --max-age-days 90`
+   - `python -m scripts.checks.docs.readme_check --max-age-days 90`
 4. If behavior changed, update linked docs in the same change set.

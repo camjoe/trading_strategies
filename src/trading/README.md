@@ -210,4 +210,4 @@ CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 - Orchestration and composition are owned by service modules under `src/trading/services/`.
 - Policy logic is owned by domain modules under `src/trading/domain/`.
 - Concrete broker, market-data, and external-data adapters live in `src/infrastructure/`; import
-  ownership is enforced by `scripts/checks/layer_check.py`.
+  ownership is enforced by `scripts/checks/repo/layer_check.py`.

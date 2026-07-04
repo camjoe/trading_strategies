@@ -232,7 +232,7 @@ Run on the dev machine against the change you intend to ship:
 
 ```bash
 # Full CI-profile checks (layer + lint + type + tests)
-.venv/bin/python -m scripts.run_checks --profile ci
+.venv/bin/python -m scripts.run_checks ci
 # Targeted suites for the areas you touched (faster signal)
 .venv/bin/python -m scripts.checks.run_suite --base develop
 ```
@@ -292,7 +292,7 @@ Smoke a candidate before promoting:
 ```bash
 cd ~/trading-staging
 git pull origin develop
-./.venv/bin/python -m scripts.run_checks --profile ci
+./.venv/bin/python -m scripts.run_checks ci
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --dry-run
 ```
 
