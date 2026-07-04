@@ -16,6 +16,10 @@ def test_python_check_runs_public_api_test_evidence_step(monkeypatch, tmp_path: 
         "scripts.checks.python.python_check.run_public_api_test_evidence_check",
         lambda **_: calls.append("public-api-test-evidence") or 0,
     )
+    monkeypatch.setattr(
+        "scripts.checks.python.python_check.run_function_complexity_check",
+        lambda **_: calls.append("function-complexity") or 0,
+    )
     monkeypatch.setattr("scripts.checks.python.python_check.run_ruff", lambda **_: calls.append("ruff") or 0)
     monkeypatch.setattr("scripts.checks.python.python_check.run_mypy", lambda **_: calls.append("mypy") or 0)
     monkeypatch.setattr("scripts.checks.python.python_check.run_pytest", lambda **_: calls.append("pytest") or 0)
@@ -23,4 +27,4 @@ def test_python_check_runs_public_api_test_evidence_step(monkeypatch, tmp_path: 
     exit_code = run_python_check(tmp_path, "python.exe", no_cov=True)
 
     assert exit_code == 0
-    assert calls == ["conventions", "public-api-test-evidence", "ruff", "mypy", "pytest"]
+    assert calls == ["conventions", "public-api-test-evidence", "function-complexity", "ruff", "mypy", "pytest"]
