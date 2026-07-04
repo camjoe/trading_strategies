@@ -728,6 +728,47 @@ def available_strategy_ids() -> list[str]:
     return sorted(STRATEGY_REGISTRY.keys())
 
 
+@dataclass(frozen=True)
+class PrimitiveSpec:
+    """A code signal primitive: the tested signal function plus its knob schema.
+
+    The code half of the strategy = primitive + knobs model (D5). A `strategies`
+    row binds one primitive to a concrete knob dict; the knob schema here is the
+    primitive's tunable knob names with their code defaults.
+    """
+
+    primitive: str
+    signal_fn: SignalFunction
+    knob_schema: Mapping[str, Any]
+    style: str
+    required_features: tuple[str, ...] = ()
+    description: str = ""
+
+
+# One primitive per registered signal function today; keyed by the registry
+# strategy id, which doubles as the primitive name for the seeded catalog.
+PRIMITIVE_CATALOG: dict[str, PrimitiveSpec] = {
+    spec.strategy_id: PrimitiveSpec(
+        primitive=spec.strategy_id,
+        signal_fn=spec.signal_fn,
+        knob_schema=dict(spec.default_params),
+        style=spec.strategy_style,
+        required_features=spec.required_features,
+        description=spec.description,
+    )
+    for spec in STRATEGY_REGISTRY.values()
+}
+
+
+def resolve_primitive(primitive: str) -> PrimitiveSpec:
+    """Resolve a primitive name to its code spec; raises for unknown primitives."""
+    spec = PRIMITIVE_CATALOG.get(primitive.strip().lower())
+    if spec is None:
+        available = ", ".join(sorted(PRIMITIVE_CATALOG))
+        raise ValueError(f"Unknown signal primitive '{primitive}'. Valid primitives: {available}")
+    return spec
+
+
 def _invalid_strategy_error(strategy_name: str) -> ValueError:
     available = ", ".join(available_strategy_ids())
     return ValueError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
