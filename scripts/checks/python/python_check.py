@@ -9,6 +9,7 @@ from common.paths.repo_paths import get_repo_root
 from scripts.checks._runner import CheckStep, resolve_python_exe, run_check_steps
 from scripts.checks.python.mypy_check import run_mypy
 from scripts.checks.python.pytest_check import run_pytest
+from scripts.checks.python.public_api_test_evidence_check import run_public_api_test_evidence_check
 from scripts.checks.python.python_conventions_check import run_python_conventions_check
 from scripts.checks.python.ruff_check import run_ruff
 from scripts.checks.run_suite import run_suite_targeted
@@ -34,6 +35,14 @@ def run_python_check(
                 CheckStep(
                     "Python conventions",
                     lambda: run_python_conventions_check(repo_root=repo_root, quiet=quiet, enforce=True),
+                ),
+                CheckStep(
+                    "Public API test evidence",
+                    lambda: run_public_api_test_evidence_check(
+                        repo_root=repo_root,
+                        base_ref=suite_base,
+                        quiet=quiet,
+                    ),
                 ),
                 CheckStep("Ruff", lambda: run_ruff(repo_root=repo_root, python_exe=python_exe)),
                 CheckStep("Mypy", lambda: run_mypy(repo_root=repo_root, python_exe=python_exe)),

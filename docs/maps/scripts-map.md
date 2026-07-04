@@ -19,7 +19,7 @@ Entry point for aggregate validation checks. Run via `python -m scripts.run_chec
 |---|---|---|
 | `docs` | Documentation drift checks | README consistency, maps, links, `-m` refs, DB schema docs, doc headers, doc naming, generated in-app doc assets |
 | `repo` | Repository safety and structure checks | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
-| `python` | Python quality gate | Python conventions, ruff, mypy, pytest or targeted suites |
+| `python` | Python quality gate | Python conventions, public API test-evidence advisory, ruff, mypy, pytest or targeted suites |
 | `quick` | Day-to-day, before committing | `repo` + `python` (optional frontend and targeted suites) |
 | `ci` | CI-shaped smoke before a PR | `docs` + `repo` + `python` + frontend lint/typecheck/tests |
 
@@ -63,7 +63,7 @@ Root files are orchestration and shared helpers. Concrete checks live under `doc
 |---|---|
 | `scripts/checks/docs/` | `scripts/checks/docs/docs_check.py`, `scripts/checks/docs/readme_check.py`, `scripts/checks/docs/maps_check.py`, `scripts/checks/docs/link_check.py`, `scripts/checks/docs/module_ref_check.py`, `scripts/checks/docs/db_schema_check.py`, `scripts/checks/docs/doc_header_check.py`, `scripts/checks/docs/doc_naming_check.py` |
 | `scripts/checks/repo/` | `scripts/checks/repo/repo_check.py`, `scripts/checks/repo/layer_check.py`, `scripts/checks/repo/skills_check.py`, `scripts/checks/repo/live_safety_check.py`, `scripts/checks/repo/path_safety_check.py`, `scripts/checks/repo/secret_hygiene_check.py`, `scripts/checks/repo/review_scope_check.py` |
-| `scripts/checks/python/` | `scripts/checks/python/python_check.py`, `scripts/checks/python/python_conventions_check.py`, `scripts/checks/python/ruff_check.py`, `scripts/checks/python/mypy_check.py`, `scripts/checks/python/pytest_check.py` |
+| `scripts/checks/python/` | `scripts/checks/python/python_check.py`, `scripts/checks/python/python_conventions_check.py`, `scripts/checks/python/public_api_test_evidence_check.py`, `scripts/checks/python/ruff_check.py`, `scripts/checks/python/mypy_check.py`, `scripts/checks/python/pytest_check.py` |
 
 **Run a targeted suite:**
 ```
