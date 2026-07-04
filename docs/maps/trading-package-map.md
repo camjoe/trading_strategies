@@ -213,8 +213,8 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs, D5) |
 | `trades.py` | Trade execution records |
 | `books.py` | Clean-schema strategy books — execution primitives |
+| `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
-| `unit_settings.py` | Per-concern typed book settings (execution, rotation, options) |
 
 ---
 
