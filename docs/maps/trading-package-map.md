@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-04
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -104,6 +104,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 |---|---|
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
+| `seed_clean_schema.py` | Seed clean-schema strategy catalog and default trading units bootstrap |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
@@ -176,6 +177,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
 | `sleeves/universe_config.py` | Sleeve trade-universe configuration |
+| `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default trading units from code |
 | `universe/resolver.py` | Trade-universe name resolution |
 
 ---
@@ -191,9 +193,14 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `backtest_history.py` | Backtest run history records |
 | `broker_orders.py` | Broker-submitted order records |
 | `daily_metrics.py` | Daily performance metric snapshots |
+| `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
+| `ledger.py` | Clean-schema unit-keyed ledger entry records |
+| `orders.py` | Clean-schema orders table (unifies broker + sleeve orders) |
 | `portfolio_risk_snapshots.py` | Portfolio risk snapshot records |
+| `positions.py` | Clean-schema position records keyed by (unit_id, symbol) |
 | `promotion.py` | Promotion decision records |
+| `risk.py` | Clean-schema risk snapshots and risk decision records |
 | `rotation_decisions.py` | Rotation decision records |
 | `rotation.py` | Rotation state records |
 | `sleeve_ledger.py` | Sleeve transaction ledger |
@@ -203,7 +210,11 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `sleeves.py` | Sleeve configuration and state |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategy_param_sets.py` | Strategy parameter set records |
+| `strategies.py` | Clean-schema strategies catalog (primitive + knobs, D5) |
 | `trades.py` | Trade execution records |
+| `trading_units.py` | Clean-schema trading units — execution primitives |
+| `unit_assignments.py` | Unit-strategy assignment and lifecycle records |
+| `unit_settings.py` | Per-concern typed unit settings (execution, rotation, options) |
 
 ---
 
