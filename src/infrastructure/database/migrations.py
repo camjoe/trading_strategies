@@ -178,6 +178,12 @@ ACCOUNT_BROKER_MIGRATIONS = (
         "live_trading_enabled",
         "ALTER TABLE accounts ADD COLUMN live_trading_enabled INTEGER NOT NULL DEFAULT 0",
     ),
+    # P3 clean-schema custody columns (docs/db-schema-target.md).
+    ColumnMigration(
+        "base_ccy",
+        "ALTER TABLE accounts ADD COLUMN base_ccy TEXT NOT NULL DEFAULT 'USD'",
+    ),
+    ColumnMigration("updated_at", "ALTER TABLE accounts ADD COLUMN updated_at TEXT"),
 )
 
 ORDER_FILL_MIGRATIONS = (

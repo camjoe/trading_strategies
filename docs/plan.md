@@ -107,10 +107,13 @@ strategies), and P7 (parameter source) build on. Full schema:
   from P3 Phase A until P4's shared submission service (2a) lands**. Expected and accepted (pre-live,
   paper only); sequence P4 with 2a first to shorten the dark window.
 - New tasks surfaced (whole-picture review):
-  - [ ] **Define the primitive catalog** — decide which current `signal_fn`s become primitives and
-    each primitive's knob schema (the code half of the strategy = primitive + knobs model, D5).
-  - [ ] **Seed the strategy catalog** — re-create the 14 current `STRATEGY_REGISTRY` entries as
-    `strategies` rows (primitive + their default knobs) so nothing is lost when strategies go data.
+  - [x] **Define the primitive catalog** — `PRIMITIVE_CATALOG` in
+    `src/trading/domain/strategy_signals.py`: one primitive per registered signal function, each
+    with its knob schema (the code half of D5). Delivered with P3 Phase D.
+  - [x] **Seed the strategy catalog** — `seed_strategy_catalog` re-creates the current
+    `STRATEGY_REGISTRY` entries as `strategies` rows (primitive + default knobs);
+    `python -m trading.interfaces.runtime.data_ops.seed_clean_schema` is the idempotent data-op
+    (also bootstraps per-account default units + settings). Delivered with P3 Phase D.
 - Delivers foundations for: P4 (trading units), P6/4a (`strategies` table), P7 (settings storage),
   and D6 (decision-score columns).
 - Remaining open: the account/unit settings shape ([D4](decisions.md#d4) tail).

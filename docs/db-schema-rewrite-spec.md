@@ -3,7 +3,7 @@
 Type: spec
 Status: Accepted — sequenced as P3 (after the execution loop)
 Created: 2026-07-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-03
 Purpose: Target database schema aligned with the app's goals. This is the concrete form of the
 convergence plan's "physical table rework (option B)", which was **chosen** on 2026-07-01
 ([D2](decisions.md#d2)/[D3](decisions.md#d3)): rewrite-first, after the execution loop, then build
@@ -206,8 +206,10 @@ Decided:
 - **Decision snapshots** ([D6](decisions.md#d6)) — `decision_score` + `decision_confidence` columns
   on `rotation_decisions`; no dedicated snapshot table until adaptive learning (P10).
 
-Still open:
-- **Account/unit settings shape** (D4 tail) — typed columns vs a small typed config table per concern.
+Still open: **none.** The account/unit settings shape (D4 tail) was decided 2026-07-03 —
+per-concern typed config tables 1:1 with `trading_units` (`unit_execution_settings`,
+`unit_option_settings`, `unit_rotation_settings`), goals on `trading_units`, change-audit deferred
+to P7. See [decisions.md](decisions.md#d4) and the [target schema](db-schema-target.md).
 
 ## Non-goals
 
@@ -217,7 +219,8 @@ Still open:
 
 ## Trigger checklist (when to execute)
 
-- [ ] Execution loop closed (Plan P1) so runtime behavior is known-good on the new tables.
+- [x] Execution loop closed (Plan P1, merged 2026-07-03) so runtime behavior is known-good on the
+      new tables.
 - [x] Convergence A/B decision landed on B (physical rework) — D2/D3/D7.
 - [x] Strategy/parameter model decided — D5 + D4 (only the account/unit settings shape is a detail
       to finalize during the build).

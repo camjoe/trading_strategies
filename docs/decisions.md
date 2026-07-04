@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-03
 Purpose: The single consolidated list of decisions that must be made before or during implementation
 — "what needs to be defined." Tasks/order/status live in [plan.md](plan.md); design detail lives in
 the referenced specs.
@@ -21,7 +21,7 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D1](#d1) | Execution-loop signal/param mapping | P1 | **mostly resolved** (defaults recorded) |
 | [D2](#d2) | Convergence realization: virtual (A) vs physical rework (B) | P4, DB rewrite | **decided: B (rewrite)** |
 | [D3](#d3) | Incremental convergence vs DB-rewrite-first | convergence approach & timelines | **decided: rewrite-first, after execution loop** |
-| [D4](#d4) | Parameters model shape | parameter source, DB rewrite | **partly decided** |
+| [D4](#d4) | Parameters model shape | parameter source, DB rewrite | **decided** (settings shape 2026-07-03) |
 | [D5](#d5) | Strategy catalog granularity | plug-and-play, DB rewrite | **decided: primitive + knobs** |
 | [D6](#d6) | Persist evaluation/decision snapshots? | adaptive learning, auditability | **decided: score columns; table deferred** |
 | [D7](#d7) | Default trading unit: real row vs virtual | P4, DB rewrite | **decided: real row (under B)** |
@@ -33,9 +33,9 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D13](#d13) | Decisioning naming/grouping specifics | P5 | deferred |
 
 Decided: **D1** (trade policy), **D2/D3/D7** (rewrite-first), **D5** (strategy = primitive + knobs),
-**D4** (params split), **D6** (score columns; snapshot table deferred). The rewrite decision gate is
-now clear; only the account/unit settings shape (D4 tail) is a build-time detail. **D8–D13 stay
-deferred** (feature-specific, not gating the near-term plan).
+**D4** (params split + settings shape, 2026-07-03), **D6** (score columns; snapshot table deferred).
+Nothing gates the rewrite anymore. **D8–D13 stay deferred** (feature-specific, not gating the
+near-term plan).
 
 ---
 
@@ -90,7 +90,8 @@ migrating two live paths first. Avoids building convergence twice; leverages the
 <a id="d4"></a>
 ### D4 — Parameters model shape
 
-Gates: Plan P7 (unified parameter source), DB rewrite. **Partly decided (2026-07-01).**
+Gates: Plan P7 (unified parameter source), DB rewrite. **Decided** (split 2026-07-01; settings
+shape 2026-07-03).
 
 Two kinds of "parameters", stored in two places:
 
@@ -102,8 +103,28 @@ Two kinds of "parameters", stored in two places:
 - **Unified parameter source (P7)** = a service/CLI **view** over strategy rows (knobs) + account/unit
   settings + a few global settings — not a new consolidated store.
 
-Still open (settle during the rewrite): whether account/unit settings are typed columns vs a small
-typed config table per concern; and the change-audit approach for account/unit settings.
+**Settings shape — decided (2026-07-03, start of P3 Phase A):** account/unit settings live in
+**small typed config tables, one per concern, keyed 1:1 to `trading_units`**:
+
+- `unit_execution_settings` — learning flag, risk policy, stops/targets, sizing pcts,
+  max-trades-per-run, instrument mode.
+- `unit_option_settings` — the option/leaps block (strike offset, DTE range, delta/IV bounds,
+  premium/contract caps, roll threshold); a row exists only for option-capable units.
+- `unit_rotation_settings` — rotation enable/mode/optimality/interval/lookback/schedule, regime
+  strategy references, overlay config. **Settings only** — rotation *state*
+  (`rotation_active_index` / `rotation_last_at` / `rotation_active_strategy`) is not stored as
+  settings; the active strategy is the open `unit_strategy_assignments` row and last-rotation time
+  derives from `rotation_decisions`.
+- Unit mandate metadata (`goal_min_return_pct` / `goal_max_return_pct` / `goal_period`) sits directly
+  on `trading_units` beside `trade_universes` — a 3-column reporting concern doesn't warrant a table.
+- Missing settings row → code defaults (same fallback style as today's profile defaults).
+
+Rationale: typed columns per concern keep the SRP win that motivated the rewrite (no re-grown
+god-table), stay `CHECK`-constrainable, and give P7 an obvious per-concern read/edit surface.
+
+**Change-audit — decided: deferred to P7.** Until the unified parameter service exists, settings
+change only via seed/bootstrap CLI from git-tracked profiles; `updated_at` per settings row is
+enough. P7 adds the audit log when it adds the edit surface.
 
 <a id="d5"></a>
 ### D5 — Strategy catalog granularity
