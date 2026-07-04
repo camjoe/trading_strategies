@@ -29,7 +29,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 - [ ] **Confirm audit trails are still empty** — re-check `promotion_reviews` /
       `promotion_review_events` row counts; if any human review history has accrued since the
       2026-07-01 assessment, decide whether to preserve it.
-- [ ] **Settle the remaining D4 tail** — the account/unit settings shape (typed columns vs a small
+- [ ] **Settle the remaining D4 tail** — the account/book settings shape (typed columns vs a small
       typed config table per concern), decided at the start of P3 Phase A. The other rewrite
       decisions (D2/D3/D5/D6/D7) were resolved 2026-07-01 — see [decisions.md](decisions.md).
 - [ ] **Keep a fresh backup** — `local/db_backups/` already holds snapshots; take one more before
@@ -70,4 +70,4 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 - **Open decisions ("what needs defining")** → [decisions.md](decisions.md).
 - **Recommended next action** → the DB schema rewrite (Plan P3; P1 and P2 are complete). Start with
   the [pre-rewrite checks](#before-the-database-rewrite-ifwhen-we-execute-it) above — the D4 tail
-  (account/unit settings shape) is decided at the start of Phase A.
+  (account/book settings shape) is decided at the start of Phase A.

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.units.ledger_entry_record import LedgerEntryRecord
+from trading.models.books.ledger_entry_record import LedgerEntryRecord
 
 
 class LedgerRepository:
-    """SQL access for the clean-schema unit-keyed ledger."""
+    """SQL access for the clean-schema book-keyed ledger."""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
@@ -17,7 +17,7 @@ class LedgerRepository:
     def insert(
         self,
         *,
-        unit_id: int,
+        book_id: int,
         entry_type: str,
         amount: float,
         reference_type: str | None = None,
@@ -28,13 +28,13 @@ class LedgerRepository:
         cursor = self._conn.execute(
             """
             INSERT INTO ledger (
-                unit_id, entry_type, amount, reference_type, reference_id,
+                book_id, entry_type, amount, reference_type, reference_id,
                 entry_time, created_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(unit_id),
+                int(book_id),
                 entry_type,
                 float(amount),
                 reference_type,
@@ -46,10 +46,10 @@ class LedgerRepository:
         self._conn.commit()
         return int(cursor.lastrowid or 0)
 
-    def fetch_for_unit(self, *, unit_id: int) -> list[LedgerEntryRecord]:
+    def fetch_for_book(self, *, book_id: int) -> list[LedgerEntryRecord]:
         rows = self._conn.execute(
-            "SELECT * FROM ledger WHERE unit_id = ? ORDER BY entry_time ASC, id ASC",
-            (int(unit_id),),
+            "SELECT * FROM ledger WHERE book_id = ? ORDER BY entry_time ASC, id ASC",
+            (int(book_id),),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 

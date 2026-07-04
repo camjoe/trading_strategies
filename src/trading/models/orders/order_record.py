@@ -8,10 +8,10 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 
 @dataclass(frozen=True, slots=True)
 class OrderRecord:
-    """Persisted orders row (clean schema, unit-keyed) materialized from the database."""
+    """Persisted orders row (clean schema, book-keyed) materialized from the database."""
 
     id: int
-    unit_id: int
+    book_id: int
     account_id: int
     strategy_id: int | None
     rotation_decision_id: int | None
@@ -33,7 +33,7 @@ class OrderRecord:
     def from_mapping(cls, values: Mapping[str, object]) -> OrderRecord:
         return cls(
             id=row_expect_int(values, "id"),
-            unit_id=row_expect_int(values, "unit_id"),
+            book_id=row_expect_int(values, "book_id"),
             account_id=row_expect_int(values, "account_id"),
             strategy_id=row_int(values, "strategy_id"),
             rotation_decision_id=row_int(values, "rotation_decision_id"),

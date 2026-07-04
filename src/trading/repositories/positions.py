@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.units.position_record import PositionRecord
+from trading.models.books.position_record import PositionRecord
 
 
 class PositionRepository:
-    """SQL access for the clean-schema positions table, keyed (unit_id, symbol)."""
+    """SQL access for the clean-schema positions table, keyed (book_id, symbol)."""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
@@ -17,7 +17,7 @@ class PositionRepository:
     def upsert(
         self,
         *,
-        unit_id: int,
+        book_id: int,
         symbol: str,
         qty: float,
         avg_cost: float,
@@ -28,10 +28,10 @@ class PositionRepository:
         self._conn.execute(
             """
             INSERT INTO positions (
-                unit_id, symbol, qty, avg_cost, market_value, unrealized_pnl, updated_at
+                book_id, symbol, qty, avg_cost, market_value, unrealized_pnl, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(unit_id, symbol) DO UPDATE SET
+            ON CONFLICT(book_id, symbol) DO UPDATE SET
                 qty = excluded.qty,
                 avg_cost = excluded.avg_cost,
                 market_value = excluded.market_value,
@@ -39,7 +39,7 @@ class PositionRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(unit_id),
+                int(book_id),
                 symbol,
                 float(qty),
                 float(avg_cost),
@@ -50,24 +50,24 @@ class PositionRepository:
         )
         self._conn.commit()
 
-    def delete(self, *, unit_id: int, symbol: str) -> None:
+    def delete(self, *, book_id: int, symbol: str) -> None:
         self._conn.execute(
-            "DELETE FROM positions WHERE unit_id = ? AND symbol = ?",
-            (int(unit_id), symbol),
+            "DELETE FROM positions WHERE book_id = ? AND symbol = ?",
+            (int(book_id), symbol),
         )
         self._conn.commit()
 
-    def fetch(self, *, unit_id: int, symbol: str) -> PositionRecord | None:
+    def fetch(self, *, book_id: int, symbol: str) -> PositionRecord | None:
         row = self._conn.execute(
-            "SELECT * FROM positions WHERE unit_id = ? AND symbol = ?",
-            (int(unit_id), symbol),
+            "SELECT * FROM positions WHERE book_id = ? AND symbol = ?",
+            (int(book_id), symbol),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None
 
-    def fetch_for_unit(self, *, unit_id: int) -> list[PositionRecord]:
+    def fetch_for_book(self, *, book_id: int) -> list[PositionRecord]:
         rows = self._conn.execute(
-            "SELECT * FROM positions WHERE unit_id = ? ORDER BY symbol ASC",
-            (int(unit_id),),
+            "SELECT * FROM positions WHERE book_id = ? ORDER BY symbol ASC",
+            (int(book_id),),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
@@ -76,9 +76,9 @@ class PositionRepository:
             """
             SELECT p.*
             FROM positions p
-            JOIN trading_units u ON u.id = p.unit_id
+            JOIN books u ON u.id = p.book_id
             WHERE u.account_id = ?
-            ORDER BY p.unit_id ASC, p.symbol ASC
+            ORDER BY p.book_id ASC, p.symbol ASC
             """,
             (int(account_id),),
         ).fetchall()

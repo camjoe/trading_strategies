@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.units.risk_decision_record import RiskDecisionRecord
-from trading.models.units.risk_snapshot_record import RiskSnapshotRecord
+from trading.models.books.risk_decision_record import RiskDecisionRecord
+from trading.models.books.risk_snapshot_record import RiskSnapshotRecord
 
 
 class RiskSnapshotRepository:
@@ -72,7 +72,7 @@ class RiskDecisionRepository:
         self,
         *,
         account_id: int,
-        unit_id: int | None = None,
+        book_id: int | None = None,
         decision_time: str,
         symbol: str | None = None,
         side: str | None = None,
@@ -88,7 +88,7 @@ class RiskDecisionRepository:
         cursor = self._conn.execute(
             """
             INSERT INTO risk_decisions (
-                account_id, unit_id, decision_time, symbol, side, action, reason_code,
+                account_id, book_id, decision_time, symbol, side, action, reason_code,
                 requested_qty, approved_qty, requested_notional, approved_notional,
                 risk_payload_json, created_at
             )
@@ -96,7 +96,7 @@ class RiskDecisionRepository:
             """,
             (
                 int(account_id),
-                unit_id,
+                book_id,
                 decision_time,
                 symbol,
                 side,

@@ -11,16 +11,16 @@ from infrastructure.database.backend import SQLiteBackend, get_backend, set_back
 from infrastructure.database.init import ensure_db
 from trading.repositories.feature_providers import FeatureProviderRepository
 from trading.repositories.ledger import LedgerRepository
-from trading.repositories.orders import OrderRepository, OrderUnitAccountMismatchError
+from trading.repositories.orders import OrderRepository, BookAccountMismatchError
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.strategies import StrategyImmutableError, StrategyRepository
-from trading.repositories.trading_units import TradingUnitRepository
-from trading.repositories.unit_assignments import UnitAssignmentRepository
-from trading.repositories.unit_settings import (
-    UnitExecutionSettingsRepository,
-    UnitOptionSettingsRepository,
-    UnitRotationSettingsRepository,
+from trading.repositories.books import BookRepository
+from trading.repositories.book_assignments import BookAssignmentRepository
+from trading.repositories.book_settings import (
+    BookExecutionSettingsRepository,
+    BookOptionSettingsRepository,
+    BookRotationSettingsRepository,
 )
 
 NOW = "2026-07-03T12:00:00Z"
@@ -46,9 +46,9 @@ def _insert_account(conn, name: str = "acct_repo") -> int:
     return int(cursor.lastrowid)
 
 
-def _insert_unit(conn, *, name: str = "default", is_default: int = 1) -> tuple[int, int]:
+def _insert_book(conn, *, name: str = "default", is_default: int = 1) -> tuple[int, int]:
     account_id = _insert_account(conn, name=f"acct_{name}_{is_default}")
-    unit_id = TradingUnitRepository(conn).insert(
+    book_id = BookRepository(conn).insert(
         account_id=account_id,
         name=name,
         is_default=is_default,
@@ -58,7 +58,7 @@ def _insert_unit(conn, *, name: str = "default", is_default: int = 1) -> tuple[i
         created_at=NOW,
         updated_at=NOW,
     )
-    return account_id, unit_id
+    return account_id, book_id
 
 
 def _insert_strategy(conn, key: str = "trend_v1") -> int:
@@ -72,20 +72,20 @@ def _insert_strategy(conn, key: str = "trend_v1") -> int:
     )
 
 
-def test_trading_unit_round_trip_and_default_lookup(conn) -> None:
-    account_id, unit_id = _insert_unit(conn)
+def test_book_round_trip_and_default_lookup(conn) -> None:
+    account_id, book_id = _insert_book(conn)
 
-    repo = TradingUnitRepository(conn)
-    unit = repo.fetch_by_id(unit_id=unit_id)
-    assert unit is not None
-    assert unit.account_id == account_id
-    assert unit.is_default == 1
+    repo = BookRepository(conn)
+    book = repo.fetch_by_id(book_id=book_id)
+    assert book is not None
+    assert book.account_id == account_id
+    assert book.is_default == 1
 
     default = repo.fetch_default_for_account(account_id=account_id)
-    assert default is not None and default.id == unit_id
+    assert default is not None and default.id == book_id
 
-    repo.update_balances(unit_id=unit_id, current_cash=4200.0, current_equity=5100.0, updated_at=NOW)
-    updated = repo.fetch_by_id(unit_id=unit_id)
+    repo.update_balances(book_id=book_id, current_cash=4200.0, current_equity=5100.0, updated_at=NOW)
+    updated = repo.fetch_by_id(book_id=book_id)
     assert updated is not None
     assert updated.current_cash == pytest.approx(4200.0)
     assert updated.current_equity == pytest.approx(5100.0)
@@ -123,65 +123,65 @@ def test_strategy_round_trip_and_immutability_guard(conn) -> None:
     assert repo.fetch_enabled() == []
 
 
-def test_unit_assignment_rotation_keeps_single_open_row(conn) -> None:
-    _, unit_id = _insert_unit(conn)
+def test_book_assignment_rotation_keeps_single_open_row(conn) -> None:
+    _, book_id = _insert_book(conn)
     first = _insert_strategy(conn, key="trend_v1")
     second = _insert_strategy(conn, key="meanrev_v1")
-    repo = UnitAssignmentRepository(conn)
+    repo = BookAssignmentRepository(conn)
 
-    repo.assign_strategy(unit_id=unit_id, strategy_id=first, effective_from=NOW, created_at=NOW, updated_at=NOW)
+    repo.assign_strategy(book_id=book_id, strategy_id=first, effective_from=NOW, created_at=NOW, updated_at=NOW)
     repo.assign_strategy(
-        unit_id=unit_id,
+        book_id=book_id,
         strategy_id=second,
         effective_from="2026-07-04T12:00:00Z",
         created_at=NOW,
         updated_at=NOW,
     )
 
-    open_assignment = repo.fetch_open(unit_id=unit_id)
+    open_assignment = repo.fetch_open(book_id=book_id)
     assert open_assignment is not None
     assert open_assignment.strategy_id == second
-    history = repo.fetch_history(unit_id=unit_id)
+    history = repo.fetch_history(book_id=book_id)
     assert len(history) == 2
     assert history[0].effective_to == "2026-07-04T12:00:00Z"
     assert history[0].is_incumbent == 0
 
 
-def test_unit_settings_upsert_and_fetch_round_trip(conn) -> None:
-    _, unit_id = _insert_unit(conn)
+def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
+    _, book_id = _insert_book(conn)
 
-    execution_repo = UnitExecutionSettingsRepository(conn)
-    execution_repo.upsert(unit_id=unit_id, risk_policy="fixed_stop", stop_loss_pct=5.0, created_at=NOW, updated_at=NOW)
+    execution_repo = BookExecutionSettingsRepository(conn)
+    execution_repo.upsert(book_id=book_id, risk_policy="fixed_stop", stop_loss_pct=5.0, created_at=NOW, updated_at=NOW)
     execution_repo.upsert(
-        unit_id=unit_id, risk_policy="stop_and_target", stop_loss_pct=4.0, created_at=NOW, updated_at=NOW
+        book_id=book_id, risk_policy="stop_and_target", stop_loss_pct=4.0, created_at=NOW, updated_at=NOW
     )
-    execution = execution_repo.fetch(unit_id=unit_id)
+    execution = execution_repo.fetch(book_id=book_id)
     assert execution is not None
     assert execution.risk_policy == "stop_and_target"
     assert execution.stop_loss_pct == pytest.approx(4.0)
 
-    option_repo = UnitOptionSettingsRepository(conn)
-    option_repo.upsert(unit_id=unit_id, option_type="call", option_min_dte=120, created_at=NOW, updated_at=NOW)
-    option = option_repo.fetch(unit_id=unit_id)
+    option_repo = BookOptionSettingsRepository(conn)
+    option_repo.upsert(book_id=book_id, option_type="call", option_min_dte=120, created_at=NOW, updated_at=NOW)
+    option = option_repo.fetch(book_id=book_id)
     assert option is not None and option.option_type == "call"
 
-    rotation_repo = UnitRotationSettingsRepository(conn)
-    rotation_repo.upsert(unit_id=unit_id, rotation_enabled=1, rotation_mode="time", created_at=NOW, updated_at=NOW)
-    rotation = rotation_repo.fetch(unit_id=unit_id)
+    rotation_repo = BookRotationSettingsRepository(conn)
+    rotation_repo.upsert(book_id=book_id, rotation_enabled=1, rotation_mode="time", created_at=NOW, updated_at=NOW)
+    rotation = rotation_repo.fetch(book_id=book_id)
     assert rotation is not None and rotation.rotation_enabled == 1
 
     # Missing row → None (callers fall back to code defaults per D4).
-    _, other_unit = _insert_unit(conn, name="other")
-    assert execution_repo.fetch(unit_id=other_unit) is None
+    _, other_book = _insert_book(conn, name="other")
+    assert execution_repo.fetch(book_id=other_book) is None
 
 
-def test_order_round_trip_and_unit_account_integrity_guard(conn) -> None:
-    account_id, unit_id = _insert_unit(conn)
+def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:
+    account_id, book_id = _insert_book(conn)
     other_account_id = _insert_account(conn, name="acct_other")
     repo = OrderRepository(conn)
 
     order_id = repo.insert(
-        unit_id=unit_id,
+        book_id=book_id,
         account_id=account_id,
         symbol="AAPL",
         side="buy",
@@ -200,10 +200,10 @@ def test_order_round_trip_and_unit_account_integrity_guard(conn) -> None:
     assert filled.avg_fill_price == pytest.approx(100.5)
     assert repo.fetch_open_for_account(account_id=account_id) == []
 
-    # Invariant 4: the order's unit must belong to the order's account.
-    with pytest.raises(OrderUnitAccountMismatchError):
+    # Invariant 4: the order's book must belong to the order's account.
+    with pytest.raises(BookAccountMismatchError):
         repo.insert(
-            unit_id=unit_id,
+            book_id=book_id,
             account_id=other_account_id,
             symbol="MSFT",
             side="buy",
@@ -215,11 +215,11 @@ def test_order_round_trip_and_unit_account_integrity_guard(conn) -> None:
 
 
 def test_position_and_ledger_round_trips(conn) -> None:
-    account_id, unit_id = _insert_unit(conn)
+    account_id, book_id = _insert_book(conn)
 
     positions = PositionRepository(conn)
     positions.upsert(
-        unit_id=unit_id,
+        book_id=book_id,
         symbol="AAPL",
         qty=2.0,
         avg_cost=100.0,
@@ -228,16 +228,16 @@ def test_position_and_ledger_round_trips(conn) -> None:
         updated_at=NOW,
     )
     positions.upsert(
-        unit_id=unit_id, symbol="AAPL", qty=3.0, avg_cost=101.0, market_value=310.0, unrealized_pnl=7.0, updated_at=NOW
+        book_id=book_id, symbol="AAPL", qty=3.0, avg_cost=101.0, market_value=310.0, unrealized_pnl=7.0, updated_at=NOW
     )
-    fetched = positions.fetch(unit_id=unit_id, symbol="AAPL")
+    fetched = positions.fetch(book_id=book_id, symbol="AAPL")
     assert fetched is not None and fetched.qty == pytest.approx(3.0)
     assert len(positions.fetch_for_account(account_id=account_id)) == 1
 
     ledger = LedgerRepository(conn)
-    ledger.insert(unit_id=unit_id, entry_type="deposit", amount=5000.0, entry_time=NOW, created_at=NOW)
+    ledger.insert(book_id=book_id, entry_type="deposit", amount=5000.0, entry_time=NOW, created_at=NOW)
     ledger.insert(
-        unit_id=unit_id,
+        book_id=book_id,
         entry_type="trade",
         amount=-303.0,
         reference_type="order",
@@ -245,16 +245,16 @@ def test_position_and_ledger_round_trips(conn) -> None:
         entry_time=NOW,
         created_at=NOW,
     )
-    entries = ledger.fetch_for_unit(unit_id=unit_id)
+    entries = ledger.fetch_for_book(book_id=book_id)
     assert [entry.entry_type for entry in entries] == ["deposit", "trade"]
     assert len(ledger.fetch_by_reference(reference_type="order", reference_id="7")) == 1
 
     with pytest.raises(sqlite3.IntegrityError):
-        ledger.insert(unit_id=unit_id, entry_type="not_a_type", amount=1.0, entry_time=NOW, created_at=NOW)
+        ledger.insert(book_id=book_id, entry_type="not_a_type", amount=1.0, entry_time=NOW, created_at=NOW)
 
 
 def test_risk_and_feature_provider_round_trips(conn) -> None:
-    account_id, unit_id = _insert_unit(conn)
+    account_id, book_id = _insert_book(conn)
 
     snapshots = RiskSnapshotRepository(conn)
     snapshots.insert(
@@ -271,7 +271,7 @@ def test_risk_and_feature_provider_round_trips(conn) -> None:
     decisions = RiskDecisionRepository(conn)
     decisions.insert(
         account_id=account_id,
-        unit_id=unit_id,
+        book_id=book_id,
         decision_time=NOW,
         symbol="AAPL",
         side="buy",

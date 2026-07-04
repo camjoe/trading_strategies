@@ -7,11 +7,11 @@ from common.coercion import row_expect_int, row_expect_str, row_str
 
 
 @dataclass(frozen=True, slots=True)
-class UnitStrategyAssignmentRecord:
-    """Persisted unit_strategy_assignments row materialized from the database."""
+class BookStrategyAssignmentRecord:
+    """Persisted book_strategy_assignments row materialized from the database."""
 
     id: int
-    unit_id: int
+    book_id: int
     strategy_id: int
     effective_from: str
     effective_to: str | None
@@ -20,10 +20,10 @@ class UnitStrategyAssignmentRecord:
     updated_at: str
 
     @classmethod
-    def from_mapping(cls, values: Mapping[str, object]) -> UnitStrategyAssignmentRecord:
+    def from_mapping(cls, values: Mapping[str, object]) -> BookStrategyAssignmentRecord:
         return cls(
             id=row_expect_int(values, "id"),
-            unit_id=row_expect_int(values, "unit_id"),
+            book_id=row_expect_int(values, "book_id"),
             strategy_id=row_expect_int(values, "strategy_id"),
             effective_from=row_expect_str(values, "effective_from"),
             effective_to=row_str(values, "effective_to"),

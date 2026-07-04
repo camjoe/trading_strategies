@@ -7,8 +7,8 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 
 
 @dataclass(frozen=True, slots=True)
-class TradingUnitRecord:
-    """Persisted trading_units row materialized from the database."""
+class BookRecord:
+    """Persisted books row materialized from the database."""
 
     id: int
     account_id: int
@@ -26,7 +26,7 @@ class TradingUnitRecord:
     updated_at: str
 
     @classmethod
-    def from_mapping(cls, values: Mapping[str, object]) -> TradingUnitRecord:
+    def from_mapping(cls, values: Mapping[str, object]) -> BookRecord:
         return cls(
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
