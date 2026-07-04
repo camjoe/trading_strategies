@@ -57,7 +57,7 @@ For deterministic local cleanup before re-running checks:
 python -m scripts.fix_checks
 ```
 
-This runs Ruff safe fixes, Ruff formatting, and generated API/software reference-doc asset sync. Pass `--skip-reference-doc-sync` for Python-only cleanup.
+This runs Ruff safe fixes, Ruff formatting, generated API/software reference-doc asset sync, and docs drift fixes (DB schema Quick Reference sync, stale map row removal).
 
 ## Quick Start
 

@@ -19,13 +19,13 @@ Use the repo-local virtual environment — never system Python.
 
 | Command | What it runs |
 |---|---|
-| `python -m scripts.fix_checks` | Safe mechanical fixes: Ruff lint fixes, formatting, generated reference-doc assets |
+| `python -m scripts.fix_checks` | Safe mechanical fixes: Ruff lint fixes, formatting, generated reference-doc assets, docs drift fixes |
 | `python -m scripts.run_checks quick` | Repository safety checks + Python lint/type/test checks |
 | `python -m scripts.run_checks ci` | Docs + repository + Python + frontend checks |
 | `python -m scripts.checks.run_suite <area>` | Tests for one area, e.g. `src/trading/services/reporting` |
 | `python -m scripts.run_checks python --base <base>` | Branch-targeted Python checks for PR validation |
 
-Use `scripts.fix_checks` for normal cleanup. Pass `--skip-reference-doc-sync` when you need only Python lint/format fixes. Lint/format directly with `ruff check .` and `ruff format .` only when you need lower-level control.
+Use `scripts.fix_checks` for normal cleanup. Lint/format directly with `ruff check .` and `ruff format .` only when you need lower-level control.
 
 ## Making a change
 

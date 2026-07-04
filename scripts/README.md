@@ -36,7 +36,7 @@ highlights the most common entrypoints.
 Repository workflow scripts (`scripts/`):
 
 - `run_checks.py`: unified entrypoint for aggregate checks (`docs`, `repo`, `python`, `quick`, `ci`).
-- `fix_checks.py`: deterministic local auto-fix command for safe mechanical drift (`ruff check --fix`, `ruff format`, generated API/software reference-doc asset sync).
+- `fix_checks.py`: deterministic local auto-fix command for safe mechanical drift (`ruff check --fix`, `ruff format`, generated API/software reference-doc asset sync, and the docs drift fixers under `scripts/fixes/`).
 - `check_jobs.py`: operator tool to inspect daily trading and weekly backup job status; pass `--run-missing` to trigger outstanding jobs.
 - `launch_ui.py`: convenience launcher for the paper-trading UI stack.
 - `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test. Keep detailed setup, safety notes, and usage in `docs/reference/broker-integration.md`; this README only lists the entrypoint.
@@ -61,6 +61,11 @@ Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Finance, Software, and API reference checks together.
 - `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, and assets/software.json from requirements.
+
+Docs drift fixers (`scripts/fixes/`):
+
+- `scripts/fixes/db_schema_fix.py`: syncs the db-schema.md Quick Reference with the live schema — removes stale rows, appends TODO scaffold rows for new tables (pairs with `scripts/checks/docs/db_schema_check.py`).
+- `scripts/fixes/maps_fix.py`: removes structural-map table rows whose files no longer exist; rows mixing live and stale paths are reported for manual edit (pairs with `scripts/checks/docs/maps_check.py`).
 
 Modular check scripts (`scripts/checks/`):
 
@@ -126,7 +131,10 @@ python -m scripts.run_checks python
 python -m scripts.run_checks quick
 python -m scripts.run_checks ci
 python -m scripts.fix_checks
-python -m scripts.fix_checks --skip-reference-doc-sync
+
+# Standalone docs drift fixers (also run as part of fix_checks)
+python -m scripts.fixes.db_schema_fix
+python -m scripts.fixes.maps_fix
 
 # Manual IBKR Web API smoke test
 # See docs/reference/broker-integration.md for private config setup,

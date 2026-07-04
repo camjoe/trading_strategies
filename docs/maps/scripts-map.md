@@ -31,9 +31,20 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 
 | Command | What it fixes |
 |---|---|
-| `python -m scripts.fix_checks` | Runs `ruff check --fix`, `ruff format`, and generated API/software reference-doc asset sync |
-| `python -m scripts.fix_checks <path> [...]` | Runs the same fixes on selected Python paths, plus generated reference-doc asset sync |
-| `python -m scripts.fix_checks --skip-reference-doc-sync` | Runs Python lint/format fixes without generated reference-doc asset sync |
+| `python -m scripts.fix_checks` | Runs `ruff check --fix`, `ruff format`, generated API/software reference-doc asset sync, and docs drift fixes (`scripts/fixes/`) |
+| `python -m scripts.fix_checks <path> [...]` | Runs the same fixes with the Python steps limited to selected paths |
+
+---
+
+## Fixes (`scripts/fixes/`)
+
+Fix counterparts of checks under `scripts/checks/`. Each fixer applies only the mechanical
+half of its paired check's findings and reports anything that still needs human prose.
+
+| Module | Responsibility |
+|---|---|
+| `db_schema_fix.py` | Sync the db-schema.md Quick Reference with the live schema: remove stale rows, append TODO scaffold rows, refresh the table count (pairs with `scripts/checks/docs/db_schema_check.py`) |
+| `maps_fix.py` | Remove structural-map table rows whose files no longer exist; rows mixing live and stale paths are reported for manual edit (pairs with `scripts/checks/docs/maps_check.py`) |
 
 ---
 
@@ -116,7 +127,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | Script | Responsibility |
 |---|---|
 | `run_checks.py` | Check runner entry point (see above) |
-| `fix_checks.py` | Deterministic local auto-fix entry point for Python lint/format drift and generated API/software reference-doc assets |
+| `fix_checks.py` | Deterministic local auto-fix entry point: Python lint/format drift, generated API/software reference-doc assets, and docs drift fixers under `scripts/fixes/` |
 | `launch_ui.py` | Launch the paper trading UI (backend + frontend dev server) |
 | `ui_config.py` | UI launch configuration (ports, paths) |
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |

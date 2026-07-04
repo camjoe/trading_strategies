@@ -166,7 +166,8 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 ### `fix checks`
 
 - Run `python -m scripts.fix_checks`.
-- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, and generated reference-doc asset sync.
+- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, generated reference-doc asset sync, and docs drift fixes (DB schema Quick Reference sync, stale map row removal — see `scripts/fixes/`).
+- Docs drift fixes may leave `TODO` scaffold rows (e.g. a new table's Purpose); fill those in before committing.
 - Afterward, run `python -m scripts.run_checks quick` unless the user asked only for the fixer.
 
 ### `run all checks`
