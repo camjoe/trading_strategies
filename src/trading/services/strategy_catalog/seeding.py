@@ -5,9 +5,9 @@ Two idempotent bootstrap passes (P3 Phase D):
 - `seed_strategy_catalog` re-creates the code registry's strategies as
   `strategies` rows (primitive + default knobs, D5) so nothing is lost when
   strategies go data.
-- `ensure_default_units` gives every account its real default trading unit
+- `ensure_default_books` gives every account its real default book
   (D7) and copies the account's legacy settings columns into the per-concern
-  unit settings tables (D4) so unit-keyed reads have data to stand on.
+  book settings tables (D4) so book-keyed reads have data to stand on.
 """
 
 from __future__ import annotations
@@ -19,12 +19,12 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 from common.time import utc_now_iso
 from trading.domain.strategy_signals import PRIMITIVE_CATALOG
 from trading.repositories.strategies import StrategyRepository
-from trading.repositories.trading_units import TradingUnitRepository
-from trading.repositories.unit_assignments import UnitAssignmentRepository
-from trading.repositories.unit_settings import (
-    UnitExecutionSettingsRepository,
-    UnitOptionSettingsRepository,
-    UnitRotationSettingsRepository,
+from trading.repositories.books import BookRepository
+from trading.repositories.book_assignments import BookAssignmentRepository
+from trading.repositories.book_settings import (
+    BookExecutionSettingsRepository,
+    BookOptionSettingsRepository,
+    BookRotationSettingsRepository,
 )
 
 
@@ -53,16 +53,16 @@ def seed_strategy_catalog(conn: sqlite3.Connection, *, now_iso: str | None = Non
     return inserted
 
 
-def _copy_unit_settings_from_account(
+def _copy_book_settings_from_account(
     conn: sqlite3.Connection,
     *,
     account: sqlite3.Row,
-    unit_id: int,
+    book_id: int,
     now: str,
 ) -> None:
     row = dict(account)
-    UnitExecutionSettingsRepository(conn).upsert(
-        unit_id=unit_id,
+    BookExecutionSettingsRepository(conn).upsert(
+        book_id=book_id,
         learning_enabled=row_expect_int(row, "learning_enabled"),
         risk_policy=row_expect_str(row, "risk_policy"),
         stop_loss_pct=row_float(row, "stop_loss_pct"),
@@ -77,8 +77,8 @@ def _copy_unit_settings_from_account(
         updated_at=now,
     )
     if row_expect_str(row, "instrument_mode") == "leaps":
-        UnitOptionSettingsRepository(conn).upsert(
-            unit_id=unit_id,
+        BookOptionSettingsRepository(conn).upsert(
+            book_id=book_id,
             option_strike_offset_pct=row_float(row, "option_strike_offset_pct"),
             option_min_dte=row_int(row, "option_min_dte"),
             option_max_dte=row_int(row, "option_max_dte"),
@@ -103,8 +103,8 @@ def _copy_unit_settings_from_account(
         record = strategy_repo.fetch_by_key(strategy_key=name.strip().lower())
         return record.id if record is not None else None
 
-    UnitRotationSettingsRepository(conn).upsert(
-        unit_id=unit_id,
+    BookRotationSettingsRepository(conn).upsert(
+        book_id=book_id,
         rotation_enabled=row_expect_int(row, "rotation_enabled"),
         rotation_mode=row_str(row, "rotation_mode"),
         rotation_optimality_mode=row_str(row, "rotation_optimality_mode"),
@@ -124,25 +124,25 @@ def _copy_unit_settings_from_account(
     )
 
 
-def ensure_default_units(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
-    """Create the real default unit (D7) + settings rows for accounts missing one.
+def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
+    """Create the real default book (D7) + settings rows for accounts missing one.
 
-    Also opens the unit's strategy assignment from the account's legacy strategy
-    label when the seeded catalog knows it. Returns units created.
+    Also opens the book's strategy assignment from the account's legacy strategy
+    label when the seeded catalog knows it. Returns books created.
     """
     now = now_iso or utc_now_iso()
-    unit_repo = TradingUnitRepository(conn)
-    assignment_repo = UnitAssignmentRepository(conn)
+    book_repo = BookRepository(conn)
+    assignment_repo = BookAssignmentRepository(conn)
     strategy_repo = StrategyRepository(conn)
 
     accounts = conn.execute("SELECT * FROM accounts ORDER BY id ASC").fetchall()
     created = 0
     for account in accounts:
         account_id = row_expect_int(dict(account), "id")
-        if unit_repo.fetch_default_for_account(account_id=account_id) is not None:
+        if book_repo.fetch_default_for_account(account_id=account_id) is not None:
             continue
         initial_cash = row_expect_float(dict(account), "initial_cash")
-        unit_id = unit_repo.insert(
+        book_id = book_repo.insert(
             account_id=account_id,
             name="default",
             is_default=1,
@@ -156,14 +156,14 @@ def ensure_default_units(conn: sqlite3.Connection, *, now_iso: str | None = None
             created_at=now,
             updated_at=now,
         )
-        _copy_unit_settings_from_account(conn, account=account, unit_id=unit_id, now=now)
+        _copy_book_settings_from_account(conn, account=account, book_id=book_id, now=now)
 
         legacy_strategy = row_str(dict(account), "strategy")
         if legacy_strategy:
             record = strategy_repo.fetch_by_key(strategy_key=legacy_strategy.strip().lower())
             if record is not None:
                 assignment_repo.assign_strategy(
-                    unit_id=unit_id,
+                    book_id=book_id,
                     strategy_id=record.id,
                     effective_from=now,
                     created_at=now,

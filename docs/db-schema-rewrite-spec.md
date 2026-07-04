@@ -69,8 +69,8 @@ Before dropping — see the checklist in [Developer Notes & Task Tracker](develo
 
 From [overview.md](overview.md):
 
-1. **Trading-unit model** — an account is a custody/broker root; strategy execution happens in
-   trading units; a plain account is one account with a single default unit.
+1. **Book model** — an account is a custody/broker root; strategy execution happens in
+   strategy books; a plain account is one account with a single default book.
 2. **Data-driven strategies and parameters** — strategies and parameter sets are data, so variants
    and accounts are added without code.
 3. **One evidence-driven evaluation** feeding compare/rotation/promotion via the decision-score
@@ -81,7 +81,7 @@ From [overview.md](overview.md):
 
 ## Current schema pain points (grounding — 25 tables today)
 
-- **Parallel account-vs-unit families.** Account-level `trades`, `equity_snapshots`,
+- **Parallel account-vs-book families.** Account-level `trades`, `equity_snapshots`,
   `broker_orders` + `order_fills`, `rotation_episodes` sit alongside sleeve-level `sleeve_orders`,
   `sleeve_fills`, `sleeve_ledger`, `sleeve_positions`, `rotation_decisions`. Same concepts, twice.
 - **`accounts` is a ~50-column god-table** mixing custody/broker, strategy selection, risk policy,
@@ -91,20 +91,20 @@ From [overview.md](overview.md):
 - **Strategy is a bare string** (`strategy_name TEXT`) everywhere — no `strategies` catalog table
   (the "strategies are code" reality at the data layer).
 - **Two rotation record models** (`rotation_decisions` sleeve vs `rotation_episodes` account).
-- **Snapshots split** account (`equity_snapshots`) vs unit (`strategy_sleeves.current_equity`).
-- `daily_metrics` already carries an optional `sleeve_id` — a hint the unit model is half-present.
+- **Snapshots split** account (`equity_snapshots`) vs book (`strategy_sleeves.current_equity`).
+- `daily_metrics` already carries an optional `sleeve_id` — a hint the book model is half-present.
 
 ## Proposed target schema
 
-Naming uses **trading unit** as the execution primitive. A plain account has exactly one default
-unit. (Open decision below: whether the default unit is a real row or virtual.)
+Naming uses **strategy book** as the execution primitive. A plain account has exactly one default
+book. (Open decision below: whether the default book is a real row or virtual.)
 
-### Custody & units
+### Custody & books
 
 - **`accounts`** — custody/broker only: `id`, `name`, `descriptive_name`, `base_ccy`, `initial_cash`,
   `benchmark_ticker`, broker fields (`broker_type`, `broker_host`, `broker_port`, `broker_client_id`),
   `live_trading_enabled`, timestamps. **All strategy/risk/option/rotation config leaves this table.**
-- **`trading_units`** (replaces `strategy_sleeves`) — `id`, `account_id`, `name`, `status`,
+- **`books`** (replaces `strategy_sleeves`) — `id`, `account_id`, `name`, `status`,
   `is_default`, `start_equity`, `current_cash`, `current_equity`, `trade_universes`, timestamps.
 
 ### Strategy catalog & parameters (data-driven)
@@ -114,45 +114,45 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
   `description`, `status` (draft/frozen), `enabled`. Variants/tuning = new rows; frozen once a
   strategy has evidence or is live (automatic history). **No `strategy_param_sets` table** — its
   purpose is folded in here. Enables Plan P6 (plug-and-play).
-- **Account/unit settings** (D4) — execution/risk/rotation settings (risk policy, stops, sizing,
-  max-trades-per-run, rotation cooldown, instrument/option config) live on `accounts`/`trading_units`
+- **Account/book settings** (D4) — execution/risk/rotation settings (risk policy, stops, sizing,
+  max-trades-per-run, rotation cooldown, instrument/option config) live on `accounts`/`books`
   (not a god-table, not strategy knobs). The **unified parameter source (P7)** is a service/CLI view
-  over strategy rows + account/unit settings + a few global settings. Exact settings shape (typed
+  over strategy rows + account/book settings + a few global settings. Exact settings shape (typed
   columns vs a small typed config table) is the open tail of D4.
 - **`feature_providers`** (optional, new) — pluggable provider catalog: `id`, `provider_key`,
   `enabled`, `config_json`. Fetch logic stays code; enablement is data.
 
 ### Assignment & rotation (one model)
 
-- **`unit_strategy_assignments`** (replaces `sleeve_strategy_assignments`) — `id`, `unit_id`,
+- **`book_strategy_assignments`** (replaces `sleeve_strategy_assignments`) — `id`, `book_id`,
   `strategy_id`, `effective_from`, `effective_to`, `is_incumbent`, timestamps. (No `param_set_id` —
   the strategy row carries its knobs.)
-- **`rotation_decisions`** (unifies `rotation_decisions` + `rotation_episodes`) — keyed by `unit_id`;
+- **`rotation_decisions`** (unifies `rotation_decisions` + `rotation_episodes`) — keyed by `book_id`;
   carries incumbent/challenger/selected, action, gate/score json, decision reason, config version,
   and (folding episodes) the realized-performance window fields. Adds first-class `decision_score` +
   `decision_confidence` columns (D6).
 
-### Execution & accounting (one model, keyed by unit)
+### Execution & accounting (one model, keyed by book)
 
-- **`orders`** (unifies `broker_orders` + `sleeve_orders`) — `id`, `unit_id`, `account_id`,
+- **`orders`** (unifies `broker_orders` + `sleeve_orders`) — `id`, `book_id`, `account_id`,
   `strategy_id`, `rotation_decision_id`, `broker_order_id`, symbol/side/qty/type/
   tif/requested_price/status/filled_qty/avg_fill_price/commission, timestamps. Broker linkage stays
   first-class (custody truth).
 - **`order_fills`** (unifies `order_fills` + `sleeve_fills`) — `id`, `order_id`, `broker_fill_id`,
   `exec_id`, qty/price/commission/fill_time.
-- **`positions`** (replaces `sleeve_positions`) — keyed by `(unit_id, symbol)`.
-- **`ledger`** (unifies `sleeve_ledger` + account `trades`) — `id`, `unit_id`, `entry_type`, `amount`,
+- **`positions`** (replaces `sleeve_positions`) — keyed by `(book_id, symbol)`.
+- **`ledger`** (unifies `sleeve_ledger` + account `trades`) — `id`, `book_id`, `entry_type`, `amount`,
   `reference_type`, `reference_id`, `entry_time`. Realized-trade rows are ledger entries.
-- **`equity_snapshots`** — per `unit_id`; the account view is the roll-up (sum of units). Keeps the
-  reconciliation invariant explicit (sum of unit equity == broker/account truth).
+- **`equity_snapshots`** — per `book_id`; the account view is the roll-up (sum of books). Keeps the
+  reconciliation invariant explicit (sum of book equity == broker/account truth).
 
 ### Evaluation, risk, promotion, backtesting
 
-- **`daily_metrics`** — per `unit_id` (account view = default unit / roll-up).
+- **`daily_metrics`** — per `book_id` (account view = default book / roll-up).
 - **`risk_snapshots`** + **`risk_decisions`** (from `portfolio_risk_snapshots` + `sleeve_risk_decisions`)
-  — per account, referencing units; kill-switch payloads retained.
+  — per account, referencing books; kill-switch payloads retained.
 - **`promotion_reviews`** + **`promotion_review_events`** — largely as today; reference
-  `strategy_id`/`unit_id`; keep the frozen assessment/evaluation payloads and append-only events.
+  `strategy_id`/`book_id`; keep the frozen assessment/evaluation payloads and append-only events.
 - **Backtesting tables** (`backtest_runs`, `backtest_trades`, `backtest_equity_snapshots`,
   `walk_forward_groups`, `walk_forward_group_runs`) — structurally stable; change `strategy_name`
   string to `strategy_id` FK. Evaluation evidence continues to be assembled (not stored), optionally
@@ -162,16 +162,16 @@ unit. (Open decision below: whether the default unit is a real row or virtual.)
 
 | Today | Target |
 |---|---|
-| `strategy_sleeves` | `trading_units` |
-| `sleeve_strategy_assignments` | `unit_strategy_assignments` |
+| `strategy_sleeves` | `books` |
+| `sleeve_strategy_assignments` | `book_strategy_assignments` |
 | `broker_orders` + `sleeve_orders` | `orders` |
 | `order_fills` + `sleeve_fills` | `order_fills` |
 | `sleeve_positions` | `positions` |
 | `sleeve_ledger` + `trades` | `ledger` |
-| `equity_snapshots` (account) + `strategy_sleeves.current_equity` | `equity_snapshots` (per unit) + account roll-up |
-| `rotation_decisions` + `rotation_episodes` | `rotation_decisions` (unit-keyed) |
+| `equity_snapshots` (account) + `strategy_sleeves.current_equity` | `equity_snapshots` (per book) + account roll-up |
+| `rotation_decisions` + `rotation_episodes` | `rotation_decisions` (book-keyed) |
 | `portfolio_risk_snapshots` + `sleeve_risk_decisions` | `risk_snapshots` + `risk_decisions` |
-| `accounts` risk/option/rotation columns + `global_settings` | settings on slimmed `accounts`/`trading_units` (+ `global_settings`) |
+| `accounts` risk/option/rotation columns + `global_settings` | settings on slimmed `accounts`/`books` (+ `global_settings`) |
 | `strategy_name` strings | `strategies` catalog (primitive + knobs) + `strategy_id` FKs |
 | `strategy_param_sets` | folded into `strategies` rows (variants = new rows) |
 | (none) | `feature_providers` catalog |
@@ -184,31 +184,31 @@ Recent refactors mean much of the stack re-points at new repositories without re
 - **Decision-score contract** — `EvaluationDecisionScore` + `derive_decision_score`, unchanged; it's
   keyless by design.
 - **Evaluation evidence assembly** — `services/evaluation/evidence.py` logic stays; only its reads
-  re-point to unit-keyed tables.
+  re-point to book-keyed tables.
 - **Domain policy math** — champion/challenger rotation, promotion policy, confidence math — pure,
   reused.
 - **Backtesting engine** — signal execution + walk-forward, largely reused (FK swap).
 - **Migration/DB tooling** — schema init/evolution framework reused for the new DDL.
 
 The heavy work is at the **repositories** layer (rewritten against new tables) and the **services**
-that assemble unit-vs-account reads — which the convergence plan already targets.
+that assemble book-vs-account reads — which the convergence plan already targets.
 
 ## Cross-cutting decisions
 
 Canonical status in [decisions.md](decisions.md); detail here.
 
 Decided:
-- **Default unit: real row** ([D7](decisions.md#d7)) — cheap under greenfield; resolves A/B toward B.
+- **Default book: real row** ([D7](decisions.md#d7)) — cheap under greenfield; resolves A/B toward B.
 - **Strategy catalog** ([D5](decisions.md#d5)) — a strategy = primitive + knobs; variants are new
   rows; `strategy_param_sets` dropped.
 - **Parameters split** ([D4](decisions.md#d4)) — strategy knobs in strategy rows; execution/risk
-  settings on account/unit; P7 is a view, not a new store.
+  settings on account/book; P7 is a view, not a new store.
 - **Decision snapshots** ([D6](decisions.md#d6)) — `decision_score` + `decision_confidence` columns
   on `rotation_decisions`; no dedicated snapshot table until adaptive learning (P10).
 
-Still open: **none.** The account/unit settings shape (D4 tail) was decided 2026-07-03 —
-per-concern typed config tables 1:1 with `trading_units` (`unit_execution_settings`,
-`unit_option_settings`, `unit_rotation_settings`), goals on `trading_units`, change-audit deferred
+Still open: **none.** The account/book settings shape (D4 tail) was decided 2026-07-03 —
+per-concern typed config tables 1:1 with `books` (`book_execution_settings`,
+`book_option_settings`, `book_rotation_settings`), goals on `books`, change-audit deferred
 to P7. See [decisions.md](decisions.md#d4) and the [target schema](db-schema-target.md).
 
 ## Non-goals
@@ -222,7 +222,7 @@ to P7. See [decisions.md](decisions.md#d4) and the [target schema](db-schema-tar
 - [x] Execution loop closed (Plan P1, merged 2026-07-03) so runtime behavior is known-good on the
       new tables.
 - [x] Convergence A/B decision landed on B (physical rework) — D2/D3/D7.
-- [x] Strategy/parameter model decided — D5 + D4 (only the account/unit settings shape is a detail
+- [x] Strategy/parameter model decided — D5 + D4 (only the account/book settings shape is a detail
       to finalize during the build).
 - [x] D6 (persist decision snapshots?) resolved — score columns now, table deferred to P10.
 - [ ] A pre-live window confirmed (cheapest time to change schema).

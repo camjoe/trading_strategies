@@ -7,10 +7,10 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int
 
 
 @dataclass(frozen=True, slots=True)
-class UnitExecutionSettingsRecord:
-    """Persisted unit_execution_settings row materialized from the database."""
+class BookExecutionSettingsRecord:
+    """Persisted book_execution_settings row materialized from the database."""
 
-    unit_id: int
+    book_id: int
     learning_enabled: int
     risk_policy: str
     stop_loss_pct: float | None
@@ -25,9 +25,9 @@ class UnitExecutionSettingsRecord:
     updated_at: str
 
     @classmethod
-    def from_mapping(cls, values: Mapping[str, object]) -> UnitExecutionSettingsRecord:
+    def from_mapping(cls, values: Mapping[str, object]) -> BookExecutionSettingsRecord:
         return cls(
-            unit_id=row_expect_int(values, "unit_id"),
+            book_id=row_expect_int(values, "book_id"),
             learning_enabled=row_expect_int(values, "learning_enabled"),
             risk_policy=row_expect_str(values, "risk_policy"),
             stop_loss_pct=row_float(values, "stop_loss_pct"),

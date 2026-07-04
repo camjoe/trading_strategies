@@ -12,7 +12,7 @@ class RiskDecisionRecord:
 
     id: int
     account_id: int
-    unit_id: int | None
+    book_id: int | None
     decision_time: str
     symbol: str | None
     side: str | None
@@ -30,7 +30,7 @@ class RiskDecisionRecord:
         return cls(
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
-            unit_id=row_int(values, "unit_id"),
+            book_id=row_int(values, "book_id"),
             decision_time=row_expect_str(values, "decision_time"),
             symbol=row_str(values, "symbol"),
             side=row_str(values, "side"),

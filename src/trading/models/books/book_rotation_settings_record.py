@@ -7,14 +7,14 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int, 
 
 
 @dataclass(frozen=True, slots=True)
-class UnitRotationSettingsRecord:
-    """Persisted unit_rotation_settings row materialized from the database.
+class BookRotationSettingsRecord:
+    """Persisted book_rotation_settings row materialized from the database.
 
-    Settings only — rotation *state* lives in unit_strategy_assignments (the open
+    Settings only — rotation *state* lives in book_strategy_assignments (the open
     row) and rotation_decisions history (D4, 2026-07-03).
     """
 
-    unit_id: int
+    book_id: int
     rotation_enabled: int
     rotation_mode: str | None
     rotation_optimality_mode: str | None
@@ -33,9 +33,9 @@ class UnitRotationSettingsRecord:
     updated_at: str
 
     @classmethod
-    def from_mapping(cls, values: Mapping[str, object]) -> UnitRotationSettingsRecord:
+    def from_mapping(cls, values: Mapping[str, object]) -> BookRotationSettingsRecord:
         return cls(
-            unit_id=row_expect_int(values, "unit_id"),
+            book_id=row_expect_int(values, "book_id"),
             rotation_enabled=row_expect_int(values, "rotation_enabled"),
             rotation_mode=row_str(values, "rotation_mode"),
             rotation_optimality_mode=row_str(values, "rotation_optimality_mode"),

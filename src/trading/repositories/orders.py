@@ -5,15 +5,15 @@ import sqlite3
 from trading.models.orders.order_record import OrderRecord
 
 
-class OrderUnitAccountMismatchError(ValueError):
-    """Raised when an order's unit does not belong to its account (invariant 4)."""
+class BookAccountMismatchError(ValueError):
+    """Raised when an order's book does not belong to its account (invariant 4)."""
 
 
 class OrderRepository:
     """SQL access for the clean-schema orders table (unifies broker + sleeve orders).
 
-    Order ↔ unit ↔ account integrity (invariant 4) cannot be expressed as a cheap
-    SQLite constraint, so `insert` verifies the unit belongs to the account.
+    Order ↔ book ↔ account integrity (invariant 4) cannot be expressed as a cheap
+    SQLite constraint, so `insert` verifies the book belongs to the account.
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -25,7 +25,7 @@ class OrderRepository:
     def insert(
         self,
         *,
-        unit_id: int,
+        book_id: int,
         account_id: int,
         strategy_id: int | None = None,
         rotation_decision_id: int | None = None,
@@ -44,24 +44,24 @@ class OrderRepository:
         updated_at: str,
     ) -> int:
         owner = self._conn.execute(
-            "SELECT account_id FROM trading_units WHERE id = ?",
-            (int(unit_id),),
+            "SELECT account_id FROM books WHERE id = ?",
+            (int(book_id),),
         ).fetchone()
         if owner is None or int(owner[0]) != int(account_id):
-            raise OrderUnitAccountMismatchError(
-                f"Unit {unit_id} does not belong to account {account_id}; refusing to insert order."
+            raise BookAccountMismatchError(
+                f"Book {book_id} does not belong to account {account_id}; refusing to insert order."
             )
         cursor = self._conn.execute(
             """
             INSERT INTO orders (
-                unit_id, account_id, strategy_id, rotation_decision_id, broker_order_id,
+                book_id, account_id, strategy_id, rotation_decision_id, broker_order_id,
                 symbol, side, qty, order_type, time_in_force, requested_price, status,
                 filled_qty, avg_fill_price, commission, submitted_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                int(unit_id),
+                int(book_id),
                 int(account_id),
                 strategy_id,
                 rotation_decision_id,
@@ -108,10 +108,10 @@ class OrderRepository:
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
-    def fetch_for_unit(self, *, unit_id: int) -> list[OrderRecord]:
+    def fetch_for_book(self, *, book_id: int) -> list[OrderRecord]:
         rows = self._conn.execute(
-            "SELECT * FROM orders WHERE unit_id = ? ORDER BY submitted_at DESC, id DESC",
-            (int(unit_id),),
+            "SELECT * FROM orders WHERE book_id = ? ORDER BY submitted_at DESC, id DESC",
+            (int(book_id),),
         ).fetchall()
         return [self._row_to_record(row) for row in rows]
 

@@ -7,10 +7,10 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int, 
 
 
 @dataclass(frozen=True, slots=True)
-class UnitOptionSettingsRecord:
-    """Persisted unit_option_settings row materialized from the database."""
+class BookOptionSettingsRecord:
+    """Persisted book_option_settings row materialized from the database."""
 
-    unit_id: int
+    book_id: int
     option_strike_offset_pct: float | None
     option_min_dte: int | None
     option_max_dte: int | None
@@ -26,9 +26,9 @@ class UnitOptionSettingsRecord:
     updated_at: str
 
     @classmethod
-    def from_mapping(cls, values: Mapping[str, object]) -> UnitOptionSettingsRecord:
+    def from_mapping(cls, values: Mapping[str, object]) -> BookOptionSettingsRecord:
         return cls(
-            unit_id=row_expect_int(values, "unit_id"),
+            book_id=row_expect_int(values, "book_id"),
             option_strike_offset_pct=row_float(values, "option_strike_offset_pct"),
             option_min_dte=row_int(values, "option_min_dte"),
             option_max_dte=row_int(values, "option_max_dte"),

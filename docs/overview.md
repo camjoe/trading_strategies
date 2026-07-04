@@ -134,7 +134,7 @@ defining") are consolidated in [decisions.md](decisions.md); convergence detail 
    and sleeve rotation, with cross-surface regression tests proving all three surfaces read it
    identically (1a/1b/1c complete).
 3. **P3 — DB schema rewrite (greenfield, option B).** Decided rewrite-first (no data to lose,
-   pre-live is the cheapest time). The clean trading-unit schema is built before convergence.
+   pre-live is the cheapest time). The clean book schema is built before convergence.
 4. **P4–P5 — Converge accounts and sleeves once on the clean schema** (submission/rotation/
    accounting), with the decisioning legibility/naming pass alongside.
 5. **P6–P7 — Plug-and-play strategy/provider catalog and a unified parameter source**, on the new

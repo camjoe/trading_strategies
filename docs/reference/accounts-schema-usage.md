@@ -9,7 +9,7 @@ Related: [DB Migration System](db-migration-system.md), [Sleeve Schema Contract]
 
 > **Pre-P3 schema.** This audits the *current* ~50-column `accounts` god-table, which the greenfield
 > DB rewrite (Plan P3) slims to custody/broker fields only — strategy/risk/option/rotation settings
-> move to the account/trading-unit per [D4](../decisions.md#d4). The audit stays valuable as the
+> move to the account/strategy-book per [D4](../decisions.md#d4). The audit stays valuable as the
 > **D4 input**: the classifications below (core active / niche / unclear) are the evidence for which
 > settings earn a place in the new schema. Treat the column list as historical once P3 lands.
 

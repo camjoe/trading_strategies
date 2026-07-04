@@ -14,7 +14,7 @@ Related: [Plan — Converge accounts & sleeves (P4)](plan.md#converge-accounts-a
 [Broker Integration](reference/broker-integration.md)
 
 > **Realized via the rewrite.** With rewrite-first chosen ([D2/D3](decisions.md#d2)), convergence is
-> **built once on the clean trading-unit schema** during Plan P3 (rewrite) → P4 (services), not by
+> **built once on the clean book schema** during Plan P3 (rewrite) → P4 (services), not by
 > incrementally migrating two live paths. This doc is the **design reference** for the converged
 > services; the schema itself is in the [DB Schema Rewrite Spec](db-schema-rewrite-spec.md). The
 > current-state map below documents the duplication the rewrite removes.
@@ -34,7 +34,7 @@ same trade lifecycle differently. Converge them onto shared services so that:
 ## Guiding principles
 
 1. **Build once on the clean schema.** With the greenfield rewrite chosen (P3), the shared services
-   are built directly on the clean trading-unit tables (P4) — one submission/rotation/accounting path
+   are built directly on the clean strategy-book tables (P4) — one submission/rotation/accounting path
    — rather than migrating two live paths incrementally. There is no live data to protect
    (greenfield), which is what makes the clean build the low-risk option.
 2. **Safety only strengthens.** When paths merge, the stricter path's guards become the shared
@@ -45,37 +45,37 @@ same trade lifecycle differently. Converge them onto shared services so that:
 4. **SRP per service.** Each shared service owns one responsibility (submission, rotation/selection,
    accounting). Mode-specific behavior enters through explicit injected handlers, not branches.
 
-## Design stance: unify at the trading-unit level
+## Design stance: unify at the strategy-book level
 
 The organizing model for this convergence is a **composite**, aligned with ADR 003:
 
 - **Account = custody/broker aggregate root.** Owns the broker connection, the `live_trading_enabled`
   safety gate, and reconciliation-to-broker-truth. These are account-scoped and stay there.
-- **Sleeve = the trading unit.** Owns cash, positions, ledger, and strategy/param-set assignment —
+- **Sleeve = the strategy book.** Owns cash, positions, ledger, and strategy/param-set assignment —
   the primitive that accounting, submission attribution, and rotation/selection operate on.
-- **A plain account is one account with a single default trading unit** spanning the whole balance.
+- **A plain account is one account with a single default strategy book** spanning the whole balance.
 
 Under this model the shared services (2a/2b/2c) do not special-case "account mode vs sleeve mode";
-they operate on one **trading-unit contract**, and account mode is just the default unit. This is a
+they operate on one **strategy-book contract**, and account mode is just the default book. This is a
 refinement of — not a replacement for — the 2a/2b/2c workstreams: it names the contract they share.
 
 Consistent with ADR 003: accounts stay broker/custody entities (Decision #1), sleeve attribution
 reconciles to account truth (Decision #4), and the account submission/reconciliation flow is the
-reuse base with attribution lifted to unit-aware persistence (Reuse #3). Note the account cannot
+reuse base with attribution lifted to book-aware persistence (Reuse #3). Note the account cannot
 literally *be* a sleeve: broker + `live_trading_enabled` + reconciliation-to-truth are genuinely
 account-scoped and must not be pushed onto a sleeve.
 
 ### Realization options (decided: B)
 
-The default trading unit was modeled two ways; **(B) was chosen** (see Decision status below):
+The default strategy book was modeled two ways; **(B) was chosen** (see Decision status below):
 
-- **(A) Virtual default unit — rejected.** The trading-unit contract has two backings
-  (sleeve-backed and account-backed); a plain account presents a *synthesized* default unit over the
+- **(A) Virtual default book — rejected.** The strategy-book contract has two backings
+  (sleeve-backed and account-backed); a plain account presents a *synthesized* default book over the
   existing account tables. No migration of the hot ledger/positions/orders tables. Costs a small
   amount of polymorphism (two backings) in exchange for keeping account semantics unchanged. Matches
   ADR Reuse #3.
-- **(B) Physical table rework.** Give every account a real default trading-unit row and reparent
-  ledger/positions/orders onto units. Purest single-backing model. Because we are **not yet live
+- **(B) Physical table rework.** Give every account a real default strategy-book row and reparent
+  ledger/positions/orders onto books. Purest single-backing model. Because we are **not yet live
   production** and are willing to drop existing data, this is a **greenfield schema init with no data
   migration** — which removes the backfill risk that would otherwise dominate. A concrete target
   schema is drafted in the [Database Schema Rewrite — Spec](db-schema-rewrite-spec.md); adopting it
@@ -134,9 +134,9 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 - [ ] **2a. Shared order-submission service**
   - Extract "submit intent → persist broker order → on-fill ledger update" into one service
     (for example, a future `trading.services.execution` package) called by both modes.
-  - On the clean schema there is one `orders`/`order_fills`/`ledger` model keyed by trading unit, so
-    "modes" collapse to the default-unit vs multi-unit case — no per-mode persistence branching.
-  - The one path owns the pre-submit safety gates (kill switches, reconciliation), so every unit
+  - On the clean schema there is one `orders`/`order_fills`/`ledger` model keyed by strategy book, so
+    "modes" collapse to the default-book vs multi-book case — no per-mode persistence branching.
+  - The one path owns the pre-submit safety gates (kill switches, reconciliation), so every book
     inherits them uniformly.
   - Highest-value slice; directly reduces future live-path risk.
 - [ ] **2b. Unified rotation/selection**
@@ -164,10 +164,10 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
   intentionally position-scoped?
 - [ ] Risk snapshots: should account mode gain an equivalent of the sleeve risk snapshot /
   decisions, or is that intrinsically a sleeve concept?
-- [x] Order repositories: resolved by the rewrite — one `orders`/`order_fills` model keyed by unit;
+- [x] Order repositories: resolved by the rewrite — one `orders`/`order_fills` model keyed by book;
   `broker_order_id` keeps custody linkage. No bridging of two tables.
-- [x] Intent model: resolved — one trade-intent contract on the trading unit (the account selection
-  tuple becomes the default-unit intent).
+- [x] Intent model: resolved — one trade-intent contract on the strategy book (the account selection
+  tuple becomes the default-book intent).
 
 ## Dependencies & sequencing
 
@@ -181,21 +181,21 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 
 Canonical decision status in [decisions.md](decisions.md). Remaining design detail:
 
-- **Which rotation paradigm survives on units** — account-episode vs champion/challenger. The
+- **Which rotation paradigm survives on books** — account-episode vs champion/challenger. The
   champion/challenger model + the decision-score contract is the developed path; confirm it wins and
   retire the episode path during 2b. (Surfaced in the whole-picture review.)
 - Package/name for the shared submission service (`services/execution/` vs extending
   `services/auto_trading/`).
 - Whether the shared submission service owns the pre-submit safety gates directly, or accepts them as
-  an injected policy so unit-specific gates stay pluggable.
+  an injected policy so book-specific gates stay pluggable.
 
 ## Progress log
 
 - 2026-07-01 — Document created. Captured current-state map, confirmed 2a/2b/2c workstreams,
   investigation candidates, and sequencing. Environment axis confirmed already converged and marked
   out of scope.
-- 2026-07-01 — Added "unify at the trading-unit level" design stance (account = custody root
-  containing trading units; a plain account is one default unit), aligned with ADR 003. Recorded
+- 2026-07-01 — Added "unify at the strategy-book level" design stance (account = custody root
+  containing strategy books; a plain account is one default book), aligned with ADR 003. Recorded
   virtual (A) vs physical-table-rework (B) as an open realization decision; current lean is virtual
   short-term, with a pre-live table review to revisit (B). Updated open questions and investigation
   items accordingly.
@@ -211,5 +211,5 @@ Canonical decision status in [decisions.md](decisions.md). Remaining design deta
 - 2026-07-01 — Rewrite-first (B) decided. Reframed this plan from incremental migration to
   "build the converged services once on the clean schema" (P3 → P4): updated guiding principles,
   the workstream persistence framing, sequencing, and open questions; resolved the order-repository
-  and intent-model investigations (one `orders`/`ledger`/`positions` model on units). Flagged the
+  and intent-model investigations (one `orders`/`ledger`/`positions` model on books). Flagged the
   surviving-rotation-paradigm question.

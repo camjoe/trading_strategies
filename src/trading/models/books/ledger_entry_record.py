@@ -8,10 +8,10 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 
 @dataclass(frozen=True, slots=True)
 class LedgerEntryRecord:
-    """Persisted ledger row (unit-keyed) materialized from the database."""
+    """Persisted ledger row (book-keyed) materialized from the database."""
 
     id: int
-    unit_id: int
+    book_id: int
     entry_type: str
     amount: float
     reference_type: str | None
@@ -23,7 +23,7 @@ class LedgerEntryRecord:
     def from_mapping(cls, values: Mapping[str, object]) -> LedgerEntryRecord:
         return cls(
             id=row_expect_int(values, "id"),
-            unit_id=row_expect_int(values, "unit_id"),
+            book_id=row_expect_int(values, "book_id"),
             entry_type=row_expect_str(values, "entry_type"),
             amount=row_expect_float(values, "amount"),
             reference_type=row_str(values, "reference_type"),

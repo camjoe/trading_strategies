@@ -2,29 +2,29 @@ from __future__ import annotations
 
 import sqlite3
 
-from trading.models.units.unit_execution_settings_record import UnitExecutionSettingsRecord
-from trading.models.units.unit_option_settings_record import UnitOptionSettingsRecord
-from trading.models.units.unit_rotation_settings_record import UnitRotationSettingsRecord
+from trading.models.books.book_execution_settings_record import BookExecutionSettingsRecord
+from trading.models.books.book_option_settings_record import BookOptionSettingsRecord
+from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 
-# Per-concern typed settings tables, 1:1 with trading_units (D4, 2026-07-03).
+# Per-concern typed settings tables, 1:1 with books (D4, 2026-07-03).
 # A missing row means "use code defaults"; change-audit arrives with P7.
 
 
-class UnitExecutionSettingsRepository:
+class BookExecutionSettingsRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def fetch(self, *, unit_id: int) -> UnitExecutionSettingsRecord | None:
+    def fetch(self, *, book_id: int) -> BookExecutionSettingsRecord | None:
         row = self._conn.execute(
-            "SELECT * FROM unit_execution_settings WHERE unit_id = ?",
-            (int(unit_id),),
+            "SELECT * FROM book_execution_settings WHERE book_id = ?",
+            (int(book_id),),
         ).fetchone()
-        return UnitExecutionSettingsRecord.from_mapping(dict(row)) if row is not None else None
+        return BookExecutionSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
     def upsert(
         self,
         *,
-        unit_id: int,
+        book_id: int,
         learning_enabled: int = 0,
         risk_policy: str = "none",
         stop_loss_pct: float | None = None,
@@ -40,13 +40,13 @@ class UnitExecutionSettingsRepository:
     ) -> None:
         self._conn.execute(
             """
-            INSERT INTO unit_execution_settings (
-                unit_id, learning_enabled, risk_policy, stop_loss_pct, take_profit_pct,
+            INSERT INTO book_execution_settings (
+                book_id, learning_enabled, risk_policy, stop_loss_pct, take_profit_pct,
                 profit_take_pct, max_loss_pct, trade_size_pct, max_position_pct,
                 max_trades_per_run, instrument_mode, created_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(unit_id) DO UPDATE SET
+            ON CONFLICT(book_id) DO UPDATE SET
                 learning_enabled = excluded.learning_enabled,
                 risk_policy = excluded.risk_policy,
                 stop_loss_pct = excluded.stop_loss_pct,
@@ -60,7 +60,7 @@ class UnitExecutionSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(unit_id),
+                int(book_id),
                 int(learning_enabled),
                 risk_policy,
                 stop_loss_pct,
@@ -78,21 +78,21 @@ class UnitExecutionSettingsRepository:
         self._conn.commit()
 
 
-class UnitOptionSettingsRepository:
+class BookOptionSettingsRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def fetch(self, *, unit_id: int) -> UnitOptionSettingsRecord | None:
+    def fetch(self, *, book_id: int) -> BookOptionSettingsRecord | None:
         row = self._conn.execute(
-            "SELECT * FROM unit_option_settings WHERE unit_id = ?",
-            (int(unit_id),),
+            "SELECT * FROM book_option_settings WHERE book_id = ?",
+            (int(book_id),),
         ).fetchone()
-        return UnitOptionSettingsRecord.from_mapping(dict(row)) if row is not None else None
+        return BookOptionSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
     def upsert(
         self,
         *,
-        unit_id: int,
+        book_id: int,
         option_strike_offset_pct: float | None = None,
         option_min_dte: int | None = None,
         option_max_dte: int | None = None,
@@ -109,14 +109,14 @@ class UnitOptionSettingsRepository:
     ) -> None:
         self._conn.execute(
             """
-            INSERT INTO unit_option_settings (
-                unit_id, option_strike_offset_pct, option_min_dte, option_max_dte,
+            INSERT INTO book_option_settings (
+                book_id, option_strike_offset_pct, option_min_dte, option_max_dte,
                 option_type, target_delta_min, target_delta_max, max_premium_per_trade,
                 max_contracts_per_trade, iv_rank_min, iv_rank_max, roll_dte_threshold,
                 created_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(unit_id) DO UPDATE SET
+            ON CONFLICT(book_id) DO UPDATE SET
                 option_strike_offset_pct = excluded.option_strike_offset_pct,
                 option_min_dte = excluded.option_min_dte,
                 option_max_dte = excluded.option_max_dte,
@@ -131,7 +131,7 @@ class UnitOptionSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(unit_id),
+                int(book_id),
                 option_strike_offset_pct,
                 option_min_dte,
                 option_max_dte,
@@ -150,21 +150,21 @@ class UnitOptionSettingsRepository:
         self._conn.commit()
 
 
-class UnitRotationSettingsRepository:
+class BookRotationSettingsRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def fetch(self, *, unit_id: int) -> UnitRotationSettingsRecord | None:
+    def fetch(self, *, book_id: int) -> BookRotationSettingsRecord | None:
         row = self._conn.execute(
-            "SELECT * FROM unit_rotation_settings WHERE unit_id = ?",
-            (int(unit_id),),
+            "SELECT * FROM book_rotation_settings WHERE book_id = ?",
+            (int(book_id),),
         ).fetchone()
-        return UnitRotationSettingsRecord.from_mapping(dict(row)) if row is not None else None
+        return BookRotationSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
     def upsert(
         self,
         *,
-        unit_id: int,
+        book_id: int,
         rotation_enabled: int = 0,
         rotation_mode: str | None = None,
         rotation_optimality_mode: str | None = None,
@@ -184,15 +184,15 @@ class UnitRotationSettingsRepository:
     ) -> None:
         self._conn.execute(
             """
-            INSERT INTO unit_rotation_settings (
-                unit_id, rotation_enabled, rotation_mode, rotation_optimality_mode,
+            INSERT INTO book_rotation_settings (
+                book_id, rotation_enabled, rotation_mode, rotation_optimality_mode,
                 rotation_interval_days, rotation_interval_minutes, rotation_lookback_days,
                 rotation_schedule, regime_strategy_risk_on_id, regime_strategy_neutral_id,
                 regime_strategy_risk_off_id, overlay_mode, overlay_min_tickers,
                 overlay_confidence_threshold, overlay_watchlist, created_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(unit_id) DO UPDATE SET
+            ON CONFLICT(book_id) DO UPDATE SET
                 rotation_enabled = excluded.rotation_enabled,
                 rotation_mode = excluded.rotation_mode,
                 rotation_optimality_mode = excluded.rotation_optimality_mode,
@@ -210,7 +210,7 @@ class UnitRotationSettingsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(unit_id),
+                int(book_id),
                 int(rotation_enabled),
                 rotation_mode,
                 rotation_optimality_mode,

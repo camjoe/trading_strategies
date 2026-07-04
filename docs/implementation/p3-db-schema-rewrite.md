@@ -2,7 +2,7 @@
 
 Type: implementation
 Status: Ready (large; multi-commit)
-Purpose: Work order for P3 — greenfield trading-unit schema rewrite in phased commits (DDL, models, repositories, seed, re-pointed reads).
+Purpose: Work order for P3 — greenfield book schema rewrite in phased commits (DDL, models, repositories, seed, re-pointed reads).
 Initiative: P3 (DB schema rewrite, option B)
 Estimate: L
 Created: 2026-07-01
@@ -16,18 +16,18 @@ Related: [Plan](../plan.md), [Decisions](../decisions.md),
 
 ## 1. Objective
 
-Replace the current 25-table schema with the clean trading-unit schema in
+Replace the current 25-table schema with the clean book schema in
 [db-schema-target.md](../db-schema-target.md) — **greenfield, no data migration** (old data is
 dropped). Deliver the schema, models, repositories, a seeded strategy catalog, and re-pointed
 read-side consumers. This is the **spine** P4/P6/P7 build on.
 
 ### Definition of Done
 - [ ] Fresh DB init creates every table in the target with its constraints, indexes, and the two
-      partial-unique invariants (default unit; open assignment).
+      partial-unique invariants (default book; open assignment).
 - [ ] A passive model exists per table; a repository exists per table (SQL only).
 - [ ] The strategy catalog is seeded from the 14 current `STRATEGY_REGISTRY` entries (primitive + knobs).
 - [ ] Read-side consumers (evaluation evidence, backtesting, reporting, analysis) read the new tables
-      via `strategy_id`/`unit_id`.
+      via `strategy_id`/`book_id`.
 - [ ] `python -m scripts.run_checks ci` green; `python -m scripts.data_ops.describe_db_schema`
       shows the target; layer check clean.
 - [ ] Plan P3 status updated.
@@ -35,8 +35,8 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 ## 2. Preconditions
 - **P1 (execution loop) landed first** — it is schema-agnostic logic; P3 then re-points its
   persistence. Confirm P1 is merged, or coordinate.
-- Decisions locked: [D2/D3/D7](../decisions.md#d2) (rewrite-first, real default unit), [D4](../decisions.md#d4)
-  (params split — settle the account/unit **settings shape** at the start of Phase A), [D5](../decisions.md#d5)
+- Decisions locked: [D2/D3/D7](../decisions.md#d2) (rewrite-first, real default book), [D4](../decisions.md#d4)
+  (params split — settle the account/book **settings shape** at the start of Phase A), [D5](../decisions.md#d5)
   (strategy = primitive + knobs), [D6](../decisions.md#d6) (score columns).
 - `./.venv` exists; you can run the migration/DB-init tooling.
 
@@ -51,7 +51,7 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 - **Greenfield:** dropping old data is intended and pre-approved (see the data-loss assessment). Still
   take one fresh `local/db_backups/` snapshot first (see [Developer Notes](../developer-notes.md)).
 - **Enforce the invariants** ([target schema](../db-schema-target.md) → Conventions): the two partial-
-  unique indexes in DDL; order↔unit↔account integrity and strategy-immutability in the repositories.
+  unique indexes in DDL; order↔book↔account integrity and strategy-immutability in the repositories.
 - **Never** set `live_trading_enabled` in DDL/seed/fixtures (human-only gate).
 - Use the `db-migration` skill / existing migration framework for DDL — do **not** hand-roll a second
   migration path (ADR/conventions).
@@ -68,7 +68,7 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 - Define all target tables + constraints + indexes + the two partial-unique invariants in the schema
   init (`src/infrastructure/database/` — schema/DDL module; see `docs/reference/db-migration-system.md`).
 - Turn on `PRAGMA foreign_keys = ON` in the connection setup if not already.
-- Settle the **D4 account/unit settings shape** here (typed columns on `accounts`/`trading_units` vs a
+- Settle the **D4 account/book settings shape** here (typed columns on `accounts`/`books` vs a
   small config table) and encode it.
 - Verify with `python -m scripts.data_ops.describe_db_schema` against a fresh DB.
 
@@ -78,7 +78,7 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 
 ### Phase C — Repositories  *(commit: "P3: repositories for the clean schema")*
 - One repository per table under `src/trading/repositories/` (SQL reads/writes only; `fetch_*` /
-  `insert_*` / `update_*`). Encode the service-enforced invariants (open-assignment, order↔unit↔account,
+  `insert_*` / `update_*`). Encode the service-enforced invariants (open-assignment, order↔book↔account,
   strategy-immutability) as repository guards where practical.
 
 ### Phase D — Primitive catalog + seed  *(commit: "P3: primitive catalog + seed strategy catalog")*
@@ -86,12 +86,12 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
   map + each primitive's knob schema) — the code half of D5. (This is shared with P6/4a.)
 - Seed the `strategies` table with the 14 current `STRATEGY_REGISTRY` entries (primitive + their
   `default_params` as knobs). Provide a CLI/data-op to (re)seed.
-- Bootstrap: create accounts + their default `trading_units` from profiles/CLI.
+- Bootstrap: create accounts + their default `books` from profiles/CLI.
 
 ### Phase E — Re-point read-side consumers  *(commit: "P3: re-point evaluation/backtest/reporting reads")*
-- `src/trading/services/evaluation/evidence.py` — read unit-keyed snapshots/metrics + `strategy_id`.
+- `src/trading/services/evaluation/evidence.py` — read book-keyed snapshots/metrics + `strategy_id`.
 - `src/trading/backtesting/` repositories + services — `strategy_id` FK instead of name strings.
-- `src/trading/services/reporting/` and `services/analysis/performance.py` — unit-keyed reads.
+- `src/trading/services/reporting/` and `services/analysis/performance.py` — book-keyed reads.
 - **Out of scope here (P4):** the execution/submission/rotation/accounting **write** services on the
   operational tables (`orders`, `positions`, `ledger`, `equity_snapshots`). P3 leaves those tables
   created and empty; P4 wires the writers.
@@ -101,18 +101,18 @@ read-side consumers. This is the **spine** P4/P6/P7 build on.
 | Table | Model (`models/`) | Repository (`repositories/`) | Primary consumers to touch |
 |---|---|---|---|
 | `accounts` | `accounts/` | `accounts.py` | `services/accounts`, evaluation, most reads |
-| `trading_units` | `units/` (new) | `trading_units.py` (new) | execution (P4), evaluation, reconciliation |
+| `books` | `books/` (new) | `books.py` (new) | execution (P4), evaluation, reconciliation |
 | `strategies` | `strategy/` | `strategies.py` (new) | `domain/strategy_signals` loader (P6/4a), rotation |
 | `feature_providers` | `strategy/` or new | `feature_providers.py` (new) | interface wiring (P6/4b) |
-| `unit_strategy_assignments` | `units/` | `unit_assignments.py` (new) | rotation (P4) |
-| `rotation_decisions` | `sleeves/`→`units/` | `rotation_decisions.py` | rotation (P4) |
+| `book_strategy_assignments` | `books/` | `book_assignments.py` (new) | rotation (P4) |
+| `rotation_decisions` | `sleeves/`→`books/` | `rotation_decisions.py` | rotation (P4) |
 | `orders` | `orders/` | `orders.py` (new; unifies broker+sleeve) | execution (P4), reconciliation |
 | `order_fills` | `orders/` | `order_fills.py` | execution (P4) |
-| `positions` | `units/` | `positions.py` (new) | execution/state (P4), risk |
-| `ledger` | `units/` | `ledger.py` (new) | accounting (P4) |
+| `positions` | `books/` | `positions.py` (new) | execution/state (P4), risk |
+| `ledger` | `books/` | `ledger.py` (new) | accounting (P4) |
 | `equity_snapshots` | `portfolio/` | `snapshots.py` | evaluation evidence, reporting |
 | `daily_metrics` | `portfolio/` | `daily_metrics.py` | `analysis/performance`, reporting, rotation |
-| `risk_snapshots`/`risk_decisions` | `sleeves/`→`units/` | risk repos | `runtime_sleeve_risk` (P4) |
+| `risk_snapshots`/`risk_decisions` | `sleeves/`→`books/` | risk repos | `runtime_sleeve_risk` (P4) |
 | `promotion_reviews`/`_events` | `promotion/` | promotion repos | `services/promotion` |
 | `backtest_*` / `walk_forward_*` | `backtesting/` models | `backtesting/repositories/` | backtesting services, evaluation evidence |
 
@@ -127,13 +127,13 @@ Run from repo root with the venv interpreter, after each phase:
 .venv\Scripts\python.exe -m scripts.run_checks quick        # per-phase
 .venv\Scripts\python.exe -m scripts.run_checks ci           # final
 ```
-Add repository tests per table (round-trip insert/fetch; the invariant guards: default-unit uniqueness,
+Add repository tests per table (round-trip insert/fetch; the invariant guards: default-book uniqueness,
 open-assignment uniqueness, strategy-immutability rejection).
 
 ## 8. Failure handling
 - A read consumer can't be re-pointed without its writer (operational tables) → that's the P3/P4
   boundary; leave the write path to P4 and note it, don't pull P4 forward silently.
-- Invariant can't be expressed in SQLite (e.g. order↔unit↔account) → enforce in the repository and
+- Invariant can't be expressed in SQLite (e.g. order↔book↔account) → enforce in the repository and
   cover with a test; record the choice.
 - Any check red → fix or stop and report; do not commit.
 

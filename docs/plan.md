@@ -94,12 +94,12 @@ Reference entries. Ordered priority, commitment, and status live in the priority
 Priority: P3 · Committed
 
 Decided B ([D2](decisions.md#d2)/[D3](decisions.md#d3)). This is the **spine** the later work hangs
-off: the clean trading-unit schema is the foundation that P4 (convergence), P6/4a (data-driven
+off: the clean book schema is the foundation that P4 (convergence), P6/4a (data-driven
 strategies), and P7 (parameter source) build on. Full schema:
 [DB Schema Rewrite Spec](db-schema-rewrite-spec.md) + [DB Schema Target](db-schema-target.md).
 
 - Scope (P3 = schema **and** the code that reads it): new DDL; new repositories against the clean
-  tables; re-point evaluation-evidence and backtest reads to unit-keyed tables.
+  tables; re-point evaluation-evidence and backtest reads to book-keyed tables.
 - **P3↔P4 boundary:** P3 delivers the schema + repositories + re-pointed reads; P4 builds the
   converged submission/rotation/accounting **services** on top.
 - **Operational note — runtime pause (accepted 2026-07-02):** because P3 drops the old operational
@@ -113,10 +113,10 @@ strategies), and P7 (parameter source) build on. Full schema:
   - [x] **Seed the strategy catalog** — `seed_strategy_catalog` re-creates the current
     `STRATEGY_REGISTRY` entries as `strategies` rows (primitive + default knobs);
     `python -m trading.interfaces.runtime.data_ops.seed_clean_schema` is the idempotent data-op
-    (also bootstraps per-account default units + settings). Delivered with P3 Phase D.
-- Delivers foundations for: P4 (trading units), P6/4a (`strategies` table), P7 (settings storage),
+    (also bootstraps per-account default books + settings). Delivered with P3 Phase D.
+- Delivers foundations for: P4 (strategy books), P6/4a (`strategies` table), P7 (settings storage),
   and D6 (decision-score columns).
-- Remaining open: the account/unit settings shape ([D4](decisions.md#d4) tail).
+- Remaining open: the account/book settings shape ([D4](decisions.md#d4) tail).
 - **Work order:** [implementation/p3-db-schema-rewrite.md](implementation/p3-db-schema-rewrite.md)
   (phased build + per-table code-area map).
 
@@ -184,7 +184,7 @@ Priority: P4 · Committed
 
 - Scope: remove the parallel account-mode vs sleeve-mode orchestration by building **one**
   submission/rotation/accounting path. Under rewrite-first (P3), these services are built **once on
-  the clean trading-unit schema**, not by migrating two live paths — so pre-submit safety is uniform
+  the clean book schema**, not by migrating two live paths — so pre-submit safety is uniform
   by construction. Depends on P3 (the schema + repositories).
 - Full plan and progress tracker: [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
 - Surface: `src/trading/services/auto_trading/`, `src/trading/services/sleeves/`,
@@ -205,16 +205,16 @@ Priority: P4 · Committed
   - rotation is split across two paradigms and several modules (`auto_trading/rotation.py`,
     `runtime_rotation.py`, `rotation_bridge.py`, `sleeves/rotation.py`, `shadow_evaluation.py`) — the
     same root cause as P2.
-- Sub-features (built once on the clean schema; unit = default-unit for a plain account):
+- Sub-features (built once on the clean schema; book = the default book for a plain account):
   - [ ] **2a. Shared order-submission service** — one service (for example,
     a future `trading.services.execution` package)
-    that submits → persists the broker order → updates the unit ledger on fill, with the pre-submit
-    safety gates (kill switches, reconciliation) owned centrally so every unit inherits them.
+    that submits → persists the broker order → updates the book ledger on fill, with the pre-submit
+    safety gates (kill switches, reconciliation) owned centrally so every book inherits them.
     Highest-value slice; directly reduces live-path risk.
   - [ ] **2b. Unified rotation/selection** — one rotation path on the P2 decision-score contract.
     **Decide which paradigm survives** (champion/challenger is the developed one; retire the
     account-episode path) and reduce the rotation module sprawl.
-  - [ ] **2c. Unified accounting/ledger path** — one unit-keyed ledger; fills flow through it.
+  - [ ] **2c. Unified accounting/ledger path** — one book-keyed ledger; fills flow through it.
 - Estimate: **L** — built once on the clean schema (P3), not migrated incrementally.
 - Code areas that will change:
   - 2a: new submission service package; refactor
@@ -225,7 +225,7 @@ Priority: P4 · Committed
     `sleeve_orders` repositories.
   - 2b: unify rotation across `domain/rotation.py` + `domain/sleeve_rotation.py` +
     `services/auto_trading/rotation*.py` + `services/sleeves/rotation.py` + `shadow_evaluation.py` onto
-    the decision-score contract and one trading-unit paradigm (depends on 1a ✅ and D2/D3/D7).
+    the decision-score contract and one strategy-book paradigm (depends on 1a ✅ and D2/D3/D7).
   - 2c: unify `services/accounting` (`record_trade`) with `services/sleeves/accounting`
     (`apply_sleeve_fill`) and the `sleeve_ledger` vs account `trades` ledgers onto one path.
   - tests across `auto_trading`, `sleeves`, `accounting`.
@@ -361,10 +361,10 @@ Priority: P7 · Committed
   (rotation weights), `src/infrastructure/config/account_profiles/*.json`, and account DB columns
   (risk policy, stops, `learning_enabled`, rotation schedule/lookback/cooldown).
 - Overlap with P3/D4: the rewrite (P3) decides **where** params live — strategy knobs in `strategies`
-  rows, execution/risk settings on the account/unit ([D4](decisions.md#d4)). P7 is the read/edit
+  rows, execution/risk settings on the account/book ([D4](decisions.md#d4)). P7 is the read/edit
   **view + CLI** over those, **not** a new store. So P7 is mostly a surface once P3 lands.
 - Decisions to resolve first: which parameters are operator-tunable at runtime vs. code-owned
-  defaults; and the account/unit settings shape (D4 tail).
+  defaults; and the account/book settings shape (D4 tail).
 - Estimate: **M** (a view/CLI over P3's storage; smaller now that the store is decided).
 - Code areas that will change: a new parameter service (extend
   `src/trading/services/operational_settings/` or a new `services/parameters/`); a store or

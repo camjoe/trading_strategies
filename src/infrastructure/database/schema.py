@@ -619,15 +619,15 @@ ON promotion_review_events(review_id, created_at ASC);
 """
 
 # ---------------------------------------------------------------------------
-# Clean trading-unit schema (P3 rewrite target — docs/db-schema-target.md).
+# Clean strategy-book schema (P3 rewrite target — docs/db-schema-target.md).
 # Added alongside the legacy tables; colliding legacy tables (equity_snapshots,
 # daily_metrics, rotation_decisions, order_fills, accounts settings columns)
 # are swapped to their target shapes in later P3 commits together with their
 # repositories, so every commit stays green.
 # ---------------------------------------------------------------------------
 
-TRADING_UNITS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS trading_units (
+BOOKS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS books (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
     name TEXT NOT NULL,
@@ -647,17 +647,17 @@ CREATE TABLE IF NOT EXISTS trading_units (
 );
 """
 
-TRADING_UNITS_INDEXES_SQL = """
-CREATE UNIQUE INDEX IF NOT EXISTS idx_trading_units_default_per_account
-ON trading_units(account_id)
+BOOKS_INDEXES_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_books_default_per_account
+ON books(account_id)
 WHERE is_default = 1;
-CREATE INDEX IF NOT EXISTS idx_trading_units_account_status
-ON trading_units(account_id, status);
+CREATE INDEX IF NOT EXISTS idx_books_account_status
+ON books(account_id, status);
 """
 
-UNIT_EXECUTION_SETTINGS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS unit_execution_settings (
-    unit_id INTEGER PRIMARY KEY,
+BOOK_EXECUTION_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS book_execution_settings (
+    book_id INTEGER PRIMARY KEY,
     learning_enabled INTEGER NOT NULL DEFAULT 0 CHECK (learning_enabled IN (0, 1)),
     risk_policy TEXT NOT NULL DEFAULT 'none' CHECK (
         risk_policy IN ('none', 'fixed_stop', 'take_profit', 'stop_and_target')
@@ -672,13 +672,13 @@ CREATE TABLE IF NOT EXISTS unit_execution_settings (
     instrument_mode TEXT NOT NULL DEFAULT 'equity' CHECK (instrument_mode IN ('equity', 'leaps')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
 """
 
-UNIT_OPTION_SETTINGS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS unit_option_settings (
-    unit_id INTEGER PRIMARY KEY,
+BOOK_OPTION_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS book_option_settings (
+    book_id INTEGER PRIMARY KEY,
     option_strike_offset_pct REAL,
     option_min_dte INTEGER,
     option_max_dte INTEGER,
@@ -692,13 +692,13 @@ CREATE TABLE IF NOT EXISTS unit_option_settings (
     roll_dte_threshold INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
 """
 
-UNIT_ROTATION_SETTINGS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS unit_rotation_settings (
-    unit_id INTEGER PRIMARY KEY,
+BOOK_ROTATION_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS book_rotation_settings (
+    book_id INTEGER PRIMARY KEY,
     rotation_enabled INTEGER NOT NULL DEFAULT 0 CHECK (rotation_enabled IN (0, 1)),
     rotation_mode TEXT,
     rotation_optimality_mode TEXT,
@@ -715,7 +715,7 @@ CREATE TABLE IF NOT EXISTS unit_rotation_settings (
     overlay_watchlist TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (regime_strategy_risk_on_id) REFERENCES strategies(id),
     FOREIGN KEY (regime_strategy_neutral_id) REFERENCES strategies(id),
     FOREIGN KEY (regime_strategy_risk_off_id) REFERENCES strategies(id)
@@ -749,35 +749,35 @@ CREATE TABLE IF NOT EXISTS feature_providers (
 );
 """
 
-UNIT_STRATEGY_ASSIGNMENTS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS unit_strategy_assignments (
+BOOK_STRATEGY_ASSIGNMENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS book_strategy_assignments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     strategy_id INTEGER NOT NULL,
     effective_from TEXT NOT NULL,
     effective_to TEXT,
     is_incumbent INTEGER NOT NULL DEFAULT 1 CHECK (is_incumbent IN (0, 1)),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
 
-UNIT_STRATEGY_ASSIGNMENTS_INDEXES_SQL = """
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unit_assignments_open_per_unit
-ON unit_strategy_assignments(unit_id)
+BOOK_STRATEGY_ASSIGNMENTS_INDEXES_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_book_assignments_open_per_book
+ON book_strategy_assignments(book_id)
 WHERE effective_to IS NULL;
-CREATE INDEX IF NOT EXISTS idx_unit_assignments_unit_effective
-ON unit_strategy_assignments(unit_id, effective_from DESC);
-CREATE INDEX IF NOT EXISTS idx_unit_assignments_strategy_effective
-ON unit_strategy_assignments(strategy_id, effective_from DESC);
+CREATE INDEX IF NOT EXISTS idx_book_assignments_book_effective
+ON book_strategy_assignments(book_id, effective_from DESC);
+CREATE INDEX IF NOT EXISTS idx_book_assignments_strategy_effective
+ON book_strategy_assignments(strategy_id, effective_from DESC);
 """
 
 ORDERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     account_id INTEGER NOT NULL,
     strategy_id INTEGER,
     rotation_decision_id INTEGER,
@@ -796,7 +796,7 @@ CREATE TABLE IF NOT EXISTS orders (
     commission REAL NOT NULL DEFAULT 0,
     submitted_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
@@ -808,21 +808,21 @@ ON orders(account_id, broker_order_id)
 WHERE broker_order_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_account_status_submitted
 ON orders(account_id, status, submitted_at DESC);
-CREATE INDEX IF NOT EXISTS idx_orders_unit_submitted
-ON orders(unit_id, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_book_submitted
+ON orders(book_id, submitted_at DESC);
 """
 
 POSITIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS positions (
-    unit_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     symbol TEXT NOT NULL,
     qty REAL NOT NULL,
     avg_cost REAL NOT NULL,
     market_value REAL NOT NULL,
     unrealized_pnl REAL NOT NULL,
     updated_at TEXT NOT NULL,
-    PRIMARY KEY (unit_id, symbol),
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+    PRIMARY KEY (book_id, symbol),
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
 """
 
@@ -834,7 +834,7 @@ ON positions(symbol, updated_at DESC);
 LEDGER_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     entry_type TEXT NOT NULL CHECK (
         entry_type IN ('trade', 'fee', 'deposit', 'withdrawal', 'adjustment')
     ),
@@ -843,13 +843,13 @@ CREATE TABLE IF NOT EXISTS ledger (
     reference_id TEXT,
     entry_time TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
 """
 
 LEDGER_INDEXES_SQL = """
-CREATE INDEX IF NOT EXISTS idx_ledger_unit_entry_time
-ON ledger(unit_id, entry_time DESC);
+CREATE INDEX IF NOT EXISTS idx_ledger_book_entry_time
+ON ledger(book_id, entry_time DESC);
 CREATE INDEX IF NOT EXISTS idx_ledger_reference
 ON ledger(reference_type, reference_id);
 """
@@ -877,7 +877,7 @@ RISK_DECISIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS risk_decisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
-    unit_id INTEGER,
+    book_id INTEGER,
     decision_time TEXT NOT NULL,
     symbol TEXT,
     side TEXT CHECK (side IS NULL OR side IN ('buy', 'sell')),
@@ -890,7 +890,7 @@ CREATE TABLE IF NOT EXISTS risk_decisions (
     risk_payload_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (unit_id) REFERENCES trading_units(id)
+    FOREIGN KEY (book_id) REFERENCES books(id)
 );
 """
 
@@ -899,8 +899,8 @@ CREATE INDEX IF NOT EXISTS idx_risk_snapshots_account_time
 ON risk_snapshots(account_id, snapshot_time DESC);
 CREATE INDEX IF NOT EXISTS idx_risk_decisions_account_time
 ON risk_decisions(account_id, decision_time DESC);
-CREATE INDEX IF NOT EXISTS idx_risk_decisions_unit_time
-ON risk_decisions(unit_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_risk_decisions_book_time
+ON risk_decisions(book_id, decision_time DESC);
 """
 
 SCHEMA_SQL = "\n".join(
@@ -937,18 +937,18 @@ SCHEMA_SQL = "\n".join(
         PROMOTION_REVIEWS_TABLE_SQL,
         PROMOTION_REVIEW_EVENTS_TABLE_SQL,
         PROMOTION_REVIEW_INDEXES_SQL,
-        # Clean trading-unit schema (P3). strategies before unit_rotation_settings
-        # and unit_strategy_assignments (FK targets); trading_units before its
+        # Clean strategy-book schema (P3). strategies before book_rotation_settings
+        # and book_strategy_assignments (FK targets); books before its
         # dependents.
-        TRADING_UNITS_TABLE_SQL,
-        TRADING_UNITS_INDEXES_SQL,
+        BOOKS_TABLE_SQL,
+        BOOKS_INDEXES_SQL,
         STRATEGIES_TABLE_SQL,
         FEATURE_PROVIDERS_TABLE_SQL,
-        UNIT_EXECUTION_SETTINGS_TABLE_SQL,
-        UNIT_OPTION_SETTINGS_TABLE_SQL,
-        UNIT_ROTATION_SETTINGS_TABLE_SQL,
-        UNIT_STRATEGY_ASSIGNMENTS_TABLE_SQL,
-        UNIT_STRATEGY_ASSIGNMENTS_INDEXES_SQL,
+        BOOK_EXECUTION_SETTINGS_TABLE_SQL,
+        BOOK_OPTION_SETTINGS_TABLE_SQL,
+        BOOK_ROTATION_SETTINGS_TABLE_SQL,
+        BOOK_STRATEGY_ASSIGNMENTS_TABLE_SQL,
+        BOOK_STRATEGY_ASSIGNMENTS_INDEXES_SQL,
         ORDERS_TABLE_SQL,
         ORDERS_INDEXES_SQL,
         POSITIONS_TABLE_SQL,

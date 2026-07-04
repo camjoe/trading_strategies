@@ -21,7 +21,7 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-37 tables — 25 legacy plus the 12 clean trading-unit tables added by the P3 rewrite (Phase A;
+37 tables — 25 legacy plus the 12 clean strategy-book tables added by the P3 rewrite (Phase A;
 legacy tables are retired in later P3/P4 steps). One row per table — use this for orientation and
 context. For column details, read `db_schema.py` directly.
 
@@ -52,18 +52,18 @@ context. For column details, read `db_schema.py` directly.
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per account or sleeve | → `accounts`, `strategy_sleeves` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
-| `trading_units` | Clean-schema strategy-execution primitive; one default unit per account (partial-unique) | → `accounts` |
+| `books` | Clean-schema strategy-execution primitive; one default book per account (partial-unique) | → `accounts` |
 | `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
 | `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
-| `unit_execution_settings` | Per-unit execution/risk settings (risk policy, stops, sizing, per-run cap) | → `trading_units` |
-| `unit_option_settings` | Per-unit option/leaps config (strike offset, DTE, delta/IV bounds, caps) | → `trading_units` |
-| `unit_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `trading_units`, `strategies` |
-| `unit_strategy_assignments` | Which strategy a unit runs; one open assignment per unit (partial-unique) | → `trading_units`, `strategies` |
-| `orders` | Clean-schema orders (unifies broker + sleeve orders), unit-keyed with broker linkage | → `trading_units`, `accounts`, `strategies` |
-| `positions` | Current open positions per unit, keyed `(unit_id, symbol)` | → `trading_units` |
-| `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `trading_units` |
+| `book_execution_settings` | Per-unit execution/risk settings (risk policy, stops, sizing, per-run cap) | → `books` |
+| `book_option_settings` | Per-unit option/leaps config (strike offset, DTE, delta/IV bounds, caps) | → `books` |
+| `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
+| `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
+| `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
+| `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
+| `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
 | `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
-| `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `trading_units` |
+| `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `books` |
 
 *Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 
