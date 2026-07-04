@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-01
+Last Reviewed: 2026-07-03
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the detailed backlog in [plan.md](plan.md) and the plans it references.
@@ -76,16 +76,14 @@ Design intent:
 
 These are real and shape the plan. None are hidden by the UI — they are core-logic gaps.
 
-- **The execution loop is not closed (keystone gap).** The paper/live trade path selects trades with
-  a legacy random/style-biased placeholder — an early proof-of-concept built to prove out
-  auto-checking trades and the IBKR hookup, *before* the strategy/evaluation features existed. It
-  does **not** run the strategy signal functions. Strategy signals currently run **only in
-  backtests**. Consequence: rotation switches the strategy label/style bias, but live/paper does not
-  actually trade the selected strategy — the evaluate → rotate → trade loop is broken at the last
-  mile.
-- **Parameter sets are not applied to signal evaluation.** They are stored and governed, but backtests
-  use the strategy's code-level `default_params`, and the live path does not use them at all. "Different
-  parameters" is therefore not yet a real, end-to-end data lever.
+- **The execution loop is closed (P1, 2026-07-03).** Live/paper selection now evaluates the active
+  strategy's signal function per candidate ticker through the same `evaluate_signal(...)` entry the
+  backtester uses: trade only on real signals, no forced minimum, a per-run max cap. Rotation now
+  changes what the trader actually does. (The legacy random/style-biased placeholder is removed.)
+- **Strategy knobs are not yet data.** Backtest and live share one params-aware evaluation via the
+  `resolve_strategy_params` seam, but that seam still returns the code registry's `default_params` —
+  the account/strategy-row knob storage arrives with the schema rewrite (P3/D4). "Different
+  parameters" is therefore not yet an end-to-end data lever.
 - **Strategies are code, not data.** Adding a genuinely new strategy requires a new signal function
   and a `STRATEGY_REGISTRY` edit. Adding a *variant/tuning* of an existing strategy should be data,
   but only once parameters are wired through (above).
@@ -129,11 +127,12 @@ tracker** (tasks / order / status / timelines) is [plan.md](plan.md); open decis
 defining") are consolidated in [decisions.md](decisions.md); convergence detail lives in the
 [convergence plan](sleeves-accounts-convergence.md).
 
-1. **P1 — Close the execution loop (keystone).** Wire strategy signals + parameter sets into
-   live/paper execution so the trader actually runs the strategy (and params) it is evaluated on.
-   Schema-agnostic; do it first on the current schema.
-2. **P2 — Finish unified evaluation** — the shared decision-score contract backs compare, promotion,
-   and sleeve rotation (1a/1b done); complete the cross-surface regression tests (1c).
+1. **P1 — Close the execution loop (keystone) — done (2026-07-03).** Strategy signals drive
+   live/paper execution through the shared `evaluate_signal` path; params flow via the
+   `resolve_strategy_params` seam (registry defaults until P3 makes knobs data).
+2. **P2 — Unified evaluation — done.** The shared decision-score contract backs compare, promotion,
+   and sleeve rotation, with cross-surface regression tests proving all three surfaces read it
+   identically (1a/1b/1c complete).
 3. **P3 — DB schema rewrite (greenfield, option B).** Decided rewrite-first (no data to lose,
    pre-live is the cheapest time). The clean trading-unit schema is built before convergence.
 4. **P4–P5 — Converge accounts and sleeves once on the clean schema** (submission/rotation/

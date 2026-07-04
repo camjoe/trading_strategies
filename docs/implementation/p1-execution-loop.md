@@ -1,7 +1,7 @@
 # Implementation Guide — P1: Close the execution loop (keystone)
 
 Type: implementation
-Status: Ready (large; multi-commit; mixed light/strong steps)
+Status: Complete (implemented on `features/p1-execution-loop`, 2026-07-03)
 Purpose: Work order for P1 — wire strategy signals into live/paper execution; ordered steps with light/strong handoff markings.
 Initiative: P1 (Close the execution loop)
 Estimate: L
@@ -28,12 +28,12 @@ On the **current** schema, strategy knobs come from the code registry's `default
 live **parity** on one `evaluate_signal(strategy, history, params, feature_history)`.
 
 ### Definition of Done
-- [ ] Live/paper selection is driven by the active strategy's signal per candidate ticker.
-- [ ] No forced-minimum trades; a per-run **max cap** bounds trade count.
-- [ ] Backtest and live both evaluate signals through one shared function with the same params.
-- [ ] Rotating a unit/account to a strategy changes what the trader actually does.
-- [ ] `python -m scripts.run_checks ci` green.
-- [ ] Plan P1 status updated.
+- [x] Live/paper selection is driven by the active strategy's signal per candidate ticker.
+- [x] No forced-minimum trades; a per-run **max cap** bounds trade count.
+- [x] Backtest and live both evaluate signals through one shared function with the same params.
+- [x] Rotating a unit/account to a strategy changes what the trader actually does.
+- [x] `python -m scripts.run_checks --profile ci` green.
+- [x] Plan P1 status updated.
 
 ## 2. Preconditions
 - Branch `features/p1-execution-loop` off the latest `develop`.

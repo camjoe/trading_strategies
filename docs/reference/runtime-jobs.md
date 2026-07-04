@@ -32,7 +32,7 @@ Jobs registered by the installer (`manage_job_schedules.py`).
 
 | Job | Entrypoint | Frequency | Why it exists / how it is used |
 |---|---|---|---|
-| Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Executes per-account simulated trade batches. The daily paper-trading job shells out to this module; operators can also run it manually. |
+| Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Executes per-account signal-driven trades (only when the active strategy signals, up to `--max-trades`). The daily paper-trading job shells out to this module; operators can also run it manually. |
 | Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc daily-style guard | Scans daily paper-trading artifacts to report burn-in stability and go-live readiness (counts consecutive artifacts with top-level `status == "success"`). |
 | Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Finds dates in a range without successful daily paper-trading logs and replays them with `--as-of-date --force-run`. |
 
