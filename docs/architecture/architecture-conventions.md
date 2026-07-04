@@ -72,7 +72,7 @@ Disallowed:
      state/order models, and domain value objects (evaluation/promotion/sleeve).
    - No business logic, no I/O, and **no imports from `domain`, `services`,
      `repositories`, `interfaces`, or `infrastructure`** — enforced by
-     `scripts/checks/layer_check.py`. `domain` may import `models`, never the reverse.
+     `scripts/checks/repo/layer_check.py`. `domain` may import `models`, never the reverse.
    - Organized into feature subfolders (`accounts/`, `sleeves/`, `evaluation/`, …),
      one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
 
@@ -114,7 +114,7 @@ Disallowed:
      trading-domain computation over an injected market-data provider, with no external-library dependency.
 
 Broker SDK, external-data SDK, market-data adapter, and retired runtime package-name boundaries are
-enforced by `python -m scripts.checks.layer_check`.
+enforced by `python -m scripts.checks.repo.layer_check`.
 
 ## External Data Strategies
 
@@ -339,6 +339,6 @@ Rationale: `live_trading_enabled = 1` causes real money to move through a
 live broker.  No automated process — including agents, CI pipelines, or scripts
 — should ever cross this line.
 
-Enforcement: `python -m scripts.checks.live_safety_check --enforce` blocks
+Enforcement: `python -m scripts.checks.repo.live_safety_check --enforce` blocks
 state-mutating automation surfaces from setting `live_trading_enabled` to true/1
 (enforced in the CI profile).

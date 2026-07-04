@@ -57,7 +57,7 @@ Current skill inventory:
 
 | Skill | Purpose |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: deterministic gate + AI code/arch review + report |
+| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
 | `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
 | `create-runtime-job/` | Scaffold a new runtime job against the shared runner (module + test + sentinel + schedule + inventory) |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
@@ -67,7 +67,7 @@ Current skill inventory:
 | `manage-skill/` | Create, improve, or refactor skills following the skills guide |
 | `reference-doc/` | Reference docs and ADRs in `docs/reference/` |
 | `update-documentation/` | Docs drift sync — rewrite stale prose, descriptions, and responsibilities |
-| `validate-code/` | Deterministic validation: layer check, lint, type check, targeted tests |
+| `validate-code/` | Deterministic validation: repo checks + Python lint/type/test checks |
 
 ## Routing guide
 
@@ -89,7 +89,7 @@ Default to the most specific matching skill; work without one when nothing match
 | Financial concept or strategy explanation | `finance-strategy/` |
 | Cross-stack route/schema/UI contract work | `code-review/` (Contract mode) |
 | Pre-PR readiness check (any scope) | `check-pr-readiness/` |
-| Run deterministic checks (lint, tests, layer) | `validate-code/` |
+| Run deterministic checks (repo, lint, type, tests) | `validate-code/` |
 | Add or scaffold a new runtime job | `create-runtime-job/` |
 | Create a new skill | `manage-skill/` |
 | Update or improve a skill | `manage-skill/` |
@@ -132,7 +132,7 @@ These phrases are repo conventions for common tasks.
 
 - Audit changed areas for documentation drift and apply targeted updates.
 - Follow `.ai/skills/update-documentation/SKILL.md`.
-- After edits, run `python -m scripts.checks.readme_check`.
+- After edits, run `python -m scripts.checks.docs.readme_check`.
 
 ### `run suite`
 
@@ -160,28 +160,29 @@ Pass `--no-cov` for fast iteration without coverage overhead.
 
 ### `run checks`
 
-- Run `python -m scripts.run_checks --profile quick`.
+- Run `python -m scripts.run_checks quick`.
 - Report pass/fail by step and include failing command details.
 
 ### `fix checks`
 
 - Run `python -m scripts.fix_checks`.
-- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, and generated reference-doc asset sync.
-- Afterward, run `python -m scripts.run_checks --profile quick` unless the user asked only for the fixer.
+- Use this only for deterministic, behavior-preserving cleanup such as Ruff safe fixes, formatting, generated reference-doc asset sync, and docs drift fixes (DB schema Quick Reference sync, stale map row removal — see `scripts/fixes/`).
+- Docs drift fixes may leave `TODO` scaffold rows (e.g. a new table's Purpose); fill those in before committing.
+- Afterward, run `python -m scripts.run_checks quick` unless the user asked only for the fixer.
 
 ### `run all checks`
 
-- Run `python -m scripts.run_checks --profile ci`.
+- Run `python -m scripts.run_checks ci`.
 - Report pass/fail by step and include failing command details.
 
 ### `update documentation`
 
-- Run `python -m scripts.checks.readme_check --repo-root . --max-age-days 90`.
+- Run `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90`.
 - Report which README files need updates.
 
 ### `pr ready`
 
-Full pre-PR readiness workflow. Runs all deterministic checks (layer, lint, tests) and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
+Full pre-PR readiness workflow. Runs deterministic aggregate checks and then AI-assisted review (architecture, style, quality), finishing with a saved PR readiness report.
 
 - `pr ready` — full 6-step workflow vs `develop` (default base)
 - `pr ready: <base>` — full 6-step workflow vs a custom base branch (e.g. `pr ready: main`)
@@ -194,19 +195,18 @@ Follow `.ai/skills/check-pr-readiness/SKILL.md` — it owns the fail-fast step s
 
 | Shortcut | What it does |
 |---|---|
-| `pr tests` | Branch-targeted tests only (`--base develop`) |
+| `pr tests` | Branch-targeted Python checks only (`--base develop`) |
 | `pr tests: <base>` | Branch-targeted tests vs a custom base |
-| `pr lint` | Layer check + ruff + mypy only |
+| `pr lint` | Repository checks + Python lint/type checks |
 | `pr code review` | AI style + quality review for branch diff vs develop |
 | `pr code review: <base>` | AI style + quality review vs a custom base |
 | `pr arch review` | AI architecture review for branch diff vs develop |
 | `pr arch review: <base>` | AI architecture review vs a custom base |
 
-**Deterministic-only command** (no AI, no tokens):
+**Deterministic-only commands** (no AI, no tokens):
 
 ```
-python -m scripts.checks.pr_ready
-python -m scripts.checks.pr_ready --base main
-python -m scripts.checks.pr_ready --no-cov          # faster, skips coverage
-python -m scripts.checks.pr_ready --skip-tests      # layer + lint only
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --base develop
+python -m scripts.run_checks python --base main --no-cov
 ```

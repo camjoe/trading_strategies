@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.checks.db_schema_check import (
+from scripts.checks.docs.db_schema_check import (
     _quick_reference_tables,
     _schema_table_names,
     run_db_schema_check,
@@ -52,7 +52,7 @@ def test_run_advisory_returns_zero_on_real_repo() -> None:
 def test_enforce_flags_table_missing_from_quick_reference(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_doc(tmp_path, QR_DOC)  # documents accounts, trades
     monkeypatch.setattr(
-        "scripts.checks.db_schema_check._schema_table_names",
+        "scripts.checks.docs.db_schema_check._schema_table_names",
         lambda: {"accounts", "trades", "new_table"},  # new_table undocumented
     )
     assert run_db_schema_check(repo_root=tmp_path, enforce=True) == 1
@@ -61,7 +61,7 @@ def test_enforce_flags_table_missing_from_quick_reference(tmp_path: Path, monkey
 def test_enforce_flags_stale_quick_reference_row(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_doc(tmp_path, QR_DOC)  # documents accounts, trades
     monkeypatch.setattr(
-        "scripts.checks.db_schema_check._schema_table_names",
+        "scripts.checks.docs.db_schema_check._schema_table_names",
         lambda: {"accounts"},  # `trades` no longer exists -> stale doc row
     )
     assert run_db_schema_check(repo_root=tmp_path, enforce=True) == 1
@@ -70,7 +70,7 @@ def test_enforce_flags_stale_quick_reference_row(tmp_path: Path, monkeypatch: py
 def test_advisory_returns_zero_even_with_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_doc(tmp_path, QR_DOC)
     monkeypatch.setattr(
-        "scripts.checks.db_schema_check._schema_table_names",
+        "scripts.checks.docs.db_schema_check._schema_table_names",
         lambda: {"accounts", "trades", "new_table"},
     )
     assert run_db_schema_check(repo_root=tmp_path) == 0

@@ -41,7 +41,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
       services/domain boundaries.
 - [ ] Use the repo venv interpreter (`.venv/Scripts/python.exe` on Windows). Never system Python.
 - [ ] After edits, run the matching suite (`python -m scripts.checks.run_suite <suite>`), then
-      `python -m scripts.run_checks --profile quick` (layer + ruff + mypy + targeted tests).
+      `python -m scripts.run_checks quick` (repo safety + Python lint/type/test checks).
 - [ ] Build capability at the **service/CLI layer first**; the UI is an optional consumer. Never make
       a capability reachable only through the UI.
 
@@ -58,7 +58,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
   layer lands with the rewrite (P3/D4/D5). "Different parameters" is not yet a real lever.
 - **`shadow_evaluation` is thin post-1b** — its separate challenger-scoring path is gone; it's a
   rename/absorb candidate (Plan P5).
-- **`mypy` must be run via the project runner** — `python -m scripts.checks.mypy_check` (ad-hoc
+- **`mypy` must be run via the project runner** — `python -m scripts.checks.python.mypy_check` (ad-hoc
   `mypy <file>` fails to resolve the `src/` layout and reports false import errors).
 - **Two rotation paradigms still exist** — account-episode vs sleeve champion/challenger. The
   decision-score contract is shared for sleeve rotation (1a/1b); account rotation is not yet migrated.

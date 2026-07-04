@@ -30,7 +30,7 @@ rather than cleanly layered.
 
 2. **`models/` is the lowest layer.** It imports nothing from `domain`,
    `services`, `repositories`, `interfaces`, or `infrastructure`. `domain` may
-   import `models`, never the reverse. Enforced by a `scripts/checks/layer_check.py`
+   import `models`, never the reverse. Enforced by `scripts/checks/repo/layer_check.py`
    rule.
 
 3. **`domain/` keeps logic + DI/behavioral contracts only** — pure functions plus

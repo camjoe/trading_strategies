@@ -13,13 +13,13 @@ The foundation phase is **done**. The repo has a clean three-sibling base — `s
 
 - The former root `trading` and `common` packages now live under `src/`; infrastructure subpackages live under `src/infrastructure` (brokers, feature_providers, market_data, database, config).
 - Market data: the `MarketDataProvider` port and the proxy feature provider stay in `src/trading/services/market_data`; the concrete yfinance adapter + factory + transport cache live in `src/infrastructure/market_data`, wired at composition seams. No global provider locator.
-- Boundaries are enforced by `scripts/checks/layer_check.py` — e.g. `src/trading` code must not import the `infrastructure.market_data` adapter (mirroring brokers/feature_providers).
+- Boundaries are enforced by `scripts/checks/repo/layer_check.py` — e.g. `src/trading` code must not import the `infrastructure.market_data` adapter (mirroring brokers/feature_providers).
 
 ## Reusable patterns (for any future structural move)
 
 - **DI at composition seams, not globals.** Define the port in the domain/service layer; build the concrete adapter via a factory imported only at interface/composition seams (CLI, runtime jobs, web routes, the backtest entry). Mirror `broker_factory` / `build_provider`.
 - **Move the concrete adapter LAST.** Thread the dependency injection first while the adapter (and any global) stay put; relocating the adapter before DI causes a circular import (infra → the package `__init__` → back into the half-initialised infra module).
-- **One move per commit, always green.** `git mv` + import codemod + move tests + update tooling (layer check / ruff / mypy / coverage / maps / docs) in the *same* commit; finish with `python -m scripts.run_checks --profile quick` green.
+- **One move per commit, always green.** `git mv` + import codemod + move tests + update tooling (layer check / ruff / mypy / coverage / maps / docs) in the *same* commit; finish with `python -m scripts.run_checks quick` green.
 - **Relocating a package under `src/` is a pure `git mv`** — the package name is unchanged and `src/` is a discovery root via the editable install, so there are no import rewrites; re-run `pip install -e .` once. NB: a package entering `src/` also enters mypy's checked set, which can surface latent type issues in its consumers.
 
 ## Open question — domain slicing

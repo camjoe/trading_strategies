@@ -1,6 +1,6 @@
 ---
 name: check-pr-readiness
-description: Runs the full pre-PR gatekeeping workflow: deterministic checks (layer, lint, tests), then AI code review and architecture review, then saves a readiness report. Use when preparing to submit a pull request or when asked to run a PR readiness check.
+description: Orchestrates the full pre-PR workflow: deterministic validation, AI architecture/style/quality review, advisory docs check, and a saved readiness report. Use when preparing to submit a pull request or when asked to run a PR readiness check.
 invoker: any
 ---
 
@@ -10,10 +10,10 @@ Runs six ordered steps. Stop at the first blocking failure — do not run subseq
 
 | Step | Type | What runs | Stops on |
 |---|---|---|---|
-| 1 | Deterministic | Layer + lint + type check + tests | Any non-zero exit |
-| 2 | AI | Architecture review (branch diff) | VIOLATION finding |
-| 3 | AI | Style review (branch diff) | BLOCKER finding |
-| 4 | AI | Quality review (branch diff) | BLOCKER finding |
+| 1 | Deterministic | Follow `validate-code` PR commands | Any non-zero exit |
+| 2 | AI | `code-review` PR architecture review | VIOLATION finding |
+| 3 | AI | `code-review` PR style review | BLOCKER finding |
+| 4 | AI | `code-review` PR quality review | BLOCKER finding |
 | 5 | AI | Docs check (advisory) | Never |
 | 6 | AI | PR readiness report | — |
 
@@ -30,42 +30,30 @@ pr ready: main         # vs custom base
 
 ## Step 1 — Deterministic gate
 
-```
-python -m scripts.checks.pr_ready --base <base_ref>
-```
-
-If exit code is non-zero, **stop immediately**. Report which check failed. Do not run Steps 2–6. Hand back to the user.
-
-Reference: [validate-code/SKILL.md](../validate-code/SKILL.md)
+Follow [validate-code/SKILL.md](../validate-code/SKILL.md) with `<base_ref>`. If any command exits non-zero, **stop immediately**. Report which command failed. Do not run Steps 2–6.
 
 ---
 
 ## Step 2 — Architecture review
 
-Reference: [code-review/pr-review-arch.md](../code-review/pr-review-arch.md)
+Follow [code-review/SKILL.md](../code-review/SKILL.md) in PR mode, Architecture section, scoped to `git diff --name-only <base_ref>...HEAD`.
 
-- Scope: `git diff --name-only <base_ref>...HEAD` only.
-- Severity: VIOLATION (blocks) vs CONCERN (advisory).
 - If any VIOLATION found: **stop**. Do not run Steps 3–6. Print VIOLATION findings and hand back to user.
 
 ---
 
 ## Step 3 — Style review
 
-Reference: [code-review/pr-review-style.md](../code-review/pr-review-style.md)
+Follow [code-review/SKILL.md](../code-review/SKILL.md) in PR mode, Style section, scoped to the same branch diff.
 
-- Scope: same branch diff.
-- Severity: BLOCKER (blocks) vs ADVISORY.
 - If any BLOCKER found: **stop**. Do not run Steps 4–6. Print BLOCKER findings and hand back to user.
 
 ---
 
 ## Step 4 — Quality review
 
-Reference: [code-review/pr-review-quality.md](../code-review/pr-review-quality.md)
+Follow [code-review/SKILL.md](../code-review/SKILL.md) in PR mode, Quality section, scoped to the same branch diff.
 
-- Scope: same branch diff.
-- Severity: BLOCKER (blocks) vs ADVISORY.
 - If any BLOCKER found: **stop**. Do not run Steps 5–6. Print BLOCKER findings and hand back to user.
 
 ---
@@ -73,10 +61,10 @@ Reference: [code-review/pr-review-quality.md](../code-review/pr-review-quality.m
 ## Step 5 — Docs check (advisory)
 
 ```
-python -m scripts.checks.readme_check
+python -m scripts.run_checks docs --advisory
 ```
 
-Reports README files not updated within the staleness threshold. Use `docs/maps/docs-map.md` ("Goes stale when" column) to map any changed source files to their owning docs. Never blocks. Collect findings for the report.
+Runs documentation drift checks, including README consistency and generated reference-doc asset checks. Use `docs/maps/docs-map.md` ("Goes stale when" column) to map any changed source files to their owning docs. Never blocks the AI review workflow; collect findings for the report.
 
 ---
 
@@ -92,8 +80,8 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 ### Step 1 — Deterministic Checks
 | Check | Result |
 |---|---|
-| Layer boundaries | Clean / FAILED |
-| Ruff + eslint/tsc | Clean / FAILED |
+| Repository checks | Clean / FAILED |
+| Ruff | Clean / FAILED |
 | Mypy | Clean / FAILED |
 | Tests | N tests, M suites / FAILED / No changed suites |
 
@@ -107,7 +95,7 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 <BLOCKER/ADVISORY findings, or "Clean">
 
 ### Step 5 — Docs Check (Advisory)
-<staleness findings, or "No stale docs detected">
+<docs findings, or "Clean">
 
 ### Developer Verification Guide
 <UI path, API endpoint, command/report path, or expected behavior a developer can use to inspect the result>
@@ -134,7 +122,9 @@ Print to terminal and save to `local/pr_readiness_report.md`.
 
 ## Repo references
 
-- `scripts/checks/pr_ready.py`
+- `scripts/run_checks.py`
+- `scripts/checks/repo/repo_check.py`
+- `scripts/checks/python/python_check.py`
 - `docs/architecture/architecture-conventions.md`
 - `docs/conventions/general-style.md`
 - `AGENTS.md`

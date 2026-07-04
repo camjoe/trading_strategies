@@ -6,32 +6,43 @@ invoker: any
 
 # Validate Code
 
-All checks are deterministic — no AI, no reasoning. Each check has its own reference file.
+All checks are deterministic — no AI, no reasoning.
 
 ## Checks (run in this order)
 
-| Step | What | Reference |
+| Step | Command | What it covers |
 |---|---|---|
-| 1 | Layer boundary check | [layer-check.md](layer-check.md) |
-| 2 | Lint (ruff + eslint/tsc if frontend changed) | [lint.md](lint.md) |
-| 3 | Type check (mypy) | [type-check.md](type-check.md) |
-| 4 | Tests (branch-targeted pytest + vitest if frontend changed) | [tests.md](tests.md) |
+| 1 | `python -m scripts.run_checks repo` | Layer boundaries, skills drift, live-trading safety, path safety, secret hygiene |
+| 2 | `python -m scripts.run_checks python --base <base_ref>` | Python conventions, ruff, mypy, branch-targeted pytest |
 
 ## Run all checks at once
 
 ```
-python -m scripts.checks.pr_ready --base develop
-python -m scripts.checks.pr_ready --base main
-python -m scripts.checks.pr_ready --no-cov        # skip coverage overhead
+.venv\Scripts\python.exe -m scripts.run_checks repo
+.venv\Scripts\python.exe -m scripts.run_checks python --base develop
+.venv\Scripts\python.exe -m scripts.run_checks python --base main --no-cov
 ```
 
-`pr_ready` runs all four steps in order and stops at the first failure.
+Run `repo` first, then `python`. Stop at the first failure.
 
 ## Day-to-day profiles
 
 ```
-python -m scripts.run_checks --profile quick      # README, layer, ruff, mypy, pytest
-python -m scripts.run_checks --profile ci         # quick gates + doc-drift checks + frontend
+.venv\Scripts\python.exe -m scripts.run_checks quick
+.venv\Scripts\python.exe -m scripts.run_checks ci
+```
+
+Use `quick --with-frontend` or `ci` when frontend files are in the diff. Use `python --suite <suite> --no-cov` for focused iteration.
+
+## Single checks
+
+Use these only when isolating a failure:
+
+```sh
+.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
+.venv\Scripts\python.exe -m scripts.checks.python.ruff_check
+.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
+.venv\Scripts\python.exe -m scripts.checks.run_suite <suite> --no-cov
 ```
 
 ## On failure
@@ -54,5 +65,6 @@ This suite is deterministic and does not check everything. These are **advisory*
 
 ## Repo references
 
-- `scripts/checks/pr_ready.py`
 - `scripts/run_checks.py`
+- `scripts/checks/repo/repo_check.py`
+- `scripts/checks/python/python_check.py`

@@ -17,4 +17,4 @@ Root cause: Windows tolerates backslashes (`\`) in path strings that Python cons
 
 - Use `pathlib.Path` for path construction, and `.as_posix()` only when building stable display/comparison strings.
 - In tests, compare `Path` values or `.as_posix()` strings instead of raw platform-specific strings.
-- `python -m scripts.checks.path_safety_check --enforce` catches the common hazards; run the CI profile before pushing when path-handling code changes.
+- `python -m scripts.checks.repo.path_safety_check --enforce` catches the common hazards; run the CI profile before pushing when path-handling code changes.

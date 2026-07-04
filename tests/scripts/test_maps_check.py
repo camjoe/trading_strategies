@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.checks.maps_check import (
+from scripts.checks.docs.maps_check import (
     CODE_SPAN_RE,
     HEADER_PATH_RE,
     HEADER_RE,
@@ -191,7 +191,7 @@ def test_cli_enforce_exits_nonzero_on_drift(tmp_path: Path) -> None:
     _write(tmp_path / "src/trading/services/orphan.py")  # undocumented -> drift
 
     result = subprocess.run(
-        [sys.executable, "-m", "scripts.checks.maps_check", "--repo-root", str(tmp_path), "--enforce"],
+        [sys.executable, "-m", "scripts.checks.docs.maps_check", "--repo-root", str(tmp_path), "--enforce"],
         cwd=str(PROJECT_ROOT),
         capture_output=True,
         text=True,

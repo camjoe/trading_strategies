@@ -62,7 +62,8 @@ Governance table that matches the job.
 
 ```
 python -m scripts.checks.run_suite src/trading/interfaces/runtime/jobs/<area> --no-cov
-python -m scripts.checks.pr_ready --skip-tests        # layer + lint
+python -m scripts.run_checks repo
+python -m scripts.run_checks python --suite src/trading/interfaces/runtime/jobs/<area> --no-cov
 ```
 
 ## Constraints

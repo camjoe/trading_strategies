@@ -5,7 +5,7 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
-from scripts.checks.shared import resolve_python_exe, run_step
+from scripts.checks._runner import resolve_python_exe, run_step
 
 
 def run_pytest(repo_root: Path, python_exe: str, pytest_args: list[str] | None = None) -> None:

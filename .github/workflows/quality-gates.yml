@@ -89,20 +89,11 @@ jobs:
           pip install -r requirements-dev.txt
           pip install ruff mypy
 
-      - name: Run layer boundary gate
-        run: python -m scripts.checks.layer_check
+      - name: Run repository quality gates
+        run: python -m scripts.run_checks repo
 
-      - name: Run Python convention gate
-        run: python -m scripts.checks.python_conventions_check --enforce
-
-      - name: Run path safety gate
-        run: python -m scripts.checks.path_safety_check --enforce
-
-      - name: Run ruff lint gate
-        run: ruff check src/trading apps/trends apps/paper_trading_web/backend --select F,E9
-
-      - name: Run mypy type gate
-        run: mypy apps/paper_trading_web/backend src/trading --python-version 3.14 --ignore-missing-imports --follow-imports=skip
+      - name: Run Python quality gates
+        run: python -m scripts.run_checks python --no-cov
 
   frontend-quality:
     needs: changes
@@ -155,11 +146,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Run doc and safety enforcement
+      - name: Run documentation and safety enforcement
         run: |
-          python -m scripts.checks.doc_header_check --enforce
-          python -m scripts.checks.doc_naming_check --enforce
-          python -m scripts.checks.skills_check --enforce
-          python -m scripts.checks.live_safety_check --enforce
-          python -m scripts.checks.secret_hygiene_check --enforce
-          python -m scripts.documentation_ui.check
+          python -m scripts.run_checks docs
+          python -m scripts.run_checks repo

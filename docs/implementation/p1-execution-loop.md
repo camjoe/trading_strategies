@@ -141,9 +141,9 @@ live **parity** on one `evaluate_signal(strategy, history, params, feature_histo
 ## 6. Validation
 ```
 .venv\Scripts\python.exe -m scripts.checks.run_suite src/trading/services/auto_trading src/trading/services/sleeves src/trading/domain src/trading/backtesting --no-cov
-.venv\Scripts\python.exe -m scripts.checks.layer_check
-.venv\Scripts\python.exe -m scripts.checks.mypy_check
-.venv\Scripts\python.exe -m scripts.run_checks --profile ci      # final
+.venv\Scripts\python.exe -m scripts.checks.repo.layer_check
+.venv\Scripts\python.exe -m scripts.checks.python.mypy_check
+.venv\Scripts\python.exe -m scripts.run_checks ci      # final
 ```
 
 ## 7. Failure handling

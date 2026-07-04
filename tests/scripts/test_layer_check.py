@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.checks.layer_check import (
+from scripts.checks.repo.layer_check import (
     BANNED_PATH_RULES,
     LAYER_RULES,
     BannedPathRule,
@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def _run_script(repo: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "scripts.checks.layer_check", "--repo-root", str(repo)],
+        [sys.executable, "-m", "scripts.checks.repo.layer_check", "--repo-root", str(repo)],
         cwd=str(PROJECT_ROOT),
         capture_output=True,
         text=True,

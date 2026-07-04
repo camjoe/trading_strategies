@@ -221,7 +221,7 @@ Historical caveat: a past regression sweep hit hangs in the **synchronous FastAP
 ## Audit Notes
 
 - Full repository validation remains `python -m pytest` from repo root.
-- Cross-stack smoke validation is `python -m scripts.run_checks --profile ci`.
+- Cross-stack smoke validation is `python -m scripts.run_checks ci`.
 - For parser/default-path changes, include focused checks for CLI parser/handler coverage under `tests/src/trading/interfaces/cli/` and runtime-job coverage under `tests/src/trading/interfaces/runtime/jobs/`.
 
 ## Test Support Layout

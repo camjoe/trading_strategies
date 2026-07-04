@@ -1,11 +1,11 @@
-"""Tests for scripts.checks.doc_naming_check."""
+"""Tests for scripts.checks.docs.doc_naming_check."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
-from scripts.checks.doc_naming_check import check_file, run_doc_naming_check
+from scripts.checks.docs.doc_naming_check import check_file, run_doc_naming_check
 
 
 def _write(path: Path, content: str = "# Title\n\nBody.\n") -> Path:
