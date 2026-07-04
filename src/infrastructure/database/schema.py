@@ -7,8 +7,10 @@ CREATE TABLE IF NOT EXISTS accounts (
     name TEXT NOT NULL UNIQUE,
     account_kind TEXT NOT NULL DEFAULT 'managed',
     strategy TEXT NOT NULL,
+    base_ccy TEXT NOT NULL DEFAULT 'USD',
     initial_cash REAL NOT NULL,
     created_at TEXT NOT NULL,
+    updated_at TEXT,
     benchmark_ticker TEXT NOT NULL DEFAULT 'SPY',
     descriptive_name TEXT NOT NULL DEFAULT '',
     goal_min_return_pct REAL,
@@ -616,6 +618,291 @@ CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_created
 ON promotion_review_events(review_id, created_at ASC);
 """
 
+# ---------------------------------------------------------------------------
+# Clean trading-unit schema (P3 rewrite target — docs/db-schema-target.md).
+# Added alongside the legacy tables; colliding legacy tables (equity_snapshots,
+# daily_metrics, rotation_decisions, order_fills, accounts settings columns)
+# are swapped to their target shapes in later P3 commits together with their
+# repositories, so every commit stays green.
+# ---------------------------------------------------------------------------
+
+TRADING_UNITS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS trading_units (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'closed')),
+    is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+    start_equity REAL NOT NULL,
+    current_cash REAL NOT NULL,
+    current_equity REAL NOT NULL,
+    trade_universes TEXT,
+    goal_min_return_pct REAL,
+    goal_max_return_pct REAL,
+    goal_period TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    UNIQUE (account_id, name)
+);
+"""
+
+TRADING_UNITS_INDEXES_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_trading_units_default_per_account
+ON trading_units(account_id)
+WHERE is_default = 1;
+CREATE INDEX IF NOT EXISTS idx_trading_units_account_status
+ON trading_units(account_id, status);
+"""
+
+UNIT_EXECUTION_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS unit_execution_settings (
+    unit_id INTEGER PRIMARY KEY,
+    learning_enabled INTEGER NOT NULL DEFAULT 0 CHECK (learning_enabled IN (0, 1)),
+    risk_policy TEXT NOT NULL DEFAULT 'none' CHECK (
+        risk_policy IN ('none', 'fixed_stop', 'take_profit', 'stop_and_target')
+    ),
+    stop_loss_pct REAL,
+    take_profit_pct REAL,
+    profit_take_pct REAL,
+    max_loss_pct REAL,
+    trade_size_pct REAL,
+    max_position_pct REAL,
+    max_trades_per_run INTEGER CHECK (max_trades_per_run IS NULL OR max_trades_per_run >= 1),
+    instrument_mode TEXT NOT NULL DEFAULT 'equity' CHECK (instrument_mode IN ('equity', 'leaps')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+);
+"""
+
+UNIT_OPTION_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS unit_option_settings (
+    unit_id INTEGER PRIMARY KEY,
+    option_strike_offset_pct REAL,
+    option_min_dte INTEGER,
+    option_max_dte INTEGER,
+    option_type TEXT CHECK (option_type IS NULL OR option_type IN ('call', 'put')),
+    target_delta_min REAL,
+    target_delta_max REAL,
+    max_premium_per_trade REAL,
+    max_contracts_per_trade INTEGER,
+    iv_rank_min REAL,
+    iv_rank_max REAL,
+    roll_dte_threshold INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+);
+"""
+
+UNIT_ROTATION_SETTINGS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS unit_rotation_settings (
+    unit_id INTEGER PRIMARY KEY,
+    rotation_enabled INTEGER NOT NULL DEFAULT 0 CHECK (rotation_enabled IN (0, 1)),
+    rotation_mode TEXT,
+    rotation_optimality_mode TEXT,
+    rotation_interval_days INTEGER,
+    rotation_interval_minutes INTEGER,
+    rotation_lookback_days INTEGER,
+    rotation_schedule TEXT,
+    regime_strategy_risk_on_id INTEGER,
+    regime_strategy_neutral_id INTEGER,
+    regime_strategy_risk_off_id INTEGER,
+    overlay_mode TEXT,
+    overlay_min_tickers INTEGER,
+    overlay_confidence_threshold REAL,
+    overlay_watchlist TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE,
+    FOREIGN KEY (regime_strategy_risk_on_id) REFERENCES strategies(id),
+    FOREIGN KEY (regime_strategy_neutral_id) REFERENCES strategies(id),
+    FOREIGN KEY (regime_strategy_risk_off_id) REFERENCES strategies(id)
+);
+"""
+
+STRATEGIES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS strategies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    strategy_key TEXT NOT NULL UNIQUE,
+    primitive TEXT NOT NULL,
+    params_json TEXT NOT NULL,
+    style TEXT NOT NULL CHECK (style IN ('trend', 'mean_reversion', 'neutral', 'alternative')),
+    required_features TEXT,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'frozen', 'retired')),
+    enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
+FEATURE_PROVIDERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS feature_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_key TEXT NOT NULL UNIQUE,
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+    config_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
+UNIT_STRATEGY_ASSIGNMENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS unit_strategy_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_id INTEGER NOT NULL,
+    strategy_id INTEGER NOT NULL,
+    effective_from TEXT NOT NULL,
+    effective_to TEXT,
+    is_incumbent INTEGER NOT NULL DEFAULT 1 CHECK (is_incumbent IN (0, 1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE,
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
+);
+"""
+
+UNIT_STRATEGY_ASSIGNMENTS_INDEXES_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unit_assignments_open_per_unit
+ON unit_strategy_assignments(unit_id)
+WHERE effective_to IS NULL;
+CREATE INDEX IF NOT EXISTS idx_unit_assignments_unit_effective
+ON unit_strategy_assignments(unit_id, effective_from DESC);
+CREATE INDEX IF NOT EXISTS idx_unit_assignments_strategy_effective
+ON unit_strategy_assignments(strategy_id, effective_from DESC);
+"""
+
+ORDERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_id INTEGER NOT NULL,
+    account_id INTEGER NOT NULL,
+    strategy_id INTEGER,
+    rotation_decision_id INTEGER,
+    broker_order_id TEXT,
+    symbol TEXT NOT NULL,
+    side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+    qty REAL NOT NULL,
+    order_type TEXT NOT NULL DEFAULT 'market' CHECK (order_type IN ('market', 'limit')),
+    time_in_force TEXT NOT NULL DEFAULT 'day' CHECK (time_in_force IN ('day', 'gtc')),
+    requested_price REAL,
+    status TEXT NOT NULL CHECK (
+        status IN ('submitted', 'partially_filled', 'filled', 'rejected', 'cancelled')
+    ),
+    filled_qty REAL NOT NULL DEFAULT 0,
+    avg_fill_price REAL,
+    commission REAL NOT NULL DEFAULT 0,
+    submitted_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
+);
+"""
+
+ORDERS_INDEXES_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_account_broker_order_id
+ON orders(account_id, broker_order_id)
+WHERE broker_order_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_account_status_submitted
+ON orders(account_id, status, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_unit_submitted
+ON orders(unit_id, submitted_at DESC);
+"""
+
+POSITIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS positions (
+    unit_id INTEGER NOT NULL,
+    symbol TEXT NOT NULL,
+    qty REAL NOT NULL,
+    avg_cost REAL NOT NULL,
+    market_value REAL NOT NULL,
+    unrealized_pnl REAL NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (unit_id, symbol),
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+);
+"""
+
+POSITIONS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_positions_symbol_updated
+ON positions(symbol, updated_at DESC);
+"""
+
+LEDGER_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_id INTEGER NOT NULL,
+    entry_type TEXT NOT NULL CHECK (
+        entry_type IN ('trade', 'fee', 'deposit', 'withdrawal', 'adjustment')
+    ),
+    amount REAL NOT NULL,
+    reference_type TEXT,
+    reference_id TEXT,
+    entry_time TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id) ON DELETE CASCADE
+);
+"""
+
+LEDGER_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_ledger_unit_entry_time
+ON ledger(unit_id, entry_time DESC);
+CREATE INDEX IF NOT EXISTS idx_ledger_reference
+ON ledger(reference_type, reference_id);
+"""
+
+RISK_SNAPSHOTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS risk_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    snapshot_time TEXT NOT NULL,
+    gross_exposure REAL NOT NULL,
+    net_exposure REAL NOT NULL,
+    max_symbol_concentration_pct REAL NOT NULL,
+    max_sector_concentration_pct REAL NOT NULL,
+    drawdown_pct REAL,
+    leverage_proxy REAL,
+    daily_loss_pct REAL,
+    kill_switch_triggered INTEGER NOT NULL DEFAULT 0 CHECK (kill_switch_triggered IN (0, 1)),
+    risk_payload_json TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    UNIQUE (account_id, snapshot_time)
+);
+"""
+
+RISK_DECISIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS risk_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    unit_id INTEGER,
+    decision_time TEXT NOT NULL,
+    symbol TEXT,
+    side TEXT CHECK (side IS NULL OR side IN ('buy', 'sell')),
+    action TEXT NOT NULL CHECK (action IN ('allow', 'rescale', 'block')),
+    reason_code TEXT NOT NULL,
+    requested_qty INTEGER,
+    approved_qty INTEGER,
+    requested_notional REAL,
+    approved_notional REAL,
+    risk_payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (unit_id) REFERENCES trading_units(id)
+);
+"""
+
+RISK_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_risk_snapshots_account_time
+ON risk_snapshots(account_id, snapshot_time DESC);
+CREATE INDEX IF NOT EXISTS idx_risk_decisions_account_time
+ON risk_decisions(account_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_risk_decisions_unit_time
+ON risk_decisions(unit_id, decision_time DESC);
+"""
+
 SCHEMA_SQL = "\n".join(
     (
         ACCOUNTS_TABLE_SQL,
@@ -650,5 +937,26 @@ SCHEMA_SQL = "\n".join(
         PROMOTION_REVIEWS_TABLE_SQL,
         PROMOTION_REVIEW_EVENTS_TABLE_SQL,
         PROMOTION_REVIEW_INDEXES_SQL,
+        # Clean trading-unit schema (P3). strategies before unit_rotation_settings
+        # and unit_strategy_assignments (FK targets); trading_units before its
+        # dependents.
+        TRADING_UNITS_TABLE_SQL,
+        TRADING_UNITS_INDEXES_SQL,
+        STRATEGIES_TABLE_SQL,
+        FEATURE_PROVIDERS_TABLE_SQL,
+        UNIT_EXECUTION_SETTINGS_TABLE_SQL,
+        UNIT_OPTION_SETTINGS_TABLE_SQL,
+        UNIT_ROTATION_SETTINGS_TABLE_SQL,
+        UNIT_STRATEGY_ASSIGNMENTS_TABLE_SQL,
+        UNIT_STRATEGY_ASSIGNMENTS_INDEXES_SQL,
+        ORDERS_TABLE_SQL,
+        ORDERS_INDEXES_SQL,
+        POSITIONS_TABLE_SQL,
+        POSITIONS_INDEXES_SQL,
+        LEDGER_TABLE_SQL,
+        LEDGER_INDEXES_SQL,
+        RISK_SNAPSHOTS_TABLE_SQL,
+        RISK_DECISIONS_TABLE_SQL,
+        RISK_INDEXES_SQL,
     )
 )

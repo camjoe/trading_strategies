@@ -147,6 +147,10 @@ def test_run_for_account_stops_cleanly_when_global_runtime_day_cap_is_hit(monkey
         updated_at=utc_now_iso(),
     )
     conn.execute(
+        "INSERT INTO accounts (id, name, strategy, initial_cash, created_at) "
+        "VALUES (11, 'acct_day_cap', 'trend', 1000, '2026-03-14T00:00:00Z')"
+    )
+    conn.execute(
         """
         INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)

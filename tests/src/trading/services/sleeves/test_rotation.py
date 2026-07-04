@@ -34,9 +34,21 @@ def _incumbent_metrics(*, strategy_name: str, param_set_id: int | None) -> Sleev
     )
 
 
+def _insert_param_set(conn, param_set_id: int, strategy_name: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO strategy_param_sets (id, strategy_name, version, params_json, created_at, updated_at)
+        VALUES (?, ?, 'v1', '{}', '2026-05-01T00:00:00Z', '2026-05-01T00:00:00Z')
+        """,
+        (param_set_id, strategy_name),
+    )
+
+
 def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_rotate")
     sleeve_id = _insert_sleeve(conn, account_id=account_id)
+    _insert_param_set(conn, 101, "trend")
+    _insert_param_set(conn, 202, "meanrev")
     SleeveRepository(conn).insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
@@ -95,6 +107,8 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
 def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_cooldown")
     sleeve_id = _insert_sleeve(conn, account_id=account_id)
+    _insert_param_set(conn, 111, "trend")
+    _insert_param_set(conn, 222, "meanrev")
     SleeveRepository(conn).insert_assignment(
         sleeve_id=sleeve_id,
         strategy_name="trend",
