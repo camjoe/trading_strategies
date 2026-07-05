@@ -182,12 +182,16 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 Canonical decision status in [decisions.md](decisions.md). Remaining design detail:
 
 - **Which rotation paradigm survives on books** — account-episode vs champion/challenger. The
-  champion/challenger model + the decision-score contract is the developed path; confirm it wins and
-  retire the episode path during 2b. (Surfaced in the whole-picture review.)
-- Package/name for the shared submission service (`services/execution/` vs extending
-  `services/auto_trading/`).
-- Whether the shared submission service owns the pre-submit safety gates directly, or accepts them as
-  an injected policy so book-specific gates stay pluggable.
+  champion/challenger model + the decision-score contract is the developed path; **leaning
+  champion/challenger** (recorded in the P4 work order §5); confirm and retire the episode path
+  during 2b.
+- ~~Package/name for the shared submission service~~ — **decided (2026-07-05): new
+  `services/execution/` package** (SRP; keeps `auto_trading/` orchestration-focused).
+- ~~Gate ownership~~ — **decided (2026-07-05): injected pre-submit gate policy**, not hard-coded, so
+  book/environment-specific gates stay pluggable and unit-testable.
+
+Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md) (2a phased in full;
+2c/2b sketched).
 
 ## Progress log
 
@@ -213,3 +217,11 @@ Canonical decision status in [decisions.md](decisions.md). Remaining design deta
   the workstream persistence framing, sequencing, and open questions; resolved the order-repository
   and intent-model investigations (one `orders`/`ledger`/`positions` model on books). Flagged the
   surviving-rotation-paradigm question.
+- 2026-07-05 — P3 complete (clean book schema + repositories live, reads re-pointed via
+  `book_bridge`; the clean `orders`/`order_fills`/`positions`/`ledger` tables exist but are empty —
+  2a is their first writer). P4 started: resolved the two submission-service open questions (new
+  `services/execution/` package; injected pre-submit gate policy) and wrote the phased
+  [P4 work order](implementation/p4-convergence.md) with 2a detailed (2a-1 service in isolation →
+  2a-2 gate → 2a-3 account cutover → 2a-4 sleeve cutover + reconciliation re-point → 2a-5 retire
+  legacy writers). Noted the reconciliation coupling: `reconcile_open_broker_orders` reads
+  `broker_orders`/`sleeve_orders` and must move to clean `orders` in lockstep with the cutover.
