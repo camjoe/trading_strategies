@@ -4,6 +4,7 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.leaderboard_service as leaderboard_service
 from tests.support.backtesting import create_backtest_account, make_backtest_config
+from tests.support.strategies import strategy_id_for
 
 
 class TestBacktestValidationAndFailurePaths:
@@ -40,13 +41,13 @@ class TestBacktestValidationAndFailurePaths:
         cursor = conn.execute(
             """
             INSERT INTO backtest_runs (
-                account_id, strategy_name, run_name, start_date, end_date, created_at,
+                account_id, strategy_id, run_name, start_date, end_date, created_at,
                 slippage_bps, fee_per_trade, tickers_file, notes, warnings
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(account_id),
-                "trend_v1",
+                strategy_id_for(conn, "trend_v1"),
                 "no-snapshots",
                 "2026-01-01",
                 "2026-02-01",

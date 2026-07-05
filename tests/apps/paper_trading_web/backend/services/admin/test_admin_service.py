@@ -88,16 +88,15 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     conn.execute(
         """
         INSERT INTO walk_forward_groups (
-            grouping_key, account_id, strategy_name, run_name_prefix, start_date, end_date,
+            grouping_key, account_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             "acct_delete_wf",
             account_id,
-            "trend",
             "wf-del",
             "2026-01-01",
             "2026-01-31",

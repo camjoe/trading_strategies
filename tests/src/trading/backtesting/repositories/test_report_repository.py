@@ -5,6 +5,7 @@ import sqlite3
 import pandas as pd
 import pytest
 
+from tests.support.strategies import strategy_id_for
 from trading.services.accounts import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
 from trading.backtesting.repositories.report_repository import (
@@ -83,13 +84,13 @@ def _insert_account_and_runs(conn: sqlite3.Connection, account_name: str, run_co
         row = conn.execute(
             """
             INSERT INTO backtest_runs (
-                account_id, strategy_name, run_name, start_date, end_date,
+                account_id, strategy_id, run_name, start_date, end_date,
                 slippage_bps, fee_per_trade, tickers_file, notes, warnings, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 account_id,
-                "trend_v1",
+                strategy_id_for(conn, "trend_v1"),
                 f"run_{i}",
                 "2026-01-01",
                 "2026-01-31",

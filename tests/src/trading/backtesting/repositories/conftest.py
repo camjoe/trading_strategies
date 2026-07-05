@@ -7,6 +7,8 @@ import pytest
 
 from trading.services.accounts import create_account
 
+from tests.support.strategies import strategy_id_for
+
 
 @pytest.fixture
 def bt_repo_account(conn: sqlite3.Connection) -> tuple[str, int]:
@@ -34,13 +36,13 @@ def seed_bt_run(conn: sqlite3.Connection) -> Callable[..., int]:
             conn.execute(
                 """
                 INSERT INTO backtest_runs (
-                    account_id, strategy_name, run_name, start_date, end_date,
+                    account_id, strategy_id, run_name, start_date, end_date,
                     created_at, slippage_bps, fee_per_trade, tickers_file, notes, warnings
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     account_id,
-                    strategy_name,
+                    strategy_id_for(conn, strategy_name),
                     run_name,
                     "2026-01-01",
                     end_date,

@@ -15,28 +15,32 @@ class BacktestRunRepository:
         start_day: str,
         end_day: str,
     ) -> list[sqlite3.Row]:
+        # Strategy is a strategies FK (P3); match/return the canonical catalog key,
+        # which is what rotation schedules carry. `st` aliases the strategies join;
+        # `eq` aliases the equity-snapshot subqueries.
         placeholders = ",".join(["?"] * len(strategy_names))
         return self._conn.execute(
             f"""
             SELECT
-                r.strategy_name,
+                st.strategy_key AS strategy_name,
                 (
-                    SELECT s.equity
-                    FROM backtest_equity_snapshots s
-                    WHERE s.run_id = r.id
-                    ORDER BY s.snapshot_time ASC, s.id ASC
+                    SELECT eq.equity
+                    FROM backtest_equity_snapshots eq
+                    WHERE eq.run_id = r.id
+                    ORDER BY eq.snapshot_time ASC, eq.id ASC
                     LIMIT 1
                 ) AS starting_equity,
                 (
-                    SELECT s.equity
-                    FROM backtest_equity_snapshots s
-                    WHERE s.run_id = r.id
-                    ORDER BY s.snapshot_time DESC, s.id DESC
+                    SELECT eq.equity
+                    FROM backtest_equity_snapshots eq
+                    WHERE eq.run_id = r.id
+                    ORDER BY eq.snapshot_time DESC, eq.id DESC
                     LIMIT 1
                 ) AS ending_equity
             FROM backtest_runs r
+            JOIN strategies st ON st.id = r.strategy_id
             WHERE r.account_id = ?
-              AND r.strategy_name IN ({placeholders})
+              AND st.strategy_key IN ({placeholders})
               AND r.end_date >= ?
               AND r.end_date <= ?
             ORDER BY r.end_date DESC, r.id DESC

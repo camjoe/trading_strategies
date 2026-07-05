@@ -13,16 +13,16 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
         VALUES (1, 'acct_a', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
-            id, account_id, strategy_name, run_name, start_date, end_date, slippage_bps,
+            id, account_id, run_name, start_date, end_date, slippage_bps,
             fee_per_trade, tickers_file, notes, warnings, created_at
         )
         VALUES
             (
-                11, 1, 'Trend', 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0,
+                11, 1, 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0,
                 'tickers.txt', '', '', '2026-02-01T00:00:00Z'
             ),
             (
-                12, 1, 'Trend', 'wf_02', '2026-02-01', '2026-02-28', 5.0, 0.0,
+                12, 1, 'wf_02', '2026-02-01', '2026-02-28', 5.0, 0.0,
                 'tickers.txt', '', '', '2026-03-01T00:00:00Z'
             );
 
@@ -36,12 +36,12 @@ def test_fetch_walk_forward_report_data_by_group_id(conn) -> None:
             (12, '2026-02-28T00:00:00Z', 1000, -10, 990, 0, -10);
 
         INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, strategy_name, run_name_prefix, start_date, end_date,
+            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         )
         VALUES (
-            7, 'wf-group-1', 1, 'Trend', 'wf', '2026-01-01', '2026-02-28',
+            7, 'wf-group-1', 1, 'wf', '2026-01-01', '2026-02-28',
             1, 1, 2, 0.5, 0.5, 2.0, -1.0, '2026-03-15T00:00:00Z'
         );
 
@@ -72,11 +72,11 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
         VALUES (1, 'acct_a', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
-            id, account_id, strategy_name, run_name, start_date, end_date, slippage_bps,
+            id, account_id, run_name, start_date, end_date, slippage_bps,
             fee_per_trade, tickers_file, notes, warnings, created_at
         )
         VALUES (
-            11, 1, 'Trend', 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0,
+            11, 1, 'wf_01', '2026-01-01', '2026-01-31', 5.0, 0.0,
             'tickers.txt', '', '', '2026-02-01T00:00:00Z'
         );
 
@@ -88,12 +88,12 @@ def test_fetch_walk_forward_report_data_by_latest_account(conn) -> None:
             (11, '2026-01-31T00:00:00Z', 1000, 30, 1030, 0, 30);
 
         INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, strategy_name, run_name_prefix, start_date, end_date,
+            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         )
         VALUES (
-            9, 'wf-group-9', 1, 'Trend', 'wf', '2026-01-01', '2026-01-31',
+            9, 'wf-group-9', 1, 'wf', '2026-01-01', '2026-01-31',
             1, 1, 1, 3.0, 3.0, 3.0, 3.0, '2026-03-15T00:00:00Z'
         );
 
@@ -155,10 +155,10 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
         VALUES (50, 'acct_wf_strat', 'Trend', 1000, 'SPY', '2026-01-01T00:00:00Z');
 
         INSERT INTO backtest_runs (
-            id, account_id, strategy_name, run_name, start_date, end_date, slippage_bps,
+            id, account_id, run_name, start_date, end_date, slippage_bps,
             fee_per_trade, tickers_file, notes, warnings, created_at
         ) VALUES (
-            50, 50, 'Trend', 'wf_s01', '2026-01-01', '2026-01-31', 5.0, 0.0,
+            50, 50, 'wf_s01', '2026-01-01', '2026-01-31', 5.0, 0.0,
             'tickers.txt', '', '', '2026-02-01T00:00:00Z'
         );
 
@@ -169,11 +169,11 @@ def test_fetch_walk_forward_report_data_by_account_and_strategy(conn) -> None:
             (50, '2026-01-31T00:00:00Z', 1000, 10, 1010, 0, 10);
 
         INSERT INTO walk_forward_groups (
-            id, grouping_key, account_id, strategy_name, run_name_prefix, start_date, end_date,
+            id, grouping_key, account_id, run_name_prefix, start_date, end_date,
             test_months, step_months, window_count, average_return_pct, median_return_pct,
             best_return_pct, worst_return_pct, created_at
         ) VALUES (
-            50, 'wf-strat-key', 50, 'Trend', 'wf_s', '2026-01-01', '2026-01-31',
+            50, 'wf-strat-key', 50, 'wf_s', '2026-01-01', '2026-01-31',
             1, 1, 1, 1.0, 1.0, 1.0, 1.0, '2026-03-15T00:00:00Z'
         );
 

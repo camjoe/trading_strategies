@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from tests.support.seed.accounts import ACCT_TREND, PROMOTION_STRATEGY, seed_account_id
+from tests.support.strategies import strategy_id_for
 
 BACKTEST_RUN_NAME = "seed_run_a"
 
@@ -14,13 +15,13 @@ def seed_backtest_run(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         INSERT INTO backtest_runs
-            (account_id, strategy_name, run_name, start_date, end_date, created_at,
+            (account_id, strategy_id, run_name, start_date, end_date, created_at,
              slippage_bps, fee_per_trade, tickers_file)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             acct_id,
-            PROMOTION_STRATEGY,
+            strategy_id_for(conn, PROMOTION_STRATEGY),
             BACKTEST_RUN_NAME,
             "2025-07-01",
             "2025-12-31",

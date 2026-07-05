@@ -53,7 +53,7 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=()),
+            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend"),
         ),
         patch.object(
             execution_service,
@@ -141,7 +141,7 @@ def _patched_run_backtest(
         patch.object(
             execution_service,
             "resolve_strategy",
-            lambda _name: SimpleNamespace(required_features=()),
+            lambda _name: SimpleNamespace(required_features=(), strategy_id="trend"),
         ),
         patch.object(execution_service, "resolve_signal", resolve_signal_fn),
         patch.object(execution_service, "benchmark_return_pct", lambda _series, _cash: 1.0),

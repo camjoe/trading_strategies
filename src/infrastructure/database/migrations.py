@@ -159,12 +159,10 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration("trade_universes", "ALTER TABLE accounts ADD COLUMN trade_universes TEXT"),
 )
 
-BACKTEST_RUN_MIGRATIONS = (
-    ColumnMigration(
-        "strategy_name",
-        "ALTER TABLE backtest_runs ADD COLUMN strategy_name TEXT",
-    ),
-)
+# BACKTEST_RUN_MIGRATIONS retired with the P3 clean-schema swap: backtest_runs
+# keys the backtested strategy as a strategies FK (strategy_id) in the DDL,
+# replacing the additive strategy_name column.
+BACKTEST_RUN_MIGRATIONS: tuple[ColumnMigration, ...] = ()
 
 ACCOUNT_BROKER_MIGRATIONS = (
     ColumnMigration(

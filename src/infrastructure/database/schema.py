@@ -147,11 +147,13 @@ CREATE INDEX IF NOT EXISTS idx_equity_snapshots_book_time
 ON equity_snapshots(book_id, snapshot_time DESC);
 """
 
+# Clean-schema shape (P3 Phase E): backtested strategy is a strategies FK, not a
+# name string. Nullable — reads fall back to the account strategy when unset.
 BACKTEST_RUNS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS backtest_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
-    strategy_name TEXT,
+    strategy_id INTEGER,
     run_name TEXT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -161,7 +163,8 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     tickers_file TEXT,
     notes TEXT,
     warnings TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
 
@@ -537,12 +540,14 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_action_reason_time
 ON sleeve_risk_decisions(action, reason_code, decision_time DESC);
 """
 
+# Clean-schema shape (P3 Phase E): strategy is a strategies FK copied from the
+# primary run; nullable so reads fall back to the account strategy when unset.
 WALK_FORWARD_GROUPS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS walk_forward_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     grouping_key TEXT NOT NULL UNIQUE,
     account_id INTEGER NOT NULL,
-    strategy_name TEXT NOT NULL,
+    strategy_id INTEGER,
     run_name_prefix TEXT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -554,7 +559,8 @@ CREATE TABLE IF NOT EXISTS walk_forward_groups (
     best_return_pct REAL NOT NULL,
     worst_return_pct REAL NOT NULL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
 
@@ -575,7 +581,7 @@ CREATE TABLE IF NOT EXISTS walk_forward_group_runs (
 
 WALK_FORWARD_INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_walk_forward_groups_account_strategy_created
-ON walk_forward_groups(account_id, strategy_name, created_at DESC);
+ON walk_forward_groups(account_id, strategy_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_walk_forward_group_runs_group_window
 ON walk_forward_group_runs(group_id, window_index ASC);
 """

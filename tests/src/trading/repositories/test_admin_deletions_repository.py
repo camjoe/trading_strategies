@@ -18,6 +18,7 @@ from trading.repositories.admin_deletions import (
 )
 from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
+from tests.support.strategies import strategy_id_for
 
 
 def _account_id(conn, name: str = "admin_acct") -> int:
@@ -26,8 +27,8 @@ def _account_id(conn, name: str = "admin_acct") -> int:
 
 def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend") -> int:
     cursor = conn.execute(
-        "INSERT INTO backtest_runs (account_id, strategy_name, start_date, end_date, created_at) VALUES (?,?,?,?,?)",
-        (account_id, strategy_name, "2026-01-01", "2026-06-01", "2026-01-01T00:00:00Z"),
+        "INSERT INTO backtest_runs (account_id, strategy_id, start_date, end_date, created_at) VALUES (?,?,?,?,?)",
+        (account_id, strategy_id_for(conn, strategy_name), "2026-01-01", "2026-06-01", "2026-01-01T00:00:00Z"),
     )
     conn.commit()
     return cursor.lastrowid
