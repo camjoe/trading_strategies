@@ -82,6 +82,61 @@ def book_id_for_sleeve(conn: sqlite3.Connection, sleeve_id: int, *, create: bool
     return int(cursor.lastrowid or 0)
 
 
+_ORDER_STATUS_VOCAB = {"submitted", "partially_filled", "filled", "rejected", "cancelled"}
+
+
+def order_id_for_broker_order(conn: sqlite3.Connection, broker_order_id: str) -> int:
+    """Resolve a legacy broker order to its clean-schema orders row, mirroring on demand.
+
+    Legacy statuses outside the clean vocabulary (pending/accepted) map to
+    'submitted'.
+    """
+    row = conn.execute(
+        "SELECT id FROM orders WHERE broker_order_id = ?",
+        (broker_order_id,),
+    ).fetchone()
+    if row is not None:
+        return int(row[0])
+    legacy = conn.execute(
+        "SELECT * FROM broker_orders WHERE broker_order_id = ?",
+        (broker_order_id,),
+    ).fetchone()
+    if legacy is None:
+        raise LookupError(f"Broker order {broker_order_id!r} does not exist; cannot mirror it into orders.")
+    status = str(legacy["status"]).strip().lower()
+    if status not in _ORDER_STATUS_VOCAB:
+        status = "submitted"
+    book_id = default_book_id(conn, int(legacy["account_id"]))
+    cursor = conn.execute(
+        """
+        INSERT INTO orders (
+            book_id, account_id, broker_order_id, symbol, side, qty, order_type,
+            time_in_force, requested_price, status, filled_qty, avg_fill_price,
+            commission, submitted_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            book_id,
+            int(legacy["account_id"]),
+            broker_order_id,
+            str(legacy["ticker"]),
+            str(legacy["side"]),
+            float(legacy["qty"]),
+            str(legacy["order_type"]),
+            str(legacy["time_in_force"]),
+            legacy["requested_price"],
+            status,
+            float(legacy["filled_qty"]),
+            legacy["avg_fill_price"],
+            float(legacy["commission"]),
+            str(legacy["submitted_at"]),
+            str(legacy["updated_at"]),
+        ),
+    )
+    return int(cursor.lastrowid or 0)
+
+
 def strategy_id_for_label(
     conn: sqlite3.Connection,
     label: str | None,

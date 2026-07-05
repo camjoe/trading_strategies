@@ -687,7 +687,12 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
 
     assert executed == 1
     row = conn.execute(
-        "SELECT COUNT(*) AS n FROM order_fills WHERE broker_order_id = ?",
+        """
+        SELECT COUNT(*) AS n
+        FROM order_fills f
+        JOIN orders o ON o.id = f.order_id
+        WHERE o.broker_order_id = ?
+        """,
         ("fill-broker-order",),
     ).fetchone()
     assert row is not None

@@ -121,8 +121,15 @@ def test_insert_fill_is_idempotent_only_for_non_null_exec_ids(conn) -> None:
     repo.insert_fill("bo-fill", paper_fill)
     repo.insert_fill("bo-fill", paper_fill)
 
+    # Fills key on the clean orders table (P3); read back through the mirrored order.
     rows = conn.execute(
-        "SELECT exec_id, filled_qty, fill_price FROM order_fills WHERE broker_order_id = ? ORDER BY id ASC",
+        """
+        SELECT f.exec_id, f.filled_qty, f.fill_price
+        FROM order_fills f
+        JOIN orders o ON o.id = f.order_id
+        WHERE o.broker_order_id = ?
+        ORDER BY f.id ASC
+        """,
         ("bo-fill",),
     ).fetchall()
 

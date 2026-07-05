@@ -186,16 +186,8 @@ ACCOUNT_BROKER_MIGRATIONS = (
     ColumnMigration("updated_at", "ALTER TABLE accounts ADD COLUMN updated_at TEXT"),
 )
 
-ORDER_FILL_MIGRATIONS = (
-    ColumnMigration(
-        "exec_id",
-        "ALTER TABLE order_fills ADD COLUMN exec_id TEXT",
-        post_sql=(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_order_fills_exec_id "
-            "ON order_fills(broker_order_id, exec_id) WHERE exec_id IS NOT NULL",
-        ),
-    ),
-)
+# ORDER_FILL_MIGRATIONS retired with the P3 clean-schema order_fills swap:
+# the table is order-keyed with exec_id + its unique constraint in the DDL.
 
 GLOBAL_SETTINGS_MIGRATIONS = (
     ColumnMigration(

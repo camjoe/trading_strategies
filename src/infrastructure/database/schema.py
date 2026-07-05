@@ -246,21 +246,26 @@ CREATE TABLE IF NOT EXISTS broker_orders (
 );
 """
 
+# Clean-schema shape (P3 Phase E): fills key on the clean orders table; legacy
+# broker_orders rows are mirrored into orders on first fill (book_bridge).
 ORDER_FILLS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS order_fills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    broker_order_id TEXT NOT NULL,
+    order_id INTEGER NOT NULL,
+    broker_fill_id TEXT,
+    exec_id TEXT,
     filled_qty REAL NOT NULL,
     fill_price REAL NOT NULL,
-    fill_time TEXT NOT NULL,
     commission REAL NOT NULL DEFAULT 0,
-    FOREIGN KEY (broker_order_id) REFERENCES broker_orders(broker_order_id)
+    fill_time TEXT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    UNIQUE (order_id, exec_id)
 );
 """
 
 BROKER_INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account_id);
-CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id ON order_fills(broker_order_id);
+CREATE INDEX IF NOT EXISTS idx_order_fills_order_id ON order_fills(order_id);
 """
 
 STRATEGY_SLEEVES_TABLE_SQL = """

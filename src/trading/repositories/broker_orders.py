@@ -5,6 +5,7 @@ import sqlite3
 from infrastructure.database.sql_helpers import in_placeholders
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
 from trading.models.orders.broker_order_record import BrokerOrderRecord
+from trading.repositories.book_bridge import order_id_for_broker_order
 
 
 class BrokerOrderRepository:
@@ -43,13 +44,16 @@ class BrokerOrderRepository:
         self._conn.commit()
 
     def insert_fill(self, broker_order_id: str, fill: OrderFill) -> None:
+        # Fills key on the clean orders table (P3); the legacy broker order is
+        # mirrored into orders on first fill. OR IGNORE keeps exec_id dedup.
+        order_id = order_id_for_broker_order(self._conn, broker_order_id)
         self._conn.execute(
             """
             INSERT OR IGNORE INTO order_fills
-                (broker_order_id, filled_qty, fill_price, fill_time, commission, exec_id)
+                (order_id, filled_qty, fill_price, fill_time, commission, exec_id)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (broker_order_id, fill.filled_qty, fill.fill_price, fill.fill_time, fill.commission, fill.exec_id),
+            (order_id, fill.filled_qty, fill.fill_price, fill.fill_time, fill.commission, fill.exec_id),
         )
         self._conn.commit()
 
