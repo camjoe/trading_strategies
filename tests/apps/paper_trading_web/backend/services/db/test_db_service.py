@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 
 from paper_trading_web.backend.services import require_account_row
 from paper_trading_web.backend.services import db as services_db
 from trading.domain.exceptions import NotFoundError
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import get_latest_account_snapshot
 
 
@@ -26,28 +29,41 @@ def test_require_account_row_found_and_missing(conn, create_account_row) -> None
         require_account_row(conn, "missing")
 
 
-def test_get_latest_account_snapshot_prefers_latest_id_for_same_timestamp(conn, create_account_row) -> None:
+def test_get_latest_account_snapshot_returns_newest_time_and_rejects_duplicates(conn, create_account_row) -> None:
     account_id = create_account_row("acct_snapshots")
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, "2026-01-01T00:00:00Z", 1000.0, 100.0, 1100.0, 0.0, 0.0),
+    repo = EquitySnapshotRepository(conn)
+    repo.insert(
+        account_id=account_id,
+        snapshot_time="2026-01-01T00:00:00Z",
+        cash=1000.0,
+        market_value=100.0,
+        equity=1100.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
     )
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, "2026-01-01T00:00:00Z", 1000.0, 250.0, 1250.0, 0.0, 0.0),
+    repo.insert(
+        account_id=account_id,
+        snapshot_time="2026-01-02T00:00:00Z",
+        cash=1000.0,
+        market_value=250.0,
+        equity=1250.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
     )
-    conn.commit()
 
     latest = get_latest_account_snapshot(conn, account_id)
     assert latest is not None
     assert latest.equity == 1250.0
+
+    # Book-keyed snapshots are unique per (book, snapshot_time): same-timestamp
+    # duplicates are now a constraint violation rather than a tie to break.
+    with pytest.raises(sqlite3.IntegrityError):
+        repo.insert(
+            account_id=account_id,
+            snapshot_time="2026-01-02T00:00:00Z",
+            cash=1.0,
+            market_value=1.0,
+            equity=1.0,
+            realized_pnl=0.0,
+            unrealized_pnl=0.0,
+        )

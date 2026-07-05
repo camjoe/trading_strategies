@@ -160,10 +160,14 @@ class TestBacktestRunFlow:
         conn.execute("UPDATE accounts SET strategy = ? WHERE name = ?", ("mean_reversion", "acct_strategy_snapshot"))
         conn.commit()
 
+        # The report reflects the run's own strategy (a strategies FK snapshot),
+        # not the account's later strategy. P3 stores the canonical catalog key,
+        # so the alias "trend_v1" surfaces as "trend" — still independent of the
+        # account now being "mean_reversion".
         summary = backtest_module.backtest_report(conn, result.run_id)
-        assert summary["strategy"] == "trend_v1"
+        assert summary["strategy"] == "trend"
 
-        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend_v1")
+        filtered = backtest_module.backtest_leaderboard(conn, limit=10, strategy="trend")
         assert any(row["run_id"] == result.run_id for row in filtered)
 
     def test_run_backtest_uses_strategy_signal_resolver(

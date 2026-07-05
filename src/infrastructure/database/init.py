@@ -10,7 +10,6 @@ from infrastructure.database.migrations import (
     BACKTEST_RUN_MIGRATIONS,
     ColumnMigration,
     GLOBAL_SETTINGS_MIGRATIONS,
-    ORDER_FILL_MIGRATIONS,
     SLEEVE_MIGRATIONS_BY_TABLE,
 )
 from infrastructure.database.schema import SCHEMA_SQL
@@ -61,8 +60,6 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "backtest_runs", migration)
     for migration in ACCOUNT_BROKER_MIGRATIONS:
         _ensure_column(conn, "accounts", migration)
-    for migration in ORDER_FILL_MIGRATIONS:
-        _ensure_column(conn, "order_fills", migration)
     for migration in GLOBAL_SETTINGS_MIGRATIONS:
         _ensure_column(conn, "global_settings", migration)
     for table_name, migrations in SLEEVE_MIGRATIONS_BY_TABLE.items():

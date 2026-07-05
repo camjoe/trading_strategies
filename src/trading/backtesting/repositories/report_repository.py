@@ -60,8 +60,9 @@ def fetch_latest_backtest_run_id_for_account_strategy(
         SELECT r.id
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
+        LEFT JOIN strategies s ON s.id = r.strategy_id
         WHERE r.account_id = ?
-          AND LOWER(COALESCE(r.strategy_name, a.strategy)) = LOWER(?)
+          AND LOWER(COALESCE(s.strategy_key, a.strategy)) = LOWER(?)
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT 1
         """,
@@ -77,11 +78,12 @@ def fetch_backtest_report_run(conn: sqlite3.Connection, run_id: int) -> sqlite3.
         """
         SELECT r.id, r.run_name, r.start_date, r.end_date, r.created_at, r.slippage_bps, r.fee_per_trade,
              r.tickers_file, r.notes, r.warnings, a.name AS account_name,
-             COALESCE(r.strategy_name, a.strategy) AS strategy,
+             COALESCE(s.strategy_key, a.strategy) AS strategy,
              a.benchmark_ticker,
              a.initial_cash
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
+        LEFT JOIN strategies s ON s.id = r.strategy_id
         WHERE r.id = ?
         """,
         (run_id,),

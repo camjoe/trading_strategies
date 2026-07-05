@@ -159,12 +159,10 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration("trade_universes", "ALTER TABLE accounts ADD COLUMN trade_universes TEXT"),
 )
 
-BACKTEST_RUN_MIGRATIONS = (
-    ColumnMigration(
-        "strategy_name",
-        "ALTER TABLE backtest_runs ADD COLUMN strategy_name TEXT",
-    ),
-)
+# BACKTEST_RUN_MIGRATIONS retired with the P3 clean-schema swap: backtest_runs
+# keys the backtested strategy as a strategies FK (strategy_id) in the DDL,
+# replacing the additive strategy_name column.
+BACKTEST_RUN_MIGRATIONS: tuple[ColumnMigration, ...] = ()
 
 ACCOUNT_BROKER_MIGRATIONS = (
     ColumnMigration(
@@ -186,16 +184,8 @@ ACCOUNT_BROKER_MIGRATIONS = (
     ColumnMigration("updated_at", "ALTER TABLE accounts ADD COLUMN updated_at TEXT"),
 )
 
-ORDER_FILL_MIGRATIONS = (
-    ColumnMigration(
-        "exec_id",
-        "ALTER TABLE order_fills ADD COLUMN exec_id TEXT",
-        post_sql=(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_order_fills_exec_id "
-            "ON order_fills(broker_order_id, exec_id) WHERE exec_id IS NOT NULL",
-        ),
-    ),
-)
+# ORDER_FILL_MIGRATIONS retired with the P3 clean-schema order_fills swap:
+# the table is order-keyed with exec_id + its unique constraint in the DDL.
 
 GLOBAL_SETTINGS_MIGRATIONS = (
     ColumnMigration(

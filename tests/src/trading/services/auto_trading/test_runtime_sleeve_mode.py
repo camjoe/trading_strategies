@@ -4,6 +4,7 @@ import json
 
 from unittest.mock import Mock
 
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.models.evaluation import (
@@ -125,16 +126,7 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
 
     assert executed == 0
     assert captured["active_strategy"] == "meanrev"
-    latest_decision = conn.execute(
-        """
-        SELECT rotation_action, selected_strategy
-        FROM rotation_decisions
-        WHERE sleeve_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        (sleeve_id,),
-    ).fetchone()
+    latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
     assert latest_decision is not None
     assert latest_decision["rotation_action"] == "rotate"
     assert latest_decision["selected_strategy"] == "meanrev"
@@ -143,27 +135,20 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
 def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_env, conn, monkeypatch) -> None:
     account_name = rotation_sleeve_env.account_name
     sleeve_id = rotation_sleeve_env.sleeve_id
-    conn.execute(
-        """
-        INSERT INTO rotation_decisions (
-            sleeve_id, decision_time, incumbent_strategy, challenger_strategy,
-            selected_strategy, rotation_action, cooldown_active, score_components_json,
-            gate_results_json, decision_reason, config_version, param_set_id, created_at
-        )
-        VALUES (?, ?, ?, ?, ?, 'rotate', 0, '{}', '{}', ?, ?, NULL, ?)
-        """,
-        (
-            sleeve_id,
-            "2026-05-05T10:00:00Z",
-            "trend",
-            "meanrev",
-            "meanrev",
-            "rotate_to_challenger",
-            "cfg-old",
-            "2026-05-05T10:00:00Z",
-        ),
+    RotationDecisionRepository(conn).insert(
+        sleeve_id=sleeve_id,
+        decision_time="2026-05-05T10:00:00Z",
+        incumbent_strategy="trend",
+        challenger_strategy="meanrev",
+        selected_strategy="meanrev",
+        rotation_action="rotate",
+        cooldown_active=0,
+        score_components_json="{}",
+        gate_results_json="{}",
+        decision_reason="rotate_to_challenger",
+        config_version="cfg-old",
+        created_at="2026-05-05T10:00:00Z",
     )
-    conn.commit()
 
     _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
     _patch_rotation_evaluation(monkeypatch, {"trend": 0.0, "meanrev": 5.0})
@@ -196,16 +181,7 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
 
     assert executed == 0
     assert captured["active_strategy"] == "trend"
-    latest_decision = conn.execute(
-        """
-        SELECT rotation_action, decision_reason, cooldown_active
-        FROM rotation_decisions
-        WHERE sleeve_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        (sleeve_id,),
-    ).fetchone()
+    latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
     assert latest_decision is not None
     assert latest_decision["rotation_action"] == "hold"
     assert latest_decision["decision_reason"] == "cooldown_active"
@@ -711,7 +687,12 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
 
     assert executed == 1
     row = conn.execute(
-        "SELECT COUNT(*) AS n FROM order_fills WHERE broker_order_id = ?",
+        """
+        SELECT COUNT(*) AS n
+        FROM order_fills f
+        JOIN orders o ON o.id = f.order_id
+        WHERE o.broker_order_id = ?
+        """,
         ("fill-broker-order",),
     ).fetchone()
     assert row is not None

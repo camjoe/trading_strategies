@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.repositories.snapshots import EquitySnapshotRepository
+
 from tests.support.seed.accounts import ACCT_TREND, seed_account_id
 
 # ---------------------------------------------------------------------------
@@ -36,18 +38,22 @@ def seed_trades(conn: sqlite3.Connection) -> None:
 
 def seed_snapshots(conn: sqlite3.Connection) -> None:
     acct_id = seed_account_id(conn, ACCT_TREND)
-    conn.executemany(
-        """
-        INSERT INTO equity_snapshots
-            (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        [
-            (acct_id, SNAPSHOT_T1, 9_500.0, 500.0, 10_000.0, 0.0, 0.0),
-            (acct_id, SNAPSHOT_T2, 9_200.0, 800.0, 10_050.0, 0.0, 50.0),
-            (acct_id, SNAPSHOT_T3, 9_000.0, 1_100.0, 10_100.0, 100.0, 50.0),
-        ],
-    )
+    # Snapshots are book-keyed (P3); the repository resolves the default book.
+    repo = EquitySnapshotRepository(conn)
+    for snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl in [
+        (SNAPSHOT_T1, 9_500.0, 500.0, 10_000.0, 0.0, 0.0),
+        (SNAPSHOT_T2, 9_200.0, 800.0, 10_050.0, 0.0, 50.0),
+        (SNAPSHOT_T3, 9_000.0, 1_100.0, 10_100.0, 100.0, 50.0),
+    ]:
+        repo.insert(
+            account_id=acct_id,
+            snapshot_time=snapshot_time,
+            cash=cash,
+            market_value=market_value,
+            equity=equity,
+            realized_pnl=realized_pnl,
+            unrealized_pnl=unrealized_pnl,
+        )
 
 
 __all__ = [

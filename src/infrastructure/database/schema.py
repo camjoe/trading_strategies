@@ -125,25 +125,35 @@ CREATE TABLE IF NOT EXISTS global_settings (
 );
 """
 
+# Clean-schema shape (P3 Phase E): snapshots are book-keyed; the account view is
+# the roll-up across the account's books (docs/db-schema-target.md).
 EQUITY_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS equity_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     snapshot_time TEXT NOT NULL,
     cash REAL NOT NULL,
     market_value REAL NOT NULL,
     equity REAL NOT NULL,
     realized_pnl REAL NOT NULL,
     unrealized_pnl REAL NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    UNIQUE (book_id, snapshot_time)
 );
 """
 
+EQUITY_SNAPSHOTS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_equity_snapshots_book_time
+ON equity_snapshots(book_id, snapshot_time DESC);
+"""
+
+# Clean-schema shape (P3 Phase E): backtested strategy is a strategies FK, not a
+# name string. Nullable — reads fall back to the account strategy when unset.
 BACKTEST_RUNS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS backtest_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL,
-    strategy_name TEXT,
+    strategy_id INTEGER,
     run_name TEXT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -153,7 +163,8 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     tickers_file TEXT,
     notes TEXT,
     warnings TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
 
@@ -238,21 +249,26 @@ CREATE TABLE IF NOT EXISTS broker_orders (
 );
 """
 
+# Clean-schema shape (P3 Phase E): fills key on the clean orders table; legacy
+# broker_orders rows are mirrored into orders on first fill (book_bridge).
 ORDER_FILLS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS order_fills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    broker_order_id TEXT NOT NULL,
+    order_id INTEGER NOT NULL,
+    broker_fill_id TEXT,
+    exec_id TEXT,
     filled_qty REAL NOT NULL,
     fill_price REAL NOT NULL,
-    fill_time TEXT NOT NULL,
     commission REAL NOT NULL DEFAULT 0,
-    FOREIGN KEY (broker_order_id) REFERENCES broker_orders(broker_order_id)
+    fill_time TEXT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    UNIQUE (order_id, exec_id)
 );
 """
 
 BROKER_INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account_id);
-CREATE INDEX IF NOT EXISTS idx_order_fills_broker_order_id ON order_fills(broker_order_id);
+CREATE INDEX IF NOT EXISTS idx_order_fills_order_id ON order_fills(order_id);
 """
 
 STRATEGY_SLEEVES_TABLE_SQL = """
@@ -306,25 +322,40 @@ CREATE TABLE IF NOT EXISTS sleeve_strategy_assignments (
 );
 """
 
+# Clean-schema shape (P3 Phase E): decisions are book-keyed and carry first-class
+# decision_score/decision_confidence columns (D6). Audit history — no cascade.
 ROTATION_DECISIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS rotation_decisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleeve_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     decision_time TEXT NOT NULL,
-    incumbent_strategy TEXT,
-    challenger_strategy TEXT,
-    selected_strategy TEXT,
+    incumbent_strategy_id INTEGER,
+    challenger_strategy_id INTEGER,
+    selected_strategy_id INTEGER,
     rotation_action TEXT NOT NULL CHECK (rotation_action IN ('hold', 'rotate')),
     cooldown_active INTEGER NOT NULL DEFAULT 0,
+    decision_score REAL,
+    decision_confidence REAL,
     score_components_json TEXT NOT NULL,
     gate_results_json TEXT NOT NULL,
     decision_reason TEXT,
     config_version TEXT,
-    param_set_id INTEGER,
+    window_start TEXT,
+    window_end TEXT,
+    realized_pnl_delta REAL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
-    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE RESTRICT,
+    FOREIGN KEY (incumbent_strategy_id) REFERENCES strategies(id),
+    FOREIGN KEY (challenger_strategy_id) REFERENCES strategies(id),
+    FOREIGN KEY (selected_strategy_id) REFERENCES strategies(id)
 );
+"""
+
+ROTATION_DECISIONS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_rotation_decisions_book_time
+ON rotation_decisions(book_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time_book
+ON rotation_decisions(rotation_action, decision_time DESC);
 """
 
 SLEEVE_ORDERS_TABLE_SQL = """
@@ -439,11 +470,12 @@ CREATE TABLE IF NOT EXISTS sleeve_risk_decisions (
 );
 """
 
+# Clean-schema shape (P3 Phase E): metrics are book-keyed; account-level rows
+# live on the account's default book (docs/db-schema-target.md).
 DAILY_METRICS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS daily_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    sleeve_id INTEGER,
+    book_id INTEGER NOT NULL,
     metric_date TEXT NOT NULL,
     return_pct REAL,
     drawdown_pct REAL,
@@ -456,9 +488,14 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
     fees_total REAL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    UNIQUE (book_id, metric_date)
 );
+"""
+
+DAILY_METRICS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_daily_metrics_book_date
+ON daily_metrics(book_id, metric_date DESC);
 """
 
 SLEEVE_INDEXES_SQL = """
@@ -473,10 +510,6 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_sleeve_effective
 ON sleeve_strategy_assignments(sleeve_id, effective_from DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_strategy_effective
 ON sleeve_strategy_assignments(strategy_name, effective_from DESC);
-CREATE INDEX IF NOT EXISTS idx_rotation_decisions_sleeve_time
-ON rotation_decisions(sleeve_id, decision_time DESC);
-CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time
-ON rotation_decisions(rotation_action, decision_time DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_orders_account_broker_order_id
 ON sleeve_orders(account_id, broker_order_id)
 WHERE broker_order_id IS NOT NULL;
@@ -505,24 +538,16 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_sleeve_time
 ON sleeve_risk_decisions(sleeve_id, decision_time DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_action_reason_time
 ON sleeve_risk_decisions(action, reason_code, decision_time DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_sleeve_date
-ON daily_metrics(account_id, sleeve_id, metric_date)
-WHERE sleeve_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_portfolio_date
-ON daily_metrics(account_id, metric_date)
-WHERE sleeve_id IS NULL;
-CREATE INDEX IF NOT EXISTS idx_daily_metrics_account_date
-ON daily_metrics(account_id, metric_date DESC);
-CREATE INDEX IF NOT EXISTS idx_daily_metrics_sleeve_date
-ON daily_metrics(sleeve_id, metric_date DESC);
 """
 
+# Clean-schema shape (P3 Phase E): strategy is a strategies FK copied from the
+# primary run; nullable so reads fall back to the account strategy when unset.
 WALK_FORWARD_GROUPS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS walk_forward_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     grouping_key TEXT NOT NULL UNIQUE,
     account_id INTEGER NOT NULL,
-    strategy_name TEXT NOT NULL,
+    strategy_id INTEGER,
     run_name_prefix TEXT,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -534,7 +559,8 @@ CREATE TABLE IF NOT EXISTS walk_forward_groups (
     best_return_pct REAL NOT NULL,
     worst_return_pct REAL NOT NULL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
 
@@ -555,7 +581,7 @@ CREATE TABLE IF NOT EXISTS walk_forward_group_runs (
 
 WALK_FORWARD_INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_walk_forward_groups_account_strategy_created
-ON walk_forward_groups(account_id, strategy_name, created_at DESC);
+ON walk_forward_groups(account_id, strategy_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_walk_forward_group_runs_group_window
 ON walk_forward_group_runs(group_id, window_index ASC);
 """
@@ -910,6 +936,7 @@ SCHEMA_SQL = "\n".join(
         TRADES_INDEXES_SQL,
         GLOBAL_SETTINGS_TABLE_SQL,
         EQUITY_SNAPSHOTS_TABLE_SQL,
+        EQUITY_SNAPSHOTS_INDEXES_SQL,
         BACKTEST_RUNS_TABLE_SQL,
         BACKTEST_TRADES_TABLE_SQL,
         BACKTEST_EQUITY_SNAPSHOTS_TABLE_SQL,
@@ -923,6 +950,7 @@ SCHEMA_SQL = "\n".join(
         STRATEGY_PARAM_SETS_TABLE_SQL,
         SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL,
         ROTATION_DECISIONS_TABLE_SQL,
+        ROTATION_DECISIONS_INDEXES_SQL,
         SLEEVE_ORDERS_TABLE_SQL,
         SLEEVE_FILLS_TABLE_SQL,
         SLEEVE_POSITIONS_TABLE_SQL,
@@ -930,6 +958,7 @@ SCHEMA_SQL = "\n".join(
         PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
         SLEEVE_RISK_DECISIONS_TABLE_SQL,
         DAILY_METRICS_TABLE_SQL,
+        DAILY_METRICS_INDEXES_SQL,
         SLEEVE_INDEXES_SQL,
         WALK_FORWARD_GROUPS_TABLE_SQL,
         WALK_FORWARD_GROUP_RUNS_TABLE_SQL,

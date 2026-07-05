@@ -52,17 +52,38 @@ class TestInsert:
 
     def test_raises_when_lastrowid_missing(self) -> None:
         class _Cursor:
-            lastrowid = None
+            def __init__(self, *, lastrowid=None, row=None) -> None:
+                self.lastrowid = lastrowid
+                self.rowcount = 1
+                self._row = row
 
             def fetchone(self):
-                return None
+                return self._row
 
             def fetchall(self):
                 return []
 
+        sleeve_row = {
+            "account_id": 1,
+            "name": "core",
+            "start_equity": 100.0,
+            "current_cash": 100.0,
+            "current_equity": 100.0,
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+
         class _Conn:
+            def __init__(self) -> None:
+                # sleeve lookup, books lookup miss, bridging-book insert, decision insert
+                self._cursors = [
+                    _Cursor(row=sleeve_row),
+                    _Cursor(row=None),
+                    _Cursor(lastrowid=5),
+                    _Cursor(lastrowid=None),
+                ]
+
             def execute(self, *_a, **_kw):
-                return _Cursor()
+                return self._cursors.pop(0)
 
             def commit(self):
                 pass

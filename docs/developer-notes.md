@@ -3,11 +3,11 @@
 Type: notes
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-03
+Last Reviewed: 2026-07-05
 Purpose: Developer-facing working notes, gotchas, and pre-implementation checks — a sanity check for
 the same developer picking work back up. Tasks/order/status/timelines live in [plan.md](plan.md).
 Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [DB Schema Target (WIP)](db-schema-target.md),
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [DB Schema Target](db-schema-target.md),
 [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md)
 
 > [plan.md](plan.md) is the source of truth for scope/order/status; [decisions.md](decisions.md) for
@@ -15,7 +15,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 
 ## Pre-implementation checks
 
-### Before the database rewrite (if/when we execute it)
+### Before the database rewrite (completed 2026-07-05 — retained as the P3 pre-flight record)
 
 - [ ] **Re-read and confirm the DB spec** — [db-schema-rewrite-spec.md](db-schema-rewrite-spec.md)
       and the standalone [db-schema-target.md](db-schema-target.md). Confirm the target still matches
@@ -62,12 +62,23 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
   `mypy <file>` fails to resolve the `src/` layout and reports false import errors).
 - **Two rotation paradigms still exist** — account-episode vs sleeve champion/challenger. The
   decision-score contract is shared for sleeve rotation (1a/1b); account rotation is not yet migrated.
+- **The book schema is live but reached through bridges (P3 done, P4 pending).** The clean tables
+  (`books`, `book_*_settings`, `orders`, `positions`, `ledger`, book-keyed `equity_snapshots` /
+  `daily_metrics` / `rotation_decisions`, order-keyed `order_fills`, `strategy_id`-keyed backtests)
+  are the storage now, but the legacy account/sleeve access paths reach them via
+  `trading/repositories/book_bridge.py` (account→default book, sleeve→bridging book, label→catalog
+  row, broker-order→orders mirror). These bridges — and the account/sleeve-keyed repository APIs —
+  retire when P4 builds the converged write services.
+- **Backtest strategy labels are canonical keys (P3/E5)** — `backtest_runs`/`walk_forward_groups`
+  key `strategy_id`; reports/leaderboards show the catalog `strategy_key` (e.g. `trend`), not the
+  original alias (`trend_v1`). See [D14](decisions.md#d14).
 
 ## Where to look
 
 - **Tasks / order / status / timelines** → [plan.md](plan.md) (the status board + Current cycle
   sequencing are the single source).
 - **Open decisions ("what needs defining")** → [decisions.md](decisions.md).
-- **Recommended next action** → the DB schema rewrite (Plan P3; P1 and P2 are complete). Start with
-  the [pre-rewrite checks](#before-the-database-rewrite-ifwhen-we-execute-it) above — the D4 tail
-  (account/book settings shape) is decided at the start of Phase A.
+- **Recommended next action** → P4, converge accounts & sleeves on the clean book schema (P1, P2,
+  P3 are complete). P4 builds the shared submission/rotation/accounting **write** services and, in
+  doing so, retires the `book_bridge` shims and the legacy account/sleeve-keyed repository APIs.
+  Sequence P4's shared submission service (2a) first to shorten the runtime pause.

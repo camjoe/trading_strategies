@@ -1,12 +1,12 @@
 # Implementation Guide — P3: Greenfield DB schema rewrite (the spine)
 
 Type: implementation
-Status: Ready (large; multi-commit)
+Status: Complete (all phases A–E landed 2026-07-05)
 Purpose: Work order for P3 — greenfield book schema rewrite in phased commits (DDL, models, repositories, seed, re-pointed reads).
 Initiative: P3 (DB schema rewrite, option B)
 Estimate: L
 Created: 2026-07-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-05
 Related: [Plan](../plan.md), [Decisions](../decisions.md),
 [DB Schema Rewrite Spec](../db-schema-rewrite-spec.md), [DB Schema Target](../db-schema-target.md),
 [Architecture Conventions](../architecture/architecture-conventions.md)

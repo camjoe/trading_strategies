@@ -9,6 +9,8 @@ test-infrastructure fixture, not any production behaviour.
 
 from __future__ import annotations
 
+from trading.repositories.daily_metrics import DailyMetricsRepository
+
 from tests.support.seed.db import (
     ACCT_LOCAL,
     ACCT_MOMENTUM,
@@ -57,7 +59,7 @@ class TestSeededSnapshots:
         times = {
             row["snapshot_time"]
             for row in seeded_conn.execute(
-                "SELECT snapshot_time FROM equity_snapshots WHERE account_id = ?",
+                "SELECT s.snapshot_time FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
                 (acct_id,),
             ).fetchall()
         }
@@ -114,8 +116,6 @@ class TestSeededSleeves:
         sleeve_id = seeded_conn.execute("SELECT id FROM strategy_sleeves WHERE name = ?", (SLEEVE_TREND,)).fetchone()[
             "id"
         ]
-        row = seeded_conn.execute(
-            "SELECT metric_date FROM daily_metrics WHERE sleeve_id = ? AND metric_date = ?",
-            (sleeve_id, SLEEVE_METRIC_DATE),
-        ).fetchone()
-        assert row is not None
+        # Metrics are book-keyed (P3); the sleeve's rows live on its bridging book.
+        rows = DailyMetricsRepository(seeded_conn).fetch_for_sleeve(sleeve_id=sleeve_id, limit=10)
+        assert SLEEVE_METRIC_DATE in {row.metric_date for row in rows}

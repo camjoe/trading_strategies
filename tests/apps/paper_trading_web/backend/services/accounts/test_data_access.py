@@ -18,6 +18,7 @@ def test_build_snapshot_payload_maps_record_fields_to_camelcase() -> None:
     snapshot = EquitySnapshotRecord(
         id=1,
         account_id=2,
+        book_id=None,
         snapshot_time="2026-01-02T16:00:00Z",
         cash=1000.0,
         market_value=500.0,

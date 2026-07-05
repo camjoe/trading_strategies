@@ -46,6 +46,7 @@ def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
         lambda _conn, _account_id: EquitySnapshotRecord(
             id=1,
             account_id=1,
+            book_id=None,
             snapshot_time="2026-01-02T00:00:00Z",
             cash=0.0,
             market_value=1100.0,

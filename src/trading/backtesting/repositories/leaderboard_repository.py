@@ -18,7 +18,7 @@ def fetch_leaderboard_rows(
             r.end_date,
             r.created_at,
             a.name AS account_name,
-            COALESCE(r.strategy_name, a.strategy) AS strategy,
+            COALESCE(s.strategy_key, a.strategy) AS strategy,
             a.benchmark_ticker,
             a.initial_cash,
             (
@@ -42,8 +42,9 @@ def fetch_leaderboard_rows(
             ) AS trade_count
         FROM backtest_runs r
         JOIN accounts a ON a.id = r.account_id
+        LEFT JOIN strategies s ON s.id = r.strategy_id
         WHERE (? IS NULL OR a.name = ?)
-                    AND (? IS NULL OR LOWER(COALESCE(r.strategy_name, a.strategy)) LIKE '%' || LOWER(?) || '%')
+                    AND (? IS NULL OR LOWER(COALESCE(s.strategy_key, a.strategy)) LIKE '%' || LOWER(?) || '%')
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT ?
     """

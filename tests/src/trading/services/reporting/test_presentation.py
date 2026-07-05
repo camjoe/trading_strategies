@@ -1,6 +1,7 @@
 import pytest
 
 from trading.models import AccountConfig
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
 from tests.support.reporting import insert_trade, make_evaluation_artifact
@@ -180,7 +181,12 @@ def test_snapshot_account_inserts_and_defaults_time(conn, monkeypatch: pytest.Mo
 
     account = get_account(conn, "acct_snap")
     row = conn.execute(
-        "SELECT snapshot_time, equity FROM equity_snapshots WHERE account_id = ?",
+        """
+        SELECT s.snapshot_time, s.equity
+        FROM equity_snapshots s
+        JOIN books b ON b.id = s.book_id
+        WHERE b.account_id = ?
+        """,
         (account["id"],),
     ).fetchone()
     assert row["snapshot_time"] == "2099-01-01T00:00:00Z"
@@ -194,16 +200,15 @@ def test_show_snapshots_handles_empty_and_rows(conn, capsys) -> None:
     assert "No snapshots found." in capsys.readouterr().out
 
     account = get_account(conn, "acct_show")
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account["id"], "2026-03-01T00:00:00Z", 900.0, 100.0, 1000.0, 10.0, 15.0),
+    EquitySnapshotRepository(conn).insert(
+        account_id=int(account["id"]),
+        snapshot_time="2026-03-01T00:00:00Z",
+        cash=900.0,
+        market_value=100.0,
+        equity=1000.0,
+        realized_pnl=10.0,
+        unrealized_pnl=15.0,
     )
-    conn.commit()
 
     show_snapshots(conn, "acct_show", limit=5)
     out = capsys.readouterr().out
