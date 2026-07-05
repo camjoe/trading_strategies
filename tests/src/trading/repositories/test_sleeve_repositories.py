@@ -766,8 +766,23 @@ class TestSleeveRiskDecisionsRepository:
                 created_at="2026-05-03T00:00:00Z",
             )
 
+        sleeve_row = {
+            "account_id": 1,
+            "name": "core",
+            "start_equity": 100.0,
+            "current_cash": 100.0,
+            "current_equity": 100.0,
+            "created_at": "2026-05-03T00:00:00Z",
+        }
         with pytest.raises(ValueError, match="Expected rotation_decisions id after insert"):
-            RotationDecisionRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
+            RotationDecisionRepository(
+                _StaticConnection(
+                    _StaticCursor(row=sleeve_row),  # sleeve lookup
+                    _StaticCursor(row=None),  # books lookup misses
+                    _StaticCursor(lastrowid=5),  # bridging-book insert
+                    _StaticCursor(lastrowid=None),  # decision insert fails
+                )
+            ).insert(
                 sleeve_id=1,
                 decision_time="2026-05-03T00:00:00Z",
                 incumbent_strategy=None,

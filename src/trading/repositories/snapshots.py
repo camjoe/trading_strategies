@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.repositories.book_bridge import default_book_id
 
 # Account-view roll-up over the account's books: one row per snapshot_time with
 # summed balances. Degenerates to the raw row while an account has only its
@@ -39,34 +40,6 @@ class EquitySnapshotRepository:
     def _row_to_record(self, row: sqlite3.Row) -> EquitySnapshotRecord:
         return EquitySnapshotRecord.from_mapping(dict(row))
 
-    def _default_book_id(self, account_id: int) -> int:
-        row = self._conn.execute(
-            "SELECT id FROM books WHERE account_id = ? AND is_default = 1",
-            (int(account_id),),
-        ).fetchone()
-        if row is not None:
-            return int(row[0])
-        # Bootstrap-on-write: create a bare default book from the account row.
-        # Settings rows are intentionally absent (missing row = code defaults, D4);
-        # the seed data-op creates the fully configured book.
-        cursor = self._conn.execute(
-            """
-            INSERT INTO books (
-                account_id, name, status, is_default, start_equity, current_cash,
-                current_equity, trade_universes, goal_min_return_pct,
-                goal_max_return_pct, goal_period, created_at, updated_at
-            )
-            SELECT id, 'default', 'active', 1, initial_cash, initial_cash, initial_cash,
-                   trade_universes, goal_min_return_pct, goal_max_return_pct, goal_period,
-                   created_at, created_at
-            FROM accounts WHERE id = ?
-            """,
-            (int(account_id),),
-        )
-        if cursor.rowcount == 0:
-            raise LookupError(f"Account {account_id} does not exist; cannot resolve its default book.")
-        return int(cursor.lastrowid or 0)
-
     def insert(
         self,
         *,
@@ -78,7 +51,7 @@ class EquitySnapshotRepository:
         realized_pnl: float,
         unrealized_pnl: float,
     ) -> None:
-        book_id = self._default_book_id(int(account_id))
+        book_id = default_book_id(self._conn, int(account_id))
         self.insert_for_book(
             book_id=book_id,
             snapshot_time=snapshot_time,

@@ -210,8 +210,9 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
     assert len(report.rotation_decisions) == 1
     rd = report.rotation_decisions[0]
     assert rd.rotation_action == "rotate"
-    assert rd.incumbent_strategy == "Momentum"
-    assert rd.challenger_strategy == "MeanRev"
+    # Labels round-trip through the strategies catalog as canonical lowercase keys (P3).
+    assert rd.incumbent_strategy == "momentum"
+    assert rd.challenger_strategy == "meanrev"
     assert rd.decision_reason == "challenger outperformed"
 
 

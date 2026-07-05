@@ -314,25 +314,40 @@ CREATE TABLE IF NOT EXISTS sleeve_strategy_assignments (
 );
 """
 
+# Clean-schema shape (P3 Phase E): decisions are book-keyed and carry first-class
+# decision_score/decision_confidence columns (D6). Audit history — no cascade.
 ROTATION_DECISIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS rotation_decisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleeve_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     decision_time TEXT NOT NULL,
-    incumbent_strategy TEXT,
-    challenger_strategy TEXT,
-    selected_strategy TEXT,
+    incumbent_strategy_id INTEGER,
+    challenger_strategy_id INTEGER,
+    selected_strategy_id INTEGER,
     rotation_action TEXT NOT NULL CHECK (rotation_action IN ('hold', 'rotate')),
     cooldown_active INTEGER NOT NULL DEFAULT 0,
+    decision_score REAL,
+    decision_confidence REAL,
     score_components_json TEXT NOT NULL,
     gate_results_json TEXT NOT NULL,
     decision_reason TEXT,
     config_version TEXT,
-    param_set_id INTEGER,
+    window_start TEXT,
+    window_end TEXT,
+    realized_pnl_delta REAL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
-    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE RESTRICT,
+    FOREIGN KEY (incumbent_strategy_id) REFERENCES strategies(id),
+    FOREIGN KEY (challenger_strategy_id) REFERENCES strategies(id),
+    FOREIGN KEY (selected_strategy_id) REFERENCES strategies(id)
 );
+"""
+
+ROTATION_DECISIONS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_rotation_decisions_book_time
+ON rotation_decisions(book_id, decision_time DESC);
+CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time_book
+ON rotation_decisions(rotation_action, decision_time DESC);
 """
 
 SLEEVE_ORDERS_TABLE_SQL = """
@@ -487,10 +502,6 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_sleeve_effective
 ON sleeve_strategy_assignments(sleeve_id, effective_from DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_strategy_effective
 ON sleeve_strategy_assignments(strategy_name, effective_from DESC);
-CREATE INDEX IF NOT EXISTS idx_rotation_decisions_sleeve_time
-ON rotation_decisions(sleeve_id, decision_time DESC);
-CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time
-ON rotation_decisions(rotation_action, decision_time DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_orders_account_broker_order_id
 ON sleeve_orders(account_id, broker_order_id)
 WHERE broker_order_id IS NOT NULL;
@@ -928,6 +939,7 @@ SCHEMA_SQL = "\n".join(
         STRATEGY_PARAM_SETS_TABLE_SQL,
         SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL,
         ROTATION_DECISIONS_TABLE_SQL,
+        ROTATION_DECISIONS_INDEXES_SQL,
         SLEEVE_ORDERS_TABLE_SQL,
         SLEEVE_FILLS_TABLE_SQL,
         SLEEVE_POSITIONS_TABLE_SQL,
