@@ -16,6 +16,7 @@ from trading.repositories.admin_deletions import (
     fetch_row_count,
     fetch_walk_forward_group_ids_for_account_ids,
 )
+from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
 
 
@@ -33,11 +34,15 @@ def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend")
 
 
 def _insert_equity_snapshot(conn, *, account_id: int, snapshot_time: str = "2026-01-01T00:00:00Z") -> None:
-    conn.execute(
-        "INSERT INTO equity_snapshots (account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl) VALUES (?,?,?,?,?,?,?)",
-        (account_id, snapshot_time, 1000.0, 0.0, 1000.0, 0.0, 0.0),
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        cash=1000.0,
+        market_value=0.0,
+        equity=1000.0,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
     )
-    conn.commit()
 
 
 def _insert_trade(conn, *, account_id: int) -> None:
@@ -145,9 +150,10 @@ class TestDeleteEquitySnapshotsByAccountIds:
         acct_id = _account_id(conn)
         _insert_equity_snapshot(conn, account_id=acct_id)
         delete_equity_snapshots_by_account_ids(conn, (acct_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?", (acct_id,)).fetchone()[
-            "n"
-        ]
+        count = conn.execute(
+            "SELECT COUNT(*) AS n FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
+            (acct_id,),
+        ).fetchone()["n"]
         assert count == 0
 
 

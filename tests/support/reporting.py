@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
@@ -27,14 +28,15 @@ def insert_trade(
 
 
 def insert_snapshot(conn, account_id: int, snapshot_time: str, equity: float) -> None:
-    conn.execute(
-        """
-        INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (account_id, snapshot_time, equity, 0.0, equity, 0.0, 0.0),
+    # Snapshots are book-keyed (P3); the repository resolves the default book.
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        cash=equity,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
     )
 
 

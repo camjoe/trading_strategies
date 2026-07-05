@@ -57,7 +57,7 @@ class TestSeededSnapshots:
         times = {
             row["snapshot_time"]
             for row in seeded_conn.execute(
-                "SELECT snapshot_time FROM equity_snapshots WHERE account_id = ?",
+                "SELECT s.snapshot_time FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
                 (acct_id,),
             ).fetchall()
         }

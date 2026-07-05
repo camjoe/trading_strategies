@@ -23,8 +23,16 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
             (1, 'SPY', 'buy', 1, 100, 0, '2026-01-02T00:00:00Z', ''),
             (2, 'QQQ', 'buy', 2, 200, 0, '2026-01-02T00:00:00Z', '');
 
+        INSERT INTO books (
+            id, account_id, name, status, is_default, start_equity, current_cash,
+            current_equity, created_at, updated_at
+        )
+        VALUES
+            (1, 1, 'default', 'active', 1, 1000, 900, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+            (2, 2, 'default', 'active', 1, 1500, 1300, 1500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+
         INSERT INTO equity_snapshots (
-            account_id, snapshot_time, cash, market_value, equity, realized_pnl,
+            book_id, snapshot_time, cash, market_value, equity, realized_pnl,
             unrealized_pnl
         )
         VALUES

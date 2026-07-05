@@ -125,18 +125,26 @@ CREATE TABLE IF NOT EXISTS global_settings (
 );
 """
 
+# Clean-schema shape (P3 Phase E): snapshots are book-keyed; the account view is
+# the roll-up across the account's books (docs/db-schema-target.md).
 EQUITY_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS equity_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
     snapshot_time TEXT NOT NULL,
     cash REAL NOT NULL,
     market_value REAL NOT NULL,
     equity REAL NOT NULL,
     realized_pnl REAL NOT NULL,
     unrealized_pnl REAL NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    UNIQUE (book_id, snapshot_time)
 );
+"""
+
+EQUITY_SNAPSHOTS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_equity_snapshots_book_time
+ON equity_snapshots(book_id, snapshot_time DESC);
 """
 
 BACKTEST_RUNS_TABLE_SQL = """
@@ -910,6 +918,7 @@ SCHEMA_SQL = "\n".join(
         TRADES_INDEXES_SQL,
         GLOBAL_SETTINGS_TABLE_SQL,
         EQUITY_SNAPSHOTS_TABLE_SQL,
+        EQUITY_SNAPSHOTS_INDEXES_SQL,
         BACKTEST_RUNS_TABLE_SQL,
         BACKTEST_TRADES_TABLE_SQL,
         BACKTEST_EQUITY_SNAPSHOTS_TABLE_SQL,

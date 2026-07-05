@@ -7,6 +7,7 @@ from common.coercion import coerce_int
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin_deletions import (
+    count_equity_snapshots_for_account_ids,
     delete_accounts_by_ids,
     delete_backtest_equity_snapshots_by_run_ids,
     delete_backtest_runs_by_account_ids,
@@ -99,7 +100,7 @@ def delete_accounts(
         {
             "accounts": len(targets),
             "trades": fetch_row_count(conn, "trades", "account_id", account_ids),
-            "equity_snapshots": fetch_row_count(conn, "equity_snapshots", "account_id", account_ids),
+            "equity_snapshots": count_equity_snapshots_for_account_ids(conn, account_ids),
             "backtest_runs": len(run_ids),
             "walk_forward_groups": len(walk_forward_group_ids),
             "promotion_reviews": len(review_ids),
