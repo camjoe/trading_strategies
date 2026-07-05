@@ -13,7 +13,7 @@ from common.time import utc_now_iso
 from trading.repositories.book_bridge import strategy_id_for_label
 
 
-def strategy_id_for(conn: sqlite3.Connection, label: str, *, now_iso: str | None = None) -> int:
+def ensure_strategy_id_for_label(conn: sqlite3.Connection, label: str, *, now_iso: str | None = None) -> int:
     strategy_id = strategy_id_for_label(conn, label, now_iso=now_iso or utc_now_iso())
     assert strategy_id is not None  # non-empty label always resolves or draft-creates
     return strategy_id

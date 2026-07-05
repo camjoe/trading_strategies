@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import pytest
 
-from tests.support.strategies import strategy_id_for
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def seed_history_run(conn: sqlite3.Connection) -> Callable[..., None]:
             )
             VALUES (?, ?, 'test', '2026-01-01', ?, 0.0, 0.0, '[]', '2026-03-01T00:00:00Z')
             """,
-            (account_id, strategy_id_for(conn, strategy_name), end_date),
+            (account_id, ensure_strategy_id_for_label(conn, strategy_name), end_date),
         )
         run_id = int(conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"])
         conn.executemany(

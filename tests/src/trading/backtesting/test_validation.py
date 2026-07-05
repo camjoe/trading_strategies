@@ -4,7 +4,7 @@ import pytest
 import trading.backtesting.backtest as backtest_module
 import trading.backtesting.services.leaderboard_service as leaderboard_service
 from tests.support.backtesting import create_backtest_account, make_backtest_config
-from tests.support.strategies import strategy_id_for
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 class TestBacktestValidationAndFailurePaths:
@@ -47,7 +47,7 @@ class TestBacktestValidationAndFailurePaths:
             """,
             (
                 int(account_id),
-                strategy_id_for(conn, "trend_v1"),
+                ensure_strategy_id_for_label(conn, "trend_v1"),
                 "no-snapshots",
                 "2026-01-01",
                 "2026-02-01",

@@ -5,7 +5,7 @@ import sqlite3
 import pandas as pd
 import pytest
 
-from tests.support.strategies import strategy_id_for
+from tests.support.strategies import ensure_strategy_id_for_label
 from trading.services.accounts import create_account
 from trading.backtesting.backtest import BacktestConfig, run_backtest
 from trading.backtesting.repositories.report_repository import (
@@ -90,7 +90,7 @@ def _insert_account_and_runs(conn: sqlite3.Connection, account_name: str, run_co
             """,
             (
                 account_id,
-                strategy_id_for(conn, "trend_v1"),
+                ensure_strategy_id_for_label(conn, "trend_v1"),
                 f"run_{i}",
                 "2026-01-01",
                 "2026-01-31",

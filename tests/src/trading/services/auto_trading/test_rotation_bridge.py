@@ -3,7 +3,7 @@ from trading.services.accounts import create_account, get_account
 from trading.repositories.accounts import AccountRepository
 from trading.services.auto_trading import RotationDeps
 from tests.src.trading.services.auto_trading.factories import make_auto_trading_account, make_feature_bundle
-from tests.support.strategies import strategy_id_for
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 def _insert_backtest_run(
@@ -33,7 +33,7 @@ def _insert_backtest_run(
         """,
         (
             account_id,
-            strategy_id_for(conn, strategy_name),
+            ensure_strategy_id_for_label(conn, strategy_name),
             f"{strategy_name}-{end_date}",
             "2026-01-01",
             end_date,

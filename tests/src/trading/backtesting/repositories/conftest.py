@@ -7,7 +7,7 @@ import pytest
 
 from trading.services.accounts import create_account
 
-from tests.support.strategies import strategy_id_for
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def seed_bt_run(conn: sqlite3.Connection) -> Callable[..., int]:
                 """,
                 (
                     account_id,
-                    strategy_id_for(conn, strategy_name),
+                    ensure_strategy_id_for_label(conn, strategy_name),
                     run_name,
                     "2026-01-01",
                     end_date,

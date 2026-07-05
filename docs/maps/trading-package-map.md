@@ -215,6 +215,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
+| `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/sleeve/label/broker-order access paths (retires with P4) |
 
 ---
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from trading.repositories.snapshots import EquitySnapshotRepository
-from tests.support.strategies import strategy_id_for
+from tests.support.strategies import ensure_strategy_id_for_label
 from trading.backtesting.repositories.walk_forward_repository import (
     insert_walk_forward_group,
     insert_walk_forward_group_run,
@@ -34,7 +34,7 @@ def insert_backtest_run(
         """,
         (
             account_id,
-            strategy_id_for(conn, strategy_name),
+            ensure_strategy_id_for_label(conn, strategy_name),
             run_name,
             "2026-01-01",
             "2026-01-31",
