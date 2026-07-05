@@ -14,8 +14,9 @@ from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 
 
 class _StaticCursor:
-    def __init__(self, *, lastrowid=None, row=None) -> None:
+    def __init__(self, *, lastrowid=None, row=None, rowcount=1) -> None:
         self.lastrowid = lastrowid
+        self.rowcount = rowcount
         self._row = row
 
     def fetchone(self):
@@ -782,8 +783,15 @@ class TestSleeveRiskDecisionsRepository:
                 created_at="2026-05-03T00:00:00Z",
             )
 
-        with pytest.raises(ValueError, match="Expected daily_metrics id after insert"):
-            DailyMetricsRepository(_StaticConnection(_StaticCursor(row=None), _StaticCursor(lastrowid=None))).upsert(
+        with pytest.raises(ValueError, match="Expected daily_metrics id after upsert"):
+            DailyMetricsRepository(
+                _StaticConnection(
+                    _StaticCursor(row=None),  # default-book lookup misses
+                    _StaticCursor(lastrowid=7),  # bootstrap default book
+                    _StaticCursor(),  # metrics upsert
+                    _StaticCursor(row=None),  # id read-back fails
+                )
+            ).upsert(
                 account_id=1,
                 sleeve_id=None,
                 metric_date="2026-05-03",

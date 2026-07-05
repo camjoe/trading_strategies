@@ -447,11 +447,12 @@ CREATE TABLE IF NOT EXISTS sleeve_risk_decisions (
 );
 """
 
+# Clean-schema shape (P3 Phase E): metrics are book-keyed; account-level rows
+# live on the account's default book (docs/db-schema-target.md).
 DAILY_METRICS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS daily_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    sleeve_id INTEGER,
+    book_id INTEGER NOT NULL,
     metric_date TEXT NOT NULL,
     return_pct REAL,
     drawdown_pct REAL,
@@ -464,9 +465,14 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
     fees_total REAL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    UNIQUE (book_id, metric_date)
 );
+"""
+
+DAILY_METRICS_INDEXES_SQL = """
+CREATE INDEX IF NOT EXISTS idx_daily_metrics_book_date
+ON daily_metrics(book_id, metric_date DESC);
 """
 
 SLEEVE_INDEXES_SQL = """
@@ -513,16 +519,6 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_sleeve_time
 ON sleeve_risk_decisions(sleeve_id, decision_time DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_action_reason_time
 ON sleeve_risk_decisions(action, reason_code, decision_time DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_sleeve_date
-ON daily_metrics(account_id, sleeve_id, metric_date)
-WHERE sleeve_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_metrics_account_portfolio_date
-ON daily_metrics(account_id, metric_date)
-WHERE sleeve_id IS NULL;
-CREATE INDEX IF NOT EXISTS idx_daily_metrics_account_date
-ON daily_metrics(account_id, metric_date DESC);
-CREATE INDEX IF NOT EXISTS idx_daily_metrics_sleeve_date
-ON daily_metrics(sleeve_id, metric_date DESC);
 """
 
 WALK_FORWARD_GROUPS_TABLE_SQL = """
@@ -939,6 +935,7 @@ SCHEMA_SQL = "\n".join(
         PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
         SLEEVE_RISK_DECISIONS_TABLE_SQL,
         DAILY_METRICS_TABLE_SQL,
+        DAILY_METRICS_INDEXES_SQL,
         SLEEVE_INDEXES_SQL,
         WALK_FORWARD_GROUPS_TABLE_SQL,
         WALK_FORWARD_GROUP_RUNS_TABLE_SQL,

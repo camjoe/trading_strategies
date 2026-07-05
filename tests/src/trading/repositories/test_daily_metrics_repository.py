@@ -64,6 +64,7 @@ class TestUpsert:
     def test_raises_on_insert_failure(self) -> None:
         class _Cursor:
             lastrowid = None
+            rowcount = 1  # pretend the default-book bootstrap insert succeeded
 
             def fetchone(self):
                 return None
@@ -78,7 +79,7 @@ class TestUpsert:
             def commit(self):
                 pass
 
-        with pytest.raises(ValueError, match="Expected daily_metrics id after insert"):
+        with pytest.raises(ValueError, match="Expected daily_metrics id after upsert"):
             DailyMetricsRepository(_Conn()).upsert(
                 account_id=1,
                 sleeve_id=None,
