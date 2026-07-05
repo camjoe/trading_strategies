@@ -225,3 +225,13 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   2a-2 gate → 2a-3 account cutover → 2a-4 sleeve cutover + reconciliation re-point → 2a-5 retire
   legacy writers). Noted the reconciliation coupling: `reconcile_open_broker_orders` reads
   `broker_orders`/`sleeve_orders` and must move to clean `orders` in lockstep with the cutover.
+- 2026-07-05 — 2a-1 landed: the `trading.services.execution` package now exists in isolation (no
+  caller wired). `submit_book_intents` runs the injected gate → per approved intent `broker.place_order`
+  → persists the clean book-keyed `orders`/`order_fills`, and on a filled order updates `positions` +
+  appends a single `ledger` `trade` entry — the first writer of those tables. Added the passive
+  `BookTradeIntent`/`GateResult`/`SubmissionResult` contracts (`models/execution/`), the `PreSubmitGate`
+  protocol + `AllowAllGate`, and `OrderRepository.insert_fill` (order_id-keyed). Broker-API exceptions
+  append the `broker_api_anomaly` kill switch and stop, mirroring the legacy sleeve loop. Fill math
+  reuses the domain `apply_sleeve_fill_transition` (book-agnostic; folds broker commission + configured
+  fee into cost basis). Unit tests cover fill / hold / partial / broker-exception / gate-block /
+  gate-kill-switch / sell / on-fill. Next: 2a-2 (production gate).
