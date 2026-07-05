@@ -19,7 +19,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 |---|---|---|---|---|---|
 | 1 | Close the execution loop (keystone) | Committed | ✅ done (E1 · E2 parity) | L | [D1](decisions.md#d1) |
 | 2 | Finish unified evaluation | Committed | ✅ done (1a·1b·1c) | S | — |
-| 3 | DB schema rewrite (greenfield, option B) | Committed | ✎ spec ready | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
+| 3 | DB schema rewrite (greenfield, option B) | Committed | ✅ done (A–E) | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
 | 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
 | 5 | Decisioning legibility & naming pass | Committed | ☐ | M | [D13](decisions.md#d13) |
 | 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | M | [D5](decisions.md#d5) |
@@ -98,10 +98,20 @@ off: the clean book schema is the foundation that P4 (convergence), P6/4a (data-
 strategies), and P7 (parameter source) build on. Full schema:
 [DB Schema Rewrite Spec](db-schema-rewrite-spec.md) + [DB Schema Target](db-schema-target.md).
 
+- **Done (2026-07-05, `features/p3-phase-e` + earlier P3 branches).** All five phases landed:
+  A (clean DDL + FK enforcement), B (passive `book`/`strategy`/`order` models), C (SQL-only
+  repositories with the invariant guards), D (`PRIMITIVE_CATALOG` + idempotent strategy/book seed),
+  E (re-pointed reads — the four colliding operational tables `equity_snapshots` / `daily_metrics` /
+  `rotation_decisions` / `order_fills` swapped to book/order keys via `book_bridge`, and
+  `backtest_runs` / `walk_forward_groups` swapped to `strategy_id` FKs). Evaluation-evidence,
+  reporting, and analysis reads flow through the swapped repositories unchanged.
 - Scope (P3 = schema **and** the code that reads it): new DDL; new repositories against the clean
   tables; re-point evaluation-evidence and backtest reads to book-keyed tables.
-- **P3↔P4 boundary:** P3 delivers the schema + repositories + re-pointed reads; P4 builds the
-  converged submission/rotation/accounting **services** on top.
+- **P3↔P4 boundary:** P3 delivered the schema + repositories + re-pointed reads; P4 builds the
+  converged submission/rotation/accounting **write** services on top. During the interim the clean
+  tables are reached from the legacy access paths through `trading/repositories/book_bridge.py`
+  (account→default book, sleeve→bridging book, label→catalog row, broker-order→orders mirror); those
+  bridges retire with P4.
 - **Operational note — runtime pause (accepted 2026-07-02):** because P3 drops the old operational
   tables and the write services arrive only with P4, the paper-trading scheduler jobs are **paused
   from P3 Phase A until P4's shared submission service (2a) lands**. Expected and accepted (pre-live,

@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-03
+Last Reviewed: 2026-07-05
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the detailed backlog in [plan.md](plan.md) and the plans it references.
@@ -80,13 +80,15 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   strategy's signal function per candidate ticker through the same `evaluate_signal(...)` entry the
   backtester uses: trade only on real signals, no forced minimum, a per-run max cap. Rotation now
   changes what the trader actually does. (The legacy random/style-biased placeholder is removed.)
-- **Strategy knobs are not yet data.** Backtest and live share one params-aware evaluation via the
-  `resolve_strategy_params` seam, but that seam still returns the code registry's `default_params` —
-  the account/strategy-row knob storage arrives with the schema rewrite (P3/D4). "Different
-  parameters" is therefore not yet an end-to-end data lever.
-- **Strategies are code, not data.** Adding a genuinely new strategy requires a new signal function
-  and a `STRATEGY_REGISTRY` edit. Adding a *variant/tuning* of an existing strategy should be data,
-  but only once parameters are wired through (above).
+- **Strategy knobs are not yet a live data lever.** The clean schema stores them (P3: a
+  `strategies` catalog with `params_json`, seeded from the registry), but the read path still runs
+  off code: `resolve_strategy_params` returns the registry `default_params` and `resolve_strategy`
+  reads `STRATEGY_REGISTRY`. Wiring the loader onto the catalog is P6/4a; the operator edit surface
+  is P7.
+- **Strategies are code at the resolution layer, though the catalog is now data.** P3 seeded a
+  `strategies` table, but adding a genuinely new strategy still needs a new signal function +
+  `STRATEGY_REGISTRY` edit until P6 loads definitions from the catalog. A *variant/tuning* becomes a
+  pure data change once P6/P7 land.
 - **Two rotation paradigms and duplicated account/sleeve orchestration** — see the
   [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
 - **Parameters are scattered** across ~5 stores with no single view — see P7 (unified parameter
@@ -133,10 +135,13 @@ defining") are consolidated in [decisions.md](decisions.md); convergence detail 
 2. **P2 — Unified evaluation — done.** The shared decision-score contract backs compare, promotion,
    and sleeve rotation, with cross-surface regression tests proving all three surfaces read it
    identically (1a/1b/1c complete).
-3. **P3 — DB schema rewrite (greenfield, option B).** Decided rewrite-first (no data to lose,
-   pre-live is the cheapest time). The clean book schema is built before convergence.
+3. **P3 — DB schema rewrite (greenfield, option B) — done (2026-07-05).** The clean book schema is
+   live: `books` + per-concern settings, one order/fill/position/ledger model, book-keyed snapshots/
+   metrics/rotation decisions (with first-class score columns), a data-defined `strategies` catalog,
+   and `strategy_id`-keyed backtests. Reads are re-pointed; legacy access paths reach the clean
+   tables through `book_bridge` until P4's write services retire the shims.
 4. **P4–P5 — Converge accounts and sleeves once on the clean schema** (submission/rotation/
-   accounting), with the decisioning legibility/naming pass alongside.
+   accounting), with the decisioning legibility/naming pass alongside. **Next up.**
 5. **P6–P7 — Plug-and-play strategy/provider catalog and a unified parameter source**, on the new
    schema (service-first, UI optional).
 6. **P8–P9** — email notifications (independent) and the portfolio risk rollup.
