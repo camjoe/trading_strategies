@@ -12,12 +12,8 @@ from trading.models.orders.broker_order import BrokerOrder, OrderStatus
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
+from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
-
-# Broker anomaly kill-switch reason. Owned here (the execution service catches the
-# broker exception); the routing phases (2a-3/2a-4) import it instead of the copy
-# currently living in auto_trading/runtime.py.
-KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
 
 # Ledger vocabulary for a filled trade (a single book-keyed cash-movement entry).
 # 2c (unified accounting) splits this into cash/fee/realized-pnl entries.

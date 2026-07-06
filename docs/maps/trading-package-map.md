@@ -144,7 +144,9 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
 | `evaluation/evidence.py` | Rotation episode evidence assembly |
 | `evaluation/queries.py` | Evaluation data queries |
-| `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate — the injected kill-switch seam for book submission (P4) |
+| `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path (P4) |
+| `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission (P4) |
+| `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches (P4) |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger (P4) |
 | `ibkr_paper_monitor/artifacts.py` | IBKR paper-monitor artifact assembly |
 | `ibkr_paper_monitor/queries.py` | IBKR paper-monitor data queries |

@@ -6,6 +6,7 @@ from typing import Protocol
 
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.gate_result import GateResult
+from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
 
 
 class PreSubmitGate(Protocol):
@@ -25,6 +26,28 @@ class PreSubmitGate(Protocol):
         account_id: int,
         intents: Sequence[BookTradeIntent],
     ) -> GateResult: ...
+
+
+class GateAuditSink(Protocol):
+    """Sink for the gate's risk audit (decisions + kill-switch reasons).
+
+    Injected so the concrete persistence (risk snapshot + normalized decisions
+    through the existing repos) is wired at the account/sleeve cutover (2a-4)
+    without the clean execution service depending on the ``auto_trading`` layer
+    that will call it. ``decisions`` are the notional-gate outcomes; under the
+    book-as-bucket model their ``sleeve_id`` field carries the ``book_id``.
+    """
+
+    def record(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        account_id: int,
+        snapshot_time: str,
+        decisions: Sequence[SleeveRiskDecision],
+        kill_switch_reasons: Sequence[str],
+        kill_switch_triggered: bool,
+    ) -> None: ...
 
 
 class AllowAllGate:

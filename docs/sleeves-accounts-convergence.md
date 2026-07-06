@@ -235,3 +235,15 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   reuses the domain `apply_sleeve_fill_transition` (book-agnostic; folds broker commission + configured
   fee into cost basis). Unit tests cover fill / hold / partial / broker-exception / gate-block /
   gate-kill-switch / sell / on-fill. Next: 2a-2 (production gate).
+- 2026-07-05 — 2a-2 landed: `BookPreSubmitGate` (the production `PreSubmitGate`) composes the
+  pre-submit kill switches (stale-price + reconciliation missing/stale/mismatch) with the notional
+  risk gate. **Decision — book-as-bucket:** `book_id` is the risk bucket, so the domain
+  `evaluate_sleeve_risk_gate` policy is reused **unchanged** via a thin adapter (BookTradeIntent →
+  sleeve-shaped with `sleeve_id=book_id`; book equity/positions adapted), and account mode inherits the
+  notional caps too (safety strengthens beyond the DoD minimum, which only promised kill switches).
+  Reconciliation rolls up book equity vs the latest account snapshot. Kill-switch reasons/thresholds
+  centralized in `services/execution/constants.py` (submission repointed). Audit persistence is an
+  injected `GateAuditSink` protocol — concrete sink wired at 2a-4 to avoid an execution→auto_trading
+  cycle; the gate stays free of any auto_trading/sleeves *service* import (domain + repositories +
+  models only). Gate unit tests: allow / rescale / block honored; each kill switch fires; sell allowed;
+  audit sink receives decisions + reasons. Next: 2a-3 (route account mode through the service).
