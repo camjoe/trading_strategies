@@ -71,9 +71,7 @@ class FakeBroker:
 class BlockingGate:
     """Gate that rejects every intent (no kill switch)."""
 
-    def evaluate(
-        self, conn: sqlite3.Connection, *, account_id: int, intents: Sequence[BookTradeIntent]
-    ) -> GateResult:
+    def evaluate(self, conn: sqlite3.Connection, *, account_id: int, intents: Sequence[BookTradeIntent]) -> GateResult:
         return GateResult(blocked_intents=list(intents))
 
 
@@ -83,9 +81,7 @@ class KillSwitchGate:
     def __init__(self, reason: str = "stale_price_data") -> None:
         self._reason = reason
 
-    def evaluate(
-        self, conn: sqlite3.Connection, *, account_id: int, intents: Sequence[BookTradeIntent]
-    ) -> GateResult:
+    def evaluate(self, conn: sqlite3.Connection, *, account_id: int, intents: Sequence[BookTradeIntent]) -> GateResult:
         return GateResult(kill_switch_reasons=[self._reason])
 
 
@@ -148,7 +144,11 @@ def test_happy_fill_persists_order_fill_position_and_ledger(conn, book_env):
     broker = FakeBroker(
         status=OrderStatus.FILLED,
         avg_fill_price=101.0,
-        fills=[OrderFill(filled_qty=10.0, fill_price=101.0, fill_time="2026-07-05T10:00:01Z", commission=0.0, exec_id="E1")],
+        fills=[
+            OrderFill(
+                filled_qty=10.0, fill_price=101.0, fill_time="2026-07-05T10:00:01Z", commission=0.0, exec_id="E1"
+            )
+        ],
     )
 
     result = submit_book_intents(
@@ -247,7 +247,9 @@ def test_partial_fill_records_fills_but_defers_position_and_ledger(conn, book_en
         status=OrderStatus.PARTIALLY_FILLED,
         filled_qty=4.0,
         avg_fill_price=100.0,
-        fills=[OrderFill(filled_qty=4.0, fill_price=100.0, fill_time="2026-07-05T10:00:01Z", commission=0.0, exec_id="P1")],
+        fills=[
+            OrderFill(filled_qty=4.0, fill_price=100.0, fill_time="2026-07-05T10:00:01Z", commission=0.0, exec_id="P1")
+        ],
     )
 
     result = submit_book_intents(

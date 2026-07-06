@@ -151,9 +151,7 @@ def test_stale_price_kill_switch_holds_the_book(conn):
     _snapshot(conn, book_id, equity=100_000.0)
 
     # No live mark for AAPL → stale-price fires even though the notional gate allowed it.
-    result = _gate({}).evaluate(
-        conn, account_id=account_id, intents=[_intent(book_id, account_id)]
-    )
+    result = _gate({}).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
 
     assert result.kill_switch_reasons == [KILL_SWITCH_REASON_STALE_PRICE_DATA]
     assert result.approved_intents == []
@@ -163,9 +161,7 @@ def test_reconciliation_snapshot_missing_kill_switch(conn):
     account_id, book_id = _book_env(conn, equity=100_000.0)
     # No snapshot inserted.
 
-    result = _gate({"AAPL": 100.0}).evaluate(
-        conn, account_id=account_id, intents=[_intent(book_id, account_id)]
-    )
+    result = _gate({"AAPL": 100.0}).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
 
     assert result.kill_switch_reasons == [KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING]
     assert result.approved_intents == []
@@ -176,9 +172,7 @@ def test_stale_reconciliation_snapshot_kill_switch(conn):
     # Snapshot equity matches (no mismatch) but is far older than the 6h freshness window.
     _snapshot(conn, book_id, equity=100_000.0, snapshot_time="2026-07-01T00:00:00Z")
 
-    result = _gate({"AAPL": 100.0}).evaluate(
-        conn, account_id=account_id, intents=[_intent(book_id, account_id)]
-    )
+    result = _gate({"AAPL": 100.0}).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
 
     assert result.kill_switch_reasons == [KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT]
     assert result.approved_intents == []
@@ -189,9 +183,7 @@ def test_reconciliation_mismatch_kill_switch(conn):
     # Fresh snapshot, but equity disagrees with the book roll-up beyond tolerance.
     _snapshot(conn, book_id, equity=90_000.0)
 
-    result = _gate({"AAPL": 100.0}).evaluate(
-        conn, account_id=account_id, intents=[_intent(book_id, account_id)]
-    )
+    result = _gate({"AAPL": 100.0}).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
 
     assert result.kill_switch_reasons == [KILL_SWITCH_REASON_RECONCILIATION_MISMATCH]
     assert result.approved_intents == []
@@ -205,9 +197,7 @@ def test_audit_sink_receives_decisions_and_reasons(conn):
     _snapshot(conn, book_id, equity=100_000.0)
     sink = RecordingSink()
 
-    _gate({}, audit_sink=sink).evaluate(
-        conn, account_id=account_id, intents=[_intent(book_id, account_id)]
-    )
+    _gate({}, audit_sink=sink).evaluate(conn, account_id=account_id, intents=[_intent(book_id, account_id)])
 
     assert len(sink.calls) == 1
     call = sink.calls[0]
