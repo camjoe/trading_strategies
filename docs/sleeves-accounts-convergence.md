@@ -267,3 +267,12 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   sleeve ledger's mixed audit design. Still no caller. Tests: cash/equity updated on buy/sell; fee
   splits into its own entry and drops equity; ledger sums to the cash delta. Next: 2c-2 (book NAV
   marking to market).
+- 2026-07-05 — 2c-2 landed: `services/execution/nav.py` — `mark_book_to_market` /
+  `mark_account_to_market` re-mark a book's (or an account's) positions to the current price marks and
+  recompute `current_equity = current_cash + Σ(qty × mark)`, updating positions + book balances (cash
+  untouched). This is the book-level equivalent of the sleeve NAV marking; it makes the internal
+  equity market-marked so it matches the market-marked snapshot the reconciliation compares against.
+  Unpriced positions are held at cost basis (zero unrealized) and reported via
+  `BookNavMarkResult.unpriced_symbols`. Tests: equity reflects marks; unpriced fallback; account-wide;
+  empty book = cash; missing book raises. Next: 2c-3 (book equity reconciliation as the gate's source
+  — runtime marks books, then the gate reconciles).
