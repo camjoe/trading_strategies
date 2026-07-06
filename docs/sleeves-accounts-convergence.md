@@ -247,3 +247,12 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   cycle; the gate stays free of any auto_trading/sleeves *service* import (domain + repositories +
   models only). Gate unit tests: allow / rescale / block honored; each kill switch fires; sell allowed;
   audit sink receives decisions + reasons. Next: 2a-3 (route account mode through the service).
+- 2026-07-05 — 2a-3 investigation surfaced a sequencing blocker; **2c re-sequenced before the 2a
+  cutover** (decided this session). The gate's reconciliation kill switch + notional caps read
+  `books.current_equity`, but book balances are bootstrapped to `initial_cash` by `book_bridge` and
+  never maintained during 2a, while the snapshot they reconcile against is market-marked
+  (`account_report`). Wiring the full gate into account mode now would misfire (mismatch blocks every
+  trade) and size caps off stale equity. So 2a splits into an isolated build (2a-1/2a-2, done) and a
+  cutover (2a-3/2a-4/2a-5) that follows 2c. Detailed the 2c build plan (book fill accounting → NAV
+  marking → reconciliation → book-derived snapshots) in the [P4 work order §6b](implementation/p4-convergence.md).
+  Live order now: 2a-1/2a-2 → 2c → 2a-3/2a-4/2a-5 → 2b. Next: 2c-1 (book fill accounting in isolation).

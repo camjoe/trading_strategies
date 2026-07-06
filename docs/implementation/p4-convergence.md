@@ -36,6 +36,13 @@ This work order details **2a** (the shared submission service) in full and sketc
 accounting/ledger) and **2b** (unified rotation/selection), which follow. Internal order: **2a → 2c
 → 2b**, with the P5 naming pass alongside 2b.
 
+> **Sequencing refined 2026-07-05 (during 2a-3).** 2a splits into an *isolated build* (2a-1 service +
+> 2a-2 gate, no caller — done) and a *cutover* (2a-3 account, 2a-4 sleeve, 2a-5 retire). The cutover
+> is **blocked on 2c**: the gate's reconciliation kill switch and notional caps read
+> `books.current_equity`, which is bootstrapped to `initial_cash` and **never maintained during 2a**,
+> while the snapshot it reconciles against is market-marked (`account_report`). So the live order is
+> **2a-1/2a-2 → 2c → 2a-3/2a-4/2a-5 → 2b**. See §5 and the 2c build plan (§6b).
+
 ### Definition of Done (2a)
 - [ ] One `trading.services.execution` service (new `services/execution` package) submits a book's approved intents: pre-submit gate →
       `broker.place_order` → persist to clean `orders`/`order_fills` → on fill, update
@@ -89,6 +96,15 @@ accounting/ledger) and **2b** (unified rotation/selection), which follow. Intern
 - **Surviving rotation paradigm (for 2b, not 2a):** champion/challenger on the decision-score
   contract survives; the account-episode path retires. Confirm during 2b. *(Per the convergence
   plan's open question; recorded here so 2b has no ambiguity.)*
+- **Gate risk bucket = book (book-as-bucket):** the pre-submit gate reuses the domain notional
+  risk-gate policy (`evaluate_sleeve_risk_gate`) **unchanged** by treating `book_id` as the risk
+  bucket (a sleeve is one book; a plain account is one default book) and adapting book
+  intents/equity/positions into the policy's sleeve-shaped inputs. Account mode therefore also gains
+  the notional caps — a strengthening beyond the DoD minimum, consistent with "safety only
+  strengthens". *(Decided 2026-07-05, during 2a-2.)*
+- **2c is sequenced before the 2a cutover:** the gate needs live, market-marked book equity to run on
+  the account/sleeve path (reconciliation kill switch + notional caps). Book balances aren't
+  maintained until 2c, so 2c lands first. *(Decided 2026-07-05, during 2a-3 — see §6b.)*
 
 ## 6. Build plan — 2a (ordered; each a green commit)
 
@@ -121,6 +137,8 @@ accounting/ledger) and **2b** (unified rotation/selection), which follow. Intern
 - Check: gate unit tests (each kill switch fires; allow/rescale/block honored) green.
 
 ### Phase 2a-3 — Route account mode through the service  **[strong]**
+> **Blocked on 2c (§6b).** Do 2c first: this phase injects the full gate, whose reconciliation kill
+> switch + notional caps need live, market-marked book equity that 2c delivers.
 - In `auto_trading/runtime.py`, replace `_broker_aware_record_trade` with a call to
   `submit_book_intents` against the account's **default book** (resolve via `book_bridge`), passing
   the injected gate. The account's selection tuple becomes a single-book `BookTradeIntent`.
@@ -145,6 +163,57 @@ accounting/ledger) and **2b** (unified rotation/selection), which follow. Intern
   them (mind reporting/CSV export/admin deletions). Stage the DROPs like the P3 E-phase cutovers
   (drop empty/legacy tables, note the pre-P4 backup).
 - Check: full `run_checks ci` green.
+
+## 6b. Build plan — 2c (unified accounting; sequenced before the 2a cutover)
+
+**Why now:** the gate (2a-2) reads `books.current_equity` for its reconciliation kill switch and
+notional caps, but book balances are bootstrapped to `initial_cash` and never maintained during 2a,
+and the snapshot the reconciliation compares against is **market-marked** (`account_report` via a
+provider). 2c makes the book ledger the single accounting source, maintains book balances on fills,
+and marks book NAV to market — so the gate has valid data when 2a-3/2a-4 wire it.
+
+**Current divergence (evidence):** accounts use `record_trade` → `trades` (equity market-marked at
+report time); sleeves use `apply_sleeve_fill` → `sleeve_ledger` + `sleeve_positions` +
+`strategy_sleeves` balances (fill-marked); the clean path (2a-1) writes `positions` + a single
+minimal `trade` ledger entry and no book balances.
+
+### Definition of Done (2c)
+- [ ] `submit_book_intents` on-fill writes the full book `ledger` split (cash movement + fee +
+      realized-pnl) and maintains `books.current_cash`/`current_equity`, reusing the domain fill
+      transition; exec-id idempotency preserved.
+- [ ] A book NAV-marking service marks a book's positions to current provider prices and updates
+      `current_equity`, mirroring the sleeve NAV marking the runtime snapshot/reconciliation relies on.
+- [ ] Book equity reconciliation (NAV-marked book equity vs latest snapshot) is the valid source the
+      gate's reconciliation kill switch consumes.
+- [ ] Sleeve fills are a clean extension of the single book-ledger path — no divergent `record_trade`
+      / `sleeve_ledger` copy on the converged path (legacy writers retire in 2a-5).
+
+### Phase 2c-1 — Book fill accounting: ledger split + book balances, in isolation  **[strong]**
+- Extend the 2a-1 on-fill: replace the single `trade` ledger entry with the domain transition's split
+  — `cash_movement` + `fee` (when > 0) + `realized_pnl` (when ≠ 0), `reference_type='order'`,
+  `reference_id=<order_id>` — and update `books.current_cash` (+= `cash_delta`) and `current_equity`
+  (fill-marked ending) via `BookRepository.update_balances`. Reuse `apply_sleeve_fill_transition`
+  (already used for positions). Keep exec-id idempotency so replays don't double-post.
+- **No caller change.** Tests: buy/sell ledger rows; book cash/equity updated; idempotent replay.
+- Check: `run_suite src/trading/services/execution` green; layer + mypy clean.
+
+### Phase 2c-2 — Book NAV-marking service  **[strong]**
+- A service that, given current prices, marks a book's (or an account's books') `positions` to market
+  and recomputes `current_equity = current_cash + Σ(qty × price)`, updating `books`. Mirrors the
+  sleeve NAV marking (`01_mark_sleeve_nav` is handled inside the runtime snapshot/reconciliation).
+- Check: NAV-marking unit tests (equity reflects marked prices; missing price handled).
+
+### Phase 2c-3 — Book equity reconciliation as the gate's source  **[strong]**
+- Reconcile Σ(book equity) (NAV-marked) vs the latest account snapshot within tolerance. The runtime
+  marks books (2c-2) before invoking the gate so the reconciliation kill switch reads valid equity.
+- Check: reconciliation unit tests (within/out-of-tolerance; stale/missing snapshot).
+
+### Phase 2c-4 — Book-derived snapshots (confirm)  **[light]**
+- Point the snapshot writer at book balances (or confirm the existing account roll-up already agrees)
+  so snapshot and reconciliation share one marking source. Confirm the account-view roll-up holds.
+- Check: snapshot/reconciliation agree within tolerance end-to-end.
+
+After 2c: resume **2a-3 → 2a-4 → 2a-5** with the now-valid gate, then **2b**.
 
 ## 7. Areas of code expected to be edited
 - **New:** the `trading.services.execution` package (service + gate + intent contract), with tests under
@@ -176,8 +245,9 @@ and cutover tests asserting the clean tables receive the writes.
 - Any check red → fix or stop and report; never commit on red.
 
 ## 10. Out of scope (this work order's 2a focus)
-- **2c (unified accounting/ledger):** make sleeve fills a clean extension of the single ledger path
-  rather than a divergent `record_trade` copy. Follows 2a; detail when reached.
+- **2c (unified accounting/ledger):** now detailed in §6b and sequenced **before** the 2a cutover —
+  make sleeve/account fills a clean extension of the single book-ledger path (no divergent
+  `record_trade` copy), maintain book balances, and mark book NAV to market for reconciliation.
 - **2b (unified rotation/selection):** collapse account-episode + champion/challenger onto the
   decision-score contract; reduce rotation module sprawl; retire the episode path. Depends on 1a
   (done). P5 naming pass alongside.
