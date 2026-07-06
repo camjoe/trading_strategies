@@ -216,10 +216,22 @@ minimal `trade` ledger entry and no book balances.
   marks books (2c-2) before invoking the gate so the reconciliation kill switch reads valid equity.
 - Check: reconciliation unit tests (within/out-of-tolerance; stale/missing snapshot).
 
-### Phase 2c-4 — Book-derived snapshots (confirm)  **[light]**
-- Point the snapshot writer at book balances (or confirm the existing account roll-up already agrees)
-  so snapshot and reconciliation share one marking source. Confirm the account-view roll-up holds.
-- Check: snapshot/reconciliation agree within tolerance end-to-end.
+### Phase 2c-4 — Confirm the snapshot ↔ book-equity roll-up  **[light]**
+- **Correction (found during 2c-4):** do **not** point the reconciliation snapshot at book balances.
+  The reconciliation kill switch compares Σ book equity against the snapshot; if the snapshot were
+  *derived from* those same book balances, both sides share one source and the check becomes a
+  tautology — a weakened kill switch. The snapshot must stay an **independent** measure. During the
+  migration that independent measure is the account/trades roll-up (`account_report`); post-migration
+  it becomes the **broker** (`get_account_info`) — see the follow-up below.
+- So 2c-4 is the plan's *confirm* option: prove that the clean book accounting and the independent
+  account/trades accounting **agree** on the same fills marked at the same prices, so the
+  reconciliation won't false-positive at cutover.
+- Check: an integration test runs one fill through both paths (`record_trade` + `submit_book_intents`),
+  marks at shared prices, and asserts equal equity + a clean `reconcile_book_equity` against the
+  account-sourced snapshot.
+- **Follow-up (post-cutover, not 2c):** once the legacy trades path retires (2a-5), the reconciliation
+  snapshot must move to the broker's reported equity (book-vs-reality), since book-vs-trades no longer
+  has two independent sources. Track under the reconciliation redesign.
 
 After 2c: resume **2a-3 → 2a-4 → 2a-5** with the now-valid gate, then **2b**.
 

@@ -285,3 +285,14 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   (missing / stale / mismatch / within-tolerance) + an **integration** test proving the full pipeline
   — `submit_book_intents` fill (2c-1) → `mark_book_to_market` (2c-2) → `reconcile_book_equity` clean
   against an agreeing snapshot. Next: 2c-4 (confirm book-derived snapshots share one marking source).
+- 2026-07-05 — 2c-4 landed; **2c (unified accounting) complete**. **Correction to the plan:** do NOT
+  point the reconciliation snapshot at book balances — the kill switch compares Σ book equity vs the
+  snapshot, so a book-derived snapshot would make both sides one source and the check a tautology (a
+  weakened kill switch). The snapshot stays an independent measure: the account/trades roll-up during
+  migration, the broker (`get_account_info`) post-migration (flagged as a follow-up in the work order).
+  2c-4 is the confirm option: an integration test runs one buy through **both** systems
+  (`record_trade` → trades and `submit_book_intents` → book), marks both at the same prices, and
+  asserts equal equity + a clean `reconcile_book_equity` against the account-sourced snapshot —
+  proving the two independent accountings agree so reconciliation won't false-positive at cutover.
+  The isolated 2a-1/2a-2 + 2c foundation is now complete (nothing wired; zero behavior change) — the
+  natural PR 1 boundary. Next: the 2a-3/2a-4/2a-5 cutover (PR 2), then 2b.
