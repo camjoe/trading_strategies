@@ -148,6 +148,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission (P4) |
 | `execution/nav.py` | Book NAV marking: re-mark a book's/account's positions to current prices and refresh `current_equity` (P4/2c) |
 | `execution/pre_submit_gate.py` | `BookPreSubmitGate`: book-as-bucket gate reusing the domain notional risk gate + stale-price/reconciliation kill switches (P4) |
+| `execution/reconciliation.py` | Book equity reconciliation: NAV-marked book equity vs latest snapshot → kill-switch reasons (the gate delegates here) (P4/2c) |
 | `execution/submission.py` | Shared book order-submission service: gate → broker place → persist clean orders/fills/positions/ledger (P4) |
 | `ibkr_paper_monitor/artifacts.py` | IBKR paper-monitor artifact assembly |
 | `ibkr_paper_monitor/queries.py` | IBKR paper-monitor data queries |

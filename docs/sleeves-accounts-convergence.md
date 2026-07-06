@@ -276,3 +276,12 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   `BookNavMarkResult.unpriced_symbols`. Tests: equity reflects marks; unpriced fallback; account-wide;
   empty book = cash; missing book raises. Next: 2c-3 (book equity reconciliation as the gate's source
   — runtime marks books, then the gate reconciles).
+- 2026-07-05 — 2c-3 landed: extracted `services/execution/reconciliation.py` —
+  `reconcile_book_equity` compares NAV-marked Σ book equity vs the latest snapshot and returns the
+  kill-switch reasons (missing / stale / mismatch). `BookPreSubmitGate` now **delegates** its inline
+  reconciliation here (dedup; equity reconciliation is now a first-class, testable unit — distinct
+  from the open-order reconciliation re-pointed in 2a-4). The function assumes books are NAV-marked
+  first; the runtime marks (2c-2) before the gate runs so both sides are market-marked. Tests: unit
+  (missing / stale / mismatch / within-tolerance) + an **integration** test proving the full pipeline
+  — `submit_book_intents` fill (2c-1) → `mark_book_to_market` (2c-2) → `reconcile_book_equity` clean
+  against an agreeing snapshot. Next: 2c-4 (confirm book-derived snapshots share one marking source).

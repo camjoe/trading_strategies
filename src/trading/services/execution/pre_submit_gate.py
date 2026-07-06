@@ -19,7 +19,6 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
-from common.time import parse_utc_iso
 from trading.domain.sleeve_risk_gate import evaluate_sleeve_risk_gate as evaluate_sleeve_risk_gate_policy
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.gate_result import GateResult
@@ -28,16 +27,13 @@ from trading.models.sleeves.sleeve_risk_gate_config import SleeveRiskGateConfig
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.execution.constants import (
-    KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
-    KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
     KILL_SWITCH_REASON_STALE_PRICE_DATA,
-    KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT,
     MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
     RECONCILIATION_EQUITY_TOLERANCE,
 )
 from trading.services.execution.gate import GateAuditSink
+from trading.services.execution.reconciliation import reconcile_book_equity
 
 
 class BookPreSubmitGate:
@@ -181,27 +177,12 @@ class BookPreSubmitGate:
     # --- reconciliation kill switches ---------------------------------------
 
     def _reconciliation_kill_switches(self, conn: sqlite3.Connection, account_id: int) -> list[str]:
-        snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
-        if snapshot is None:
-            return [KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING]
-
-        reasons: list[str] = []
-        if self._is_snapshot_stale(snapshot.snapshot_time):
-            reasons.append(KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT)
-
-        books = BookRepository(conn).fetch_for_account(account_id=account_id)
-        total_book_equity = sum(book.current_equity for book in books)
-        if abs(total_book_equity - float(snapshot.equity)) > self._equity_tolerance:
-            reasons.append(KILL_SWITCH_REASON_RECONCILIATION_MISMATCH)
-        return reasons
-
-    def _is_snapshot_stale(self, snapshot_time: str | None) -> bool:
-        # Freshness math, not domain policy; mirrors auto_trading's
-        # is_snapshot_time_stale (unified when the legacy sleeve path retires).
-        if snapshot_time is None:
-            return True
-        try:
-            age_seconds = (parse_utc_iso(self._snapshot_time) - parse_utc_iso(snapshot_time)).total_seconds()
-        except Exception:
-            return True
-        return age_seconds > float(self._max_snapshot_age_seconds)
+        # Delegates to the reusable equity reconciliation. Book equity is assumed
+        # NAV-marked (by the runtime, via nav.mark_account_to_market) before the gate runs.
+        return reconcile_book_equity(
+            conn,
+            account_id=account_id,
+            now_iso=self._snapshot_time,
+            equity_tolerance=self._equity_tolerance,
+            max_snapshot_age_seconds=self._max_snapshot_age_seconds,
+        )
