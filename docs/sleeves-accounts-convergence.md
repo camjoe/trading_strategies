@@ -256,3 +256,14 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   cutover (2a-3/2a-4/2a-5) that follows 2c. Detailed the 2c build plan (book fill accounting → NAV
   marking → reconciliation → book-derived snapshots) in the [P4 work order §6b](implementation/p4-convergence.md).
   Live order now: 2a-1/2a-2 → 2c → 2a-3/2a-4/2a-5 → 2b. Next: 2c-1 (book fill accounting in isolation).
+- 2026-07-05 — 2c-1 landed: `submit_book_intents` on-fill now maintains book balances and writes a
+  **summable cash-flow ledger**. **Correction to the plan:** the clean `ledger.entry_type` CHECK allows
+  only `trade`/`fee`/`deposit`/`withdrawal`/`adjustment`, so the sleeve ledger's
+  `cash_movement`/`realized_pnl` vocab can't be ported. A fill now posts a gross `trade` entry
+  (`-(qty×price)` buy / `+(qty×price)` sell) plus a `fee` entry (`-(commission+fee)`) when non-zero —
+  the two sum to the net cash delta — and updates `books.current_cash` (authoritative, incremental) +
+  `current_equity` (fill-marked: cash + Σ position market value) via `BookRepository.update_balances`.
+  Realized P&L is intentionally not a cash-ledger entry (derived for reporting), a cleanup vs the
+  sleeve ledger's mixed audit design. Still no caller. Tests: cash/equity updated on buy/sell; fee
+  splits into its own entry and drops equity; ledger sums to the cash delta. Next: 2c-2 (book NAV
+  marking to market).

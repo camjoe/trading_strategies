@@ -189,12 +189,20 @@ minimal `trade` ledger entry and no book balances.
       / `sleeve_ledger` copy on the converged path (legacy writers retire in 2a-5).
 
 ### Phase 2c-1 — Book fill accounting: ledger split + book balances, in isolation  **[strong]**
-- Extend the 2a-1 on-fill: replace the single `trade` ledger entry with the domain transition's split
-  — `cash_movement` + `fee` (when > 0) + `realized_pnl` (when ≠ 0), `reference_type='order'`,
-  `reference_id=<order_id>` — and update `books.current_cash` (+= `cash_delta`) and `current_equity`
-  (fill-marked ending) via `BookRepository.update_balances`. Reuse `apply_sleeve_fill_transition`
-  (already used for positions). Keep exec-id idempotency so replays don't double-post.
-- **No caller change.** Tests: buy/sell ledger rows; book cash/equity updated; idempotent replay.
+- Extend the 2a-1 on-fill into a **summable cash-flow ledger** using the clean `ledger` vocab.
+  **Correction (found during 2c-1):** the `ledger.entry_type` CHECK allows only
+  `trade`/`fee`/`deposit`/`withdrawal`/`adjustment` — the sleeve ledger's `cash_movement`/`realized_pnl`
+  are **not** valid here, so don't port them. Instead write a `trade` entry for gross cash
+  (buy `-(qty×price)`, sell `+(qty×price)`) plus a `fee` entry (`-(commission+fee)`) when non-zero,
+  both `reference_type='order'`, `reference_id=<order_id>`; the two sum to the net cash delta.
+  Realized P&L is **not** a cash-ledger entry (it's derived for reporting) — a deliberate cleanup vs
+  the sleeve ledger's mixed audit design.
+- Update `books.current_cash` (authoritative, `+= cash_delta`) and `current_equity` (fill-marked:
+  `cash + Σ position market value`) via `BookRepository.update_balances`. Reuse
+  `apply_sleeve_fill_transition` for the position/cash math. Fill exec-id idempotency (`order_fills`)
+  preserved.
+- **No caller change.** Tests: buy/sell ledger rows sum to cash delta; book cash/equity updated; fee
+  splits into its own entry; equity drops by the fee.
 - Check: `run_suite src/trading/services/execution` green; layer + mypy clean.
 
 ### Phase 2c-2 — Book NAV-marking service  **[strong]**

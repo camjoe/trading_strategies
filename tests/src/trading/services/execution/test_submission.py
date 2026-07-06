@@ -210,7 +210,12 @@ def test_fee_folds_into_cost_basis_and_ledger(conn, book_env):
     # (10*100 + 5 fee) / 10 shares = 100.5 avg cost.
     assert position.avg_cost == pytest.approx(100.5)
     ledger = LedgerRepository(conn).fetch_for_book(book_id=book_id)
-    assert ledger[0].amount == pytest.approx(-1005.0)
+    # Cash-flow ledger: gross trade (-1000) and fee (-5) split into separate entries,
+    # summing to the net -1005 cash delta.
+    by_type = {entry.entry_type: entry.amount for entry in ledger}
+    assert by_type["trade"] == pytest.approx(-1000.0)
+    assert by_type["fee"] == pytest.approx(-5.0)
+    assert sum(entry.amount for entry in ledger) == pytest.approx(-1005.0)
 
 
 def test_hold_persists_submitted_order_without_position_or_ledger(conn, book_env):
@@ -378,3 +383,84 @@ def test_sell_reduces_position_and_credits_ledger(conn, book_env):
     # Sell 4 @ 110 → cash in 440.
     assert ledger[0].amount == pytest.approx(440.0)
     assert result.filled_count == 1
+
+
+# --- 2c-1: book balance maintenance -----------------------------------------
+
+# book_env seeds the default book with 10_000 cash / 10_000 equity.
+BOOK_START_CASH = 10_000.0
+
+
+def test_buy_updates_book_cash_and_equity(conn, book_env):
+    account_id, book_id = book_env
+    broker = FakeBroker(status=OrderStatus.FILLED, avg_fill_price=100.0)
+
+    submit_book_intents(
+        conn,
+        book_id=book_id,
+        account_id=account_id,
+        intents=[_intent(book_id, account_id, qty=10.0, price=100.0)],
+        broker=broker,
+        gate=AllowAllGate(),
+        fee=0.0,
+    )
+
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    assert book is not None
+    # Cash out 1000; position marked at fill price adds 1000 back → equity unchanged.
+    assert book.current_cash == pytest.approx(BOOK_START_CASH - 1000.0)
+    assert book.current_equity == pytest.approx(BOOK_START_CASH)
+    # Ledger sums to the cash delta applied to the book.
+    ledger = LedgerRepository(conn).fetch_for_book(book_id=book_id)
+    assert sum(entry.amount for entry in ledger) == pytest.approx(book.current_cash - BOOK_START_CASH)
+
+
+def test_fee_reduces_book_equity(conn, book_env):
+    account_id, book_id = book_env
+    broker = FakeBroker(status=OrderStatus.FILLED, avg_fill_price=100.0)
+
+    submit_book_intents(
+        conn,
+        book_id=book_id,
+        account_id=account_id,
+        intents=[_intent(book_id, account_id, qty=10.0, price=100.0)],
+        broker=broker,
+        gate=AllowAllGate(),
+        fee=5.0,
+    )
+
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    assert book is not None
+    # Cash out 1005 (1000 + 5 fee); position marks at 1000 → equity down by the 5 fee.
+    assert book.current_cash == pytest.approx(BOOK_START_CASH - 1005.0)
+    assert book.current_equity == pytest.approx(BOOK_START_CASH - 5.0)
+
+
+def test_sell_credits_book_cash(conn, book_env):
+    account_id, book_id = book_env
+    PositionRepository(conn).upsert(
+        book_id=book_id,
+        symbol="AAPL",
+        qty=10.0,
+        avg_cost=100.0,
+        market_value=1000.0,
+        unrealized_pnl=0.0,
+        updated_at="2026-07-05T09:00:00Z",
+    )
+    broker = FakeBroker(status=OrderStatus.FILLED, avg_fill_price=110.0)
+
+    submit_book_intents(
+        conn,
+        book_id=book_id,
+        account_id=account_id,
+        intents=[_intent(book_id, account_id, side="sell", qty=4.0, price=110.0)],
+        broker=broker,
+        gate=AllowAllGate(),
+        fee=0.0,
+    )
+
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    assert book is not None
+    # Sell 4 @ 110 → cash in 440; remaining 6 shares marked at 110 = 660.
+    assert book.current_cash == pytest.approx(BOOK_START_CASH + 440.0)
+    assert book.current_equity == pytest.approx(BOOK_START_CASH + 440.0 + 660.0)

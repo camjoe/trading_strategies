@@ -9,15 +9,20 @@ from trading.domain.sleeve_accounting import apply_sleeve_fill_transition
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.submission_result import SubmissionResult
 from trading.models.orders.broker_order import BrokerOrder, OrderStatus
+from trading.repositories.books import BookRepository
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
 
-# Ledger vocabulary for a filled trade (a single book-keyed cash-movement entry).
-# 2c (unified accounting) splits this into cash/fee/realized-pnl entries.
+# Clean cash-flow ledger vocabulary (2c): each entry is a cash movement, so a book's
+# cash = starting cash + Σ(ledger.amount). A fill posts a gross `trade` entry plus a
+# `fee` entry; the two sum to the net cash delta. `realized_pnl`/`cash_movement` from
+# the sleeve ledger are intentionally NOT used — the clean `ledger` CHECK forbids them,
+# and realized P&L is derived for reporting, not a cash flow.
 LEDGER_ENTRY_TYPE_TRADE = "trade"
+LEDGER_ENTRY_TYPE_FEE = "fee"
 LEDGER_REFERENCE_TYPE_ORDER = "order"
 
 # Callback invoked after a book fill is persisted — the seam the routing phases use
@@ -51,16 +56,18 @@ def _apply_book_fill(
     fill_price: float,
     transaction_cost: float,
     fill_time: str,
+    book_repo: BookRepository,
     position_repo: PositionRepository,
     ledger_repo: LedgerRepository,
 ) -> None:
-    """Update the book's position and append the trade ledger entry for a filled order.
+    """Apply a filled order to the book: position, cash-flow ledger, and balances.
 
     Reuses the book-agnostic fill math (avg-cost weighting, cash delta) from the
     domain layer rather than re-deriving it. ``transaction_cost`` folds the broker
     commission and the configured per-trade fee into the cost basis / cash delta.
-    Only cash-independent fields are read back, so cash/realized-pnl are seeded at 0
-    here — reconstructing the book's running cash is 2c's (unified accounting) job.
+    The ledger is a cash-flow ledger (gross ``trade`` + ``fee``, summing to the net
+    cash delta); ``books.current_cash`` is authoritative and updated incrementally,
+    while ``current_equity`` is marked at fill price here (2c-2 re-marks to market).
     """
     current = position_repo.fetch(book_id=book_id, symbol=symbol)
     position_qty = current.qty if current is not None else 0.0
@@ -92,14 +99,40 @@ def _apply_book_fill(
     else:
         position_repo.delete(book_id=book_id, symbol=transition.symbol)
 
+    # Cash-flow ledger: gross trade cash (sign by side) + a separate fee entry; the
+    # two sum to transition.cash_delta (the net applied to book cash).
+    gross_cash = float(fill_qty) * float(fill_price)
     ledger_repo.insert(
         book_id=book_id,
         entry_type=LEDGER_ENTRY_TYPE_TRADE,
-        amount=transition.cash_delta,
+        amount=-gross_cash if transition.side == "buy" else gross_cash,
         reference_type=LEDGER_REFERENCE_TYPE_ORDER,
         reference_id=str(order_id),
         entry_time=fill_time,
         created_at=fill_time,
+    )
+    if transaction_cost > 0:
+        ledger_repo.insert(
+            book_id=book_id,
+            entry_type=LEDGER_ENTRY_TYPE_FEE,
+            amount=-float(transaction_cost),
+            reference_type=LEDGER_REFERENCE_TYPE_ORDER,
+            reference_id=str(order_id),
+            entry_time=fill_time,
+            created_at=fill_time,
+        )
+
+    # Book balances: cash is authoritative (incremental); equity is cash + the sum of
+    # position market values (fill-marked until the NAV-marking pass in 2c-2).
+    book = book_repo.fetch_by_id(book_id=book_id)
+    prior_cash = book.current_cash if book is not None else 0.0
+    new_cash = prior_cash + transition.cash_delta
+    market_value = sum(position.market_value for position in position_repo.fetch_for_book(book_id=book_id))
+    book_repo.update_balances(
+        book_id=book_id,
+        current_cash=new_cash,
+        current_equity=new_cash + market_value,
+        updated_at=fill_time,
     )
 
 
@@ -118,10 +151,11 @@ def submit_book_intents(
 
     The single submission path shared by every book. For each approved intent:
     place the order via the injected ``broker``, persist to the clean ``orders`` /
-    ``order_fills`` tables, and on a ``FILLED`` status update ``positions`` and
-    append a ``ledger`` trade entry — all keyed by ``book_id``. A pre-submit kill
-    switch (from the gate) holds the whole book; a broker-API exception mid-loop
-    appends the anomaly reason and stops, mirroring the legacy sleeve path.
+    ``order_fills`` tables, and on a ``FILLED`` status update ``positions``, the
+    cash-flow ``ledger``, and the book's ``current_cash``/``current_equity`` — all
+    keyed by ``book_id``. A pre-submit kill switch (from the gate) holds the whole
+    book; a broker-API exception mid-loop appends the anomaly reason and stops,
+    mirroring the legacy sleeve path.
     """
     gate_result = gate.evaluate(conn, account_id=account_id, intents=intents)
     kill_switch_reasons = list(gate_result.kill_switch_reasons)
@@ -139,6 +173,7 @@ def submit_book_intents(
     order_repo = OrderRepository(conn)
     position_repo = PositionRepository(conn)
     ledger_repo = LedgerRepository(conn)
+    book_repo = BookRepository(conn)
 
     order_ids: list[int] = []
     filled_count = 0
@@ -206,6 +241,7 @@ def submit_book_intents(
                 fill_price=fill_price,
                 transaction_cost=float(placed.commission) + float(fee),
                 fill_time=fill_time,
+                book_repo=book_repo,
                 position_repo=position_repo,
                 ledger_repo=ledger_repo,
             )
