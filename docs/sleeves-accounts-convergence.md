@@ -296,3 +296,16 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   proving the two independent accountings agree so reconciliation won't false-positive at cutover.
   The isolated 2a-1/2a-2 + 2c foundation is now complete (nothing wired; zero behavior change) — the
   natural PR 1 boundary. Next: the 2a-3/2a-4/2a-5 cutover (PR 2), then 2b.
+- 2026-07-05 — PR 1 merged to develop; cutover started on `features/phase4-submission-cutover`.
+  **2a-3 landed — account mode now trades on the clean tables.** `run_for_account` NAV-marks the
+  account's books and runs the equity-reconciliation kill switch **once pre-flight** (holds the run on
+  a mismatch); each selected trade routes through `submit_book_intents` with
+  `BookPreSubmitGate(reconcile=False)` (stale-price + notional caps + broker-anomaly), and `on_fill`
+  bridges to `record_trade` so the legacy account ledger stays in sync. **Two decisions this session:**
+  (1) *greenfield reset* — the clean tables have no history, so the cutover starts fresh rather than
+  backfilling (per P3's stance); (2) *reconciliation is per-run, not per-trade* — book equity drifts
+  from the snapshot by the fee after each fill, so the kill switch runs pre-flight and the per-trade
+  gate skips it (new `reconcile` flag). Legacy `broker_orders` writes dropped for account mode
+  (open-order reconciliation re-points to clean `orders` in 2a-4; no-op for paper). Rewrote the
+  account-mode submission tests to assert clean orders/fills/positions/ledger + the pre-flight halt.
+  Full `run_checks ci` green. Next: 2a-4 (sleeve cutover + reconciliation re-point).

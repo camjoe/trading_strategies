@@ -105,6 +105,16 @@ accounting/ledger) and **2b** (unified rotation/selection), which follow. Intern
 - **2c is sequenced before the 2a cutover:** the gate needs live, market-marked book equity to run on
   the account/sleeve path (reconciliation kill switch + notional caps). Book balances aren't
   maintained until 2c, so 2c lands first. *(Decided 2026-07-05, during 2a-3 — see §6b.)*
+- **Greenfield reset at cutover:** the clean book tables have no history (2a-1 is their first writer),
+  so an existing account's book equity (≈ `initial_cash`, no positions) can't reconcile against a
+  snapshot reflecting full trade history. Per P3's greenfield stance, the cutover starts fresh — book
+  and snapshot both begin empty and reconcile cleanly; pre-cutover history is not backfilled.
+  *(Decided 2026-07-05, during 2a-3.)*
+- **Reconciliation is per-run, not per-trade:** account mode selects/fills trades one at a time in a
+  loop, so after a fill book equity drifts from the snapshot by the fee. The equity-reconciliation
+  kill switch therefore runs **once pre-flight** (NAV-mark → reconcile → hold the whole run on a
+  mismatch); the per-trade gate uses `reconcile=False` and keeps only stale-price + notional caps.
+  *(Decided 2026-07-05, during 2a-3.)*
 
 ## 6. Build plan — 2a (ordered; each a green commit)
 
@@ -136,9 +146,14 @@ accounting/ledger) and **2b** (unified rotation/selection), which follow. Intern
   trail is preserved.
 - Check: gate unit tests (each kill switch fires; allow/rescale/block honored) green.
 
-### Phase 2a-3 — Route account mode through the service  **[strong]**
-> **Blocked on 2c (§6b).** Do 2c first: this phase injects the full gate, whose reconciliation kill
-> switch + notional caps need live, market-marked book equity that 2c delivers.
+### Phase 2a-3 — Route account mode through the service  **[strong]**  *(done)*
+> **2c prerequisite met.** Implemented on the cutover branch: `run_for_account` NAV-marks the account's
+> books and runs the equity-reconciliation kill switch **once pre-flight** (holds the run on a
+> mismatch; greenfield keeps fresh accounts aligned); each selected trade routes through
+> `submit_book_intents` with `BookPreSubmitGate(reconcile=False)` (stale-price + notional caps), and
+> `on_fill` bridges to `record_trade` so the legacy account ledger stays in sync. Legacy
+> `broker_orders` writes are dropped for account mode — open-order reconciliation re-points to clean
+> `orders` in 2a-4 (a no-op for paper, which fills synchronously).
 - In `auto_trading/runtime.py`, replace `_broker_aware_record_trade` with a call to
   `submit_book_intents` against the account's **default book** (resolve via `book_bridge`), passing
   the injected gate. The account's selection tuple becomes a single-book `BookTradeIntent`.

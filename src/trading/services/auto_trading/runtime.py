@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from dataclasses import asdict
 
@@ -74,6 +75,14 @@ from trading.services.sleeves.shadow_evaluation import (
 from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.book_bridge import default_book_id
+from trading.models.execution.book_trade_intent import BookTradeIntent
+from trading.services.execution.submission import submit_book_intents
+from trading.services.execution.pre_submit_gate import BookPreSubmitGate
+from trading.services.execution.nav import mark_account_to_market
+from trading.services.execution.reconciliation import reconcile_book_equity
+
+logger = logging.getLogger(__name__)
 
 # Kill-switch reason when required price marks are unavailable or invalid.
 KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
@@ -136,12 +145,15 @@ def _record_runtime_trade(
     trade_time_iso: str | None = None,
     *,
     _injected_broker: BrokerConnection | None = None,
+    _prices: dict[str, float],
+    _snapshot_time: str,
 ) -> None:
     # The caller always supplies the broker and owns the disconnect lifecycle.
     broker = _injected_broker
     assert broker is not None, "_record_runtime_trade requires an injected broker"
+    account_id = row_expect_int(account, "id")
 
-    def _broker_aware_record_trade(
+    def _book_submit_record_trade(
         conn: sqlite3.Connection,
         *,
         account_name: str,
@@ -153,33 +165,48 @@ def _record_runtime_trade(
         trade_time: str,
         note: str | None,
     ) -> None:
-        order = BrokerOrder(
-            account_id=row_expect_int(account, "id"),
-            ticker=ticker,
+        # Account mode is the account's single default book. Submit through the shared
+        # execution service (writes the clean orders/fills/positions/ledger + book
+        # balances) instead of the legacy broker_orders + record_trade path.
+        book_id = default_book_id(conn, account_id)
+        intent = BookTradeIntent(
+            book_id=book_id,
+            account_id=account_id,
+            strategy_id=None,
+            symbol=ticker,
             side=side,
-            qty=qty,
-            price=price,
+            qty=float(qty),
+            requested_price=float(price),
         )
-        filled = broker.place_order(order)
+        # Reconciliation ran once pre-flight (see run_for_account); the per-trade gate
+        # keeps only the stale-price + notional-cap checks.
+        gate = BookPreSubmitGate(prices=_prices, snapshot_time=_snapshot_time, reconcile=False)
 
-        if filled.broker_order_id:
-            repo = BrokerOrderRepository(conn)
-            repo.insert_order(filled)
-            for fill in filled.fills:
-                repo.insert_fill(filled.broker_order_id, fill)
-
-        if filled.status == OrderStatus.FILLED:
+        def _bridge_to_account_ledger(_intent: BookTradeIntent, _order_id: int, placed: BrokerOrder) -> None:
+            # Keep the legacy account ledger (trades) in sync so account_report /
+            # snapshots stay aligned with the book path until 2c fully retires it.
             record_trade(
                 conn,
                 account_name=account_name,
                 side=side,
                 ticker=ticker,
-                qty=qty,
-                price=filled.avg_fill_price if filled.avg_fill_price is not None else price,
+                qty=float(placed.filled_qty) if placed.filled_qty > 0 else float(qty),
+                price=placed.avg_fill_price if placed.avg_fill_price is not None else price,
                 fee=fee,
                 trade_time=trade_time,
                 note=note,
             )
+
+        submit_book_intents(
+            conn,
+            book_id=book_id,
+            account_id=account_id,
+            intents=[intent],
+            broker=broker,
+            gate=gate,
+            fee=fee,
+            on_fill=_bridge_to_account_ledger,
+        )
 
     record_prepared_trade_impl(
         conn,
@@ -192,7 +219,7 @@ def _record_runtime_trade(
         fee,
         selection,
         forced_sell,
-        record_trade_fn=_broker_aware_record_trade,
+        record_trade_fn=_book_submit_record_trade,
         trade_time_iso=trade_time_iso,
     )
 
@@ -671,6 +698,22 @@ def run_for_account(
     # config — so it is safe to resolve the broker from the initial account row.
     bootstrap_account = get_account(conn, account_name)
     effective_universe = _resolve_account_universe(bootstrap_account, universe)
+    account_id = row_expect_int(bootstrap_account, "id")
+
+    # Pre-flight (once per run): NAV-mark the account's books to market, then run the
+    # equity reconciliation kill switch. It is a per-run check, not per-trade — after a
+    # fill, book equity drifts from the snapshot by the fee, so the per-trade gate skips
+    # it (reconcile=False). A mismatch holds the whole run.
+    mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=now_iso)
+    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id, now_iso=now_iso)
+    if reconciliation_reasons:
+        logger.warning(
+            "Account %s pre-submit reconciliation kill switch: %s; holding the run.",
+            account_name,
+            ", ".join(reconciliation_reasons),
+        )
+        return 0
+
     broker = broker_factory(bootstrap_account)
     try:
         return run_for_account_impl(
@@ -695,7 +738,7 @@ def run_for_account(
                 provider=provider,
             ),
             record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
-                *args, **kwargs, _injected_broker=broker
+                *args, **kwargs, _injected_broker=broker, _prices=prices, _snapshot_time=now_iso
             ),
             is_submission_window_open_fn=_is_runtime_submission_window_open,
         )
