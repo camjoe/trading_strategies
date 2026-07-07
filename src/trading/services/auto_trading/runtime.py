@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from collections import defaultdict
 from dataclasses import asdict
 
 import pandas as pd
@@ -57,12 +58,10 @@ from trading.services.auto_trading.runtime_sleeve_risk import (
     persist_normalized_sleeve_risk_decisions,
     persist_sleeve_risk_snapshot,
 )
-from trading.services.sleeves.accounting import apply_sleeve_fill
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
+from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
+from trading.models.sleeves.sleeve_risk_gate_config import SleeveRiskGateConfig
 from trading.services.sleeves.execution import generate_sleeve_trade_intents
-from trading.services.sleeves.risk_gate import (
-    evaluate_sleeve_risk_gate,
-)
 from trading.services.sleeves.sector_config import load_symbol_sector_map
 from trading.services.sleeves.rotation import (
     SleeveRotationConfig,
@@ -72,12 +71,14 @@ from trading.services.sleeves.shadow_evaluation import (
     DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
     build_sleeve_shadow_evaluation,
 )
-from trading.services.sleeves.reconciliation import reconcile_sleeves_vs_latest_snapshot
 from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeves import SleeveRepository
-from trading.repositories.book_bridge import default_book_id
+from trading.repositories.positions import PositionRepository
+from trading.repositories.books import BookRepository
+from trading.repositories.book_bridge import default_book_id, book_id_for_sleeve
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.services.execution.submission import submit_book_intents
+from trading.services.execution.gate import AllowAllGate
 from trading.services.execution.pre_submit_gate import BookPreSubmitGate
 from trading.services.execution.nav import mark_account_to_market
 from trading.services.execution.reconciliation import reconcile_book_equity
@@ -293,16 +294,20 @@ def _persist_sleeve_risk_snapshot(
     kill_switch_triggered: bool,
     payload: dict[str, object],
 ) -> None:
+    # Exposure is sourced from the clean book positions/equity (the submission path's
+    # source of truth); the sleeve_positions/strategy_sleeves tables are frozen once
+    # sleeve mode submits through the book path. `compute_current_exposure_snapshot`
+    # only reads `.symbol`/`.market_value` and `.current_equity`, which book records carry.
     persist_sleeve_risk_snapshot(
         conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
         kill_switch_triggered=kill_switch_triggered,
         payload=payload,
-        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(
+        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: PositionRepository(c).fetch_for_account(
             account_id=account_id
         ),
-        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(
+        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: BookRepository(c).fetch_for_account(
             account_id=account_id
         ),
         upsert_portfolio_risk_snapshot_fn=PortfolioRiskSnapshotRepository(conn).upsert,
@@ -382,6 +387,55 @@ def _resolve_account_universe(account: AccountRecord, global_universe: list[str]
     return resolve_named_universes([str(n) for n in names])
 
 
+def _sleeve_risk_decisions_from_gate(
+    decisions: list[SleeveRiskDecision],
+    sleeve_by_book: dict[int, SleeveTradeIntent],
+) -> list[dict[str, object]]:
+    """Convert the gate's book-bucketed decisions into sleeve-keyed audit dicts.
+
+    Under book-as-bucket the gate emits decisions with ``sleeve_id`` set to the
+    book id; translate back to the real sleeve id so the sleeve risk audit trail
+    stays meaningful.
+    """
+    audit_rows: list[dict[str, object]] = []
+    for decision in decisions:
+        row = asdict(decision)
+        book_id = row.get("sleeve_id")
+        sleeve = sleeve_by_book.get(int(book_id)) if book_id is not None else None
+        if sleeve is not None:
+            row["sleeve_id"] = sleeve.sleeve_id
+        audit_rows.append(row)
+    return audit_rows
+
+
+def _persist_sleeve_run_audit(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    snapshot_time: str,
+    risk_decisions: list[dict[str, object]],
+    kill_switch_reasons: list[str],
+    summary: dict[str, object],
+) -> None:
+    _persist_normalized_sleeve_risk_decisions(
+        conn,
+        account_id=account_id,
+        decision_time=snapshot_time,
+        risk_decisions=risk_decisions,
+    )
+    _persist_sleeve_risk_snapshot(
+        conn,
+        account_id=account_id,
+        snapshot_time=snapshot_time,
+        kill_switch_triggered=bool(kill_switch_reasons),
+        payload={
+            "kill_switch_reasons": kill_switch_reasons,
+            "risk_decisions": risk_decisions,
+            "summary": summary,
+        },
+    )
+
+
 def _run_sleeve_mode_for_account(
     conn: sqlite3.Connection,
     *,
@@ -401,11 +455,7 @@ def _run_sleeve_mode_for_account(
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
     effective_universe = _resolve_account_universe(account, universe)
-    _run_sleeve_rotation_decisions(
-        conn,
-        account=account,
-        decision_time=snapshot_time,
-    )
+    _run_sleeve_rotation_decisions(conn, account=account, decision_time=snapshot_time)
     intents = generate_sleeve_trade_intents(
         conn,
         account=account,
@@ -419,191 +469,94 @@ def _run_sleeve_mode_for_account(
         feature_history_fn=feature_history_fn,
     )
     if not intents:
-        _persist_normalized_sleeve_risk_decisions(
+        _persist_sleeve_run_audit(
             conn,
             account_id=account_id,
-            decision_time=snapshot_time,
+            snapshot_time=snapshot_time,
             risk_decisions=[],
-        )
-        _persist_sleeve_risk_snapshot(
-            conn,
-            account_id=account_id,
-            snapshot_time=snapshot_time,
-            kill_switch_triggered=False,
-            payload={
-                "kill_switch_reasons": [],
-                "risk_decisions": [],
-                "summary": {"submitted_count": 0, "blocked_count": 0, "rescaled_count": 0, "allowed_count": 0},
-            },
+            kill_switch_reasons=[],
+            summary={"submitted_count": 0, "blocked_count": 0, "rescaled_count": 0, "allowed_count": 0},
         )
         return 0
-    gated = evaluate_sleeve_risk_gate(
-        conn,
-        account_id=account_id,
-        intents=intents,
-    )
-    approved_intents = gated.approved_intents
-    kill_switch_reasons: list[str] = []
-    risk_decisions = [asdict(decision) for decision in gated.decisions]
-    if approved_intents:
-        stale_symbols = sorted(
-            {
-                intent.symbol
-                for intent in approved_intents
-                if prices.get(intent.symbol) is None or float(prices[intent.symbol]) <= 0
-            }
-        )
-        if stale_symbols:
-            kill_switch_reasons.append(KILL_SWITCH_REASON_STALE_PRICE_DATA)
-            approved_intents = []
-            risk_decisions.append(
-                {
-                    "action": "block",
-                    "reason_code": KILL_SWITCH_REASON_STALE_PRICE_DATA,
-                    "stale_symbols": stale_symbols,
-                }
-            )
-    try:
-        reconciliation = reconcile_sleeves_vs_latest_snapshot(conn, account_id=account_id)
-        if _is_snapshot_time_stale(
-            snapshot_time=reconciliation.snapshot_time,
-            now_iso=snapshot_time,
-            max_age_seconds=MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
-        ):
-            kill_switch_reasons.append(KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT)
-            approved_intents = []
-            risk_decisions.append(
-                {
-                    "action": "block",
-                    "reason_code": KILL_SWITCH_REASON_STALE_RECONCILIATION_SNAPSHOT,
-                    "snapshot_time": reconciliation.snapshot_time,
-                    "max_age_seconds": MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
-                }
-            )
-        if not reconciliation.within_tolerance:
-            kill_switch_reasons.append(KILL_SWITCH_REASON_RECONCILIATION_MISMATCH)
-            approved_intents = []
-            risk_decisions.append(
-                {
-                    "action": "block",
-                    "reason_code": KILL_SWITCH_REASON_RECONCILIATION_MISMATCH,
-                    "equity_difference": reconciliation.equity_difference,
-                    "tolerance": reconciliation.tolerance,
-                }
-            )
-    except ValueError:
-        kill_switch_reasons.append(KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING)
-        approved_intents = []
-        risk_decisions.append(
-            {
-                "action": "block",
-                "reason_code": KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING,
-            }
-        )
 
-    if not approved_intents:
-        _persist_normalized_sleeve_risk_decisions(
-            conn,
-            account_id=account_id,
-            decision_time=snapshot_time,
-            risk_decisions=risk_decisions,
+    # Each sleeve is one book; map its intent to that bridging book and keep the
+    # book → sleeve context for the audit trail and fill notes.
+    book_intents: list[BookTradeIntent] = []
+    sleeve_by_book: dict[int, SleeveTradeIntent] = {}
+    for sleeve_intent in intents:
+        book_id = book_id_for_sleeve(conn, sleeve_intent.sleeve_id, create=True)
+        assert book_id is not None
+        book_intents.append(
+            BookTradeIntent(
+                book_id=book_id,
+                account_id=sleeve_intent.account_id,
+                strategy_id=None,
+                symbol=sleeve_intent.symbol,
+                side=sleeve_intent.side,
+                qty=float(sleeve_intent.qty),
+                requested_price=float(sleeve_intent.requested_price),
+            )
         )
-        _persist_sleeve_risk_snapshot(
+        sleeve_by_book[book_id] = sleeve_intent
+
+    # Pre-flight: NAV-mark books, then run the equity reconciliation kill switch once
+    # for the run (consistent with account mode — reconciliation is per-run, not
+    # per-book). The batch gate then applies the notional caps + stale-price across all
+    # books with reconcile=False, so cross-book exposure caps are enforced together.
+    mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=snapshot_time)
+    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id, now_iso=snapshot_time)
+    gate = BookPreSubmitGate(
+        prices=prices,
+        snapshot_time=snapshot_time,
+        reconcile=False,
+        config=SleeveRiskGateConfig(symbol_sector_map=load_symbol_sector_map()),
+    )
+    gate_result = gate.evaluate(conn, account_id=account_id, intents=book_intents)
+
+    risk_decisions = _sleeve_risk_decisions_from_gate(gate_result.decisions, sleeve_by_book)
+    kill_switch_reasons = list(gate_result.kill_switch_reasons) + reconciliation_reasons
+    for reason in kill_switch_reasons:
+        risk_decisions.append({"action": "block", "reason_code": reason})
+    allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
+    summary_counts: dict[str, object] = {
+        "blocked_count": len(gate_result.blocked_intents),
+        "rescaled_count": len(gate_result.rescaled_intents),
+        "allowed_count": allowed_count,
+    }
+
+    # A kill switch (stale-price or reconciliation) holds the whole run.
+    approved_intents = [] if kill_switch_reasons else gate_result.approved_intents
+    if not approved_intents:
+        _persist_sleeve_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
-            kill_switch_triggered=bool(kill_switch_reasons),
-            payload={
-                "kill_switch_reasons": kill_switch_reasons,
-                "risk_decisions": risk_decisions,
-                "summary": {
-                    "submitted_count": 0,
-                    "blocked_count": gated.blocked_count,
-                    "rescaled_count": gated.rescaled_count,
-                    "allowed_count": gated.allowed_count,
-                },
-            },
+            risk_decisions=risk_decisions,
+            kill_switch_reasons=kill_switch_reasons,
+            summary={"submitted_count": 0, **summary_counts},
         )
         return 0
+
+    approved_by_book: dict[int, list[BookTradeIntent]] = defaultdict(list)
+    for book_intent in approved_intents:
+        approved_by_book[book_intent.book_id].append(book_intent)
 
     broker = broker_factory(account)
     try:
         submitted_count = 0
-        for intent in approved_intents:
-            submitted_at = utc_now_iso()
-            sleeve_order_id = _insert_submitted_sleeve_order(
-                conn,
-                intent=intent,
-                now_iso=submitted_at,
-            )
-            order = BrokerOrder(
-                account_id=intent.account_id,
-                ticker=intent.symbol,
-                side=intent.side,
-                qty=float(intent.qty),
-                price=float(intent.requested_price),
-            )
-            try:
-                broker_order = broker.place_order(order)
-            except Exception as exc:
-                kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
-                risk_decisions.append(
-                    {
-                        "action": "block",
-                        "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
-                        "symbol": intent.symbol,
-                        "side": intent.side,
-                        "error": str(exc),
-                    }
-                )
-                SleeveOrderRepository(conn).update_status(
-                    sleeve_order_id=sleeve_order_id,
-                    status=OrderStatus.REJECTED.value,
-                    updated_at=utc_now_iso(),
-                )
-                break
-            updated_at = utc_now_iso()
+        for book_id, book_intents_for_book in approved_by_book.items():
+            sleeve = sleeve_by_book[book_id]
 
-            if broker_order.broker_order_id:
-                if broker_order.submitted_at is None:
-                    broker_order.submitted_at = submitted_at
-                if broker_order.updated_at is None:
-                    broker_order.updated_at = updated_at
-                SleeveOrderRepository(conn).attach_broker_order_id(
-                    sleeve_order_id=sleeve_order_id,
-                    broker_order_id=broker_order.broker_order_id,
-                    updated_at=updated_at,
-                )
-                repo = BrokerOrderRepository(conn)
-                repo.insert_order(broker_order)
-                for fill in broker_order.fills:
-                    repo.insert_fill(broker_order.broker_order_id, fill)
-
-            SleeveOrderRepository(conn).update_status(
-                sleeve_order_id=sleeve_order_id,
-                status=broker_order.status.value,
-                updated_at=updated_at,
-            )
-
-            if broker_order.status == OrderStatus.FILLED:
+            def _bridge_to_account_ledger(
+                intent: BookTradeIntent, _order_id: int, placed: BrokerOrder, _sleeve: SleeveTradeIntent = sleeve
+            ) -> None:
                 fill_price = (
-                    float(broker_order.avg_fill_price)
-                    if broker_order.avg_fill_price is not None
-                    else float(intent.requested_price)
+                    float(placed.avg_fill_price)
+                    if placed.avg_fill_price is not None
+                    else float(intent.requested_price or 0.0)
                 )
-                fill_qty = float(broker_order.filled_qty) if broker_order.filled_qty > 0 else float(intent.qty)
-                fill_time = broker_order.updated_at or updated_at
-                apply_sleeve_fill(
-                    conn,
-                    sleeve_order_id=sleeve_order_id,
-                    broker_fill_id=broker_order.broker_order_id,
-                    exec_id=None,
-                    filled_qty=fill_qty,
-                    fill_price=fill_price,
-                    commission=float(broker_order.commission),
-                    fill_time=fill_time,
-                    updated_at=updated_at,
-                )
+                fill_qty = float(placed.filled_qty) if placed.filled_qty > 0 else float(intent.qty)
+                fill_time = placed.updated_at or utc_now_iso()
                 record_trade(
                     conn,
                     account_name=account_name,
@@ -613,32 +566,38 @@ def _run_sleeve_mode_for_account(
                     price=fill_price,
                     fee=float(fee),
                     trade_time=fill_time,
-                    note=f"sleeve_fill sleeve_id={intent.sleeve_id} strategy={intent.strategy_name}",
+                    note=f"sleeve_fill sleeve_id={_sleeve.sleeve_id} strategy={_sleeve.strategy_name}",
                 )
-            submitted_count += 1
-        _persist_normalized_sleeve_risk_decisions(
-            conn,
-            account_id=account_id,
-            decision_time=snapshot_time,
-            risk_decisions=risk_decisions,
-        )
-        _persist_sleeve_risk_snapshot(
+
+            result = submit_book_intents(
+                conn,
+                book_id=book_id,
+                account_id=account_id,
+                intents=book_intents_for_book,
+                broker=broker,
+                gate=AllowAllGate(),  # gating already ran once above for the whole batch
+                fee=fee,
+                on_fill=_bridge_to_account_ledger,
+            )
+            submitted_count += result.submitted_count
+            if KILL_SWITCH_REASON_BROKER_API_ANOMALY in result.kill_switch_reasons:
+                kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
+                risk_decisions.append(
+                    {
+                        "action": "block",
+                        "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
+                        "sleeve_id": sleeve.sleeve_id,
+                    }
+                )
+                break
+
+        _persist_sleeve_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
-            kill_switch_triggered=bool(kill_switch_reasons),
-            payload={
-                "kill_switch_reasons": kill_switch_reasons,
-                "risk_decisions": risk_decisions,
-                "summary": {
-                    "submitted_count": submitted_count,
-                    "blocked_count": gated.blocked_count,
-                    "rescaled_count": gated.rescaled_count,
-                    "allowed_count": gated.allowed_count,
-                    "gross_exposure_before": gated.gross_exposure_before,
-                    "gross_exposure_after": gated.gross_exposure_after,
-                },
-            },
+            risk_decisions=risk_decisions,
+            kill_switch_reasons=kill_switch_reasons,
+            summary={"submitted_count": submitted_count, **summary_counts},
         )
         return submitted_count
     finally:

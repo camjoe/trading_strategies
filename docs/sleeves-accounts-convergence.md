@@ -309,3 +309,15 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   (open-order reconciliation re-points to clean `orders` in 2a-4; no-op for paper). Rewrote the
   account-mode submission tests to assert clean orders/fills/positions/ledger + the pre-flight halt.
   Full `run_checks ci` green. Next: 2a-4 (sleeve cutover + reconciliation re-point).
+- 2026-07-05 — **2a-4a landed — sleeve mode now trades on the clean tables.**
+  `_run_sleeve_mode_for_account` maps each sleeve intent to its bridging book, NAV-marks + runs the
+  equity reconciliation **once pre-flight** (consistent with account mode), gates the whole batch
+  **once** via `BookPreSubmitGate(reconcile=False)` — notional caps use fresh **book** equity (sleeve
+  equity freezes once submission moves off `apply_sleeve_fill`), bucketed by book so cross-book caps
+  hold — then submits per book through `submit_book_intents` (`on_fill` → `record_trade` keeps the
+  account `trades` in sync). Legacy `sleeve_orders`/`sleeve_fills`/`broker_orders` writes are dropped.
+  The sleeve **risk audit is preserved** account-keyed: `GateResult` now carries the per-intent
+  `decisions`, translated book_id→real sleeve_id (`_sleeve_risk_decisions_from_gate`) and persisted
+  with a book-sourced exposure snapshot (`_persist_sleeve_risk_snapshot` re-pointed to book positions).
+  Rewrote 8 sleeve-mode tests for clean-table writes + kill-switch halts. Full `run_checks ci` green.
+  Next: 2a-4b (re-point `reconcile_open_broker_orders` to clean orders).

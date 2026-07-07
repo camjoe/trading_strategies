@@ -104,6 +104,7 @@ class BookPreSubmitGate:
             blocked_intents=blocked,
             rescaled_intents=rescaled,
             kill_switch_reasons=kill_switch_reasons,
+            decisions=decisions,
         )
 
     # --- notional risk gate (book-as-bucket adapter) ------------------------

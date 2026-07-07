@@ -7,6 +7,11 @@ from unittest.mock import Mock
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.books import BookRepository
+from trading.repositories.book_bridge import book_id_for_sleeve
+from trading.repositories.ledger import LedgerRepository
+from trading.repositories.orders import OrderRepository
+from trading.repositories.positions import PositionRepository
 from trading.models.evaluation import (
     EvaluationBacktestEvidence,
     EvaluationConfidence,
@@ -16,7 +21,6 @@ from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
-from trading.services.sleeves.reconciliation import SleeveEquityReconciliationResult
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.repositories import insert_repository_account
 from tests.support.sleeves import insert_test_sleeve
@@ -84,6 +88,16 @@ def _patch_runtime_sleeve_execution(
         "_rotate_runtime_account",
         lambda _conn, _account_name, account_row, _now_iso, **_kwargs: account_row,
     )
+
+
+def _patch_reconciliation_clean(monkeypatch) -> None:
+    """Bypass the pre-flight equity reconciliation (tested separately) so submission/gate
+    behaviour is isolated from the fixture's default-book equity."""
+    monkeypatch.setattr(runtime_service, "reconcile_book_equity", lambda *_args, **_kwargs: [])
+
+
+def _patch_reconciliation_reasons(monkeypatch, reasons: list[str]) -> None:
+    monkeypatch.setattr(runtime_service, "reconcile_book_equity", lambda *_args, **_kwargs: list(reasons))
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +209,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -212,31 +227,20 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     )
 
     assert executed == 1
-    order_row = conn.execute(
-        """
-        SELECT sleeve_id, strategy_name, symbol, side, qty, status, broker_order_id
-        FROM sleeve_orders
-        WHERE account_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        (account_id,),
-    ).fetchone()
-    assert order_row is not None
-    assert int(order_row["sleeve_id"]) == sleeve_id
-    assert order_row["strategy_name"] == "trend"
-    assert order_row["symbol"] == "AAPL"
-    assert order_row["side"] == "buy"
-    assert float(order_row["qty"]) == 1.0
-    assert order_row["status"] == "filled"
-    assert order_row["broker_order_id"] == "fake-broker-order"
+    # The sleeve submits through the shared service onto its bridging book's clean tables.
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
+    assert book_id is not None
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    order = orders[0]
+    assert order.symbol == "AAPL"
+    assert order.side == "buy"
+    assert float(order.qty) == 1.0
+    assert order.status == "filled"
+    assert order.broker_order_id == "fake-broker-order"
 
-    fill_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM sleeve_fills WHERE sleeve_id = ?",
-        (sleeve_id,),
-    ).fetchone()
-    assert fill_count is not None
-    assert int(fill_count["n"]) == 1
+    assert PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL") is not None
+    assert LedgerRepository(conn).fetch_for_book(book_id=book_id) != []
 
     trade_count = conn.execute(
         "SELECT COUNT(*) AS n FROM trades WHERE account_id = ?",
@@ -245,10 +249,11 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     assert trade_count is not None
     assert int(trade_count["n"]) == 1
 
-    sleeve_row = SleeveRepository(conn).fetch_by_id(sleeve_id=sleeve_id)
-    assert sleeve_row is not None
-    assert sleeve_row.current_cash == 900.0
-    assert sleeve_row.current_equity == 1_000.0
+    # Book balances (not the frozen sleeve balances) reflect the fill: 1000 - 100 = 900 cash.
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    assert book is not None
+    assert book.current_cash == 900.0
+    assert book.current_equity == 1_000.0
 
     risk_snapshot = conn.execute(
         """
@@ -286,6 +291,7 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id, qty=5)
 
     executed = run_for_account(
@@ -307,12 +313,12 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
     broker_order = broker.place_order.call_args.args[0]
     assert broker_order.qty == 2.0
 
-    order_row = conn.execute(
-        "SELECT qty FROM sleeve_orders WHERE account_id = ? ORDER BY id DESC LIMIT 1",
-        (account_id,),
-    ).fetchone()
-    assert order_row is not None
-    assert float(order_row["qty"]) == 2.0
+    # The notional cap rescaled the intent from 5 to 2 shares before submission.
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
+    assert book_id is not None
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    assert float(orders[0].qty) == 2.0
     rescale_row = conn.execute(
         """
         SELECT action, reason_code, requested_qty, approved_qty
@@ -337,6 +343,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -385,19 +392,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch)
-    monkeypatch.setattr(
-        runtime_service,
-        "reconcile_sleeves_vs_latest_snapshot",
-        lambda *_args, **_kwargs: SleeveEquityReconciliationResult(
-            account_id=account_id,
-            account_equity=1000.0,
-            total_sleeve_equity=900.0,
-            equity_difference=-100.0,
-            tolerance=0.01,
-            within_tolerance=False,
-            snapshot_time="2026-05-03T13:59:00Z",
-        ),
-    )
+    _patch_reconciliation_reasons(monkeypatch, ["reconciliation_mismatch"])
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -456,6 +451,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
 
     broker = _FailingBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -481,12 +477,10 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
     assert int(row["kill_switch_triggered"]) == 1
     payload = json.loads(row["risk_payload_json"])
     assert "broker_api_anomaly" in payload["kill_switch_reasons"]
-    sleeve_order_status = conn.execute(
-        "SELECT status FROM sleeve_orders WHERE account_id = ? ORDER BY id DESC LIMIT 1",
-        (account_id,),
-    ).fetchone()
-    assert sleeve_order_status is not None
-    assert sleeve_order_status["status"] == "rejected"
+    # The broker raised before any order was persisted → no clean order row.
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
+    assert book_id is not None
+    assert OrderRepository(conn).fetch_for_book(book_id=book_id) == []
     decision_row = conn.execute(
         """
         SELECT action, reason_code
@@ -561,12 +555,8 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_reasons(monkeypatch, ["reconciliation_snapshot_missing"])
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
-    monkeypatch.setattr(
-        runtime_service,
-        "reconcile_sleeves_vs_latest_snapshot",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("missing snapshot")),
-    )
 
     executed = run_for_account(
         conn,
@@ -615,6 +605,7 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
 
     broker = _NoBrokerIdBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
@@ -632,14 +623,16 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
     )
 
     assert executed == 1
+    # No legacy broker_orders are written; the clean order carries a null broker id.
     order_count = conn.execute("SELECT COUNT(*) AS n FROM broker_orders").fetchone()
     assert order_count is not None
     assert int(order_count["n"]) == 0
-    sleeve_order = conn.execute(
-        "SELECT status FROM sleeve_orders WHERE account_id = ? ORDER BY id DESC LIMIT 1", (account_id,)
-    ).fetchone()
-    assert sleeve_order is not None
-    assert sleeve_order["status"] == "submitted"
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
+    assert book_id is not None
+    orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
+    assert len(orders) == 1
+    assert orders[0].status == "submitted"
+    assert orders[0].broker_order_id is None
 
 
 def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_env, conn, monkeypatch) -> None:
@@ -669,6 +662,7 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
 
     broker = _BrokerWithFill()
     _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
     _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
