@@ -11,7 +11,9 @@ from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.models.sleeves.sleeve_trade_state import SleeveTradeState
-from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.book_bridge import book_id_for_sleeve
+from trading.repositories.books import BookRepository
+from trading.repositories.positions import PositionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.universe import resolve_named_universes
 
@@ -25,11 +27,15 @@ def _prepare_trade_selection(*args, **kwargs):
     return prepare_trade_selection(*args, **kwargs)
 
 
-def _build_sleeve_state(conn: sqlite3.Connection, *, sleeve_id: int, current_cash: float) -> SleeveTradeState:
-    position_rows = SleevePositionRepository(conn).fetch_for_sleeve(sleeve_id=sleeve_id)
+def _build_sleeve_state(conn: sqlite3.Connection, *, book_id: int) -> SleeveTradeState:
+    # A sleeve's live state (cash + holdings) is its bridging book's — the submission
+    # path maintains book balances/positions, and the sleeve_positions/strategy_sleeves
+    # tables are frozen once sleeve mode submits through the shared execution service.
+    book = BookRepository(conn).fetch_by_id(book_id=book_id)
+    current_cash = book.current_cash if book is not None else 0.0
     positions: dict[str, float] = {}
     avg_cost: dict[str, float] = {}
-    for pos in position_rows:
+    for pos in PositionRepository(conn).fetch_for_book(book_id=book_id):
         if pos.qty <= 0:
             continue
         positions[pos.symbol] = pos.qty
@@ -83,7 +89,9 @@ def generate_sleeve_trade_intents(
                 effective_universe = universe
         else:
             effective_universe = universe
-        state = _build_sleeve_state(conn, sleeve_id=sleeve.id, current_cash=sleeve.current_cash)
+        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
+        assert book_id is not None
+        state = _build_sleeve_state(conn, book_id=book_id)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
         forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(
             can_sell,
