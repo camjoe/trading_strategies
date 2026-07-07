@@ -623,10 +623,7 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
     )
 
     assert executed == 1
-    # No legacy broker_orders are written; the clean order carries a null broker id.
-    order_count = conn.execute("SELECT COUNT(*) AS n FROM broker_orders").fetchone()
-    assert order_count is not None
-    assert int(order_count["n"]) == 0
+    # The clean order carries a null broker id (the legacy broker_orders table is gone).
     book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
     assert book_id is not None
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
