@@ -155,6 +155,10 @@ class RuntimeScenario:
             "choose_sell_ticker_by_risk",
             Mock(return_value=self.forced_sell_ticker),
         )
+        # Account-mode pre-flight (NAV mark + equity reconciliation) is DB-backed; these
+        # orchestration scenarios use a fake conn and mock the recorder, so stub it clean.
+        monkeypatch.setattr(runtime_module, "mark_account_to_market", Mock())
+        monkeypatch.setattr(runtime_module, "reconcile_book_equity", Mock(return_value=[]))
         monkeypatch.setattr(runtime_module, "_record_runtime_trade", self.trade_recorder)
 
 

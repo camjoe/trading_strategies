@@ -1,6 +1,8 @@
 from unittest.mock import Mock
 
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades import run_for_account
+from trading.repositories.book_bridge import default_book_id
+from trading.services.accounts import get_account
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import (
     FakeBroker,
@@ -9,6 +11,7 @@ from tests.src.trading.services.auto_trading.factories import (
     make_feature_fetchers,
     make_auto_trading_account,
 )
+from tests.support.repositories import insert_repository_account
 
 
 def test_multi_trade_run_creates_one_broker_and_disconnects_once(monkeypatch) -> None:
@@ -76,11 +79,12 @@ def test_broker_disconnects_once_even_when_no_trades_execute(monkeypatch) -> Non
     broker.disconnect.assert_called_once()
 
 
-def test_caller_owns_broker_lifecycle_when_injecting_broker(monkeypatch) -> None:
+def test_caller_owns_broker_lifecycle_when_injecting_broker(conn, monkeypatch) -> None:
     broker = FakeBroker()
-    account = make_auto_trading_account(id=77)
+    account_id = insert_repository_account(conn, name="acct", initial_cash=10_000.0)
+    default_book_id(conn, account_id)  # bootstrap the account's default book
+    account = get_account(conn, "acct")
 
-    monkeypatch.setattr(runtime_service, "BrokerOrderRepository", lambda conn: Mock())
     record_trade_calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         runtime_service,
@@ -89,7 +93,7 @@ def test_caller_owns_broker_lifecycle_when_injecting_broker(monkeypatch) -> None
     )
 
     runtime_service._record_runtime_trade(
-        object(),
+        conn,
         "acct",
         account,
         False,
@@ -100,7 +104,10 @@ def test_caller_owns_broker_lifecycle_when_injecting_broker(monkeypatch) -> None
         ("buy", "AAPL", 1, 100.0, None, None),
         None,
         _injected_broker=broker,
+        _prices={"AAPL": 101.0},
+        _snapshot_time="2026-03-14T14:00:00Z",
     )
 
+    # _record_runtime_trade must not disconnect an injected broker — the caller owns it.
     assert len(record_trade_calls) == 1
     broker.disconnect.assert_not_called()

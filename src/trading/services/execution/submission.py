@@ -42,11 +42,12 @@ _CLEAN_STATUS_BY_BROKER_STATUS: dict[OrderStatus, str] = {
 }
 
 
-def _clean_order_status(status: OrderStatus) -> str:
+def clean_order_status(status: OrderStatus) -> str:
     return _CLEAN_STATUS_BY_BROKER_STATUS[status]
 
 
-def _apply_book_fill(
+def apply_book_fill(
+    conn: sqlite3.Connection,
     *,
     book_id: int,
     order_id: int,
@@ -56,19 +57,25 @@ def _apply_book_fill(
     fill_price: float,
     transaction_cost: float,
     fill_time: str,
-    book_repo: BookRepository,
-    position_repo: PositionRepository,
-    ledger_repo: LedgerRepository,
 ) -> None:
     """Apply a filled order to the book: position, cash-flow ledger, and balances.
 
-    Reuses the book-agnostic fill math (avg-cost weighting, cash delta) from the
-    domain layer rather than re-deriving it. ``transaction_cost`` folds the broker
-    commission and the configured per-trade fee into the cost basis / cash delta.
-    The ledger is a cash-flow ledger (gross ``trade`` + ``fee``, summing to the net
-    cash delta); ``books.current_cash`` is authoritative and updated incrementally,
-    while ``current_equity`` is marked at fill price here (2c-2 re-marks to market).
+    Shared by the synchronous submission path (:func:`submit_book_intents`) and the
+    async open-order reconciliation. Reuses the book-agnostic fill math (avg-cost
+    weighting, cash delta) from the domain layer rather than re-deriving it.
+    ``transaction_cost`` folds the broker commission (and, on the synchronous path,
+    the configured per-trade fee) into the cost basis / cash delta. The ledger is a
+    cash-flow ledger (gross ``trade`` + ``fee``, summing to the net cash delta);
+    ``books.current_cash`` is authoritative and updated incrementally, while
+    ``current_equity`` is marked at fill price here (the NAV pass re-marks to market).
+
+    Not idempotent — callers must apply each execution exactly once (the submission
+    path fills once; reconciliation dedups on ``order_fills.exec_id`` first).
     """
+    book_repo = BookRepository(conn)
+    position_repo = PositionRepository(conn)
+    ledger_repo = LedgerRepository(conn)
+
     current = position_repo.fetch(book_id=book_id, symbol=symbol)
     position_qty = current.qty if current is not None else 0.0
     position_avg_cost = current.avg_cost if current is not None else 0.0
@@ -171,9 +178,6 @@ def submit_book_intents(
         )
 
     order_repo = OrderRepository(conn)
-    position_repo = PositionRepository(conn)
-    ledger_repo = LedgerRepository(conn)
-    book_repo = BookRepository(conn)
 
     order_ids: list[int] = []
     filled_count = 0
@@ -204,7 +208,7 @@ def submit_book_intents(
             order_type=intent.order_type,
             time_in_force=intent.time_in_force,
             requested_price=intent.requested_price,
-            status=_clean_order_status(placed.status),
+            status=clean_order_status(placed.status),
             filled_qty=float(placed.filled_qty),
             avg_fill_price=placed.avg_fill_price,
             commission=float(placed.commission),
@@ -232,7 +236,8 @@ def submit_book_intents(
             )
             fill_qty = float(placed.filled_qty) if placed.filled_qty > 0 else float(intent.qty)
             fill_time = placed.updated_at or updated_at
-            _apply_book_fill(
+            apply_book_fill(
+                conn,
                 book_id=book_id,
                 order_id=order_id,
                 side=intent.side,
@@ -241,9 +246,6 @@ def submit_book_intents(
                 fill_price=fill_price,
                 transaction_cost=float(placed.commission) + float(fee),
                 fill_time=fill_time,
-                book_repo=book_repo,
-                position_repo=position_repo,
-                ledger_repo=ledger_repo,
             )
             filled_count += 1
             if on_fill is not None:

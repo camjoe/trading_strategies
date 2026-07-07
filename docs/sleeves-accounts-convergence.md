@@ -296,3 +296,53 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   proving the two independent accountings agree so reconciliation won't false-positive at cutover.
   The isolated 2a-1/2a-2 + 2c foundation is now complete (nothing wired; zero behavior change) — the
   natural PR 1 boundary. Next: the 2a-3/2a-4/2a-5 cutover (PR 2), then 2b.
+- 2026-07-05 — PR 1 merged to develop; cutover started on `features/phase4-submission-cutover`.
+  **2a-3 landed — account mode now trades on the clean tables.** `run_for_account` NAV-marks the
+  account's books and runs the equity-reconciliation kill switch **once pre-flight** (holds the run on
+  a mismatch); each selected trade routes through `submit_book_intents` with
+  `BookPreSubmitGate(reconcile=False)` (stale-price + notional caps + broker-anomaly), and `on_fill`
+  bridges to `record_trade` so the legacy account ledger stays in sync. **Two decisions this session:**
+  (1) *greenfield reset* — the clean tables have no history, so the cutover starts fresh rather than
+  backfilling (per P3's stance); (2) *reconciliation is per-run, not per-trade* — book equity drifts
+  from the snapshot by the fee after each fill, so the kill switch runs pre-flight and the per-trade
+  gate skips it (new `reconcile` flag). Legacy `broker_orders` writes dropped for account mode
+  (open-order reconciliation re-points to clean `orders` in 2a-4; no-op for paper). Rewrote the
+  account-mode submission tests to assert clean orders/fills/positions/ledger + the pre-flight halt.
+  Full `run_checks ci` green. Next: 2a-4 (sleeve cutover + reconciliation re-point).
+- 2026-07-05 — **2a-4a landed — sleeve mode now trades on the clean tables.**
+  `_run_sleeve_mode_for_account` maps each sleeve intent to its bridging book, NAV-marks + runs the
+  equity reconciliation **once pre-flight** (consistent with account mode), gates the whole batch
+  **once** via `BookPreSubmitGate(reconcile=False)` — notional caps use fresh **book** equity (sleeve
+  equity freezes once submission moves off `apply_sleeve_fill`), bucketed by book so cross-book caps
+  hold — then submits per book through `submit_book_intents` (`on_fill` → `record_trade` keeps the
+  account `trades` in sync). Legacy `sleeve_orders`/`sleeve_fills`/`broker_orders` writes are dropped.
+  The sleeve **risk audit is preserved** account-keyed: `GateResult` now carries the per-intent
+  `decisions`, translated book_id→real sleeve_id (`_sleeve_risk_decisions_from_gate`) and persisted
+  with a book-sourced exposure snapshot (`_persist_sleeve_risk_snapshot` re-pointed to book positions).
+  Rewrote 8 sleeve-mode tests for clean-table writes + kill-switch halts. Full `run_checks ci` green.
+  Next: 2a-4b (re-point `reconcile_open_broker_orders` to clean orders).
+- 2026-07-05 — **2a-4b landed — open-order reconciliation reads the clean tables.**
+  `reconcile_open_orders_impl` now polls the broker for fills on the account's open clean `orders`
+  (`OrderRepository.fetch_open_for_account`), applies each new execution to the book via the shared
+  `apply_book_fill` (promoted from `submit_book_intents`' private helper — dedup on
+  `order_fills.exec_id` keeps repeated polls idempotent), updates the clean order status, and mirrors a
+  completed fill into `trades`. The legacy `broker_orders`/`sleeve_orders` reads are gone (both are now
+  unwritten by the submission path). `clean_order_status` is also shared out of submission. Rewrote the
+  reconciliation tests onto clean orders/book state (consolidated the two now-redundant sleeve variants).
+  Full `run_checks ci` green. The submission path (account + sleeve) and its reconciliation are fully on
+  the clean schema; nothing on the submission/reconciliation path reads the legacy order tables. Next:
+  2a-5 (retire the now-dead legacy writers + stage table drops).
+- 2026-07-05 — **2a-5 (code retirement) landed.** Removed the now-dead `broker_orders` write path:
+  deleted `repositories/broker_orders.py` (`BrokerOrderRepository`), `models/orders/broker_order_record.py`
+  (`BrokerOrderRecord`), the `book_bridge.order_id_for_broker_order` mirror, their exports, and the repo
+  test. Removed the dead runtime helpers `_insert_submitted_sleeve_order` + `_is_snapshot_time_stale`
+  and freed the unused imports. A repo-wide search confirmed **no production reader** of
+  `broker_orders`/`sleeve_orders`/`sleeve_fills` remains (no reporting/export/admin/web reader; the only
+  `broker_orders` reader was the retired mirror). Full `run_checks ci` green.
+  **Remaining (deliberately deferred — destructive / entangled):** (1) the `sleeve_orders`/`sleeve_fills`
+  writers (`apply_sleeve_fill` + `SleeveOrderRepository`) are production-dead but still exercised by
+  tests and entangled with the sleeve accounting tables (`strategy_sleeves`/`sleeve_positions`/
+  `sleeve_ledger`) that sleeve *reporting* still reads — their retirement is coupled to migrating sleeve
+  reporting onto the book tables; (2) the legacy table **DROPs** (`broker_orders` now fully orphaned;
+  `sleeve_orders`/`sleeve_fills` after (1)) are a separate, backed-up migration to run with explicit
+  sign-off. The submission/reconciliation cutover (2a) is otherwise complete.

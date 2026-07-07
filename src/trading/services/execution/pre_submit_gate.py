@@ -53,6 +53,7 @@ class BookPreSubmitGate:
         config: SleeveRiskGateConfig | None = None,
         equity_tolerance: float = RECONCILIATION_EQUITY_TOLERANCE,
         max_snapshot_age_seconds: int = MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
+        reconcile: bool = True,
         audit_sink: GateAuditSink | None = None,
     ) -> None:
         self._prices = prices
@@ -60,6 +61,11 @@ class BookPreSubmitGate:
         self._config = config if config is not None else SleeveRiskGateConfig()
         self._equity_tolerance = abs(float(equity_tolerance))
         self._max_snapshot_age_seconds = int(max_snapshot_age_seconds)
+        # When False, the equity reconciliation kill switch is skipped here — the
+        # caller runs it once pre-flight instead (account mode gates per trade in a
+        # loop, so mid-loop book equity drifts from the snapshot by fees and would
+        # false-mismatch; reconciliation is a per-run check, not a per-trade one).
+        self._reconcile = reconcile
         self._audit_sink = audit_sink
 
     def evaluate(
@@ -76,8 +82,8 @@ class BookPreSubmitGate:
         # Stale-price only matters for intents that survived the notional gate.
         if approved and self._stale_price_symbols(approved):
             kill_switch_reasons.append(KILL_SWITCH_REASON_STALE_PRICE_DATA)
-        # Reconciliation always runs so its verdict is captured for the audit.
-        kill_switch_reasons.extend(self._reconciliation_kill_switches(conn, account_id))
+        if self._reconcile:
+            kill_switch_reasons.extend(self._reconciliation_kill_switches(conn, account_id))
 
         if kill_switch_reasons:
             # Any kill switch holds the whole book: nothing is approved for submission.
@@ -98,6 +104,7 @@ class BookPreSubmitGate:
             blocked_intents=blocked,
             rescaled_intents=rescaled,
             kill_switch_reasons=kill_switch_reasons,
+            decisions=decisions,
         )
 
     # --- notional risk gate (book-as-bucket adapter) ------------------------

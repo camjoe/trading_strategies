@@ -114,6 +114,14 @@ class OrderRepository:
         )
         self._conn.commit()
 
+    def fetch_fill_exec_ids(self, *, order_id: int) -> set[str]:
+        """Return the non-null exec_ids already recorded for an order (fill dedup)."""
+        rows = self._conn.execute(
+            "SELECT exec_id FROM order_fills WHERE order_id = ? AND exec_id IS NOT NULL",
+            (int(order_id),),
+        ).fetchall()
+        return {str(row[0]) for row in rows}
+
     def fetch_by_id(self, *, order_id: int) -> OrderRecord | None:
         row = self._conn.execute(
             "SELECT * FROM orders WHERE id = ?",
