@@ -85,10 +85,9 @@ The rules a light model follows for **any** work order here:
 |---|---|---|
 | [p2-evaluation-contract-tests.md](p2-evaluation-contract-tests.md) (P2/1c) | ✅ **done** (PR #162) | Test-only; dogfooded the guide. |
 | [p1-execution-loop.md](p1-execution-loop.md) (P1) | ✅ **done** (`features/p1-execution-loop`) | Signal-driven selection live; E2 delivered as backtest↔live parity. |
-| [p3-db-schema-rewrite.md](p3-db-schema-rewrite.md) Phase A (DDL) | ❌ Planner | Needs D4 settings-shape; design work. |
-| p3 Phases B/C (models, repositories) | ◑ after A | Mechanical **per-table** fan-out — carve one chunk per table. |
-| p3 Phase D (seed) | ◑ after A | Mechanical. |
-| p3 Phase E (re-point reads) | ❌ Planner | Judgment about consumers. |
+| [p3-db-schema-rewrite.md](p3-db-schema-rewrite.md) (P3, all phases A–E) | ✅ **done** (PR #177) | Clean book schema live; reads re-pointed via `book_bridge`. |
+| [p4-convergence.md](p4-convergence.md) 2a (shared submission) | ❌ Planner / strong | Safety-critical (live submission path). Phases 2a-1..2a-5; each a green commit. |
+| p4 2c (unified ledger), 2b (unified rotation) | ❌ after 2a | Detailed in the work order when reached; 2b pairs with the P5 naming pass. |
 
 **The pattern:** the Planner resolves decisions and builds the design-heavy first slice; the light
 model does the mechanical fan-out (per-table models/repos, tests, seeds, mechanical refactors).

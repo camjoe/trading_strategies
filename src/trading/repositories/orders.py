@@ -83,6 +83,37 @@ class OrderRepository:
         self._conn.commit()
         return int(cursor.lastrowid or 0)
 
+    def insert_fill(
+        self,
+        *,
+        order_id: int,
+        filled_qty: float,
+        fill_price: float,
+        fill_time: str,
+        commission: float = 0.0,
+        broker_fill_id: str | None = None,
+        exec_id: str | None = None,
+    ) -> None:
+        # Fills key directly on the clean order_id (the execution service owns it).
+        # OR IGNORE + UNIQUE(order_id, exec_id) makes replayed execution reports idempotent.
+        self._conn.execute(
+            """
+            INSERT OR IGNORE INTO order_fills
+                (order_id, broker_fill_id, exec_id, filled_qty, fill_price, commission, fill_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(order_id),
+                broker_fill_id,
+                exec_id,
+                float(filled_qty),
+                float(fill_price),
+                float(commission),
+                fill_time,
+            ),
+        )
+        self._conn.commit()
+
     def fetch_by_id(self, *, order_id: int) -> OrderRecord | None:
         row = self._conn.execute(
             "SELECT * FROM orders WHERE id = ?",

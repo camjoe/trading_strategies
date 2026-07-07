@@ -182,12 +182,16 @@ Legend: ✅ already converged · ◑ partially converged · ❌ confirmed duplic
 Canonical decision status in [decisions.md](decisions.md). Remaining design detail:
 
 - **Which rotation paradigm survives on books** — account-episode vs champion/challenger. The
-  champion/challenger model + the decision-score contract is the developed path; confirm it wins and
-  retire the episode path during 2b. (Surfaced in the whole-picture review.)
-- Package/name for the shared submission service (`services/execution/` vs extending
-  `services/auto_trading/`).
-- Whether the shared submission service owns the pre-submit safety gates directly, or accepts them as
-  an injected policy so book-specific gates stay pluggable.
+  champion/challenger model + the decision-score contract is the developed path; **leaning
+  champion/challenger** (recorded in the P4 work order §5); confirm and retire the episode path
+  during 2b.
+- ~~Package/name for the shared submission service~~ — **decided (2026-07-05): new
+  `services/execution/` package** (SRP; keeps `auto_trading/` orchestration-focused).
+- ~~Gate ownership~~ — **decided (2026-07-05): injected pre-submit gate policy**, not hard-coded, so
+  book/environment-specific gates stay pluggable and unit-testable.
+
+Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md) (2a phased in full;
+2c/2b sketched).
 
 ## Progress log
 
@@ -213,3 +217,82 @@ Canonical decision status in [decisions.md](decisions.md). Remaining design deta
   the workstream persistence framing, sequencing, and open questions; resolved the order-repository
   and intent-model investigations (one `orders`/`ledger`/`positions` model on books). Flagged the
   surviving-rotation-paradigm question.
+- 2026-07-05 — P3 complete (clean book schema + repositories live, reads re-pointed via
+  `book_bridge`; the clean `orders`/`order_fills`/`positions`/`ledger` tables exist but are empty —
+  2a is their first writer). P4 started: resolved the two submission-service open questions (new
+  `services/execution/` package; injected pre-submit gate policy) and wrote the phased
+  [P4 work order](implementation/p4-convergence.md) with 2a detailed (2a-1 service in isolation →
+  2a-2 gate → 2a-3 account cutover → 2a-4 sleeve cutover + reconciliation re-point → 2a-5 retire
+  legacy writers). Noted the reconciliation coupling: `reconcile_open_broker_orders` reads
+  `broker_orders`/`sleeve_orders` and must move to clean `orders` in lockstep with the cutover.
+- 2026-07-05 — 2a-1 landed: the `trading.services.execution` package now exists in isolation (no
+  caller wired). `submit_book_intents` runs the injected gate → per approved intent `broker.place_order`
+  → persists the clean book-keyed `orders`/`order_fills`, and on a filled order updates `positions` +
+  appends a single `ledger` `trade` entry — the first writer of those tables. Added the passive
+  `BookTradeIntent`/`GateResult`/`SubmissionResult` contracts (`models/execution/`), the `PreSubmitGate`
+  protocol + `AllowAllGate`, and `OrderRepository.insert_fill` (order_id-keyed). Broker-API exceptions
+  append the `broker_api_anomaly` kill switch and stop, mirroring the legacy sleeve loop. Fill math
+  reuses the domain `apply_sleeve_fill_transition` (book-agnostic; folds broker commission + configured
+  fee into cost basis). Unit tests cover fill / hold / partial / broker-exception / gate-block /
+  gate-kill-switch / sell / on-fill. Next: 2a-2 (production gate).
+- 2026-07-05 — 2a-2 landed: `BookPreSubmitGate` (the production `PreSubmitGate`) composes the
+  pre-submit kill switches (stale-price + reconciliation missing/stale/mismatch) with the notional
+  risk gate. **Decision — book-as-bucket:** `book_id` is the risk bucket, so the domain
+  `evaluate_sleeve_risk_gate` policy is reused **unchanged** via a thin adapter (BookTradeIntent →
+  sleeve-shaped with `sleeve_id=book_id`; book equity/positions adapted), and account mode inherits the
+  notional caps too (safety strengthens beyond the DoD minimum, which only promised kill switches).
+  Reconciliation rolls up book equity vs the latest account snapshot. Kill-switch reasons/thresholds
+  centralized in `services/execution/constants.py` (submission repointed). Audit persistence is an
+  injected `GateAuditSink` protocol — concrete sink wired at 2a-4 to avoid an execution→auto_trading
+  cycle; the gate stays free of any auto_trading/sleeves *service* import (domain + repositories +
+  models only). Gate unit tests: allow / rescale / block honored; each kill switch fires; sell allowed;
+  audit sink receives decisions + reasons. Next: 2a-3 (route account mode through the service).
+- 2026-07-05 — 2a-3 investigation surfaced a sequencing blocker; **2c re-sequenced before the 2a
+  cutover** (decided this session). The gate's reconciliation kill switch + notional caps read
+  `books.current_equity`, but book balances are bootstrapped to `initial_cash` by `book_bridge` and
+  never maintained during 2a, while the snapshot they reconcile against is market-marked
+  (`account_report`). Wiring the full gate into account mode now would misfire (mismatch blocks every
+  trade) and size caps off stale equity. So 2a splits into an isolated build (2a-1/2a-2, done) and a
+  cutover (2a-3/2a-4/2a-5) that follows 2c. Detailed the 2c build plan (book fill accounting → NAV
+  marking → reconciliation → book-derived snapshots) in the [P4 work order §6b](implementation/p4-convergence.md).
+  Live order now: 2a-1/2a-2 → 2c → 2a-3/2a-4/2a-5 → 2b. Next: 2c-1 (book fill accounting in isolation).
+- 2026-07-05 — 2c-1 landed: `submit_book_intents` on-fill now maintains book balances and writes a
+  **summable cash-flow ledger**. **Correction to the plan:** the clean `ledger.entry_type` CHECK allows
+  only `trade`/`fee`/`deposit`/`withdrawal`/`adjustment`, so the sleeve ledger's
+  `cash_movement`/`realized_pnl` vocab can't be ported. A fill now posts a gross `trade` entry
+  (`-(qty×price)` buy / `+(qty×price)` sell) plus a `fee` entry (`-(commission+fee)`) when non-zero —
+  the two sum to the net cash delta — and updates `books.current_cash` (authoritative, incremental) +
+  `current_equity` (fill-marked: cash + Σ position market value) via `BookRepository.update_balances`.
+  Realized P&L is intentionally not a cash-ledger entry (derived for reporting), a cleanup vs the
+  sleeve ledger's mixed audit design. Still no caller. Tests: cash/equity updated on buy/sell; fee
+  splits into its own entry and drops equity; ledger sums to the cash delta. Next: 2c-2 (book NAV
+  marking to market).
+- 2026-07-05 — 2c-2 landed: `services/execution/nav.py` — `mark_book_to_market` /
+  `mark_account_to_market` re-mark a book's (or an account's) positions to the current price marks and
+  recompute `current_equity = current_cash + Σ(qty × mark)`, updating positions + book balances (cash
+  untouched). This is the book-level equivalent of the sleeve NAV marking; it makes the internal
+  equity market-marked so it matches the market-marked snapshot the reconciliation compares against.
+  Unpriced positions are held at cost basis (zero unrealized) and reported via
+  `BookNavMarkResult.unpriced_symbols`. Tests: equity reflects marks; unpriced fallback; account-wide;
+  empty book = cash; missing book raises. Next: 2c-3 (book equity reconciliation as the gate's source
+  — runtime marks books, then the gate reconciles).
+- 2026-07-05 — 2c-3 landed: extracted `services/execution/reconciliation.py` —
+  `reconcile_book_equity` compares NAV-marked Σ book equity vs the latest snapshot and returns the
+  kill-switch reasons (missing / stale / mismatch). `BookPreSubmitGate` now **delegates** its inline
+  reconciliation here (dedup; equity reconciliation is now a first-class, testable unit — distinct
+  from the open-order reconciliation re-pointed in 2a-4). The function assumes books are NAV-marked
+  first; the runtime marks (2c-2) before the gate runs so both sides are market-marked. Tests: unit
+  (missing / stale / mismatch / within-tolerance) + an **integration** test proving the full pipeline
+  — `submit_book_intents` fill (2c-1) → `mark_book_to_market` (2c-2) → `reconcile_book_equity` clean
+  against an agreeing snapshot. Next: 2c-4 (confirm book-derived snapshots share one marking source).
+- 2026-07-05 — 2c-4 landed; **2c (unified accounting) complete**. **Correction to the plan:** do NOT
+  point the reconciliation snapshot at book balances — the kill switch compares Σ book equity vs the
+  snapshot, so a book-derived snapshot would make both sides one source and the check a tautology (a
+  weakened kill switch). The snapshot stays an independent measure: the account/trades roll-up during
+  migration, the broker (`get_account_info`) post-migration (flagged as a follow-up in the work order).
+  2c-4 is the confirm option: an integration test runs one buy through **both** systems
+  (`record_trade` → trades and `submit_book_intents` → book), marks both at the same prices, and
+  asserts equal equity + a clean `reconcile_book_equity` against the account-sourced snapshot —
+  proving the two independent accountings agree so reconciliation won't false-positive at cutover.
+  The isolated 2a-1/2a-2 + 2c foundation is now complete (nothing wired; zero behavior change) — the
+  natural PR 1 boundary. Next: the 2a-3/2a-4/2a-5 cutover (PR 2), then 2b.

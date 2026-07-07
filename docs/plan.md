@@ -3,7 +3,7 @@
 Type: plan
 Status: Active
 Created: 2026-06-29
-Last Reviewed: 2026-07-03
+Last Reviewed: 2026-07-05
 Purpose: The single source for tasks, order, status, and timelines — the itemized backlog and progress tracker. What needs to be *defined* (open decisions) lives in [decisions.md](decisions.md); the entry-point north star is [overview.md](overview.md).
 Related: [Overview](overview.md), [Decisions](decisions.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md), [DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [Developer Notes](developer-notes.md)
 
@@ -20,7 +20,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 | 1 | Close the execution loop (keystone) | Committed | ✅ done (E1 · E2 parity) | L | [D1](decisions.md#d1) |
 | 2 | Finish unified evaluation | Committed | ✅ done (1a·1b·1c) | S | — |
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✅ done (A–E) | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
-| 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ☐ | L | — |
+| 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ◑ in progress (2a) | L | — |
 | 5 | Decisioning legibility & naming pass | Committed | ☐ | M | [D13](decisions.md#d13) |
 | 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | M | [D5](decisions.md#d5) |
 | 7 | Unified parameter source | Committed | ☐ | M | [D4](decisions.md#d4) |
@@ -190,12 +190,16 @@ Priority: P2 · Committed
 
 #### Converge accounts and sleeves on shared services
 
-Priority: P4 · Committed
+Priority: P4 · Committed · ◑ **in progress (2a)** — P3 done; building the shared submission service.
 
 - Scope: remove the parallel account-mode vs sleeve-mode orchestration by building **one**
   submission/rotation/accounting path. Under rewrite-first (P3), these services are built **once on
   the clean book schema**, not by migrating two live paths — so pre-submit safety is uniform
-  by construction. Depends on P3 (the schema + repositories).
+  by construction. Depends on P3 (the schema + repositories — done).
+- **Work order:** [implementation/p4-convergence.md](implementation/p4-convergence.md) (2a phased in
+  full: service in isolation → gate policy → account cutover → sleeve cutover + reconciliation
+  re-point → retire legacy writers; 2c/2b sketched). Decisions resolved: new `services/execution/`
+  package + injected pre-submit gate policy (2026-07-05).
 - Full plan and progress tracker: [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
 - Surface: `src/trading/services/auto_trading/`, `src/trading/services/sleeves/`,
   `src/trading/services/accounting/`.
