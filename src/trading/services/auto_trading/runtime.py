@@ -100,7 +100,6 @@ def _rotate_runtime_account(
     account: AccountRecord,
     now_iso: str,
     *,
-    feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
 ) -> AccountRecord:
     return rotate_runtime_account(
@@ -108,7 +107,6 @@ def _rotate_runtime_account(
         account_name,
         account,
         now_iso,
-        feature_fetchers=feature_fetchers,
         provider=provider,
         is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
@@ -569,7 +567,6 @@ def run_for_account(
             account_name,
             account,
             now_iso,
-            feature_fetchers=feature_fetchers,
             provider=provider,
         )
         return _run_sleeve_mode_for_account(
@@ -630,7 +627,6 @@ def run_for_account(
                 n,
                 a,
                 i,
-                feature_fetchers=feature_fetchers,
                 provider=provider,
             ),
             record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(

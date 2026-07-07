@@ -369,3 +369,54 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   migrate-off-sleeves workstream is now fully complete — no orphaned sleeve order/accounting tables or
   repositories remain; only `strategy_sleeves` (sleeve definitions/assignments) and the account-keyed
   risk audit tables stay, both still live.
+- 2026-07-07 — **2b started (branch `features/phase4-2b-unified-rotation`).** Investigated the open
+  rotation-paradigm question and confirmed **full collapse** onto champion/challenger + the
+  decision-score contract: the live DB shows the account regime/overlay subsystem is **provably
+  unused** (all 8 accounts `rotation_overlay_mode='none'`, no `rotation_regime_strategy_*`, none in
+  `rotation_mode='regime'`; no profile configures it), and the account rotation that *is* used
+  (`select_optimal_strategy`) is already performance-based (best strategy from the schedule via
+  backtest returns/episodes) — a clean map onto champion/challenger. The feature providers stay (they
+  back alternative strategies, not just rotation). Wrote the phased
+  [2b work order](implementation/p4-2b-unified-rotation.md) (2b-1 retire regime/overlays → 2b-2
+  book-keyed candidate enumeration → 2b-3 route account selection through champion/challenger → 2b-4
+  one rotation service + drop `rotation_episodes` → 2b-5 P5 naming pass).
+- 2026-07-07 — **2b-1 landed — retired the dead regime/overlay rotation subsystem.** Removed
+  `select_regime_strategy`, `classify_policy_regime`, the news/social overlay voting
+  (`select_rotation_overlay_direction`, `apply_rotation_overlay_to_regime`, the classify helpers),
+  `fetch_rotation_overlay_tickers`, the `mode=='regime'` branch in `select_account_rotation_strategy`
+  (+ its runtime wrappers and the now-dead `feature_fetchers` threading through the rotation chain),
+  and the domain resolvers `resolve_rotation_regime_strategy`/`resolve_rotation_overlay_mode`/
+  `resolve_rotation_overlay_watchlist`. Account rotation selection is now purely performance-based
+  (`select_optimal_strategy`). Per the user's call, the **design is preserved** in
+  [ADR 009](adr/009-regime-overlay-rotation-retired.md) (how it worked + the git-recoverable removal +
+  a revival path as candidate-enumeration for 2b-2); the feature providers + alternative-strategy
+  signals stay (they back strategies, not just rotation); the dead `rotation_regime_strategy_*` /
+  `rotation_overlay_*` account columns are left in place (append-only). Removed the corresponding
+  regime/overlay tests. Full `run_checks ci` green. Next: 2b-2 (book-keyed candidate enumeration).
+- 2026-07-07 — **2b-2 landed — book-keyed rotation candidate enumeration (in isolation).** Added
+  `services/auto_trading/rotation_candidates.py`: `build_book_rotation_candidates` produces a book's
+  incumbent + challenger candidates scored on the decision-score contract (via the shared
+  `build_sleeve_metrics_from_evaluation`), keyed on `book_id`. The caller resolves the incumbent +
+  schedule, so a plain account's default book and a sleeve's bridging book use the one enumeration —
+  generalizing the sleeve-only `build_sleeve_shadow_evaluation`. No caller wired yet (2b-3 routes
+  account rotation through it; 2b-4 consolidates sleeve rotation onto it). The candidate metrics type
+  (`SleeveStrategyMetrics`) is reused as-is; the P5 pass renames it. Unit tests: incumbent +
+  challengers enumerated/ordered, incumbent excluded from challengers (sleeve-book case), empty
+  schedule. Full `run_checks ci` green. Next: 2b-3 (route account selection through champion/challenger).
+- 2026-07-07 — **2b-3 landed — account rotation selection routed through champion/challenger.** Added
+  `services/auto_trading/book_rotation.py`: `evaluate_account_rotation_decision` resolves an account's
+  incumbent (its active strategy) + schedule, enumerates candidates via `build_book_rotation_candidates`
+  (2b-2), runs the decision-score `evaluate_champion_challenger_rotation` policy, and records the
+  hold/rotate call on the account's **default book** `rotation_decisions`, returning the selected
+  strategy. Rerouted `select_account_rotation_strategy` (bridge) to it — the account and sleeve paths now
+  select through the *same* decision-score model. `rotation_decisions` is already `book_id`-keyed, so a
+  default book slots straight in; added `RotationDecisionRepository.insert_for_book` (the book-native
+  writer) with the legacy `insert(sleeve_id=…)` delegating to it. Per the work order the **cadence
+  trigger (interval/schedule via `is_rotation_due`) stays the "when"**; champion/challenger is only the
+  "what", so `cooldown_active=False` here (cooldown unification with the sleeve path is a 2b-4 item). The
+  retired performance-based path (`select_optimal_strategy`) + its backtest/episode fetchers are left in
+  place, unused, `del`-ed at the bridge with a note — 2b-4 collapses the service and retires the episode
+  path. Rewrote the bridge tests onto decision-score monkeypatching (rotate on outperformance, hold when
+  incumbent best, None without an incumbent) + added `test_book_rotation.py` (rotate/records,
+  no-challenger hold, no-incumbent None). Full `run_checks ci` green. Next: 2b-4 (one book-keyed rotation
+  service; retire episode path + drop `rotation_episodes`).

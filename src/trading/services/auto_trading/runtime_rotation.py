@@ -5,12 +5,10 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
-from trading.domain.feature_provider import FeatureFetcherSet
 from trading.models import AccountRecord
 from trading.services.market_data import MarketDataProvider
 from trading.services.auto_trading.rotation import (
     compute_live_account_metrics as compute_live_account_metrics_impl,
-    fetch_rotation_overlay_tickers as fetch_rotation_overlay_tickers_impl,
     sync_rotation_episode as sync_rotation_episode_impl,
 )
 from trading.services.auto_trading.rotation_bridge import (
@@ -18,13 +16,6 @@ from trading.services.auto_trading.rotation_bridge import (
     rotate_runtime_account_if_due as rotate_runtime_account_if_due_impl,
     select_account_rotation_strategy as select_account_rotation_strategy_impl,
 )
-
-
-def fetch_runtime_rotation_overlay_tickers(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-) -> list[str]:
-    return fetch_rotation_overlay_tickers_impl(conn, account)
 
 
 def compute_runtime_live_account_metrics(
@@ -41,7 +32,6 @@ def select_runtime_rotation_strategy(
     account: AccountRecord,
     as_of_iso: str,
     *,
-    feature_fetchers: FeatureFetcherSet,
     fetch_strategy_backtest_returns_fn: Callable[..., object],
     fetch_closed_rotation_episodes_fn: Callable[..., object],
 ) -> str | None:
@@ -50,10 +40,6 @@ def select_runtime_rotation_strategy(
         account,
         as_of_iso,
         fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
-        fetch_policy_features_fn=feature_fetchers.fetch_policy,
-        fetch_news_features_fn=feature_fetchers.fetch_news,
-        fetch_social_features_fn=feature_fetchers.fetch_social,
-        fetch_rotation_overlay_tickers_fn=fetch_runtime_rotation_overlay_tickers,
         fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes_fn,
     )
 
@@ -89,7 +75,6 @@ def rotate_runtime_account(
     account: AccountRecord,
     now_iso: str,
     *,
-    feature_fetchers: FeatureFetcherSet,
     is_rotation_due_fn: Callable[..., bool],
     update_account_rotation_state_fn: Callable[..., object],
     get_account_fn: Callable[..., AccountRecord],
@@ -117,7 +102,6 @@ def rotate_runtime_account(
             c,
             a,
             iso,
-            feature_fetchers=feature_fetchers,
             fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
             fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes_fn,
         ),

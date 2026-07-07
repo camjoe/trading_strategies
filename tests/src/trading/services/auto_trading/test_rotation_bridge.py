@@ -1,81 +1,54 @@
 import trading.services.auto_trading as auto_trading_service
-from trading.services.accounts import create_account, get_account
+from trading.models.evaluation import (
+    EvaluationBacktestEvidence,
+    EvaluationConfidence,
+    StrategyEvaluationArtifact,
+)
 from trading.repositories.accounts import AccountRepository
+from trading.repositories.book_bridge import default_book_id
+from trading.services.accounts import create_account, get_account
 from trading.services.auto_trading import RotationDeps
-from tests.src.trading.services.auto_trading.factories import make_auto_trading_account, make_feature_bundle
-from tests.support.strategies import ensure_strategy_id_for_label
+from tests.src.trading.services.auto_trading.factories import make_auto_trading_account
+
+# Selection scores come from the strategy evaluation artifact's decision score; the
+# champion/challenger model reads it through the shared decision-score builder.
+EVAL_FN = "trading.services.sleeves.shadow_evaluation.fetch_strategy_evaluation_for_account_row"
 
 
-def _insert_backtest_run(
-    conn,
-    *,
-    account_id: int,
-    strategy_name: str,
-    end_date: str,
-    start_equity: float,
-    end_equity: float,
-) -> None:
-    run_id = conn.execute(
-        """
-        INSERT INTO backtest_runs (
-            account_id,
-            strategy_id,
-            run_name,
-            start_date,
-            end_date,
-            created_at,
-            slippage_bps,
-            fee_per_trade,
-            notes,
-            warnings
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            account_id,
-            ensure_strategy_id_for_label(conn, strategy_name),
-            f"{strategy_name}-{end_date}",
-            "2026-01-01",
-            end_date,
-            f"{end_date}T00:00:00Z",
-            0.0,
-            0.0,
-            "",
-            "",
-        ),
-    ).lastrowid
+def _artifact(score: float, *, trade_count: int = 30) -> StrategyEvaluationArtifact:
+    return StrategyEvaluationArtifact(
+        backtest=EvaluationBacktestEvidence(available=True, trade_count=trade_count),
+        confidence=EvaluationConfidence(blended_score=score, overall_confidence=0.3),
+    )
 
+
+def _patch_scores(monkeypatch, scores: dict[str, float]) -> None:
+    monkeypatch.setattr(EVAL_FN, lambda _conn, _account, *, strategy_name: _artifact(scores[strategy_name]))
+
+
+def _enable_rotation(conn, name: str, *, mode: str = "optimal") -> None:
     conn.execute(
         """
-        INSERT INTO backtest_equity_snapshots (
-            run_id,
-            snapshot_time,
-            cash,
-            market_value,
-            equity,
-            realized_pnl,
-            unrealized_pnl
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?)
+        UPDATE accounts
+        SET rotation_enabled = 1,
+            rotation_interval_days = 7,
+            rotation_schedule = ?,
+            rotation_active_index = 0,
+            rotation_active_strategy = 'trend',
+            rotation_last_at = '2026-03-01T00:00:00Z',
+            rotation_mode = ?
+        WHERE name = ?
         """,
-        (
-            run_id,
-            "2026-01-01T00:00:00Z",
-            start_equity,
-            0.0,
-            start_equity,
-            0.0,
-            0.0,
-            run_id,
-            f"{end_date}T00:00:00Z",
-            end_equity,
-            0.0,
-            end_equity,
-            0.0,
-            0.0,
-        ),
+        ('["trend","mean_reversion"]', mode, name),
     )
     conn.commit()
+
+
+def _latest_decision(conn, *, book_id: int):
+    return conn.execute(
+        "SELECT rotation_action FROM rotation_decisions WHERE book_id = ? ORDER BY id DESC LIMIT 1",
+        (book_id,),
+    ).fetchone()
 
 
 def test_rotate_runtime_account_if_due_updates_state() -> None:
@@ -131,49 +104,16 @@ def test_rotate_runtime_account_if_due_updates_state() -> None:
     assert out["strategy"] == "mean_reversion"
 
 
-def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> None:
-    create_account(conn, "acct_opt_prev", "trend", 10000.0, "SPY")
-    account = get_account(conn, "acct_opt_prev")
-
-    conn.execute(
-        """
-        UPDATE accounts
-        SET rotation_enabled = 1,
-            rotation_interval_days = 7,
-            rotation_schedule = ?,
-            rotation_active_index = 0,
-            rotation_active_strategy = 'trend',
-            rotation_last_at = '2026-03-01T00:00:00Z',
-            rotation_mode = 'optimal',
-            rotation_optimality_mode = 'previous_period_best',
-            rotation_lookback_days = 120
-        WHERE name = 'acct_opt_prev'
-        """,
-        ('["trend","mean_reversion"]',),
-    )
-    conn.commit()
-
-    account = get_account(conn, "acct_opt_prev")
-    _insert_backtest_run(
-        conn,
-        account_id=int(account["id"]),
-        strategy_name="trend",
-        end_date="2026-03-08",
-        start_equity=10000.0,
-        end_equity=10600.0,
-    )
-    _insert_backtest_run(
-        conn,
-        account_id=int(account["id"]),
-        strategy_name="mean_reversion",
-        end_date="2026-03-15",
-        start_equity=10000.0,
-        end_equity=11200.0,
-    )
+def test_rotate_runtime_account_if_due_rotates_to_higher_decision_score(conn, monkeypatch) -> None:
+    create_account(conn, "acct_cc", "trend", 10000.0, "SPY")
+    _enable_rotation(conn, "acct_cc")
+    account = get_account(conn, "acct_cc")
+    # The mean_reversion challenger clears the outperformance + score-superiority gates.
+    _patch_scores(monkeypatch, {"trend": 1.0, "mean_reversion": 5.0})
 
     rotated = auto_trading_service.rotate_runtime_account_if_due(
         conn,
-        "acct_opt_prev",
+        "acct_cc",
         account,
         "2026-03-20T00:00:00Z",
         RotationDeps(
@@ -183,11 +123,7 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
                     inner_conn,
                     inner_account,
                     inner_as_of,
-                    fetch_strategy_backtest_returns_fn=__import__(
-                        "trading.services.reporting.backtest_returns",
-                        fromlist=["fetch_strategy_backtest_returns"],
-                    ).fetch_strategy_backtest_returns,
-                    fetch_policy_features_fn=None,
+                    fetch_strategy_backtest_returns_fn=lambda *_a, **_k: [],
                 )
             ),
             update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
@@ -197,6 +133,8 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
 
     assert rotated["strategy"] == "mean_reversion"
     assert rotated["rotation_active_strategy"] == "mean_reversion"
+    decision = _latest_decision(conn, book_id=default_book_id(conn, int(account["id"])))
+    assert decision["rotation_action"] == "rotate"
 
 
 def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
@@ -222,92 +160,40 @@ def test_rotate_runtime_account_if_due_noop_when_not_due() -> None:
     assert out is account
 
 
-def test_select_account_rotation_strategy_returns_none_when_no_runs(conn) -> None:
-    account = make_auto_trading_account(id=123, rotation_schedule='["trend","mean_reversion"]')
-
-    assert (
-        auto_trading_service.select_account_rotation_strategy(
-            conn,
-            account,
-            "2026-03-21T00:00:00Z",
-            fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-            fetch_policy_features_fn=None,
-        )
-        is None
-    )
-
-
-def test_select_account_rotation_strategy_returns_none_when_schedule_empty(conn) -> None:
-    account = make_auto_trading_account(id=123, rotation_schedule="[]")
-
-    assert (
-        auto_trading_service.select_account_rotation_strategy(
-            conn,
-            account,
-            "2026-03-21T00:00:00Z",
-            fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-            fetch_policy_features_fn=None,
-        )
-        is None
-    )
-
-
-def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
-    account = make_auto_trading_account(
-        rotation_mode="regime",
-        rotation_schedule='["trend","ma_crossover","mean_reversion"]',
-        rotation_active_strategy="ma_crossover",
-        rotation_regime_strategy_risk_on="trend",
-        rotation_regime_strategy_neutral="ma_crossover",
-        rotation_regime_strategy_risk_off="mean_reversion",
-    )
+def test_select_account_rotation_strategy_holds_and_records_incumbent(conn, monkeypatch) -> None:
+    create_account(conn, "acct_hold", "trend", 10000.0, "SPY")
+    _enable_rotation(conn, "acct_hold")
+    account = get_account(conn, "acct_hold")
+    # Incumbent scores best -> no challenger outperforms -> hold.
+    _patch_scores(monkeypatch, {"trend": 5.0, "mean_reversion": 1.0})
 
     selected = auto_trading_service.select_account_rotation_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-        fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
-            policy_risk_on_score=0.40,
-            policy_defensive_tilt=0.03,
-        ),
-    )
-
-    assert selected == "mean_reversion"
-
-
-def test_select_account_rotation_strategy_passes_overlay_dependencies() -> None:
-    account = make_auto_trading_account(
-        rotation_mode="regime",
-        rotation_overlay_mode="news_social",
-        rotation_schedule='["trend","mean_reversion"]',
-        rotation_active_strategy="trend",
-        rotation_regime_strategy_risk_on="trend",
-        rotation_regime_strategy_neutral="trend",
-        rotation_regime_strategy_risk_off="mean_reversion",
-    )
-    calls: dict[str, object] = {}
-
-    selected = auto_trading_service.select_account_rotation_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-        fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
-            policy_risk_on_score=0.70,
-            policy_defensive_tilt=-0.01,
-        ),
-        fetch_news_features_fn=lambda _ticker: make_feature_bundle(
-            news_sentiment_score=0.30,
-            news_headline_count=6.0,
-        ),
-        fetch_social_features_fn=lambda _ticker: make_feature_bundle(
-            social_trend_score=0.40,
-            social_mention_count=5.0,
-            social_reddit_sentiment=0.25,
-        ),
-        fetch_rotation_overlay_tickers_fn=lambda _conn, _account: calls.update({"overlay": True}) or ["AAPL"],
+        conn,
+        account,
+        "2026-03-21T00:00:00Z",
+        fetch_strategy_backtest_returns_fn=lambda *_a, **_k: [],
     )
 
     assert selected == "trend"
-    assert calls == {"overlay": True}
+    decision = _latest_decision(conn, book_id=default_book_id(conn, int(account["id"])))
+    assert decision["rotation_action"] == "hold"
+
+
+def test_select_account_rotation_strategy_returns_none_when_no_active_strategy() -> None:
+    account = make_auto_trading_account(
+        id=123,
+        strategy="",
+        rotation_active_strategy=None,
+        rotation_schedule=None,
+    )
+
+    # No incumbent to evaluate -> None, and no default-book resolution is attempted.
+    assert (
+        auto_trading_service.select_account_rotation_strategy(
+            object(),
+            account,
+            "2026-03-21T00:00:00Z",
+            fetch_strategy_backtest_returns_fn=lambda *_a, **_k: [],
+        )
+        is None
+    )

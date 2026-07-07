@@ -283,9 +283,11 @@ and cutover tests asserting the clean tables receive the writes.
 - **2c (unified accounting/ledger):** now detailed in §6b and sequenced **before** the 2a cutover —
   make sleeve/account fills a clean extension of the single book-ledger path (no divergent
   `record_trade` copy), maintain book balances, and mark book NAV to market for reconciliation.
-- **2b (unified rotation/selection):** collapse account-episode + champion/challenger onto the
-  decision-score contract; reduce rotation module sprawl; retire the episode path. Depends on 1a
-  (done). P5 naming pass alongside.
+- **2b (unified rotation/selection):** now detailed in its own work order —
+  [p4-2b-unified-rotation.md](p4-2b-unified-rotation.md). Collapse account-episode + champion/challenger
+  onto the decision-score contract, book-keyed; retire the (unused) regime/overlay subsystem + the
+  episode path; reduce rotation module sprawl; P5 naming pass alongside. *(Direction confirmed
+  2026-07-07: full collapse — regime/overlays are provably unused.)*
 - Broker adapters / environment axis (already converged behind the `BrokerConnection` port).
 
 ## 11. Final report (per `AGENTS.md`)

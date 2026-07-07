@@ -61,6 +61,53 @@ class RotationDecisionRepository:
         # accepted for call compatibility until P4 rewires the writers.
         del param_set_id
         book_id = book_id_for_sleeve(self._conn, int(sleeve_id), create=True)
+        return self.insert_for_book(
+            book_id=book_id,
+            decision_time=decision_time,
+            incumbent_strategy=incumbent_strategy,
+            challenger_strategy=challenger_strategy,
+            selected_strategy=selected_strategy,
+            rotation_action=rotation_action,
+            cooldown_active=cooldown_active,
+            score_components_json=score_components_json,
+            gate_results_json=gate_results_json,
+            decision_reason=decision_reason,
+            config_version=config_version,
+            decision_score=decision_score,
+            decision_confidence=decision_confidence,
+            window_start=window_start,
+            window_end=window_end,
+            realized_pnl_delta=realized_pnl_delta,
+            created_at=created_at,
+        )
+
+    def insert_for_book(
+        self,
+        *,
+        book_id: int,
+        decision_time: str,
+        incumbent_strategy: str | None,
+        challenger_strategy: str | None,
+        selected_strategy: str | None,
+        rotation_action: str,
+        cooldown_active: int,
+        score_components_json: str,
+        gate_results_json: str,
+        decision_reason: str | None,
+        config_version: str | None,
+        decision_score: float | None = None,
+        decision_confidence: float | None = None,
+        window_start: str | None = None,
+        window_end: str | None = None,
+        realized_pnl_delta: float | None = None,
+        created_at: str,
+    ) -> int:
+        """Record a rotation decision keyed directly on a book.
+
+        The book-native writer used by the unified rotation path (a plain account's
+        default book or a sleeve's bridging book). ``insert`` layers the legacy
+        ``sleeve_id`` → ``book_id`` bridge on top of this.
+        """
         cursor = self._conn.execute(
             """
             INSERT INTO rotation_decisions (

@@ -16,14 +16,8 @@ from tests.src.trading.services.auto_trading.factories import (
 def test_runtime_rotation_passthrough_helpers_delegate(monkeypatch: pytest.MonkeyPatch) -> None:
     account = make_auto_trading_account(id=7)
     conn = object()
-    overlay_calls: list[tuple[object, object]] = []
     metric_calls: list[tuple[object, object]] = []
 
-    monkeypatch.setattr(
-        rotation_runtime_service,
-        "fetch_rotation_overlay_tickers_impl",
-        lambda inner_conn, inner_account: overlay_calls.append((inner_conn, inner_account)) or ["QQQ"],
-    )
     monkeypatch.setattr(
         rotation_runtime_service,
         "compute_live_account_metrics_impl",
@@ -32,9 +26,7 @@ def test_runtime_rotation_passthrough_helpers_delegate(monkeypatch: pytest.Monke
         ),
     )
 
-    assert rotation_runtime_service.fetch_runtime_rotation_overlay_tickers(conn, account) == ["QQQ"]
     assert rotation_runtime_service.compute_runtime_live_account_metrics(conn, account) == {"equity": 123.0}
-    assert overlay_calls == [(conn, account)]
     assert metric_calls == [(conn, account)]
 
 
@@ -43,7 +35,6 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
     calls: dict[str, object] = {}
     fetch_backtests = Mock(return_value=[])
     fetch_closed_episodes = Mock(return_value=[])
-    feature_fetchers = FeatureFetcherSet(fetch_policy=Mock(), fetch_news=Mock(), fetch_social=Mock())
 
     def _fake_select(conn, selected_account, as_of_iso, **kwargs):
         calls.update(
@@ -62,7 +53,6 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
         conn=object(),
         account=account,
         as_of_iso="2026-03-21T00:00:00Z",
-        feature_fetchers=feature_fetchers,
         fetch_strategy_backtest_returns_fn=fetch_backtests,
         fetch_closed_rotation_episodes_fn=fetch_closed_episodes,
     )
@@ -71,12 +61,6 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
     assert calls["account"] == account
     assert calls["fetch_strategy_backtest_returns_fn"] is fetch_backtests
     assert calls["fetch_closed_rotation_episodes_fn"] is fetch_closed_episodes
-    assert calls["fetch_policy_features_fn"] is feature_fetchers.fetch_policy
-    assert calls["fetch_news_features_fn"] is feature_fetchers.fetch_news
-    assert calls["fetch_social_features_fn"] is feature_fetchers.fetch_social
-    assert (
-        calls["fetch_rotation_overlay_tickers_fn"] is rotation_runtime_service.fetch_runtime_rotation_overlay_tickers
-    )
 
 
 def test_sync_runtime_rotation_episode_requires_connection_execute(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -177,7 +161,6 @@ def test_rotate_runtime_account_syncs_before_and_after_rotation(monkeypatch: pyt
         account_name="acct_runtime",
         account=account,
         now_iso="2026-03-23T00:00:00Z",
-        feature_fetchers=FeatureFetcherSet(fetch_policy=Mock(), fetch_news=Mock(), fetch_social=Mock()),
         is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=update_rotation_state,
         get_account_fn=get_account,
