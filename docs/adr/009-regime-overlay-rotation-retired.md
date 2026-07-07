@@ -24,9 +24,9 @@ reducing rotation sprawl), we remove it and preserve the design here for revival
 
 ## Decision
 
-Remove the regime/overlay **rotation selection** code in P4/2b-1 (branch
-`features/phase4-2b-unified-rotation`). Retrieve the exact implementation via
-`git log --follow -- src/trading/services/auto_trading/rotation.py` and the 2b-1 commit.
+Remove the regime/overlay **rotation selection** code in P4/2b-1 (commit `74312df`, branch
+`features/phase4-2b-unified-rotation`). Retrieve the exact implementation with
+`git show 74312df` or `git log --follow -- src/trading/services/auto_trading/rotation.py`.
 
 **What it did (for future revival):** when `rotation_mode == "regime"`,
 `select_account_rotation_strategy` called `select_regime_strategy`, which:
