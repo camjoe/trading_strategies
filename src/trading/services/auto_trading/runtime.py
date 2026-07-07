@@ -23,7 +23,6 @@ from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
 from trading.services.universe import resolve_named_universes
-from trading.repositories.broker_orders import BrokerOrderRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
 from trading.repositories.sleeve_orders import SleeveOrderRepository
@@ -47,7 +46,7 @@ from trading.services.auto_trading.inputs import (
     validate_execution_mode,
 )
 from trading.services.auto_trading.runtime_reconciliation import (
-    reconcile_open_broker_orders_impl,
+    reconcile_open_orders_impl,
     resolve_reconciliation_exec_id,
 )
 from trading.services.auto_trading.runtime_rotation import rotate_runtime_account
@@ -713,36 +712,25 @@ def reconcile_open_broker_orders(
     *,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
 ) -> int:
-    """Poll the account broker for fill updates on all open persisted broker orders.
+    """Poll the account broker for fill updates on all open persisted clean orders.
 
-    For each order that has transitioned to FILLED since it was last persisted,
-    this function:
-      - Updates the ``broker_orders`` row to FILLED with avg fill price
-      - Inserts any new ``order_fills`` rows
-      - Calls ``record_trade`` so the fill is reflected in the account ledger
+    For each open ``orders`` row the broker reports fills on, this function:
+      - Inserts any new ``order_fills`` rows and applies them to the book
+        (positions/ledger/balances via the shared ``apply_book_fill``)
+      - Updates the ``orders`` row status/fill state
+      - Mirrors a completed fill into the legacy account ledger (``trades``)
 
     Returns the number of orders that were newly FILLED in this call.
 
-    This should be called periodically (e.g. once per trading loop iteration)
-    for accounts with broker-managed open orders. It is a no-op for paper
-    accounts since paper orders are synchronously filled and report no open
-    trades through the broker interface.
+    Called periodically for accounts with broker-managed open orders. It is a no-op
+    for paper accounts, which fill synchronously and report no open trades.
     """
-    return reconcile_open_broker_orders_impl(
+    return reconcile_open_orders_impl(
         conn,
         account_name,
         account,
         fee,
         get_broker_for_account_fn=broker_factory,
-        fetch_open_broker_orders_fn=BrokerOrderRepository(conn).fetch_open,
-        fetch_sleeve_order_by_broker_order_id_fn=lambda c, *, account_id, broker_order_id: SleeveOrderRepository(
-            c
-        ).fetch_by_broker_order_id(account_id=account_id, broker_order_id=broker_order_id),
-        insert_order_fill_fn=BrokerOrderRepository(conn).insert_fill,
-        update_broker_order_status_fn=BrokerOrderRepository(conn).update_status,
-        update_sleeve_order_status_fn=lambda c, *, sleeve_order_id, status, updated_at: SleeveOrderRepository(
-            c
-        ).update_status(sleeve_order_id=sleeve_order_id, status=status, updated_at=updated_at),
         record_trade_fn=record_trade,
     )
 

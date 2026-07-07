@@ -321,3 +321,14 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   with a book-sourced exposure snapshot (`_persist_sleeve_risk_snapshot` re-pointed to book positions).
   Rewrote 8 sleeve-mode tests for clean-table writes + kill-switch halts. Full `run_checks ci` green.
   Next: 2a-4b (re-point `reconcile_open_broker_orders` to clean orders).
+- 2026-07-05 — **2a-4b landed — open-order reconciliation reads the clean tables.**
+  `reconcile_open_orders_impl` now polls the broker for fills on the account's open clean `orders`
+  (`OrderRepository.fetch_open_for_account`), applies each new execution to the book via the shared
+  `apply_book_fill` (promoted from `submit_book_intents`' private helper — dedup on
+  `order_fills.exec_id` keeps repeated polls idempotent), updates the clean order status, and mirrors a
+  completed fill into `trades`. The legacy `broker_orders`/`sleeve_orders` reads are gone (both are now
+  unwritten by the submission path). `clean_order_status` is also shared out of submission. Rewrote the
+  reconciliation tests onto clean orders/book state (consolidated the two now-redundant sleeve variants).
+  Full `run_checks ci` green. The submission path (account + sleeve) and its reconciliation are fully on
+  the clean schema; nothing on the submission/reconciliation path reads the legacy order tables. Next:
+  2a-5 (retire the now-dead legacy writers + stage table drops).
