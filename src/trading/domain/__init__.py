@@ -17,11 +17,8 @@ from trading.domain.rotation import (
     ROTATION_MODES,
     dump_rotation_schedule,
     is_rotation_due,
-    next_rotation_state,
     parse_rotation_schedule,
     resolve_active_strategy,
-    resolve_optimality_mode,
-    resolve_rotation_mode,
 )
 from trading.domain.sleeve_accounting import (
     apply_sleeve_fill_transition,
@@ -45,11 +42,8 @@ __all__ = [
     "ROTATION_MODES",
     "dump_rotation_schedule",
     "is_rotation_due",
-    "next_rotation_state",
     "parse_rotation_schedule",
     "resolve_active_strategy",
-    "resolve_optimality_mode",
-    "resolve_rotation_mode",
     "apply_sleeve_fill_transition",
     "compute_sleeve_equity",
     "normalize_sleeve_order_input",

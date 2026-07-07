@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Mapping
 
 from common.coercion import coerce_int
 from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
-from common.time import as_utc_iso
 from common.time import parse_utc_iso
 
 if TYPE_CHECKING:
@@ -113,22 +112,6 @@ def _rotation_interval_seconds(account: Mapping[str, object]) -> int:
     return 0
 
 
-def resolve_rotation_mode(account: Mapping[str, object]) -> str:
-    return _normalize_allowed_mode(
-        _account_field(account, "rotation_mode"),
-        default="time",
-        allowed=ROTATION_MODES,
-    )
-
-
-def resolve_optimality_mode(account: Mapping[str, object]) -> str:
-    return _normalize_allowed_mode(
-        _account_field(account, "rotation_optimality_mode"),
-        default="previous_period_best",
-        allowed=OPTIMALITY_MODES,
-    )
-
-
 def parse_rotation_schedule(raw_value: object | None) -> list[str]:
     return _parse_unique_string_list(
         raw_value,
@@ -205,21 +188,3 @@ def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
 
     elapsed_seconds = (now - last_rotation).total_seconds()
     return elapsed_seconds >= interval_seconds
-
-
-def next_rotation_state(account: Mapping[str, object], *, as_of_iso: str) -> dict[str, object]:
-    schedule = _rotation_schedule(account)
-    if len(schedule) < 2:
-        return {
-            "rotation_active_index": 0,
-            "rotation_active_strategy": resolve_active_strategy(account),
-            "rotation_last_at": _account_text(account, "rotation_last_at"),
-        }
-
-    idx = _coerce_default_int(_account_field(account, "rotation_active_index"), default=0)
-    next_idx = (idx + 1) % len(schedule)
-    return {
-        "rotation_active_index": next_idx,
-        "rotation_active_strategy": schedule[next_idx],
-        "rotation_last_at": as_utc_iso(_parse_iso(as_of_iso) or datetime.now(UTC)),
-    }

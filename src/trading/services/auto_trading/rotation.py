@@ -8,10 +8,8 @@ from typing import Callable, cast
 from common.coercion import row_expect_int, row_float
 from trading.domain.accounting import compute_account_state
 from trading.domain.rotation import (
-    next_rotation_state,
     parse_rotation_schedule,
     resolve_active_strategy,
-    resolve_rotation_mode,
 )
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
@@ -116,28 +114,23 @@ def rotate_account_if_due(
     if not is_rotation_due_fn(account):
         return account
 
-    rotation_mode = resolve_rotation_mode(account)
-    if rotation_mode in {"optimal", "regime"}:
-        selected = select_optimal_strategy_fn(conn, account, now_iso)
-        active = selected or resolve_active_strategy(account)
-        schedule = parse_rotation_schedule(account["rotation_schedule"])
-        if schedule and active in schedule:
-            active_idx = schedule.index(active)
-        else:
-            active_idx = int(cast(int | float | str | bytes | bytearray, account["rotation_active_index"] or 0))
-        next_state = {
-            "rotation_active_index": active_idx,
-            "rotation_active_strategy": active,
-            "rotation_last_at": now_iso,
-        }
+    # Round-robin "time" mode is retired: rotation selection is always the
+    # decision-score champion/challenger model (select_optimal_strategy_fn routes
+    # through it). is_rotation_due is the cadence trigger; the cooldown guard inside
+    # the selection prevents churn.
+    selected = select_optimal_strategy_fn(conn, account, now_iso)
+    active = selected or resolve_active_strategy(account)
+    schedule = parse_rotation_schedule(account["rotation_schedule"])
+    if schedule and active in schedule:
+        active_idx = schedule.index(active)
     else:
-        next_state = next_rotation_state(account, as_of_iso=now_iso)
+        active_idx = int(cast(int | float | str | bytes | bytearray, account["rotation_active_index"] or 0))
 
     update_account_rotation_state_fn(
         account_id=row_expect_int(account, "id"),
-        strategy=str(next_state["rotation_active_strategy"]),
-        rotation_active_index=int(cast(int | float | str | bytes | bytearray, next_state["rotation_active_index"])),
-        rotation_active_strategy=str(next_state["rotation_active_strategy"]),
-        rotation_last_at=str(next_state["rotation_last_at"]),
+        strategy=active,
+        rotation_active_index=active_idx,
+        rotation_active_strategy=active,
+        rotation_last_at=now_iso,
     )
     return get_account_fn(conn, account_name)

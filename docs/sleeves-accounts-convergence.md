@@ -455,3 +455,13 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   window — the "cadence trigger + cooldown guard" model, uniform across both paths. Added a cooldown
   regression test. Full `run_checks ci` green. Next: 2b-4c (retire the episode path + drop
   `rotation_episodes`).
+- 2026-07-07 — **Retired round-robin "time" rotation mode — champion/challenger is the only paradigm.**
+  Per the user: round-robin strategy cycling was never the intent; both desired behaviors ("best
+  challenger on a schedule" and "best challenger, responsive/intraday") are champion/challenger with a
+  different interval (`rotation_interval_days` vs `rotation_interval_minutes`) — cadence is pure config,
+  selection is one model. `rotate_account_if_due` now always runs champion/challenger (dropped the
+  `rotation_mode in {optimal,regime}` branch + the round-robin `else`). Deleted the now-dead domain
+  functions `next_rotation_state`, `resolve_rotation_mode`, `resolve_optimality_mode` (+ exports and
+  their tests). The `rotation_mode` / `rotation_optimality_mode` columns stay (append-only) and profile
+  validation still accepts the values, but they no longer affect behavior — a later config cleanup can
+  retire the vestigial plumbing. Full `run_checks ci` green.

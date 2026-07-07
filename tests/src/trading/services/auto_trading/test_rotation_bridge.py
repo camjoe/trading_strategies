@@ -92,7 +92,8 @@ def test_rotate_runtime_account_if_due_updates_state() -> None:
         "2026-03-17T00:00:00Z",
         RotationDeps(
             is_rotation_due_fn=lambda _row: True,
-            select_optimal_strategy_fn=lambda *_args, **_kwargs: None,
+            # Champion/challenger selects mean_reversion; the account state updates to it.
+            select_optimal_strategy_fn=lambda *_args, **_kwargs: "mean_reversion",
             update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
             get_account_fn=lambda _conn, _name: account_after,
         ),

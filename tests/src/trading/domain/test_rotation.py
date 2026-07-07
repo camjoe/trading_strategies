@@ -5,16 +5,11 @@ import pytest
 from common.time import as_utc_iso
 import trading.domain.rotation as rotation
 from trading.domain.rotation import (
-    OPTIMALITY_MODES,
-    ROTATION_MODES,
     dump_rotation_schedule,
     is_rotation_due,
-    next_rotation_state,
     parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
     resolve_active_strategy,
-    resolve_optimality_mode,
-    resolve_rotation_mode,
 )
 
 
@@ -27,19 +22,6 @@ def _due_account(**overrides):
     }
     account.update(overrides)
     return account
-
-
-class _IndexOnlyAccountMapping:
-    def __init__(self, values):
-        self._values = values
-
-    def __getitem__(self, key):
-        return self._values[key]
-
-
-class _TypeErrorAccountMapping:
-    def __getitem__(self, _key):
-        raise TypeError("row unavailable")
 
 
 class TestParseRotationSchedule:
@@ -109,35 +91,6 @@ class TestResolveActiveStrategy:
         assert resolve_active_strategy(account) == "mean_reversion"
 
 
-class TestResolveModes:
-    def test_resolve_rotation_mode_defaults_and_validation(self) -> None:
-        assert ROTATION_MODES == {"time", "optimal", "regime"}
-        assert resolve_rotation_mode({"rotation_mode": "optimal"}) == "optimal"
-        assert resolve_rotation_mode({"rotation_mode": "regime"}) == "regime"
-        assert resolve_rotation_mode({"rotation_mode": "TIME"}) == "time"
-        assert resolve_rotation_mode({"rotation_mode": "unknown"}) == "time"
-
-    def test_resolve_optimality_mode_defaults_and_validation(self) -> None:
-        assert OPTIMALITY_MODES == {"previous_period_best", "average_return", "hybrid_weighted"}
-        assert resolve_optimality_mode({"rotation_optimality_mode": "average_return"}) == "average_return"
-        assert resolve_optimality_mode({"rotation_optimality_mode": "hybrid_weighted"}) == "hybrid_weighted"
-        assert resolve_optimality_mode({"rotation_optimality_mode": "PREVIOUS_PERIOD_BEST"}) == "previous_period_best"
-        assert resolve_optimality_mode({"rotation_optimality_mode": "unknown"}) == "previous_period_best"
-
-    def test_resolve_rotation_mode_with_index_only_mapping(self) -> None:
-        account = _IndexOnlyAccountMapping({"rotation_mode": "optimal"})
-
-        assert resolve_rotation_mode(account) == "optimal"
-
-    def test_resolve_rotation_mode_missing_key_defaults_when_key_error(self) -> None:
-        account = _IndexOnlyAccountMapping({})
-
-        assert resolve_rotation_mode(account) == "time"
-
-    def test_resolve_optimality_mode_type_error_defaults(self) -> None:
-        assert resolve_optimality_mode(_TypeErrorAccountMapping()) == "previous_period_best"
-
-
 class TestIsRotationDue:
     @pytest.mark.parametrize(
         ("as_of_iso", "expected"),
@@ -188,56 +141,6 @@ class TestIsRotationDue:
 
         assert is_rotation_due(missing_interval, as_of_iso="2026-03-09T00:00:00Z") is False
         assert is_rotation_due(non_positive_interval, as_of_iso="2026-03-09T00:00:00Z") is False
-
-
-class TestNextRotationState:
-    def test_advances_index_and_strategy_for_longer_schedule(self) -> None:
-        account = {
-            "rotation_schedule": dump_rotation_schedule(["trend", "mean_reversion", "breakout"]),
-            "rotation_active_index": 1,
-        }
-
-        nxt = next_rotation_state(account, as_of_iso="2026-03-17T12:00:00Z")
-
-        assert nxt["rotation_active_index"] == 2
-        assert nxt["rotation_active_strategy"] == "breakout"
-        assert str(nxt["rotation_last_at"]).startswith("2026-03-17T12:00:00")
-
-    def test_with_short_schedule_uses_resolved_active(self) -> None:
-        account = {
-            "strategy": "trend",
-            "rotation_schedule": dump_rotation_schedule(["trend"]),
-            "rotation_last_at": "2026-02-01T00:00:00Z",
-        }
-
-        state = next_rotation_state(account, as_of_iso="2026-03-10T00:00:00Z")
-
-        assert state == {
-            "rotation_active_index": 0,
-            "rotation_active_strategy": "trend",
-            "rotation_last_at": "2026-02-01T00:00:00Z",
-        }
-
-    def test_uses_now_when_as_of_iso_invalid(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        account = {
-            "rotation_schedule": dump_rotation_schedule(["trend", "mean_reversion"]),
-            "rotation_active_index": 0,
-            "rotation_last_at": "2026-02-01T00:00:00Z",
-        }
-
-        class _FixedDateTime:
-            @classmethod
-            def now(cls, _tz):
-                return datetime(2026, 3, 31, 9, 15, 0, tzinfo=UTC)
-
-        monkeypatch.setattr(rotation, "_parse_iso", lambda _value: None)
-        monkeypatch.setattr(rotation, "datetime", _FixedDateTime)
-
-        state = next_rotation_state(account, as_of_iso="invalid")
-
-        assert state["rotation_active_index"] == 1
-        assert state["rotation_active_strategy"] == "mean_reversion"
-        assert state["rotation_last_at"] == "2026-03-31T09:15:00Z"
 
 
 class TestRotationTimeAndGuardrails:
