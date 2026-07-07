@@ -2,7 +2,7 @@ import trading.services.auto_trading as auto_trading_service
 from trading.services.accounts import create_account, get_account
 from trading.repositories.accounts import AccountRepository
 from trading.services.auto_trading import RotationDeps
-from tests.src.trading.services.auto_trading.factories import make_auto_trading_account, make_feature_bundle
+from tests.src.trading.services.auto_trading.factories import make_auto_trading_account
 from tests.support.strategies import ensure_strategy_id_for_label
 
 
@@ -187,7 +187,6 @@ def test_rotate_runtime_account_if_due_optimal_previous_period_best(conn) -> Non
                         "trading.services.reporting.backtest_returns",
                         fromlist=["fetch_strategy_backtest_returns"],
                     ).fetch_strategy_backtest_returns,
-                    fetch_policy_features_fn=None,
                 )
             ),
             update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
@@ -231,7 +230,6 @@ def test_select_account_rotation_strategy_returns_none_when_no_runs(conn) -> Non
             account,
             "2026-03-21T00:00:00Z",
             fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-            fetch_policy_features_fn=None,
         )
         is None
     )
@@ -246,68 +244,6 @@ def test_select_account_rotation_strategy_returns_none_when_schedule_empty(conn)
             account,
             "2026-03-21T00:00:00Z",
             fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-            fetch_policy_features_fn=None,
         )
         is None
     )
-
-
-def test_select_account_rotation_strategy_uses_regime_mapping() -> None:
-    account = make_auto_trading_account(
-        rotation_mode="regime",
-        rotation_schedule='["trend","ma_crossover","mean_reversion"]',
-        rotation_active_strategy="ma_crossover",
-        rotation_regime_strategy_risk_on="trend",
-        rotation_regime_strategy_neutral="ma_crossover",
-        rotation_regime_strategy_risk_off="mean_reversion",
-    )
-
-    selected = auto_trading_service.select_account_rotation_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-        fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
-            policy_risk_on_score=0.40,
-            policy_defensive_tilt=0.03,
-        ),
-    )
-
-    assert selected == "mean_reversion"
-
-
-def test_select_account_rotation_strategy_passes_overlay_dependencies() -> None:
-    account = make_auto_trading_account(
-        rotation_mode="regime",
-        rotation_overlay_mode="news_social",
-        rotation_schedule='["trend","mean_reversion"]',
-        rotation_active_strategy="trend",
-        rotation_regime_strategy_risk_on="trend",
-        rotation_regime_strategy_neutral="trend",
-        rotation_regime_strategy_risk_off="mean_reversion",
-    )
-    calls: dict[str, object] = {}
-
-    selected = auto_trading_service.select_account_rotation_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_args, **_kwargs: [],
-        fetch_policy_features_fn=lambda _ticker: make_feature_bundle(
-            policy_risk_on_score=0.70,
-            policy_defensive_tilt=-0.01,
-        ),
-        fetch_news_features_fn=lambda _ticker: make_feature_bundle(
-            news_sentiment_score=0.30,
-            news_headline_count=6.0,
-        ),
-        fetch_social_features_fn=lambda _ticker: make_feature_bundle(
-            social_trend_score=0.40,
-            social_mention_count=5.0,
-            social_reddit_sentiment=0.25,
-        ),
-        fetch_rotation_overlay_tickers_fn=lambda _conn, _account: calls.update({"overlay": True}) or ["AAPL"],
-    )
-
-    assert selected == "trend"
-    assert calls == {"overlay": True}

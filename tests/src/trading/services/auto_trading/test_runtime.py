@@ -371,7 +371,6 @@ def test_runtime_wrapper_delegates(monkeypatch) -> None:
             "acct",
             account,
             "now",
-            feature_fetchers=make_feature_fetchers(),
         )
         == "rotated"
     )

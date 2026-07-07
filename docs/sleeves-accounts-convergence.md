@@ -380,3 +380,16 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   [2b work order](implementation/p4-2b-unified-rotation.md) (2b-1 retire regime/overlays → 2b-2
   book-keyed candidate enumeration → 2b-3 route account selection through champion/challenger → 2b-4
   one rotation service + drop `rotation_episodes` → 2b-5 P5 naming pass).
+- 2026-07-07 — **2b-1 landed — retired the dead regime/overlay rotation subsystem.** Removed
+  `select_regime_strategy`, `classify_policy_regime`, the news/social overlay voting
+  (`select_rotation_overlay_direction`, `apply_rotation_overlay_to_regime`, the classify helpers),
+  `fetch_rotation_overlay_tickers`, the `mode=='regime'` branch in `select_account_rotation_strategy`
+  (+ its runtime wrappers and the now-dead `feature_fetchers` threading through the rotation chain),
+  and the domain resolvers `resolve_rotation_regime_strategy`/`resolve_rotation_overlay_mode`/
+  `resolve_rotation_overlay_watchlist`. Account rotation selection is now purely performance-based
+  (`select_optimal_strategy`). Per the user's call, the **design is preserved** in
+  [ADR 009](adr/009-regime-overlay-rotation-retired.md) (how it worked + the git-recoverable removal +
+  a revival path as candidate-enumeration for 2b-2); the feature providers + alternative-strategy
+  signals stay (they back strategies, not just rotation); the dead `rotation_regime_strategy_*` /
+  `rotation_overlay_*` account columns are left in place (append-only). Removed the corresponding
+  regime/overlay tests. Full `run_checks ci` green. Next: 2b-2 (book-keyed candidate enumeration).

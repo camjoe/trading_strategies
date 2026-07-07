@@ -6,7 +6,7 @@ import sqlite3
 from datetime import timedelta
 from typing import Callable, cast
 
-from common.coercion import coerce_float, row_expect_int, row_float, row_int
+from common.coercion import row_expect_int, row_float, row_int
 from common.time import parse_utc_iso
 from trading.domain.accounting import compute_account_state
 from trading.domain.returns import safe_return_pct
@@ -14,30 +14,8 @@ from trading.domain.rotation import (
     next_rotation_state,
     parse_rotation_schedule,
     resolve_active_strategy,
-    resolve_rotation_overlay_mode,
-    resolve_rotation_overlay_watchlist,
     resolve_optimality_mode,
     resolve_rotation_mode,
-    resolve_rotation_regime_strategy,
-)
-from trading.domain.feature_provider import (
-    ExternalFeatureBundle,
-    NEWS_BUY_SENTIMENT_THRESHOLD,
-    NEWS_HEADLINE_COUNT,
-    NEWS_MIN_HEADLINES_REQUIRED,
-    NEWS_SELL_SENTIMENT_THRESHOLD,
-    NEWS_SENTIMENT_SCORE,
-    POLICY_DEFENSIVE_TILT,
-    POLICY_MAX_DEFENSIVE_TILT,
-    POLICY_RISK_OFF_SELL_THRESHOLD,
-    POLICY_RISK_ON_BUY_THRESHOLD,
-    POLICY_RISK_ON_SCORE,
-    SOCIAL_MENTION_COUNT,
-    SOCIAL_MIN_REDDIT_SENTIMENT,
-    SOCIAL_REDDIT_SENTIMENT,
-    SOCIAL_TREND_BUY_THRESHOLD,
-    SOCIAL_TREND_EXIT_THRESHOLD,
-    SOCIAL_TREND_SCORE,
 )
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
@@ -53,231 +31,11 @@ MIN_LIVE_EPISODES_FOR_FULL_CONFIDENCE = 3
 HYBRID_BACKTEST_WEIGHT = 0.70
 HYBRID_LIVE_WEIGHT = 0.30
 
-# Ticker used to query the policy provider for account-level regime context.
-POLICY_REGIME_PROBE_TICKER = "SPY"
-
-# Require multiple covered positions before ticker-level news/social signals can
-# influence an account-level regime selection.
-DEFAULT_ROTATION_OVERLAY_MIN_TICKERS = 2
-
-# Require a clear majority of covered tickers to agree before the overlay nudges
-# the base policy regime one step more defensive or aggressive.
-DEFAULT_ROTATION_OVERLAY_CONFIDENCE_THRESHOLD = 0.50
-
-# Overlay states nudge the policy-derived regime up or down by one notch rather
-# than replacing it outright.
-ROTATION_OVERLAY_DIRECTIONS = ("bearish", "bullish")
-REGIME_STATE_ORDER = ("risk_off", "neutral", "risk_on")
-
 
 def _average(values: list[float]) -> float | None:
     if not values:
         return None
     return sum(values) / len(values)
-
-
-def _coerce_positive_int(value: object, *, default: int) -> int:
-    parsed = coerce_float(value)
-    if parsed is None or parsed <= 0:
-        return default
-    return int(parsed)
-
-
-def _coerce_threshold(value: object, *, default: float) -> float:
-    parsed = coerce_float(value)
-    if parsed is None or parsed <= 0 or parsed > 1:
-        return default
-    return float(parsed)
-
-
-def _account_value(account: AccountRecord, key: str) -> object | None:
-    return account.get(key)
-
-
-def classify_policy_regime(
-    *,
-    risk_on_score: object,
-    defensive_tilt: object,
-) -> str | None:
-    score = coerce_float(risk_on_score)
-    tilt = coerce_float(defensive_tilt)
-    if score is None or tilt is None:
-        return None
-    if score >= POLICY_RISK_ON_BUY_THRESHOLD and tilt <= POLICY_MAX_DEFENSIVE_TILT:
-        return "risk_on"
-    if score < POLICY_RISK_OFF_SELL_THRESHOLD or tilt > POLICY_MAX_DEFENSIVE_TILT:
-        return "risk_off"
-    return "neutral"
-
-
-def fetch_rotation_overlay_tickers(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-) -> list[str]:
-    state = cast(
-        object,
-        compute_account_state(
-            row_float(account, "initial_cash") or 0.0,
-            list_account_trades(conn, row_expect_int(account, "id")),
-        ),
-    )
-    positions = cast(dict[str, float], getattr(state, "positions", {}))
-    held_tickers = {ticker for ticker, qty in positions.items() if float(qty) > 0}
-    return sorted(held_tickers | set(resolve_rotation_overlay_watchlist(account)))
-
-
-def _classify_news_overlay_vote(
-    bundle: ExternalFeatureBundle,
-) -> int | None:
-    if not bundle.available:
-        return None
-    score = coerce_float(bundle.get(NEWS_SENTIMENT_SCORE))
-    headline_count = coerce_float(bundle.get(NEWS_HEADLINE_COUNT))
-    missing_news_inputs = score is None or headline_count is None
-    has_minimum_headlines = headline_count is not None and headline_count >= NEWS_MIN_HEADLINES_REQUIRED
-    if missing_news_inputs or not has_minimum_headlines:
-        return None
-    if score >= NEWS_BUY_SENTIMENT_THRESHOLD:
-        return 1
-    if score <= NEWS_SELL_SENTIMENT_THRESHOLD:
-        return -1
-    return 0
-
-
-def _classify_social_overlay_vote(
-    bundle: ExternalFeatureBundle,
-) -> int | None:
-    if not bundle.available:
-        return None
-    trend_score = coerce_float(bundle.get(SOCIAL_TREND_SCORE))
-    mention_count = coerce_float(bundle.get(SOCIAL_MENTION_COUNT))
-    reddit_sentiment = coerce_float(bundle.get(SOCIAL_REDDIT_SENTIMENT))
-    if trend_score is None or mention_count is None or reddit_sentiment is None:
-        return None
-    has_bullish_trend = trend_score >= SOCIAL_TREND_BUY_THRESHOLD
-    has_social_coverage = mention_count > 0
-    has_positive_reddit_sentiment = reddit_sentiment > 0
-    if has_bullish_trend and has_social_coverage and has_positive_reddit_sentiment:
-        return 1
-    has_bearish_trend = trend_score <= SOCIAL_TREND_EXIT_THRESHOLD
-    has_bearish_reddit_sentiment = reddit_sentiment <= SOCIAL_MIN_REDDIT_SENTIMENT
-    if has_bearish_trend and has_bearish_reddit_sentiment:
-        return -1
-    return 0
-
-
-def select_rotation_overlay_direction(
-    account: AccountRecord,
-    tickers: list[str],
-    *,
-    overlay_mode: str,
-    fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None,
-    fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None,
-) -> str | None:
-    if overlay_mode == "none" or not tickers:
-        return None
-
-    covered_tickers = 0
-    net_votes = 0
-    for ticker in tickers:
-        source_votes: list[int] = []
-        uses_news_overlay = overlay_mode in {"news", "news_social"}
-        news_overlay_fetcher = fetch_news_features_fn if uses_news_overlay else None
-        if news_overlay_fetcher is not None:
-            news_vote = _classify_news_overlay_vote(
-                news_overlay_fetcher(ticker),
-            )
-            if news_vote is not None:
-                source_votes.append(news_vote)
-        uses_social_overlay = overlay_mode in {"social", "news_social"}
-        social_overlay_fetcher = fetch_social_features_fn if uses_social_overlay else None
-        if social_overlay_fetcher is not None:
-            social_vote = _classify_social_overlay_vote(
-                social_overlay_fetcher(ticker),
-            )
-            if social_vote is not None:
-                source_votes.append(social_vote)
-        if not source_votes:
-            continue
-        covered_tickers += 1
-        combined_vote = sum(source_votes) / len(source_votes)
-        if combined_vote > 0:
-            net_votes += 1
-        elif combined_vote < 0:
-            net_votes -= 1
-
-    min_tickers = _coerce_positive_int(
-        _account_value(account, "rotation_overlay_min_tickers"),
-        default=DEFAULT_ROTATION_OVERLAY_MIN_TICKERS,
-    )
-    if covered_tickers < min_tickers or net_votes == 0:
-        return None
-
-    confidence_threshold = _coerce_threshold(
-        _account_value(account, "rotation_overlay_confidence_threshold"),
-        default=DEFAULT_ROTATION_OVERLAY_CONFIDENCE_THRESHOLD,
-    )
-    confidence = abs(net_votes) / covered_tickers
-    if confidence < confidence_threshold:
-        return None
-
-    return "bullish" if net_votes > 0 else "bearish"
-
-
-def apply_rotation_overlay_to_regime(regime_state: str, overlay_direction: str | None) -> str:
-    has_known_regime_state = regime_state in REGIME_STATE_ORDER
-    has_known_overlay_direction = overlay_direction in ROTATION_OVERLAY_DIRECTIONS
-    if not has_known_regime_state or not has_known_overlay_direction:
-        return regime_state
-    current_index = REGIME_STATE_ORDER.index(regime_state)
-    step = 1 if overlay_direction == "bullish" else -1
-    next_index = max(0, min(len(REGIME_STATE_ORDER) - 1, current_index + step))
-    return REGIME_STATE_ORDER[next_index]
-
-
-def select_regime_strategy(
-    account: AccountRecord,
-    *,
-    fetch_policy_features_fn: Callable[[str], ExternalFeatureBundle],
-    conn: sqlite3.Connection | None = None,
-    fetch_news_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
-    fetch_social_features_fn: Callable[[str], ExternalFeatureBundle] | None = None,
-    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, AccountRecord], list[str]] | None = None,
-) -> str | None:
-    schedule = parse_rotation_schedule(account["rotation_schedule"])
-    if not schedule:
-        return None
-
-    active_strategy = resolve_active_strategy(account)
-    bundle = fetch_policy_features_fn(POLICY_REGIME_PROBE_TICKER)
-    if not bundle.available:
-        return active_strategy
-
-    regime_state = classify_policy_regime(
-        risk_on_score=bundle.get(POLICY_RISK_ON_SCORE),
-        defensive_tilt=bundle.get(POLICY_DEFENSIVE_TILT),
-    )
-    if regime_state is None:
-        return active_strategy
-
-    overlay_mode = resolve_rotation_overlay_mode(account)
-    overlay_enabled = overlay_mode != "none"
-    overlay_tickers_fetcher = fetch_rotation_overlay_tickers_fn if overlay_enabled else None
-    if conn is not None and overlay_tickers_fetcher is not None:
-        overlay_direction = select_rotation_overlay_direction(
-            account,
-            overlay_tickers_fetcher(conn, account),
-            overlay_mode=overlay_mode,
-            fetch_news_features_fn=fetch_news_features_fn,
-            fetch_social_features_fn=fetch_social_features_fn,
-        )
-        regime_state = apply_rotation_overlay_to_regime(regime_state, overlay_direction)
-
-    selected = resolve_rotation_regime_strategy(account, regime_state)
-    if not selected:
-        return active_strategy
-
-    return selected if selected in schedule else active_strategy
 
 
 def compute_live_account_metrics(

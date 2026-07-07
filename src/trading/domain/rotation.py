@@ -129,21 +129,6 @@ def resolve_optimality_mode(account: Mapping[str, object]) -> str:
     )
 
 
-def resolve_rotation_regime_strategy(account: Mapping[str, object], regime_state: str) -> str | None:
-    if regime_state not in ROTATION_REGIME_STATES:
-        return None
-    strategy = _account_text(account, f"rotation_regime_strategy_{regime_state}")
-    return strategy or None
-
-
-def resolve_rotation_overlay_mode(account: Mapping[str, object]) -> str:
-    return _normalize_allowed_mode(
-        _account_field(account, "rotation_overlay_mode"),
-        default="none",
-        allowed=ROTATION_OVERLAY_MODES,
-    )
-
-
 def parse_rotation_schedule(raw_value: object | None) -> list[str]:
     return _parse_unique_string_list(
         raw_value,
@@ -180,10 +165,6 @@ def rotation_config_to_db_dict(cfg: RotationConfig) -> dict[str, object]:
     if cfg.overlay_watchlist is not None:
         values["rotation_overlay_watchlist"] = dump_rotation_overlay_watchlist(cfg.overlay_watchlist)
     return values
-
-
-def resolve_rotation_overlay_watchlist(account: Mapping[str, object]) -> list[str]:
-    return parse_rotation_overlay_watchlist(_account_field(account, "rotation_overlay_watchlist"))
 
 
 def resolve_active_strategy(account: Mapping[str, object]) -> str:

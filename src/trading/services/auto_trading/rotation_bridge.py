@@ -6,12 +6,10 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable
 
-from trading.domain.rotation import resolve_rotation_mode
 from trading.models import AccountRecord
 from trading.services.auto_trading.rotation import (
     rotate_account_if_due as rotate_account_if_due_impl,
     select_optimal_strategy as select_optimal_strategy_impl,
-    select_regime_strategy as select_regime_strategy_impl,
 )
 
 
@@ -21,24 +19,10 @@ def select_account_rotation_strategy(
     as_of_iso: str,
     *,
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
-    fetch_policy_features_fn: Callable[[str], object] | None,
-    fetch_news_features_fn: Callable[[str], object] | None = None,
-    fetch_social_features_fn: Callable[[str], object] | None = None,
-    fetch_rotation_overlay_tickers_fn: Callable[[sqlite3.Connection, AccountRecord], list[str]] | None = None,
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
-    if resolve_rotation_mode(account) == "regime":
-        if fetch_policy_features_fn is None:
-            return None
-        return select_regime_strategy_impl(
-            account,
-            conn=conn,
-            fetch_policy_features_fn=fetch_policy_features_fn,
-            fetch_news_features_fn=fetch_news_features_fn,
-            fetch_social_features_fn=fetch_social_features_fn,
-            fetch_rotation_overlay_tickers_fn=fetch_rotation_overlay_tickers_fn,
-        )
-
+    # Selection is performance-based (best strategy from the schedule). The regime/
+    # overlay selection path retired in 2b-1 (provably unused).
     return select_optimal_strategy_impl(
         conn,
         account,
