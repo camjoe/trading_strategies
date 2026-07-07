@@ -25,6 +25,18 @@ WHERE b.account_id = ?
 GROUP BY s.snapshot_time
 """
 
+# Time-bounded variants for window slicing (equity at/after a window start, or
+# at/before a window end). The extra predicate goes inside the WHERE, before the
+# GROUP BY, so it filters the raw rows that are rolled up per snapshot_time.
+_ACCOUNT_VIEW_SELECT_WITH_LOWER_BOUND = _ACCOUNT_VIEW_SELECT.replace(
+    "WHERE b.account_id = ?",
+    "WHERE b.account_id = ?\n  AND s.snapshot_time >= ?",
+)
+_ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND = _ACCOUNT_VIEW_SELECT.replace(
+    "WHERE b.account_id = ?",
+    "WHERE b.account_id = ?\n  AND s.snapshot_time <= ?",
+)
+
 
 class EquitySnapshotRepository:
     """Book-keyed snapshot storage with account-level roll-up reads.
@@ -128,5 +140,26 @@ class EquitySnapshotRepository:
         row = self._conn.execute(
             _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",
             (int(account_id),),
+        ).fetchone()
+        return self._row_to_record(row) if row is not None else None
+
+    def fetch_earliest(self, *, account_id: int) -> EquitySnapshotRecord | None:
+        row = self._conn.execute(
+            _ACCOUNT_VIEW_SELECT + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",
+            (int(account_id),),
+        ).fetchone()
+        return self._row_to_record(row) if row is not None else None
+
+    def fetch_first_at_or_after(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
+        row = self._conn.execute(
+            _ACCOUNT_VIEW_SELECT_WITH_LOWER_BOUND + " ORDER BY s.snapshot_time ASC, id ASC LIMIT 1",
+            (int(account_id), iso),
+        ).fetchone()
+        return self._row_to_record(row) if row is not None else None
+
+    def fetch_last_at_or_before(self, *, account_id: int, iso: str) -> EquitySnapshotRecord | None:
+        row = self._conn.execute(
+            _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND + " ORDER BY s.snapshot_time DESC, id DESC LIMIT 1",
+            (int(account_id), iso),
         ).fetchone()
         return self._row_to_record(row) if row is not None else None

@@ -33,7 +33,8 @@ from trading.models.evaluation import (
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord, EquitySnapshotRecord
-from trading.repositories.rotation import RotationEpisodeRepository
+from trading.repositories.book_bridge import default_book_id
+from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
@@ -45,11 +46,13 @@ LIVE_EVIDENCE_MODE = "live"
 # Account-wide snapshot evidence is only strategy-safe for non-rotating accounts.
 ACCOUNT_SNAPSHOT_SOURCE_LEVEL = "account_snapshot"
 
-# Open rotation episodes give strategy-isolated in-flight evidence for the active strategy.
-OPEN_ROTATION_EPISODE_SOURCE_LEVEL = "rotation_episode_open"
+# A book snapshot window for the currently-active strategy gives strategy-isolated
+# in-flight evidence (the book has run only this strategy since it went active).
+ACTIVE_STRATEGY_WINDOW_SOURCE_LEVEL = "book_active_strategy"
 
-# Closed rotation episodes give strategy-isolated historical evidence for inactive strategies.
-CLOSED_ROTATION_EPISODE_SOURCE_LEVEL = "rotation_episode_closed"
+# A closed book snapshot window gives strategy-isolated historical evidence for a
+# strategy the book has since rotated away from.
+CLOSED_STRATEGY_WINDOW_SOURCE_LEVEL = "book_closed_strategy"
 
 # Diagnostics key used when no strategy-matched backtest rows are persisted.
 BACKTEST_EVIDENCE_GAP = "missing_backtest_evidence"
@@ -131,69 +134,125 @@ def _evidence_mode(account: AccountRecord) -> str:
     return LIVE_EVIDENCE_MODE if bool(row_int(account, "live_trading_enabled")) else PAPER_EVIDENCE_MODE
 
 
-def _latest_rotation_episode_evidence(
+def _resolve_strategy_window(
+    timeline: list[tuple[str, str]],
+    *,
+    requested_strategy: str,
+) -> tuple[str, str | None] | None:
+    """Return ``(window_start, window_end)`` for the requested strategy's most recent run.
+
+    ``timeline`` is the book's active-strategy boundaries as ``(start_time, strategy)``
+    ordered oldest-first, each segment active until the next one starts (the last is
+    active up to now). Returns ``None`` when the strategy never held the book;
+    ``window_end`` is ``None`` when the requested strategy is the one currently active.
+    """
+    latest_index: int | None = None
+    for index, (_start, strategy) in enumerate(timeline):
+        if strategy == requested_strategy:
+            latest_index = index
+    if latest_index is None:
+        return None
+
+    run_start = latest_index
+    while run_start - 1 >= 0 and timeline[run_start - 1][1] == requested_strategy:
+        run_start -= 1
+
+    window_start = timeline[run_start][0]
+    is_currently_active = latest_index == len(timeline) - 1
+    window_end = None if is_currently_active else timeline[latest_index + 1][0]
+    return window_start, window_end
+
+
+def _book_strategy_window_timeline(
     conn: sqlite3.Connection,
     *,
+    account: AccountRecord,
+    book_id: int,
+    inception_time: str,
+) -> list[tuple[str, str]]:
+    """Build the book's active-strategy timeline from its rotation-decision log.
+
+    Before the first decision the book ran the first decision's incumbent (or, with
+    no decisions, the account's active strategy) since inception; each decision then
+    starts a segment for its selected strategy.
+    """
+    decisions = RotationDecisionRepository(conn).fetch_selected_strategy_timeline(book_id=book_id)
+    if not decisions:
+        base_strategy = resolve_active_strategy(account)
+        return [(inception_time, base_strategy)] if base_strategy else []
+
+    inception_strategy = decisions[0][1] or resolve_active_strategy(account)
+    timeline: list[tuple[str, str]] = []
+    if inception_strategy:
+        timeline.append((inception_time, inception_strategy))
+    for decision_time, _incumbent, selected in decisions:
+        if selected:
+            timeline.append((decision_time, selected))
+    return timeline
+
+
+def _book_strategy_evidence(
+    conn: sqlite3.Connection,
+    *,
+    account: AccountRecord,
     account_id: int,
     requested_strategy: str,
     latest_snapshot: EquitySnapshotRecord | None,
 ) -> EvaluationPaperLiveEvidence:
-    open_episode = RotationEpisodeRepository(conn).fetch_open(account_id=account_id)
-    if (
-        open_episode is not None
-        and latest_snapshot is not None
-        and row_str(open_episode, "strategy_name") == requested_strategy
-    ):
-        started_at = row_expect_str(open_episode, "started_at")
-        latest_snapshot_time = latest_snapshot.snapshot_time
-        snapshot_count = EquitySnapshotRepository(conn).fetch_count_between(
-            account_id=account_id,
-            start_iso=started_at,
-            end_iso=latest_snapshot_time,
-        )
-        starting_equity = row_float(open_episode, "starting_equity")
-        latest_equity = latest_snapshot.equity
-        return EvaluationPaperLiveEvidence(
-            available=True,
-            source_level=OPEN_ROTATION_EPISODE_SOURCE_LEVEL,
-            strategy_isolated=True,
-            latest_snapshot_time=latest_snapshot_time,
-            snapshot_count=snapshot_count,
-            starting_equity=starting_equity,
-            latest_equity=latest_equity,
-            return_pct=safe_return_pct(starting_equity, latest_equity),
-            cash=latest_snapshot.cash,
-            market_value=latest_snapshot.market_value,
-            realized_pnl=latest_snapshot.realized_pnl,
-            unrealized_pnl=latest_snapshot.unrealized_pnl,
-            rotation_episode_id=row_int(open_episode, "id"),
-            episode_started_at=started_at,
-            episode_realized_pnl_delta=None,
-        )
+    """Strategy-isolated paper-live evidence sliced from book snapshots + rotation decisions.
 
-    closed_episode = RotationEpisodeRepository(conn).fetch_latest_closed(
-        account_id=account_id,
-        strategy_name=requested_strategy,
-    )
-    if closed_episode is None:
+    Replaces the retired ``rotation_episodes`` store: the account's default-book
+    equity snapshots are windowed at the strategy boundaries recorded in
+    ``rotation_decisions``, reproducing the per-strategy live returns episodes gave.
+    """
+    snapshots = EquitySnapshotRepository(conn)
+    earliest_snapshot = snapshots.fetch_earliest(account_id=account_id)
+    if earliest_snapshot is None or latest_snapshot is None:
         return EvaluationPaperLiveEvidence()
 
-    starting_equity = row_float(closed_episode, "starting_equity")
-    ending_equity = row_float(closed_episode, "ending_equity")
+    book_id = default_book_id(conn, account_id)
+    timeline = _book_strategy_window_timeline(
+        conn,
+        account=account,
+        book_id=book_id,
+        inception_time=earliest_snapshot.snapshot_time,
+    )
+    window = _resolve_strategy_window(timeline, requested_strategy=requested_strategy)
+    if window is None:
+        return EvaluationPaperLiveEvidence()
+
+    window_start, window_end = window
+    starting_snapshot = snapshots.fetch_first_at_or_after(account_id=account_id, iso=window_start)
+    if starting_snapshot is None:
+        return EvaluationPaperLiveEvidence()
+    starting_equity = starting_snapshot.equity
+
+    if window_end is None:
+        ending_snapshot = latest_snapshot
+        source_level = ACTIVE_STRATEGY_WINDOW_SOURCE_LEVEL
+        end_time = latest_snapshot.snapshot_time
+    else:
+        ending_snapshot = snapshots.fetch_last_at_or_before(account_id=account_id, iso=window_end)
+        if ending_snapshot is None:
+            return EvaluationPaperLiveEvidence()
+        source_level = CLOSED_STRATEGY_WINDOW_SOURCE_LEVEL
+        end_time = ending_snapshot.snapshot_time
+
     return EvaluationPaperLiveEvidence(
         available=True,
-        source_level=CLOSED_ROTATION_EPISODE_SOURCE_LEVEL,
+        source_level=source_level,
         strategy_isolated=True,
-        latest_snapshot_time=row_str(closed_episode, "ended_at"),
-        snapshot_count=row_int(closed_episode, "snapshot_count"),
+        latest_snapshot_time=end_time,
+        snapshot_count=snapshots.fetch_count_between(account_id=account_id, start_iso=window_start, end_iso=end_time),
         starting_equity=starting_equity,
-        latest_equity=ending_equity,
-        return_pct=safe_return_pct(starting_equity, ending_equity),
-        realized_pnl=row_float(closed_episode, "ending_realized_pnl"),
-        rotation_episode_id=row_int(closed_episode, "id"),
-        episode_started_at=row_str(closed_episode, "started_at"),
-        episode_ended_at=row_str(closed_episode, "ended_at"),
-        episode_realized_pnl_delta=row_float(closed_episode, "realized_pnl_delta"),
+        latest_equity=ending_snapshot.equity,
+        return_pct=safe_return_pct(starting_equity, ending_snapshot.equity),
+        cash=ending_snapshot.cash,
+        market_value=ending_snapshot.market_value,
+        realized_pnl=ending_snapshot.realized_pnl,
+        unrealized_pnl=ending_snapshot.unrealized_pnl,
+        episode_started_at=window_start,
+        episode_ended_at=window_end,
     )
 
 
@@ -208,8 +267,9 @@ def build_paper_live_evidence(
     initial_cash = account.initial_cash
     latest_snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
     evidence = (
-        _latest_rotation_episode_evidence(
+        _book_strategy_evidence(
             conn,
+            account=account,
             account_id=account_id,
             requested_strategy=requested_strategy,
             latest_snapshot=latest_snapshot,

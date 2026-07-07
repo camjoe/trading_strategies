@@ -420,3 +420,21 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   incumbent best, None without an incumbent) + added `test_book_rotation.py` (rotate/records,
   no-challenger hold, no-incumbent None). Full `run_checks ci` green. Next: 2b-4 (one book-keyed rotation
   service; retire episode path + drop `rotation_episodes`).
+- 2026-07-07 — **2b-4 rescoped + 2b-4a landed — paper-live evidence made book-native.**
+  Investigation while planning 2b-4 found `rotation_episodes` is not rotation-internal accounting: it
+  is the **evaluation subsystem's strategy-isolated paper-live evidence store**
+  (`evaluation/evidence.py::build_paper_live_evidence` → `compute_blended_score`), and for a
+  rotation-enabled account it is the *only* paper-live source. Dropping it as the work order first
+  assumed would strip the live half of the decision score for the accounts that rotate. Surfaced per
+  the "stop and report" guardrail; the user chose to migrate evidence onto book-native data, then drop
+  episodes — so 2b-4 is now **2b-4a** (book-native evidence) → **2b-4b** (one book-keyed rotation
+  service + cadence unification + retire dead `select_optimal_strategy`) → **2b-4c** (retire the episode
+  path + drop `rotation_episodes`). **2b-4a:** re-pointed `build_paper_live_evidence` off
+  `rotation_episodes` onto the account's default-book `equity_snapshots` sliced at the strategy
+  boundaries recorded in `rotation_decisions` (each decision logs incumbent→selected, so the ordered log
+  reconstructs the active-strategy timeline; cold start = the active strategy since inception). Added
+  `EquitySnapshotRepository.fetch_earliest/fetch_first_at_or_after/fetch_last_at_or_before` (window
+  slicing) and `RotationDecisionRepository.fetch_selected_strategy_timeline`. Source-level labels became
+  `book_active_strategy` / `book_closed_strategy`. The episode table + writers are untouched this step
+  (2b-4c drops them). Rewrote `test_paper_live.py` (closed window, active-since-inception, missing) +
+  added repo tests. Full `run_checks ci` green. Next: 2b-4b (one book-keyed rotation service).

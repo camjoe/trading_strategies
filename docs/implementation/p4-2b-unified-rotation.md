@@ -116,13 +116,29 @@ sleeve rotates its **bridging book** — the same code path.
 - Check: `run_suite src/trading/services/auto_trading` green (account rotation writes
   `rotation_decisions`, selects the best decision-score strategy).
 
-### Phase 2b-4 — Unify into one rotation service + retire the episode path  **[strong]**
-- Collapse the surviving rotation into one book-keyed rotation service used by both account and sleeve
-  runtime paths; reduce the `auto_trading/rotation*.py` + `sleeves/rotation.py` sprawl.
-- Retire `sync_rotation_episode` / `rotate_account_if_due` episode logic /
-  `RotationEpisodeRepository` / `compute_live_account_metrics` (if episode-only). Drop the
-  `rotation_episodes` table (greenfield: remove CREATE + indexes + migration keys).
-- Check: full `run_checks ci` green.
+### Phase 2b-4 — Book-native evidence, one rotation service, retire the episode path  **[strong]**
+
+**Scope revision (2026-07-07):** investigation found `rotation_episodes` is *not* rotation-internal
+accounting — it is the **evaluation subsystem's strategy-isolated paper-live evidence store**
+(`evaluation/evidence.py::build_paper_live_evidence` → `compute_blended_score`), and for a
+rotation-enabled account it is the *only* paper-live source (no snapshot fallback). Dropping it
+blindly would strip the live half of the decision score for exactly the accounts that rotate. Per the
+"stop and report if bigger" guardrail this was surfaced; the user chose to make evidence **book-native**
+(book snapshots + `rotation_decisions`) and then retire episodes. 2b-4 is therefore split:
+
+- **2b-4a — Book-native paper-live evidence.** Re-point `build_paper_live_evidence` off
+  `rotation_episodes` onto the account's default-book `equity_snapshots` sliced at the strategy
+  boundaries recorded in `rotation_decisions` (each decision logs incumbent→selected). Reproduces the
+  per-strategy windows episodes gave; cold start = the active strategy since inception. Keep the
+  episode table intact this step. Check: `run_suite src/trading/services/evaluation` + full `run_checks ci`.
+- **2b-4b — One book-keyed rotation service.** Collapse the account + sleeve selection/apply into one
+  book-keyed service; reduce the `auto_trading/rotation*.py` + `sleeves/rotation.py` sprawl; retire the
+  dead `select_optimal_strategy` path + its backtest/episode DI threading. Land cadence unification
+  (interval/schedule trigger + cooldown guard). Check: full `run_checks ci`.
+- **2b-4c — Retire the episode path.** With no remaining reader, retire `sync_rotation_episode` /
+  `rotate_account_if_due` episode logic / `RotationEpisodeRepository` / episode-only
+  `compute_live_account_metrics`, and drop `rotation_episodes` (greenfield: remove CREATE + indexes +
+  migration keys). Check: full `run_checks ci` green.
 
 ### Phase 2b-5 — P5 naming pass  **[light]**
 - Rename `sleeve_*` rotation vocabulary to `book_*` (domain + services), disambiguate the two
@@ -132,9 +148,13 @@ sleeve rotates its **bridging book** — the same code path.
 
 ## 8. Open design points (resolve in-phase; stop and report if bigger)
 - **Cadence unification:** account uses interval/schedule (`is_rotation_due`); sleeve uses cooldown.
-  2b-3/2b-4 must land on one "when to rotate" that covers both (e.g. cadence trigger + cooldown guard).
-- **`rotation_decisions` for a plain account's default book:** confirm the table's `sleeve_id`/book
-  keying accommodates a default book (it is book-keyed under the clean schema — verify).
+  2b-3 kept the account cadence as the "when" (cooldown inactive); **2b-4b** lands the unified
+  "cadence trigger + cooldown guard".
+- **`rotation_decisions` for a plain account's default book:** ✅ resolved (2b-3) — the table is
+  `book_id`-keyed under the clean schema; a default book slots in directly via `insert_for_book`.
+- **`rotation_episodes` is evaluation evidence, not rotation accounting:** ✅ resolved (2b-4a) —
+  paper-live evidence is now book-native (default-book `equity_snapshots` sliced at `rotation_decisions`
+  boundaries), so the episode table can be dropped in 2b-4c without losing the decision score's live half.
 - **Cross-book vs per-book rotation:** a sleeved account rotates each sleeve book; a plain account
   rotates its one default book — confirm no account-level aggregate rotation is lost.
 
