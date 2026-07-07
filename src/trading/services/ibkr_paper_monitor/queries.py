@@ -10,6 +10,8 @@ import sqlite3
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
+from trading.repositories.book_bridge import book_id_for_sleeve
+from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.accounts import AccountRepository
@@ -28,8 +30,11 @@ def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, A
 
         account_sleeves = SleeveRepository(conn).fetch_for_account(account_id=account.id)
 
-        total_equity = sum(s.current_equity for s in account_sleeves)
-        total_cash = sum(s.current_cash for s in account_sleeves)
+        # Account totals come from the book balances (the sleeve balances freeze once
+        # submission moves to the book path); Σ book equity/cash is the account roll-up.
+        account_books = BookRepository(conn).fetch_for_account(account_id=account.id)
+        total_equity = sum(b.current_equity for b in account_books)
+        total_cash = sum(b.current_cash for b in account_books)
         return_pct = (
             ((total_equity - account.initial_cash) / account.initial_cash * 100) if account.initial_cash else 0.0
         )
@@ -74,8 +79,13 @@ def _fetch_account_sleeves(conn: sqlite3.Connection, account_id: int) -> list[di
                 "metric_date": None,
             }
 
+        # Live equity/cash come from the sleeve's bridging book; fall back to the
+        # sleeve's own values if it has never traded (no book yet).
+        book_id = book_id_for_sleeve(conn, sleeve.id, create=False)
+        book = BookRepository(conn).fetch_by_id(book_id=book_id) if book_id is not None else None
         start_equity = sleeve.start_equity or 0.0
-        curr_equity = sleeve.current_equity or 0.0
+        curr_equity = book.current_equity if book is not None else (sleeve.current_equity or 0.0)
+        curr_cash = book.current_cash if book is not None else (sleeve.current_cash or 0.0)
         return_pct = ((curr_equity - start_equity) / start_equity * 100) if start_equity else 0.0
 
         result.append(
@@ -86,7 +96,7 @@ def _fetch_account_sleeves(conn: sqlite3.Connection, account_id: int) -> list[di
                 "strategy": "unknown",  # Would need sleeve_strategy_assignments query
                 "start_equity": start_equity,
                 "current_equity": round(curr_equity, 2),
-                "current_cash": round(sleeve.current_cash or 0.0, 2),
+                "current_cash": round(curr_cash, 2),
                 "return_pct": round(return_pct, 2),
                 "latest_metrics": latest_metrics,
             }
