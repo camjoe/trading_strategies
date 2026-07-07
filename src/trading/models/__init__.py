@@ -20,7 +20,6 @@ from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.models.settings.global_settings_record import GlobalSettingsRecord
 from trading.models.portfolio.portfolio_risk_snapshot_record import PortfolioRiskSnapshotRecord
 from trading.models.rotation.rotation_config import RotationConfig
-from trading.models.sleeves.sleeve_ledger_record import SleeveLedgerRecord
 from trading.models.sleeves.sleeve_position_record import SleevePositionRecord
 from trading.models.sleeves.sleeve_record import SleeveRecord
 from trading.models.sleeves.sleeve_risk_decision_record import SleeveRiskDecisionRecord
@@ -41,7 +40,6 @@ __all__ = [
     "OrderType",
     "PortfolioRiskSnapshotRecord",
     "RotationConfig",
-    "SleeveLedgerRecord",
     "SleevePositionRecord",
     "SleeveRecord",
     "SleeveRiskDecisionRecord",

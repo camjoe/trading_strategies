@@ -336,36 +336,10 @@ CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time_book
 ON rotation_decisions(rotation_action, decision_time DESC);
 """
 
-# sleeve_orders / sleeve_fills were dropped in P4/2a-5: sleeve mode submits through
-# the shared execution service onto the clean orders/order_fills tables.
-
-SLEEVE_POSITIONS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_positions (
-    sleeve_id INTEGER NOT NULL,
-    symbol TEXT NOT NULL,
-    qty REAL NOT NULL,
-    avg_cost REAL NOT NULL,
-    market_value REAL NOT NULL,
-    unrealized_pnl REAL NOT NULL,
-    updated_at TEXT NOT NULL,
-    PRIMARY KEY (sleeve_id, symbol),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
-);
-"""
-
-SLEEVE_LEDGER_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_ledger (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleeve_id INTEGER NOT NULL,
-    entry_type TEXT NOT NULL CHECK (entry_type IN ('cash_movement', 'realized_pnl', 'fee', 'financing', 'transfer')),
-    amount REAL NOT NULL,
-    reference_type TEXT,
-    reference_id TEXT,
-    entry_time TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
-);
-"""
+# sleeve_orders / sleeve_fills / sleeve_positions / sleeve_ledger were dropped in P4
+# (2a-5 + the migrate-off-sleeves cleanup): sleeve mode submits and accounts through
+# the shared execution service onto the clean orders/order_fills/positions/ledger
+# tables keyed by the sleeve's bridging book.
 
 PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS portfolio_risk_snapshots (
@@ -448,12 +422,6 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_sleeve_effective
 ON sleeve_strategy_assignments(sleeve_id, effective_from DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_strategy_effective
 ON sleeve_strategy_assignments(strategy_name, effective_from DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_positions_symbol_updated
-ON sleeve_positions(symbol, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_sleeve_time
-ON sleeve_ledger(sleeve_id, entry_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_reference
-ON sleeve_ledger(reference_type, reference_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_account_time
 ON portfolio_risk_snapshots(account_id, snapshot_time DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_account_time
@@ -874,8 +842,6 @@ SCHEMA_SQL = "\n".join(
         SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL,
         ROTATION_DECISIONS_TABLE_SQL,
         ROTATION_DECISIONS_INDEXES_SQL,
-        SLEEVE_POSITIONS_TABLE_SQL,
-        SLEEVE_LEDGER_TABLE_SQL,
         PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
         SLEEVE_RISK_DECISIONS_TABLE_SQL,
         DAILY_METRICS_TABLE_SQL,

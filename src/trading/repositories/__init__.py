@@ -7,8 +7,6 @@ from trading.repositories.rotation import RotationEpisodeRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeve_positions import SleevePositionRepository
-from trading.repositories.sleeve_ledger import SleeveLedgerRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
@@ -23,8 +21,6 @@ __all__ = [
     "PortfolioRiskSnapshotRepository",
     "RotationDecisionRepository",
     "RotationEpisodeRepository",
-    "SleeveLedgerRepository",
-    "SleevePositionRepository",
     "SleeveRepository",
     "SleeveRiskDecisionRepository",
     "StrategyParamSetRepository",

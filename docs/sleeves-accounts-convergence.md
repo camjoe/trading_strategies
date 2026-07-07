@@ -360,3 +360,12 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   `SleevePositionRepository`/`SleeveLedgerRepository` + the `sleeve_positions`/`sleeve_ledger` tables (a
   later cleanup, not in this drop batch). The submission/accounting spine is fully on the clean book
   schema.
+- 2026-07-05 — **Sleeve position/ledger cleanup done** (same branch). Deleted the orphaned
+  `SleevePositionRepository`/`SleeveLedgerRepository` + `SleeveLedgerRecord` model (kept
+  `SleevePositionRecord` — still the domain risk-gate adapter's shape), slimmed the interleaved
+  `test_sleeve_repositories.py` (kept the rotation-decisions/metrics coverage, dropped the
+  positions/ledger parts), and **dropped the `sleeve_positions` + `sleeve_ledger` tables** (schema
+  CREATE/index/migration entries removed). Down to 32 tables. Full `run_checks ci` green. The
+  migrate-off-sleeves workstream is now fully complete — no orphaned sleeve order/accounting tables or
+  repositories remain; only `strategy_sleeves` (sleeve definitions/assignments) and the account-keyed
+  risk audit tables stay, both still live.

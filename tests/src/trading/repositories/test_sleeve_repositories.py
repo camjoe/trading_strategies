@@ -5,8 +5,6 @@ import pytest
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeve_ledger import SleeveLedgerRepository
-from trading.repositories.sleeve_positions import SleevePositionRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
@@ -196,62 +194,8 @@ class TestSleevesRepository:
             )
 
 
-class TestSleevePositionsLedgerDecisionsAndMetrics:
-    def test_positions_ledger_decisions_and_metrics(self, conn, account_id, sleeve_id) -> None:
-        position_repo = SleevePositionRepository(conn)
-        ledger_repo = SleeveLedgerRepository(conn)
-
-        position_repo.upsert(
-            sleeve_id=sleeve_id,
-            symbol="IWM",
-            qty=4,
-            avg_cost=200.0,
-            market_value=810.0,
-            unrealized_pnl=10.0,
-            updated_at="2026-05-03T12:00:00Z",
-        )
-        position_repo.upsert(
-            sleeve_id=sleeve_id,
-            symbol="IWM",
-            qty=6,
-            avg_cost=205.0,
-            market_value=1_250.0,
-            unrealized_pnl=20.0,
-            updated_at="2026-05-03T13:00:00Z",
-        )
-
-        pos = position_repo.fetch(sleeve_id=sleeve_id, symbol="IWM")
-        assert pos is not None
-        assert pos.qty == 6.0
-
-        many = position_repo.fetch_for_sleeve(sleeve_id=sleeve_id)
-        assert len(many) == 1
-        joined = position_repo.fetch_for_account(account_id=account_id)
-        assert len(joined) == 1
-
-        ledger_repo.insert(
-            sleeve_id=sleeve_id,
-            entry_type="fee",
-            amount=-1.5,
-            reference_type="order",
-            reference_id="1",
-            entry_time="2026-05-03T13:30:00Z",
-            created_at="2026-05-03T13:30:00Z",
-        )
-        ledger_repo.insert(
-            sleeve_id=sleeve_id,
-            entry_type="fee",
-            amount=-2.0,
-            reference_type="order",
-            reference_id="2",
-            entry_time="2026-05-03T14:00:00Z",
-            created_at="2026-05-03T14:00:00Z",
-        )
-        entries = ledger_repo.fetch_for_sleeve(sleeve_id=sleeve_id, limit=10)
-        assert len(entries) == 2
-        fee_total = ledger_repo.fetch_sum_by_type(sleeve_id=sleeve_id, entry_type="fee")
-        assert fee_total == -3.5
-
+class TestRotationDecisionsAndMetricsRepositories:
+    def test_rotation_decisions_and_metrics(self, conn, account_id, sleeve_id) -> None:
         decision_id = RotationDecisionRepository(conn).insert(
             sleeve_id=sleeve_id,
             decision_time="2026-05-03T15:00:00Z",
@@ -374,10 +318,6 @@ class TestSleevePositionsLedgerDecisionsAndMetrics:
             end_date="2026-05-03",
         )
         assert len(sleeve_window_metrics) == 1
-
-        position_repo.delete(sleeve_id=sleeve_id, symbol="IWM")
-        removed = position_repo.fetch(sleeve_id=sleeve_id, symbol="IWM")
-        assert removed is None
 
 
 class TestPortfolioRiskSnapshotsRepository:
@@ -590,24 +530,6 @@ class TestSleeveRiskDecisionsRepository:
 
         risk_rows = risk_repo.fetch_for_account_date(account_id=account_id, report_date="2026-05-03")
         assert [row.reason_code for row in risk_rows] == ["in-window"]
-
-        assert (
-            SleeveLedgerRepository(_StaticConnection(_StaticCursor(row=None))).fetch_sum_by_type(
-                sleeve_id=1, entry_type="fee"
-            )
-            == 0.0
-        )
-
-        with pytest.raises(ValueError, match="Expected sleeve_ledger id after insert"):
-            SleeveLedgerRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
-                sleeve_id=1,
-                entry_type="fee",
-                amount=-1.0,
-                reference_type="order",
-                reference_id="1",
-                entry_time="2026-05-03T00:00:00Z",
-                created_at="2026-05-03T00:00:00Z",
-            )
 
         with pytest.raises(ValueError, match="Expected sleeve_risk_decisions id after insert"):
             SleeveRiskDecisionRepository(_StaticConnection(_StaticCursor(lastrowid=None))).insert(
