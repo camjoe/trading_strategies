@@ -403,3 +403,20 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   (`SleeveStrategyMetrics`) is reused as-is; the P5 pass renames it. Unit tests: incumbent +
   challengers enumerated/ordered, incumbent excluded from challengers (sleeve-book case), empty
   schedule. Full `run_checks ci` green. Next: 2b-3 (route account selection through champion/challenger).
+- 2026-07-07 — **2b-3 landed — account rotation selection routed through champion/challenger.** Added
+  `services/auto_trading/book_rotation.py`: `evaluate_account_rotation_decision` resolves an account's
+  incumbent (its active strategy) + schedule, enumerates candidates via `build_book_rotation_candidates`
+  (2b-2), runs the decision-score `evaluate_champion_challenger_rotation` policy, and records the
+  hold/rotate call on the account's **default book** `rotation_decisions`, returning the selected
+  strategy. Rerouted `select_account_rotation_strategy` (bridge) to it — the account and sleeve paths now
+  select through the *same* decision-score model. `rotation_decisions` is already `book_id`-keyed, so a
+  default book slots straight in; added `RotationDecisionRepository.insert_for_book` (the book-native
+  writer) with the legacy `insert(sleeve_id=…)` delegating to it. Per the work order the **cadence
+  trigger (interval/schedule via `is_rotation_due`) stays the "when"**; champion/challenger is only the
+  "what", so `cooldown_active=False` here (cooldown unification with the sleeve path is a 2b-4 item). The
+  retired performance-based path (`select_optimal_strategy`) + its backtest/episode fetchers are left in
+  place, unused, `del`-ed at the bridge with a note — 2b-4 collapses the service and retires the episode
+  path. Rewrote the bridge tests onto decision-score monkeypatching (rotate on outperformance, hold when
+  incumbent best, None without an incumbent) + added `test_book_rotation.py` (rotate/records,
+  no-challenger hold, no-incumbent None). Full `run_checks ci` green. Next: 2b-4 (one book-keyed rotation
+  service; retire episode path + drop `rotation_episodes`).

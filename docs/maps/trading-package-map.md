@@ -135,6 +135,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/risk_snapshots.py` | Portfolio risk snapshot access |
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
+| `auto_trading/book_rotation.py` | Book-keyed champion/challenger rotation selection for an account's default book (writes `rotation_decisions`) (P4/2b) |
 | `auto_trading/market.py` | Market state helpers |
 | `auto_trading/rotation_bridge.py` | Connects auto-trading to rotation domain logic |
 | `auto_trading/rotation.py` | Rotation decision service |

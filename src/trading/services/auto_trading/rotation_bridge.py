@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from trading.models import AccountRecord
+from trading.services.auto_trading.book_rotation import evaluate_account_rotation_decision
 from trading.services.auto_trading.rotation import (
     rotate_account_if_due as rotate_account_if_due_impl,
-    select_optimal_strategy as select_optimal_strategy_impl,
 )
 
 
@@ -21,15 +21,13 @@ def select_account_rotation_strategy(
     fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
     fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
-    # Selection is performance-based (best strategy from the schedule). The regime/
-    # overlay selection path retired in 2b-1 (provably unused).
-    return select_optimal_strategy_impl(
-        conn,
-        account,
-        as_of_iso,
-        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
-        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes_fn,
-    )
+    # Selection now runs the decision-score champion/challenger model on the
+    # account's default book (2b-3), writing rotation_decisions. The backtest/episode
+    # fetchers fed the retired performance-based select_optimal_strategy path; they are
+    # accepted for call-site compatibility until 2b-4 collapses the rotation service
+    # and retires the episode path.
+    del fetch_strategy_backtest_returns_fn, fetch_closed_rotation_episodes_fn
+    return evaluate_account_rotation_decision(conn, account, as_of_iso)
 
 
 @dataclass
