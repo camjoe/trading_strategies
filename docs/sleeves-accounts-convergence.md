@@ -393,3 +393,13 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   signals stay (they back strategies, not just rotation); the dead `rotation_regime_strategy_*` /
   `rotation_overlay_*` account columns are left in place (append-only). Removed the corresponding
   regime/overlay tests. Full `run_checks ci` green. Next: 2b-2 (book-keyed candidate enumeration).
+- 2026-07-07 — **2b-2 landed — book-keyed rotation candidate enumeration (in isolation).** Added
+  `services/auto_trading/rotation_candidates.py`: `build_book_rotation_candidates` produces a book's
+  incumbent + challenger candidates scored on the decision-score contract (via the shared
+  `build_sleeve_metrics_from_evaluation`), keyed on `book_id`. The caller resolves the incumbent +
+  schedule, so a plain account's default book and a sleeve's bridging book use the one enumeration —
+  generalizing the sleeve-only `build_sleeve_shadow_evaluation`. No caller wired yet (2b-3 routes
+  account rotation through it; 2b-4 consolidates sleeve rotation onto it). The candidate metrics type
+  (`SleeveStrategyMetrics`) is reused as-is; the P5 pass renames it. Unit tests: incumbent +
+  challengers enumerated/ordered, incumbent excluded from challengers (sleeve-book case), empty
+  schedule. Full `run_checks ci` green. Next: 2b-3 (route account selection through champion/challenger).
