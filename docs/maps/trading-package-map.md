@@ -173,12 +173,10 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
-| `sleeves/accounting.py` | Sleeve-level cash/equity accounting |
 | `sleeves/daily_report.py` | Sleeve daily reporting |
 | `sleeves/execution.py` | Sleeve trade execution and intent generation |
 | `sleeves/helpers.py` | Shared sleeve service helpers (math, formatting) |
 | `sleeves/reconciliation.py` | Sleeve equity reconciliation (vs account and snapshot) |
-| `sleeves/risk_gate.py` | Sleeve-level risk gate enforcement |
 | `sleeves/rotation.py` | Sleeve rotation execution |
 | `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
@@ -209,7 +207,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `rotation_decisions.py` | Rotation decision records |
 | `rotation.py` | Rotation state records |
 | `sleeve_ledger.py` | Sleeve transaction ledger |
-| `sleeve_orders.py` | Sleeve-level order records |
 | `sleeve_positions.py` | Sleeve position records |
 | `sleeve_risk_decisions.py` | Sleeve-level risk decision records |
 | `sleeves.py` | Sleeve configuration and state |

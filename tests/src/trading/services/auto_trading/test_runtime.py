@@ -360,11 +360,9 @@ def test_runtime_wrapper_delegates(monkeypatch) -> None:
     rotated = Mock(return_value="rotated")
     refreshed = Mock(return_value="state")
     resolved_exec = Mock(return_value="exec-id")
-    computed_snapshot = Mock(return_value=(1.0, 2.0, 3.0, 4.0))
     monkeypatch.setattr(runtime_service, "rotate_runtime_account", rotated)
     monkeypatch.setattr(runtime_service, "refresh_account_state_impl", refreshed)
     monkeypatch.setattr(runtime_service, "resolve_reconciliation_exec_id", resolved_exec)
-    monkeypatch.setattr(runtime_service, "compute_current_exposure_snapshot", computed_snapshot)
 
     account = make_auto_trading_account(id=42)
     assert (
@@ -386,7 +384,6 @@ def test_runtime_wrapper_delegates(monkeypatch) -> None:
         )
         == "exec-id"
     )
-    assert runtime_service._compute_current_exposure_snapshot(object(), account_id=42) == (1.0, 2.0, 3.0, 4.0)
 
 
 def test_is_runtime_submission_window_open_parses_iso_before_market_hours_check(monkeypatch) -> None:
