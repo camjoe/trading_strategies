@@ -369,3 +369,14 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   migrate-off-sleeves workstream is now fully complete — no orphaned sleeve order/accounting tables or
   repositories remain; only `strategy_sleeves` (sleeve definitions/assignments) and the account-keyed
   risk audit tables stay, both still live.
+- 2026-07-07 — **2b started (branch `features/phase4-2b-unified-rotation`).** Investigated the open
+  rotation-paradigm question and confirmed **full collapse** onto champion/challenger + the
+  decision-score contract: the live DB shows the account regime/overlay subsystem is **provably
+  unused** (all 8 accounts `rotation_overlay_mode='none'`, no `rotation_regime_strategy_*`, none in
+  `rotation_mode='regime'`; no profile configures it), and the account rotation that *is* used
+  (`select_optimal_strategy`) is already performance-based (best strategy from the schedule via
+  backtest returns/episodes) — a clean map onto champion/challenger. The feature providers stay (they
+  back alternative strategies, not just rotation). Wrote the phased
+  [2b work order](implementation/p4-2b-unified-rotation.md) (2b-1 retire regime/overlays → 2b-2
+  book-keyed candidate enumeration → 2b-3 route account selection through champion/challenger → 2b-4
+  one rotation service + drop `rotation_episodes` → 2b-5 P5 naming pass).
