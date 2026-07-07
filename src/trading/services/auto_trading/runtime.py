@@ -16,7 +16,7 @@ from common.time import utc_now_iso
 from collections.abc import Callable, Mapping
 
 from trading.models import AccountRecord
-from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus
+from trading.models.orders.broker_order import BrokerOrder, OrderFill
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
@@ -25,7 +25,6 @@ from trading.services.accounting import record_trade
 from trading.services.universe import resolve_named_universes
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
-from trading.repositories.sleeve_orders import SleeveOrderRepository
 from trading.services.reporting.backtest_returns import fetch_strategy_backtest_returns
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.rotation import RotationEpisodeRepository
@@ -53,7 +52,6 @@ from trading.services.auto_trading.runtime_rotation import rotate_runtime_accoun
 from trading.services.market_data import MarketDataProvider
 from trading.services.auto_trading.runtime_sleeve_risk import (
     compute_current_exposure_snapshot,
-    is_snapshot_time_stale,
     persist_normalized_sleeve_risk_decisions,
     persist_sleeve_risk_snapshot,
 )
@@ -241,32 +239,6 @@ def _resolve_reconciliation_exec_id(
     )
 
 
-def _insert_submitted_sleeve_order(
-    conn: sqlite3.Connection,
-    *,
-    intent: SleeveTradeIntent,
-    now_iso: str,
-) -> int:
-    return SleeveOrderRepository(conn).insert(
-        account_id=intent.account_id,
-        sleeve_id=intent.sleeve_id,
-        strategy_name=intent.strategy_name,
-        param_set_id=intent.param_set_id,
-        rotation_decision_id=None,
-        broker_order_id=None,
-        symbol=intent.symbol,
-        side=intent.side,
-        qty=float(intent.qty),
-        order_type="market",
-        time_in_force="day",
-        requested_price=float(intent.requested_price),
-        status=OrderStatus.SUBMITTED.value,
-        config_version=None,
-        submitted_at=now_iso,
-        updated_at=now_iso,
-    )
-
-
 def _compute_current_exposure_snapshot(
     conn: sqlite3.Connection,
     *,
@@ -327,19 +299,6 @@ def _persist_normalized_sleeve_risk_decisions(
         decision_time=decision_time,
         risk_decisions=risk_decisions,
         insert_sleeve_risk_decision_fn=lambda c, **kwargs: SleeveRiskDecisionRepository(c).insert(**kwargs),
-    )
-
-
-def _is_snapshot_time_stale(
-    *,
-    snapshot_time: str | None,
-    now_iso: str,
-    max_age_seconds: int,
-) -> bool:
-    return is_snapshot_time_stale(
-        snapshot_time=snapshot_time,
-        now_iso=now_iso,
-        max_age_seconds=max_age_seconds,
     )
 
 

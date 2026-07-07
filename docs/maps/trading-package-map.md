@@ -197,7 +197,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `accounts.py` | Equity snapshot and account snapshot persistence |
 | `admin_deletions.py` | Admin/maintenance deletion operations (row counts, dependent deletes) |
 | `backtest_history.py` | Backtest run history records |
-| `broker_orders.py` | Broker-submitted order records |
 | `daily_metrics.py` | Daily performance metric snapshots |
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |

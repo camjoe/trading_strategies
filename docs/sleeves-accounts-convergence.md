@@ -332,3 +332,17 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   Full `run_checks ci` green. The submission path (account + sleeve) and its reconciliation are fully on
   the clean schema; nothing on the submission/reconciliation path reads the legacy order tables. Next:
   2a-5 (retire the now-dead legacy writers + stage table drops).
+- 2026-07-05 — **2a-5 (code retirement) landed.** Removed the now-dead `broker_orders` write path:
+  deleted `repositories/broker_orders.py` (`BrokerOrderRepository`), `models/orders/broker_order_record.py`
+  (`BrokerOrderRecord`), the `book_bridge.order_id_for_broker_order` mirror, their exports, and the repo
+  test. Removed the dead runtime helpers `_insert_submitted_sleeve_order` + `_is_snapshot_time_stale`
+  and freed the unused imports. A repo-wide search confirmed **no production reader** of
+  `broker_orders`/`sleeve_orders`/`sleeve_fills` remains (no reporting/export/admin/web reader; the only
+  `broker_orders` reader was the retired mirror). Full `run_checks ci` green.
+  **Remaining (deliberately deferred — destructive / entangled):** (1) the `sleeve_orders`/`sleeve_fills`
+  writers (`apply_sleeve_fill` + `SleeveOrderRepository`) are production-dead but still exercised by
+  tests and entangled with the sleeve accounting tables (`strategy_sleeves`/`sleeve_positions`/
+  `sleeve_ledger`) that sleeve *reporting* still reads — their retirement is coupled to migrating sleeve
+  reporting onto the book tables; (2) the legacy table **DROPs** (`broker_orders` now fully orphaned;
+  `sleeve_orders`/`sleeve_fills` after (1)) are a separate, backed-up migration to run with explicit
+  sign-off. The submission/reconciliation cutover (2a) is otherwise complete.
