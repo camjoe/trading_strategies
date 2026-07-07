@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from trading.repositories.book_bridge import book_id_for_sleeve
+from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
@@ -61,6 +63,24 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
     assert sp.drawdown_pct == pytest.approx(-0.3)
     assert sp.hit_rate == pytest.approx(0.6)
     assert sp.trade_count == 4
+
+
+def test_sleeve_performance_current_equity_comes_from_bridging_book(conn, report_env) -> None:
+    # The sleeve's live equity is its bridging book's, not the frozen sleeve balance.
+    book_id = book_id_for_sleeve(conn, report_env.sleeve_id, create=True)
+    assert book_id is not None
+    BookRepository(conn).update_balances(
+        book_id=book_id,
+        current_cash=8_000.0,
+        current_equity=12_345.0,
+        updated_at="2026-05-07T00:00:00Z",
+    )
+
+    report = build_account_daily_report(
+        conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
+    )
+
+    assert report.sleeve_performance[0].current_equity == pytest.approx(12_345.0)
 
 
 def test_build_report_no_sleeves_returns_empty_sections(conn) -> None:

@@ -51,7 +51,6 @@ from trading.services.auto_trading.runtime_reconciliation import (
 from trading.services.auto_trading.runtime_rotation import rotate_runtime_account
 from trading.services.market_data import MarketDataProvider
 from trading.services.auto_trading.runtime_sleeve_risk import (
-    compute_current_exposure_snapshot,
     persist_normalized_sleeve_risk_decisions,
     persist_sleeve_risk_snapshot,
 )
@@ -68,8 +67,6 @@ from trading.services.sleeves.shadow_evaluation import (
     DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
     build_sleeve_shadow_evaluation,
 )
-from trading.repositories.sleeve_positions import SleevePositionRepository
-from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_bridge import default_book_id, book_id_for_sleeve
@@ -236,24 +233,6 @@ def _resolve_reconciliation_exec_id(
         broker_order_id=broker_order_id,
         fill=fill,
         fill_index=fill_index,
-    )
-
-
-def _compute_current_exposure_snapshot(
-    conn: sqlite3.Connection,
-    *,
-    account_id: int,
-) -> tuple[float, float, float, float]:
-    return compute_current_exposure_snapshot(
-        conn,
-        account_id=account_id,
-        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: SleevePositionRepository(c).fetch_for_account(
-            account_id=account_id
-        ),
-        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: SleeveRepository(c).fetch_for_account(
-            account_id=account_id
-        ),
-        symbol_sector_map=load_symbol_sector_map(),
     )
 
 

@@ -15,6 +15,8 @@ import sqlite3
 from dataclasses import dataclass
 
 from trading.models.sleeves.sleeve_record import SleeveRecord
+from trading.repositories.book_bridge import book_id_for_sleeve
+from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
@@ -77,6 +79,7 @@ def _build_sleeve_performance(
     report_date: str,
 ) -> list[SleevePerformanceRow]:
     sleeve_repo = SleeveRepository(conn)
+    book_repo = BookRepository(conn)
     rows = []
     for sleeve in sleeves:
         metrics = DailyMetricsRepository(conn).fetch_for_sleeve_window(
@@ -87,6 +90,12 @@ def _build_sleeve_performance(
         metric = metrics[0] if metrics else None
         assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
         strategy_name = assignment.strategy_name if assignment is not None else None
+        # Live equity comes from the sleeve's bridging book (the sleeve balance is
+        # frozen once submission moves to the book path); fall back to the sleeve's
+        # own equity if it has never traded (no book yet).
+        book_id = book_id_for_sleeve(conn, sleeve.id, create=False)
+        book = book_repo.fetch_by_id(book_id=book_id) if book_id is not None else None
+        current_equity = book.current_equity if book is not None else sleeve.current_equity
         rows.append(
             SleevePerformanceRow(
                 sleeve_id=sleeve.id,
@@ -98,7 +107,7 @@ def _build_sleeve_performance(
                 trade_count=metric.trade_count if metric else None,
                 fees_total=metric.fees_total if metric else None,
                 risk_adjusted_score=metric.risk_adjusted_score if metric else None,
-                current_equity=sleeve.current_equity,
+                current_equity=current_equity,
                 start_equity=sleeve.start_equity,
             )
         )

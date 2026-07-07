@@ -346,3 +346,26 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   reporting onto the book tables; (2) the legacy table **DROPs** (`broker_orders` now fully orphaned;
   `sleeve_orders`/`sleeve_fills` after (1)) are a separate, backed-up migration to run with explicit
   sign-off. The submission/reconciliation cutover (2a) is otherwise complete.
+- 2026-07-05 — **Migrate-off-sleeves workstream complete** (branch
+  `features/phase4-migrate-off-sleeves`, 4 commits). After the cutover merged (PR #180), the sleeve
+  submission tables were still read by live intent generation + reporting, so this workstream finished
+  the job: (1) `generate_sleeve_trade_intents` reads the bridging book's cash/positions (fixing a latent
+  regression where it read frozen `sleeve_positions`); (2) `daily_report` + `ibkr_paper_monitor` read
+  book equity; (3) retired the dead writers (`apply_sleeve_fill`, `SleeveOrderRepository`, the old
+  `evaluate_sleeve_risk_gate` service, `sleeve_order`/`sleeve_fill` models, runtime dead helpers —
+  −1114 lines); (4) **dropped `broker_orders` + `sleeve_orders` + `sleeve_fills`** from the schema
+  (greenfield: CREATE statements + indexes + migration keys removed, so fresh DBs no longer create
+  them; existing dev DBs reset from the pre-P4 backup). `order_fills` now documents its FK to the clean
+  `orders`. Full `run_checks ci` green throughout. Remaining orphaned-but-kept:
+  `SleevePositionRepository`/`SleeveLedgerRepository` + the `sleeve_positions`/`sleeve_ledger` tables (a
+  later cleanup, not in this drop batch). The submission/accounting spine is fully on the clean book
+  schema.
+- 2026-07-05 — **Sleeve position/ledger cleanup done** (same branch). Deleted the orphaned
+  `SleevePositionRepository`/`SleeveLedgerRepository` + `SleeveLedgerRecord` model (kept
+  `SleevePositionRecord` — still the domain risk-gate adapter's shape), slimmed the interleaved
+  `test_sleeve_repositories.py` (kept the rotation-decisions/metrics coverage, dropped the
+  positions/ledger parts), and **dropped the `sleeve_positions` + `sleeve_ledger` tables** (schema
+  CREATE/index/migration entries removed). Down to 32 tables. Full `run_checks ci` green. The
+  migrate-off-sleeves workstream is now fully complete — no orphaned sleeve order/accounting tables or
+  repositories remain; only `strategy_sleeves` (sleeve definitions/assignments) and the account-keyed
+  risk audit tables stay, both still live.

@@ -21,9 +21,10 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-37 tables — 25 legacy plus the 12 clean strategy-book tables added by the P3 rewrite (Phase A;
-legacy tables are retired in later P3/P4 steps). One row per table — use this for orientation and
-context. For column details, read `db_schema.py` directly.
+32 tables — the clean strategy-book tables (P3 rewrite) plus the legacy tables not yet retired. The
+legacy order/accounting tables (`broker_orders`, `sleeve_orders`, `sleeve_fills`, `sleeve_positions`,
+`sleeve_ledger`) were dropped in P4 as the submission/accounting spine moved onto the book tables. One
+row per table — use this for orientation and context. For column details, read `db_schema.py` directly.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
@@ -31,8 +32,7 @@ context. For column details, read `db_schema.py` directly.
 | `trades` | Individual paper trades (equities and options) | → `accounts` |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `accounts` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
-| `broker_orders` | Live broker orders submitted to an external broker | → `accounts` |
-| `order_fills` | Individual fill events for a broker order | → `broker_orders` |
+| `order_fills` | Individual fill events for a clean order | → `orders` |
 | `backtest_runs` | Metadata for a single backtest execution (dates, fees, slippage, notes) | → `accounts` |
 | `backtest_trades` | Simulated trades within a backtest run | → `backtest_runs` |
 | `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
@@ -43,10 +43,6 @@ context. For column details, read `db_schema.py` directly.
 | `sleeve_strategy_assignments` | History of which param set is/was incumbent for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
 | `rotation_decisions` | Records of each hold/rotate decision for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
 | `rotation_episodes` | Continuous runs of a single strategy on an account (started_at → ended_at) | → `accounts` |
-| `sleeve_orders` | Orders placed by a sleeve strategy, including broker order ID | → `accounts`, `strategy_sleeves`, `rotation_decisions` |
-| `sleeve_fills` | Fill events for sleeve orders | → `sleeve_orders`, `strategy_sleeves` |
-| `sleeve_positions` | Current open positions per sleeve (qty, avg cost, market value) | → `strategy_sleeves` |
-| `sleeve_ledger` | Cash movements, realized P&L, fees, and transfers per sleeve | → `strategy_sleeves` |
 | `sleeve_risk_decisions` | Allow/rescale/block decisions from the risk layer for a proposed trade | → `accounts`, `strategy_sleeves` |
 | `portfolio_risk_snapshots` | Portfolio-level risk metrics snapshot (exposure, concentration, drawdown) | → `accounts` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per account or sleeve | → `accounts`, `strategy_sleeves` |

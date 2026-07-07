@@ -5,7 +5,8 @@ from unittest.mock import Mock
 import pandas as pd
 
 import trading.services.sleeves.execution as sleeve_execution
-from trading.repositories.sleeve_positions import SleevePositionRepository
+from trading.repositories.books import BookRepository
+from trading.repositories.positions import PositionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import get_account
 from tests.support.repositories import insert_repository_account
@@ -125,12 +126,22 @@ def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch
     recorder.assert_called_once_with("account", "trend", feature_history_fn=None)
 
 
-def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
+def test_build_sleeve_state_reads_book_and_skips_non_positive_positions(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_state")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id, name="stateful", current_cash=750.0)
-    pos_repo = SleevePositionRepository(conn)
+    # A sleeve's state now comes from its bridging book (cash + positions).
+    book_id = BookRepository(conn).insert(
+        account_id=account_id,
+        name="stateful",
+        is_default=0,
+        start_equity=750.0,
+        current_cash=750.0,
+        current_equity=750.0,
+        created_at="2026-05-03T00:00:00Z",
+        updated_at="2026-05-03T00:00:00Z",
+    )
+    pos_repo = PositionRepository(conn)
     pos_repo.upsert(
-        sleeve_id=sleeve_id,
+        book_id=book_id,
         symbol="AAPL",
         qty=2.0,
         avg_cost=100.0,
@@ -139,7 +150,7 @@ def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
         updated_at="2026-05-03T00:00:00Z",
     )
     pos_repo.upsert(
-        sleeve_id=sleeve_id,
+        book_id=book_id,
         symbol="MSFT",
         qty=0.0,
         avg_cost=200.0,
@@ -147,17 +158,8 @@ def test_build_sleeve_state_skips_non_positive_positions(conn) -> None:
         unrealized_pnl=0.0,
         updated_at="2026-05-03T00:00:00Z",
     )
-    pos_repo.upsert(
-        sleeve_id=sleeve_id,
-        symbol="TSLA",
-        qty=-1.0,
-        avg_cost=300.0,
-        market_value=-300.0,
-        unrealized_pnl=0.0,
-        updated_at="2026-05-03T00:00:00Z",
-    )
 
-    state = sleeve_execution._build_sleeve_state(conn, sleeve_id=sleeve_id, current_cash=750.0)
+    state = sleeve_execution._build_sleeve_state(conn, book_id=book_id)
 
     assert state.cash == 750.0
     assert state.positions == {"AAPL": 2.0}

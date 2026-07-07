@@ -228,29 +228,8 @@ CREATE INDEX IF NOT EXISTS idx_rotation_episodes_account_strategy_ended
 ON rotation_episodes(account_id, strategy_name, ended_at DESC);
 """
 
-BROKER_ORDERS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS broker_orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    broker_order_id TEXT NOT NULL UNIQUE,
-    ticker TEXT NOT NULL,
-    side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
-    qty REAL NOT NULL,
-    order_type TEXT NOT NULL DEFAULT 'market',
-    time_in_force TEXT NOT NULL DEFAULT 'day',
-    requested_price REAL NOT NULL,
-    status TEXT NOT NULL,
-    filled_qty REAL NOT NULL DEFAULT 0,
-    avg_fill_price REAL,
-    commission REAL NOT NULL DEFAULT 0,
-    submitted_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
-);
-"""
-
-# Clean-schema shape (P3 Phase E): fills key on the clean orders table; legacy
-# broker_orders rows are mirrored into orders on first fill (book_bridge).
+# Fills key on the clean orders table. The legacy broker_orders table was dropped
+# in P4/2a-5 (the shared submission + reconciliation paths write orders/order_fills).
 ORDER_FILLS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS order_fills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,7 +246,6 @@ CREATE TABLE IF NOT EXISTS order_fills (
 """
 
 BROKER_INDEXES_SQL = """
-CREATE INDEX IF NOT EXISTS idx_broker_orders_account_id ON broker_orders(account_id);
 CREATE INDEX IF NOT EXISTS idx_order_fills_order_id ON order_fills(order_id);
 """
 
@@ -358,76 +336,10 @@ CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time_book
 ON rotation_decisions(rotation_action, decision_time DESC);
 """
 
-SLEEVE_ORDERS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    sleeve_id INTEGER NOT NULL,
-    strategy_name TEXT NOT NULL,
-    param_set_id INTEGER,
-    rotation_decision_id INTEGER,
-    broker_order_id TEXT,
-    symbol TEXT NOT NULL,
-    side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
-    qty REAL NOT NULL,
-    order_type TEXT NOT NULL DEFAULT 'market',
-    time_in_force TEXT NOT NULL DEFAULT 'day',
-    requested_price REAL NOT NULL,
-    status TEXT NOT NULL,
-    config_version TEXT,
-    submitted_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
-    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id),
-    FOREIGN KEY (rotation_decision_id) REFERENCES rotation_decisions(id)
-);
-"""
-
-SLEEVE_FILLS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_fills (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleeve_order_id INTEGER NOT NULL,
-    sleeve_id INTEGER NOT NULL,
-    broker_fill_id TEXT,
-    exec_id TEXT,
-    symbol TEXT NOT NULL,
-    filled_qty REAL NOT NULL,
-    fill_price REAL NOT NULL,
-    commission REAL NOT NULL DEFAULT 0,
-    fill_time TEXT NOT NULL,
-    FOREIGN KEY (sleeve_order_id) REFERENCES sleeve_orders(id),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
-);
-"""
-
-SLEEVE_POSITIONS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_positions (
-    sleeve_id INTEGER NOT NULL,
-    symbol TEXT NOT NULL,
-    qty REAL NOT NULL,
-    avg_cost REAL NOT NULL,
-    market_value REAL NOT NULL,
-    unrealized_pnl REAL NOT NULL,
-    updated_at TEXT NOT NULL,
-    PRIMARY KEY (sleeve_id, symbol),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
-);
-"""
-
-SLEEVE_LEDGER_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_ledger (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleeve_id INTEGER NOT NULL,
-    entry_type TEXT NOT NULL CHECK (entry_type IN ('cash_movement', 'realized_pnl', 'fee', 'financing', 'transfer')),
-    amount REAL NOT NULL,
-    reference_type TEXT,
-    reference_id TEXT,
-    entry_time TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
-);
-"""
+# sleeve_orders / sleeve_fills / sleeve_positions / sleeve_ledger were dropped in P4
+# (2a-5 + the migrate-off-sleeves cleanup): sleeve mode submits and accounts through
+# the shared execution service onto the clean orders/order_fills/positions/ledger
+# tables keyed by the sleeve's bridging book.
 
 PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS portfolio_risk_snapshots (
@@ -510,26 +422,6 @@ CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_sleeve_effective
 ON sleeve_strategy_assignments(sleeve_id, effective_from DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_strategy_effective
 ON sleeve_strategy_assignments(strategy_name, effective_from DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_orders_account_broker_order_id
-ON sleeve_orders(account_id, broker_order_id)
-WHERE broker_order_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_sleeve_orders_sleeve_submitted
-ON sleeve_orders(sleeve_id, submitted_at DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_orders_account_status_submitted
-ON sleeve_orders(account_id, status, submitted_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_fills_order_exec_id
-ON sleeve_fills(sleeve_order_id, exec_id)
-WHERE exec_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_sleeve_fills_sleeve_time
-ON sleeve_fills(sleeve_id, fill_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_fills_order_time
-ON sleeve_fills(sleeve_order_id, fill_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_positions_symbol_updated
-ON sleeve_positions(symbol, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_sleeve_time
-ON sleeve_ledger(sleeve_id, entry_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_ledger_reference
-ON sleeve_ledger(reference_type, reference_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_account_time
 ON portfolio_risk_snapshots(account_id, snapshot_time DESC);
 CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_account_time
@@ -943,7 +835,6 @@ SCHEMA_SQL = "\n".join(
         BACKTEST_INDEXES_SQL,
         ROTATION_EPISODES_TABLE_SQL,
         ROTATION_EPISODE_INDEXES_SQL,
-        BROKER_ORDERS_TABLE_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,
         STRATEGY_SLEEVES_TABLE_SQL,
@@ -951,10 +842,6 @@ SCHEMA_SQL = "\n".join(
         SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL,
         ROTATION_DECISIONS_TABLE_SQL,
         ROTATION_DECISIONS_INDEXES_SQL,
-        SLEEVE_ORDERS_TABLE_SQL,
-        SLEEVE_FILLS_TABLE_SQL,
-        SLEEVE_POSITIONS_TABLE_SQL,
-        SLEEVE_LEDGER_TABLE_SQL,
         PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
         SLEEVE_RISK_DECISIONS_TABLE_SQL,
         DAILY_METRICS_TABLE_SQL,
