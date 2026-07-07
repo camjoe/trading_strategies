@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Mapping
 import pandas as pd
 
 import trading.domain.auto_trading_policy as auto_trader_policy
-from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.models.sleeves.sleeve_trade_state import SleeveTradeState
@@ -68,7 +67,6 @@ def generate_sleeve_trade_intents(
     stop_loss_pct = account.stop_loss_pct
     take_profit_pct = account.take_profit_pct
     instrument_mode = str(account.instrument_mode).strip().lower()
-    default_strategy = resolve_active_strategy(account) or str(account.strategy)
 
     sleeve_repo = SleeveRepository(conn)
     all_sleeves = sleeve_repo.fetch_for_account(account_id=account_id)
@@ -81,6 +79,12 @@ def generate_sleeve_trade_intents(
     for sleeve in active_sleeves:
         if len(intents) >= max_intents:
             break
+        assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        if assignment is None:
+            # A book with no assigned strategy does not trade — no account fallback.
+            continue
+        strategy_name = assignment.strategy_name.strip()
+        param_set_id = assignment.param_set_id
         if sleeve.trade_universes:
             sleeve_names: object = json.loads(sleeve.trade_universes)
             if isinstance(sleeve_names, list) and sleeve_names:
@@ -101,9 +105,6 @@ def generate_sleeve_trade_intents(
             stop_loss_pct,
             take_profit_pct,
         )
-        assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
-        strategy_name = assignment.strategy_name.strip() if assignment is not None else default_strategy
-        param_set_id = assignment.param_set_id if assignment is not None else None
         selection = _prepare_trade_selection(
             account,
             strategy_name,

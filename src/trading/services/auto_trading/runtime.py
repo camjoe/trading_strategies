@@ -558,18 +558,15 @@ def run_for_account(
     resolved_execution_mode = validate_execution_mode(execution_mode)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     if resolved_execution_mode == EXECUTION_MODE_SLEEVE:
+        # Sleeve rotation is per-book (each sleeve's own champion/challenger inside
+        # _run_sleeve_mode_for_account). The account-level rotation only maintained a
+        # fallback strategy for unassigned sleeves, which are now simply not traded —
+        # every book must carry its own assignment or it does not trade.
         account = get_account(conn, account_name)
-        rotated_account = _rotate_runtime_account(
-            conn,
-            account_name,
-            account,
-            now_iso,
-            provider=provider,
-        )
         return _run_sleeve_mode_for_account(
             conn,
             account_name=account_name,
-            account=rotated_account,
+            account=account,
             universe=universe,
             prices=prices,
             iv_rank_proxy=iv_rank_proxy,

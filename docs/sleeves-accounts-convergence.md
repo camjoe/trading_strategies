@@ -465,3 +465,13 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   their tests). The `rotation_mode` / `rotation_optimality_mode` columns stay (append-only) and profile
   validation still accepts the values, but they no longer affect behavior — a later config cleanup can
   retire the vestigial plumbing. Full `run_checks ci` green.
+- 2026-07-07 — **Every book must carry its own strategy assignment — no account fallback.** Per the
+  user: a book with no assigned strategy should not trade; account/default fallbacks cause unexpected
+  trades. `generate_sleeve_trade_intents` now **skips any sleeve without an active assignment** (removed
+  the `default_strategy = resolve_active_strategy(account) or account.strategy` fallback), matching how
+  rotation already skips unassigned sleeves. Consequently the sleeve-mode runtime branch **no longer
+  calls `_rotate_runtime_account`** — the account-level rotation existed only to keep that fallback
+  strategy fresh; sleeve rotation is entirely per-book (`_run_sleeve_rotation_decisions`). Updated the
+  sleeve-execution tests to assign strategies to traded sleeves (and assert unassigned/paused sleeves
+  are skipped). This also resolves the dual-rotation-in-sleeve-mode observation from 2b-4b. Full
+  `run_checks ci` green. Next: 2b-4c (retire the episode path + drop `rotation_episodes`).
