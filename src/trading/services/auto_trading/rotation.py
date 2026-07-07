@@ -3,39 +3,20 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import timedelta
 from typing import Callable, cast
 
-from common.coercion import row_expect_int, row_float, row_int
-from common.time import parse_utc_iso
+from common.coercion import row_expect_int, row_float
 from trading.domain.accounting import compute_account_state
-from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
     next_rotation_state,
     parse_rotation_schedule,
     resolve_active_strategy,
-    resolve_optimality_mode,
     resolve_rotation_mode,
 )
 from trading.models import AccountRecord
 from trading.services.accounting import list_account_trades
 from trading.services.market_data import MarketDataProvider
 from trading.services.reporting import compute_market_value_and_unrealized, fetch_latest_prices
-
-# Minimum completed live episodes required before the live component receives
-# its full configured weight in hybrid rotation scoring.
-MIN_LIVE_EPISODES_FOR_FULL_CONFIDENCE = 3
-
-# Baseline hybrid score weighting: mostly backtest-driven until live evidence
-# accumulates, with a smaller live overlay once strategy episodes are observed.
-HYBRID_BACKTEST_WEIGHT = 0.70
-HYBRID_LIVE_WEIGHT = 0.30
-
-
-def _average(values: list[float]) -> float | None:
-    if not values:
-        return None
-    return sum(values) / len(values)
 
 
 def compute_live_account_metrics(
@@ -119,95 +100,6 @@ def sync_rotation_episode(
         starting_equity=float(metrics["equity"]),
         starting_realized_pnl=float(metrics["realized_pnl"]),
     )
-
-
-def select_optimal_strategy(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-    as_of_iso: str,
-    *,
-    fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
-    fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
-) -> str | None:
-    schedule = parse_rotation_schedule(account["rotation_schedule"])
-    if not schedule:
-        return None
-
-    lookback_days = row_int(account, "rotation_lookback_days") or 180
-    as_of_dt = parse_utc_iso(as_of_iso)
-    end_day = as_of_dt.date().isoformat()
-    start_day = (as_of_dt - timedelta(days=lookback_days)).date().isoformat()
-
-    returns = fetch_strategy_backtest_returns_fn(
-        conn,
-        account_id=row_expect_int(account, "id"),
-        strategy_names=schedule,
-        start_day=start_day,
-        end_day=end_day,
-    )
-
-    if not returns:
-        return None
-
-    by_strategy: dict[str, list[float]] = {}
-    latest_by_strategy: dict[str, float] = {}
-    for strategy_name, ret in returns:
-        by_strategy.setdefault(strategy_name, []).append(ret)
-        if strategy_name not in latest_by_strategy:
-            latest_by_strategy[strategy_name] = ret
-
-    if not by_strategy:
-        by_strategy = {}
-
-    optimality_mode = resolve_optimality_mode(account)
-    scores: dict[str, float] = {}
-    if optimality_mode == "hybrid_weighted":
-        live_scores: dict[str, list[float]] = {}
-        if fetch_closed_rotation_episodes_fn is not None:
-            closed_rows = fetch_closed_rotation_episodes_fn(
-                account_id=row_expect_int(account, "id"),
-                strategy_names=schedule,
-                start_iso=f"{start_day}T00:00:00Z",
-                end_iso=as_of_iso,
-            )
-            for row in closed_rows:
-                starting_equity = row["starting_equity"]
-                ending_equity = row["ending_equity"]
-                if starting_equity is None or ending_equity is None:
-                    continue
-                live_return = safe_return_pct(starting_equity, ending_equity)
-                if live_return is None:
-                    continue
-                live_scores.setdefault(str(row["strategy_name"]), []).append(float(live_return))
-
-        for strategy_name in schedule:
-            backtest_score = _average(by_strategy.get(strategy_name, []))
-            live_values = live_scores.get(strategy_name, [])
-            live_score = _average(live_values)
-            if backtest_score is None and live_score is None:
-                continue
-            if backtest_score is None:
-                assert live_score is not None
-                scores[strategy_name] = float(live_score)
-                continue
-            if live_score is None:
-                scores[strategy_name] = float(backtest_score)
-                continue
-            live_confidence = min(len(live_values) / MIN_LIVE_EPISODES_FOR_FULL_CONFIDENCE, 1.0)
-            live_weight = HYBRID_LIVE_WEIGHT * live_confidence
-            backtest_weight = HYBRID_BACKTEST_WEIGHT + (HYBRID_LIVE_WEIGHT - live_weight)
-            scores[strategy_name] = (float(backtest_score) * backtest_weight) + (float(live_score) * live_weight)
-    elif optimality_mode == "average_return":
-        for strategy_name, values in by_strategy.items():
-            scores[strategy_name] = sum(values) / len(values)
-    else:
-        scores = dict(latest_by_strategy)
-
-    if not scores:
-        return None
-
-    best_strategy = max(scores.items(), key=lambda item: item[1])[0]
-    return best_strategy if best_strategy in schedule else None
 
 
 def rotate_account_if_due(

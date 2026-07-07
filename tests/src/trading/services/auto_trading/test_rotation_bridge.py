@@ -119,12 +119,7 @@ def test_rotate_runtime_account_if_due_rotates_to_higher_decision_score(conn, mo
         RotationDeps(
             is_rotation_due_fn=lambda _row: True,
             select_optimal_strategy_fn=lambda inner_conn, inner_account, inner_as_of: (
-                auto_trading_service.select_account_rotation_strategy(
-                    inner_conn,
-                    inner_account,
-                    inner_as_of,
-                    fetch_strategy_backtest_returns_fn=lambda *_a, **_k: [],
-                )
+                auto_trading_service.select_account_rotation_strategy(inner_conn, inner_account, inner_as_of)
             ),
             update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
             get_account_fn=get_account,
@@ -167,12 +162,7 @@ def test_select_account_rotation_strategy_holds_and_records_incumbent(conn, monk
     # Incumbent scores best -> no challenger outperforms -> hold.
     _patch_scores(monkeypatch, {"trend": 5.0, "mean_reversion": 1.0})
 
-    selected = auto_trading_service.select_account_rotation_strategy(
-        conn,
-        account,
-        "2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=lambda *_a, **_k: [],
-    )
+    selected = auto_trading_service.select_account_rotation_strategy(conn, account, "2026-03-21T00:00:00Z")
 
     assert selected == "trend"
     decision = _latest_decision(conn, book_id=default_book_id(conn, int(account["id"])))
@@ -188,12 +178,4 @@ def test_select_account_rotation_strategy_returns_none_when_no_active_strategy()
     )
 
     # No incumbent to evaluate -> None, and no default-book resolution is attempted.
-    assert (
-        auto_trading_service.select_account_rotation_strategy(
-            object(),
-            account,
-            "2026-03-21T00:00:00Z",
-            fetch_strategy_backtest_returns_fn=lambda *_a, **_k: [],
-        )
-        is None
-    )
+    assert auto_trading_service.select_account_rotation_strategy(object(), account, "2026-03-21T00:00:00Z") is None

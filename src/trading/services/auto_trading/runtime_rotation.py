@@ -31,17 +31,8 @@ def select_runtime_rotation_strategy(
     conn: sqlite3.Connection,
     account: AccountRecord,
     as_of_iso: str,
-    *,
-    fetch_strategy_backtest_returns_fn: Callable[..., object],
-    fetch_closed_rotation_episodes_fn: Callable[..., object],
 ) -> str | None:
-    return select_account_rotation_strategy_impl(
-        conn,
-        account,
-        as_of_iso,
-        fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
-        fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes_fn,
-    )
+    return select_account_rotation_strategy_impl(conn, account, as_of_iso)
 
 
 def sync_runtime_rotation_episode(
@@ -78,8 +69,6 @@ def rotate_runtime_account(
     is_rotation_due_fn: Callable[..., bool],
     update_account_rotation_state_fn: Callable[..., object],
     get_account_fn: Callable[..., AccountRecord],
-    fetch_strategy_backtest_returns_fn: Callable[..., object],
-    fetch_closed_rotation_episodes_fn: Callable[..., object],
     fetch_open_rotation_episode_fn: Callable[..., object],
     insert_rotation_episode_fn: Callable[..., object],
     close_rotation_episode_fn: Callable[..., object],
@@ -98,13 +87,7 @@ def rotate_runtime_account(
     )
     deps = RotationDeps(
         is_rotation_due_fn=lambda row: is_rotation_due_fn(row, as_of_iso=now_iso),
-        select_optimal_strategy_fn=lambda c, a, iso: select_runtime_rotation_strategy(
-            c,
-            a,
-            iso,
-            fetch_strategy_backtest_returns_fn=fetch_strategy_backtest_returns_fn,
-            fetch_closed_rotation_episodes_fn=fetch_closed_rotation_episodes_fn,
-        ),
+        select_optimal_strategy_fn=lambda c, a, iso: select_runtime_rotation_strategy(c, a, iso),
         update_account_rotation_state_fn=update_account_rotation_state_fn,
         get_account_fn=get_account_fn,
     )

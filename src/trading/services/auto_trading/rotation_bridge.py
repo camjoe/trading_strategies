@@ -17,16 +17,9 @@ def select_account_rotation_strategy(
     conn: sqlite3.Connection,
     account: AccountRecord,
     as_of_iso: str,
-    *,
-    fetch_strategy_backtest_returns_fn: Callable[..., list[tuple[str, float]]],
-    fetch_closed_rotation_episodes_fn: Callable[..., list[sqlite3.Row]] | None = None,
 ) -> str | None:
-    # Selection now runs the decision-score champion/challenger model on the
-    # account's default book (2b-3), writing rotation_decisions. The backtest/episode
-    # fetchers fed the retired performance-based select_optimal_strategy path; they are
-    # accepted for call-site compatibility until 2b-4 collapses the rotation service
-    # and retires the episode path.
-    del fetch_strategy_backtest_returns_fn, fetch_closed_rotation_episodes_fn
+    # Selection runs the decision-score champion/challenger model on the account's
+    # default book (2b-3), writing rotation_decisions.
     return evaluate_account_rotation_decision(conn, account, as_of_iso)
 
 

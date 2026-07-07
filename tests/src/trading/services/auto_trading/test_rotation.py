@@ -27,81 +27,6 @@ def _account(**overrides):
     return make_auto_trading_account(**values)
 
 
-def test_select_optimal_strategy_hybrid_weighted_prefers_better_live_signal() -> None:
-    account = _account()
-    fetch_returns = Mock(
-        return_value=[
-            ("trend", 10.0),
-            ("mean_reversion", 9.0),
-        ]
-    )
-    fetch_episodes = Mock(
-        return_value=[
-            {
-                "strategy_name": "trend",
-                "starting_equity": 1000.0,
-                "ending_equity": 900.0,
-            },
-            {
-                "strategy_name": "trend",
-                "starting_equity": 1000.0,
-                "ending_equity": 920.0,
-            },
-            {
-                "strategy_name": "trend",
-                "starting_equity": 1000.0,
-                "ending_equity": 910.0,
-            },
-            {
-                "strategy_name": "mean_reversion",
-                "starting_equity": 1000.0,
-                "ending_equity": 1200.0,
-            },
-            {
-                "strategy_name": "mean_reversion",
-                "starting_equity": 1000.0,
-                "ending_equity": 1180.0,
-            },
-            {
-                "strategy_name": "mean_reversion",
-                "starting_equity": 1000.0,
-                "ending_equity": 1190.0,
-            },
-        ]
-    )
-
-    selected = rotation_service.select_optimal_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-31T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=fetch_returns,
-        fetch_closed_rotation_episodes_fn=fetch_episodes,
-    )
-
-    assert selected == "mean_reversion"
-    fetch_returns.assert_called_once()
-    fetch_episodes.assert_called_once()
-
-
-def test_select_optimal_strategy_hybrid_weighted_falls_back_to_backtest() -> None:
-    account = _account()
-
-    selected = rotation_service.select_optimal_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-31T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=Mock(
-            return_value=[
-                ("trend", 10.0),
-                ("mean_reversion", 8.0),
-            ]
-        ),
-        fetch_closed_rotation_episodes_fn=Mock(return_value=[]),
-    )
-
-    assert selected == "trend"
-
-
 def test_sync_rotation_episode_closes_previous_and_opens_new() -> None:
     account = _account(rotation_active_strategy="mean_reversion", rotation_active_index=1)
     closed_calls: list[dict[str, object]] = []
@@ -240,25 +165,6 @@ def test_sync_rotation_episode_returns_when_active_strategy_missing() -> None:
     insert_rotation_episode.assert_not_called()
 
 
-def test_select_optimal_strategy_average_return_mode() -> None:
-    account = _account(rotation_optimality_mode="average_return")
-    selected = rotation_service.select_optimal_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-31T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=Mock(
-            return_value=[
-                ("trend", 1.0),
-                ("trend", 3.0),
-                ("mean_reversion", 1.5),
-                ("mean_reversion", 1.5),
-            ]
-        ),
-        fetch_closed_rotation_episodes_fn=None,
-    )
-    assert selected == "trend"
-
-
 def test_rotate_account_if_due_uses_index_fallback_when_selected_not_in_schedule() -> None:
     account = _account(
         rotation_mode="optimal", rotation_active_index=1, rotation_schedule='["trend","mean_reversion"]'
@@ -276,49 +182,3 @@ def test_rotate_account_if_due_uses_index_fallback_when_selected_not_in_schedule
     )
     assert updated is account
     assert updated_rows[0]["rotation_active_index"] == 1
-
-
-def test_select_optimal_strategy_hybrid_weighted_uses_live_score_when_backtest_missing() -> None:
-    account = _account()
-    selected = rotation_service.select_optimal_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-31T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=Mock(return_value=[("trend", 1.0)]),
-        fetch_closed_rotation_episodes_fn=Mock(
-            return_value=[
-                {
-                    "strategy_name": "mean_reversion",
-                    "starting_equity": 1000.0,
-                    "ending_equity": 1200.0,
-                }
-            ]
-        ),
-    )
-    assert selected == "mean_reversion"
-
-
-def test_select_optimal_strategy_hybrid_weighted_returns_none_when_truthy_empty_returns_and_invalid_live_rows() -> (
-    None
-):
-    class _TruthyEmptyReturns:
-        def __bool__(self):
-            return True
-
-        def __iter__(self):
-            return iter(())
-
-    account = _account()
-    selected = rotation_service.select_optimal_strategy(
-        conn=object(),
-        account=account,
-        as_of_iso="2026-03-31T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=Mock(return_value=_TruthyEmptyReturns()),
-        fetch_closed_rotation_episodes_fn=Mock(
-            return_value=[
-                {"strategy_name": "trend", "starting_equity": None, "ending_equity": 1000.0},
-                {"strategy_name": "mean_reversion", "starting_equity": 0.0, "ending_equity": 1000.0},
-            ]
-        ),
-    )
-    assert selected is None
