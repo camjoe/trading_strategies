@@ -70,6 +70,23 @@ def test_evaluate_account_rotation_decision_holds_incumbent_when_no_challengers(
     assert decision["decision_reason"] == "no_challenger_candidates"
 
 
+def test_evaluate_account_rotation_decision_cooldown_holds_after_recent_rotate(conn, monkeypatch) -> None:
+    create_account(conn, "acct_cd", "trend", 10000.0, "SPY")
+    _set_rotation(conn, "acct_cd", schedule='["trend","mean_reversion"]')
+    account = get_account(conn, "acct_cd")
+    _patch_scores(monkeypatch, {"trend": 1.0, "mean_reversion": 5.0})
+
+    # First evaluation rotates (no prior rotate on the book).
+    assert evaluate_account_rotation_decision(conn, account, "2026-03-20T00:00:00Z") == "mean_reversion"
+
+    # A day later the book is still within the shared cooldown window, so even a
+    # stronger challenger holds — the account now shares the sleeve cooldown guard.
+    assert evaluate_account_rotation_decision(conn, account, "2026-03-21T00:00:00Z") == "trend"
+    decision = _fetch_decision(conn, book_id=default_book_id(conn, int(account["id"])))
+    assert decision["rotation_action"] == "hold"
+    assert decision["decision_reason"] == "cooldown_active"
+
+
 def test_evaluate_account_rotation_decision_returns_none_without_incumbent() -> None:
     from tests.src.trading.services.auto_trading.factories import make_auto_trading_account
 

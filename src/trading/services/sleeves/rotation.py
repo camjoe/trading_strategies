@@ -12,6 +12,7 @@ from trading.domain.sleeve_rotation import evaluate_champion_challenger_rotation
 from trading.models.sleeves.sleeve_rotation_decision import SleeveRotationDecision
 from trading.models.sleeves.sleeve_rotation_score_weights import SleeveRotationScoreWeights
 from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
 
@@ -93,6 +94,72 @@ def _normalize_challengers(
     return normalized
 
 
+def book_cooldown_active(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    decision_time: str,
+    cooldown_days: int,
+) -> bool:
+    """Whether the book is still within its post-rotation cooldown window.
+
+    The unified "when" guard for both account and sleeve rotation: read the book's
+    latest 'rotate' decision and compare against ``decision_time``.
+    """
+    latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action_for_book(book_id=int(book_id))
+    latest_rotate_time = (
+        str(latest_rotate["decision_time"]).strip()
+        if latest_rotate is not None and latest_rotate["decision_time"] is not None
+        else None
+    )
+    return _is_cooldown_active(
+        latest_rotate_time=latest_rotate_time,
+        decision_time=decision_time,
+        cooldown_days=cooldown_days,
+    )
+
+
+def evaluate_book_rotation(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    incumbent: SleeveStrategyMetrics,
+    challengers: list[SleeveStrategyMetrics],
+    config: SleeveRotationConfig,
+    cooldown_active: bool,
+    decision_time: str,
+) -> tuple[SleeveRotationDecision, int]:
+    """Run champion/challenger for one book and record the decision on it.
+
+    The shared book-keyed rotation core used by both the account (default book) and
+    sleeve (bridging book) paths. Candidate enumeration and applying the winner stay
+    caller-specific; this owns the policy call + the ``rotation_decisions`` audit.
+    """
+    decision = evaluate_champion_challenger_rotation(
+        incumbent=incumbent,
+        challengers=challengers,
+        min_trades_in_window=max(1, int(config.min_trades_in_window)),
+        outperformance_threshold_bps=float(config.outperformance_threshold_bps),
+        cooldown_active=cooldown_active,
+        weights=_weights_from_config(config),
+    )
+    decision_id = RotationDecisionRepository(conn).insert_for_book(
+        book_id=int(book_id),
+        decision_time=decision_time,
+        incumbent_strategy=decision.incumbent_strategy,
+        challenger_strategy=decision.challenger_strategy,
+        selected_strategy=decision.selected_strategy,
+        rotation_action=decision.rotation_action,
+        cooldown_active=1 if decision.cooldown_active else 0,
+        score_components_json=json.dumps(decision.score_components, sort_keys=True),
+        gate_results_json=json.dumps(decision.gate_results, sort_keys=True),
+        decision_reason=decision.decision_reason,
+        config_version=config.config_version,
+        created_at=decision_time,
+    )
+    return decision, decision_id
+
+
 def evaluate_and_apply_sleeve_rotation(
     conn: sqlite3.Connection,
     *,
@@ -114,14 +181,11 @@ def evaluate_and_apply_sleeve_rotation(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
     )
-    latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=int(sleeve_id))
-    latest_rotate_time = (
-        str(latest_rotate["decision_time"]).strip()
-        if latest_rotate is not None and latest_rotate["decision_time"] is not None
-        else None
-    )
-    cooldown_active = _is_cooldown_active(
-        latest_rotate_time=latest_rotate_time,
+    book_id = book_id_for_sleeve(conn, int(sleeve_id), create=True)
+    assert book_id is not None  # create=True always resolves a book id
+    cooldown_active = book_cooldown_active(
+        conn,
+        book_id=book_id,
         decision_time=now_iso,
         cooldown_days=config.cooldown_days,
     )
@@ -131,28 +195,14 @@ def evaluate_and_apply_sleeve_rotation(
         incumbent_param_set_id=incumbent_param_set_id,
         challengers=challengers,
     )
-    decision = evaluate_champion_challenger_rotation(
+    decision, decision_id = evaluate_book_rotation(
+        conn,
+        book_id=book_id,
         incumbent=incumbent,
         challengers=normalized_challengers,
-        min_trades_in_window=max(1, int(config.min_trades_in_window)),
-        outperformance_threshold_bps=float(config.outperformance_threshold_bps),
+        config=config,
         cooldown_active=cooldown_active,
-        weights=_weights_from_config(config),
-    )
-    decision_id = RotationDecisionRepository(conn).insert(
-        sleeve_id=int(sleeve_id),
         decision_time=now_iso,
-        incumbent_strategy=decision.incumbent_strategy,
-        challenger_strategy=decision.challenger_strategy,
-        selected_strategy=decision.selected_strategy,
-        rotation_action=decision.rotation_action,
-        cooldown_active=1 if decision.cooldown_active else 0,
-        score_components_json=json.dumps(decision.score_components, sort_keys=True),
-        gate_results_json=json.dumps(decision.gate_results, sort_keys=True),
-        decision_reason=decision.decision_reason,
-        config_version=config.config_version,
-        param_set_id=decision.selected_param_set_id,
-        created_at=now_iso,
     )
 
     rotated = False

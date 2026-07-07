@@ -438,3 +438,20 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   `book_active_strategy` / `book_closed_strategy`. The episode table + writers are untouched this step
   (2b-4c drops them). Rewrote `test_paper_live.py` (closed window, active-since-inception, missing) +
   added repo tests. Full `run_checks ci` green. Next: 2b-4b (one book-keyed rotation service).
+- 2026-07-07 — **2b-4b landed — one book-keyed rotation core + unified cooldown guard.**
+  Two commits. **(i)** Retired the dead `select_optimal_strategy` path (dead in production since 2b-3
+  rerouted account selection through champion/challenger): removed the function + its hybrid-scoring
+  helpers, and dropped the `fetch_strategy_backtest_returns_fn` / `fetch_closed_rotation_episodes_fn`
+  threading from the account rotation DI chain (bridge → runtime_rotation → runtime); episode-sync
+  fetchers stay for 2b-4c (net −310 lines). **(ii)** Extracted the shared book-keyed rotation core into
+  `sleeves/rotation.py::evaluate_book_rotation` (champion/challenger policy call + `rotation_decisions`
+  audit via `insert_for_book`) and `book_cooldown_active` (book-native cooldown from
+  `fetch_latest_rotate_action_for_book`). Both the account path (`book_rotation.py`) and the sleeve
+  applier now enumerate candidates + apply the winner their own way but share the eval/record core and
+  the cooldown guard. The core lives under `sleeves/` to respect the existing `auto_trading → sleeves`
+  import direction (2b-5 renames the package). **Cadence unification:** the account keeps its
+  interval/schedule trigger (`is_rotation_due`) and now *also* shares the per-book cooldown guard
+  (previously `cooldown_active=False`), so a fresh account rotation can't churn within the cooldown
+  window — the "cadence trigger + cooldown guard" model, uniform across both paths. Added a cooldown
+  regression test. Full `run_checks ci` green. Next: 2b-4c (retire the episode path + drop
+  `rotation_episodes`).

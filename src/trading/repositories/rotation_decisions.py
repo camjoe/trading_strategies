@@ -227,3 +227,16 @@ class RotationDecisionRepository:
             params=(),
         )
         return rows[0] if rows else None
+
+    def fetch_latest_rotate_action_for_book(self, *, book_id: int) -> sqlite3.Row | None:
+        """Return the book's most recent 'rotate' decision (book-native cooldown source)."""
+        return self._conn.execute(
+            """
+            SELECT d.decision_time AS decision_time
+            FROM rotation_decisions d
+            WHERE d.book_id = ? AND d.rotation_action = 'rotate'
+            ORDER BY d.decision_time DESC, d.id DESC
+            LIMIT 1
+            """,
+            (int(book_id),),
+        ).fetchone()
