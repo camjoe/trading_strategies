@@ -20,14 +20,15 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 | 1 | Close the execution loop (keystone) | Committed | ✅ done (E1 · E2 parity) | L | [D1](decisions.md#d1) |
 | 2 | Finish unified evaluation | Committed | ✅ done (1a·1b·1c) | S | — |
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✅ done (A–E) | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
-| 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ◑ in progress (2a) | L | — |
-| 5 | Decisioning legibility & naming pass | Committed | ☐ | M | [D13](decisions.md#d13) |
+| 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ✅ done (2a·2b·2c) | L | — |
+| 5 | Decisioning legibility & naming pass | Committed | ✅ done (with 2b-5) | M | [D13](decisions.md#d13) |
 | 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | M | [D5](decisions.md#d5) |
 | 7 | Unified parameter source | Committed | ☐ | M | [D4](decisions.md#d4) |
 | 8 | Email notifications (independent) | Committed | ☐ | M | [D8](decisions.md#d8) |
 | 9 | Portfolio risk rollup | Committed | ☐ | M | [D10](decisions.md#d10) |
 | 10 | Adaptive learning | Exploratory | ☐ | L | [D9](decisions.md#d9) |
 | 11 | Strategy parameter optimization | Exploratory | ☐ | L | [D11](decisions.md#d11) |
+| 12 | Backtest freshness / recalculation cadence | Exploratory | ☐ | S | — |
 
 **Commitment:** Committed = will build, in order · Conditional = committed but gated on an open
 decision · Exploratory = only if evidence justifies. **Status:** ✅ done · ◑ in progress ·
