@@ -140,11 +140,29 @@ blindly would strip the live half of the decision score for exactly the accounts
   `compute_live_account_metrics`, and drop `rotation_episodes` (greenfield: remove CREATE + indexes +
   migration keys). Check: full `run_checks ci` green.
 
-### Phase 2b-5 — P5 naming pass  **[light]**
-- Rename `sleeve_*` rotation vocabulary to `book_*` (domain + services), disambiguate the two
-  "rotation" meanings (cadence vs selection), and rename `shadow_evaluation` to its candidate-
-  enumeration role. Update `docs/adr` / maps as needed.
-- Check: full `run_checks ci` green; docs/maps in sync.
+### Phase 2b-5 — Naming pass  **[deferred → folded into 2b-6, 2026-07-07]**
+Deferred by decision: prioritize substantive cleanup (2b-6 sweep) over the cosmetic rename; do the
+rename as part of that pass rather than a standalone phase. **Agreed convention: `Rotation*` prefix**
+(paradigm-neutral), not `Book*`. Rename table (book-agnostic rotation vocabulary used by *both* the
+account and sleeve paths):
+
+| Current | New |
+|---|---|
+| `SleeveStrategyMetrics` | `RotationStrategyMetrics` |
+| `SleeveStrategyScore` | `RotationStrategyScore` |
+| `SleeveRotationDecision` | `RotationDecision` |
+| `SleeveRotationScoreWeights` | `RotationScoreWeights` |
+| `SleeveRotationRunResult` | `RotationRunResult` |
+| `SleeveRotationConfig` | `RotationPolicyConfig` (⚠️ `RotationConfig` is taken by the persisted account config) |
+| `domain/sleeve_rotation.py` | `domain/rotation_policy.py` |
+| `build_sleeve_metrics_from_evaluation` | `build_rotation_strategy_metrics` |
+| `services/sleeves/shadow_evaluation.py` | rename to its candidate-enumeration role |
+
+Keep genuinely sleeve-bound names (`evaluate_and_apply_sleeve_rotation`, `build_sleeve_shadow_evaluation` /
+`SleeveShadowEvaluation`, `SleeveRepository`, `strategy_sleeves`). Open sub-choice deferred to execution:
+rename the `models/sleeves/` rotation model files in place vs move them to `models/rotation/`. Also rename
+the `EvaluationPaperLiveEvidence.episode_started_at/ended_at` window-bound fields here. Update `docs/adr` /
+maps. Check: full `run_checks ci` green; docs/maps in sync.
 
 ### Phase 2b-6 — Convergence-wide dead-code sweep  **[strong]**
 Each removed operation tends to strand code that still *looks* functional (as the retired
