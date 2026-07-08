@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 ROTATION_MODES = {"time", "optimal", "regime"}
 OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
-ROTATION_REGIME_STATES = {"risk_on", "neutral", "risk_off"}
 ROTATION_OVERLAY_MODES = {"none", "news", "social", "news_social"}
 
 

@@ -10,11 +10,9 @@ from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
-from trading.repositories.backtest_history import BacktestRunRepository
 
 __all__ = [
     "AccountRepository",
-    "BacktestRunRepository",
     "DailyMetricsRepository",
     "EquitySnapshotRepository",
     "GlobalSettingsRepository",
