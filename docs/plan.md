@@ -24,7 +24,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 | 5 | Decisioning legibility & naming pass | Committed | ✅ done (with 2b-5) | M | [D13](decisions.md#d13) |
 | 6 | Plug-and-play strategy & provider catalog | Exploratory | ☐ | M | [D5](decisions.md#d5) |
 | 7 | Unified parameter source | Committed | ☐ | M | [D4](decisions.md#d4) |
-| 8 | Email notifications (independent) | Committed | ☐ | M | [D8](decisions.md#d8) |
+| 8 | Email notifications (independent) | Committed | ✅ done (core; per-transport filtering deferred) | M | [D8](decisions.md#d8) |
 | 9 | Portfolio risk rollup | Committed | ☐ | M | [D10](decisions.md#d10) |
 | 10 | Adaptive learning | Exploratory | ☐ | L | [D9](decisions.md#d9) |
 | 11 | Strategy parameter optimization | Exploratory | ☐ | L | [D11](decisions.md#d11) |
@@ -342,8 +342,13 @@ Priority: P6 · Exploratory
 
 #### Notification expansion beyond webhook-only
 
-Priority: P8 · Committed (independent)
+Priority: P8 · Committed (independent) · ✅ **done (core, 2026-07-07)**
 
+- Delivered (2026-07-07): the `notify_runtime_event` dispatcher fans out to webhook **and** an
+  optional SMTP email transport (`EmailNotificationConfig`), wired into the trader-health and
+  paper-trading jobs from `TRADING_RUNTIME_ALERT_SMTP_*` env vars ([D8](decisions.md#d8)). Opt-in,
+  best-effort, optional auth; documented in the runtime-operations runbook. **Deferred:**
+  per-transport event-class filtering (an explicit "recovery" class, email-only-on-failure, etc.).
 - Scope: keep the webhook path and add optional email delivery for runtime events.
 - Surface: `src/trading/interfaces/runtime/` (notifications are webhook-only today in
   `notifications.py`) and runtime job scripts.
@@ -373,7 +378,7 @@ Priority: P7 · Committed
   across the codebase.
 - Motivation: parameters are currently scattered across ~5 locations with no single view —
   `StrategyParamSetRepository` (versioned strategy params), `src/trading/services/operational_settings/`
-  (evaluation confidence, promotion policy, trade throttles), `SleeveRotationConfig` code defaults
+  (evaluation confidence, promotion policy, trade throttles), `RotationPolicyConfig` code defaults
   (rotation weights), `src/infrastructure/config/account_profiles/*.json`, and account DB columns
   (risk policy, stops, `learning_enabled`, rotation schedule/lookback/cooldown).
 - Overlap with P3/D4: the rewrite (P3) decides **where** params live — strategy knobs in `strategies`

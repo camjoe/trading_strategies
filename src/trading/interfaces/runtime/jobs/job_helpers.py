@@ -75,9 +75,7 @@ def resolve_email_config_from_env() -> EmailNotificationConfig | None:
     """
     host = os.getenv(RUNTIME_ALERT_SMTP_HOST_ENV, "").strip()
     sender = os.getenv(RUNTIME_ALERT_SMTP_FROM_ENV, "").strip()
-    recipients = tuple(
-        item.strip() for item in os.getenv(RUNTIME_ALERT_SMTP_TO_ENV, "").split(",") if item.strip()
-    )
+    recipients = tuple(item.strip() for item in os.getenv(RUNTIME_ALERT_SMTP_TO_ENV, "").split(",") if item.strip())
     if not host or not sender or not recipients:
         return None
 
