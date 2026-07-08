@@ -28,11 +28,8 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
 - [`status.md`](status.md) — **the tracker**: current status per workstream (done / active / blocked / deferred + next action)
 - [`decisions.md`](decisions.md) — **what was decided / needs defining**: ADR-style decision records
-- [`db-schema-rewrite-spec.md`](db-schema-rewrite-spec.md) — draft target schema for a clean, goals-aligned database rewrite (the convergence "option B", greenfield, no data migration)
-- [`db-schema-target.md`](db-schema-target.md) — the proposed final schema on its own (WIP), without old-schema/change framing
-- [`developer-notes.md`](developer-notes.md) — developer working notes, gotchas, and pre-implementation checks
-- [`implementation/`](implementation/) — reusable work-order authoring + handoff guidance (`README.md`); completed per-initiative work orders are archived under [`history/implementation/`](history/README.md)
-- [`history/`](history/README.md) — archived completed plans and progress logs (e.g. the accounts/sleeves convergence)
+- [`developer-notes.md`](developer-notes.md) — durable developer gotchas
+- [`implementation/`](implementation/) — reusable work-order authoring + handoff guidance (`README.md`); completed work orders live in git history
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh

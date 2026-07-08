@@ -1,56 +1,79 @@
-# Status
+# Status — What Is Left
 
 Type: status
 Status: Active
 Created: 2026-07-08
 Last changed: 2026-07-08
-Purpose: The single source of truth for **current** status — what is done, active, blocked, or
-deferred, and the next action for each. Current truth only; no progress narrative.
-Related: [Overview](overview.md) (north star / why), [Decisions](decisions.md) (ADR-style records),
-[Docs History](history/README.md) (completed work + progress logs).
+Purpose: The single source of truth for what remains of the plan — what is left, the steps to
+complete it, and what is deferred. Current truth only; completed work lives in git history.
+Related: [Overview](overview.md) (north star / why), [Decisions](decisions.md) (decision records).
 
-> **Read this for "what now."** Rationale and product framing are in [overview.md](overview.md);
-> resolved decisions in [decisions.md](decisions.md); finished work and its narrative in
-> [history/](history/README.md). Detailed change history is in git — do not re-log it here.
+> The original 11-phase plan (P1–P11, later P12) is more than half delivered: **P1–P5 and P8 are
+> done** (see the compact table at the bottom; details are in git). What follows is everything
+> that remains.
 >
-> **Type** ∈ feature · refactor · cleanup · migration · docs · exploratory.
-> **Status** ∈ not started · in progress · blocked · deferred · done.
+> **Type** ∈ feature · refactor · cleanup · exploratory. **Status** ∈ not started · in progress ·
+> blocked · deferred.
 
-## Active
+## Remaining committed work
 
-| Workstream | Type | Status | Depends On | Decision Needed | Next Action |
-|---|---|---|---|---|---|
-| Unified parameter source (P7) | feature | not started | P3 ✅ | none (D4 settled the store; scope the operator use case) | Scope the concrete operator use case first (avoid speculative surface); then a read/edit service + CLI over the existing ~5 param stores. |
-| Portfolio risk rollup (P9) | feature | not started | equity snapshots ✅ | [D10](decisions.md#d10) — only for the concentration slice | Build the v1 exposure rollup (read-only cross-account equity/cash/market-value); overlap/concentration follows once D10 lands. |
-| Retire/rename sleeve vocabulary | cleanup/refactor | not started | P4 ✅ | Are sleeves still a distinct concept from books, or just legacy naming? | Write an ADR answering that; then rename `services/sleeves/*` + `strategy_sleeves` accordingly. Distinct from P4 book accounting, which is **done**. |
+The two committed workstreams are **independent of each other** — either can be done first, or both
+in parallel.
 
-## Exploratory
+### P7 — Unified parameter source (feature · not started)
 
-Pursued only if evidence justifies. Not on the committed path.
+One legible place to view/edit the parameters that drive strategy behavior, evaluation, and
+rotation. Today they are scattered across ~5 stores (`strategy_param_sets`, `operational_settings`,
+`RotationPolicyConfig` code defaults, account profiles JSON, account/book DB columns).
 
-| Workstream | Type | Status | Depends On | Decision Needed | Next Action |
-|---|---|---|---|---|---|
-| Plug-and-play strategy & provider catalog (P6) | exploratory | deferred | P1 ✅ · P3 ✅ | Concrete demand to run data-defined strategy variants (needs a write path too)? | None until demand. Then go all the way: DB catalog canonical, retire `STRATEGY_REGISTRY` to primitives — not a loader alongside the code registry. |
-| Adaptive learning (P10) | exploratory | deferred | decision-score contract ✅ | [D9](decisions.md#d9) — what learned state is + update policy | None until D9 + evidence. |
-| Strategy parameter optimization (P11) | exploratory | deferred | — | [D11](decisions.md#d11) — search method + overfitting guardrails | None until D11 + evidence. |
-| Backtest freshness / recalculation cadence (P12) | exploratory | deferred | — | Freshness/staleness policy for re-running backtests | None until demand. |
+Steps:
+1. Scope the concrete operator use case first — which parameters actually need runtime tuning
+   (avoid speculative surface; the P6 lesson).
+2. Build a read-through view service over the existing stores (no new store — D4 already decided
+   where params live).
+3. Add the CLI to view/edit through that service (interface primacy: CLI first, UI optional later).
+4. Migrate rotation/evaluation weights that should be tunable out of code-only defaults.
 
-## Recently completed
+### P9 — Portfolio risk rollup (feature · not started)
 
-Compact record only; detail is in git and [history/](history/README.md).
+Cross-account risk visibility from data that already exists.
 
-| Workstream | Delivered |
+Steps:
+1. **v1 exposure rollup**: aggregation service over `equity_snapshots` + positions returning
+   cross-account equity, cash, and market value. Read-only, low risk.
+2. CLI entry for the rollup payload.
+3. **Overlap/concentration** (second slice): needs [D10](decisions.md#d10) first — define
+   concentration (by symbol, sector, or strategy) — then symbol-level cross-account analysis.
+4. Optional dashboard view only after the payload contract is stable.
+
+### Sleeve vocabulary cleanup (cleanup/refactor · not started)
+
+Post-P4 the code is book-keyed, but `services/sleeves/`, `strategy_sleeves`, and sleeve-named
+symbols remain. Decision needed first: **are sleeves still a distinct concept from books, or just
+legacy naming?** Steps: write an ADR answering that, then rename/absorb accordingly. Distinct from
+P4 book accounting, which is done.
+
+## Deferred (exploratory — only if evidence justifies)
+
+| Workstream | Why deferred | Trigger to revisit |
+|---|---|---|
+| P6 — Plug-and-play strategy catalog | DB catalog exists but wiring it now duplicates the code registry for no gain | Concrete demand to add/tune strategy variants without deploys; then make DB canonical + retire `STRATEGY_REGISTRY` to primitives |
+| P10 — Adaptive learning | Design-heavy; needs [D9](decisions.md#d9) | Evidence that a learned layer beats the static decision score |
+| P11 — Parameter optimization | Needs [D11](decisions.md#d11) (search method + overfitting guardrails) | Demand for systematic param sweeps |
+| P12 — Backtest freshness cadence | Policy question, not implementation | Evidence that stale backtests are skewing rotation decisions |
+
+## Done (compact record — details in git)
+
+| Phase | Delivered |
 |---|---|
-| Close the execution loop (P1) | 2026-07-03 |
-| Unified evaluation — decision-score contract (P2) | 2026-07-04 |
-| DB schema rewrite — clean book schema (P3) | 2026-07-05 |
-| Converge accounts & sleeves — submission/rotation/accounting (P4) | 2026-07-07 |
-| Decisioning naming pass — `Rotation*` rename (P5, with 2b-5) | 2026-07-07 |
-| Email notifications — webhook + SMTP (P8; per-transport filtering deferred) | 2026-07-07 |
+| P1 — Close the execution loop | 2026-07-03 |
+| P2 — Unified evaluation (decision-score contract) | 2026-07-04 |
+| P3 — DB schema rewrite (clean book schema) | 2026-07-05 |
+| P4 — Converge accounts & sleeves (submission/rotation/accounting) | 2026-07-07 |
+| P5 — Decisioning naming pass (`Rotation*` rename) | 2026-07-07 |
+| P8 — Email notifications (webhook + SMTP; per-transport filtering deferred) | 2026-07-07 |
 
-## Dropped
-
-Recorded so they are not silently re-added without a fresh decision.
+## Dropped (do not silently re-add)
 
 - **Trends workflow integration into API/UI** — `apps/trends/` stays a standalone CLI.
 - **Non-proxy alternative-data expansion** — ETF-proxy feature providers are sufficient for now.

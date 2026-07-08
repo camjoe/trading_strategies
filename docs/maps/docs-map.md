@@ -87,8 +87,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `src/infrastructure/database/migrations.py` or migration conventions change |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
-| `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
-| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `src/trading/models/` sleeve shapes change |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
@@ -99,9 +97,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
 | `docs/status.md` | Current status per workstream (done/active/blocked/deferred + next action) — the tracker | A workstream changes state or a next action is taken |
 | `docs/decisions.md` | ADR-style decision records ("what was decided / needs defining") | A decision is made, added, or its status changes |
-| `docs/db-schema-rewrite-spec.md` | Rationale + target for a clean DB rewrite (option B, greenfield) | DB rewrite scope, data-loss picture, or open decisions change |
-| `docs/db-schema-target.md` | Proposed final schema on its own (WIP) | Target tables/columns change |
-| `docs/developer-notes.md` | Developer gotchas + pre-implementation checks | Recurring dev pitfalls or required checks change |
+| `docs/developer-notes.md` | Durable developer gotchas | Recurring dev pitfalls or required checks change |
 
 ### ADRs
 
@@ -115,16 +111,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/006-cross-cutting-decorators.md` | Sanctioned decorator/context-manager pattern for cross-cutting concerns | Changing the cross-cutting pattern rules |
 | `docs/adr/007-ui-error-mapping.md` | Centralized UI domain-exception → HTTP mapping | Changing the backend error-mapping approach |
 | `docs/adr/008-production-runtime-hosting-and-deployment.md` | Dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred | Moving to live trading / VPS, or adopting a hot-standby environment |
-
-### History (archived)
-
-Completed plans and progress logs, retained for archaeology only — **not** the source of truth for
-current status (that is `docs/status.md`). See `docs/history/README.md`.
-
-| File | What it covers |
-|---|---|
-| `docs/history/sleeves-accounts-convergence.md` | The P4 accounts/sleeves convergence plan + full progress log (delivered) |
-| `docs/history/implementation/*.md` | Completed per-initiative work orders (P1, P2/1c, P3, P4/2a+2c, P4/2b) |
 
 ### Templates and Standards
 

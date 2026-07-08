@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-16
 Last Reviewed: 2026-06-19
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read src/infrastructure/database/db_schema.py directly.
-Related: [DB Migration System](db-migration-system.md), [Accounts Schema Usage](accounts-schema-usage.md)
+Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
 - `src/infrastructure/database/schema.py` — CREATE TABLE statements (organized by table as named constants)

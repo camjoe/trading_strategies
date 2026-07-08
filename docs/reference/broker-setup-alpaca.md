@@ -72,4 +72,3 @@ Never commit API keys or secrets to the repository.
 
 - [`broker-integration.md`](broker-integration.md) — broker architecture, adapter wiring, safety guards, implementation checklist
 - [`broker-setup-ibkr.md`](broker-setup-ibkr.md) — IBKR setup (reference for parallel Alpaca setup)
-- [`accounts-schema-usage.md`](accounts-schema-usage.md) — `broker_type` and `live_trading_enabled` field usage

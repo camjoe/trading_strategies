@@ -81,18 +81,16 @@ The rules a light model follows for **any** work order here:
 
 ## Completed work orders (archived)
 
-All per-initiative work orders written to date are complete and archived under
-[`../history/implementation/`](../history/README.md): P1 (execution loop), P2/1c (decision-score
-contract tests), P3 (DB schema rewrite, phases A–E), P4/2a+2c (shared submission/accounting), and
-P4/2b (unified rotation + the `Rotation*` naming pass). No work order is currently active — see
-[`../status.md`](../status.md) for what's next.
+All per-initiative work orders written to date are complete; they were removed with the completed
+plan docs and live in git history (P1 execution loop, P2/1c decision-score contract tests, P3 DB
+schema rewrite, P4/2a+2c shared submission/accounting, P4/2b unified rotation + naming pass). No
+work order is currently active — see [`../status.md`](../status.md) for what's next.
 
 **The pattern:** the Planner resolves decisions and builds the design-heavy first slice; the light
 model does the mechanical fan-out (per-table models/repos, tests, seeds, mechanical refactors).
 
 ## Writing a work order (template)
 
-Copy the structure of
-[p2-evaluation-contract-tests.md](../history/implementation/p2-evaluation-contract-tests.md) (sections
-marked _(template)_ generalize). For a light-model handoff specifically, make §6 (steps) exact —
+Copy the structure of the completed p2-evaluation-contract-tests work order (in git history;
+sections marked _(template)_ generalize). For a light-model handoff specifically, make §6 (steps) exact —
 prefer concrete code or exact file paths over descriptions, and make the stop conditions explicit.

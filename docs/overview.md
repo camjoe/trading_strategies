@@ -8,7 +8,6 @@ Purpose: Definitive top-level explainer and guiding north star for the app — w
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the current tracker in [status.md](status.md).
 Related: [Status](status.md), [Decisions](decisions.md),
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md),
 [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline for **why/what**. When priorities or capabilities change,
@@ -124,9 +123,8 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 ## Direction & plan (north star)
 
 The strategic order here is the north star (the "why/what"). The **authoritative, itemized tracker**
-— what is done, active, blocked, or deferred, with the next action for each — is [status.md](status.md);
-open decisions are in [decisions.md](decisions.md); finished work and its progress logs are in
-[history/](history/README.md).
+— what is left, the steps to complete it, and what is deferred — is [status.md](status.md); open
+decisions are in [decisions.md](decisions.md); completed work and its narrative live in git history.
 
 The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
 execution (P1); evaluation is unified behind one decision-score contract that backs compare,

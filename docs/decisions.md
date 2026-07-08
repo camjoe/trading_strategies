@@ -7,8 +7,7 @@ Last Reviewed: 2026-07-03
 Purpose: The single consolidated list of decisions that must be made before or during implementation
 — "what needs to be defined." Current status lives in [status.md](status.md); design detail lives in
 the referenced specs.
-Related: [Status](status.md), [Overview](overview.md),
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md)
+Related: [Status](status.md), [Overview](overview.md)
 
 Status legend: **open** (undecided) · **leaning** (tentative direction) · **deferred** (not needed
 yet) · **decided** (resolved — record the outcome and date).

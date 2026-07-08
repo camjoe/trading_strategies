@@ -7,8 +7,8 @@ Last Reviewed: 2026-07-07
 Purpose: Record why the regime-driven account-rotation selection (policy regime + news/social overlays)
 was removed in P4/2b, and preserve its design so it can be revived if performance-based rotation is
 later augmented with regime awareness.
-Related: [2b Work Order (archived)](../history/implementation/p4-2b-unified-rotation.md),
-[Convergence Plan (archived)](../history/sleeves-accounts-convergence.md), [ADR 003 — Sleeve Virtualization](003-sleeve-virtualization-architecture.md)
+Related: the 2b work order and convergence plan (completed; retrievable from git history),
+[ADR 003 — Sleeve Virtualization](003-sleeve-virtualization-architecture.md)
 
 ## Context
 
