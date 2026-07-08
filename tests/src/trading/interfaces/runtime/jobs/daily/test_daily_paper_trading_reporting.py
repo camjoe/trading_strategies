@@ -126,6 +126,7 @@ def test_maybe_send_notification_calls_notifier_for_errors() -> None:
     assert calls == [
         {
             "webhook_url": "https://example.invalid",
+            "email_config": None,
             "event": "daily-paper-trading",
             "status": "error",
             "message": "failed",

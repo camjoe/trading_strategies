@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from common.files import sorted_by_mtime_desc
 from infrastructure.database.init import ensure_db
+from trading.interfaces.runtime.notifications import EmailNotificationConfig
 from trading.services.accounts.queries import find_account
 from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
 
@@ -82,11 +83,13 @@ def maybe_send_notification(
     status: str,
     message: str,
     details: dict[str, object],
+    email_config: EmailNotificationConfig | None = None,
 ) -> None:
     if status == "ok" and not notify_on_success:
         return
     notifier(
         webhook_url=webhook_url,
+        email_config=email_config,
         event="daily-paper-trading",
         status=status,
         message=message,

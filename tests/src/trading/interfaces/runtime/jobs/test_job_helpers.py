@@ -4,15 +4,100 @@ import os
 from pathlib import Path
 
 from trading.interfaces.runtime.jobs.job_helpers import (
+    RUNTIME_ALERT_SMTP_FROM_ENV,
+    RUNTIME_ALERT_SMTP_HOST_ENV,
+    RUNTIME_ALERT_SMTP_PASSWORD_ENV,
+    RUNTIME_ALERT_SMTP_PORT_ENV,
+    RUNTIME_ALERT_SMTP_TO_ENV,
+    RUNTIME_ALERT_SMTP_USERNAME_ENV,
+    RUNTIME_ALERT_SMTP_USE_TLS_ENV,
     already_completed_for_period,
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
+    resolve_email_config_from_env,
     run_command,
     skip_if_already_completed_for_period,
     stream_command,
     tee_line,
 )
+
+_ALL_SMTP_ENV = (
+    RUNTIME_ALERT_SMTP_HOST_ENV,
+    RUNTIME_ALERT_SMTP_PORT_ENV,
+    RUNTIME_ALERT_SMTP_USERNAME_ENV,
+    RUNTIME_ALERT_SMTP_PASSWORD_ENV,
+    RUNTIME_ALERT_SMTP_FROM_ENV,
+    RUNTIME_ALERT_SMTP_TO_ENV,
+    RUNTIME_ALERT_SMTP_USE_TLS_ENV,
+)
+
+
+def _clear_smtp_env(monkeypatch) -> None:
+    for name in _ALL_SMTP_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_resolve_email_config_returns_none_when_unconfigured(monkeypatch):
+    _clear_smtp_env(monkeypatch)
+    assert resolve_email_config_from_env() is None
+
+
+def test_resolve_email_config_requires_host_sender_and_recipient(monkeypatch):
+    _clear_smtp_env(monkeypatch)
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_HOST_ENV, "smtp.test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_FROM_ENV, "alerts@test")
+    # No recipients -> not deliverable -> None.
+    assert resolve_email_config_from_env() is None
+
+
+def test_resolve_email_config_builds_from_env_with_defaults(monkeypatch):
+    _clear_smtp_env(monkeypatch)
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_HOST_ENV, "smtp.test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_FROM_ENV, "alerts@test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_TO_ENV, "ops@test, oncall@test")
+
+    config = resolve_email_config_from_env()
+
+    assert config is not None
+    assert config.host == "smtp.test"
+    assert config.sender == "alerts@test"
+    assert config.recipients == ("ops@test", "oncall@test")
+    assert config.port == 587  # default STARTTLS submission port
+    assert config.use_tls is True
+    assert config.username is None
+    assert config.password is None
+
+
+def test_resolve_email_config_reads_auth_port_and_tls_toggle(monkeypatch):
+    _clear_smtp_env(monkeypatch)
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_HOST_ENV, "smtp.test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_FROM_ENV, "alerts@test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_TO_ENV, "ops@test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_USERNAME_ENV, "user")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_PASSWORD_ENV, "secret")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_PORT_ENV, "2525")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_USE_TLS_ENV, "false")
+
+    config = resolve_email_config_from_env()
+
+    assert config is not None
+    assert (config.username, config.password) == ("user", "secret")
+    assert config.port == 2525
+    assert config.use_tls is False
+
+
+def test_resolve_email_config_falls_back_to_default_port_on_bad_value(monkeypatch):
+    _clear_smtp_env(monkeypatch)
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_HOST_ENV, "smtp.test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_FROM_ENV, "alerts@test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_TO_ENV, "ops@test")
+    monkeypatch.setenv(RUNTIME_ALERT_SMTP_PORT_ENV, "not-a-number")
+
+    config = resolve_email_config_from_env()
+
+    assert config is not None
+    assert config.port == 587
 
 
 def test_logs_dir_for_repo_uses_local_logs(tmp_path: Path):
