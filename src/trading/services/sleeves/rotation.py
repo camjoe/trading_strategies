@@ -8,10 +8,10 @@ import sqlite3
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
-from trading.domain.sleeve_rotation import evaluate_champion_challenger_rotation
-from trading.models.sleeves.sleeve_rotation_decision import SleeveRotationDecision
-from trading.models.sleeves.sleeve_rotation_score_weights import SleeveRotationScoreWeights
-from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.domain.rotation_policy import evaluate_champion_challenger_rotation
+from trading.models.rotation.rotation_decision import RotationDecision
+from trading.models.rotation.rotation_score_weights import RotationScoreWeights
+from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
@@ -23,7 +23,7 @@ DEFAULT_ROTATION_COOLDOWN_DAYS = 7
 
 
 @dataclass(frozen=True, slots=True)
-class SleeveRotationConfig:
+class RotationPolicyConfig:
     rolling_window_days: int = DEFAULT_ROLLING_WINDOW_DAYS
     min_trades_in_window: int = DEFAULT_MIN_TRADES_IN_WINDOW
     outperformance_threshold_bps: float = DEFAULT_OUTPERFORMANCE_THRESHOLD_BPS
@@ -37,18 +37,18 @@ class SleeveRotationConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class SleeveRotationRunResult:
+class RotationRunResult:
     sleeve_id: int
     decision_id: int
     decision_time: str
-    decision: SleeveRotationDecision
+    decision: RotationDecision
     rotated: bool
     window_start_date: str
     window_end_date: str
 
 
-def _weights_from_config(config: SleeveRotationConfig) -> SleeveRotationScoreWeights:
-    return SleeveRotationScoreWeights(
+def _weights_from_config(config: RotationPolicyConfig) -> RotationScoreWeights:
+    return RotationScoreWeights(
         risk_adjusted_return_weight=float(config.risk_adjusted_return_weight),
         stability_weight=float(config.stability_weight),
         drawdown_penalty_weight=float(config.drawdown_penalty_weight),
@@ -82,9 +82,9 @@ def _normalize_challengers(
     *,
     incumbent_strategy: str,
     incumbent_param_set_id: int | None,
-    challengers: list[SleeveStrategyMetrics],
-) -> list[SleeveStrategyMetrics]:
-    normalized: list[SleeveStrategyMetrics] = []
+    challengers: list[RotationStrategyMetrics],
+) -> list[RotationStrategyMetrics]:
+    normalized: list[RotationStrategyMetrics] = []
     for challenger in challengers:
         is_same_strategy = challenger.strategy_name == incumbent_strategy
         is_same_param_set = challenger.param_set_id == incumbent_param_set_id
@@ -123,12 +123,12 @@ def evaluate_book_rotation(
     conn: sqlite3.Connection,
     *,
     book_id: int,
-    incumbent: SleeveStrategyMetrics,
-    challengers: list[SleeveStrategyMetrics],
-    config: SleeveRotationConfig,
+    incumbent: RotationStrategyMetrics,
+    challengers: list[RotationStrategyMetrics],
+    config: RotationPolicyConfig,
     cooldown_active: bool,
     decision_time: str,
-) -> tuple[SleeveRotationDecision, int]:
+) -> tuple[RotationDecision, int]:
     """Run champion/challenger for one book and record the decision on it.
 
     The shared book-keyed rotation core used by both the account (default book) and
@@ -164,11 +164,11 @@ def evaluate_and_apply_sleeve_rotation(
     conn: sqlite3.Connection,
     *,
     sleeve_id: int,
-    incumbent: SleeveStrategyMetrics,
-    challengers: list[SleeveStrategyMetrics],
-    config: SleeveRotationConfig = SleeveRotationConfig(),
+    incumbent: RotationStrategyMetrics,
+    challengers: list[RotationStrategyMetrics],
+    config: RotationPolicyConfig = RotationPolicyConfig(),
     decision_time: str | None = None,
-) -> SleeveRotationRunResult:
+) -> RotationRunResult:
     now_iso = decision_time or utc_now_iso()
     sleeve_repo = SleeveRepository(conn)
     assignment = sleeve_repo.fetch_active_assignment(sleeve_id=int(sleeve_id))
@@ -224,7 +224,7 @@ def evaluate_and_apply_sleeve_rotation(
         )
         rotated = True
 
-    return SleeveRotationRunResult(
+    return RotationRunResult(
         sleeve_id=int(sleeve_id),
         decision_id=decision_id,
         decision_time=now_iso,

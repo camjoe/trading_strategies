@@ -2,7 +2,7 @@
 
 Callers may override any of these per evaluation.  They live in the models layer
 because they are the data-contract defaults the config carries, mirroring how
-``SleeveRotationScoreWeights`` keeps its default weights.
+``RotationScoreWeights`` keeps its default weights.
 
 The symbol→sector reference data is *not* here: it is operator-editable config
 loaded from ``src/infrastructure/config/symbol_sectors.json`` and injected at the

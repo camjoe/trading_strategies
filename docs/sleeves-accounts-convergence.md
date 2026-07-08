@@ -512,3 +512,21 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   copy). DB columns stay (append-only) on both `accounts` and `book_rotation_settings`; no data lost.
   ADR 009 updated to record the config-plumbing retirement + revival path. Full `run_checks ci` green at
   each step. The app no longer presents rotation controls that do nothing.
+- 2026-07-07 — **2b-5 landed — the `Rotation*` naming pass (behavior-preserving).** Renamed the
+  paradigm-neutral rotation vocabulary now shared by both the account (default book) and sleeve paths off
+  its historical `Sleeve*` names: the value objects `SleeveStrategyMetrics`/`SleeveStrategyScore`/
+  `SleeveRotationDecision`/`SleeveRotationScoreWeights` → `RotationStrategyMetrics`/`RotationStrategyScore`/
+  `RotationDecision`/`RotationScoreWeights` and **moved** them out of `models/sleeves/` into
+  `models/rotation/` (they are book-agnostic); the policy module `domain/sleeve_rotation.py` →
+  `domain/rotation_policy.py`; the service configs `SleeveRotationConfig` → `RotationPolicyConfig`
+  (⚠️ `RotationConfig` is the persisted account config) and `SleeveRotationRunResult` → `RotationRunResult`.
+  The shared metrics builder `build_sleeve_metrics_from_evaluation` → `build_rotation_strategy_metrics`,
+  **extracted** into a new paradigm-neutral `services/sleeves/rotation_metrics.py` — leaving
+  `shadow_evaluation.py` as the accurately-named sleeve challenger-enumeration for the daily job (its
+  `SleeveShadowEvaluation`/`build_sleeve_shadow_evaluation` stay sleeve-bound). Renamed the
+  `EvaluationPaperLiveEvidence.episode_started_at/ended_at` window fields → `window_started_at/ended_at`.
+  Genuinely sleeve-bound names kept (`evaluate_and_apply_sleeve_rotation`, `SleeveRepository`,
+  `strategy_sleeves`). Updated the package map (models `rotation/` row, the `rotation_policy`/`rotation_metrics`
+  entries) and split the tests (`test_rotation_policy.py`, `test_rotation_metrics.py`; monkeypatch fetch
+  targets repointed to `rotation_metrics`). No behavior change; layer check + mypy + full `run_checks ci`
+  green. This completes 2b-5; the only open 2b item is the backtest-cadence decision.

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from trading.domain.sleeve_rotation import evaluate_champion_challenger_rotation
-from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.domain.rotation_policy import evaluate_champion_challenger_rotation
+from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 
 
-def _incumbent() -> SleeveStrategyMetrics:
-    return SleeveStrategyMetrics(
+def _incumbent() -> RotationStrategyMetrics:
+    return RotationStrategyMetrics(
         strategy_name="trend",
         param_set_id=11,
         trade_count=30,
@@ -18,7 +18,7 @@ def _incumbent() -> SleeveStrategyMetrics:
 
 
 def test_evaluate_champion_challenger_rotation_rotates_when_all_gates_pass() -> None:
-    challenger = SleeveStrategyMetrics(
+    challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
         param_set_id=22,
         trade_count=40,
@@ -48,7 +48,7 @@ def test_evaluate_champion_challenger_rotation_rotates_when_all_gates_pass() -> 
 
 
 def test_evaluate_champion_challenger_rotation_holds_on_cooldown() -> None:
-    challenger = SleeveStrategyMetrics(
+    challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
         param_set_id=22,
         trade_count=40,
@@ -74,7 +74,7 @@ def test_evaluate_champion_challenger_rotation_holds_on_cooldown() -> None:
 
 
 def test_evaluate_champion_challenger_rotation_holds_when_threshold_not_met() -> None:
-    challenger = SleeveStrategyMetrics(
+    challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
         param_set_id=22,
         trade_count=30,
@@ -100,7 +100,7 @@ def test_evaluate_champion_challenger_rotation_holds_when_threshold_not_met() ->
 
 
 def test_evaluate_champion_challenger_rotation_holds_when_sample_size_not_met() -> None:
-    challenger = SleeveStrategyMetrics(
+    challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
         param_set_id=22,
         trade_count=5,

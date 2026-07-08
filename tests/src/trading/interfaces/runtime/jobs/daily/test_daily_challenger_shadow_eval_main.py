@@ -9,7 +9,7 @@ import pytest
 
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 from trading.interfaces.runtime.jobs.job_helpers import day_tag
-from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
@@ -50,7 +50,7 @@ def _sample_run(account_name: str) -> ShadowEvaluationRun:
             SleeveShadowEvaluation(
                 sleeve_id=10,
                 incumbent_strategy="trend",
-                incumbent=SleeveStrategyMetrics(
+                incumbent=RotationStrategyMetrics(
                     strategy_name="trend",
                     param_set_id=None,
                     trade_count=15,
@@ -61,7 +61,7 @@ def _sample_run(account_name: str) -> ShadowEvaluationRun:
                     regime_fit=0.0,
                 ),
                 challengers=[
-                    SleeveStrategyMetrics(
+                    RotationStrategyMetrics(
                         strategy_name="meanrev",
                         param_set_id=22,
                         trade_count=12,

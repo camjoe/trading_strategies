@@ -17,9 +17,9 @@ from trading.models.evaluation import (
     EvaluationDiagnostics,
     StrategyEvaluationArtifact,
 )
-from trading.services.sleeves.shadow_evaluation import build_sleeve_metrics_from_evaluation
+from trading.services.sleeves.rotation_metrics import build_rotation_strategy_metrics
 
-_ROTATION_FETCH_TARGET = "trading.services.sleeves.shadow_evaluation.fetch_strategy_evaluation_for_account_row"
+_ROTATION_FETCH_TARGET = "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(
@@ -116,7 +116,7 @@ def test_rotation_metrics_use_same_contract(scenario: str, monkeypatch) -> None:
     monkeypatch.setattr(_ROTATION_FETCH_TARGET, lambda _conn, _account, *, strategy_name: artifact)
 
     # conn and account are only forwarded to the (monkeypatched) fetch, so placeholders suffice.
-    metrics = build_sleeve_metrics_from_evaluation(
+    metrics = build_rotation_strategy_metrics(
         object(),
         account=object(),
         strategy_name="any",

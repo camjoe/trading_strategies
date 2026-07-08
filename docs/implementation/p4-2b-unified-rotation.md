@@ -1,7 +1,7 @@
 # Implementation Guide — P4 / 2b: Unified rotation/selection
 
 Type: implementation
-Status: Active - Core complete (2b-1…2b-4, 2b-6, 2b-7 landed 2026-07-07); naming pass deferred, one open decision
+Status: Active - Core + naming pass complete (2b-1…2b-7 landed 2026-07-07); one open decision (backtest cadence)
 Purpose: Work order for P4 / 2b — collapse account-episode rotation and sleeve champion/challenger
 onto the single decision-score contract, book-keyed, and reduce the rotation module sprawl. Ordered
 phases, each a green commit.
@@ -32,7 +32,7 @@ Related: [P4 Work Order](p4-convergence.md), [Convergence Plan](../sleeves-accou
 | require a strategy assignment per book (no account fallback) | ✅ done | unassigned/paused books do not trade |
 | 2b-6 convergence-wide dead-code sweep | ✅ done | found the config surface (→ 2b-7); rest verified live/already-removed |
 | 2b-7 retire dead rotation-config surface (frontend + API + backend + book mirror) | ✅ done | mode/optimality/regime/overlay controls were no-ops |
-| **2b-5 naming pass (`Rotation*` rename)** | ⏸ **deferred** | convention + rename table in §Phase 2b-5 below |
+| **2b-5 naming pass (`Rotation*` rename)** | ✅ done | `Sleeve*` rotation vocab → `Rotation*`; models moved to `models/rotation/`; `domain/rotation_policy.py`; metrics core extracted to `sleeves/rotation_metrics.py`; evidence window fields renamed |
 | **Backtest recalculation cadence** | 🔲 **open decision** | see §"Open decision" below |
 
 ## 1. Objective
@@ -49,16 +49,17 @@ retire the dead regime/overlay selection subsystem. A plain account rotates its 
 sleeve rotates its **bridging book** — the same code path.
 
 ### Definition of Done (2b)
-- [ ] The dead regime/overlay selection subsystem is removed (see §5 — provably unused).
-- [ ] Account rotation selects via the champion/challenger + decision-score model, book-keyed,
+- [x] The dead regime/overlay selection subsystem is removed (see §5 — provably unused).
+- [x] Account rotation selects via the champion/challenger + decision-score model, book-keyed,
       writing `rotation_decisions` (not `rotation_episodes`).
-- [ ] One rotation service is shared by account (default book) and sleeve (bridging book); the
+- [x] One rotation service is shared by account (default book) and sleeve (bridging book); the
       `auto_trading/rotation*.py` + `sleeves/rotation.py` + `shadow_evaluation.py` sprawl is reduced.
-- [ ] The account-episode path (`rotation_episodes`, `sync_rotation_episode`) is retired; the
+- [x] The account-episode path (`rotation_episodes`, `sync_rotation_episode`) is retired; the
       `rotation_episodes` table is dropped (greenfield).
-- [ ] Rotation cadence/trigger (when to rotate) is preserved and unified (interval/schedule + cooldown).
-- [ ] P5 naming pass: `sleeve_*` rotation vocabulary → `book_*`; the two "rotation" meanings are
-      disambiguated; `shadow_evaluation` renamed to its candidate-enumeration role.
+- [x] Rotation cadence/trigger (when to rotate) is preserved and unified (interval/schedule + cooldown).
+- [x] P5 naming pass: `Sleeve*` rotation vocabulary → `Rotation*` (paradigm-neutral); the metrics core
+      moved to `sleeves/rotation_metrics.py`; the domain policy to `domain/rotation_policy.py`; models to
+      `models/rotation/`.
 - [ ] `python -m scripts.run_checks ci` green. Convergence-plan progress log appended.
 
 ## 2. Preconditions
@@ -157,11 +158,14 @@ blindly would strip the live half of the decision score for exactly the accounts
   `compute_live_account_metrics`, and drop `rotation_episodes` (greenfield: remove CREATE + indexes +
   migration keys). Check: full `run_checks ci` green.
 
-### Phase 2b-5 — Naming pass  **[deferred → folded into 2b-6, 2026-07-07]**
-Deferred by decision: prioritize substantive cleanup (2b-6 sweep) over the cosmetic rename; do the
-rename as part of that pass rather than a standalone phase. **Agreed convention: `Rotation*` prefix**
-(paradigm-neutral), not `Book*`. Rename table (book-agnostic rotation vocabulary used by *both* the
-account and sleeve paths):
+### Phase 2b-5 — Naming pass  **[✅ done 2026-07-07]**
+Landed the paradigm-neutral rename. **Convention: `Rotation*` prefix** (not `Book*`). Sub-choice
+resolved in execution: the rotation model contracts **moved** to `models/rotation/` (they are
+book-agnostic, so keeping them under `models/sleeves/` would contradict the rename), and the shared
+per-strategy metrics builder was **extracted** out of `sleeves/shadow_evaluation.py` into a new
+paradigm-neutral `sleeves/rotation_metrics.py` — leaving `shadow_evaluation.py` as the accurately-named
+sleeve challenger-enumeration for the daily job. Rename table (book-agnostic rotation vocabulary used by
+*both* the account and sleeve paths), all applied:
 
 | Current | New |
 |---|---|

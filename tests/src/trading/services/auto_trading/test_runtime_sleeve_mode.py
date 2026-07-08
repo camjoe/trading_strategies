@@ -41,7 +41,7 @@ def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_c
         )
 
     monkeypatch.setattr(
-        "trading.services.sleeves.shadow_evaluation.fetch_strategy_evaluation_for_account_row",
+        "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row",
         _fake_fetch,
     )
 

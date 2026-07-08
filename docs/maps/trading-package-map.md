@@ -178,7 +178,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `sleeves/execution.py` | Sleeve trade execution and intent generation |
 | `sleeves/helpers.py` | Shared sleeve service helpers (math, formatting) |
 | `sleeves/reconciliation.py` | Sleeve equity reconciliation (vs account and snapshot) |
-| `sleeves/rotation.py` | Sleeve rotation execution |
+| `sleeves/rotation.py` | Sleeve rotation execution + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown) |
+| `sleeves/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
 | `sleeves/universe_config.py` | Sleeve trade-universe configuration |
@@ -238,7 +239,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `rotation.py` | Rotation state-transition logic + `RotationConfig` persistence serialization |
 | `sleeve_accounting.py` | Sleeve-level accounting math (builds `models.sleeves.SleeveFillTransition`) |
 | `sleeve_risk_gate.py` | Sleeve risk-gate decision policy |
-| `sleeve_rotation.py` | Sleeve rotation scoring/decision logic (builds `models.sleeves` rotation value objects) |
+| `rotation_policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
 | `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
 
 ---
@@ -256,10 +257,10 @@ their public types.
 | `accounts/` | `AccountConfig`, `AccountInsert`, `AccountRecord` (implements `Mapping`), `AccountState` |
 | `orders/` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `BrokerOrderRecord` |
 | `portfolio/` | `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioRiskSnapshotRecord` |
-| `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`) |
+| `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
 | `strategy/` | `StrategyParamSetRecord` |
 | `settings/` | `GlobalSettingsRecord` |
-| `sleeves/` | `SleeveFillRecord`, `SleeveLedgerRecord`, `SleeveOrderRecord`, `SleevePositionRecord`, `SleeveRecord`, `SleeveRiskDecisionRecord`, `SleeveStrategyAssignmentRecord`, `SleeveFillTransition`, `SleeveRotationDecision`, `SleeveStrategyMetrics`, `SleeveStrategyScore`, `SleeveRotationScoreWeights` |
+| `sleeves/` | `SleevePositionRecord`, `SleeveRecord`, `SleeveRiskDecisionRecord`, `SleeveStrategyAssignmentRecord`, `SleeveFillTransition` |
 | `evaluation/` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDiagnostics`) + version constants |
 | `promotion/` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + stage/status/review vocabulary constants |
 

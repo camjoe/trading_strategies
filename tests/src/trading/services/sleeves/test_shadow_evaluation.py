@@ -8,13 +8,12 @@ from trading.models.evaluation import (
 )
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import get_account
-from trading.services.sleeves.shadow_evaluation import (
-    build_sleeve_metrics_from_evaluation,
-    build_sleeve_shadow_evaluation,
-)
+from trading.services.sleeves.shadow_evaluation import build_sleeve_shadow_evaluation
 from tests.support.repositories import insert_repository_account
 
-_FETCH_TARGET = "trading.services.sleeves.shadow_evaluation.fetch_strategy_evaluation_for_account_row"
+# The per-strategy metrics builder (which reads the evaluation artifact) lives in
+# rotation_metrics; patch the fetch where that module looks it up.
+_FETCH_TARGET = "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(*, blended_score: float | None, trade_count: int, available: bool = True) -> StrategyEvaluationArtifact:
@@ -22,49 +21,6 @@ def _artifact(*, blended_score: float | None, trade_count: int, available: bool 
         backtest=EvaluationBacktestEvidence(available=available, trade_count=trade_count),
         confidence=EvaluationConfidence(blended_score=blended_score, overall_confidence=0.3),
     )
-
-
-def test_build_sleeve_metrics_from_evaluation_maps_decision_score(conn, monkeypatch) -> None:
-    account_id = insert_repository_account(conn, name="acct_metrics_eval")
-    assert account_id is not None
-    account = get_account(conn, "acct_metrics_eval")
-    monkeypatch.setattr(
-        _FETCH_TARGET,
-        lambda _conn, _account, *, strategy_name: _artifact(blended_score=4.5, trade_count=18),
-    )
-
-    metrics = build_sleeve_metrics_from_evaluation(
-        conn,
-        account=account,
-        strategy_name="meanrev",
-        param_set_id=7,
-    )
-
-    assert metrics.strategy_name == "meanrev"
-    assert metrics.param_set_id == 7
-    assert metrics.trade_count == 18
-    assert metrics.risk_adjusted_return == 4.5
-    assert metrics.stability == 0.0
-    assert metrics.drawdown_penalty == 0.0
-
-
-def test_build_sleeve_metrics_from_evaluation_defaults_missing_score(conn, monkeypatch) -> None:
-    insert_repository_account(conn, name="acct_metrics_missing")
-    account = get_account(conn, "acct_metrics_missing")
-    monkeypatch.setattr(
-        _FETCH_TARGET,
-        lambda _conn, _account, *, strategy_name: _artifact(blended_score=None, trade_count=0, available=False),
-    )
-
-    metrics = build_sleeve_metrics_from_evaluation(
-        conn,
-        account=account,
-        strategy_name="meanrev",
-        param_set_id=None,
-    )
-
-    assert metrics.risk_adjusted_return == 0.0
-    assert metrics.trade_count == 0
 
 
 def test_build_sleeve_shadow_evaluation_builds_incumbent_and_challengers(conn, monkeypatch) -> None:

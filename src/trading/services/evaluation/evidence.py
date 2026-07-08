@@ -251,8 +251,8 @@ def _book_strategy_evidence(
         market_value=ending_snapshot.market_value,
         realized_pnl=ending_snapshot.realized_pnl,
         unrealized_pnl=ending_snapshot.unrealized_pnl,
-        episode_started_at=window_start,
-        episode_ended_at=window_end,
+        window_started_at=window_start,
+        window_ended_at=window_end,
     )
 
 

@@ -8,8 +8,8 @@ resolves the incumbent + schedule for the book, and the per-strategy metrics com
 from the shared decision-score builder.
 
 Generalizes the sleeve-only `build_sleeve_shadow_evaluation`. The candidate metrics
-type is reused from the sleeve model for now (it is book-agnostic strategy data; the
-P5 naming pass renames `SleeveStrategyMetrics` → a book-neutral name).
+type is the paradigm-neutral `RotationStrategyMetrics` (book-agnostic strategy data),
+built via the shared `build_rotation_strategy_metrics`.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from trading.models import AccountRecord
-from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
-from trading.services.sleeves.shadow_evaluation import build_sleeve_metrics_from_evaluation
+from trading.services.sleeves.rotation_metrics import build_rotation_strategy_metrics
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,8 +30,8 @@ class BookRotationCandidates:
 
     book_id: int
     incumbent_strategy: str
-    incumbent: SleeveStrategyMetrics
-    challengers: list[SleeveStrategyMetrics]
+    incumbent: RotationStrategyMetrics
+    challengers: list[RotationStrategyMetrics]
 
 
 def build_book_rotation_candidates(
@@ -50,20 +50,20 @@ def build_book_rotation_candidates(
     book's assigned param set. Both are scored through the same decision-score source,
     so the champion/challenger comparison is apples-to-apples.
     """
-    incumbent = build_sleeve_metrics_from_evaluation(
+    incumbent = build_rotation_strategy_metrics(
         conn,
         account=account,
         strategy_name=incumbent_strategy,
         param_set_id=incumbent_param_set_id,
     )
     param_set_repo = StrategyParamSetRepository(conn)
-    challengers: list[SleeveStrategyMetrics] = []
+    challengers: list[RotationStrategyMetrics] = []
     for strategy_name in schedule:
         if strategy_name == incumbent_strategy:
             continue
         active_param_set = param_set_repo.fetch_active(strategy_name=strategy_name)
         challengers.append(
-            build_sleeve_metrics_from_evaluation(
+            build_rotation_strategy_metrics(
                 conn,
                 account=account,
                 strategy_name=strategy_name,
