@@ -205,7 +205,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `promotion.py` | Promotion decision records |
 | `risk.py` | Clean-schema risk snapshots and risk decision records |
 | `rotation_decisions.py` | Rotation decision records |
-| `rotation.py` | Rotation state records |
 | `sleeve_risk_decisions.py` | Sleeve-level risk decision records |
 | `sleeves.py` | Sleeve configuration and state |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |

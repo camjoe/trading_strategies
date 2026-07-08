@@ -42,7 +42,6 @@ row per table — use this for orientation and context. For column details, read
 | `strategy_param_sets` | Versioned strategy parameter sets; one `is_active` per `strategy_name` | — |
 | `sleeve_strategy_assignments` | History of which param set is/was incumbent for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
 | `rotation_decisions` | Records of each hold/rotate decision for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
-| `rotation_episodes` | Continuous runs of a single strategy on an account (started_at → ended_at) | → `accounts` |
 | `sleeve_risk_decisions` | Allow/rescale/block decisions from the risk layer for a proposed trade | → `accounts`, `strategy_sleeves` |
 | `portfolio_risk_snapshots` | Portfolio-level risk metrics snapshot (exposure, concentration, drawdown) | → `accounts` |
 | `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per account or sleeve | → `accounts`, `strategy_sleeves` |

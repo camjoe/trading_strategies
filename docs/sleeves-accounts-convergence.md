@@ -475,3 +475,15 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   sleeve-execution tests to assign strategies to traded sleeves (and assert unassigned/paused sleeves
   are skipped). This also resolves the dual-rotation-in-sleeve-mode observation from 2b-4b. Full
   `run_checks ci` green. Next: 2b-4c (retire the episode path + drop `rotation_episodes`).
+- 2026-07-07 — **2b-4c landed — retired the rotation-episode path + dropped `rotation_episodes`.**
+  With evidence book-native (2b-4a), the selection-side reader gone (2b-4b), and the sleeve-mode caller
+  gone (per-book-assignment), the episode machinery had no remaining reader. Removed
+  `sync_rotation_episode` + `compute_live_account_metrics` (services/auto_trading/rotation.py),
+  `RotationEpisodeRepository` (deleted repositories/rotation.py), and the episode sync +
+  `compute_runtime_live_account_metrics` + episode/`provider` DI threading in runtime_rotation.py /
+  runtime.py — `rotate_runtime_account` now just builds deps and delegates. Dropped the
+  `rotation_episodes` table (schema CREATE + indexes + SCHEMA_SQL entry; no migration keys existed) and
+  the vestigial `EvaluationPaperLiveEvidence.rotation_episode_id` / `episode_realized_pnl_delta` fields.
+  Removed/trimmed the episode tests (repo episode tests, sync/metrics unit tests, runtime episode-sync
+  test) and synced docs (db-schema mirror row, two package-map rows). Full `run_checks ci` green. This
+  completes 2b-4. Remaining: 2b-5 (naming pass) and 2b-6 (convergence-wide dead-code sweep).

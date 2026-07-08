@@ -26,8 +26,6 @@ from trading.services.universe import resolve_named_universes
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
 from trading.repositories.accounts import AccountRepository
-from trading.repositories.rotation import RotationEpisodeRepository
-from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.domain.rotation import (
     is_rotation_due,
 )
@@ -98,22 +96,15 @@ def _rotate_runtime_account(
     account_name: str,
     account: AccountRecord,
     now_iso: str,
-    *,
-    provider: MarketDataProvider | None = None,
 ) -> AccountRecord:
     return rotate_runtime_account(
         conn,
         account_name,
         account,
         now_iso,
-        provider=provider,
         is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
         get_account_fn=get_account,
-        fetch_open_rotation_episode_fn=RotationEpisodeRepository(conn).fetch_open,
-        insert_rotation_episode_fn=RotationEpisodeRepository(conn).insert,
-        close_rotation_episode_fn=RotationEpisodeRepository(conn).close_episode,
-        fetch_snapshot_count_between_fn=EquitySnapshotRepository(conn).fetch_count_between,
     )
 
 
@@ -616,13 +607,7 @@ def run_for_account(
             feature_history_fn=feature_history_fn,
             get_account_fn=get_account,
             utc_now_iso_fn=utc_now_iso,
-            rotate_account_if_due_fn=lambda c, n, a, i: _rotate_runtime_account(
-                c,
-                n,
-                a,
-                i,
-                provider=provider,
-            ),
+            rotate_account_if_due_fn=lambda c, n, a, i: _rotate_runtime_account(c, n, a, i),
             record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
                 *args, **kwargs, _injected_broker=broker, _prices=prices, _snapshot_time=now_iso
             ),
