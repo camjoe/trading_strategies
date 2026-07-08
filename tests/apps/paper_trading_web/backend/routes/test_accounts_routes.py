@@ -15,9 +15,6 @@ def test_account_config_options_endpoint_returns_canonical_choices(api_client: T
     assert payload["riskPolicies"] == ["none", "fixed_stop", "take_profit", "stop_and_target"]
     assert payload["instrumentModes"] == ["equity", "leaps"]
     assert payload["optionTypes"] == ["call", "put", "both"]
-    assert payload["rotationModes"] == ["time", "optimal", "regime"]
-    assert payload["rotationOptimalityModes"] == ["previous_period_best", "average_return", "hybrid_weighted"]
-    assert payload["rotationOverlayModes"] == ["none", "news", "social", "news_social"]
     assert payload["defaults"]["goalPeriod"] == "monthly"
     assert payload["defaults"]["riskPolicy"] == "none"
     assert payload["defaults"]["instrumentMode"] == "equity"
@@ -38,7 +35,6 @@ def test_accounts_endpoint_lists_visible_accounts(
     listed = next(item for item in accounts if item["name"] == "acct_listed")
     assert "instrumentMode" in listed
     assert "optionMinDte" not in listed
-    assert "rotationOverlayWatchlist" not in listed
 
 
 def test_account_detail_known_account(api_client: TestClient, seed_account: Callable[..., None]) -> None:
@@ -208,19 +204,10 @@ class TestAccountParamsEndpoint:
             "/api/accounts/acct_params_rotation/params",
             json={
                 "rotationEnabled": True,
-                "rotationMode": "regime",
-                "rotationOptimalityMode": "average_return",
                 "rotationIntervalDays": 7,
                 "rotationIntervalMinutes": 240,
                 "rotationLookbackDays": 30,
                 "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
-                "rotationRegimeStrategyRiskOn": "trend",
-                "rotationRegimeStrategyNeutral": "ma_crossover",
-                "rotationRegimeStrategyRiskOff": "mean_reversion",
-                "rotationOverlayMode": "news_social",
-                "rotationOverlayMinTickers": 2,
-                "rotationOverlayConfidenceThreshold": 0.55,
-                "rotationOverlayWatchlist": ["AAPL", "MSFT", "NVDA"],
                 "rotationActiveIndex": 1,
                 "rotationActiveStrategy": "ma_crossover",
                 "rotationLastAt": "2026-03-20T00:00:00Z",
@@ -231,19 +218,10 @@ class TestAccountParamsEndpoint:
         detail = api_client.get("/api/accounts/acct_params_rotation").json()
         account = detail["account"]
         assert account["rotationEnabled"] is True
-        assert account["rotationMode"] == "regime"
-        assert account["rotationOptimalityMode"] == "average_return"
         assert account["rotationIntervalDays"] == 7
         assert account["rotationIntervalMinutes"] == 240
         assert account["rotationLookbackDays"] == 30
         assert account["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
-        assert account["rotationRegimeStrategyRiskOn"] == "trend"
-        assert account["rotationRegimeStrategyNeutral"] == "ma_crossover"
-        assert account["rotationRegimeStrategyRiskOff"] == "mean_reversion"
-        assert account["rotationOverlayMode"] == "news_social"
-        assert account["rotationOverlayMinTickers"] == 2
-        assert account["rotationOverlayConfidenceThreshold"] == pytest.approx(0.55)
-        assert account["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
         assert account["rotationActiveIndex"] == 1
         assert account["rotationActiveStrategy"] == "ma_crossover"
         assert account["rotationLastAt"] == "2026-03-20T00:00:00Z"

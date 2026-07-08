@@ -215,19 +215,10 @@ class TestBuildAccountSummaryShape:
             name="acct_rotation",
             descriptive_name="Rotation Account",
             rotation_enabled=1,
-            rotation_mode="optimal",
-            rotation_optimality_mode="average_return",
             rotation_interval_days=7,
             rotation_interval_minutes=240,
             rotation_lookback_days=30,
             rotation_schedule='["trend","ma_crossover","mean_reversion"]',
-            rotation_regime_strategy_risk_on="trend",
-            rotation_regime_strategy_neutral="ma_crossover",
-            rotation_regime_strategy_risk_off="mean_reversion",
-            rotation_overlay_mode="news_social",
-            rotation_overlay_min_tickers=3,
-            rotation_overlay_confidence_threshold=0.65,
-            rotation_overlay_watchlist='["AAPL","MSFT","NVDA"]',
             rotation_active_index=1,
             rotation_active_strategy="ma_crossover",
             rotation_last_at="2026-03-20T00:00:00Z",
@@ -235,19 +226,10 @@ class TestBuildAccountSummaryShape:
 
         summary = account_summaries.build_account_summary(conn=None, row=row)
         assert summary["rotationEnabled"] is True
-        assert summary["rotationMode"] == "optimal"
-        assert summary["rotationOptimalityMode"] == "average_return"
         assert summary["rotationIntervalDays"] == 7
         assert summary["rotationIntervalMinutes"] == 240
         assert summary["rotationLookbackDays"] == 30
         assert summary["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
-        assert summary["rotationRegimeStrategyRiskOn"] == "trend"
-        assert summary["rotationRegimeStrategyNeutral"] == "ma_crossover"
-        assert summary["rotationRegimeStrategyRiskOff"] == "mean_reversion"
-        assert summary["rotationOverlayMode"] == "news_social"
-        assert summary["rotationOverlayMinTickers"] == 3
-        assert summary["rotationOverlayConfidenceThreshold"] == pytest.approx(0.65)
-        assert summary["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
         assert summary["rotationActiveIndex"] == 1
         assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
         assert summary["rotationActiveStrategy"] == "ma_crossover"
