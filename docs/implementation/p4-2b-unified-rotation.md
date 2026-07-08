@@ -1,7 +1,7 @@
 # Implementation Guide — P4 / 2b: Unified rotation/selection
 
 Type: implementation
-Status: Active - Core + naming pass complete (2b-1…2b-7 landed 2026-07-07); one open decision (backtest cadence)
+Status: Complete (2b-1…2b-7 landed 2026-07-07). Backtest-cadence question moved out to plan P12 (exploratory).
 Purpose: Work order for P4 / 2b — collapse account-episode rotation and sleeve champion/challenger
 onto the single decision-score contract, book-keyed, and reduce the rotation module sprawl. Ordered
 phases, each a green commit.
@@ -33,7 +33,7 @@ Related: [P4 Work Order](p4-convergence.md), [Convergence Plan](../sleeves-accou
 | 2b-6 convergence-wide dead-code sweep | ✅ done | found the config surface (→ 2b-7); rest verified live/already-removed |
 | 2b-7 retire dead rotation-config surface (frontend + API + backend + book mirror) | ✅ done | mode/optimality/regime/overlay controls were no-ops |
 | **2b-5 naming pass (`Rotation*` rename)** | ✅ done | `Sleeve*` rotation vocab → `Rotation*`; models moved to `models/rotation/`; `domain/rotation_policy.py`; metrics core extracted to `sleeves/rotation_metrics.py`; evidence window fields renamed |
-| **Backtest recalculation cadence** | 🔲 **open decision** | see §"Open decision" below |
+| **Backtest recalculation cadence** | ↗ **moved out** | now plan **P12** (exploratory); not a 2b item — see §"Moved out" below |
 
 ## 1. Objective
 
@@ -224,11 +224,12 @@ is no clean backend-only cut):
   the config plumbing was retired (design + columns + git preserve the revival path). Scope as coherent
   steps (backend → API contract → frontend + tests). Check: full `run_checks ci` green (incl. frontend).
 
-### Open decision — backtest recalculation cadence (later)
+### Moved out — backtest recalculation cadence
 Candidate evaluation reads each strategy's **latest persisted** backtest run (via
-`backtesting/repositories/report_repository`); nothing recomputes backtests on a schedule. Decide how
-often backtests must be (re)run to keep the decision-score backtest half fresh as markets move — a
-freshness/staleness policy, separate from this convergence work.
+`backtesting/repositories/report_repository`); nothing recomputes backtests on a schedule. How often
+backtests must be (re)run to keep the decision-score backtest half fresh as markets move is a
+freshness/staleness policy **separate from this convergence work** — it is tracked as its own
+exploratory board item, **plan P12**, not as a 2b open decision.
 
 ## 8. Open design points (resolve in-phase; stop and report if bigger)
 - **Cadence unification:** ✅ resolved (2b-4b) — the unified "when" is the interval/schedule trigger
