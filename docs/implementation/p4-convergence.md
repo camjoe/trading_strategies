@@ -1,7 +1,7 @@
 # Implementation Guide — P4: Converge accounts & sleeves on the clean book schema
 
 Type: implementation
-Status: 2a + 2c + 2b complete (2026-07-07); P4 substantively done — see §0 Status
+Status: Active - 2a + 2c + 2b complete (2026-07-07); P4 substantively done — see §0 Status
 Purpose: Work order for P4 — build the shared submission/accounting/rotation services once on the
 clean book schema, starting with 2a (the shared order-submission service). Ordered phases, each a
 green commit.

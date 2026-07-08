@@ -1,7 +1,7 @@
 # Implementation Guide — P4 / 2b: Unified rotation/selection
 
 Type: implementation
-Status: Core complete (2b-1…2b-4, 2b-6, 2b-7 landed 2026-07-07); naming pass deferred, one open decision
+Status: Active - Core complete (2b-1…2b-4, 2b-6, 2b-7 landed 2026-07-07); naming pass deferred, one open decision
 Purpose: Work order for P4 / 2b — collapse account-episode rotation and sleeve champion/challenger
 onto the single decision-score contract, book-keyed, and reduce the rotation module sprawl. Ordered
 phases, each a green commit.
