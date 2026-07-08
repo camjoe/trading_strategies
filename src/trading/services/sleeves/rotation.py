@@ -12,7 +12,6 @@ from trading.domain.rotation_policy import evaluate_champion_challenger_rotation
 from trading.models.rotation.rotation_decision import RotationDecision
 from trading.models.rotation.rotation_score_weights import RotationScoreWeights
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.sleeves.book_assignments import assign_book_strategy, open_assignment_for_book
 
@@ -38,7 +37,10 @@ class RotationPolicyConfig:
 
 @dataclass(frozen=True, slots=True)
 class RotationRunResult:
-    sleeve_id: int
+    # The rotated trading book — the primary key of the flow (SR-2).
+    book_id: int
+    # Legacy sleeve identity during the retirement window; None once books stand alone.
+    sleeve_id: int | None
     decision_id: int
     decision_time: str
     decision: RotationDecision
@@ -163,20 +165,19 @@ def evaluate_book_rotation(
 def evaluate_and_apply_sleeve_rotation(
     conn: sqlite3.Connection,
     *,
-    sleeve_id: int,
+    book_id: int,
     incumbent: RotationStrategyMetrics,
     challengers: list[RotationStrategyMetrics],
     config: RotationPolicyConfig = RotationPolicyConfig(),
     decision_time: str | None = None,
+    legacy_sleeve_id: int | None = None,
 ) -> RotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    book_id = book_id_for_sleeve(conn, int(sleeve_id), create=True)
-    assert book_id is not None  # create=True always resolves a book id
     # Book assignments are the single live assignment record (SR-1); the read
     # lazily bootstraps from the legacy sleeve assignment on existing DBs.
-    assignment = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=int(sleeve_id))
+    assignment = open_assignment_for_book(conn, book_id=int(book_id), legacy_sleeve_id=legacy_sleeve_id)
     if assignment is None:
-        raise ValueError(f"No incumbent assignment found for sleeve_id={sleeve_id}.")
+        raise ValueError(f"No incumbent assignment found for book_id={book_id}.")
 
     incumbent_strategy = assignment.strategy_name.strip()
     incumbent_param_set_id = assignment.param_set_id
@@ -212,16 +213,17 @@ def evaluate_and_apply_sleeve_rotation(
         # migrate the remaining sleeve-assignment readers; the sync dies in SR-6).
         assign_book_strategy(
             conn,
-            book_id=book_id,
+            book_id=int(book_id),
             strategy_name=decision.selected_strategy,
             param_set_id=decision.selected_param_set_id,
             now_iso=now_iso,
-            legacy_sleeve_id=int(sleeve_id),
+            legacy_sleeve_id=legacy_sleeve_id,
         )
         rotated = True
 
     return RotationRunResult(
-        sleeve_id=int(sleeve_id),
+        book_id=int(book_id),
+        sleeve_id=legacy_sleeve_id,
         decision_id=decision_id,
         decision_time=now_iso,
         decision=decision,

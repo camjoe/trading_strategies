@@ -48,6 +48,7 @@ def _sample_run(account_name: str) -> ShadowEvaluationRun:
         window_end_day="2026-05-07",
         sleeves=[
             SleeveShadowEvaluation(
+                book_id=77,
                 sleeve_id=10,
                 incumbent_strategy="trend",
                 incumbent=RotationStrategyMetrics(

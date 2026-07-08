@@ -11,6 +11,7 @@ from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 def _intent(*, sleeve_id: int, side: str, symbol: str, qty: int, price: float) -> SleeveTradeIntent:
     return SleeveTradeIntent(
         account_id=1,
+        book_id=sleeve_id,
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=None,

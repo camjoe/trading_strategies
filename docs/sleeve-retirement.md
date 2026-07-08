@@ -63,10 +63,11 @@ Related: [Status](status.md), [ADR 003 — Sleeve Virtualization](adr/003-sleeve
 - **D-SR2 — risk-audit keying.** `sleeve_risk_decisions.sleeve_id` FKs `strategy_sleeves`. Options:
   greenfield-swap to a book-keyed table, or keep account-keyed with a `book_id` column. Decide at SR-5;
   pre-live data is droppable per the P3/P4 stance.
-- **D-SR3 — execution-mode collapse.** With books first-class, "account mode" = trade the default
-  book; "sleeve mode" = trade all assigned books. Possibly one mode: *trade every active book with an
-  open assignment* (default book is just a book). Attractive (kills the mode branch) but
-  behavior-affecting — decide at SR-2, not before.
+- ~~**D-SR3 — execution-mode collapse.**~~ **Resolved (SR-2, 2026-07-08): keep the two execution
+  modes through the retirement.** Sleeve mode is now pure multi-book enumeration; collapsing account
+  mode into the same flow changes account-mode semantics (strategy/state resolution source) and
+  cannot be proven behavior-preserving mid-retirement. Recorded as a **post-SR-7 candidate**: once
+  sleeves are gone, evaluate one mode = "trade every active book with an open assignment".
 - **D-SR4 — package naming.** `services/sleeves/` → `services/books/` (or fold pieces into
   `execution`/`auto_trading`). Decide at SR-6 with the rename table in hand.
 
@@ -111,3 +112,15 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
   the sync dies in SR-6). Rotation applier, intent generation, and shadow evaluation now read/write
   book assignments — the drift bug is fixed and regression-tested (rotate updates the book's open
   assignment). Full `run_checks ci` green.
+- 2026-07-08 — **SR-2 landed.** D-SR3 resolved: **two execution modes stay** through the retirement
+  (mode collapse = post-SR-7 candidate). The trading flow is now **book-keyed end to end**: new
+  `enumerate_trading_books` (active, non-default, openly assigned books) is the one enumeration used
+  by intent generation and shadow evaluation — its legacy sweep mirrors sleeve status/universes onto
+  bridging books and bootstraps assignments, so existing DBs self-migrate and a book with **no sleeve
+  counterpart trades on its own** (proven by test). `SleeveTradeIntent`/`SleeveShadowEvaluation`/
+  `RotationRunResult` now carry `book_id` primary with `sleeve_id` demoted to optional legacy audit
+  context; the applier takes `book_id` (+ `legacy_sleeve_id` for the dual-write); the runtime maps
+  intents by `book_id` directly — **zero `book_id_for_sleeve` calls remain on the trading path**
+  (only the enumerator's legacy sweep and the applier bootstrap use the bridge). Risk audit hardened:
+  a book id can never leak into the `sleeve_risk_decisions.sleeve_id` FK (NULL when no sleeve).
+  Fill notes are book-keyed; the challenger artifact now carries `book_id`. Full `run_checks ci` green.

@@ -10,11 +10,9 @@ import trading.domain.auto_trading_policy as auto_trader_policy
 from trading.models import AccountRecord
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.models.sleeves.sleeve_trade_state import SleeveTradeState
-from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.sleeves import SleeveRepository
-from trading.services.sleeves.book_assignments import open_assignment_for_book
+from trading.services.sleeves.book_assignments import enumerate_trading_books
 from trading.services.universe import resolve_named_universes
 
 if TYPE_CHECKING:
@@ -69,31 +67,25 @@ def generate_sleeve_trade_intents(
     take_profit_pct = account.take_profit_pct
     instrument_mode = str(account.instrument_mode).strip().lower()
 
-    sleeve_repo = SleeveRepository(conn)
-    all_sleeves = sleeve_repo.fetch_for_account(account_id=account_id)
-    active_sleeves = [s for s in all_sleeves if s.status.strip().lower() == "active"]
-    if not active_sleeves:
+    # Book-native enumeration (SR-2): active, non-default, openly assigned books.
+    # Unassigned or non-active books do not trade — no account fallback.
+    trading_books = enumerate_trading_books(conn, account_id=account_id)
+    if not trading_books:
         return []
 
-    max_intents = min(max_trades, len(active_sleeves))
+    max_intents = min(max_trades, len(trading_books))
     intents: list[SleeveTradeIntent] = []
-    for sleeve in active_sleeves:
+    for trading_book in trading_books:
         if len(intents) >= max_intents:
             break
-        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
-        assert book_id is not None  # create=True always resolves a book id
-        # Book assignments are the single live assignment record (SR-1); the read
-        # lazily bootstraps from the legacy sleeve assignment on existing DBs.
-        assignment = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve.id)
-        if assignment is None:
-            # A book with no assigned strategy does not trade — no account fallback.
-            continue
-        strategy_name = assignment.strategy_name.strip()
-        param_set_id = assignment.param_set_id
-        if sleeve.trade_universes:
-            sleeve_names: object = json.loads(sleeve.trade_universes)
-            if isinstance(sleeve_names, list) and sleeve_names:
-                effective_universe = resolve_named_universes([str(n) for n in sleeve_names])
+        book = trading_book.book
+        book_id = book.id
+        strategy_name = trading_book.assignment.strategy_name.strip()
+        param_set_id = trading_book.assignment.param_set_id
+        if book.trade_universes:
+            book_universe_names: object = json.loads(book.trade_universes)
+            if isinstance(book_universe_names, list) and book_universe_names:
+                effective_universe = resolve_named_universes([str(n) for n in book_universe_names])
             else:
                 effective_universe = universe
         else:
@@ -127,7 +119,8 @@ def generate_sleeve_trade_intents(
         intents.append(
             SleeveTradeIntent(
                 account_id=account_id,
-                sleeve_id=sleeve.id,
+                book_id=book_id,
+                sleeve_id=trading_book.legacy_sleeve_id,
                 strategy_name=strategy_name,
                 param_set_id=param_set_id,
                 side=side,

@@ -16,11 +16,17 @@ from __future__ import annotations
 
 import sqlite3
 
+from common.time import utc_now_iso
 from trading.models.books.book_assignment_view import BookAssignmentView
+from trading.models.books.trading_book import TradingBook
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.book_bridge import book_id_for_sleeve, strategy_id_for_label
+from trading.repositories.books import BookRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategies import StrategyRepository
+
+# Legacy sleeve status → clean book status (books use 'closed' where sleeves used 'retired').
+_SLEEVE_TO_BOOK_STATUS = {"active": "active", "paused": "paused", "retired": "closed"}
 
 
 def _view_from_open_record(conn: sqlite3.Connection, *, book_id: int) -> BookAssignmentView | None:
@@ -69,6 +75,62 @@ def open_assignment_for_book(
         updated_at=legacy.updated_at,
     )
     return _view_from_open_record(conn, book_id=book_id)
+
+
+def _sync_books_from_sleeves(conn: sqlite3.Connection, *, account_id: int) -> dict[int, int]:
+    """Idempotent legacy sweep: mirror each sleeve onto its bridging book.
+
+    Ensures the bridging book exists, mirrors the sleeve's status and
+    trade_universes (their writers migrate in SR-3), and bootstraps the open
+    assignment. Returns ``{book_id: sleeve_id}`` for legacy audit context.
+    Dies with SR-6 when the sleeve tables retire.
+    """
+    now_iso = utc_now_iso()
+    book_repo = BookRepository(conn)
+    sleeve_id_by_book: dict[int, int] = {}
+    for sleeve in SleeveRepository(conn).fetch_for_account(account_id=int(account_id)):
+        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
+        assert book_id is not None  # create=True always resolves a book id
+        sleeve_id_by_book[book_id] = sleeve.id
+        book = book_repo.fetch_by_id(book_id=book_id)
+        if book is None:
+            continue
+        target_status = _SLEEVE_TO_BOOK_STATUS.get(sleeve.status.strip().lower(), "active")
+        if book.status != target_status:
+            book_repo.update_status(book_id=book_id, status=target_status, updated_at=now_iso)
+        if book.trade_universes != sleeve.trade_universes:
+            book_repo.update_trade_universes(
+                book_id=book_id, trade_universes=sleeve.trade_universes, updated_at=now_iso
+            )
+        open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve.id)
+    return sleeve_id_by_book
+
+
+def enumerate_trading_books(conn: sqlite3.Connection, *, account_id: int) -> list[TradingBook]:
+    """The account's books eligible to trade: active, non-default, openly assigned.
+
+    The book-native enumeration both sleeve-mode trading and shadow evaluation
+    iterate (SR-2). During the retirement window a legacy sweep first mirrors
+    sleeves onto their bridging books, so existing DBs migrate themselves; a book
+    with no sleeve counterpart trades the same way (``legacy_sleeve_id=None``).
+    Unassigned or non-active books do not trade — no account fallback.
+    """
+    sleeve_id_by_book = _sync_books_from_sleeves(conn, account_id=account_id)
+    trading_books: list[TradingBook] = []
+    for book in BookRepository(conn).fetch_for_account(account_id=int(account_id)):
+        if book.is_default or book.status.strip().lower() != "active":
+            continue
+        assignment = open_assignment_for_book(conn, book_id=book.id)
+        if assignment is None:
+            continue
+        trading_books.append(
+            TradingBook(
+                book=book,
+                assignment=assignment,
+                legacy_sleeve_id=sleeve_id_by_book.get(book.id),
+            )
+        )
+    return trading_books
 
 
 def assign_book_strategy(

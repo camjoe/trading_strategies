@@ -46,9 +46,10 @@ def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_c
     )
 
 
-def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> SleeveTradeIntent:
+def _make_buy_intent(*, account_id: int, book_id: int, sleeve_id: int, qty: int = 1) -> SleeveTradeIntent:
     return SleeveTradeIntent(
         account_id=account_id,
+        book_id=book_id,
         sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=None,
@@ -64,15 +65,21 @@ def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> Sleeve
 
 def _patch_single_buy_intent(
     monkeypatch,
+    conn,
     *,
     account_id: int,
     sleeve_id: int,
     qty: int = 1,
 ) -> None:
+    # Intents are book-keyed (SR-2); resolve the sleeve's bridging book up front.
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
+    assert book_id is not None
     monkeypatch.setattr(
         runtime_service,
         "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [_make_buy_intent(account_id=account_id, sleeve_id=sleeve_id, qty=qty)],
+        lambda *_args, **_kwargs: [
+            _make_buy_intent(account_id=account_id, book_id=book_id, sleeve_id=sleeve_id, qty=qty)
+        ],
     )
 
 
@@ -210,7 +217,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
 
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -292,7 +299,7 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
 
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id, qty=5)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id, qty=5)
 
     executed = run_for_account(
         conn,
@@ -344,7 +351,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -393,7 +400,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
 
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_reasons(monkeypatch, ["reconciliation_mismatch"])
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -452,7 +459,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
     broker = _FailingBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -518,7 +525,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -556,7 +563,7 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_reasons(monkeypatch, ["reconciliation_snapshot_missing"])
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -606,7 +613,7 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
     broker = _NoBrokerIdBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,
@@ -660,7 +667,7 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
     broker = _BrokerWithFill()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, sleeve_id=sleeve_id)
 
     executed = run_for_account(
         conn,

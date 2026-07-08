@@ -73,9 +73,12 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
         cost_penalty=0.04,
         regime_fit=0.03,
     )
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
+    assert book_id is not None
     result = evaluate_and_apply_sleeve_rotation(
         conn,
-        sleeve_id=sleeve_id,
+        book_id=book_id,
+        legacy_sleeve_id=sleeve_id,
         incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=101),
         challengers=[challenger],
         config=RotationPolicyConfig(
@@ -159,9 +162,12 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         cost_penalty=0.01,
         regime_fit=0.05,
     )
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
+    assert book_id is not None
     result = evaluate_and_apply_sleeve_rotation(
         conn,
-        sleeve_id=sleeve_id,
+        book_id=book_id,
+        legacy_sleeve_id=sleeve_id,
         incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=111),
         challengers=[challenger],
         config=RotationPolicyConfig(cooldown_days=7),

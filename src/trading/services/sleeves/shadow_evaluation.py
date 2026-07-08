@@ -6,10 +6,8 @@ import sqlite3
 from trading.domain.rotation import parse_rotation_schedule
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.models import AccountRecord
-from trading.repositories.book_bridge import book_id_for_sleeve
-from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
-from trading.services.sleeves.book_assignments import open_assignment_for_book
+from trading.services.sleeves.book_assignments import enumerate_trading_books
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 from trading.services.sleeves.rotation_metrics import build_rotation_strategy_metrics
 
@@ -18,7 +16,10 @@ DEFAULT_SHADOW_ROLLING_WINDOW_DAYS = 30
 
 @dataclass(frozen=True, slots=True)
 class SleeveShadowEvaluation:
-    sleeve_id: int
+    # The trading book being evaluated — the primary key of the flow (SR-2).
+    book_id: int
+    # Legacy sleeve identity during the retirement window; None once books stand alone.
+    sleeve_id: int | None
     incumbent_strategy: str
     incumbent: RotationStrategyMetrics
     challengers: list[RotationStrategyMetrics]
@@ -61,26 +62,16 @@ def build_sleeve_shadow_evaluation(
         as_of_iso=as_of_iso,
         rolling_window_days=rolling_window_days,
     )
-    sleeve_repo = SleeveRepository(conn)
     param_set_repo = StrategyParamSetRepository(conn)
-    all_sleeves = sleeve_repo.fetch_for_account(account_id=account_id)
+    # Book-native enumeration (SR-2): active, non-default, openly assigned books.
     sleeves: list[SleeveShadowEvaluation] = []
-    for sleeve in all_sleeves:
-        if sleeve.status.strip().lower() != "active":
-            continue
-        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
-        assert book_id is not None  # create=True always resolves a book id
-        # Book assignments are the single live assignment record (SR-1); the read
-        # lazily bootstraps from the legacy sleeve assignment on existing DBs.
-        assignment = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve.id)
-        if assignment is None:
-            continue
-        incumbent_strategy = assignment.strategy_name.strip()
+    for trading_book in enumerate_trading_books(conn, account_id=account_id):
+        incumbent_strategy = trading_book.assignment.strategy_name.strip()
         incumbent = build_rotation_strategy_metrics(
             conn,
             account=account,
             strategy_name=incumbent_strategy,
-            param_set_id=assignment.param_set_id,
+            param_set_id=trading_book.assignment.param_set_id,
         )
         challengers: list[RotationStrategyMetrics] = []
         for strategy_name in schedule:
@@ -97,7 +88,8 @@ def build_sleeve_shadow_evaluation(
             )
         sleeves.append(
             SleeveShadowEvaluation(
-                sleeve_id=sleeve.id,
+                book_id=trading_book.book.id,
+                sleeve_id=trading_book.legacy_sleeve_id,
                 incumbent_strategy=incumbent_strategy,
                 incumbent=incumbent,
                 challengers=challengers,

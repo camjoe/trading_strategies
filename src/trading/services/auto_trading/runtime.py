@@ -66,7 +66,7 @@ from trading.services.sleeves.shadow_evaluation import (
 )
 from trading.repositories.positions import PositionRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.book_bridge import default_book_id, book_id_for_sleeve
+from trading.repositories.book_bridge import default_book_id
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.services.execution.submission import submit_book_intents
 from trading.services.execution.gate import AllowAllGate
@@ -291,11 +291,12 @@ def _run_sleeve_rotation_decisions(
     for sleeve_eval in shadow_eval.sleeves:
         evaluate_and_apply_sleeve_rotation(
             conn,
-            sleeve_id=sleeve_eval.sleeve_id,
+            book_id=sleeve_eval.book_id,
             incumbent=sleeve_eval.incumbent,
             challengers=sleeve_eval.challengers,
             config=config,
             decision_time=decision_time,
+            legacy_sleeve_id=sleeve_eval.sleeve_id,
         )
 
 
@@ -325,8 +326,9 @@ def _sleeve_risk_decisions_from_gate(
         row = asdict(decision)
         book_id = row.get("sleeve_id")
         sleeve = sleeve_by_book.get(int(book_id)) if book_id is not None else None
-        if sleeve is not None:
-            row["sleeve_id"] = sleeve.sleeve_id
+        # Never leave a book id in the sleeve FK column; a book with no legacy
+        # sleeve audits with sleeve_id NULL (account-keyed row still records it).
+        row["sleeve_id"] = sleeve.sleeve_id if sleeve is not None else None
         audit_rows.append(row)
     return audit_rows
 
@@ -402,16 +404,14 @@ def _run_sleeve_mode_for_account(
         )
         return 0
 
-    # Each sleeve is one book; map its intent to that bridging book and keep the
-    # book → sleeve context for the audit trail and fill notes.
+    # Intents are book-keyed (SR-2); keep the book → intent context for the audit
+    # trail and fill notes (the intent's legacy sleeve_id feeds the risk audit).
     book_intents: list[BookTradeIntent] = []
     sleeve_by_book: dict[int, SleeveTradeIntent] = {}
     for sleeve_intent in intents:
-        book_id = book_id_for_sleeve(conn, sleeve_intent.sleeve_id, create=True)
-        assert book_id is not None
         book_intents.append(
             BookTradeIntent(
-                book_id=book_id,
+                book_id=sleeve_intent.book_id,
                 account_id=sleeve_intent.account_id,
                 strategy_id=None,
                 symbol=sleeve_intent.symbol,
@@ -420,7 +420,7 @@ def _run_sleeve_mode_for_account(
                 requested_price=float(sleeve_intent.requested_price),
             )
         )
-        sleeve_by_book[book_id] = sleeve_intent
+        sleeve_by_book[sleeve_intent.book_id] = sleeve_intent
 
     # Pre-flight: NAV-mark books, then run the equity reconciliation kill switch once
     # for the run (consistent with account mode — reconciliation is per-run, not
@@ -489,7 +489,7 @@ def _run_sleeve_mode_for_account(
                     price=fill_price,
                     fee=float(fee),
                     trade_time=fill_time,
-                    note=f"sleeve_fill sleeve_id={_sleeve.sleeve_id} strategy={_sleeve.strategy_name}",
+                    note=f"book_fill book_id={_sleeve.book_id} strategy={_sleeve.strategy_name}",
                 )
 
             result = submit_book_intents(

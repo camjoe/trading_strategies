@@ -54,6 +54,7 @@ def _serialize_shadow_run(result: ShadowEvaluationRun) -> dict[str, object]:
         "window_end_day": result.window_end_day,
         "sleeves": [
             {
+                "book_id": sleeve.book_id,
                 "sleeve_id": sleeve.sleeve_id,
                 "incumbent_strategy": sleeve.incumbent_strategy,
                 "challenger_count": len(sleeve.challengers),
