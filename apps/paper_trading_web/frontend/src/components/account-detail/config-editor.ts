@@ -1,13 +1,6 @@
 import { esc } from "../../lib/format";
 import type { AccountDetail } from "../../types/accounts";
-import {
-  instrumentModeOptions,
-  optionTypeOptions,
-  riskPolicyOptions,
-  rotationModeOptions,
-  rotationOptimalityOptions,
-  rotationOverlayModeOptions,
-} from "./config-options";
+import { instrumentModeOptions, optionTypeOptions, riskPolicyOptions } from "./config-options";
 
 export function renderConfigEditor(detail: AccountDetail, showActions: boolean): string {
   if (!showActions) {
@@ -152,18 +145,6 @@ export function renderConfigEditor(detail: AccountDetail, showActions: boolean):
               <option value="true"${detail.account.rotationEnabled ? " selected" : ""}>On</option>
             </select>
           </div>
-          <div class="bt-field">
-            <span>Rotation Mode</span>
-            <select id="editRotationModeSelect">
-              ${rotationModeOptions(detail.account.rotationMode ?? "time")}
-            </select>
-          </div>
-          <div class="bt-field">
-            <span>Optimality Mode</span>
-            <select id="editRotationOptimalityModeSelect">
-              ${rotationOptimalityOptions(detail.account.rotationOptimalityMode ?? "previous_period_best")}
-            </select>
-          </div>
         </div>
         <div class="bt-row">
           <div class="bt-field">
@@ -197,42 +178,6 @@ export function renderConfigEditor(detail: AccountDetail, showActions: boolean):
           <div class="bt-field" style="flex:1">
             <span>Rotation Schedule (comma-separated)</span>
             <input id="editRotationScheduleInput" type="text" value="${esc((detail.account.rotationSchedule ?? []).join(","))}" placeholder="trend,mean_reversion,breakout" />
-          </div>
-        </div>
-        <div class="bt-row">
-          <div class="bt-field">
-            <span>Regime Risk-On Strategy</span>
-            <input id="editRotationRegimeRiskOnInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOn ?? "")}" placeholder="trend" />
-          </div>
-          <div class="bt-field">
-            <span>Regime Neutral Strategy</span>
-            <input id="editRotationRegimeNeutralInput" type="text" value="${esc(detail.account.rotationRegimeStrategyNeutral ?? "")}" placeholder="ma_crossover" />
-          </div>
-          <div class="bt-field">
-            <span>Regime Risk-Off Strategy</span>
-            <input id="editRotationRegimeRiskOffInput" type="text" value="${esc(detail.account.rotationRegimeStrategyRiskOff ?? "")}" placeholder="mean_reversion" />
-          </div>
-        </div>
-        <div class="bt-row">
-          <div class="bt-field">
-            <span>Overlay Mode</span>
-            <select id="editRotationOverlayModeSelect">
-              ${rotationOverlayModeOptions(detail.account.rotationOverlayMode ?? "none")}
-            </select>
-          </div>
-          <div class="bt-field">
-            <span>Overlay Min Tickers</span>
-            <input id="editRotationOverlayMinTickersInput" type="number" step="1" min="1" value="${detail.account.rotationOverlayMinTickers ?? ""}" />
-          </div>
-          <div class="bt-field">
-            <span>Overlay Confidence Threshold</span>
-            <input id="editRotationOverlayConfidenceThresholdInput" type="number" step="0.01" min="0.01" max="1" value="${detail.account.rotationOverlayConfidenceThreshold ?? ""}" placeholder="0.50" />
-          </div>
-        </div>
-        <div class="bt-row">
-          <div class="bt-field" style="flex:1">
-            <span>Overlay Watchlist (comma-separated)</span>
-            <input id="editRotationOverlayWatchlistInput" type="text" value="${esc((detail.account.rotationOverlayWatchlist ?? []).join(","))}" placeholder="AAPL,MSFT,NVDA" />
           </div>
         </div>
       </details>

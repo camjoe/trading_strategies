@@ -38,19 +38,10 @@ export interface AccountConfigFields {
   profitTakePct: number | null;
   maxLossPct: number | null;
   rotationEnabled?: boolean;
-  rotationMode?: string;
-  rotationOptimalityMode?: string;
   rotationIntervalDays?: number | null;
   rotationIntervalMinutes?: number | null;
   rotationLookbackDays?: number | null;
   rotationSchedule?: string[] | null;
-  rotationRegimeStrategyRiskOn?: string | null;
-  rotationRegimeStrategyNeutral?: string | null;
-  rotationRegimeStrategyRiskOff?: string | null;
-  rotationOverlayMode?: string;
-  rotationOverlayMinTickers?: number | null;
-  rotationOverlayConfidenceThreshold?: number | null;
-  rotationOverlayWatchlist?: string[] | null;
   rotationActiveIndex?: number | null;
   rotationLastAt?: string | null;
   rotationActiveStrategy?: string | null;
@@ -65,9 +56,6 @@ export interface AccountConfigOptionDefaults {
   goalPeriod: string;
   riskPolicy: string;
   instrumentMode: string;
-  rotationMode: string;
-  rotationOptimalityMode: string;
-  rotationOverlayMode: string;
 }
 
 export interface AccountConfigOptions {
@@ -75,9 +63,6 @@ export interface AccountConfigOptions {
   riskPolicies: string[];
   instrumentModes: string[];
   optionTypes: string[];
-  rotationModes: string[];
-  rotationOptimalityModes: string[];
-  rotationOverlayModes: string[];
   defaults: AccountConfigOptionDefaults;
 }
 

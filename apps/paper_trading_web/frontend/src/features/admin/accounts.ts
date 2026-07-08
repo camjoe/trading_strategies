@@ -141,7 +141,6 @@ export function createAdminAccountsController(
 
     const data = new FormData(form);
     const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv")) ?? [];
-    const rotationOverlayWatchlist = csvListOrUndefined(data.get("rotationOverlayWatchlistCsv"));
 
     const payload: AdminCreateAccountPayload = {
       name: strOrUndefined(data.get("name")),
@@ -171,21 +170,10 @@ export function createAdminAccountsController(
       profitTakePct: numOrUndefined(data.get("profitTakePct")),
       maxLossPct: numOrUndefined(data.get("maxLossPct")),
       rotationEnabled: data.get("rotationEnabled") === "on",
-      rotationMode: strOrUndefined(data.get("rotationMode")) ?? configOptions.defaults.rotationMode,
-      rotationOptimalityMode:
-        strOrUndefined(data.get("rotationOptimalityMode")) ?? configOptions.defaults.rotationOptimalityMode,
       rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
       rotationIntervalMinutes: intOrUndefined(data.get("rotationIntervalMinutes")),
       rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
       rotationSchedule,
-      rotationRegimeStrategyRiskOn: strOrUndefined(data.get("rotationRegimeStrategyRiskOn")),
-      rotationRegimeStrategyNeutral: strOrUndefined(data.get("rotationRegimeStrategyNeutral")),
-      rotationRegimeStrategyRiskOff: strOrUndefined(data.get("rotationRegimeStrategyRiskOff")),
-      rotationOverlayMode:
-        strOrUndefined(data.get("rotationOverlayMode")) ?? configOptions.defaults.rotationOverlayMode,
-      rotationOverlayMinTickers: intOrUndefined(data.get("rotationOverlayMinTickers")),
-      rotationOverlayConfidenceThreshold: numOrUndefined(data.get("rotationOverlayConfidenceThreshold")),
-      rotationOverlayWatchlist,
       rotationActiveIndex: intOrUndefined(data.get("rotationActiveIndex")) ?? 0,
       rotationLastAt: strOrUndefined(data.get("rotationLastAt")),
       rotationActiveStrategy: strOrUndefined(data.get("rotationActiveStrategy")),
