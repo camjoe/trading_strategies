@@ -97,9 +97,8 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
-| `docs/plan.md` | Tasks/order/status/timelines tracker (priority board P1..N + commitment tags) | A task ships, priorities change, or estimates are set |
-| `docs/decisions.md` | Consolidated open decisions ("what needs defining") | A decision is made, added, or its status changes |
-| `docs/sleeves-accounts-convergence.md` | Design detail for converging account/sleeve trading paths | Convergence design, workstreams, or the A/B stance change |
+| `docs/status.md` | Current status per workstream (done/active/blocked/deferred + next action) — the tracker | A workstream changes state or a next action is taken |
+| `docs/decisions.md` | ADR-style decision records ("what was decided / needs defining") | A decision is made, added, or its status changes |
 | `docs/db-schema-rewrite-spec.md` | Rationale + target for a clean DB rewrite (option B, greenfield) | DB rewrite scope, data-loss picture, or open decisions change |
 | `docs/db-schema-target.md` | Proposed final schema on its own (WIP) | Target tables/columns change |
 | `docs/developer-notes.md` | Developer gotchas + pre-implementation checks | Recurring dev pitfalls or required checks change |
@@ -116,6 +115,16 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/006-cross-cutting-decorators.md` | Sanctioned decorator/context-manager pattern for cross-cutting concerns | Changing the cross-cutting pattern rules |
 | `docs/adr/007-ui-error-mapping.md` | Centralized UI domain-exception → HTTP mapping | Changing the backend error-mapping approach |
 | `docs/adr/008-production-runtime-hosting-and-deployment.md` | Dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred | Moving to live trading / VPS, or adopting a hot-standby environment |
+
+### History (archived)
+
+Completed plans and progress logs, retained for archaeology only — **not** the source of truth for
+current status (that is `docs/status.md`). See `docs/history/README.md`.
+
+| File | What it covers |
+|---|---|
+| `docs/history/sleeves-accounts-convergence.md` | The P4 accounts/sleeves convergence plan + full progress log (delivered) |
+| `docs/history/implementation/*.md` | Completed per-initiative work orders (P1, P2/1c, P3, P4/2a+2c, P4/2b) |
 
 ### Templates and Standards
 

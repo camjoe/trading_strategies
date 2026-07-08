@@ -7,7 +7,7 @@ Last Reviewed: 2026-07-01
 Purpose: How implementation work is sliced into self-contained work orders and handed off — including
 to a lighter/cheaper model — so execution is reliable and stops safely. Indexes the per-initiative
 guides.
-Related: [Plan](../plan.md), [Decisions](../decisions.md), [Developer Notes](../developer-notes.md)
+Related: [Status](../status.md), [Decisions](../decisions.md), [Developer Notes](../developer-notes.md)
 
 ## Purpose
 
@@ -79,21 +79,20 @@ The rules a light model follows for **any** work order here:
 6. **Never** set `live_trading_enabled`; never touch broker endpoints; never commit on red.
 7. One work order = one focused commit (or the per-phase commits the order specifies).
 
-## Handoff queue (current readiness)
+## Completed work orders (archived)
 
-| Work order | Ready for light model? | Notes |
-|---|---|---|
-| [p2-evaluation-contract-tests.md](p2-evaluation-contract-tests.md) (P2/1c) | ✅ **done** (PR #162) | Test-only; dogfooded the guide. |
-| [p1-execution-loop.md](p1-execution-loop.md) (P1) | ✅ **done** (`features/p1-execution-loop`) | Signal-driven selection live; E2 delivered as backtest↔live parity. |
-| [p3-db-schema-rewrite.md](p3-db-schema-rewrite.md) (P3, all phases A–E) | ✅ **done** (PR #177) | Clean book schema live; reads re-pointed via `book_bridge`. |
-| [p4-convergence.md](p4-convergence.md) 2a (shared submission) | ❌ Planner / strong | Safety-critical (live submission path). Phases 2a-1..2a-5; each a green commit. |
-| p4 2c (unified ledger), 2b (unified rotation) | ❌ after 2a | Detailed in the work order when reached; 2b pairs with the P5 naming pass. |
+All per-initiative work orders written to date are complete and archived under
+[`../history/implementation/`](../history/README.md): P1 (execution loop), P2/1c (decision-score
+contract tests), P3 (DB schema rewrite, phases A–E), P4/2a+2c (shared submission/accounting), and
+P4/2b (unified rotation + the `Rotation*` naming pass). No work order is currently active — see
+[`../status.md`](../status.md) for what's next.
 
 **The pattern:** the Planner resolves decisions and builds the design-heavy first slice; the light
 model does the mechanical fan-out (per-table models/repos, tests, seeds, mechanical refactors).
 
 ## Writing a work order (template)
 
-Copy the structure of [p2-evaluation-contract-tests.md](p2-evaluation-contract-tests.md) (sections
+Copy the structure of
+[p2-evaluation-contract-tests.md](../history/implementation/p2-evaluation-contract-tests.md) (sections
 marked _(template)_ generalize). For a light-model handoff specifically, make §6 (steps) exact —
 prefer concrete code or exact file paths over descriptions, and make the stop conditions explicit.

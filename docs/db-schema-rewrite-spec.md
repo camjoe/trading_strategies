@@ -8,8 +8,8 @@ Purpose: Target database schema aligned with the app's goals. This is the concre
 convergence plan's "physical table rework (option B)", which was **chosen** on 2026-07-01
 ([D2](decisions.md#d2)/[D3](decisions.md#d3)): rewrite-first, after the execution loop, then build
 convergence once on the clean schema. Open schema-detail decisions remain (D4, D5, D6).
-Related: [Overview](overview.md), [Plan](plan.md),
-[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
+Related: [Overview](overview.md), [Status](status.md),
+[Convergence Plan (archived)](history/sleeves-accounts-convergence.md),
 [Architecture Conventions](architecture/architecture-conventions.md),
 [DB Migration System](reference/db-migration-system.md),
 [ADR 003 — Sleeve Virtualization](adr/003-sleeve-virtualization-architecture.md)

@@ -5,12 +5,11 @@ Status: Active
 Created: 2026-07-01
 Last Reviewed: 2026-07-05
 Purpose: Developer-facing working notes, gotchas, and pre-implementation checks — a sanity check for
-the same developer picking work back up. Tasks/order/status/timelines live in [plan.md](plan.md).
-Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [DB Schema Target](db-schema-target.md),
-[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md)
+the same developer picking work back up. Current status lives in [status.md](status.md).
+Related: [Overview](overview.md), [Status](status.md), [Decisions](decisions.md),
+[DB Schema Rewrite Spec](db-schema-rewrite-spec.md), [DB Schema Target](db-schema-target.md)
 
-> [plan.md](plan.md) is the source of truth for scope/order/status; [decisions.md](decisions.md) for
+> [status.md](status.md) is the source of truth for scope/status; [decisions.md](decisions.md) for
 > open decisions. This doc is what to check before starting and durable gotchas.
 
 ## Pre-implementation checks
@@ -75,10 +74,7 @@ Related: [Overview](overview.md), [Plan](plan.md), [Decisions](decisions.md),
 
 ## Where to look
 
-- **Tasks / order / status / timelines** → [plan.md](plan.md) (the status board + Current cycle
-  sequencing are the single source).
+- **Current status / next action per workstream** → [status.md](status.md) (the single source).
 - **Open decisions ("what needs defining")** → [decisions.md](decisions.md).
-- **Recommended next action** → P4, converge accounts & sleeves on the clean book schema (P1, P2,
-  P3 are complete). P4 builds the shared submission/rotation/accounting **write** services and, in
-  doing so, retires the `book_bridge` shims and the legacy account/sleeve-keyed repository APIs.
+- **Finished work + progress logs** → [history/](history/README.md).
   Sequence P4's shared submission service (2a) first to shorten the runtime pause.

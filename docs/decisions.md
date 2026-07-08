@@ -5,10 +5,9 @@ Status: Active
 Created: 2026-07-01
 Last Reviewed: 2026-07-03
 Purpose: The single consolidated list of decisions that must be made before or during implementation
-— "what needs to be defined." Tasks/order/status live in [plan.md](plan.md); design detail lives in
+— "what needs to be defined." Current status lives in [status.md](status.md); design detail lives in
 the referenced specs.
-Related: [Plan](plan.md), [Overview](overview.md),
-[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
+Related: [Status](status.md), [Overview](overview.md),
 [DB Schema Rewrite Spec](db-schema-rewrite-spec.md)
 
 Status legend: **open** (undecided) · **leaning** (tentative direction) · **deferred** (not needed

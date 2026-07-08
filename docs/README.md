@@ -26,13 +26,13 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`plan.md`](plan.md) — **the tracker**: priority board (P1..N + commitment), status, and timelines
-- [`decisions.md`](decisions.md) — **what needs defining**: the consolidated list of open decisions
-- [`sleeves-accounts-convergence.md`](sleeves-accounts-convergence.md) — design detail for converging account and sleeve trading paths onto shared services
+- [`status.md`](status.md) — **the tracker**: current status per workstream (done / active / blocked / deferred + next action)
+- [`decisions.md`](decisions.md) — **what was decided / needs defining**: ADR-style decision records
 - [`db-schema-rewrite-spec.md`](db-schema-rewrite-spec.md) — draft target schema for a clean, goals-aligned database rewrite (the convergence "option B", greenfield, no data migration)
 - [`db-schema-target.md`](db-schema-target.md) — the proposed final schema on its own (WIP), without old-schema/change framing
 - [`developer-notes.md`](developer-notes.md) — developer working notes, gotchas, and pre-implementation checks
-- [`implementation/`](implementation/) — per-initiative implementation guides (self-contained work orders an agent can execute end-to-end): [p2-evaluation-contract-tests.md](implementation/p2-evaluation-contract-tests.md) (template + example), [p1-execution-loop.md](implementation/p1-execution-loop.md) (the keystone), [p3-db-schema-rewrite.md](implementation/p3-db-schema-rewrite.md) (the schema rewrite)
+- [`implementation/`](implementation/) — reusable work-order authoring + handoff guidance (`README.md`); completed per-initiative work orders are archived under [`history/implementation/`](history/README.md)
+- [`history/`](history/README.md) — archived completed plans and progress logs (e.g. the accounts/sleeves convergence)
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
