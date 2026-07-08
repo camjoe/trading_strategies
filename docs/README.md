@@ -29,7 +29,6 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`status.md`](status.md) — **the tracker**: current status per workstream (done / active / blocked / deferred + next action)
 - [`decisions.md`](decisions.md) — **what was decided / needs defining**: ADR-style decision records
 - [`developer-notes.md`](developer-notes.md) — durable developer gotchas
-- [`implementation/`](implementation/) — reusable work-order authoring + handoff guidance (`README.md`); completed work orders live in git history
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh

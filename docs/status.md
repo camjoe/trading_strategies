@@ -1,9 +1,10 @@
 # Status — What Is Left
 
-Type: status
+Type: notes
 Status: Active
 Created: 2026-07-08
 Last changed: 2026-07-08
+Last Reviewed: 2026-07-08
 Purpose: The single source of truth for what remains of the plan — what is left, the steps to
 complete it, and what is deferred. Current truth only; completed work lives in git history.
 Related: [Overview](overview.md) (north star / why), [Decisions](decisions.md) (decision records).
