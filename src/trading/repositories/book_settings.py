@@ -166,65 +166,38 @@ class BookRotationSettingsRepository:
         *,
         book_id: int,
         rotation_enabled: int = 0,
-        rotation_mode: str | None = None,
-        rotation_optimality_mode: str | None = None,
         rotation_interval_days: int | None = None,
         rotation_interval_minutes: int | None = None,
         rotation_lookback_days: int | None = None,
         rotation_schedule: str | None = None,
-        regime_strategy_risk_on_id: int | None = None,
-        regime_strategy_neutral_id: int | None = None,
-        regime_strategy_risk_off_id: int | None = None,
-        overlay_mode: str | None = None,
-        overlay_min_tickers: int | None = None,
-        overlay_confidence_threshold: float | None = None,
-        overlay_watchlist: str | None = None,
         created_at: str,
         updated_at: str,
     ) -> None:
+        # The mode/optimality/regime/overlay columns are retained on the table
+        # (append-only) but no longer written — dead config retired in 2b-7.
         self._conn.execute(
             """
             INSERT INTO book_rotation_settings (
-                book_id, rotation_enabled, rotation_mode, rotation_optimality_mode,
-                rotation_interval_days, rotation_interval_minutes, rotation_lookback_days,
-                rotation_schedule, regime_strategy_risk_on_id, regime_strategy_neutral_id,
-                regime_strategy_risk_off_id, overlay_mode, overlay_min_tickers,
-                overlay_confidence_threshold, overlay_watchlist, created_at, updated_at
+                book_id, rotation_enabled, rotation_interval_days,
+                rotation_interval_minutes, rotation_lookback_days, rotation_schedule,
+                created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(book_id) DO UPDATE SET
                 rotation_enabled = excluded.rotation_enabled,
-                rotation_mode = excluded.rotation_mode,
-                rotation_optimality_mode = excluded.rotation_optimality_mode,
                 rotation_interval_days = excluded.rotation_interval_days,
                 rotation_interval_minutes = excluded.rotation_interval_minutes,
                 rotation_lookback_days = excluded.rotation_lookback_days,
                 rotation_schedule = excluded.rotation_schedule,
-                regime_strategy_risk_on_id = excluded.regime_strategy_risk_on_id,
-                regime_strategy_neutral_id = excluded.regime_strategy_neutral_id,
-                regime_strategy_risk_off_id = excluded.regime_strategy_risk_off_id,
-                overlay_mode = excluded.overlay_mode,
-                overlay_min_tickers = excluded.overlay_min_tickers,
-                overlay_confidence_threshold = excluded.overlay_confidence_threshold,
-                overlay_watchlist = excluded.overlay_watchlist,
                 updated_at = excluded.updated_at
             """,
             (
                 int(book_id),
                 int(rotation_enabled),
-                rotation_mode,
-                rotation_optimality_mode,
                 rotation_interval_days,
                 rotation_interval_minutes,
                 rotation_lookback_days,
                 rotation_schedule,
-                regime_strategy_risk_on_id,
-                regime_strategy_neutral_id,
-                regime_strategy_risk_off_id,
-                overlay_mode,
-                overlay_min_tickers,
-                overlay_confidence_threshold,
-                overlay_watchlist,
                 created_at,
                 updated_at,
             ),

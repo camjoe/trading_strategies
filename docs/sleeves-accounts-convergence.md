@@ -501,3 +501,14 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   cleanup-A removals (dead `backtest_returns` → `BacktestRunRepository` chain, `ROTATION_REGIME_STATES`)
   were the bulk of the truly-dead backend code. Net: prior phase-by-phase cleanups were thorough; the
   remaining reduction is 2b-7 (config surface) + the deferred naming pass.
+- 2026-07-07 — **2b-7 landed — retired the dead rotation-config surface (full-stack).** The rotation
+  mode/optimality/regime/overlay config was a complete configuration feature whose controls were
+  **no-ops** (backend ignores them since selection converged on champion/challenger; regime/overlay
+  retired in 2b-1). Removed across all layers as ordered green commits: **frontend** (edit + admin-create
+  forms, options, summary, types, tests) → **API** (option sets, 9 contract mappings, summary
+  serialization, request/response schemas) → **backend** (`RotationConfig` fields + parser +
+  `OPTIMALITY_MODES`/`ROTATION_MODES`/`ROTATION_OVERLAY_MODES` + overlay helpers + dead
+  `_normalize_allowed_mode`) → **book_rotation_settings mirror** (record fields, repo upsert, seeding
+  copy). DB columns stay (append-only) on both `accounts` and `book_rotation_settings`; no data lost.
+  ADR 009 updated to record the config-plumbing retirement + revival path. Full `run_checks ci` green at
+  each step. The app no longer presents rotation controls that do nothing.
