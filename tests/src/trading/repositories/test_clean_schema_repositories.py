@@ -166,7 +166,7 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert option is not None and option.option_type == "call"
 
     rotation_repo = BookRotationSettingsRepository(conn)
-    rotation_repo.upsert(book_id=book_id, rotation_enabled=1, rotation_mode="time", created_at=NOW, updated_at=NOW)
+    rotation_repo.upsert(book_id=book_id, rotation_enabled=1, rotation_interval_days=7, created_at=NOW, updated_at=NOW)
     rotation = rotation_repo.fetch(book_id=book_id)
     assert rotation is not None and rotation.rotation_enabled == 1
 

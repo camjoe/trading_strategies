@@ -11,16 +11,10 @@ describe("renderDetail", () => {
       riskPolicies: ["none", "fixed_stop", "take_profit", "stop_and_target"],
       instrumentModes: ["equity", "leaps"],
       optionTypes: ["call", "put", "both"],
-      rotationModes: ["time", "optimal", "regime"],
-      rotationOptimalityModes: ["previous_period_best", "average_return", "hybrid_weighted"],
-      rotationOverlayModes: ["none", "news", "social", "news_social"],
       defaults: {
         goalPeriod: "monthly",
         riskPolicy: "none",
         instrumentMode: "equity",
-        rotationMode: "time",
-        rotationOptimalityMode: "previous_period_best",
-        rotationOverlayMode: "none",
       },
     });
   });
@@ -163,11 +157,8 @@ describe("renderDetail", () => {
     expect(html).toContain('data-detail-panel="trades" hidden');
     expect(html).toContain('data-detail-panel="config" hidden');
     expect(html).toContain("Rotation Settings");
-    expect(html).toContain("editRotationModeSelect");
+    expect(html).toContain("editRotationEnabledSelect");
     expect(html).toContain("editRotationScheduleInput");
-    expect(html).toContain("editRotationRegimeRiskOnInput");
-    expect(html).toContain("editRotationRegimeNeutralInput");
-    expect(html).toContain("editRotationRegimeRiskOffInput");
     expect(html).toContain("editParamsPanel");
     expect(html).toContain("AAPL");
     expect(html).not.toContain("addTradeBtn");
@@ -285,19 +276,10 @@ describe("renderDetail", () => {
         profitTakePct: 20,
         maxLossPct: 10,
         rotationEnabled: true,
-        rotationMode: "regime",
-        rotationOptimalityMode: "hybrid_weighted",
         rotationIntervalDays: 5,
         rotationIntervalMinutes: null,
         rotationLookbackDays: 63,
         rotationSchedule: ["trend", "mean_reversion"],
-        rotationRegimeStrategyRiskOn: "trend",
-        rotationRegimeStrategyNeutral: "carry",
-        rotationRegimeStrategyRiskOff: "mean_reversion",
-        rotationOverlayMode: "news_social",
-        rotationOverlayMinTickers: 3,
-        rotationOverlayConfidenceThreshold: 0.55,
-        rotationOverlayWatchlist: ["AAPL", "MSFT"],
         rotationActiveIndex: 1,
         rotationLastAt: "2026-03-15T00:00:00Z",
         rotationActiveStrategy: "trend",
@@ -318,7 +300,7 @@ describe("renderDetail", () => {
     expect(configHtml).toContain('data-detail-panel="config"');
     expect(configHtml).toContain("Core Settings");
     expect(configHtml).toContain("Rotation Settings");
-    expect(configHtml).toContain("Overlay Watchlist");
+    expect(configHtml).toContain("Schedule:");
     expect(configHtml).not.toContain('id="editParamsBtn"');
     expect(configHtml).toContain('id="openConfigBtn"');
     expect(configHtml).toContain('id="snapshotOneBtn"');

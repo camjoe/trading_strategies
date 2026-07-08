@@ -1,7 +1,7 @@
 # Implementation Guide — P4: Converge accounts & sleeves on the clean book schema
 
 Type: implementation
-Status: Ready (large; multi-commit; safety-critical — touches the live submission path)
+Status: Active - 2a + 2c + 2b complete (2026-07-07); P4 substantively done — see §0 Status
 Purpose: Work order for P4 — build the shared submission/accounting/rotation services once on the
 clean book schema, starting with 2a (the shared order-submission service). Ordered phases, each a
 green commit.
@@ -20,6 +20,25 @@ Related: [Plan](../plan.md), [Sleeves & Accounts Convergence Plan](../sleeves-ac
 > are currently empty). It is **safety-critical**: it rewires how paper/live orders are submitted and
 > persisted. Steps are marked **[strong]** (design/logic — strong model or careful human review) or
 > **[light]** (mechanical). Do them in order; each is its own green commit.
+
+## 0. Status (2026-07-07)
+
+P4 is substantively complete. All three sub-features landed on the clean book schema:
+
+| Sub-feature | State | Where |
+|---|---|---|
+| **2a** — shared order-submission service (2a-1…2a-5) + sleeve-migration cleanup | ✅ done | this doc §6 |
+| **2c** — unified book accounting (2c-1…2c-4) | ✅ done | this doc §6b |
+| **2b** — unified rotation/selection (2b-1…2b-4, 2b-6, 2b-7) | ✅ done | [P4/2b work order](p4-2b-unified-rotation.md) |
+
+**Left to do (P4):** the `Rotation*` **naming pass** (deferred; convention + rename table in the 2b work
+order §Phase 2b-5), and one **open decision** — backtest recalculation cadence (2b work order §"Open
+decision"). Both are optional / low-urgency.
+
+**Later initiatives (out of P4 scope):** **P5** = the naming pass proper; **P7** = unified
+parameter-source cleanup (param sprawl across stores — e.g. `min_trades` in
+`generate_sleeve_trade_intents`). Prior phases: **P1** execution loop (Complete), **P3** DB schema
+rewrite (Complete), **P2** evaluation contract tests (see its doc).
 
 ## 1. Objective
 

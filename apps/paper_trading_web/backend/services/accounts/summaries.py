@@ -9,7 +9,6 @@ from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
     get_latest_account_snapshot,
-    parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
 )
 from trading.services.reporting import (
@@ -76,7 +75,6 @@ def _build_summary_from_stats(
 ) -> dict[str, object]:
     latest_snapshot = get_latest_account_snapshot(conn, row.id)
     rotation_schedule = parse_rotation_schedule(row.rotation_schedule)
-    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(row.rotation_overlay_watchlist)
 
     effective_initial = row.initial_cash if row.initial_cash else total_deposited
     delta = equity - effective_initial
@@ -125,19 +123,10 @@ def _build_summary_from_stats(
         "profitTakePct": row.profit_take_pct,
         "maxLossPct": row.max_loss_pct,
         "rotationEnabled": bool(row.rotation_enabled),
-        "rotationMode": row.rotation_mode or "time",
-        "rotationOptimalityMode": row.rotation_optimality_mode or "previous_period_best",
         "rotationIntervalDays": row.rotation_interval_days,
         "rotationIntervalMinutes": row.rotation_interval_minutes,
         "rotationLookbackDays": row.rotation_lookback_days,
         "rotationSchedule": rotation_schedule or None,
-        "rotationRegimeStrategyRiskOn": row.rotation_regime_strategy_risk_on,
-        "rotationRegimeStrategyNeutral": row.rotation_regime_strategy_neutral,
-        "rotationRegimeStrategyRiskOff": row.rotation_regime_strategy_risk_off,
-        "rotationOverlayMode": row.rotation_overlay_mode or "none",
-        "rotationOverlayMinTickers": row.rotation_overlay_min_tickers,
-        "rotationOverlayConfidenceThreshold": row.rotation_overlay_confidence_threshold,
-        "rotationOverlayWatchlist": rotation_overlay_watchlist,
         "rotationActiveIndex": row.rotation_active_index if row.rotation_active_index is not None else 0,
         "rotationLastAt": row.rotation_last_at,
         "rotationActiveStrategy": row.rotation_active_strategy,

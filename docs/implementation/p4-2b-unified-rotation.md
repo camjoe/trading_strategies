@@ -1,7 +1,7 @@
 # Implementation Guide — P4 / 2b: Unified rotation/selection
 
 Type: implementation
-Status: Ready (multi-commit; medium-large; touches the live rotation path)
+Status: Active - Core complete (2b-1…2b-4, 2b-6, 2b-7 landed 2026-07-07); naming pass deferred, one open decision
 Purpose: Work order for P4 / 2b — collapse account-episode rotation and sleeve champion/challenger
 onto the single decision-score contract, book-keyed, and reduce the rotation module sprawl. Ordered
 phases, each a green commit.
@@ -17,6 +17,23 @@ Related: [P4 Work Order](p4-convergence.md), [Convergence Plan](../sleeves-accou
 > path — champion/challenger on the decision-score contract — that both a plain account (its default
 > book) and a sleeve (its bridging book) use, with no "account mode vs sleeve mode" branching. It is
 > **behavior-affecting on the live rotation path**; steps are ordered and each is its own green commit.
+
+## 0. Status (2026-07-07)
+
+| Phase | State | Notes |
+|---|---|---|
+| 2b-1 retire regime/overlay selection | ✅ done | design preserved in [ADR 009](../adr/009-regime-overlay-rotation-retired.md) |
+| 2b-2 book-keyed candidate enumeration | ✅ done | |
+| 2b-3 route account selection → champion/challenger | ✅ done | writes `rotation_decisions` on the default book |
+| 2b-4a book-native paper-live evidence | ✅ done | off `rotation_episodes` → book snapshots + `rotation_decisions` |
+| 2b-4b one book-keyed rotation core + cooldown guard | ✅ done | cadence = interval/schedule trigger + cooldown |
+| 2b-4c retire episode path + drop `rotation_episodes` | ✅ done | |
+| retire round-robin "time" mode | ✅ done | champion/challenger is the only paradigm |
+| require a strategy assignment per book (no account fallback) | ✅ done | unassigned/paused books do not trade |
+| 2b-6 convergence-wide dead-code sweep | ✅ done | found the config surface (→ 2b-7); rest verified live/already-removed |
+| 2b-7 retire dead rotation-config surface (frontend + API + backend + book mirror) | ✅ done | mode/optimality/regime/overlay controls were no-ops |
+| **2b-5 naming pass (`Rotation*` rename)** | ⏸ **deferred** | convention + rename table in §Phase 2b-5 below |
+| **Backtest recalculation cadence** | 🔲 **open decision** | see §"Open decision" below |
 
 ## 1. Objective
 
@@ -173,18 +190,35 @@ for each retired subsystem, trace its former callees and flag anything now reach
 or exports.
 
 Known targets already identified:
-- **Vestigial rotation config cluster** — `RotationConfig` + `parse_rotation_config_from_profile` +
-  `book_rotation_settings` still parse/validate/persist dead config: `rotation_optimality_mode`
-  (orphaned when `select_optimal_strategy` went), the regime fields (`rotation_regime_strategy_*`) and
-  overlay fields (`rotation_overlay_*`) dead since 2b-1, and `rotation_mode` itself now inert after the
-  time-mode retirement. Retire these together (parser + model + repo + `OPTIMALITY_MODES` /
-  `ROTATION_OVERLAY_MODES` sets + `parse/dump_rotation_overlay_watchlist`); DB columns stay
-  (append-only). Confirm the regime/overlay decision against [ADR 009](../adr/009-regime-overlay-rotation-retired.md).
+- **Vestigial rotation config surface** — carved out to its own phase **2b-7** (see below); it is
+  full-stack, not backend-only.
 - **Episode residue** — folded into 2b-4c (`compute_live_account_metrics`, `RotationEpisodeRepository`
   dead readers, `EvaluationPaperLiveEvidence.rotation_episode_id` / `episode_realized_pnl_delta`).
 - **`SleeveRotationRunResult`** — returned by `evaluate_and_apply_sleeve_rotation` but the caller
   discards it; simplify or consume.
+- **Systematic trace** — for each retired subsystem (2a submission, 2c accounting, sleeve-migration),
+  trace former callees for symbols now reachable only from tests/exports; vet + remove by hand.
 - Check: full `run_checks ci` green; a short inventory of what was removed appended to the convergence log.
+
+### Phase 2b-7 — Retire the dead rotation-config surface (full-stack)  **[strong]**
+Decided full-stack removal (2026-07-07). What looked like backend "vestigial config" is a complete
+**configuration feature** whose controls are now **no-ops** — the backend ignores `rotation_mode` /
+`rotation_optimality_mode` (champion/challenger always) and regime/overlay was retired in 2b-1, yet the
+app still lets a user set them. Surface (entangled — the API imports the backend sets/helpers, so there
+is no clean backend-only cut):
+- **Backend** — `RotationConfig` fields (`mode`, `optimality_mode`, `regime_strategy_*`, `overlay_*`),
+  `parse_rotation_config_from_profile` parsing/validation, `to_db_dict` mappings, `book_settings` /
+  `book_rotation_settings_record`, seeding, `OPTIMALITY_MODES` / `ROTATION_OVERLAY_MODES`,
+  `parse/dump_rotation_overlay_watchlist`.
+- **API** — `apps/paper_trading_web/backend/account_options.py` (dropdown option sets),
+  `account_contract/mappings.py` (9 field mappings), `services/accounts/summaries.py` serialization,
+  request/response schemas.
+- **Frontend** — 8 TS/TSX files / ~83 refs: `account-detail/config-editor|config-options|config-summary`,
+  `features/accounts/detail`, `features/admin/accounts`, `lib/account-config-options`, `types/accounts`,
+  and the `detail` component test.
+- DB columns stay (append-only). Update [ADR 009](../adr/009-regime-overlay-rotation-retired.md) to note
+  the config plumbing was retired (design + columns + git preserve the revival path). Scope as coherent
+  steps (backend → API contract → frontend + tests). Check: full `run_checks ci` green (incl. frontend).
 
 ### Open decision — backtest recalculation cadence (later)
 Candidate evaluation reads each strategy's **latest persisted** backtest run (via
@@ -193,16 +227,18 @@ often backtests must be (re)run to keep the decision-score backtest half fresh a
 freshness/staleness policy, separate from this convergence work.
 
 ## 8. Open design points (resolve in-phase; stop and report if bigger)
-- **Cadence unification:** account uses interval/schedule (`is_rotation_due`); sleeve uses cooldown.
-  2b-3 kept the account cadence as the "when" (cooldown inactive); **2b-4b** lands the unified
-  "cadence trigger + cooldown guard".
+- **Cadence unification:** ✅ resolved (2b-4b) — the unified "when" is the interval/schedule trigger
+  (`is_rotation_due`) plus a shared per-book cooldown guard; round-robin "time" mode was retired so
+  champion/challenger is the only selection paradigm.
 - **`rotation_decisions` for a plain account's default book:** ✅ resolved (2b-3) — the table is
   `book_id`-keyed under the clean schema; a default book slots in directly via `insert_for_book`.
 - **`rotation_episodes` is evaluation evidence, not rotation accounting:** ✅ resolved (2b-4a) —
   paper-live evidence is now book-native (default-book `equity_snapshots` sliced at `rotation_decisions`
   boundaries), so the episode table can be dropped in 2b-4c without losing the decision score's live half.
-- **Cross-book vs per-book rotation:** a sleeved account rotates each sleeve book; a plain account
-  rotates its one default book — confirm no account-level aggregate rotation is lost.
+- **Cross-book vs per-book rotation:** ✅ resolved — rotation is per-book (a plain account rotates its
+  default book; a sleeved account rotates each sleeve book); there is no separate account-level aggregate
+  rotation. The account-level fallback that ran in sleeve mode was removed (per-book-assignment change);
+  unassigned/paused books simply do not trade.
 
 ## 9. Validation
 ```

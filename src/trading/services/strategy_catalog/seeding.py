@@ -94,31 +94,13 @@ def _copy_book_settings_from_account(
             updated_at=now,
         )
 
-    strategy_repo = StrategyRepository(conn)
-
-    def _strategy_id_for(name_key: str) -> int | None:
-        name = row_str(row, name_key)
-        if not name:
-            return None
-        record = strategy_repo.fetch_by_key(strategy_key=name.strip().lower())
-        return record.id if record is not None else None
-
     BookRotationSettingsRepository(conn).upsert(
         book_id=book_id,
         rotation_enabled=row_expect_int(row, "rotation_enabled"),
-        rotation_mode=row_str(row, "rotation_mode"),
-        rotation_optimality_mode=row_str(row, "rotation_optimality_mode"),
         rotation_interval_days=row_int(row, "rotation_interval_days"),
         rotation_interval_minutes=row_int(row, "rotation_interval_minutes"),
         rotation_lookback_days=row_int(row, "rotation_lookback_days"),
         rotation_schedule=row_str(row, "rotation_schedule"),
-        regime_strategy_risk_on_id=_strategy_id_for("rotation_regime_strategy_risk_on"),
-        regime_strategy_neutral_id=_strategy_id_for("rotation_regime_strategy_neutral"),
-        regime_strategy_risk_off_id=_strategy_id_for("rotation_regime_strategy_risk_off"),
-        overlay_mode=row_str(row, "rotation_overlay_mode"),
-        overlay_min_tickers=row_int(row, "rotation_overlay_min_tickers"),
-        overlay_confidence_threshold=row_float(row, "rotation_overlay_confidence_threshold"),
-        overlay_watchlist=row_str(row, "rotation_overlay_watchlist"),
         created_at=now,
         updated_at=now,
     )

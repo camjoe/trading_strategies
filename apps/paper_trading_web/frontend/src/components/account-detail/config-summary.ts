@@ -65,21 +65,13 @@ export function renderConfigSummary(detail: AccountDetail): string {
         <h5>Rotation Settings</h5>
         <div class="analysis-summary">
           ${configStat("Rotation Enabled", account.rotationEnabled ? "On" : "Off")}
-          ${configStat("Rotation Mode", esc(account.rotationMode ?? "—"))}
-          ${configStat("Optimality Mode", esc(account.rotationOptimalityMode ?? "—"))}
           ${configStat("Interval Days", formatOptionalNumber(account.rotationIntervalDays, 0))}
           ${configStat("Interval Minutes", formatOptionalNumber(account.rotationIntervalMinutes, 0))}
           ${configStat("Lookback Days", formatOptionalNumber(account.rotationLookbackDays, 0))}
           ${configStat("Active Strategy", esc(account.rotationActiveStrategy ?? "—"))}
-          ${configStat("Overlay Mode", esc(account.rotationOverlayMode ?? "—"))}
-          ${configStat("Overlay Min Tickers", formatOptionalNumber(account.rotationOverlayMinTickers, 0))}
-          ${configStat("Overlay Confidence", formatOptionalNumber(account.rotationOverlayConfidenceThreshold, 2))}
         </div>
         <div class="config-summary-note">
           <strong>Schedule:</strong> ${formatOptionalList(account.rotationSchedule)}
-        </div>
-        <div class="config-summary-note">
-          <strong>Overlay Watchlist:</strong> ${formatOptionalList(account.rotationOverlayWatchlist)}
         </div>
       </section>
     </div>

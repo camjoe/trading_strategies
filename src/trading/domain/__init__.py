@@ -13,8 +13,6 @@ from trading.domain.auto_trading_policy import (
 )
 from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
-    OPTIMALITY_MODES,
-    ROTATION_MODES,
     dump_rotation_schedule,
     is_rotation_due,
     parse_rotation_schedule,
@@ -38,8 +36,6 @@ __all__ = [
     "estimate_option_premium",
     "option_candidate_allowed",
     "safe_return_pct",
-    "OPTIMALITY_MODES",
-    "ROTATION_MODES",
     "dump_rotation_schedule",
     "is_rotation_due",
     "parse_rotation_schedule",

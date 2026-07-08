@@ -64,5 +64,8 @@ not just rotation.
   functions (from git), and feed the regime output as a **candidate-enumeration** input to the
   champion/challenger decision (2b-2), rather than as a separate selection branch — this keeps the
   single decision-score selection path while adding regime awareness.
-- The `RotationConfig` model + profile parsing still carry the overlay fields for round-tripping; no
-  data is lost.
+- **Config plumbing retired (2b-7, 2026-07-07).** The `RotationConfig` model, profile parser, web API
+  contract, and frontend controls for `mode` / `optimality_mode` / `regime_strategy_*` / `overlay_*` were
+  removed (no-ops once selection converged on champion/challenger). The `accounts` columns stay
+  (append-only) and the `book_rotation_settings` mirror still carries them; the revival path above now
+  also re-adds this config plumbing (recoverable from git). No persisted data is lost.

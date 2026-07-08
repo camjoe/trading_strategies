@@ -64,7 +64,7 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
         """
         UPDATE accounts
         SET risk_policy = 'stop_and_target', stop_loss_pct = 4.0, learning_enabled = 1,
-            rotation_enabled = 1, rotation_regime_strategy_risk_on = 'trend',
+            rotation_enabled = 1,
             goal_min_return_pct = 2.0, trade_universes = '["core"]'
         WHERE name = 'acct_seed'
         """
@@ -94,7 +94,6 @@ def test_ensure_default_books_bootstraps_book_settings_and_assignment(conn) -> N
     assert rotation.rotation_enabled == 1
     trend_id = StrategyRepository(conn).fetch_by_key(strategy_key="trend")
     assert trend_id is not None
-    assert rotation.regime_strategy_risk_on_id == trend_id.id
 
     assignment = BookAssignmentRepository(conn).fetch_open(book_id=book.id)
     assert assignment is not None

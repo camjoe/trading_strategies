@@ -7,7 +7,6 @@ import trading.domain.rotation as rotation
 from trading.domain.rotation import (
     dump_rotation_schedule,
     is_rotation_due,
-    parse_rotation_overlay_watchlist,
     parse_rotation_schedule,
     resolve_active_strategy,
 )
@@ -51,17 +50,6 @@ class TestParseRotationSchedule:
 
     def test_blank_string_returns_empty_schedule(self) -> None:
         assert parse_rotation_schedule("   ") == []
-
-
-class TestParseRotationOverlayWatchlist:
-    def test_accepts_json_and_uppercases_unique_tickers(self) -> None:
-        assert parse_rotation_overlay_watchlist('["aapl","MSFT","aapl"]') == ["AAPL", "MSFT"]
-
-    def test_rejects_invalid_overlay_watchlist(self) -> None:
-        with pytest.raises(ValueError, match="rotation_overlay_watchlist"):
-            parse_rotation_overlay_watchlist('{"bad": true}')
-        with pytest.raises(ValueError, match="rotation_overlay_watchlist"):
-            parse_rotation_overlay_watchlist(["AAPL", ""])
 
 
 class TestResolveActiveStrategy:

@@ -6,19 +6,10 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class RotationConfig:
     enabled: bool | None = None
-    mode: str | None = None
-    optimality_mode: str | None = None
     interval_days: int | None = None
     interval_minutes: int | None = None
     lookback_days: int | None = None
     schedule: list[str] | None = None
-    regime_strategy_risk_on: str | None = None
-    regime_strategy_neutral: str | None = None
-    regime_strategy_risk_off: str | None = None
-    overlay_mode: str | None = None
-    overlay_min_tickers: int | None = None
-    overlay_confidence_threshold: float | None = None
-    overlay_watchlist: list[str] | None = None
     active_index: int | None = None
     last_at: str | None = None
     active_strategy: str | None = None
@@ -26,28 +17,18 @@ class RotationConfig:
     def to_db_dict(self) -> dict[str, object]:
         """Map fields to account-table column values.
 
-        The list-valued columns (``rotation_schedule``, ``rotation_overlay_watchlist``)
-        are returned as raw lists; JSON encoding is applied by
-        ``trading.domain.rotation.rotation_config_to_db_dict``.
+        The list-valued ``rotation_schedule`` column is returned as a raw list; JSON
+        encoding is applied by ``trading.domain.rotation.rotation_config_to_db_dict``.
+        The dead mode/optimality/regime/overlay columns (retired 2b-7) are left at
+        their DB defaults — no longer written from config.
         """
-        values: dict[str, object] = {
+        return {
             "rotation_enabled": self.enabled,
-            "rotation_mode": self.mode,
-            "rotation_optimality_mode": self.optimality_mode,
             "rotation_interval_days": self.interval_days,
             "rotation_interval_minutes": self.interval_minutes,
             "rotation_lookback_days": self.lookback_days,
             "rotation_schedule": self.schedule,
-            "rotation_regime_strategy_risk_on": self.regime_strategy_risk_on,
-            "rotation_regime_strategy_neutral": self.regime_strategy_neutral,
-            "rotation_regime_strategy_risk_off": self.regime_strategy_risk_off,
-            "rotation_overlay_mode": self.overlay_mode,
-            "rotation_overlay_min_tickers": self.overlay_min_tickers,
-            "rotation_overlay_confidence_threshold": self.overlay_confidence_threshold,
             "rotation_active_index": self.active_index,
             "rotation_last_at": self.last_at,
             "rotation_active_strategy": self.active_strategy,
         }
-        if self.overlay_watchlist is not None:
-            values["rotation_overlay_watchlist"] = self.overlay_watchlist
-        return values
