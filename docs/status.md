@@ -47,12 +47,13 @@ Steps:
    concentration (by symbol, sector, or strategy) — then symbol-level cross-account analysis.
 4. Optional dashboard view only after the payload contract is stable.
 
-### Sleeve vocabulary cleanup (cleanup/refactor · not started)
+### Sleeve retirement (cleanup/refactor · in progress)
 
-Post-P4 the code is book-keyed, but `services/sleeves/`, `strategy_sleeves`, and sleeve-named
-symbols remain. Decision needed first: **are sleeves still a distinct concept from books, or just
-legacy naming?** Steps: write an ADR answering that, then rename/absorb accordingly. Distinct from
-P4 book accounting, which is done.
+**Decided 2026-07-08: sleeves are redundant — remove, don't rename** (books + accounts become the
+one flow; also fixes a live drift bug where rotation updates sleeve assignments but book
+assignments go stale). Everything about this workstream — evidence, decisions, phased plan (SR-1…
+SR-7), progress — lives in **[sleeve-retirement.md](sleeve-retirement.md)** until complete.
+Branch: `features/sleeve-retirement`. Size: L.
 
 ## Deferred (exploratory — only if evidence justifies)
 
