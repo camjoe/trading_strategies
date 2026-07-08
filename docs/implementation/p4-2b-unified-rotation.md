@@ -173,18 +173,35 @@ for each retired subsystem, trace its former callees and flag anything now reach
 or exports.
 
 Known targets already identified:
-- **Vestigial rotation config cluster** — `RotationConfig` + `parse_rotation_config_from_profile` +
-  `book_rotation_settings` still parse/validate/persist dead config: `rotation_optimality_mode`
-  (orphaned when `select_optimal_strategy` went), the regime fields (`rotation_regime_strategy_*`) and
-  overlay fields (`rotation_overlay_*`) dead since 2b-1, and `rotation_mode` itself now inert after the
-  time-mode retirement. Retire these together (parser + model + repo + `OPTIMALITY_MODES` /
-  `ROTATION_OVERLAY_MODES` sets + `parse/dump_rotation_overlay_watchlist`); DB columns stay
-  (append-only). Confirm the regime/overlay decision against [ADR 009](../adr/009-regime-overlay-rotation-retired.md).
+- **Vestigial rotation config surface** — carved out to its own phase **2b-7** (see below); it is
+  full-stack, not backend-only.
 - **Episode residue** — folded into 2b-4c (`compute_live_account_metrics`, `RotationEpisodeRepository`
   dead readers, `EvaluationPaperLiveEvidence.rotation_episode_id` / `episode_realized_pnl_delta`).
 - **`SleeveRotationRunResult`** — returned by `evaluate_and_apply_sleeve_rotation` but the caller
   discards it; simplify or consume.
+- **Systematic trace** — for each retired subsystem (2a submission, 2c accounting, sleeve-migration),
+  trace former callees for symbols now reachable only from tests/exports; vet + remove by hand.
 - Check: full `run_checks ci` green; a short inventory of what was removed appended to the convergence log.
+
+### Phase 2b-7 — Retire the dead rotation-config surface (full-stack)  **[strong]**
+Decided full-stack removal (2026-07-07). What looked like backend "vestigial config" is a complete
+**configuration feature** whose controls are now **no-ops** — the backend ignores `rotation_mode` /
+`rotation_optimality_mode` (champion/challenger always) and regime/overlay was retired in 2b-1, yet the
+app still lets a user set them. Surface (entangled — the API imports the backend sets/helpers, so there
+is no clean backend-only cut):
+- **Backend** — `RotationConfig` fields (`mode`, `optimality_mode`, `regime_strategy_*`, `overlay_*`),
+  `parse_rotation_config_from_profile` parsing/validation, `to_db_dict` mappings, `book_settings` /
+  `book_rotation_settings_record`, seeding, `OPTIMALITY_MODES` / `ROTATION_OVERLAY_MODES`,
+  `parse/dump_rotation_overlay_watchlist`.
+- **API** — `apps/paper_trading_web/backend/account_options.py` (dropdown option sets),
+  `account_contract/mappings.py` (9 field mappings), `services/accounts/summaries.py` serialization,
+  request/response schemas.
+- **Frontend** — 8 TS/TSX files / ~83 refs: `account-detail/config-editor|config-options|config-summary`,
+  `features/accounts/detail`, `features/admin/accounts`, `lib/account-config-options`, `types/accounts`,
+  and `tests/components/detail.test`.
+- DB columns stay (append-only). Update [ADR 009](../adr/009-regime-overlay-rotation-retired.md) to note
+  the config plumbing was retired (design + columns + git preserve the revival path). Scope as coherent
+  steps (backend → API contract → frontend + tests). Check: full `run_checks ci` green (incl. frontend).
 
 ### Open decision — backtest recalculation cadence (later)
 Candidate evaluation reads each strategy's **latest persisted** backtest run (via

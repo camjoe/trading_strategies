@@ -487,3 +487,17 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   Removed/trimmed the episode tests (repo episode tests, sync/metrics unit tests, runtime episode-sync
   test) and synced docs (db-schema mirror row, two package-map rows). Full `run_checks ci` green. This
   completes 2b-4. Remaining: 2b-5 (naming pass) and 2b-6 (convergence-wide dead-code sweep).
+- 2026-07-07 — **2b-6 dead-code sweep — findings + carve-out.** Traced orphans left by the P4 removals
+  by hand (grep/read; no tooling — the venv's `pip.exe`/`pytest.exe` console-script shims were also found
+  broken after an in-place Python 3.14 upgrade and regenerated). Results: the one significant remaining
+  dead surface is the **rotation-config feature**, which turned out to be *full-stack* (backend
+  `RotationConfig`/parser/`book_settings` + API `account_options`/`account_contract`/`summaries` + 8
+  frontend TS/TSX files/~83 refs) whose controls are now **no-ops** (backend ignores `rotation_mode`/
+  `rotation_optimality_mode`; regime/overlay retired in 2b-1). Carved out to its own **Phase 2b-7**
+  (full-stack removal). Everything else traced came back **live or already removed**:
+  `rotation_lookback_days` still feeds the sleeve rolling window; `SleeveRotationRunResult` is a tested
+  result contract; no orphaned readers of the dropped `broker_orders`/`sleeve_orders`/`sleeve_fills`
+  tables (`reconcile_open_broker_orders` is legacy-*named* but reads clean `order_fills`). The earlier
+  cleanup-A removals (dead `backtest_returns` → `BacktestRunRepository` chain, `ROTATION_REGIME_STATES`)
+  were the bulk of the truly-dead backend code. Net: prior phase-by-phase cleanups were thorough; the
+  remaining reduction is 2b-7 (config surface) + the deferred naming pass.
