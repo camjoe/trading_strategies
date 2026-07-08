@@ -1,51 +1,66 @@
 import pytest
 
+from trading.repositories.book_bridge import default_book_id
+from trading.repositories.rotation_decisions import RotationDecisionRepository
+from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import create_account, get_account
 from trading.services.evaluation import fetch_strategy_evaluation
 
 
-def test_fetch_strategy_evaluation_uses_closed_rotation_episode_for_inactive_strategy(conn) -> None:
-    create_account(conn, "acct_rotation_eval", "trend_v1", 1000.0, "SPY")
+def _enable_rotation(conn, name: str, *, active: str) -> None:
     conn.execute(
         """
         UPDATE accounts
         SET rotation_enabled = 1,
             rotation_schedule = '["trend_v1","mean_reversion"]',
-            rotation_active_strategy = 'trend_v1'
-        WHERE name = 'acct_rotation_eval'
-        """
-    )
-    account = get_account(conn, "acct_rotation_eval")
-    conn.execute(
-        """
-        INSERT INTO rotation_episodes (
-            account_id,
-            strategy_name,
-            started_at,
-            ended_at,
-            starting_equity,
-            ending_equity,
-            starting_realized_pnl,
-            ending_realized_pnl,
-            realized_pnl_delta,
-            snapshot_count
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            rotation_active_strategy = ?
+        WHERE name = ?
         """,
-        (
-            account["id"],
-            "mean_reversion",
-            "2026-02-01T00:00:00Z",
-            "2026-02-10T00:00:00Z",
-            1000.0,
-            1040.0,
-            0.0,
-            15.0,
-            15.0,
-            4,
-        ),
+        (active, name),
     )
     conn.commit()
+
+
+def _snapshot(conn, account_id: int, *, at: str, equity: float) -> None:
+    EquitySnapshotRepository(conn).insert(
+        account_id=account_id,
+        snapshot_time=at,
+        cash=equity,
+        market_value=0.0,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+    )
+
+
+def _decision(conn, book_id: int, *, at: str, incumbent: str, selected: str) -> None:
+    RotationDecisionRepository(conn).insert_for_book(
+        book_id=book_id,
+        decision_time=at,
+        incumbent_strategy=incumbent,
+        challenger_strategy=selected,
+        selected_strategy=selected,
+        rotation_action="rotate" if selected != incumbent else "hold",
+        cooldown_active=0,
+        score_components_json="{}",
+        gate_results_json="{}",
+        decision_reason="test",
+        config_version=None,
+        created_at=at,
+    )
+
+
+def test_fetch_strategy_evaluation_uses_closed_strategy_window_for_inactive_strategy(conn) -> None:
+    create_account(conn, "acct_rotation_eval", "trend_v1", 1000.0, "SPY")
+    _enable_rotation(conn, "acct_rotation_eval", active="trend_v1")
+    account = get_account(conn, "acct_rotation_eval")
+    book_id = default_book_id(conn, int(account["id"]))
+
+    # mean_reversion held the book from 02-01 (rotated in) until 02-10 (rotated back to trend_v1).
+    _snapshot(conn, int(account["id"]), at="2026-02-01T00:00:00Z", equity=1000.0)
+    _snapshot(conn, int(account["id"]), at="2026-02-10T00:00:00Z", equity=1040.0)
+    _decision(conn, book_id, at="2026-02-01T00:00:00Z", incumbent="trend_v1", selected="mean_reversion")
+    _decision(conn, book_id, at="2026-02-10T00:00:00Z", incumbent="mean_reversion", selected="trend_v1")
 
     artifact = fetch_strategy_evaluation(
         conn,
@@ -54,10 +69,32 @@ def test_fetch_strategy_evaluation_uses_closed_rotation_episode_for_inactive_str
     )
 
     assert artifact.paper_live.available is True
-    assert artifact.paper_live.source_level == "rotation_episode_closed"
+    assert artifact.paper_live.source_level == "book_closed_strategy"
     assert artifact.paper_live.strategy_isolated is True
     assert artifact.paper_live.latest_equity == pytest.approx(1040.0)
     assert artifact.paper_live.return_pct == pytest.approx(4.0)
+
+
+def test_fetch_strategy_evaluation_uses_active_strategy_window_from_inception(conn) -> None:
+    create_account(conn, "acct_rotation_active", "trend_v1", 1000.0, "SPY")
+    _enable_rotation(conn, "acct_rotation_active", active="trend_v1")
+    account = get_account(conn, "acct_rotation_active")
+
+    # No rotation yet: trend_v1 has run the book since inception (cold start).
+    _snapshot(conn, int(account["id"]), at="2026-02-01T00:00:00Z", equity=1000.0)
+    _snapshot(conn, int(account["id"]), at="2026-02-15T00:00:00Z", equity=1100.0)
+
+    artifact = fetch_strategy_evaluation(
+        conn,
+        account_name="acct_rotation_active",
+        strategy_name="trend_v1",
+    )
+
+    assert artifact.paper_live.available is True
+    assert artifact.paper_live.source_level == "book_active_strategy"
+    assert artifact.paper_live.strategy_isolated is True
+    assert artifact.paper_live.latest_equity == pytest.approx(1100.0)
+    assert artifact.paper_live.return_pct == pytest.approx(10.0)
 
 
 def test_fetch_strategy_evaluation_reports_data_gaps_when_evidence_missing(conn) -> None:

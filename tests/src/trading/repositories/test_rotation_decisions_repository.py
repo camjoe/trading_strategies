@@ -213,3 +213,38 @@ class TestFetchLatestRotateAction:
         row = RotationDecisionRepository(conn).fetch_latest_rotate_action(sleeve_id=slv_id)
         assert row is not None
         assert row["decision_reason"] == "latest_rotate"
+
+
+def test_fetch_selected_strategy_timeline_orders_incumbent_and_selected(conn) -> None:
+    from trading.repositories.book_bridge import default_book_id
+
+    account_id = _account_id(conn, "rot_dec_timeline")
+    book_id = default_book_id(conn, account_id)
+    repo = RotationDecisionRepository(conn)
+
+    def _book_decision(*, at: str, incumbent: str, selected: str) -> None:
+        repo.insert_for_book(
+            book_id=book_id,
+            decision_time=at,
+            incumbent_strategy=incumbent,
+            challenger_strategy=selected,
+            selected_strategy=selected,
+            rotation_action="rotate" if selected != incumbent else "hold",
+            cooldown_active=0,
+            score_components_json="{}",
+            gate_results_json="{}",
+            decision_reason="test",
+            config_version=None,
+            created_at=at,
+        )
+
+    _book_decision(at="2026-02-10T00:00:00Z", incumbent="meanrev", selected="trend")
+    _book_decision(at="2026-02-01T00:00:00Z", incumbent="trend", selected="meanrev")
+
+    timeline = repo.fetch_selected_strategy_timeline(book_id=book_id)
+
+    assert timeline == [
+        ("2026-02-01T00:00:00Z", "trend", "meanrev"),
+        ("2026-02-10T00:00:00Z", "meanrev", "trend"),
+    ]
+    assert repo.fetch_selected_strategy_timeline(book_id=99999) == []

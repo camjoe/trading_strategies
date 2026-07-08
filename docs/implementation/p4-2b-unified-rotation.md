@@ -116,25 +116,91 @@ sleeve rotates its **bridging book** — the same code path.
 - Check: `run_suite src/trading/services/auto_trading` green (account rotation writes
   `rotation_decisions`, selects the best decision-score strategy).
 
-### Phase 2b-4 — Unify into one rotation service + retire the episode path  **[strong]**
-- Collapse the surviving rotation into one book-keyed rotation service used by both account and sleeve
-  runtime paths; reduce the `auto_trading/rotation*.py` + `sleeves/rotation.py` sprawl.
-- Retire `sync_rotation_episode` / `rotate_account_if_due` episode logic /
-  `RotationEpisodeRepository` / `compute_live_account_metrics` (if episode-only). Drop the
-  `rotation_episodes` table (greenfield: remove CREATE + indexes + migration keys).
-- Check: full `run_checks ci` green.
+### Phase 2b-4 — Book-native evidence, one rotation service, retire the episode path  **[strong]**
 
-### Phase 2b-5 — P5 naming pass  **[light]**
-- Rename `sleeve_*` rotation vocabulary to `book_*` (domain + services), disambiguate the two
-  "rotation" meanings (cadence vs selection), and rename `shadow_evaluation` to its candidate-
-  enumeration role. Update `docs/adr` / maps as needed.
-- Check: full `run_checks ci` green; docs/maps in sync.
+**Scope revision (2026-07-07):** investigation found `rotation_episodes` is *not* rotation-internal
+accounting — it is the **evaluation subsystem's strategy-isolated paper-live evidence store**
+(`evaluation/evidence.py::build_paper_live_evidence` → `compute_blended_score`), and for a
+rotation-enabled account it is the *only* paper-live source (no snapshot fallback). Dropping it
+blindly would strip the live half of the decision score for exactly the accounts that rotate. Per the
+"stop and report if bigger" guardrail this was surfaced; the user chose to make evidence **book-native**
+(book snapshots + `rotation_decisions`) and then retire episodes. 2b-4 is therefore split:
+
+- **2b-4a — Book-native paper-live evidence.** Re-point `build_paper_live_evidence` off
+  `rotation_episodes` onto the account's default-book `equity_snapshots` sliced at the strategy
+  boundaries recorded in `rotation_decisions` (each decision logs incumbent→selected). Reproduces the
+  per-strategy windows episodes gave; cold start = the active strategy since inception. Keep the
+  episode table intact this step. Check: `run_suite src/trading/services/evaluation` + full `run_checks ci`.
+- **2b-4b — One book-keyed rotation service.** Collapse the account + sleeve selection/apply into one
+  book-keyed service; reduce the `auto_trading/rotation*.py` + `sleeves/rotation.py` sprawl; retire the
+  dead `select_optimal_strategy` path + its backtest/episode DI threading. Land cadence unification
+  (interval/schedule trigger + cooldown guard). Check: full `run_checks ci`.
+- **2b-4c — Retire the episode path.** With no remaining reader, retire `sync_rotation_episode` /
+  `rotate_account_if_due` episode logic / `RotationEpisodeRepository` / episode-only
+  `compute_live_account_metrics`, and drop `rotation_episodes` (greenfield: remove CREATE + indexes +
+  migration keys). Check: full `run_checks ci` green.
+
+### Phase 2b-5 — Naming pass  **[deferred → folded into 2b-6, 2026-07-07]**
+Deferred by decision: prioritize substantive cleanup (2b-6 sweep) over the cosmetic rename; do the
+rename as part of that pass rather than a standalone phase. **Agreed convention: `Rotation*` prefix**
+(paradigm-neutral), not `Book*`. Rename table (book-agnostic rotation vocabulary used by *both* the
+account and sleeve paths):
+
+| Current | New |
+|---|---|
+| `SleeveStrategyMetrics` | `RotationStrategyMetrics` |
+| `SleeveStrategyScore` | `RotationStrategyScore` |
+| `SleeveRotationDecision` | `RotationDecision` |
+| `SleeveRotationScoreWeights` | `RotationScoreWeights` |
+| `SleeveRotationRunResult` | `RotationRunResult` |
+| `SleeveRotationConfig` | `RotationPolicyConfig` (⚠️ `RotationConfig` is taken by the persisted account config) |
+| `domain/sleeve_rotation.py` | `domain/rotation_policy.py` |
+| `build_sleeve_metrics_from_evaluation` | `build_rotation_strategy_metrics` |
+| `services/sleeves/shadow_evaluation.py` | rename to its candidate-enumeration role |
+
+Keep genuinely sleeve-bound names (`evaluate_and_apply_sleeve_rotation`, `build_sleeve_shadow_evaluation` /
+`SleeveShadowEvaluation`, `SleeveRepository`, `strategy_sleeves`). Open sub-choice deferred to execution:
+rename the `models/sleeves/` rotation model files in place vs move them to `models/rotation/`. Also rename
+the `EvaluationPaperLiveEvidence.episode_started_at/ended_at` window-bound fields here. Update `docs/adr` /
+maps. Check: full `run_checks ci` green; docs/maps in sync.
+
+### Phase 2b-6 — Convergence-wide dead-code sweep  **[strong]**
+Each removed operation tends to strand code that still *looks* functional (as the retired
+`select_optimal_strategy` stranded the whole `backtest_returns` → `BacktestRunRepository` chain +
+3 test files, removed 2026-07-07). Do a deliberate sweep for orphans left by **all** P4 removals
+(2a submission, 2b rotation, 2c accounting, sleeve-migration), not just the last change. Method:
+for each retired subsystem, trace its former callees and flag anything now reachable only from tests
+or exports.
+
+Known targets already identified:
+- **Vestigial rotation config cluster** — `RotationConfig` + `parse_rotation_config_from_profile` +
+  `book_rotation_settings` still parse/validate/persist dead config: `rotation_optimality_mode`
+  (orphaned when `select_optimal_strategy` went), the regime fields (`rotation_regime_strategy_*`) and
+  overlay fields (`rotation_overlay_*`) dead since 2b-1, and `rotation_mode` itself now inert after the
+  time-mode retirement. Retire these together (parser + model + repo + `OPTIMALITY_MODES` /
+  `ROTATION_OVERLAY_MODES` sets + `parse/dump_rotation_overlay_watchlist`); DB columns stay
+  (append-only). Confirm the regime/overlay decision against [ADR 009](../adr/009-regime-overlay-rotation-retired.md).
+- **Episode residue** — folded into 2b-4c (`compute_live_account_metrics`, `RotationEpisodeRepository`
+  dead readers, `EvaluationPaperLiveEvidence.rotation_episode_id` / `episode_realized_pnl_delta`).
+- **`SleeveRotationRunResult`** — returned by `evaluate_and_apply_sleeve_rotation` but the caller
+  discards it; simplify or consume.
+- Check: full `run_checks ci` green; a short inventory of what was removed appended to the convergence log.
+
+### Open decision — backtest recalculation cadence (later)
+Candidate evaluation reads each strategy's **latest persisted** backtest run (via
+`backtesting/repositories/report_repository`); nothing recomputes backtests on a schedule. Decide how
+often backtests must be (re)run to keep the decision-score backtest half fresh as markets move — a
+freshness/staleness policy, separate from this convergence work.
 
 ## 8. Open design points (resolve in-phase; stop and report if bigger)
 - **Cadence unification:** account uses interval/schedule (`is_rotation_due`); sleeve uses cooldown.
-  2b-3/2b-4 must land on one "when to rotate" that covers both (e.g. cadence trigger + cooldown guard).
-- **`rotation_decisions` for a plain account's default book:** confirm the table's `sleeve_id`/book
-  keying accommodates a default book (it is book-keyed under the clean schema — verify).
+  2b-3 kept the account cadence as the "when" (cooldown inactive); **2b-4b** lands the unified
+  "cadence trigger + cooldown guard".
+- **`rotation_decisions` for a plain account's default book:** ✅ resolved (2b-3) — the table is
+  `book_id`-keyed under the clean schema; a default book slots in directly via `insert_for_book`.
+- **`rotation_episodes` is evaluation evidence, not rotation accounting:** ✅ resolved (2b-4a) —
+  paper-live evidence is now book-native (default-book `equity_snapshots` sliced at `rotation_decisions`
+  boundaries), so the episode table can be dropped in 2b-4c without losing the decision score's live half.
 - **Cross-book vs per-book rotation:** a sleeved account rotates each sleeve book; a plain account
   rotates its one default book — confirm no account-level aggregate rotation is lost.
 

@@ -166,7 +166,6 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `promotion/helpers.py` | Promotion workflow helpers |
 | `promotion/history.py` | Promotion history queries |
 | `promotion/presentation.py` | Promotion result formatting |
-| `reporting/backtest_returns.py` | Backtest return calculations for reporting |
 | `reporting/benchmark.py` | Benchmark comparison reporting |
 | `reporting/math.py` | Reporting math utilities |
 | `reporting/portfolio.py` | Portfolio reporting |
@@ -196,7 +195,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 |---|---|
 | `accounts.py` | Equity snapshot and account snapshot persistence |
 | `admin_deletions.py` | Admin/maintenance deletion operations (row counts, dependent deletes) |
-| `backtest_history.py` | Backtest run history records |
 | `daily_metrics.py` | Daily performance metric snapshots |
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
@@ -207,7 +205,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `promotion.py` | Promotion decision records |
 | `risk.py` | Clean-schema risk snapshots and risk decision records |
 | `rotation_decisions.py` | Rotation decision records |
-| `rotation.py` | Rotation state records |
 | `sleeve_risk_decisions.py` | Sleeve-level risk decision records |
 | `sleeves.py` | Sleeve configuration and state |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |

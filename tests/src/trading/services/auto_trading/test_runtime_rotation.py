@@ -13,38 +13,12 @@ from tests.src.trading.services.auto_trading.factories import (
 )
 
 
-def test_runtime_rotation_passthrough_helpers_delegate(monkeypatch: pytest.MonkeyPatch) -> None:
-    account = make_auto_trading_account(id=7)
-    conn = object()
-    metric_calls: list[tuple[object, object]] = []
-
-    monkeypatch.setattr(
-        rotation_runtime_service,
-        "compute_live_account_metrics_impl",
-        lambda inner_conn, inner_account, **_kwargs: (
-            metric_calls.append((inner_conn, inner_account)) or {"equity": 123.0}
-        ),
-    )
-
-    assert rotation_runtime_service.compute_runtime_live_account_metrics(conn, account) == {"equity": 123.0}
-    assert metric_calls == [(conn, account)]
-
-
 def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
     account = make_auto_trading_account(id=12)
     calls: dict[str, object] = {}
-    fetch_backtests = Mock(return_value=[])
-    fetch_closed_episodes = Mock(return_value=[])
 
-    def _fake_select(conn, selected_account, as_of_iso, **kwargs):
-        calls.update(
-            {
-                "conn": conn,
-                "account": selected_account,
-                "as_of_iso": as_of_iso,
-                **kwargs,
-            }
-        )
+    def _fake_select(conn, selected_account, as_of_iso):
+        calls.update({"conn": conn, "account": selected_account, "as_of_iso": as_of_iso})
         return "mean_reversion"
 
     monkeypatch.setattr(rotation_runtime_service, "select_account_rotation_strategy_impl", _fake_select)
@@ -53,95 +27,22 @@ def test_select_runtime_rotation_strategy_passes_runtime_dependencies(monkeypatc
         conn=object(),
         account=account,
         as_of_iso="2026-03-21T00:00:00Z",
-        fetch_strategy_backtest_returns_fn=fetch_backtests,
-        fetch_closed_rotation_episodes_fn=fetch_closed_episodes,
     )
 
     assert selected == "mean_reversion"
     assert calls["account"] == account
-    assert calls["fetch_strategy_backtest_returns_fn"] is fetch_backtests
-    assert calls["fetch_closed_rotation_episodes_fn"] is fetch_closed_episodes
+    assert calls["as_of_iso"] == "2026-03-21T00:00:00Z"
 
 
-def test_sync_runtime_rotation_episode_requires_connection_execute(monkeypatch: pytest.MonkeyPatch) -> None:
-    account = make_auto_trading_account(id=13)
-    recorded: list[tuple[tuple[object, ...], dict[str, object]]] = []
-
-    def _fake_sync(*args, **kwargs) -> None:
-        recorded.append((args, kwargs))
-
-    monkeypatch.setattr(rotation_runtime_service, "sync_rotation_episode_impl", _fake_sync)
-
-    rotation_runtime_service.sync_runtime_rotation_episode(
-        object(),
-        account,
-        "2026-03-21T00:00:00Z",
-        fetch_open_rotation_episode_fn=Mock(),
-        insert_rotation_episode_fn=Mock(),
-        close_rotation_episode_fn=Mock(),
-        fetch_snapshot_count_between_fn=Mock(),
-    )
-
-    class _Conn:
-        def execute(self, *_args, **_kwargs) -> None:
-            return None
-
-    connection = _Conn()
-    fetch_open = Mock()
-    insert_episode = Mock()
-    close_episode = Mock()
-    fetch_snapshot_count = Mock()
-    rotation_runtime_service.sync_runtime_rotation_episode(
-        connection,
-        account,
-        "2026-03-22T00:00:00Z",
-        fetch_open_rotation_episode_fn=fetch_open,
-        insert_rotation_episode_fn=insert_episode,
-        close_rotation_episode_fn=close_episode,
-        fetch_snapshot_count_between_fn=fetch_snapshot_count,
-    )
-
-    assert len(recorded) == 1
-    args, kwargs = recorded[0]
-    assert args[:3] == (connection, account, "2026-03-22T00:00:00Z")
-    assert kwargs["fetch_open_rotation_episode_fn"] is fetch_open
-    assert kwargs["insert_rotation_episode_fn"] is insert_episode
-    assert kwargs["close_rotation_episode_fn"] is close_episode
-    assert kwargs["fetch_snapshot_count_between_fn"] is fetch_snapshot_count
-    # The metrics callable now wraps compute_runtime_live_account_metrics to inject
-    # the (here absent) market-data provider; verify it delegates with provider=None.
-    metric_calls: list[tuple[object, object, object]] = []
-    monkeypatch.setattr(
-        rotation_runtime_service,
-        "compute_runtime_live_account_metrics",
-        lambda c, a, *, provider=None: metric_calls.append((c, a, provider)) or {},
-    )
-    kwargs["compute_live_account_metrics_fn"](connection, account)
-    assert metric_calls == [(connection, account, None)]
-
-
-def test_rotate_runtime_account_syncs_before_and_after_rotation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rotate_runtime_account_delegates_to_champion_challenger(monkeypatch: pytest.MonkeyPatch) -> None:
     account = make_auto_trading_account(id=14, strategy="trend")
     rotated_account = make_auto_trading_account(id=14, strategy="mean_reversion")
-    sync_calls: list[object] = []
-    selection_calls: list[dict[str, object]] = []
     update_rotation_state = Mock()
     get_account = Mock(return_value=rotated_account)
     is_rotation_due = Mock(return_value=True)
-    fetch_backtests = Mock(return_value=[])
-    fetch_closed_episodes = Mock(return_value=[])
     observed: dict[str, object] = {}
 
-    monkeypatch.setattr(
-        rotation_runtime_service,
-        "sync_runtime_rotation_episode",
-        lambda _conn, synced_account, _now_iso, **_kwargs: sync_calls.append(synced_account),
-    )
-
-    def _fake_select(conn, selected_account, as_of_iso, **kwargs):
-        selection_calls.append(kwargs)
-        assert conn is observed["conn"]
-        assert selected_account == account
+    def _fake_select(conn, selected_account, as_of_iso):
         assert as_of_iso == "2026-03-23T00:00:00Z"
         return "mean_reversion"
 
@@ -156,6 +57,7 @@ def test_rotate_runtime_account_syncs_before_and_after_rotation(monkeypatch: pyt
     monkeypatch.setattr(rotation_runtime_service, "select_runtime_rotation_strategy", _fake_select)
     monkeypatch.setattr(rotation_runtime_service, "rotate_runtime_account_if_due_impl", _fake_rotate)
 
+    # No episode sync any more: rotate_runtime_account only builds deps + delegates.
     rotated = rotation_runtime_service.rotate_runtime_account(
         conn=object(),
         account_name="acct_runtime",
@@ -164,22 +66,13 @@ def test_rotate_runtime_account_syncs_before_and_after_rotation(monkeypatch: pyt
         is_rotation_due_fn=is_rotation_due,
         update_account_rotation_state_fn=update_rotation_state,
         get_account_fn=get_account,
-        fetch_strategy_backtest_returns_fn=fetch_backtests,
-        fetch_closed_rotation_episodes_fn=fetch_closed_episodes,
-        fetch_open_rotation_episode_fn=Mock(),
-        insert_rotation_episode_fn=Mock(),
-        close_rotation_episode_fn=Mock(),
-        fetch_snapshot_count_between_fn=Mock(),
     )
 
     assert rotated == rotated_account
-    assert sync_calls == [account, rotated_account]
     assert observed["due"] is True
     assert observed["selected"] == "mean_reversion"
     assert observed["refetched"] == rotated_account
     assert observed["update_fn"] is update_rotation_state
-    assert selection_calls[0]["fetch_strategy_backtest_returns_fn"] is fetch_backtests
-    assert selection_calls[0]["fetch_closed_rotation_episodes_fn"] is fetch_closed_episodes
 
 
 def test_run_for_account_uses_rotated_active_strategy(monkeypatch) -> None:

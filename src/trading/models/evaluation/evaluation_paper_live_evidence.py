@@ -18,7 +18,7 @@ class EvaluationPaperLiveEvidence:
     market_value: float | None = None
     realized_pnl: float | None = None
     unrealized_pnl: float | None = None
-    rotation_episode_id: int | None = None
+    # Bounds of the strategy's most recent live window (book snapshots sliced at
+    # rotation_decisions boundaries); named episode_* for now, renamed in the P5 pass.
     episode_started_at: str | None = None
     episode_ended_at: str | None = None
-    episode_realized_pnl_delta: float | None = None

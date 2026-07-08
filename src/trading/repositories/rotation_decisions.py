@@ -188,6 +188,37 @@ class RotationDecisionRepository:
             params=(report_date, next_date),
         )
 
+    def fetch_selected_strategy_timeline(self, *, book_id: int) -> list[tuple[str, str | None, str | None]]:
+        """Return the book's decision log as ``(decision_time, incumbent, selected)`` rows, oldest first.
+
+        Every decision (hold or rotate) records the strategy active after it
+        (``selected``) and the one active before it (``incumbent``), so the ordered
+        log reconstructs the book's active-strategy timeline — the substrate for
+        strategy-isolated paper-live evidence now that rotation episodes are retired.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT
+                d.decision_time AS decision_time,
+                si.strategy_key AS incumbent_strategy,
+                ss.strategy_key AS selected_strategy
+            FROM rotation_decisions d
+            LEFT JOIN strategies si ON si.id = d.incumbent_strategy_id
+            LEFT JOIN strategies ss ON ss.id = d.selected_strategy_id
+            WHERE d.book_id = ?
+            ORDER BY d.decision_time ASC, d.id ASC
+            """,
+            (int(book_id),),
+        ).fetchall()
+        return [
+            (
+                str(row["decision_time"]),
+                str(row["incumbent_strategy"]) if row["incumbent_strategy"] is not None else None,
+                str(row["selected_strategy"]) if row["selected_strategy"] is not None else None,
+            )
+            for row in rows
+        ]
+
     def fetch_latest_rotate_action(self, *, sleeve_id: int) -> sqlite3.Row | None:
         """Return the most recent decision where rotation_action = 'rotate'."""
         rows = self._rows_for_sleeve(
@@ -196,3 +227,16 @@ class RotationDecisionRepository:
             params=(),
         )
         return rows[0] if rows else None
+
+    def fetch_latest_rotate_action_for_book(self, *, book_id: int) -> sqlite3.Row | None:
+        """Return the book's most recent 'rotate' decision (book-native cooldown source)."""
+        return self._conn.execute(
+            """
+            SELECT d.decision_time AS decision_time
+            FROM rotation_decisions d
+            WHERE d.book_id = ? AND d.rotation_action = 'rotate'
+            ORDER BY d.decision_time DESC, d.id DESC
+            LIMIT 1
+            """,
+            (int(book_id),),
+        ).fetchone()

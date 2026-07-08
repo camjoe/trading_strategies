@@ -420,3 +420,70 @@ Work order: [implementation/p4-convergence.md](implementation/p4-convergence.md)
   incumbent best, None without an incumbent) + added `test_book_rotation.py` (rotate/records,
   no-challenger hold, no-incumbent None). Full `run_checks ci` green. Next: 2b-4 (one book-keyed rotation
   service; retire episode path + drop `rotation_episodes`).
+- 2026-07-07 — **2b-4 rescoped + 2b-4a landed — paper-live evidence made book-native.**
+  Investigation while planning 2b-4 found `rotation_episodes` is not rotation-internal accounting: it
+  is the **evaluation subsystem's strategy-isolated paper-live evidence store**
+  (`evaluation/evidence.py::build_paper_live_evidence` → `compute_blended_score`), and for a
+  rotation-enabled account it is the *only* paper-live source. Dropping it as the work order first
+  assumed would strip the live half of the decision score for the accounts that rotate. Surfaced per
+  the "stop and report" guardrail; the user chose to migrate evidence onto book-native data, then drop
+  episodes — so 2b-4 is now **2b-4a** (book-native evidence) → **2b-4b** (one book-keyed rotation
+  service + cadence unification + retire dead `select_optimal_strategy`) → **2b-4c** (retire the episode
+  path + drop `rotation_episodes`). **2b-4a:** re-pointed `build_paper_live_evidence` off
+  `rotation_episodes` onto the account's default-book `equity_snapshots` sliced at the strategy
+  boundaries recorded in `rotation_decisions` (each decision logs incumbent→selected, so the ordered log
+  reconstructs the active-strategy timeline; cold start = the active strategy since inception). Added
+  `EquitySnapshotRepository.fetch_earliest/fetch_first_at_or_after/fetch_last_at_or_before` (window
+  slicing) and `RotationDecisionRepository.fetch_selected_strategy_timeline`. Source-level labels became
+  `book_active_strategy` / `book_closed_strategy`. The episode table + writers are untouched this step
+  (2b-4c drops them). Rewrote `test_paper_live.py` (closed window, active-since-inception, missing) +
+  added repo tests. Full `run_checks ci` green. Next: 2b-4b (one book-keyed rotation service).
+- 2026-07-07 — **2b-4b landed — one book-keyed rotation core + unified cooldown guard.**
+  Two commits. **(i)** Retired the dead `select_optimal_strategy` path (dead in production since 2b-3
+  rerouted account selection through champion/challenger): removed the function + its hybrid-scoring
+  helpers, and dropped the `fetch_strategy_backtest_returns_fn` / `fetch_closed_rotation_episodes_fn`
+  threading from the account rotation DI chain (bridge → runtime_rotation → runtime); episode-sync
+  fetchers stay for 2b-4c (net −310 lines). **(ii)** Extracted the shared book-keyed rotation core into
+  `sleeves/rotation.py::evaluate_book_rotation` (champion/challenger policy call + `rotation_decisions`
+  audit via `insert_for_book`) and `book_cooldown_active` (book-native cooldown from
+  `fetch_latest_rotate_action_for_book`). Both the account path (`book_rotation.py`) and the sleeve
+  applier now enumerate candidates + apply the winner their own way but share the eval/record core and
+  the cooldown guard. The core lives under `sleeves/` to respect the existing `auto_trading → sleeves`
+  import direction (2b-5 renames the package). **Cadence unification:** the account keeps its
+  interval/schedule trigger (`is_rotation_due`) and now *also* shares the per-book cooldown guard
+  (previously `cooldown_active=False`), so a fresh account rotation can't churn within the cooldown
+  window — the "cadence trigger + cooldown guard" model, uniform across both paths. Added a cooldown
+  regression test. Full `run_checks ci` green. Next: 2b-4c (retire the episode path + drop
+  `rotation_episodes`).
+- 2026-07-07 — **Retired round-robin "time" rotation mode — champion/challenger is the only paradigm.**
+  Per the user: round-robin strategy cycling was never the intent; both desired behaviors ("best
+  challenger on a schedule" and "best challenger, responsive/intraday") are champion/challenger with a
+  different interval (`rotation_interval_days` vs `rotation_interval_minutes`) — cadence is pure config,
+  selection is one model. `rotate_account_if_due` now always runs champion/challenger (dropped the
+  `rotation_mode in {optimal,regime}` branch + the round-robin `else`). Deleted the now-dead domain
+  functions `next_rotation_state`, `resolve_rotation_mode`, `resolve_optimality_mode` (+ exports and
+  their tests). The `rotation_mode` / `rotation_optimality_mode` columns stay (append-only) and profile
+  validation still accepts the values, but they no longer affect behavior — a later config cleanup can
+  retire the vestigial plumbing. Full `run_checks ci` green.
+- 2026-07-07 — **Every book must carry its own strategy assignment — no account fallback.** Per the
+  user: a book with no assigned strategy should not trade; account/default fallbacks cause unexpected
+  trades. `generate_sleeve_trade_intents` now **skips any sleeve without an active assignment** (removed
+  the `default_strategy = resolve_active_strategy(account) or account.strategy` fallback), matching how
+  rotation already skips unassigned sleeves. Consequently the sleeve-mode runtime branch **no longer
+  calls `_rotate_runtime_account`** — the account-level rotation existed only to keep that fallback
+  strategy fresh; sleeve rotation is entirely per-book (`_run_sleeve_rotation_decisions`). Updated the
+  sleeve-execution tests to assign strategies to traded sleeves (and assert unassigned/paused sleeves
+  are skipped). This also resolves the dual-rotation-in-sleeve-mode observation from 2b-4b. Full
+  `run_checks ci` green. Next: 2b-4c (retire the episode path + drop `rotation_episodes`).
+- 2026-07-07 — **2b-4c landed — retired the rotation-episode path + dropped `rotation_episodes`.**
+  With evidence book-native (2b-4a), the selection-side reader gone (2b-4b), and the sleeve-mode caller
+  gone (per-book-assignment), the episode machinery had no remaining reader. Removed
+  `sync_rotation_episode` + `compute_live_account_metrics` (services/auto_trading/rotation.py),
+  `RotationEpisodeRepository` (deleted repositories/rotation.py), and the episode sync +
+  `compute_runtime_live_account_metrics` + episode/`provider` DI threading in runtime_rotation.py /
+  runtime.py — `rotate_runtime_account` now just builds deps and delegates. Dropped the
+  `rotation_episodes` table (schema CREATE + indexes + SCHEMA_SQL entry; no migration keys existed) and
+  the vestigial `EvaluationPaperLiveEvidence.rotation_episode_id` / `episode_realized_pnl_delta` fields.
+  Removed/trimmed the episode tests (repo episode tests, sync/metrics unit tests, runtime episode-sync
+  test) and synced docs (db-schema mirror row, two package-map rows). Full `run_checks ci` green. This
+  completes 2b-4. Remaining: 2b-5 (naming pass) and 2b-6 (convergence-wide dead-code sweep).
