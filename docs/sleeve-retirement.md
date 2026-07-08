@@ -102,3 +102,12 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
 ## Progress log (append one line per phase)
 
 - 2026-07-08 — Investigation + verdict recorded; branch `features/sleeve-retirement` created; plan written.
+- 2026-07-08 — **SR-1 landed.** D-SR1 resolved **(a)**: `book_strategy_assignments.param_set_id` added
+  (greenfield CREATE + `BOOK_MIGRATIONS_BY_TABLE` column migration for existing DBs). New seam
+  `services/sleeves/book_assignments.py`: `open_assignment_for_book` (book authoritative; **lazy
+  bootstrap** copies the legacy sleeve assignment on first read — existing DBs migrate themselves,
+  mirroring `book_bridge`'s lazy-create precedent) + `assign_book_strategy` (book write + legacy
+  sleeve **dual-write** so unmigrated reporting/governance readers stay correct until SR-3/SR-4;
+  the sync dies in SR-6). Rotation applier, intent generation, and shadow evaluation now read/write
+  book assignments — the drift bug is fixed and regression-tested (rotate updates the book's open
+  assignment). Full `run_checks ci` green.

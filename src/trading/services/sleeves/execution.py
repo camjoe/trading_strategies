@@ -14,6 +14,7 @@ from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.sleeves import SleeveRepository
+from trading.services.sleeves.book_assignments import open_assignment_for_book
 from trading.services.universe import resolve_named_universes
 
 if TYPE_CHECKING:
@@ -79,7 +80,11 @@ def generate_sleeve_trade_intents(
     for sleeve in active_sleeves:
         if len(intents) >= max_intents:
             break
-        assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
+        assert book_id is not None  # create=True always resolves a book id
+        # Book assignments are the single live assignment record (SR-1); the read
+        # lazily bootstraps from the legacy sleeve assignment on existing DBs.
+        assignment = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve.id)
         if assignment is None:
             # A book with no assigned strategy does not trade — no account fallback.
             continue
@@ -93,8 +98,6 @@ def generate_sleeve_trade_intents(
                 effective_universe = universe
         else:
             effective_universe = universe
-        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
-        assert book_id is not None
         state = _build_sleeve_state(conn, book_id=book_id)
         can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
         forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(

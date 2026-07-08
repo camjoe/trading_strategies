@@ -174,6 +174,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
+| `sleeves/book_assignments.py` | Book strategy assignments — the single live assignment record (lazy sleeve bootstrap + dual-write during sleeve retirement) |
 | `sleeves/daily_report.py` | Sleeve daily reporting |
 | `sleeves/execution.py` | Sleeve trade execution and intent generation |
 | `sleeves/helpers.py` | Shared sleeve service helpers (math, formatting) |

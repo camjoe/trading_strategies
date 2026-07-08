@@ -6,8 +6,10 @@ import sqlite3
 from trading.domain.rotation import parse_rotation_schedule
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.models import AccountRecord
+from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
+from trading.services.sleeves.book_assignments import open_assignment_for_book
 from trading.services.sleeves.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 from trading.services.sleeves.rotation_metrics import build_rotation_strategy_metrics
 
@@ -66,7 +68,11 @@ def build_sleeve_shadow_evaluation(
     for sleeve in all_sleeves:
         if sleeve.status.strip().lower() != "active":
             continue
-        assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        book_id = book_id_for_sleeve(conn, sleeve.id, create=True)
+        assert book_id is not None  # create=True always resolves a book id
+        # Book assignments are the single live assignment record (SR-1); the read
+        # lazily bootstraps from the legacy sleeve assignment on existing DBs.
+        assignment = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve.id)
         if assignment is None:
             continue
         incumbent_strategy = assignment.strategy_name.strip()

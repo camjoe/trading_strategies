@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.repositories.book_assignments import BookAssignmentRepository
+from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
+from trading.repositories.strategies import StrategyRepository
 from trading.services.sleeves.rotation import (
     RotationPolicyConfig,
     evaluate_and_apply_sleeve_rotation,
@@ -97,6 +100,17 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
 
     assignments = sleeve_repo.fetch_assignments(sleeve_id=sleeve_id)
     assert len(assignments) == 2
+
+    # Drift-fix regression (SR-1): the *book* assignment is updated on rotate —
+    # book_strategy_assignments is the single live assignment record.
+    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
+    assert book_id is not None
+    book_assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    assert book_assignment is not None
+    strategy = StrategyRepository(conn).fetch_by_id(strategy_id=book_assignment.strategy_id)
+    assert strategy is not None
+    assert strategy.strategy_key == "meanrev"
+    assert book_assignment.param_set_id == 202
 
     latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
     assert latest_decision is not None

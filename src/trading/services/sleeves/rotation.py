@@ -14,7 +14,7 @@ from trading.models.rotation.rotation_score_weights import RotationScoreWeights
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeves import SleeveRepository
+from trading.services.sleeves.book_assignments import assign_book_strategy, open_assignment_for_book
 
 DEFAULT_ROLLING_WINDOW_DAYS = 30
 DEFAULT_MIN_TRADES_IN_WINDOW = 20
@@ -170,8 +170,11 @@ def evaluate_and_apply_sleeve_rotation(
     decision_time: str | None = None,
 ) -> RotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    sleeve_repo = SleeveRepository(conn)
-    assignment = sleeve_repo.fetch_active_assignment(sleeve_id=int(sleeve_id))
+    book_id = book_id_for_sleeve(conn, int(sleeve_id), create=True)
+    assert book_id is not None  # create=True always resolves a book id
+    # Book assignments are the single live assignment record (SR-1); the read
+    # lazily bootstraps from the legacy sleeve assignment on existing DBs.
+    assignment = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=int(sleeve_id))
     if assignment is None:
         raise ValueError(f"No incumbent assignment found for sleeve_id={sleeve_id}.")
 
@@ -181,8 +184,6 @@ def evaluate_and_apply_sleeve_rotation(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
     )
-    book_id = book_id_for_sleeve(conn, int(sleeve_id), create=True)
-    assert book_id is not None  # create=True always resolves a book id
     cooldown_active = book_cooldown_active(
         conn,
         book_id=book_id,
@@ -207,20 +208,15 @@ def evaluate_and_apply_sleeve_rotation(
 
     rotated = False
     if decision.rotation_action == "rotate":
-        sleeve_repo.close_active_assignment(
-            sleeve_id=int(sleeve_id),
-            effective_to=now_iso,
-            updated_at=now_iso,
-        )
-        sleeve_repo.insert_assignment(
-            sleeve_id=int(sleeve_id),
+        # Authoritative book write + legacy sleeve sync (dual-write until SR-3/SR-4
+        # migrate the remaining sleeve-assignment readers; the sync dies in SR-6).
+        assign_book_strategy(
+            conn,
+            book_id=book_id,
             strategy_name=decision.selected_strategy,
             param_set_id=decision.selected_param_set_id,
-            effective_from=now_iso,
-            effective_to=None,
-            is_incumbent=1,
-            created_at=now_iso,
-            updated_at=now_iso,
+            now_iso=now_iso,
+            legacy_sleeve_id=int(sleeve_id),
         )
         rotated = True
 

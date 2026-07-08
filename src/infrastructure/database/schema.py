@@ -648,13 +648,15 @@ CREATE TABLE IF NOT EXISTS book_strategy_assignments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     book_id INTEGER NOT NULL,
     strategy_id INTEGER NOT NULL,
+    param_set_id INTEGER,
     effective_from TEXT NOT NULL,
     effective_to TEXT,
     is_incumbent INTEGER NOT NULL DEFAULT 1 CHECK (is_incumbent IN (0, 1)),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
-    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id),
+    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
 );
 """
 

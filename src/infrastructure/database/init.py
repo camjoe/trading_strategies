@@ -8,6 +8,7 @@ from infrastructure.database.migrations import (
     ACCOUNT_BROKER_MIGRATIONS,
     ACCOUNT_MIGRATIONS,
     BACKTEST_RUN_MIGRATIONS,
+    BOOK_MIGRATIONS_BY_TABLE,
     ColumnMigration,
     GLOBAL_SETTINGS_MIGRATIONS,
     SLEEVE_MIGRATIONS_BY_TABLE,
@@ -63,6 +64,9 @@ def init_schema(conn: DBConnection) -> None:
     for migration in GLOBAL_SETTINGS_MIGRATIONS:
         _ensure_column(conn, "global_settings", migration)
     for table_name, migrations in SLEEVE_MIGRATIONS_BY_TABLE.items():
+        for migration in migrations:
+            _ensure_column(conn, table_name, migration)
+    for table_name, migrations in BOOK_MIGRATIONS_BY_TABLE.items():
         for migration in migrations:
             _ensure_column(conn, table_name, migration)
     conn.commit()
