@@ -22,7 +22,7 @@ One ordered list (P1 = do first). Estimates are rough t-shirt sizes: **S** ≈ �
 | 3 | DB schema rewrite (greenfield, option B) | Committed | ✅ done (A–E) | L | [D4](decisions.md#d4), [D5](decisions.md#d5) |
 | 4 | Converge accounts & sleeves (once, on clean schema) | Committed | ✅ done (2a·2b·2c) | L | — |
 | 5 | Decisioning legibility & naming pass | Committed | ✅ done (with 2b-5) | M | [D13](decisions.md#d13) |
-| 6 | Plug-and-play strategy & provider catalog | Committed | ☐ | M | [D5](decisions.md#d5) |
+| 6 | Plug-and-play strategy & provider catalog | Exploratory | ☐ | M | [D5](decisions.md#d5) |
 | 7 | Unified parameter source | Committed | ☐ | M | [D4](decisions.md#d4) |
 | 8 | Email notifications (independent) | Committed | ☐ | M | [D8](decisions.md#d8) |
 | 9 | Portfolio risk rollup | Committed | ☐ | M | [D10](decisions.md#d10) |
@@ -82,9 +82,10 @@ Rationale for the priority board order (the board above is the canonical ordered
    rewrite-first. No data to lose and pre-live is the cheapest time to change schema.
 4. **P4 — Converge accounts & sleeves, built once on the clean schema** (submission/rotation/
    accounting) rather than migrating two live paths — with **P5** (naming pass) done alongside.
-5. **P6–P7** land on the new schema (plug-and-play catalog, parameter source). **P8** (email) is
-   independent and can slot in anytime; **P9** (risk rollup) follows.
-6. **P10–P11** are Exploratory — pursued only if evidence justifies.
+5. **P7** (parameter source) lands on the new schema. **P8** (email) is independent and can slot in
+   anytime; **P9** (risk rollup) follows.
+6. **P6** (plug-and-play catalog), **P10**, **P11**, and **P12** are Exploratory — pursued only if
+   evidence justifies.
 
 ## Initiatives (detail)
 
@@ -306,7 +307,7 @@ Priority: P1 · Committed
 
 #### Plug-and-play strategy & provider catalog
 
-Priority: P6 · Committed
+Priority: P6 · Exploratory
 
 - Scope: make adding strategy variants and feature providers a data/contained-code change, so new
   ideas can be tried quickly.
@@ -494,6 +495,15 @@ Priority: P5 · Committed
 
 ## Notes
 
+- **P6 moved to Exploratory (2026-07-07).** The DB catalog groundwork (the `strategies` table,
+  `StrategyRepository` + immutability guard, seeding, `PRIMITIVE_CATALOG`) landed with P3, but the
+  table is **seeded from** the code `STRATEGY_REGISTRY`, so today the data and code hold the identical
+  strategies. Wiring the data-load path now adds a **second source of truth for no near-term gain** —
+  and the real payoff (adding/tuning strategy variants without code) also needs a write path
+  (CLI/UI) that nothing yet demands. Deferred until there is concrete intent to run data-only strategy
+  variants; at that point 4a must go all the way (DB canonical, retire `STRATEGY_REGISTRY` down to
+  primitives) rather than sit alongside the code registry. **P7 kept Committed** (it is a
+  read/edit surface over existing param stores, not a duplicate store).
 - **Holistic review (done 2026-07-01).** The DB rewrite fork ([D3](decisions.md#d3)) resolved to
   rewrite-first, making **P3 the spine**: P4 (convergence), P6/4a (data-driven strategies), and P7
   (parameter source) are now built on / are consequences of the clean schema. P6 and P7 dropped to
