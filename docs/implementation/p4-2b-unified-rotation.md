@@ -1,7 +1,7 @@
 # Implementation Guide — P4 / 2b: Unified rotation/selection
 
 Type: implementation
-Status: Ready (multi-commit; medium-large; touches the live rotation path)
+Status: Core complete (2b-1…2b-4, 2b-6, 2b-7 landed 2026-07-07); naming pass deferred, one open decision
 Purpose: Work order for P4 / 2b — collapse account-episode rotation and sleeve champion/challenger
 onto the single decision-score contract, book-keyed, and reduce the rotation module sprawl. Ordered
 phases, each a green commit.
@@ -17,6 +17,23 @@ Related: [P4 Work Order](p4-convergence.md), [Convergence Plan](../sleeves-accou
 > path — champion/challenger on the decision-score contract — that both a plain account (its default
 > book) and a sleeve (its bridging book) use, with no "account mode vs sleeve mode" branching. It is
 > **behavior-affecting on the live rotation path**; steps are ordered and each is its own green commit.
+
+## 0. Status (2026-07-07)
+
+| Phase | State | Notes |
+|---|---|---|
+| 2b-1 retire regime/overlay selection | ✅ done | design preserved in [ADR 009](../adr/009-regime-overlay-rotation-retired.md) |
+| 2b-2 book-keyed candidate enumeration | ✅ done | |
+| 2b-3 route account selection → champion/challenger | ✅ done | writes `rotation_decisions` on the default book |
+| 2b-4a book-native paper-live evidence | ✅ done | off `rotation_episodes` → book snapshots + `rotation_decisions` |
+| 2b-4b one book-keyed rotation core + cooldown guard | ✅ done | cadence = interval/schedule trigger + cooldown |
+| 2b-4c retire episode path + drop `rotation_episodes` | ✅ done | |
+| retire round-robin "time" mode | ✅ done | champion/challenger is the only paradigm |
+| require a strategy assignment per book (no account fallback) | ✅ done | unassigned/paused books do not trade |
+| 2b-6 convergence-wide dead-code sweep | ✅ done | found the config surface (→ 2b-7); rest verified live/already-removed |
+| 2b-7 retire dead rotation-config surface (frontend + API + backend + book mirror) | ✅ done | mode/optimality/regime/overlay controls were no-ops |
+| **2b-5 naming pass (`Rotation*` rename)** | ⏸ **deferred** | convention + rename table in §Phase 2b-5 below |
+| **Backtest recalculation cadence** | 🔲 **open decision** | see §"Open decision" below |
 
 ## 1. Objective
 
@@ -210,16 +227,18 @@ often backtests must be (re)run to keep the decision-score backtest half fresh a
 freshness/staleness policy, separate from this convergence work.
 
 ## 8. Open design points (resolve in-phase; stop and report if bigger)
-- **Cadence unification:** account uses interval/schedule (`is_rotation_due`); sleeve uses cooldown.
-  2b-3 kept the account cadence as the "when" (cooldown inactive); **2b-4b** lands the unified
-  "cadence trigger + cooldown guard".
+- **Cadence unification:** ✅ resolved (2b-4b) — the unified "when" is the interval/schedule trigger
+  (`is_rotation_due`) plus a shared per-book cooldown guard; round-robin "time" mode was retired so
+  champion/challenger is the only selection paradigm.
 - **`rotation_decisions` for a plain account's default book:** ✅ resolved (2b-3) — the table is
   `book_id`-keyed under the clean schema; a default book slots in directly via `insert_for_book`.
 - **`rotation_episodes` is evaluation evidence, not rotation accounting:** ✅ resolved (2b-4a) —
   paper-live evidence is now book-native (default-book `equity_snapshots` sliced at `rotation_decisions`
   boundaries), so the episode table can be dropped in 2b-4c without losing the decision score's live half.
-- **Cross-book vs per-book rotation:** a sleeved account rotates each sleeve book; a plain account
-  rotates its one default book — confirm no account-level aggregate rotation is lost.
+- **Cross-book vs per-book rotation:** ✅ resolved — rotation is per-book (a plain account rotates its
+  default book; a sleeved account rotates each sleeve book); there is no separate account-level aggregate
+  rotation. The account-level fallback that ran in sleeve mode was removed (per-book-assignment change);
+  unassigned/paused books simply do not trade.
 
 ## 9. Validation
 ```
