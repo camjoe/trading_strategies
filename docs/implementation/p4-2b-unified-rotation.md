@@ -146,6 +146,34 @@ blindly would strip the live half of the decision score for exactly the accounts
   enumeration role. Update `docs/adr` / maps as needed.
 - Check: full `run_checks ci` green; docs/maps in sync.
 
+### Phase 2b-6 — Convergence-wide dead-code sweep  **[strong]**
+Each removed operation tends to strand code that still *looks* functional (as the retired
+`select_optimal_strategy` stranded the whole `backtest_returns` → `BacktestRunRepository` chain +
+3 test files, removed 2026-07-07). Do a deliberate sweep for orphans left by **all** P4 removals
+(2a submission, 2b rotation, 2c accounting, sleeve-migration), not just the last change. Method:
+for each retired subsystem, trace its former callees and flag anything now reachable only from tests
+or exports.
+
+Known targets already identified:
+- **Vestigial rotation config cluster** — `RotationConfig` + `parse_rotation_config_from_profile` +
+  `book_rotation_settings` still parse/validate/persist dead config: `rotation_optimality_mode`
+  (orphaned when `select_optimal_strategy` went), the regime fields (`rotation_regime_strategy_*`) and
+  overlay fields (`rotation_overlay_*`) dead since 2b-1, and `rotation_mode` itself now inert after the
+  time-mode retirement. Retire these together (parser + model + repo + `OPTIMALITY_MODES` /
+  `ROTATION_OVERLAY_MODES` sets + `parse/dump_rotation_overlay_watchlist`); DB columns stay
+  (append-only). Confirm the regime/overlay decision against [ADR 009](../adr/009-regime-overlay-rotation-retired.md).
+- **Episode residue** — folded into 2b-4c (`compute_live_account_metrics`, `RotationEpisodeRepository`
+  dead readers, `EvaluationPaperLiveEvidence.rotation_episode_id` / `episode_realized_pnl_delta`).
+- **`SleeveRotationRunResult`** — returned by `evaluate_and_apply_sleeve_rotation` but the caller
+  discards it; simplify or consume.
+- Check: full `run_checks ci` green; a short inventory of what was removed appended to the convergence log.
+
+### Open decision — backtest recalculation cadence (later)
+Candidate evaluation reads each strategy's **latest persisted** backtest run (via
+`backtesting/repositories/report_repository`); nothing recomputes backtests on a schedule. Decide how
+often backtests must be (re)run to keep the decision-score backtest half fresh as markets move — a
+freshness/staleness policy, separate from this convergence work.
+
 ## 8. Open design points (resolve in-phase; stop and report if bigger)
 - **Cadence unification:** account uses interval/schedule (`is_rotation_due`); sleeve uses cooldown.
   2b-3 kept the account cadence as the "when" (cooldown inactive); **2b-4b** lands the unified
