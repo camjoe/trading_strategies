@@ -5,11 +5,9 @@ Status: Active
 Created: 2026-07-01
 Last Reviewed: 2026-07-03
 Purpose: The single consolidated list of decisions that must be made before or during implementation
-— "what needs to be defined." Tasks/order/status live in [plan.md](plan.md); design detail lives in
+— "what needs to be defined." Current status lives in [status.md](status.md); design detail lives in
 the referenced specs.
-Related: [Plan](plan.md), [Overview](overview.md),
-[Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md)
+Related: [Status](status.md), [Overview](overview.md)
 
 Status legend: **open** (undecided) · **leaning** (tentative direction) · **deferred** (not needed
 yet) · **decided** (resolved — record the outcome and date).
@@ -25,7 +23,7 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D5](#d5) | Strategy catalog granularity | plug-and-play, DB rewrite | **decided: primitive + knobs** |
 | [D6](#d6) | Persist evaluation/decision snapshots? | adaptive learning, auditability | **decided: score columns; table deferred** |
 | [D7](#d7) | Default strategy book: real row vs virtual | P4, DB rewrite | **decided: real row (under B)** |
-| [D8](#d8) | Email notifications config | P8 | open |
+| [D8](#d8) | Email notifications config | P8 | **decided: env-var SMTP (2026-07-07)** |
 | [D9](#d9) | Adaptive-learning definition | P10 | deferred |
 | [D10](#d10) | Portfolio-risk concentration definition | P9 | deferred |
 | [D11](#d11) | Param-optimization method & guardrails | P11 | deferred |
@@ -35,8 +33,9 @@ yet) · **decided** (resolved — record the outcome and date).
 
 Decided: **D1** (trade policy), **D2/D3/D7** (rewrite-first), **D5** (strategy = primitive + knobs),
 **D4** (params split + settings shape, 2026-07-03), **D6** (score columns; snapshot table deferred),
-**D14** (execution primitive named "book", 2026-07-04). Nothing gates the rewrite anymore.
-**D8–D13 stay deferred** (feature-specific, not gating the near-term plan).
+**D14** (execution primitive named "book", 2026-07-04), **D8** (email notifications config: env-var
+SMTP, 2026-07-07). Nothing gates the rewrite anymore. **D9–D13 stay deferred** (feature-specific, not
+gating the near-term plan).
 
 ---
 
@@ -163,10 +162,16 @@ rewrite decision (D2/D3) — cheap under greenfield, cleanest single-backing mod
 <a id="d8"></a>
 ### D8 — Email notifications config
 
-Gates: Plan P8. **Open.**
+Gates: Plan P8. **Decided (2026-07-07): env-var SMTP config.**
 
-Where SMTP config and recipients live (`operational_settings` vs env vs `account_profiles`), and
-whether email is filterable by event class (failure/recovery/success) independently of the webhook.
+SMTP settings live in environment variables (`TRADING_RUNTIME_ALERT_SMTP_*`), mirroring the existing
+webhook env pattern — no DB/schema change, and the password stays out of source by construction.
+Email is fully opt-in and best-effort, fanned out alongside the webhook by `notify_runtime_event`;
+auth is optional (unauthenticated relays supported). Runtime-editable recipients via
+`operational_settings` (DB) were rejected for now as unneeded surface (recipients change via env +
+redeploy). Email currently mirrors the webhook's event set; **per-transport event-class filtering
+(failure/recovery/success independently) is deferred** until there is demand. Variables are
+documented in the runtime-operations runbook.
 
 <a id="d9"></a>
 ### D9 — Adaptive-learning definition

@@ -146,10 +146,32 @@ All `local/` paths are gitignored. Back up `local/exports/` and `local/logs/` as
 
 ---
 
-## Webhook notifications
+## Runtime notifications
 
-Set `TRADING_RUNTIME_ALERT_WEBHOOK_URL` to receive webhook notifications on failure.
-Pass `--notify-on-success` to also receive success notifications.
+Runtime jobs emit events (failure by default; success with `--notify-on-success`/`--notify-on-ok`)
+to any configured transport. Both are opt-in and best-effort — an unset transport is skipped, and a
+delivery failure is logged to stderr without failing the job. The two transports are independent, so
+one failing does not suppress the other.
+
+**Webhook.** Set `TRADING_RUNTIME_ALERT_WEBHOOK_URL` (or pass `--notify-webhook-url`).
+
+**Email (SMTP).** Configured entirely via environment variables; email is sent only when host,
+sender, and at least one recipient are all set:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `TRADING_RUNTIME_ALERT_SMTP_HOST` | yes | Outgoing SMTP server hostname |
+| `TRADING_RUNTIME_ALERT_SMTP_FROM` | yes | From address |
+| `TRADING_RUNTIME_ALERT_SMTP_TO` | yes | Recipient(s), comma-separated |
+| `TRADING_RUNTIME_ALERT_SMTP_PORT` | no | Submission port (default `587`) |
+| `TRADING_RUNTIME_ALERT_SMTP_USERNAME` | no | SMTP login user (omit for an unauthenticated relay) |
+| `TRADING_RUNTIME_ALERT_SMTP_PASSWORD` | no | SMTP login password / app password (keep out of source) |
+| `TRADING_RUNTIME_ALERT_SMTP_USE_TLS` | no | STARTTLS on unless set to `0`/`false`/`no`/`off` |
+
+Username/password are optional so an unauthenticated local relay works; for a hosted mailbox (e.g.
+Gmail or a transactional provider) use the provider's SMTP credentials — an app password, never a
+committed secret. Email currently mirrors the webhook's event set; per-transport event filtering is
+not yet implemented.
 
 ---
 

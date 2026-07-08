@@ -44,6 +44,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     latest_log_contains_sentinel,
     logs_dir_for_repo,
     resolve_accounts,
+    resolve_email_config_from_env,
     stream_command,
     tee_line,
     ts,
@@ -495,6 +496,7 @@ def main() -> int:
         maybe_send_notification(
             notifier=notify_runtime_event,
             webhook_url=args.notify_webhook_url,
+            email_config=resolve_email_config_from_env(),
             notify_on_success=args.notify_on_success,
             status="ok",
             message="Daily paper trading run completed successfully",
@@ -524,6 +526,7 @@ def main() -> int:
         maybe_send_notification(
             notifier=notify_runtime_event,
             webhook_url=args.notify_webhook_url,
+            email_config=resolve_email_config_from_env(),
             notify_on_success=args.notify_on_success,
             status="fail",
             message=f"Daily paper trading run failed: {exc}",

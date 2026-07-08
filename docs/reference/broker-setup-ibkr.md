@@ -104,5 +104,4 @@ Use clearly non-marketable limit prices. Cancellation is best-effort — order s
 
 - [`broker-integration.md`](broker-integration.md) — broker architecture, adapter wiring, account fields, live-trading safety
 - [`broker-setup-alpaca.md`](broker-setup-alpaca.md) — Alpaca setup (parallel broker path, not yet implemented)
-- [`accounts-schema-usage.md`](accounts-schema-usage.md) — `broker_type` and `live_trading_enabled` field usage
 - [`runbooks/runtime-operations.md`](../runbooks/runtime-operations.md) — runtime operator workflow

@@ -87,8 +87,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/broker-integration.md` | Broker abstraction, IB connection setup, live-trading safety | `src/infrastructure/brokers/` adapters or connection config change |
 | `docs/reference/db-migration-system.md` | Hand-rolled SQLite migration system | `src/infrastructure/database/migrations.py` or migration conventions change |
 | `docs/reference/financial-market-knowledge.md` | Finance, market, and strategy glossary source for the documentation UI | Financial terminology or documentation UI glossary content changes |
-| `docs/reference/accounts-schema-usage.md` | Account schema field usage patterns | Account schema or model fields change |
-| `docs/reference/sleeve-schema-contract.md` | Sleeve schema contract between DB and domain | Sleeve table schema or `src/trading/models/` sleeve shapes change |
 | `docs/reference/strategies.md` | Strategy signal models and processing | `src/trading/domain/strategy_signals.py` or strategy config changes |
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
@@ -97,12 +95,9 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
-| `docs/plan.md` | Tasks/order/status/timelines tracker (priority board P1..N + commitment tags) | A task ships, priorities change, or estimates are set |
-| `docs/decisions.md` | Consolidated open decisions ("what needs defining") | A decision is made, added, or its status changes |
-| `docs/sleeves-accounts-convergence.md` | Design detail for converging account/sleeve trading paths | Convergence design, workstreams, or the A/B stance change |
-| `docs/db-schema-rewrite-spec.md` | Rationale + target for a clean DB rewrite (option B, greenfield) | DB rewrite scope, data-loss picture, or open decisions change |
-| `docs/db-schema-target.md` | Proposed final schema on its own (WIP) | Target tables/columns change |
-| `docs/developer-notes.md` | Developer gotchas + pre-implementation checks | Recurring dev pitfalls or required checks change |
+| `docs/status.md` | Current status per workstream (done/active/blocked/deferred + next action) — the tracker | A workstream changes state or a next action is taken |
+| `docs/decisions.md` | ADR-style decision records ("what was decided / needs defining") | A decision is made, added, or its status changes |
+| `docs/developer-notes.md` | Durable developer gotchas | Recurring dev pitfalls or required checks change |
 
 ### ADRs
 

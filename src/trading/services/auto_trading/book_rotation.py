@@ -25,7 +25,7 @@ from trading.repositories.book_bridge import default_book_id
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.auto_trading.rotation_candidates import build_book_rotation_candidates
 from trading.services.sleeves.rotation import (
-    SleeveRotationConfig,
+    RotationPolicyConfig,
     book_cooldown_active,
     evaluate_book_rotation,
 )
@@ -36,7 +36,7 @@ def evaluate_account_rotation_decision(
     account: AccountRecord,
     as_of_iso: str,
     *,
-    config: SleeveRotationConfig = SleeveRotationConfig(),
+    config: RotationPolicyConfig = RotationPolicyConfig(),
 ) -> str | None:
     """Select the account's rotation strategy via champion/challenger and record it.
 

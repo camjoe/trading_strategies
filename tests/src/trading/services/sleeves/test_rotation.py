@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from trading.models.sleeves.sleeve_strategy_metrics import SleeveStrategyMetrics
+from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.rotation import (
-    SleeveRotationConfig,
+    RotationPolicyConfig,
     evaluate_and_apply_sleeve_rotation,
 )
 from tests.support.repositories import insert_repository_account
@@ -21,8 +21,8 @@ def _insert_sleeve(conn, *, account_id: int, name: str = "core") -> int:
     )
 
 
-def _incumbent_metrics(*, strategy_name: str, param_set_id: int | None) -> SleeveStrategyMetrics:
-    return SleeveStrategyMetrics(
+def _incumbent_metrics(*, strategy_name: str, param_set_id: int | None) -> RotationStrategyMetrics:
+    return RotationStrategyMetrics(
         strategy_name=strategy_name,
         param_set_id=param_set_id,
         trade_count=12,
@@ -60,7 +60,7 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
         updated_at="2026-05-01T00:00:00Z",
     )
 
-    challenger = SleeveStrategyMetrics(
+    challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
         param_set_id=202,
         trade_count=30,
@@ -75,7 +75,7 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
         sleeve_id=sleeve_id,
         incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=101),
         challengers=[challenger],
-        config=SleeveRotationConfig(
+        config=RotationPolicyConfig(
             rolling_window_days=30,
             min_trades_in_window=20,
             outperformance_threshold_bps=25.0,
@@ -135,7 +135,7 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         created_at="2026-05-04T18:00:00Z",
     )
 
-    challenger = SleeveStrategyMetrics(
+    challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
         param_set_id=222,
         trade_count=40,
@@ -150,7 +150,7 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         sleeve_id=sleeve_id,
         incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=111),
         challengers=[challenger],
-        config=SleeveRotationConfig(cooldown_days=7),
+        config=RotationPolicyConfig(cooldown_days=7),
         decision_time="2026-05-05T12:00:00Z",
     )
 

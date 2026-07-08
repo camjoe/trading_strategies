@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
-class SleeveRotationDecision:
+class RotationDecision:
     rotation_action: str
     selected_strategy: str
     selected_param_set_id: int | None

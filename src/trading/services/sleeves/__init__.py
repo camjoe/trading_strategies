@@ -20,15 +20,15 @@ from trading.services.sleeves.reconciliation import (
     reconcile_sleeves_vs_latest_snapshot,
 )
 from trading.services.sleeves.rotation import (
-    SleeveRotationConfig,
-    SleeveRotationRunResult,
+    RotationPolicyConfig,
+    RotationRunResult,
     evaluate_and_apply_sleeve_rotation,
 )
+from trading.services.sleeves.rotation_metrics import build_rotation_strategy_metrics
 from trading.services.sleeves.shadow_evaluation import (
     DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
     ShadowEvaluationRun,
     SleeveShadowEvaluation,
-    build_sleeve_metrics_from_evaluation,
     build_sleeve_shadow_evaluation,
 )
 
@@ -42,12 +42,12 @@ __all__ = [
     "SleeveRiskDecision",
     "SleeveRiskGateConfig",
     "SleeveRiskGateResult",
-    "SleeveRotationConfig",
-    "SleeveRotationRunResult",
+    "RotationPolicyConfig",
+    "RotationRunResult",
     "evaluate_and_apply_sleeve_rotation",
+    "build_rotation_strategy_metrics",
     "DEFAULT_SHADOW_ROLLING_WINDOW_DAYS",
     "ShadowEvaluationRun",
     "SleeveShadowEvaluation",
-    "build_sleeve_metrics_from_evaluation",
     "build_sleeve_shadow_evaluation",
 ]

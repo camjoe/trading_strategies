@@ -57,7 +57,7 @@ from trading.models.sleeves.sleeve_risk_gate_config import SleeveRiskGateConfig
 from trading.services.sleeves.execution import generate_sleeve_trade_intents
 from trading.services.sleeves.sector_config import load_symbol_sector_map
 from trading.services.sleeves.rotation import (
-    SleeveRotationConfig,
+    RotationPolicyConfig,
     evaluate_and_apply_sleeve_rotation,
 )
 from trading.services.sleeves.shadow_evaluation import (
@@ -278,7 +278,7 @@ def _run_sleeve_rotation_decisions(
         if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
         else DEFAULT_SHADOW_ROLLING_WINDOW_DAYS
     )
-    config = SleeveRotationConfig(
+    config = RotationPolicyConfig(
         rolling_window_days=rolling_window_days,
         config_version=f"sleeve-rotation:{decision_time[:10]}",
     )

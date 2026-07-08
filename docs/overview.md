@@ -6,13 +6,12 @@ Created: 2026-07-01
 Last Reviewed: 2026-07-05
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
-frames the detailed backlog in [plan.md](plan.md) and the plans it references.
-Related: [Plan](plan.md), [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md),
-[DB Schema Rewrite Spec](db-schema-rewrite-spec.md),
+frames the current tracker in [status.md](status.md).
+Related: [Status](status.md), [Decisions](decisions.md),
 [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
-> This document is the definitive guideline. When priorities or capabilities change, update this
-> file first, then reconcile the detailed items in [plan.md](plan.md).
+> This document is the definitive guideline for **why/what**. When priorities or capabilities change,
+> update this file first, then reconcile current status in [status.md](status.md).
 
 ## What this app is
 
@@ -42,8 +41,8 @@ Design intent:
 - **Parameter set** — a versioned set of tunable parameters for a strategy (`StrategyParamSetRepository`).
 - **Evaluation** — the canonical `StrategyEvaluationArtifact`: backtest + walk-forward + paper/live
   evidence fused into confidence and a blended decision score.
-- **Rotation** — automated switching of the active strategy (champion/challenger for sleeves;
-  episode-based for accounts) based on evaluation.
+- **Rotation** — automated switching of the active strategy, book-keyed, via champion/challenger on
+  the decision-score contract (the account-episode paradigm was retired in P4).
 - **Promotion** — the human-gated lifecycle (research → paper → live-review) with audit history.
 - **Feature provider** — an external-data source (news, social, policy/ETF-proxy) that influences
   *trade signals* for "alternative" strategies. Feature providers are signal inputs, not evaluation
@@ -61,9 +60,10 @@ Design intent:
   (`EvaluationDecisionScore`).
 - **Promotion workflow** with research/paper/live-review stages, human gate, and append-only audit.
 - **Paper trading** with equity snapshots, trades, and benchmark overlays.
-- **Sleeve virtualization** — one broker account hosting multiple strategy sleeves, with
+- **Sleeve virtualization** — one broker account hosting multiple strategy sleeves (books), with
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
-- **Account-level rotation** (episode-based) as a separate, earlier paradigm.
+- **Unified rotation/submission/accounting** — accounts and sleeves converged onto one book-keyed
+  path (P4); rotation is one champion/challenger model on the decision-score contract.
 - **Broker abstraction** — paper adapter, IBKR Web API adapter, legacy socket adapter, behind one
   port + factory, with a hard `live_trading_enabled` safety guard.
 - **Feature providers** — news, social, and policy (ETF-proxy) sources for alternative strategies.
@@ -89,10 +89,8 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   `strategies` table, but adding a genuinely new strategy still needs a new signal function +
   `STRATEGY_REGISTRY` edit until P6 loads definitions from the catalog. A *variant/tuning* becomes a
   pure data change once P6/P7 land.
-- **Two rotation paradigms and duplicated account/sleeve orchestration** — see the
-  [Sleeves & Accounts Convergence Plan](sleeves-accounts-convergence.md).
-- **Parameters are scattered** across ~5 stores with no single view — see P7 (unified parameter
-  source).
+- **Parameters are scattered** across ~5 stores with no single view — see the unified parameter
+  source workstream (P7) in [status.md](status.md).
 
 ## How it works (architecture)
 
@@ -124,29 +122,20 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 
 ## Direction & plan (north star)
 
-The high-level priority order below is the strategic north star. The **authoritative, itemized
-tracker** (tasks / order / status / timelines) is [plan.md](plan.md); open decisions ("what needs
-defining") are consolidated in [decisions.md](decisions.md); convergence detail lives in the
-[convergence plan](sleeves-accounts-convergence.md).
+The strategic order here is the north star (the "why/what"). The **authoritative, itemized tracker**
+— what is left, the steps to complete it, and what is deferred — is [status.md](status.md); open
+decisions are in [decisions.md](decisions.md); completed work and its narrative live in git history.
 
-1. **P1 — Close the execution loop (keystone) — done (2026-07-03).** Strategy signals drive
-   live/paper execution through the shared `evaluate_signal` path; params flow via the
-   `resolve_strategy_params` seam (registry defaults until P3 makes knobs data).
-2. **P2 — Unified evaluation — done.** The shared decision-score contract backs compare, promotion,
-   and sleeve rotation, with cross-surface regression tests proving all three surfaces read it
-   identically (1a/1b/1c complete).
-3. **P3 — DB schema rewrite (greenfield, option B) — done (2026-07-05).** The clean book schema is
-   live: `books` + per-concern settings, one order/fill/position/ledger model, book-keyed snapshots/
-   metrics/rotation decisions (with first-class score columns), a data-defined `strategies` catalog,
-   and `strategy_id`-keyed backtests. Reads are re-pointed; legacy access paths reach the clean
-   tables through `book_bridge` until P4's write services retire the shims.
-4. **P4–P5 — Converge accounts and sleeves once on the clean schema** (submission/rotation/
-   accounting), with the decisioning legibility/naming pass alongside. **Next up.**
-5. **P6–P7 — Plug-and-play strategy/provider catalog and a unified parameter source**, on the new
-   schema (service-first, UI optional).
-6. **P8–P9** — email notifications (independent) and the portfolio risk rollup.
-7. **P10–P11 (Exploratory)** — adaptive learning and strategy parameter optimization, only if
-   evidence justifies.
+The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
+execution (P1); evaluation is unified behind one decision-score contract that backs compare,
+promotion, and rotation (P2); the clean book schema is live (P3); accounts and sleeves are converged
+onto one book-keyed submission/rotation/accounting path (P4); and the decisioning naming pass landed
+alongside (P5). Email notifications (P8) are in.
+
+What remains **committed** is the unified parameter source (P7) and the portfolio risk rollup (P9).
+The plug-and-play strategy/provider catalog (P6), adaptive learning (P10), parameter optimization
+(P11), and backtest-recalculation cadence (P12) are **exploratory** — pursued only if evidence
+justifies. See [status.md](status.md) for the live view.
 
 ## Guiding constraints
 
