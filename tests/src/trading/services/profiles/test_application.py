@@ -177,7 +177,7 @@ class TestApplyRotationFields:
         assert account["rotation_schedule"] == '["trend","breakout","mean_reversion"]'
         assert account["rotation_active_strategy"] == "breakout"
 
-    def test_optimal_fields(self, conn):
+    def test_rotation_fields_applied(self, conn):
         apply_account_profiles(
             conn,
             [{"name": "rot_opt", "initial_cash": 1000, "strategy": "trend"}],
@@ -192,8 +192,6 @@ class TestApplyRotationFields:
                     "rotation_enabled": True,
                     "rotation_interval_days": 7,
                     "rotation_schedule": ["trend", "mean_reversion"],
-                    "rotation_mode": "optimal",
-                    "rotation_optimality_mode": "average_return",
                     "rotation_lookback_days": 90,
                 }
             ],
@@ -202,8 +200,7 @@ class TestApplyRotationFields:
 
         assert (created, updated, skipped) == (0, 1, 0)
         account = get_account(conn, "rot_opt")
-        assert account["rotation_mode"] == "optimal"
-        assert account["rotation_optimality_mode"] == "average_return"
+        assert int(account["rotation_interval_days"]) == 7
         assert int(account["rotation_lookback_days"]) == 90
 
     def test_rejects_zero_interval_days(self, conn):
@@ -239,36 +236,6 @@ class TestApplyRotationFields:
                     }
                 ],
                 create_missing=False,
-            )
-
-    def test_rejects_invalid_mode(self, conn):
-        with pytest.raises(ValueError, match="rotation_mode"):
-            apply_account_profiles(
-                conn,
-                [
-                    {
-                        "name": "bad_rot_mode",
-                        "initial_cash": 1000,
-                        "strategy": "trend",
-                        "rotation_mode": "orbital",
-                    }
-                ],
-                create_missing=True,
-            )
-
-    def test_rejects_invalid_optimality_mode(self, conn):
-        with pytest.raises(ValueError, match="rotation_optimality_mode"):
-            apply_account_profiles(
-                conn,
-                [
-                    {
-                        "name": "bad_rot_opt",
-                        "initial_cash": 1000,
-                        "strategy": "trend",
-                        "rotation_optimality_mode": "median_return",
-                    }
-                ],
-                create_missing=True,
             )
 
     def test_rejects_zero_lookback_days(self, conn):
@@ -341,23 +308,6 @@ class TestApplyRotationFields:
         assert (created, updated, skipped) == (0, 1, 0)
         account = get_account(conn, "rot_noop")
         assert account["rotation_active_strategy"] == "trend"
-
-    def test_only_mode_updates_mode(self, conn):
-        apply_account_profiles(
-            conn,
-            [{"name": "rot_mode_only", "initial_cash": 1000, "strategy": "trend"}],
-            create_missing=True,
-        )
-
-        created, updated, skipped = apply_account_profiles(
-            conn,
-            [{"name": "rot_mode_only", "rotation_mode": "optimal"}],
-            create_missing=False,
-        )
-
-        assert (created, updated, skipped) == (0, 1, 0)
-        account = get_account(conn, "rot_mode_only")
-        assert account["rotation_mode"] == "optimal"
 
     def test_trade_universes_stored_on_create(self, conn) -> None:
         import json

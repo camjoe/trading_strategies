@@ -11,10 +11,6 @@ from common.time import parse_utc_iso
 if TYPE_CHECKING:
     from trading.models.rotation.rotation_config import RotationConfig
 
-ROTATION_MODES = {"time", "optimal", "regime"}
-OPTIMALITY_MODES = {"previous_period_best", "average_return", "hybrid_weighted"}
-ROTATION_OVERLAY_MODES = {"none", "news", "social", "news_social"}
-
 
 def _account_field(account: Mapping[str, object], key: str) -> object | None:
     """Safely read an account field from either dict-like rows or mappings."""
@@ -33,11 +29,6 @@ def _account_text(account: Mapping[str, object], key: str) -> str:
 def _coerce_default_int(value: object | None, default: int = 0) -> int:
     converted = coerce_int(value)
     return default if converted is None else converted
-
-
-def _normalize_allowed_mode(raw_value: object | None, *, default: str, allowed: set[str]) -> str:
-    mode = str(raw_value or default).strip().lower()
-    return mode if mode in allowed else default
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -123,29 +114,14 @@ def dump_rotation_schedule(schedule: list[str]) -> str:
     return json.dumps(schedule, separators=(",", ":"))
 
 
-def parse_rotation_overlay_watchlist(raw_value: object | None) -> list[str]:
-    return _parse_unique_string_list(
-        raw_value,
-        field_name="rotation_overlay_watchlist",
-        item_label="tickers",
-        normalizer=lambda value: value.upper(),
-    )
-
-
-def dump_rotation_overlay_watchlist(watchlist: list[str]) -> str:
-    return json.dumps(watchlist, separators=(",", ":"))
-
-
 def rotation_config_to_db_dict(cfg: RotationConfig) -> dict[str, object]:
     """Finalize ``RotationConfig.to_db_dict()`` for persistence.
 
-    The model owns the field→column mapping; this applies the domain-owned
-    JSON encoding to the two list-valued columns (schedule, overlay watchlist).
+    The model owns the field→column mapping; this applies the domain-owned JSON
+    encoding to the list-valued ``rotation_schedule`` column.
     """
     values = cfg.to_db_dict()
     values["rotation_schedule"] = dump_rotation_schedule(cfg.schedule) if cfg.schedule else None
-    if cfg.overlay_watchlist is not None:
-        values["rotation_overlay_watchlist"] = dump_rotation_overlay_watchlist(cfg.overlay_watchlist)
     return values
 
 

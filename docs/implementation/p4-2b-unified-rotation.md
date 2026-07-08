@@ -198,7 +198,7 @@ is no clean backend-only cut):
   request/response schemas.
 - **Frontend** — 8 TS/TSX files / ~83 refs: `account-detail/config-editor|config-options|config-summary`,
   `features/accounts/detail`, `features/admin/accounts`, `lib/account-config-options`, `types/accounts`,
-  and `tests/components/detail.test`.
+  and the `detail` component test.
 - DB columns stay (append-only). Update [ADR 009](../adr/009-regime-overlay-rotation-retired.md) to note
   the config plumbing was retired (design + columns + git preserve the revival path). Scope as coherent
   steps (backend → API contract → frontend + tests). Check: full `run_checks ci` green (incl. frontend).
