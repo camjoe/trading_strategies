@@ -50,10 +50,10 @@ Steps:
 ### Deploy step pending — sleeve retirement DB migration (migration · blocked on operator)
 
 The sleeve retirement (SR-1…SR-7) is **code-complete**; one operator step remains when the
-`features/sleeve-retirement` branch deploys to a host with an existing DB:
-back up → run `python -m trading.interfaces.runtime.data_ops.migrate_sleeve_books` once →
-drop the four orphaned tables (the exact `DROP` statements are in that module's docstring) →
-delete the data-op module. Fresh DBs need nothing.
+`features/sleeve-retirement` branch deploys to a host with an existing DB. Full procedure
+(backup → run the one-time data-op → verify → drop the four orphaned tables → delete the
+migration tooling): **[runbooks/sleeve-retirement-db-migration.md](runbooks/sleeve-retirement-db-migration.md)**.
+Fresh DBs need nothing.
 
 ## Deferred (exploratory — only if evidence justifies)
 

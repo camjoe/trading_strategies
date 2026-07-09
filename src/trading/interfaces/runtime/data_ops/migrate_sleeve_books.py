@@ -6,18 +6,12 @@ trade universes, and copy its open strategy assignment onto the book when the bo
 none. Idempotent — safe to re-run; existing book state is never overwritten by a
 second run (books are authoritative once populated).
 
-**Deploy checklist for an existing DB** (fresh DBs no longer create the legacy tables):
-1. Back up the DB (`local/db_backups/`).
-2. Run this op once: ``python -m trading.interfaces.runtime.data_ops.migrate_sleeve_books``.
-3. Drop the orphaned tables with explicit sign-off::
+**Full operator procedure** (backup, run, verify, table drops, tooling cleanup):
+``docs/runbooks/sleeve-retirement-db-migration.md``. Fresh DBs no longer create
+the legacy tables; this op detects that and exits as a no-op.
 
-       DROP TABLE IF EXISTS sleeve_strategy_assignments;
-       DROP TABLE IF EXISTS strategy_sleeves;
-       DROP TABLE IF EXISTS sleeve_risk_decisions;
-       DROP TABLE IF EXISTS portfolio_risk_snapshots;
-
-Reads the legacy tables via raw SQL on purpose; delete this module once the
-production DB has been migrated and dropped.
+Reads the legacy tables via raw SQL on purpose; delete this module (and the
+runbook) once every existing DB has been migrated and dropped.
 
 Usage:
     python -m trading.interfaces.runtime.data_ops.migrate_sleeve_books
