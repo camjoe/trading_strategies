@@ -17,6 +17,7 @@ from .routes import (
     health_router,
     ibkr_paper_monitor_router,
     logs_router,
+    portfolio_router,
 )
 
 app = FastAPI(title="Paper Trading UI API", version="0.1.0")
@@ -41,6 +42,7 @@ app.include_router(health_router)
 app.include_router(accounts_router)
 app.include_router(ibkr_paper_monitor_router)
 app.include_router(analysis_router)
+app.include_router(portfolio_router)
 app.include_router(admin_router)
 app.include_router(logs_router)
 app.include_router(actions_router)

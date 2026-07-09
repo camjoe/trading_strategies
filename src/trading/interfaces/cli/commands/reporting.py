@@ -63,6 +63,21 @@ def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPars
     p_history.add_argument("--account", required=True, help="Account name")
     p_history.add_argument("--limit", type=int, default=20, help="Number of rows to show")
 
+    sub.add_parser(
+        "portfolio-exposure",
+        help=(
+            "Show the cross-account exposure rollup (equity, cash, market value) from each account's latest snapshot."
+        ),
+    )
+
+    sub.add_parser(
+        "portfolio-concentration",
+        help=(
+            "Show cross-account concentration by symbol (share of total market value,"
+            " overlap across accounts) with a sector rollup."
+        ),
+    )
+
     p_compare = sub.add_parser(
         "compare-strategies",
         help=(

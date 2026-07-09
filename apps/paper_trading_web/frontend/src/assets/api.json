@@ -116,6 +116,14 @@
       "description": "Return account analysis including account return, benchmark return, alpha, PnL splits, top winners/losers, and improvement notes."
     },
     {
+      "method": "GET",
+      "path": "/api/portfolio/rollup",
+      "handler": "api_portfolio_rollup",
+      "module": "portfolio",
+      "group": "Analysis Endpoints",
+      "description": "Cross-account portfolio rollup: exposure per account plus symbol/sector concentration (P9, D10)."
+    },
+    {
       "method": "POST",
       "path": "/api/features/signals",
       "handler": "api_feature_signals",

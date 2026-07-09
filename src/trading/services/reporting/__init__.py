@@ -25,6 +25,8 @@ from trading.services.reporting.presentation import (
     show_snapshots,
     snapshot_account,
 )
+from trading.services.reporting.concentration import show_portfolio_concentration
+from trading.services.reporting.exposure import show_portfolio_exposure
 from trading.services.reporting.benchmark import (
     attach_live_benchmark_summary,
     build_live_benchmark_overlay,
@@ -60,6 +62,8 @@ __all__ = [
     "positions_summary_text",
     "settlement_cash",
     "settlement_corrected_equity",
+    "show_portfolio_concentration",
+    "show_portfolio_exposure",
     "show_snapshots",
     "snapshot_account",
     "strategy_return_pct",

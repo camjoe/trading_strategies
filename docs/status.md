@@ -3,23 +3,20 @@
 Type: notes
 Status: Active
 Created: 2026-07-08
-Last changed: 2026-07-08
+Last changed: 2026-07-09
 Last Reviewed: 2026-07-08
 Purpose: The single source of truth for what remains of the plan — what is left, the steps to
 complete it, and what is deferred. Current truth only; completed work lives in git history.
 Related: [Overview](overview.md) (north star / why), [Decisions](decisions.md) (decision records).
 
-> The original 11-phase plan (P1–P11, later P12) is more than half delivered: **P1–P5 and P8 are
-> done** (see the compact table at the bottom; details are in git). What follows is everything
+> The original 11-phase plan (P1–P11, later P12) is more than half delivered: **P1–P5, P8, and P9
+> are done** (see the compact table at the bottom; details are in git). What follows is everything
 > that remains.
 >
 > **Type** ∈ feature · refactor · cleanup · exploratory. **Status** ∈ not started · in progress ·
 > blocked · deferred.
 
 ## Remaining committed work
-
-The two committed workstreams are **independent of each other** — either can be done first, or both
-in parallel.
 
 ### P7 — Unified parameter source (feature · not started)
 
@@ -34,18 +31,6 @@ Steps:
    where params live).
 3. Add the CLI to view/edit through that service (interface primacy: CLI first, UI optional later).
 4. Migrate rotation/evaluation weights that should be tunable out of code-only defaults.
-
-### P9 — Portfolio risk rollup (feature · not started)
-
-Cross-account risk visibility from data that already exists.
-
-Steps:
-1. **v1 exposure rollup**: aggregation service over `equity_snapshots` + positions returning
-   cross-account equity, cash, and market value. Read-only, low risk.
-2. CLI entry for the rollup payload.
-3. **Overlap/concentration** (second slice): needs [D10](decisions.md#d10) first — define
-   concentration (by symbol, sector, or strategy) — then symbol-level cross-account analysis.
-4. Optional dashboard view only after the payload contract is stable.
 
 ### Deploy step pending — sleeve retirement DB migration (migration · blocked on operator)
 
@@ -76,6 +61,7 @@ Fresh DBs need nothing.
 | P5 — Decisioning naming pass (`Rotation*` rename) | 2026-07-07 |
 | P8 — Email notifications (webhook + SMTP; per-transport filtering deferred) | 2026-07-07 |
 | Sleeve retirement — sleeves removed; accounts + books are the one flow (fixed two live staleness bugs: rotation assignment drift, w3 allocation drift; ADR 003 superseded) | 2026-07-09 |
+| P9 — Portfolio risk rollup (exposure rollup + symbol/sector concentration per D10; `portfolio-exposure`/`portfolio-concentration` CLI, `/api/portfolio/rollup`, read-only Portfolio UI tab) | 2026-07-09 |
 
 ## Dropped (do not silently re-add)
 

@@ -15,8 +15,13 @@ from trading.models.accounts.account_insert import AccountInsert
 from trading.models.accounts.account_record import AccountRecord
 from trading.models.accounts.account_state import AccountState
 from trading.models.orders.broker_order import BrokerOrder, OrderFill, OrderStatus, OrderType, TimeInForce
+from trading.models.portfolio.account_exposure import AccountExposure
 from trading.models.portfolio.daily_metric_record import DailyMetricRecord
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
+from trading.models.portfolio.portfolio_concentration import PortfolioConcentration
+from trading.models.portfolio.portfolio_exposure_rollup import PortfolioExposureRollup
+from trading.models.portfolio.sector_concentration import SectorConcentration
+from trading.models.portfolio.symbol_concentration import SymbolConcentration
 from trading.models.settings.global_settings_record import GlobalSettingsRecord
 from trading.models.rotation.rotation_config import RotationConfig
 from trading.models.execution.risk_gate_position import RiskGatePosition
@@ -24,6 +29,7 @@ from trading.models.strategy.strategy_param_set_record import StrategyParamSetRe
 
 __all__ = [
     "AccountConfig",
+    "AccountExposure",
     "AccountInsert",
     "AccountRecord",
     "AccountState",
@@ -34,8 +40,12 @@ __all__ = [
     "OrderFill",
     "OrderStatus",
     "OrderType",
+    "PortfolioConcentration",
+    "PortfolioExposureRollup",
     "RotationConfig",
     "RiskGatePosition",
+    "SectorConcentration",
     "StrategyParamSetRecord",
+    "SymbolConcentration",
     "TimeInForce",
 ]

@@ -1,0 +1,61 @@
+.portfolio-card {
+  grid-column: span 12;
+}
+
+.portfolio-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.portfolio-section-title {
+  margin: 1.25rem 0 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.portfolio-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-white);
+  box-shadow: inset 0 1px 0 #ffffff80;
+}
+
+.portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.portfolio-table th,
+.portfolio-table td {
+  padding: 0.8rem 0.85rem;
+  border-bottom: 1px solid var(--line-subtle);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.portfolio-table th {
+  background: var(--table-head-bg-compare);
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.portfolio-table tfoot td {
+  border-bottom: none;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--surface-subtle);
+}
+
+.portfolio-overlap td {
+  background: var(--surface-subtle);
+}
