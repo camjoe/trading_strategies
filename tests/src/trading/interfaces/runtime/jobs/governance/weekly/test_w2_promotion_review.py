@@ -68,7 +68,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[])
         monkeypatch.setattr(
             module,
             "fetch_current_promotion_assessment",
@@ -95,8 +95,11 @@ class TestArtifactStructure:
         }
         from types import SimpleNamespace as _NS
 
-        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=None)
+        stub_runtime_job_basics(
+            monkeypatch,
+            module,
+            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev", param_set_id=None))],
+        )
         monkeypatch.setattr(
             module,
             "fetch_current_promotion_assessment",
@@ -114,10 +117,10 @@ class TestArtifactStructure:
         assert acct["account_name"] == "acct1"
         assert acct["ready_for_live"] is False
         assert acct["blockers"] == ["missing_data"]
-        assert len(acct["sleeves"]) == 1
-        assert acct["sleeves"][0]["sleeve_name"] == "sleeve_alpha"
-        assert acct["sleeves"][0]["strategy_name"] == "mean_rev"
-        assert acct["sleeves"][0]["sleeve_status"] == "active"
+        assert len(acct["books"]) == 1
+        assert acct["books"][0]["book_name"] == "sleeve_alpha"
+        assert acct["books"][0]["strategy_name"] == "mean_rev"
+        assert acct["books"][0]["book_status"] == "active"
 
 
 def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:

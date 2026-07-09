@@ -58,7 +58,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[])
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
@@ -74,9 +74,9 @@ class TestArtifactStructure:
         assert isinstance(payload["accounts"], list)
 
     def test_drift_and_reweight_computed_correctly(self, monkeypatch, tmp_path: Path) -> None:
-        # Two sleeves: start_equity 600 and 400 (60% / 40% target)
+        # Two books: start_equity 600 and 400 (60% / 40% target)
         # current_equity values: 600 and 400 (60% / 40% current)
-        sleeve_rows = [
+        book_rows = [
             {
                 "id": 1,
                 "name": "sleeve_a",
@@ -92,7 +92,7 @@ class TestArtifactStructure:
                 "current_equity": 400.0,
             },
         ]
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=sleeve_rows)
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=book_rows)
 
         result = _run_job(
             monkeypatch,
@@ -107,7 +107,7 @@ class TestArtifactStructure:
         )
         acct = payload["accounts"][0]
         assert acct["total_nav"] == 1000.0  # 600 + 400
-        sleeves = {s["sleeve_name"]: s for s in acct["sleeves"]}
+        sleeves = {s["book_name"]: s for s in acct["books"]}
         # sleeve_a: current_nav=600, current_pct=60, target_pct=60, drift=0 → no reweight
         assert abs(sleeves["sleeve_a"]["current_pct"] - 60.0) < 0.01
         assert abs(sleeves["sleeve_a"]["target_pct"] - 60.0) < 0.01
@@ -138,13 +138,13 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
     assert payload["accounts"] == []
 
 
-def test_main_returns_1_when_sleeve_lookup_raises(monkeypatch, tmp_path: Path) -> None:
-    from unittest.mock import MagicMock
-
+def test_main_returns_1_when_book_lookup_raises(monkeypatch, tmp_path: Path) -> None:
     stub_runtime_job_basics(monkeypatch, module)
-    boom_repo = MagicMock()
-    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
-    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
+
+    def _boom(conn, *, account_id):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module, "list_report_books", _boom)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

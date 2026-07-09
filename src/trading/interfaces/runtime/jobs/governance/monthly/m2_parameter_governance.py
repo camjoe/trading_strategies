@@ -14,8 +14,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
-from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
+from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -49,13 +49,10 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        sleeve_repo = SleeveRepository(ctx.conn)
         param_set_repo = StrategyParamSetRepository(ctx.conn)
-        sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
-        sleeve_rows: list[dict[str, object]] = []
+        book_rows: list[dict[str, object]] = []
 
-        for sleeve in sleeves:
-            assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name: str | None = None
             param_set_id: int | None = None
             params: object = None
@@ -71,17 +68,17 @@ def main(ctx: JobContext) -> dict[str, object]:
                         except ValueError, TypeError:
                             params = None
 
-            sleeve_rows.append(
+            book_rows.append(
                 {
-                    "sleeve_name": sleeve.name,
+                    "book_name": book.name,
                     "strategy_name": strategy_name,
                     "param_set_id": param_set_id,
                     "params": params,
                 }
             )
 
-        account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
-        ctx.log(f"PARAM_GOVERNANCE: account={account_name} sleeves={len(sleeve_rows)}")
+        account_results.append({"account_name": account_name, "books": book_rows})
+        ctx.log(f"PARAM_GOVERNANCE: account={account_name} books={len(book_rows)}")
 
     return {
         "month": ctx.tag,

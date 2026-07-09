@@ -51,7 +51,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.notifications import notify_runtime_event
-from trading.services.auto_trading import EXECUTION_MODE_SLEEVE
+from trading.services.auto_trading import EXECUTION_MODE_BOOK
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -186,7 +186,7 @@ def run_auto_trader_group(
         "--fee",
         str(fee),
         "--execution-mode",
-        EXECUTION_MODE_SLEEVE,
+        EXECUTION_MODE_BOOK,
     ]
     if seed is not None:
         auto_trader_args.extend(["--seed", str(seed)])
@@ -417,7 +417,7 @@ def main() -> int:
 
         run_dag_step(
             step_results,
-            step_id="05_build_position_targets_by_sleeve",
+            step_id="05_build_position_targets_by_book",
             run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )

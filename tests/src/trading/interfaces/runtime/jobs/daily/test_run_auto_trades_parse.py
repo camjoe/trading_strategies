@@ -26,7 +26,7 @@ def test_parse_args_reads_cli_values(monkeypatch) -> None:
             "--seed",
             "99",
             "--execution-mode",
-            "sleeve",
+            "book",
         ],
     )
 
@@ -37,4 +37,4 @@ def test_parse_args_reads_cli_values(monkeypatch) -> None:
     assert args.max_trades == 7
     assert args.fee == pytest.approx(1.25)
     assert args.seed == 99
-    assert args.execution_mode == "sleeve"
+    assert args.execution_mode == "book"

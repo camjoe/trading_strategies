@@ -6,9 +6,7 @@ from unittest.mock import Mock
 
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
@@ -18,12 +16,13 @@ from trading.models.evaluation import (
     StrategyEvaluationArtifact,
 )
 from trading.models.orders.broker_order import OrderFill, OrderStatus
-from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
+from trading.models.execution.book_trade_candidate import BookTradeCandidate
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_sleeve
+from tests.support.books import insert_test_book
+from trading.services.books.book_assignments import open_assignment_for_book
 
 DEFAULT_RUNTIME_NOW_ISO = "2026-05-03T14:00:00Z"
 
@@ -41,15 +40,15 @@ def _patch_rotation_evaluation(monkeypatch, scores: dict[str, float], *, trade_c
         )
 
     monkeypatch.setattr(
-        "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row",
+        "trading.services.books.rotation_metrics.fetch_strategy_evaluation_for_account_row",
         _fake_fetch,
     )
 
 
-def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> SleeveTradeIntent:
-    return SleeveTradeIntent(
+def _make_buy_intent(*, account_id: int, book_id: int, qty: int = 1) -> BookTradeCandidate:
+    return BookTradeCandidate(
         account_id=account_id,
-        sleeve_id=sleeve_id,
+        book_id=book_id,
         strategy_name="trend",
         param_set_id=None,
         side="buy",
@@ -64,15 +63,17 @@ def _make_buy_intent(*, account_id: int, sleeve_id: int, qty: int = 1) -> Sleeve
 
 def _patch_single_buy_intent(
     monkeypatch,
+    conn,
     *,
     account_id: int,
-    sleeve_id: int,
+    book_id: int,
     qty: int = 1,
 ) -> None:
+    del conn  # kept for call-site compatibility
     monkeypatch.setattr(
         runtime_service,
-        "generate_sleeve_trade_intents",
-        lambda *_args, **_kwargs: [_make_buy_intent(account_id=account_id, sleeve_id=sleeve_id, qty=qty)],
+        "generate_book_trade_intents",
+        lambda *_args, **_kwargs: [_make_buy_intent(account_id=account_id, book_id=book_id, qty=qty)],
     )
 
 
@@ -104,25 +105,21 @@ def _patch_reconciliation_reasons(monkeypatch, reasons: list[str]) -> None:
 
 
 def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
-    rotation_sleeve_env, conn, monkeypatch
+    rotation_book_env, conn, monkeypatch
 ) -> None:
-    account_name = rotation_sleeve_env.account_name
-    sleeve_id = rotation_sleeve_env.sleeve_id
+    account_name = rotation_book_env.account_name
+    book_id = rotation_book_env.book_id
 
     _patch_runtime_sleeve_execution(monkeypatch, now_iso="2026-05-05T14:00:00Z")
     _patch_rotation_evaluation(monkeypatch, {"trend": 0.0, "meanrev": 5.0})
     captured = {"active_strategy": None}
 
     def _capture_intents(*_args, **_kwargs):
-        assignment = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
-        captured["active_strategy"] = (
-            assignment.strategy_name.strip()
-            if assignment is not None and assignment.strategy_name is not None
-            else None
-        )
+        assignment = open_assignment_for_book(conn, book_id=book_id)
+        captured["active_strategy"] = assignment.strategy_name.strip() if assignment is not None else None
         return []
 
-    monkeypatch.setattr(runtime_service, "generate_sleeve_trade_intents", _capture_intents)
+    monkeypatch.setattr(runtime_service, "generate_book_trade_intents", _capture_intents)
 
     executed = run_for_account(
         conn,
@@ -133,24 +130,24 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=Mock(),
         feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
     assert captured["active_strategy"] == "meanrev"
-    latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
+    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
     assert latest_decision["rotation_action"] == "rotate"
     assert latest_decision["selected_strategy"] == "meanrev"
 
 
-def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_env, conn, monkeypatch) -> None:
-    account_name = rotation_sleeve_env.account_name
-    sleeve_id = rotation_sleeve_env.sleeve_id
-    RotationDecisionRepository(conn).insert(
-        sleeve_id=sleeve_id,
+def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_book_env, conn, monkeypatch) -> None:
+    account_name = rotation_book_env.account_name
+    book_id = rotation_book_env.book_id
+    RotationDecisionRepository(conn).insert_for_book(
+        book_id=book_id,
         decision_time="2026-05-05T10:00:00Z",
         incumbent_strategy="trend",
         challenger_strategy="meanrev",
@@ -169,15 +166,11 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
     captured = {"active_strategy": None}
 
     def _capture_intents(*_args, **_kwargs):
-        assignment = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
-        captured["active_strategy"] = (
-            assignment.strategy_name.strip()
-            if assignment is not None and assignment.strategy_name is not None
-            else None
-        )
+        assignment = open_assignment_for_book(conn, book_id=book_id)
+        captured["active_strategy"] = assignment.strategy_name.strip() if assignment is not None else None
         return []
 
-    monkeypatch.setattr(runtime_service, "generate_sleeve_trade_intents", _capture_intents)
+    monkeypatch.setattr(runtime_service, "generate_book_trade_intents", _capture_intents)
 
     executed = run_for_account(
         conn,
@@ -188,29 +181,29 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_sleeve_
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=Mock(),
         feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
     assert captured["active_strategy"] == "trend"
-    latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
+    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
     assert latest_decision["rotation_action"] == "hold"
     assert latest_decision["decision_reason"] == "cooldown_active"
     assert int(latest_decision["cooldown_active"]) == 1
 
 
-def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, conn, monkeypatch) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+def test_run_for_account_sleeve_mode_submits_and_persists_orders(book_env, conn, monkeypatch) -> None:
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -221,15 +214,13 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
     # The sleeve submits through the shared service onto its bridging book's clean tables.
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
-    assert book_id is not None
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
     order = orders[0]
@@ -258,7 +249,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     risk_snapshot = conn.execute(
         """
         SELECT max_symbol_concentration_pct, max_sector_concentration_pct
-        FROM portfolio_risk_snapshots
+        FROM risk_snapshots
         WHERE account_id = ?
         ORDER BY snapshot_time DESC
         LIMIT 1
@@ -271,7 +262,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     decision_rows = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id ASC
         """,
@@ -284,15 +275,15 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     broker.disconnect.assert_called_once()
 
 
-def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_env, conn, monkeypatch) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(book_env, conn, monkeypatch) -> None:
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id, qty=5)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id, qty=5)
 
     executed = run_for_account(
         conn,
@@ -303,7 +294,7 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -314,15 +305,13 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
     assert broker_order.qty == 2.0
 
     # The notional cap rescaled the intent from 5 to 2 shares before submission.
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
-    assert book_id is not None
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
     assert float(orders[0].qty) == 2.0
     rescale_row = conn.execute(
         """
         SELECT action, reason_code, requested_qty, approved_qty
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -331,20 +320,20 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
     ).fetchone()
     assert rescale_row is not None
     assert rescale_row["action"] == "rescale"
-    assert rescale_row["reason_code"] == "sleeve_notional_cap"
+    assert rescale_row["reason_code"] == "book_notional_cap"
     assert int(rescale_row["requested_qty"]) == 5
     assert int(rescale_row["approved_qty"]) == 2
 
 
-def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(sleeve_env, conn, monkeypatch) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(book_env, conn, monkeypatch) -> None:
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -355,7 +344,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -363,7 +352,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -373,7 +362,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     decision_row = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -385,15 +374,15 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     assert decision_row["reason_code"] == "stale_price_data"
 
 
-def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_env, conn, monkeypatch) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(book_env, conn, monkeypatch) -> None:
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
     broker = FakeBroker()
 
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_reasons(monkeypatch, ["reconciliation_mismatch"])
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -404,7 +393,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -412,7 +401,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -422,7 +411,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     decision_row = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -434,10 +423,10 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     assert decision_row["reason_code"] == "reconciliation_mismatch"
 
 
-def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn, monkeypatch) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(book_env, conn, monkeypatch) -> None:
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
 
     class _FailingBroker:
         def __init__(self) -> None:
@@ -452,7 +441,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
     broker = _FailingBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -463,14 +452,14 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 0
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -478,13 +467,11 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
     payload = json.loads(row["risk_payload_json"])
     assert "broker_api_anomaly" in payload["kill_switch_reasons"]
     # The broker raised before any order was persisted → no clean order row.
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
-    assert book_id is not None
     assert OrderRepository(conn).fetch_for_book(book_id=book_id) == []
     decision_row = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -499,7 +486,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
 
 def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(conn, monkeypatch) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve")
-    sleeve_id = insert_test_sleeve(
+    book_id = insert_test_book(
         conn,
         account_id=account_id,
         start_equity=1_000.0,
@@ -518,7 +505,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -529,7 +516,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -537,7 +524,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -547,16 +534,16 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
 
 
 def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_missing_value_error(
-    sleeve_env, conn, monkeypatch
+    book_env, conn, monkeypatch
 ) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
 
     broker = FakeBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_reasons(monkeypatch, ["reconciliation_snapshot_missing"])
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -567,7 +554,7 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -575,7 +562,7 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -585,11 +572,11 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
 
 
 def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_broker_rows(
-    sleeve_env, conn, monkeypatch
+    book_env, conn, monkeypatch
 ) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
 
     class _NoBrokerIdBroker:
         def place_order(self, order):
@@ -606,7 +593,7 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
     broker = _NoBrokerIdBroker()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -617,25 +604,23 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
 
     assert executed == 1
     # The clean order carries a null broker id (the legacy broker_orders table is gone).
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
-    assert book_id is not None
     orders = OrderRepository(conn).fetch_for_book(book_id=book_id)
     assert len(orders) == 1
     assert orders[0].status == "submitted"
     assert orders[0].broker_order_id is None
 
 
-def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_env, conn, monkeypatch) -> None:
-    account_name = sleeve_env.account_name
-    account_id = sleeve_env.account_id
-    sleeve_id = sleeve_env.sleeve_id
+def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(book_env, conn, monkeypatch) -> None:
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
 
     class _BrokerWithFill:
         def place_order(self, order):
@@ -660,7 +645,7 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
     broker = _BrokerWithFill()
     _patch_runtime_sleeve_execution(monkeypatch)
     _patch_reconciliation_clean(monkeypatch)
-    _patch_single_buy_intent(monkeypatch, account_id=account_id, sleeve_id=sleeve_id)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
 
     executed = run_for_account(
         conn,
@@ -671,7 +656,7 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(sleeve_e
         min_trades=1,
         max_trades=1,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )

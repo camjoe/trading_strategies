@@ -9,7 +9,7 @@ from common.files import sorted_by_mtime_desc
 from infrastructure.database.init import ensure_db
 from trading.interfaces.runtime.notifications import EmailNotificationConfig
 from trading.services.accounts.queries import find_account
-from trading.services.sleeves.daily_report import account_daily_report_as_dict, build_account_daily_report
+from trading.services.books.daily_report import account_daily_report_as_dict, build_account_daily_report
 
 SHADOW_EVAL_EXPORT_DIR = Path("local") / "exports" / "daily_challenger_shadow_eval"
 
@@ -24,24 +24,24 @@ def latest_shadow_eval_summary(repo_root: Path) -> dict[str, object] | None:
     results = payload.get("results", [])
     if not isinstance(results, list):
         results = []
-    sleeve_count = 0
+    book_count = 0
     challenger_count = 0
     for account_result in results:
         if not isinstance(account_result, dict):
             continue
-        sleeves = account_result.get("sleeves", [])
-        if not isinstance(sleeves, list):
+        books = account_result.get("books", [])
+        if not isinstance(books, list):
             continue
-        sleeve_count += len(sleeves)
-        for sleeve in sleeves:
-            if not isinstance(sleeve, dict):
+        book_count += len(books)
+        for book in books:
+            if not isinstance(book, dict):
                 continue
-            challenger_count += int(sleeve.get("challenger_count") or 0)
+            challenger_count += int(book.get("challenger_count") or 0)
     return {
         "status": payload.get("status"),
         "artifact_path": latest.relative_to(repo_root).as_posix(),
         "account_count": len(results),
-        "sleeve_count": sleeve_count,
+        "book_count": book_count,
         "challenger_count": challenger_count,
     }
 

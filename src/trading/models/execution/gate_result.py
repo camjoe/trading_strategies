@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
+from trading.models.execution.risk_gate_decision import RiskGateDecision
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,7 +17,7 @@ class GateResult:
     (stale price, reconciliation mismatch, etc.); a non-empty list means the whole
     book is held and nothing is submitted. ``decisions`` are the notional-gate's
     per-intent outcomes (allow/rescale/block + reason codes), bucketed by book;
-    callers use them to persist the risk audit. (``SleeveRiskDecision`` is the
+    callers use them to persist the risk audit. (``RiskGateDecision`` is the
     reused decision contract — its ``sleeve_id`` field carries the ``book_id``
     under the book-as-bucket model; P5 renames it.)
     """
@@ -26,4 +26,4 @@ class GateResult:
     blocked_intents: list[BookTradeIntent] = field(default_factory=list)
     rescaled_intents: list[BookTradeIntent] = field(default_factory=list)
     kill_switch_reasons: list[str] = field(default_factory=list)
-    decisions: list[SleeveRiskDecision] = field(default_factory=list)
+    decisions: list[RiskGateDecision] = field(default_factory=list)

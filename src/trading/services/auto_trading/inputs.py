@@ -16,10 +16,12 @@ from trading.services.market_data import MarketDataProvider
 from trading.services.pricing import fetch_latest_prices
 
 EXECUTION_MODE_ACCOUNT = "account"
-EXECUTION_MODE_SLEEVE = "sleeve"
+EXECUTION_MODE_BOOK = "book"
+# Operator-facing legacy spelling; accepted and normalized to "book" (sleeve retirement SR-6b).
+LEGACY_EXECUTION_MODE_SLEEVE = "sleeve"
 SUPPORTED_EXECUTION_MODES = {
     EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_SLEEVE,
+    EXECUTION_MODE_BOOK,
 }
 
 
@@ -39,6 +41,8 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
 
 def validate_execution_mode(execution_mode: str) -> str:
     normalized_mode = execution_mode.strip().lower()
+    if normalized_mode == LEGACY_EXECUTION_MODE_SLEEVE:
+        normalized_mode = EXECUTION_MODE_BOOK
     if normalized_mode not in SUPPORTED_EXECUTION_MODES:
         options = ", ".join(sorted(SUPPORTED_EXECUTION_MODES))
         raise ValueError(f"execution_mode must be one of: {options}")

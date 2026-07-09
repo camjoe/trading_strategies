@@ -92,6 +92,13 @@ class BookRepository:
         )
         self._conn.commit()
 
+    def update_trade_universes(self, *, book_id: int, trade_universes: str | None, updated_at: str) -> None:
+        self._conn.execute(
+            "UPDATE books SET trade_universes = ?, updated_at = ? WHERE id = ?",
+            (trade_universes, updated_at, int(book_id)),
+        )
+        self._conn.commit()
+
     def update_balances(
         self,
         *,

@@ -1,4 +1,4 @@
-"""Seed module for sleeve data used in the shared seeded_conn fixture."""
+"""Seed module for multi-book data used in the shared seeded_conn fixture."""
 
 from __future__ import annotations
 
@@ -6,43 +6,33 @@ import sqlite3
 
 from tests.support.seed.accounts import ACCT_TREND, seed_account_id
 
-SLEEVE_TREND = "seed_sleeve_core"
-SLEEVE_STRATEGY = "trend_v1"
-SLEEVE_METRIC_DATE = "2026-01-03"
+BOOK_TREND = "seed_book_core"
+BOOK_STRATEGY = "trend_v1"
+BOOK_METRIC_DATE = "2026-01-03"
 
 
-def seed_sleeves(conn: sqlite3.Connection) -> None:
+def seed_books(conn: sqlite3.Connection) -> None:
+    from trading.repositories.books import BookRepository
     from trading.repositories.daily_metrics import DailyMetricsRepository
-    from trading.repositories.sleeves import SleeveRepository
+    from trading.services.books.book_assignments import assign_book_strategy
 
     acct_id = seed_account_id(conn, ACCT_TREND)
     ts = "2026-01-01T00:00:00Z"
-    sleeve_repo = SleeveRepository(conn)
-    sleeve_id = sleeve_repo.insert(
+    book_id = BookRepository(conn).insert(
         account_id=acct_id,
-        name=SLEEVE_TREND,
-        status="active",
-        base_ccy="USD",
+        name=BOOK_TREND,
+        is_default=0,
         start_equity=10_000.0,
         current_cash=9_000.0,
         current_equity=10_200.0,
         created_at=ts,
         updated_at=ts,
     )
-    sleeve_repo.insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name=SLEEVE_STRATEGY,
-        param_set_id=None,
-        effective_from="2026-01-01",
-        effective_to=None,
-        is_incumbent=1,
-        created_at=ts,
-        updated_at=ts,
-    )
+    assign_book_strategy(conn, book_id=book_id, strategy_name=BOOK_STRATEGY, param_set_id=None, now_iso=ts)
     DailyMetricsRepository(conn).upsert(
         account_id=acct_id,
-        sleeve_id=sleeve_id,
-        metric_date=SLEEVE_METRIC_DATE,
+        book_id=book_id,
+        metric_date=BOOK_METRIC_DATE,
         return_pct=1.5,
         drawdown_pct=-2.0,
         turnover_pct=0.1,
@@ -58,8 +48,8 @@ def seed_sleeves(conn: sqlite3.Connection) -> None:
 
 
 __all__ = [
-    "SLEEVE_METRIC_DATE",
-    "SLEEVE_STRATEGY",
-    "SLEEVE_TREND",
-    "seed_sleeves",
+    "BOOK_METRIC_DATE",
+    "BOOK_STRATEGY",
+    "BOOK_TREND",
+    "seed_books",
 ]

@@ -58,7 +58,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[])
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
@@ -76,8 +76,11 @@ class TestArtifactStructure:
         from types import SimpleNamespace as _NS
 
         sleeve_row = {"id": 7, "name": "sleeve_q"}
-        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=42)
+        mocks = stub_runtime_job_basics(
+            monkeypatch,
+            module,
+            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev", param_set_id=42))],
+        )
         mocks.param_set_repo.fetch_by_id.return_value = _NS(id=42, params_json='{"lookback": 20, "threshold": 0.5}')
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
@@ -87,8 +90,8 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "monthly_governance_m2_parameter_governance_*.json",
         )
-        sleeve = payload["accounts"][0]["sleeves"][0]
-        assert sleeve["sleeve_name"] == "sleeve_q"
+        sleeve = payload["accounts"][0]["books"][0]
+        assert sleeve["book_name"] == "sleeve_q"
         assert sleeve["strategy_name"] == "mean_rev"
         assert sleeve["param_set_id"] == 42
         assert sleeve["params"] == {"lookback": 20, "threshold": 0.5}
@@ -98,8 +101,11 @@ class TestArtifactStructure:
 
         sleeve_row = {"id": 7, "name": "sleeve_q"}
         captured: dict[str, int] = {}
-        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=99)
+        mocks = stub_runtime_job_basics(
+            monkeypatch,
+            module,
+            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev", param_set_id=99))],
+        )
 
         def _fetch_by_id(*, param_set_id):
             captured["param_set_id"] = param_set_id
@@ -115,21 +121,21 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "monthly_governance_m2_parameter_governance_*.json",
         )
-        sleeve = payload["accounts"][0]["sleeves"][0]
+        sleeve = payload["accounts"][0]["books"][0]
         assert sleeve["param_set_id"] == 99
         assert sleeve["params"] == {"alpha": 1.2}
 
     def test_null_param_set_when_no_assignment(self, monkeypatch, tmp_path: Path) -> None:
         sleeve_row = {"id": 8, "name": "sleeve_r"}
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        # fetch_active_assignment returns None by default from stub
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[sleeve_row])
+        # unassigned book: the stubbed pair carries assignment=None
 
         _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         payload = load_single_artifact_json(
             tmp_path / "local" / "artifacts",
             "monthly_governance_m2_parameter_governance_*.json",
         )
-        sleeve = payload["accounts"][0]["sleeves"][0]
+        sleeve = payload["accounts"][0]["books"][0]
         assert sleeve["strategy_name"] is None
         assert sleeve["param_set_id"] is None
         assert sleeve["params"] is None
@@ -157,24 +163,27 @@ def test_invalid_params_json_falls_back_to_none(monkeypatch, tmp_path: Path) -> 
     from types import SimpleNamespace as _NS
 
     sleeve_row = {"id": 7, "name": "sleeve_q"}
-    mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-    mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="mean_rev", param_set_id=42)
+    mocks = stub_runtime_job_basics(
+        monkeypatch,
+        module,
+        books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev", param_set_id=42))],
+    )
     mocks.param_set_repo.fetch_by_id.return_value = _NS(id=42, params_json="{bad json")
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 0
     payload = load_single_artifact_json(
         tmp_path / "local" / "artifacts", "monthly_governance_m2_parameter_governance_*.json"
     )
-    assert payload["accounts"][0]["sleeves"][0]["params"] is None
+    assert payload["accounts"][0]["books"][0]["params"] is None
 
 
 def test_main_returns_1_when_param_lookup_raises(monkeypatch, tmp_path: Path) -> None:
-    from unittest.mock import MagicMock
-
     stub_runtime_job_basics(monkeypatch, module)
-    boom_repo = MagicMock()
-    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
-    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
+
+    def _boom(conn, *, account_id):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module, "list_report_books", _boom)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

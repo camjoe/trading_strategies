@@ -10,7 +10,7 @@ import pytest
 import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 from trading.interfaces.runtime.jobs.job_helpers import day_tag
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
-from trading.services.sleeves.shadow_evaluation import ShadowEvaluationRun, SleeveShadowEvaluation
+from trading.services.books.challenger_evaluation import ChallengerEvaluationRun, BookChallengerEvaluation
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE as MODULE_NAME,
@@ -40,15 +40,15 @@ def _stub_db(monkeypatch) -> None:
     monkeypatch.setattr(job_runner, "db_session", _fake_session)
 
 
-def _sample_run(account_name: str) -> ShadowEvaluationRun:
-    return ShadowEvaluationRun(
+def _sample_run(account_name: str) -> ChallengerEvaluationRun:
+    return ChallengerEvaluationRun(
         account_id=1,
         account_name=account_name,
         window_start_day="2026-04-08",
         window_end_day="2026-05-07",
-        sleeves=[
-            SleeveShadowEvaluation(
-                sleeve_id=10,
+        books=[
+            BookChallengerEvaluation(
+                book_id=77,
                 incumbent_strategy="trend",
                 incumbent=RotationStrategyMetrics(
                     strategy_name="trend",
@@ -102,7 +102,7 @@ def test_main_writes_success_artifact(monkeypatch, tmp_path: Path) -> None:
     payload = load_single_artifact_json(tmp_path.joinpath(*EXPORT_DIR_PARTS), ARTIFACT_GLOB)
     assert payload["status"] == "success"
     assert payload["results"][0]["account_name"] == "acct1"
-    assert payload["results"][0]["sleeves"][0]["challenger_count"] == 1
+    assert payload["results"][0]["books"][0]["challenger_count"] == 1
 
 
 def test_main_returns_1_for_unknown_account(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -163,7 +163,7 @@ def test_run_shadow_eval_for_account_uses_account_lookup_and_builder(monkeypatch
         captured["rolling_window_days"] = rolling_window_days
         return "shadow-run"
 
-    monkeypatch.setattr(module, "build_sleeve_shadow_evaluation", _fake_builder)
+    monkeypatch.setattr(module, "build_book_challenger_evaluations", _fake_builder)
 
     result = module.run_shadow_eval_for_account(
         object(), account_name="acct1", rolling_window_days=45, as_of_iso="2026-05-07"

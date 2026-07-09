@@ -18,8 +18,8 @@ from trading.domain.rotation import (
     parse_rotation_schedule,
     resolve_active_strategy,
 )
-from trading.domain.sleeve_accounting import (
-    apply_sleeve_fill_transition,
+from trading.domain.book_accounting import (
+    apply_book_fill_transition,
     compute_sleeve_equity,
     normalize_sleeve_order_input,
 )
@@ -40,7 +40,7 @@ __all__ = [
     "is_rotation_due",
     "parse_rotation_schedule",
     "resolve_active_strategy",
-    "apply_sleeve_fill_transition",
+    "apply_book_fill_transition",
     "compute_sleeve_equity",
     "normalize_sleeve_order_input",
 ]

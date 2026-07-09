@@ -267,16 +267,20 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
 )
 
-# Placeholder hooks for future additive sleeve-table column migrations.
-# New ColumnMigration entries for these tables should be appended in place.
-SLEEVE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
-    "strategy_sleeves": (
-        ColumnMigration("trade_universes", "ALTER TABLE strategy_sleeves ADD COLUMN trade_universes TEXT"),
-    ),
+# Placeholder hooks for future additive column migrations on these tables.
+# New ColumnMigration entries should be appended in place.
+TABLE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
     "strategy_param_sets": (),
-    "sleeve_strategy_assignments": (),
     "rotation_decisions": (),
-    "portfolio_risk_snapshots": (),
-    "sleeve_risk_decisions": (),
     "daily_metrics": (),
+}
+
+# Additive column migrations for the clean book tables (greenfield CREATEs cover
+# fresh DBs; these bring existing DBs up to the current shape).
+BOOK_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
+    # param_set_id: assignments pin the rotation winner's param set (sleeve
+    # retirement SR-1 / D-SR1a — book assignments are the single assignment record).
+    "book_strategy_assignments": (
+        ColumnMigration("param_set_id", "ALTER TABLE book_strategy_assignments ADD COLUMN param_set_id INTEGER"),
+    ),
 }

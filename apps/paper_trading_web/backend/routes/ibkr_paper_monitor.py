@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("/api/ibkr-paper-accounts")
 def api_ibkr_paper_accounts() -> dict[str, object]:
-    """Return list of IBKR paper accounts with sleeve summary and latest run status."""
+    """Return list of IBKR paper accounts with book summary and latest run status."""
     with db_conn() as conn:
         accounts = fetch_ibkr_paper_accounts_list(conn)
         return {"accounts": accounts}

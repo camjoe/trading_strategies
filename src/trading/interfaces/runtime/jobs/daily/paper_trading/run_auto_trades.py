@@ -13,7 +13,7 @@ from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
     EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_SLEEVE,
+    EXECUTION_MODE_BOOK,
     resolve_account_names,
     resolve_market_inputs,
     run_accounts,
@@ -53,7 +53,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--execution-mode",
         default=EXECUTION_MODE_ACCOUNT,
-        choices=[EXECUTION_MODE_ACCOUNT, EXECUTION_MODE_SLEEVE],
+        choices=[EXECUTION_MODE_ACCOUNT, EXECUTION_MODE_BOOK],
         help="Execution mode: account (current path) or sleeve (increment 3 path).",
     )
     return parser.parse_args()

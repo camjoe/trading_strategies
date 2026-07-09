@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from trading.models.portfolio.daily_metric_record import DailyMetricRecord
-from trading.repositories.book_bridge import book_id_for_sleeve, default_book_id
+from trading.repositories.book_bridge import default_book_id
 
 _METRIC_COLUMNS = (
     "return_pct",
@@ -30,14 +30,14 @@ class DailyMetricsRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
 
-    def _record(self, row: sqlite3.Row, *, sleeve_id: int | None) -> DailyMetricRecord:
-        return DailyMetricRecord.from_mapping({**dict(row), "sleeve_id": sleeve_id})
+    def _record(self, row: sqlite3.Row) -> DailyMetricRecord:
+        return DailyMetricRecord.from_mapping(dict(row))
 
     def upsert(
         self,
         *,
         account_id: int,
-        sleeve_id: int | None,
+        book_id: int | None,
         metric_date: str,
         return_pct: float | None,
         drawdown_pct: float | None,
@@ -51,12 +51,7 @@ class DailyMetricsRepository:
         created_at: str,
         updated_at: str,
     ) -> int:
-        if sleeve_id is None:
-            book_id = default_book_id(self._conn, int(account_id))
-        else:
-            resolved = book_id_for_sleeve(self._conn, int(sleeve_id), create=True)
-            assert resolved is not None  # create=True always yields an id
-            book_id = resolved
+        resolved_book_id = int(book_id) if book_id is not None else default_book_id(self._conn, int(account_id))
 
         update_set = ", ".join(f"{column} = excluded.{column}" for column in _METRIC_COLUMNS)
         cursor = self._conn.execute(
@@ -70,7 +65,7 @@ class DailyMetricsRepository:
                 updated_at = excluded.updated_at
             """,
             (
-                int(book_id),
+                int(resolved_book_id),
                 metric_date,
                 return_pct,
                 drawdown_pct,
@@ -88,7 +83,7 @@ class DailyMetricsRepository:
         self._conn.commit()
         row = self._conn.execute(
             "SELECT id FROM daily_metrics WHERE book_id = ? AND metric_date = ?",
-            (int(book_id), metric_date),
+            (int(resolved_book_id), metric_date),
         ).fetchone()
         if row is None:
             raise ValueError("Expected daily_metrics id after upsert.")
@@ -107,12 +102,9 @@ class DailyMetricsRepository:
             """,
             (int(account_id), int(limit)),
         ).fetchall()
-        return [self._record(row, sleeve_id=None) for row in rows]
+        return [self._record(row) for row in rows]
 
-    def fetch_for_sleeve(self, *, sleeve_id: int, limit: int) -> list[DailyMetricRecord]:
-        book_id = book_id_for_sleeve(self._conn, int(sleeve_id), create=False)
-        if book_id is None:
-            return []
+    def fetch_for_book(self, *, book_id: int, limit: int) -> list[DailyMetricRecord]:
         rows = self._conn.execute(
             """
             SELECT m.*, b.account_id AS account_id
@@ -124,18 +116,15 @@ class DailyMetricsRepository:
             """,
             (int(book_id), int(limit)),
         ).fetchall()
-        return [self._record(row, sleeve_id=int(sleeve_id)) for row in rows]
+        return [self._record(row) for row in rows]
 
-    def fetch_for_sleeve_window(
+    def fetch_for_book_window(
         self,
         *,
-        sleeve_id: int,
+        book_id: int,
         start_date: str,
         end_date: str,
     ) -> list[DailyMetricRecord]:
-        book_id = book_id_for_sleeve(self._conn, int(sleeve_id), create=False)
-        if book_id is None:
-            return []
         rows = self._conn.execute(
             """
             SELECT m.*, b.account_id AS account_id
@@ -148,4 +137,4 @@ class DailyMetricsRepository:
             """,
             (int(book_id), start_date, end_date),
         ).fetchall()
-        return [self._record(row, sleeve_id=int(sleeve_id)) for row in rows]
+        return [self._record(row) for row in rows]

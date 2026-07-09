@@ -7,7 +7,7 @@ from trading.repositories.book_bridge import default_book_id
 from trading.services.accounts import create_account, get_account
 from trading.services.auto_trading.book_rotation import evaluate_account_rotation_decision
 
-EVAL_FN = "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row"
+EVAL_FN = "trading.services.books.rotation_metrics.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(score: float, *, trade_count: int = 30) -> StrategyEvaluationArtifact:

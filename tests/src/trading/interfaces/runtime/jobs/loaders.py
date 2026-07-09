@@ -213,13 +213,17 @@ def stub_runtime_job_basics(
     runtime_accounts: list[str] | None = None,
     db_conn=None,
     account_lookup: Callable[[str], object | None] | None = None,
-    sleeves_for_account: list[dict[str, object]] | None = None,
+    books_for_account: list[object] | None = None,
 ) -> SimpleNamespace:
     """Apply common runtime-job test stubs for DB/account surfaces.
 
+    ``books_for_account`` items are either ``(book, assignment)`` tuples or plain
+    dicts of book fields (paired with ``None`` assignment); they stub the module's
+    ``list_report_books``.
+
     Returns a SimpleNamespace with:
       - conn: the stubbed DB connection
-      - sleeve_repo: the MagicMock SleeveRepository instance (if patched)
+      - books: the stubbed (book, assignment) pairs (if patched)
       - param_set_repo: the MagicMock StrategyParamSetRepository instance (if patched)
     """
     from unittest.mock import MagicMock
@@ -243,16 +247,14 @@ def stub_runtime_job_basics(
     if hasattr(module, "find_account"):
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 
-    mock_sleeve_repo = None
+    book_pairs = None
     mock_param_repo = None
 
-    if sleeves_for_account is not None and hasattr(module, "SleeveRepository"):
-        sleeve_records = [SimpleNamespace(**row) if isinstance(row, dict) else row for row in sleeves_for_account]
-        mock_sleeve_repo = MagicMock()
-        mock_sleeve_repo.fetch_for_account.return_value = sleeve_records
-        mock_sleeve_repo.fetch_active_assignment.return_value = None
-        mock_sleeve_repo.fetch_assignments.return_value = []
-        monkeypatch.setattr(module, "SleeveRepository", lambda conn: mock_sleeve_repo)
+    if books_for_account is not None and hasattr(module, "list_report_books"):
+        book_pairs = [
+            (SimpleNamespace(**item), None) if isinstance(item, dict) else item for item in books_for_account
+        ]
+        monkeypatch.setattr(module, "list_report_books", lambda conn, *, account_id: list(book_pairs))
 
     if hasattr(module, "StrategyParamSetRepository"):
         mock_param_repo = MagicMock()
@@ -260,7 +262,7 @@ def stub_runtime_job_basics(
         mock_param_repo.fetch_active.return_value = None
         monkeypatch.setattr(module, "StrategyParamSetRepository", lambda conn: mock_param_repo)
 
-    return SimpleNamespace(conn=resolved_conn, sleeve_repo=mock_sleeve_repo, param_set_repo=mock_param_repo)
+    return SimpleNamespace(conn=resolved_conn, books=book_pairs, param_set_repo=mock_param_repo)
 
 
 __all__ = [

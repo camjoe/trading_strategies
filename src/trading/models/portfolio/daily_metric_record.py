@@ -17,7 +17,6 @@ class DailyMetricRecord:
 
     id: int
     account_id: int
-    sleeve_id: int | None
     book_id: int | None
     metric_date: str
     return_pct: float | None
@@ -37,7 +36,6 @@ class DailyMetricRecord:
         return cls(
             id=row_expect_int(values, "id"),
             account_id=row_expect_int(values, "account_id"),
-            sleeve_id=row_int(values, "sleeve_id"),
             book_id=row_int(values, "book_id"),
             metric_date=row_expect_str(values, "metric_date"),
             return_pct=row_float(values, "return_pct"),

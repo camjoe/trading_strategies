@@ -47,12 +47,13 @@ Steps:
    concentration (by symbol, sector, or strategy) — then symbol-level cross-account analysis.
 4. Optional dashboard view only after the payload contract is stable.
 
-### Sleeve vocabulary cleanup (cleanup/refactor · not started)
+### Deploy step pending — sleeve retirement DB migration (migration · blocked on operator)
 
-Post-P4 the code is book-keyed, but `services/sleeves/`, `strategy_sleeves`, and sleeve-named
-symbols remain. Decision needed first: **are sleeves still a distinct concept from books, or just
-legacy naming?** Steps: write an ADR answering that, then rename/absorb accordingly. Distinct from
-P4 book accounting, which is done.
+The sleeve retirement (SR-1…SR-7) is **code-complete**; one operator step remains when the
+`features/sleeve-retirement` branch deploys to a host with an existing DB. Full procedure
+(backup → run the one-time data-op → verify → drop the four orphaned tables → delete the
+migration tooling): **[runbooks/sleeve-retirement-db-migration.md](runbooks/sleeve-retirement-db-migration.md)**.
+Fresh DBs need nothing.
 
 ## Deferred (exploratory — only if evidence justifies)
 
@@ -62,6 +63,7 @@ P4 book accounting, which is done.
 | P10 — Adaptive learning | Design-heavy; needs [D9](decisions.md#d9) | Evidence that a learned layer beats the static decision score |
 | P11 — Parameter optimization | Needs [D11](decisions.md#d11) (search method + overfitting guardrails) | Demand for systematic param sweeps |
 | P12 — Backtest freshness cadence | Policy question, not implementation | Evidence that stale backtests are skewing rotation decisions |
+| Execution-mode collapse (one mode: trade every assigned book; account mode = default book) | Deferred during the sleeve retirement — changes account-mode strategy/state resolution semantics | When touching runtime mode handling next; sleeves are gone so the collapse is a clean refactor |
 
 ## Done (compact record — details in git)
 
@@ -73,6 +75,7 @@ P4 book accounting, which is done.
 | P4 — Converge accounts & sleeves (submission/rotation/accounting) | 2026-07-07 |
 | P5 — Decisioning naming pass (`Rotation*` rename) | 2026-07-07 |
 | P8 — Email notifications (webhook + SMTP; per-transport filtering deferred) | 2026-07-07 |
+| Sleeve retirement — sleeves removed; accounts + books are the one flow (fixed two live staleness bugs: rotation assignment drift, w3 allocation drift; ADR 003 superseded) | 2026-07-09 |
 
 ## Dropped (do not silently re-add)
 
