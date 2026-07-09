@@ -265,7 +265,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     risk_snapshot = conn.execute(
         """
         SELECT max_symbol_concentration_pct, max_sector_concentration_pct
-        FROM portfolio_risk_snapshots
+        FROM risk_snapshots
         WHERE account_id = ?
         ORDER BY snapshot_time DESC
         LIMIT 1
@@ -278,7 +278,7 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(sleeve_env, con
     decision_rows = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id ASC
         """,
@@ -329,7 +329,7 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(sleeve_e
     rescale_row = conn.execute(
         """
         SELECT action, reason_code, requested_qty, approved_qty
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -370,7 +370,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -380,7 +380,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(s
     decision_row = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -419,7 +419,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -429,7 +429,7 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(sleeve_
     decision_row = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -477,7 +477,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
 
     assert executed == 0
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -491,7 +491,7 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(sleeve_env, conn
     decision_row = conn.execute(
         """
         SELECT action, reason_code
-        FROM sleeve_risk_decisions
+        FROM risk_decisions
         WHERE account_id = ?
         ORDER BY id DESC
         LIMIT 1
@@ -544,7 +544,7 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None
@@ -582,7 +582,7 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
     assert executed == 0
     broker.place_order.assert_not_called()
     row = conn.execute(
-        "SELECT kill_switch_triggered, risk_payload_json FROM portfolio_risk_snapshots WHERE account_id = ?",
+        "SELECT kill_switch_triggered, risk_payload_json FROM risk_snapshots WHERE account_id = ?",
         (account_id,),
     ).fetchone()
     assert row is not None

@@ -224,8 +224,8 @@ def test_fetch_risk_summary_detects_kill_switch(mock_conn: MagicMock) -> None:
         )
     ]
 
-    with patch("trading.services.ibkr_paper_monitor.queries.SleeveRiskDecisionRepository") as mock_risk_cls:
-        mock_risk_cls.return_value.fetch_for_account.return_value = decisions
+    with patch("trading.services.ibkr_paper_monitor.queries.RiskDecisionRepository") as mock_risk_cls:
+        mock_risk_cls.return_value.fetch_recent.return_value = decisions
 
         result = queries._fetch_risk_summary(mock_conn, account_id=1)
 

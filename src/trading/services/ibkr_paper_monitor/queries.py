@@ -14,7 +14,7 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.risk import RiskDecisionRepository
 from trading.services.sleeves.book_assignments import list_report_books
 
 
@@ -120,7 +120,7 @@ def _fetch_recent_rotations(conn: sqlite3.Connection, account_id: int) -> list[d
 
 def _fetch_risk_summary(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
     """Fetch risk gate decisions and violations."""
-    risk_records = SleeveRiskDecisionRepository(conn).fetch_for_account(account_id=account_id, limit=100)
+    risk_records = RiskDecisionRepository(conn).fetch_recent(account_id=account_id, limit=100)
 
     violations = []
     kill_switch_triggered = False

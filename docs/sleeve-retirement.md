@@ -60,9 +60,12 @@ Related: [Status](status.md), [ADR 003 — Sleeve Virtualization](adr/003-sleeve
   `param_set_id` column (append-only add; faithful migration), or (b) resolve the active param set
   by strategy at read time (`StrategyParamSetRepository.fetch_active`). **Lean: (a)** — preserves
   per-assignment pinning that rotation sets today; (b) changes behavior when multiple param sets exist.
-- **D-SR2 — risk-audit keying.** `sleeve_risk_decisions.sleeve_id` FKs `strategy_sleeves`. Options:
-  greenfield-swap to a book-keyed table, or keep account-keyed with a `book_id` column. Decide at SR-5;
-  pre-live data is droppable per the P3/P4 stance.
+- ~~**D-SR2 — risk-audit keying.**~~ **Resolved (SR-5, 2026-07-08): cut over to the clean tables P3
+  already built.** `risk_decisions` (account-keyed with nullable `book_id` FK → books) and
+  `risk_snapshots` were sitting unwritten; SR-5 made them the live audit store. The gate's
+  book-bucketed decisions persist with `book_id` directly — the book→sleeve audit translation was
+  deleted, not migrated. Old `sleeve_risk_decisions`/`portfolio_risk_snapshots` are unwritten/unread;
+  their table drops land in SR-7.
 - ~~**D-SR3 — execution-mode collapse.**~~ **Resolved (SR-2, 2026-07-08): keep the two execution
   modes through the retirement.** Sleeve mode is now pure multi-book enumeration; collapsing account
   mode into the same flow changes account-mode semantics (strategy/state resolution source) and
@@ -143,3 +146,12 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
   `analysis.fetch_sleeve_performance_window` → book-native `fetch_book_performance_window` (both
   callers migrated; sleeve variant retired). Governance test stub (`stub_runtime_job_basics`)
   migrated to a `books_for_account` contract. Full `run_checks ci` green.
+- 2026-07-08 — **SR-5 landed.** D-SR2 resolved: the risk audit cut over to the **clean book-keyed
+  tables P3 already built** (`risk_decisions` with nullable `book_id` FK; `risk_snapshots`), which
+  had been sitting unwritten. Runtime persists gate decisions with `book_id` directly — the
+  book→sleeve audit translation (`_sleeve_risk_decisions_from_gate`) was deleted, not migrated.
+  `runtime_sleeve_risk.py` → `runtime_book_risk.py` (book-named params/functions). Readers repointed:
+  daily report + monitor + `analysis.fetch_latest_risk_snapshot` (m1 governance job unchanged —
+  record fields are parity). Retired `SleeveRiskDecisionRepository`, `PortfolioRiskSnapshotRepository`,
+  and their record models; added clean risk-repo tests (incl. new `fetch_for_account_date`).
+  Old tables are now unwritten/unread — drops staged for SR-7. Full `run_checks ci` green.

@@ -2,7 +2,7 @@
 
 Assembles three report sections from persisted data for a given account and date:
   - book performance table (from daily_metrics + current book state)
-  - risk violations summary (from sleeve_risk_decisions + portfolio_risk_snapshots)
+  - risk violations summary (from risk_decisions + risk_snapshots)
   - rotation decision log (from rotation_decisions)
 
 Consumed by: trading.interfaces.runtime.jobs.daily.paper_trading (step 10)
@@ -17,9 +17,8 @@ from dataclasses import dataclass
 from trading.models.books.book_assignment_view import BookAssignmentView
 from trading.models.books.book_record import BookRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
-from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.services.sleeves.book_assignments import list_report_books
 
 
@@ -108,7 +107,7 @@ def _build_risk_violations(
     account_id: int,
     report_date: str,
 ) -> RiskViolationsSummary:
-    decisions = SleeveRiskDecisionRepository(conn).fetch_for_account_date(
+    decisions = RiskDecisionRepository(conn).fetch_for_account_date(
         account_id=account_id,
         report_date=report_date,
     )
@@ -122,8 +121,8 @@ def _build_risk_violations(
             reason_counts[d.reason_code] = reason_counts.get(d.reason_code, 0) + 1
     top_reason_codes = sorted(reason_counts, key=lambda k: reason_counts[k], reverse=True)[:5]
 
-    snapshot = PortfolioRiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
-    kill_switch = snapshot is not None and snapshot.kill_switch_triggered
+    snapshot = RiskSnapshotRepository(conn).fetch_latest(account_id=account_id)
+    kill_switch = snapshot is not None and bool(snapshot.kill_switch_triggered)
 
     return RiskViolationsSummary(
         total_decisions=len(decisions),

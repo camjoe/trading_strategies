@@ -1,4 +1,4 @@
-"""Sleeve-mode risk persistence helpers for runtime auto-trading."""
+"""Book-keyed risk persistence helpers for runtime auto-trading (multi-book mode)."""
 
 from __future__ import annotations
 
@@ -18,11 +18,11 @@ def compute_current_exposure_snapshot(
     conn: sqlite3.Connection,
     *,
     account_id: int,
-    fetch_sleeve_positions_for_account_fn: Callable[..., list[Any]],
-    fetch_strategy_sleeves_for_account_fn: Callable[..., list[Any]],
+    fetch_positions_for_account_fn: Callable[..., list[Any]],
+    fetch_books_for_account_fn: Callable[..., list[Any]],
     symbol_sector_map: dict[str, str],
 ) -> tuple[float, float, float, float]:
-    position_rows = fetch_sleeve_positions_for_account_fn(conn, account_id=account_id)
+    position_rows = fetch_positions_for_account_fn(conn, account_id=account_id)
     gross_exposure = 0.0
     net_exposure = 0.0
     symbol_exposure: dict[str, float] = {}
@@ -38,8 +38,8 @@ def compute_current_exposure_snapshot(
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + abs_value
 
-    sleeve_rows = fetch_strategy_sleeves_for_account_fn(conn, account_id=account_id)
-    total_equity = sum(float(s.current_equity) for s in sleeve_rows)
+    book_rows = fetch_books_for_account_fn(conn, account_id=account_id)
+    total_equity = sum(float(b.current_equity) for b in book_rows)
     max_symbol_concentration_pct = 0.0
     max_sector_concentration_pct = 0.0
     if total_equity > 0 and symbol_exposure:
@@ -49,28 +49,28 @@ def compute_current_exposure_snapshot(
     return gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct
 
 
-def persist_sleeve_risk_snapshot(
+def persist_book_risk_snapshot(
     conn: sqlite3.Connection,
     *,
     account_id: int,
     snapshot_time: str,
     kill_switch_triggered: bool,
     payload: dict[str, object],
-    fetch_sleeve_positions_for_account_fn: Callable[..., list[Any]],
-    fetch_strategy_sleeves_for_account_fn: Callable[..., list[Any]],
-    upsert_portfolio_risk_snapshot_fn: Callable[..., object],
+    fetch_positions_for_account_fn: Callable[..., list[Any]],
+    fetch_books_for_account_fn: Callable[..., list[Any]],
+    insert_risk_snapshot_fn: Callable[..., object],
     symbol_sector_map: dict[str, str],
 ) -> None:
     gross_exposure, net_exposure, max_symbol_concentration_pct, max_sector_concentration_pct = (
         compute_current_exposure_snapshot(
             conn,
             account_id=account_id,
-            fetch_sleeve_positions_for_account_fn=fetch_sleeve_positions_for_account_fn,
-            fetch_strategy_sleeves_for_account_fn=fetch_strategy_sleeves_for_account_fn,
+            fetch_positions_for_account_fn=fetch_positions_for_account_fn,
+            fetch_books_for_account_fn=fetch_books_for_account_fn,
             symbol_sector_map=symbol_sector_map,
         )
     )
-    upsert_portfolio_risk_snapshot_fn(
+    insert_risk_snapshot_fn(
         account_id=account_id,
         snapshot_time=snapshot_time,
         gross_exposure=gross_exposure,
@@ -85,19 +85,19 @@ def persist_sleeve_risk_snapshot(
     )
 
 
-def persist_normalized_sleeve_risk_decisions(
+def persist_normalized_risk_decisions(
     conn: sqlite3.Connection,
     *,
     account_id: int,
     decision_time: str,
     risk_decisions: list[dict[str, Any]],
-    insert_sleeve_risk_decision_fn: Callable[..., object],
+    insert_risk_decision_fn: Callable[..., object],
 ) -> None:
     for decision in risk_decisions:
         action = str(decision.get("action", "block")).strip().lower()
         reason_code = str(decision.get("reason_code", "unspecified")).strip().lower()
-        sleeve_id_value = decision.get("sleeve_id")
-        sleeve_id = int(sleeve_id_value) if sleeve_id_value is not None else None
+        book_id_value = decision.get("book_id")
+        book_id = int(book_id_value) if book_id_value is not None else None
         symbol_value = decision.get("symbol")
         symbol = str(symbol_value).upper().strip() if symbol_value is not None else None
         side_value = decision.get("side")
@@ -106,10 +106,10 @@ def persist_normalized_sleeve_risk_decisions(
         approved_qty_value = decision.get("approved_qty")
         requested_notional_value = decision.get("requested_notional")
         approved_notional_value = decision.get("approved_notional")
-        insert_sleeve_risk_decision_fn(
+        insert_risk_decision_fn(
             conn,
             account_id=account_id,
-            sleeve_id=sleeve_id,
+            book_id=book_id,
             decision_time=decision_time,
             symbol=symbol,
             side=side,
@@ -119,7 +119,6 @@ def persist_normalized_sleeve_risk_decisions(
             approved_qty=int(approved_qty_value) if approved_qty_value is not None else None,
             requested_notional=(float(requested_notional_value) if requested_notional_value is not None else None),
             approved_notional=(float(approved_notional_value) if approved_notional_value is not None else None),
-            execution_mode="sleeve",
             risk_payload_json=json.dumps(decision, sort_keys=True),
             created_at=decision_time,
         )

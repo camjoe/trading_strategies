@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 
 from trading.models.books.risk_decision_record import RiskDecisionRecord
@@ -117,5 +118,17 @@ class RiskDecisionRepository:
         rows = self._conn.execute(
             "SELECT * FROM risk_decisions WHERE account_id = ? ORDER BY decision_time DESC, id DESC LIMIT ?",
             (int(account_id), int(limit)),
+        ).fetchall()
+        return [RiskDecisionRecord.from_mapping(dict(row)) for row in rows]
+
+    def fetch_for_account_date(self, *, account_id: int, report_date: str) -> list[RiskDecisionRecord]:
+        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        rows = self._conn.execute(
+            """
+            SELECT * FROM risk_decisions
+            WHERE account_id = ? AND decision_time >= ? AND decision_time < ?
+            ORDER BY decision_time ASC, id ASC
+            """,
+            (int(account_id), report_date, next_date),
         ).fetchall()
         return [RiskDecisionRecord.from_mapping(dict(row)) for row in rows]

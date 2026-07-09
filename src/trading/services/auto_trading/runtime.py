@@ -23,8 +23,7 @@ from trading.domain.market_hours import is_regular_us_equity_market_open
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
 from trading.services.universe import resolve_named_universes
-from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
-from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
+from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
 from trading.repositories.accounts import AccountRepository
 from trading.domain.rotation import (
     is_rotation_due,
@@ -47,9 +46,9 @@ from trading.services.auto_trading.runtime_reconciliation import (
 )
 from trading.services.auto_trading.runtime_rotation import rotate_runtime_account
 from trading.services.market_data import MarketDataProvider
-from trading.services.auto_trading.runtime_sleeve_risk import (
-    persist_normalized_sleeve_risk_decisions,
-    persist_sleeve_risk_snapshot,
+from trading.services.auto_trading.runtime_book_risk import (
+    persist_book_risk_snapshot,
+    persist_normalized_risk_decisions,
 )
 from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
@@ -222,7 +221,7 @@ def _resolve_reconciliation_exec_id(
     )
 
 
-def _persist_sleeve_risk_snapshot(
+def _persist_book_risk_snapshot(
     conn: sqlite3.Connection,
     *,
     account_id: int,
@@ -231,39 +230,35 @@ def _persist_sleeve_risk_snapshot(
     payload: dict[str, object],
 ) -> None:
     # Exposure is sourced from the clean book positions/equity (the submission path's
-    # source of truth); the sleeve_positions/strategy_sleeves tables are frozen once
-    # sleeve mode submits through the book path. `compute_current_exposure_snapshot`
-    # only reads `.symbol`/`.market_value` and `.current_equity`, which book records carry.
-    persist_sleeve_risk_snapshot(
+    # source of truth); persisted to the clean account-keyed risk_snapshots (SR-5).
+    persist_book_risk_snapshot(
         conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
         kill_switch_triggered=kill_switch_triggered,
         payload=payload,
-        fetch_sleeve_positions_for_account_fn=lambda c, *, account_id: PositionRepository(c).fetch_for_account(
+        fetch_positions_for_account_fn=lambda c, *, account_id: PositionRepository(c).fetch_for_account(
             account_id=account_id
         ),
-        fetch_strategy_sleeves_for_account_fn=lambda c, *, account_id: BookRepository(c).fetch_for_account(
-            account_id=account_id
-        ),
-        upsert_portfolio_risk_snapshot_fn=PortfolioRiskSnapshotRepository(conn).upsert,
+        fetch_books_for_account_fn=lambda c, *, account_id: BookRepository(c).fetch_for_account(account_id=account_id),
+        insert_risk_snapshot_fn=RiskSnapshotRepository(conn).insert,
         symbol_sector_map=load_symbol_sector_map(),
     )
 
 
-def _persist_normalized_sleeve_risk_decisions(
+def _persist_normalized_risk_decisions(
     conn: sqlite3.Connection,
     *,
     account_id: int,
     decision_time: str,
     risk_decisions: list[dict[str, object]],
 ) -> None:
-    persist_normalized_sleeve_risk_decisions(
+    persist_normalized_risk_decisions(
         conn,
         account_id=account_id,
         decision_time=decision_time,
         risk_decisions=risk_decisions,
-        insert_sleeve_risk_decision_fn=lambda c, **kwargs: SleeveRiskDecisionRepository(c).insert(**kwargs),
+        insert_risk_decision_fn=lambda c, **kwargs: RiskDecisionRepository(c).insert(**kwargs),
     )
 
 
@@ -311,29 +306,22 @@ def _resolve_account_universe(account: AccountRecord, global_universe: list[str]
     return resolve_named_universes([str(n) for n in names])
 
 
-def _sleeve_risk_decisions_from_gate(
-    decisions: list[SleeveRiskDecision],
-    sleeve_by_book: dict[int, SleeveTradeIntent],
-) -> list[dict[str, object]]:
-    """Convert the gate's book-bucketed decisions into sleeve-keyed audit dicts.
+def _risk_decisions_from_gate(decisions: list[SleeveRiskDecision]) -> list[dict[str, object]]:
+    """Convert the gate's book-bucketed decisions into book-keyed audit dicts.
 
     Under book-as-bucket the gate emits decisions with ``sleeve_id`` set to the
-    book id; translate back to the real sleeve id so the sleeve risk audit trail
-    stays meaningful.
+    book id (the field renames with SR-6); the clean risk audit keys on ``book_id``
+    directly — no legacy translation.
     """
     audit_rows: list[dict[str, object]] = []
     for decision in decisions:
         row = asdict(decision)
-        book_id = row.get("sleeve_id")
-        sleeve = sleeve_by_book.get(int(book_id)) if book_id is not None else None
-        # Never leave a book id in the sleeve FK column; a book with no legacy
-        # sleeve audits with sleeve_id NULL (account-keyed row still records it).
-        row["sleeve_id"] = sleeve.sleeve_id if sleeve is not None else None
+        row["book_id"] = row.pop("sleeve_id")
         audit_rows.append(row)
     return audit_rows
 
 
-def _persist_sleeve_run_audit(
+def _persist_book_run_audit(
     conn: sqlite3.Connection,
     *,
     account_id: int,
@@ -342,13 +330,13 @@ def _persist_sleeve_run_audit(
     kill_switch_reasons: list[str],
     summary: dict[str, object],
 ) -> None:
-    _persist_normalized_sleeve_risk_decisions(
+    _persist_normalized_risk_decisions(
         conn,
         account_id=account_id,
         decision_time=snapshot_time,
         risk_decisions=risk_decisions,
     )
-    _persist_sleeve_risk_snapshot(
+    _persist_book_risk_snapshot(
         conn,
         account_id=account_id,
         snapshot_time=snapshot_time,
@@ -394,7 +382,7 @@ def _run_sleeve_mode_for_account(
         feature_history_fn=feature_history_fn,
     )
     if not intents:
-        _persist_sleeve_run_audit(
+        _persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
@@ -436,7 +424,7 @@ def _run_sleeve_mode_for_account(
     )
     gate_result = gate.evaluate(conn, account_id=account_id, intents=book_intents)
 
-    risk_decisions = _sleeve_risk_decisions_from_gate(gate_result.decisions, sleeve_by_book)
+    risk_decisions = _risk_decisions_from_gate(gate_result.decisions)
     kill_switch_reasons = list(gate_result.kill_switch_reasons) + reconciliation_reasons
     for reason in kill_switch_reasons:
         risk_decisions.append({"action": "block", "reason_code": reason})
@@ -450,7 +438,7 @@ def _run_sleeve_mode_for_account(
     # A kill switch (stale-price or reconciliation) holds the whole run.
     approved_intents = [] if kill_switch_reasons else gate_result.approved_intents
     if not approved_intents:
-        _persist_sleeve_run_audit(
+        _persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,
@@ -509,12 +497,12 @@ def _run_sleeve_mode_for_account(
                     {
                         "action": "block",
                         "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
-                        "sleeve_id": sleeve.sleeve_id,
+                        "book_id": sleeve.book_id,
                     }
                 )
                 break
 
-        _persist_sleeve_run_audit(
+        _persist_book_run_audit(
             conn,
             account_id=account_id,
             snapshot_time=snapshot_time,

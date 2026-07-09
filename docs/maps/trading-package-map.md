@@ -131,8 +131,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `admin/deletions.py` | Admin bulk-deletion workflows |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
-| `analysis/performance.py` | Sleeve performance window queries (reads daily metrics) |
-| `analysis/risk_snapshots.py` | Portfolio risk snapshot access |
+| `analysis/performance.py` | Book performance window queries (reads daily metrics) |
+| `analysis/risk_snapshots.py` | Latest account risk snapshot access (clean risk_snapshots) |
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/book_rotation.py` | Book-keyed champion/challenger rotation selection for an account's default book (writes `rotation_decisions`) (P4/2b) |
@@ -142,7 +142,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/rotation_candidates.py` | Book-keyed rotation candidate enumeration (incumbent + challengers scored on the decision-score contract) (P4/2b) |
 | `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
 | `auto_trading/runtime_rotation.py` | Runtime rotation execution |
-| `auto_trading/runtime_sleeve_risk.py` | Runtime sleeve-level risk enforcement |
+| `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
 | `evaluation/evidence.py` | Rotation episode evidence assembly |
 | `evaluation/queries.py` | Evaluation data queries |
@@ -200,12 +200,10 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |
 | `orders.py` | Clean-schema orders table (unifies broker + sleeve orders) |
-| `portfolio_risk_snapshots.py` | Portfolio risk snapshot records |
 | `positions.py` | Clean-schema position records keyed by (book_id, symbol) |
 | `promotion.py` | Promotion decision records |
 | `risk.py` | Clean-schema risk snapshots and risk decision records |
 | `rotation_decisions.py` | Rotation decision records |
-| `sleeve_risk_decisions.py` | Sleeve-level risk decision records |
 | `sleeves.py` | Sleeve configuration and state |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategy_param_sets.py` | Strategy parameter set records |
