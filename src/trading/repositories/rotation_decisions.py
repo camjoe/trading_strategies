@@ -188,6 +188,20 @@ class RotationDecisionRepository:
             params=(report_date, next_date),
         )
 
+    def fetch_for_book(self, *, book_id: int, limit: int) -> list[sqlite3.Row]:
+        return self._conn.execute(
+            _LEGACY_ROW_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT ?",
+            (None, int(book_id), int(limit)),
+        ).fetchall()
+
+    def fetch_for_book_on_date(self, *, book_id: int, report_date: str) -> list[sqlite3.Row]:
+        next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
+        return self._conn.execute(
+            _LEGACY_ROW_SELECT
+            + " AND d.decision_time >= ? AND d.decision_time < ? ORDER BY d.decision_time ASC, d.id ASC",
+            (None, int(book_id), report_date, next_date),
+        ).fetchall()
+
     def fetch_selected_strategy_timeline(self, *, book_id: int) -> list[tuple[str, str | None, str | None]]:
         """Return the book's decision log as ``(decision_time, incumbent, selected)`` rows, oldest first.
 

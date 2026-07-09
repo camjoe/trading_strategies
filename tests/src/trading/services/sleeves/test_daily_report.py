@@ -55,18 +55,19 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
     assert report.account_id == report_env.account_id
     assert report.account_name == report_env.account_name
     assert report.report_date == REPORT_DATE
-    assert len(report.sleeve_performance) == 1
-    sp = report.sleeve_performance[0]
-    assert sp.sleeve_id == report_env.sleeve_id
-    assert sp.strategy_name == "Momentum"
+    assert len(report.book_performance) == 1
+    sp = report.book_performance[0]
+    assert sp.book_id == book_id_for_sleeve(conn, report_env.sleeve_id, create=False)
+    # Labels round-trip through the strategies catalog as canonical lowercase keys (P3).
+    assert sp.strategy_name == "momentum"
     assert sp.return_pct == pytest.approx(1.5)
     assert sp.drawdown_pct == pytest.approx(-0.3)
     assert sp.hit_rate == pytest.approx(0.6)
     assert sp.trade_count == 4
 
 
-def test_sleeve_performance_current_equity_comes_from_bridging_book(conn, report_env) -> None:
-    # The sleeve's live equity is its bridging book's, not the frozen sleeve balance.
+def test_book_performance_current_equity_comes_from_book(conn, report_env) -> None:
+    # The report reads live equity straight from the book balance.
     book_id = book_id_for_sleeve(conn, report_env.sleeve_id, create=True)
     assert book_id is not None
     BookRepository(conn).update_balances(
@@ -80,28 +81,28 @@ def test_sleeve_performance_current_equity_comes_from_bridging_book(conn, report
         conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
     )
 
-    assert report.sleeve_performance[0].current_equity == pytest.approx(12_345.0)
+    assert report.book_performance[0].current_equity == pytest.approx(12_345.0)
 
 
-def test_build_report_no_sleeves_returns_empty_sections(conn) -> None:
+def test_build_report_no_books_returns_empty_sections(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_no_sleeves")
 
     report = build_account_daily_report(
         conn, account_id=account_id, account_name="acct_no_sleeves", report_date=REPORT_DATE
     )
 
-    assert report.sleeve_performance == []
+    assert report.book_performance == []
     assert report.rotation_decisions == []
     assert report.risk_violations.total_decisions == 0
 
 
-def test_build_report_sleeve_with_no_metric_returns_none_fields(conn, report_env) -> None:
+def test_build_report_book_with_no_metric_returns_none_fields(conn, report_env) -> None:
     report = build_account_daily_report(
         conn, account_id=report_env.account_id, account_name=report_env.account_name, report_date=REPORT_DATE
     )
 
-    assert len(report.sleeve_performance) == 1
-    sp = report.sleeve_performance[0]
+    assert len(report.book_performance) == 1
+    sp = report.book_performance[0]
     assert sp.return_pct is None
     assert sp.trade_count is None
     assert sp.strategy_name is None
@@ -245,7 +246,7 @@ def test_account_daily_report_as_dict_shape(conn) -> None:
     assert d["account_id"] == account_id
     assert d["account_name"] == "acct_dict"
     assert d["report_date"] == REPORT_DATE
-    assert "sleeve_performance" in d
+    assert "book_performance" in d
     assert "risk_violations" in d
     assert "rotation_decisions" in d
     rv = d["risk_violations"]

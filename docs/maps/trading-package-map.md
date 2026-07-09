@@ -178,12 +178,10 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `sleeves/daily_report.py` | Sleeve daily reporting |
 | `sleeves/execution.py` | Sleeve trade execution and intent generation |
 | `sleeves/helpers.py` | Shared sleeve service helpers (math, formatting) |
-| `sleeves/reconciliation.py` | Sleeve equity reconciliation (vs account and snapshot) |
 | `sleeves/rotation.py` | Sleeve rotation execution + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown) |
 | `sleeves/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
 | `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
-| `sleeves/universe_config.py` | Sleeve trade-universe configuration |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `universe/resolver.py` | Trade-universe name resolution |
 

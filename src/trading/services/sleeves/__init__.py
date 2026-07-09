@@ -1,7 +1,7 @@
-"""Sleeve services package.
+"""Multi-book trading services package (legacy name: sleeves; renamed in SR-6).
 
-This package is the stable public sleeve-orchestration surface for sleeve-level
-accounting updates and account-vs-sleeve reconciliation.
+The stable public surface for multi-book trade orchestration: book assignments,
+intent generation, rotation, and challenger shadow evaluation.
 """
 
 from __future__ import annotations
@@ -13,11 +13,6 @@ from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
 from trading.services.sleeves.execution import (
     generate_sleeve_trade_intents,
     run_sleeve_mode_for_account,
-)
-from trading.services.sleeves.reconciliation import (
-    SleeveEquityReconciliationResult,
-    reconcile_sleeves_vs_account_equity,
-    reconcile_sleeves_vs_latest_snapshot,
 )
 from trading.services.sleeves.rotation import (
     RotationPolicyConfig,
@@ -34,10 +29,7 @@ from trading.services.sleeves.shadow_evaluation import (
 
 __all__ = [
     "SleeveTradeIntent",
-    "SleeveEquityReconciliationResult",
     "generate_sleeve_trade_intents",
-    "reconcile_sleeves_vs_account_equity",
-    "reconcile_sleeves_vs_latest_snapshot",
     "run_sleeve_mode_for_account",
     "SleeveRiskDecision",
     "SleeveRiskGateConfig",

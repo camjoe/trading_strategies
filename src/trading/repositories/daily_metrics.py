@@ -126,6 +126,41 @@ class DailyMetricsRepository:
         ).fetchall()
         return [self._record(row, sleeve_id=int(sleeve_id)) for row in rows]
 
+    def fetch_for_book(self, *, book_id: int, limit: int) -> list[DailyMetricRecord]:
+        rows = self._conn.execute(
+            """
+            SELECT m.*, b.account_id AS account_id
+            FROM daily_metrics m
+            JOIN books b ON b.id = m.book_id
+            WHERE m.book_id = ?
+            ORDER BY m.metric_date DESC, m.id DESC
+            LIMIT ?
+            """,
+            (int(book_id), int(limit)),
+        ).fetchall()
+        return [self._record(row, sleeve_id=None) for row in rows]
+
+    def fetch_for_book_window(
+        self,
+        *,
+        book_id: int,
+        start_date: str,
+        end_date: str,
+    ) -> list[DailyMetricRecord]:
+        rows = self._conn.execute(
+            """
+            SELECT m.*, b.account_id AS account_id
+            FROM daily_metrics m
+            JOIN books b ON b.id = m.book_id
+            WHERE m.book_id = ?
+              AND m.metric_date >= ?
+              AND m.metric_date <= ?
+            ORDER BY m.metric_date ASC, m.id ASC
+            """,
+            (int(book_id), start_date, end_date),
+        ).fetchall()
+        return [self._record(row, sleeve_id=None) for row in rows]
+
     def fetch_for_sleeve_window(
         self,
         *,

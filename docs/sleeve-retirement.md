@@ -124,3 +124,14 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
   (only the enumerator's legacy sweep and the applier bootstrap use the bridge). Risk audit hardened:
   a book id can never leak into the `sleeve_risk_decisions.sleeve_id` FK (NULL when no sleeve).
   Fill notes are book-keyed; the challenger artifact now carries `book_id`. Full `run_checks ci` green.
+- 2026-07-08 — **SR-3 landed.** Reporting/monitor are book-native. **Daily report**: enumerates
+  non-default books (legacy sweep first so never-traded sleeves still appear), metrics/rotations via
+  new book-keyed repo fetches (`fetch_for_book`/`fetch_for_book_window`/`fetch_for_book_on_date`),
+  report keys renamed `book_performance`/`book_id`/`book_name`; strategy labels are catalog-canonical.
+  **IBKR monitor**: queries book-native end to end; payload keys `books`/`book_id`/`book_name`/
+  `book_count`; the "strategy: unknown" TODO is fixed via `open_assignment_for_book`; frontend
+  types/component/CSS/view/tests renamed to book vocabulary (visible labels now say "Books";
+  status `retired`→`closed`). **Retired two production-dead modules** (reachable only from their own
+  tests): `sleeves/reconciliation.py` (summed frozen sleeve balances — the live check is
+  `execution/reconciliation.py`) and `sleeves/universe_config.py` (writer with no CLI/route; revive
+  book-native when an operator surface needs it). Full `run_checks ci` green (incl. frontend).

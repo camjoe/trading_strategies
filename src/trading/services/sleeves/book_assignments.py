@@ -77,7 +77,7 @@ def open_assignment_for_book(
     return _view_from_open_record(conn, book_id=book_id)
 
 
-def _sync_books_from_sleeves(conn: sqlite3.Connection, *, account_id: int) -> dict[int, int]:
+def sync_legacy_sleeve_books(conn: sqlite3.Connection, *, account_id: int) -> dict[int, int]:
     """Idempotent legacy sweep: mirror each sleeve onto its bridging book.
 
     Ensures the bridging book exists, mirrors the sleeve's status and
@@ -115,7 +115,7 @@ def enumerate_trading_books(conn: sqlite3.Connection, *, account_id: int) -> lis
     with no sleeve counterpart trades the same way (``legacy_sleeve_id=None``).
     Unassigned or non-active books do not trade — no account fallback.
     """
-    sleeve_id_by_book = _sync_books_from_sleeves(conn, account_id=account_id)
+    sleeve_id_by_book = sync_legacy_sleeve_books(conn, account_id=account_id)
     trading_books: list[TradingBook] = []
     for book in BookRepository(conn).fetch_for_account(account_id=int(account_id)):
         if book.is_default or book.status.strip().lower() != "active":

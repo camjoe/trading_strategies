@@ -1,7 +1,7 @@
-"""Daily operator report assembly for sleeve-mode accounts.
+"""Daily operator report assembly for multi-book accounts.
 
 Assembles three report sections from persisted data for a given account and date:
-  - sleeve performance table (from daily_metrics + current sleeve state)
+  - book performance table (from daily_metrics + current book state)
   - risk violations summary (from sleeve_risk_decisions + portfolio_risk_snapshots)
   - rotation decision log (from rotation_decisions)
 
@@ -14,14 +14,13 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from trading.models.sleeves.sleeve_record import SleeveRecord
-from trading.repositories.book_bridge import book_id_for_sleeve
+from trading.models.books.book_record import BookRecord
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
-from trading.repositories.sleeves import SleeveRepository
+from trading.services.sleeves.book_assignments import open_assignment_for_book, sync_legacy_sleeve_books
 
 
 def _next_date(report_date: str) -> str:
@@ -29,9 +28,9 @@ def _next_date(report_date: str) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class SleevePerformanceRow:
-    sleeve_id: int
-    sleeve_name: str
+class BookPerformanceRow:
+    book_id: int
+    book_name: str
     strategy_name: str | None
     return_pct: float | None
     drawdown_pct: float | None
@@ -55,8 +54,8 @@ class RiskViolationsSummary:
 
 @dataclass(frozen=True, slots=True)
 class RotationDecisionRow:
-    sleeve_id: int
-    sleeve_name: str
+    book_id: int
+    book_name: str
     incumbent_strategy: str | None
     challenger_strategy: str | None
     rotation_action: str
@@ -68,47 +67,45 @@ class AccountDailyReport:
     account_id: int
     account_name: str
     report_date: str
-    sleeve_performance: list[SleevePerformanceRow]
+    book_performance: list[BookPerformanceRow]
     risk_violations: RiskViolationsSummary
     rotation_decisions: list[RotationDecisionRow]
 
 
-def _build_sleeve_performance(
+def _report_books(conn: sqlite3.Connection, account_id: int) -> list[BookRecord]:
+    """All non-default books, any status — the report shows paused/closed books too."""
+    # Mirror legacy sleeves first so never-traded sleeves still appear (dies in SR-6).
+    sync_legacy_sleeve_books(conn, account_id=account_id)
+    return [b for b in BookRepository(conn).fetch_for_account(account_id=account_id) if not b.is_default]
+
+
+def _build_book_performance(
     conn: sqlite3.Connection,
-    sleeves: list[SleeveRecord],
+    books: list[BookRecord],
     report_date: str,
-) -> list[SleevePerformanceRow]:
-    sleeve_repo = SleeveRepository(conn)
-    book_repo = BookRepository(conn)
+) -> list[BookPerformanceRow]:
     rows = []
-    for sleeve in sleeves:
-        metrics = DailyMetricsRepository(conn).fetch_for_sleeve_window(
-            sleeve_id=sleeve.id,
+    for book in books:
+        metrics = DailyMetricsRepository(conn).fetch_for_book_window(
+            book_id=book.id,
             start_date=report_date,
             end_date=report_date,
         )
         metric = metrics[0] if metrics else None
-        assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
-        strategy_name = assignment.strategy_name if assignment is not None else None
-        # Live equity comes from the sleeve's bridging book (the sleeve balance is
-        # frozen once submission moves to the book path); fall back to the sleeve's
-        # own equity if it has never traded (no book yet).
-        book_id = book_id_for_sleeve(conn, sleeve.id, create=False)
-        book = book_repo.fetch_by_id(book_id=book_id) if book_id is not None else None
-        current_equity = book.current_equity if book is not None else sleeve.current_equity
+        assignment = open_assignment_for_book(conn, book_id=book.id)
         rows.append(
-            SleevePerformanceRow(
-                sleeve_id=sleeve.id,
-                sleeve_name=sleeve.name,
-                strategy_name=strategy_name,
+            BookPerformanceRow(
+                book_id=book.id,
+                book_name=book.name,
+                strategy_name=assignment.strategy_name if assignment is not None else None,
                 return_pct=metric.return_pct if metric else None,
                 drawdown_pct=metric.drawdown_pct if metric else None,
                 hit_rate=metric.hit_rate if metric else None,
                 trade_count=metric.trade_count if metric else None,
                 fees_total=metric.fees_total if metric else None,
                 risk_adjusted_score=metric.risk_adjusted_score if metric else None,
-                current_equity=current_equity,
-                start_equity=sleeve.start_equity,
+                current_equity=book.current_equity,
+                start_equity=book.start_equity,
             )
         )
     return rows
@@ -148,20 +145,20 @@ def _build_risk_violations(
 
 def _build_rotation_summary(
     conn: sqlite3.Connection,
-    sleeves: list[SleeveRecord],
+    books: list[BookRecord],
     report_date: str,
 ) -> list[RotationDecisionRow]:
     rows = []
-    for sleeve in sleeves:
-        decisions = RotationDecisionRepository(conn).fetch_for_sleeve_on_date(
-            sleeve_id=sleeve.id,
+    for book in books:
+        decisions = RotationDecisionRepository(conn).fetch_for_book_on_date(
+            book_id=book.id,
             report_date=report_date,
         )
         for d in decisions:
             rows.append(
                 RotationDecisionRow(
-                    sleeve_id=sleeve.id,
-                    sleeve_name=sleeve.name,
+                    book_id=book.id,
+                    book_name=book.name,
                     incumbent_strategy=d["incumbent_strategy"],
                     challenger_strategy=d["challenger_strategy"],
                     rotation_action=str(d["rotation_action"]),
@@ -178,14 +175,14 @@ def build_account_daily_report(
     account_name: str,
     report_date: str,
 ) -> AccountDailyReport:
-    sleeves = SleeveRepository(conn).fetch_for_account(account_id=account_id)
+    books = _report_books(conn, account_id)
     return AccountDailyReport(
         account_id=account_id,
         account_name=account_name,
         report_date=report_date,
-        sleeve_performance=_build_sleeve_performance(conn, sleeves, report_date),
+        book_performance=_build_book_performance(conn, books, report_date),
         risk_violations=_build_risk_violations(conn, account_id, report_date),
-        rotation_decisions=_build_rotation_summary(conn, sleeves, report_date),
+        rotation_decisions=_build_rotation_summary(conn, books, report_date),
     )
 
 
@@ -194,10 +191,10 @@ def account_daily_report_as_dict(report: AccountDailyReport) -> dict[str, object
         "account_id": report.account_id,
         "account_name": report.account_name,
         "report_date": report.report_date,
-        "sleeve_performance": [
+        "book_performance": [
             {
-                "sleeve_id": row.sleeve_id,
-                "sleeve_name": row.sleeve_name,
+                "book_id": row.book_id,
+                "book_name": row.book_name,
                 "strategy_name": row.strategy_name,
                 "return_pct": row.return_pct,
                 "drawdown_pct": row.drawdown_pct,
@@ -208,7 +205,7 @@ def account_daily_report_as_dict(report: AccountDailyReport) -> dict[str, object
                 "current_equity": row.current_equity,
                 "start_equity": row.start_equity,
             }
-            for row in report.sleeve_performance
+            for row in report.book_performance
         ],
         "risk_violations": {
             "total_decisions": report.risk_violations.total_decisions,
@@ -220,8 +217,8 @@ def account_daily_report_as_dict(report: AccountDailyReport) -> dict[str, object
         },
         "rotation_decisions": [
             {
-                "sleeve_id": row.sleeve_id,
-                "sleeve_name": row.sleeve_name,
+                "book_id": row.book_id,
+                "book_name": row.book_name,
                 "incumbent_strategy": row.incumbent_strategy,
                 "challenger_strategy": row.challenger_strategy,
                 "rotation_action": row.rotation_action,
