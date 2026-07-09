@@ -113,6 +113,22 @@ def test_main_snapshot_history_dispatches(monkeypatch) -> None:
     assert fake_conn.closed is True
 
 
+def test_main_portfolio_exposure_dispatches(monkeypatch) -> None:
+    args = SimpleNamespace(command="portfolio-exposure")
+    fake_conn = install_main_harness(monkeypatch, cli_main, args)
+    captured = {}
+    monkeypatch.setattr(
+        cli_main,
+        "show_portfolio_exposure",
+        lambda conn: captured.update({"conn": conn}),
+    )
+
+    cli_main.main()
+
+    assert captured == {"conn": fake_conn}
+    assert fake_conn.closed is True
+
+
 def test_main_compare_strategies_dispatches(monkeypatch) -> None:
     args = SimpleNamespace(command="compare-strategies", lookback=60)
     fake_conn = install_main_harness(monkeypatch, cli_main, args)

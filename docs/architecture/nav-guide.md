@@ -50,6 +50,7 @@ The maps and this guide serve different questions:
 | Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
 | Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
 | Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
+| Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
 
 ### Configuration

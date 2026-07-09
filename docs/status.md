@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-08
-Last changed: 2026-07-08
+Last changed: 2026-07-09
 Last Reviewed: 2026-07-08
 Purpose: The single source of truth for what remains of the plan — what is left, the steps to
 complete it, and what is deferred. Current truth only; completed work lives in git history.
@@ -35,17 +35,17 @@ Steps:
 3. Add the CLI to view/edit through that service (interface primacy: CLI first, UI optional later).
 4. Migrate rotation/evaluation weights that should be tunable out of code-only defaults.
 
-### P9 — Portfolio risk rollup (feature · not started)
+### P9 — Portfolio risk rollup (feature · in progress)
 
-Cross-account risk visibility from data that already exists.
+Cross-account risk visibility from data that already exists. The v1 exposure rollup is delivered
+(2026-07-09): `fetch_portfolio_exposure` in `services/analysis/exposure.py` aggregates each
+account's latest equity snapshot + open positions, and the `portfolio-exposure` CLI command prints
+it.
 
-Steps:
-1. **v1 exposure rollup**: aggregation service over `equity_snapshots` + positions returning
-   cross-account equity, cash, and market value. Read-only, low risk.
-2. CLI entry for the rollup payload.
-3. **Overlap/concentration** (second slice): needs [D10](decisions.md#d10) first — define
+Steps remaining:
+1. **Overlap/concentration** (second slice): needs [D10](decisions.md#d10) first — define
    concentration (by symbol, sector, or strategy) — then symbol-level cross-account analysis.
-4. Optional dashboard view only after the payload contract is stable.
+2. Optional dashboard view only after the payload contract is stable.
 
 ### Deploy step pending — sleeve retirement DB migration (migration · blocked on operator)
 

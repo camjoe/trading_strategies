@@ -23,7 +23,13 @@ from trading.services.promotion import (
     show_promotion_status,
 )
 from infrastructure.market_data.factory import build_provider
-from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
+from trading.services.reporting import (
+    account_report,
+    compare_strategies,
+    show_portfolio_exposure,
+    show_snapshots,
+    snapshot_account,
+)
 
 
 def _handler_deps() -> dict[str, object]:
@@ -55,6 +61,7 @@ def _handler_deps() -> dict[str, object]:
         "show_promotion_review_history": show_promotion_review_history,
         "execute_promotion_review_action": execute_promotion_review_action,
         "compare_strategies": partial(compare_strategies, provider=provider),
+        "show_portfolio_exposure": show_portfolio_exposure,
         "show_snapshots": show_snapshots,
         "snapshot_account": partial(snapshot_account, provider=provider),
     }

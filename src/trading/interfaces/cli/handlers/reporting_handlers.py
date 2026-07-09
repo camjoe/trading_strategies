@@ -53,5 +53,9 @@ def handle_snapshot_history(conn, args, parser, *, deps: dict[str, Any]) -> None
     deps["show_snapshots"](conn, args.account, args.limit)
 
 
+def handle_portfolio_exposure(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    deps["show_portfolio_exposure"](conn)
+
+
 def handle_compare_strategies(conn, args, parser, *, deps: dict[str, Any]) -> None:
     deps["compare_strategies"](conn, args.lookback)
