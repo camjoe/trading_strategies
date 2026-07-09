@@ -38,13 +38,9 @@ row per table — use this for orientation and context. For column details, read
 | `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
 | `walk_forward_groups` | Walk-forward group summary: date range, window count, aggregate return stats | → `accounts` |
 | `walk_forward_group_runs` | Individual backtest runs belonging to a walk-forward group | → `walk_forward_groups`, `backtest_runs` |
-| `strategy_sleeves` | Virtual sub-accounts within an account; each runs one strategy at a time | → `accounts` |
 | `strategy_param_sets` | Versioned strategy parameter sets; one `is_active` per `strategy_name` | — |
-| `sleeve_strategy_assignments` | History of which param set is/was incumbent for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
-| `rotation_decisions` | Records of each hold/rotate decision for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
-| `sleeve_risk_decisions` | Allow/rescale/block decisions from the risk layer for a proposed trade | → `accounts`, `strategy_sleeves` |
-| `portfolio_risk_snapshots` | Portfolio-level risk metrics snapshot (exposure, concentration, drawdown) | → `accounts` |
-| `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per account or sleeve | → `accounts`, `strategy_sleeves` |
+| `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
+| `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
 | `books` | Clean-schema strategy-execution primitive; one default book per account (partial-unique) | → `accounts` |

@@ -6,9 +6,18 @@ trade universes, and copy its open strategy assignment onto the book when the bo
 none. Idempotent — safe to re-run; existing book state is never overwritten by a
 second run (books are authoritative once populated).
 
-**Run once on any existing DB before (or with) deploying the SR-6a code**, which no
-longer self-migrates at read time. Reads the legacy tables via raw SQL on purpose —
-this module dies in SR-7 together with those tables.
+**Deploy checklist for an existing DB** (fresh DBs no longer create the legacy tables):
+1. Back up the DB (`local/db_backups/`).
+2. Run this op once: ``python -m trading.interfaces.runtime.data_ops.migrate_sleeve_books``.
+3. Drop the orphaned tables with explicit sign-off::
+
+       DROP TABLE IF EXISTS sleeve_strategy_assignments;
+       DROP TABLE IF EXISTS strategy_sleeves;
+       DROP TABLE IF EXISTS sleeve_risk_decisions;
+       DROP TABLE IF EXISTS portfolio_risk_snapshots;
+
+Reads the legacy tables via raw SQL on purpose; delete this module once the
+production DB has been migrated and dropped.
 
 Usage:
     python -m trading.interfaces.runtime.data_ops.migrate_sleeve_books
@@ -36,10 +45,14 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
     books_created = 0
     assignments_copied = 0
 
-    sleeves = conn.execute(
-        "SELECT id, account_id, name, status, start_equity, current_cash, current_equity,"
-        " trade_universes, created_at FROM strategy_sleeves ORDER BY id ASC"
-    ).fetchall()
+    try:
+        sleeves = conn.execute(
+            "SELECT id, account_id, name, status, start_equity, current_cash, current_equity,"
+            " trade_universes, created_at FROM strategy_sleeves ORDER BY id ASC"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # Fresh DB (SR-7 schema): the legacy tables never existed — nothing to migrate.
+        return 0, 0
     for sleeve in sleeves:
         row = conn.execute(
             "SELECT id FROM books WHERE account_id = ? AND name = ?",

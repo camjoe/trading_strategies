@@ -267,17 +267,11 @@ GLOBAL_SETTINGS_MIGRATIONS = (
     ),
 )
 
-# Placeholder hooks for future additive sleeve-table column migrations.
-# New ColumnMigration entries for these tables should be appended in place.
-SLEEVE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
-    "strategy_sleeves": (
-        ColumnMigration("trade_universes", "ALTER TABLE strategy_sleeves ADD COLUMN trade_universes TEXT"),
-    ),
+# Placeholder hooks for future additive column migrations on these tables.
+# New ColumnMigration entries should be appended in place.
+TABLE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
     "strategy_param_sets": (),
-    "sleeve_strategy_assignments": (),
     "rotation_decisions": (),
-    "portfolio_risk_snapshots": (),
-    "sleeve_risk_decisions": (),
     "daily_metrics": (),
 }
 

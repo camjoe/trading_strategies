@@ -225,24 +225,6 @@ BROKER_INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_order_fills_order_id ON order_fills(order_id);
 """
 
-STRATEGY_SLEEVES_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS strategy_sleeves (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('active', 'paused', 'retired')),
-    base_ccy TEXT NOT NULL DEFAULT 'USD',
-    start_equity REAL NOT NULL,
-    current_cash REAL NOT NULL,
-    current_equity REAL NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    trade_universes TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    UNIQUE(account_id, name)
-);
-"""
-
 STRATEGY_PARAM_SETS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS strategy_param_sets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -257,22 +239,6 @@ CREATE TABLE IF NOT EXISTS strategy_param_sets (
     deactivated_at TEXT,
     notes TEXT,
     UNIQUE(strategy_name, version)
-);
-"""
-
-SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_strategy_assignments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleeve_id INTEGER NOT NULL,
-    strategy_name TEXT NOT NULL,
-    param_set_id INTEGER,
-    effective_from TEXT NOT NULL,
-    effective_to TEXT,
-    is_incumbent INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id),
-    FOREIGN KEY (param_set_id) REFERENCES strategy_param_sets(id)
 );
 """
 
@@ -317,47 +283,6 @@ ON rotation_decisions(rotation_action, decision_time DESC);
 # the shared execution service onto the clean orders/order_fills/positions/ledger
 # tables keyed by the sleeve's bridging book.
 
-PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS portfolio_risk_snapshots (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    snapshot_time TEXT NOT NULL,
-    gross_exposure REAL NOT NULL,
-    net_exposure REAL NOT NULL,
-    max_symbol_concentration_pct REAL NOT NULL,
-    max_sector_concentration_pct REAL NOT NULL,
-    drawdown_pct REAL,
-    leverage_proxy REAL,
-    daily_loss_pct REAL,
-    kill_switch_triggered INTEGER NOT NULL DEFAULT 0,
-    risk_payload_json TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    UNIQUE(account_id, snapshot_time)
-);
-"""
-
-SLEEVE_RISK_DECISIONS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS sleeve_risk_decisions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    sleeve_id INTEGER,
-    decision_time TEXT NOT NULL,
-    symbol TEXT,
-    side TEXT CHECK (side IN ('buy', 'sell')),
-    action TEXT NOT NULL CHECK (action IN ('allow', 'rescale', 'block')),
-    reason_code TEXT NOT NULL,
-    requested_qty INTEGER,
-    approved_qty INTEGER,
-    requested_notional REAL,
-    approved_notional REAL,
-    execution_mode TEXT NOT NULL DEFAULT 'sleeve',
-    risk_payload_json TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (sleeve_id) REFERENCES strategy_sleeves(id)
-);
-"""
-
 # Clean-schema shape (P3 Phase E): metrics are book-keyed; account-level rows
 # live on the account's default book (docs/db-schema-target.md).
 DAILY_METRICS_TABLE_SQL = """
@@ -386,26 +311,9 @@ CREATE INDEX IF NOT EXISTS idx_daily_metrics_book_date
 ON daily_metrics(book_id, metric_date DESC);
 """
 
-SLEEVE_INDEXES_SQL = """
-CREATE INDEX IF NOT EXISTS idx_strategy_sleeves_account_status
-ON strategy_sleeves(account_id, status);
+STRATEGY_PARAM_SETS_INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_strategy_param_sets_strategy_active
 ON strategy_param_sets(strategy_name, is_active);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sleeve_assignments_active_incumbent
-ON sleeve_strategy_assignments(sleeve_id)
-WHERE is_incumbent = 1 AND effective_to IS NULL;
-CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_sleeve_effective
-ON sleeve_strategy_assignments(sleeve_id, effective_from DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_assignments_strategy_effective
-ON sleeve_strategy_assignments(strategy_name, effective_from DESC);
-CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_account_time
-ON portfolio_risk_snapshots(account_id, snapshot_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_account_time
-ON sleeve_risk_decisions(account_id, decision_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_sleeve_time
-ON sleeve_risk_decisions(sleeve_id, decision_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sleeve_risk_decisions_action_reason_time
-ON sleeve_risk_decisions(action, reason_code, decision_time DESC);
 """
 
 # Clean-schema shape (P3 Phase E): strategy is a strategies FK copied from the
@@ -813,16 +721,12 @@ SCHEMA_SQL = "\n".join(
         BACKTEST_INDEXES_SQL,
         ORDER_FILLS_TABLE_SQL,
         BROKER_INDEXES_SQL,
-        STRATEGY_SLEEVES_TABLE_SQL,
         STRATEGY_PARAM_SETS_TABLE_SQL,
-        SLEEVE_STRATEGY_ASSIGNMENTS_TABLE_SQL,
         ROTATION_DECISIONS_TABLE_SQL,
         ROTATION_DECISIONS_INDEXES_SQL,
-        PORTFOLIO_RISK_SNAPSHOTS_TABLE_SQL,
-        SLEEVE_RISK_DECISIONS_TABLE_SQL,
         DAILY_METRICS_TABLE_SQL,
         DAILY_METRICS_INDEXES_SQL,
-        SLEEVE_INDEXES_SQL,
+        STRATEGY_PARAM_SETS_INDEXES_SQL,
         WALK_FORWARD_GROUPS_TABLE_SQL,
         WALK_FORWARD_GROUP_RUNS_TABLE_SQL,
         WALK_FORWARD_INDEXES_SQL,

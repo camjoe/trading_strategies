@@ -11,7 +11,7 @@ from infrastructure.database.migrations import (
     BOOK_MIGRATIONS_BY_TABLE,
     ColumnMigration,
     GLOBAL_SETTINGS_MIGRATIONS,
-    SLEEVE_MIGRATIONS_BY_TABLE,
+    TABLE_MIGRATIONS_BY_TABLE,
 )
 from infrastructure.database.schema import SCHEMA_SQL
 
@@ -63,7 +63,7 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "accounts", migration)
     for migration in GLOBAL_SETTINGS_MIGRATIONS:
         _ensure_column(conn, "global_settings", migration)
-    for table_name, migrations in SLEEVE_MIGRATIONS_BY_TABLE.items():
+    for table_name, migrations in TABLE_MIGRATIONS_BY_TABLE.items():
         for migration in migrations:
             _ensure_column(conn, table_name, migration)
     for table_name, migrations in BOOK_MIGRATIONS_BY_TABLE.items():
