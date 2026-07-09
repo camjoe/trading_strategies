@@ -6,7 +6,7 @@ from typing import Protocol
 
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.gate_result import GateResult
-from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
+from trading.models.execution.risk_gate_decision import RiskGateDecision
 
 
 class PreSubmitGate(Protocol):
@@ -44,7 +44,7 @@ class GateAuditSink(Protocol):
         *,
         account_id: int,
         snapshot_time: str,
-        decisions: Sequence[SleeveRiskDecision],
+        decisions: Sequence[RiskGateDecision],
         kill_switch_reasons: Sequence[str],
         kill_switch_triggered: bool,
     ) -> None: ...

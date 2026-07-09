@@ -5,7 +5,7 @@ notional risk gate, so every book — a plain account's default book and a sleev
 bridging book alike — inherits the same guards.
 
 **Book-as-bucket.** ``book_id`` is the risk bucket. The notional risk-gate
-*policy* (``trading.domain.sleeve_risk_gate.evaluate_sleeve_risk_gate``) is reused
+*policy* (``trading.domain.risk_gate.evaluate_risk_gate``) is reused
 **unchanged**; this module only adapts book intents / equity / positions into the
 sleeve-shaped inputs the policy expects (a sleeve was always just "the bucket").
 Reconciliation likewise rolls up book equity for the account. Kept free of any
@@ -19,12 +19,12 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
-from trading.domain.sleeve_risk_gate import evaluate_sleeve_risk_gate as evaluate_sleeve_risk_gate_policy
+from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.gate_result import GateResult
-from trading.models.sleeves.sleeve_position_record import SleevePositionRecord
-from trading.models.sleeves.sleeve_risk_gate_config import SleeveRiskGateConfig
-from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
+from trading.models.execution.risk_gate_position import RiskGatePosition
+from trading.models.execution.risk_gate_config import RiskGateConfig
+from trading.models.execution.book_trade_candidate import BookTradeCandidate
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import (
@@ -50,7 +50,7 @@ class BookPreSubmitGate:
         *,
         prices: Mapping[str, float],
         snapshot_time: str,
-        config: SleeveRiskGateConfig | None = None,
+        config: RiskGateConfig | None = None,
         equity_tolerance: float = RECONCILIATION_EQUITY_TOLERANCE,
         max_snapshot_age_seconds: int = MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS,
         reconcile: bool = True,
@@ -58,7 +58,7 @@ class BookPreSubmitGate:
     ) -> None:
         self._prices = prices
         self._snapshot_time = snapshot_time
-        self._config = config if config is not None else SleeveRiskGateConfig()
+        self._config = config if config is not None else RiskGateConfig()
         self._equity_tolerance = abs(float(equity_tolerance))
         self._max_snapshot_age_seconds = int(max_snapshot_age_seconds)
         # When False, the equity reconciliation kill switch is skipped here — the
@@ -119,8 +119,8 @@ class BookPreSubmitGate:
         equity_by_book = {book.id: book.current_equity for book in books}
         positions = PositionRepository(conn).fetch_for_account(account_id=account_id)
         sleeve_positions = [
-            SleevePositionRecord(
-                sleeve_id=position.book_id,
+            RiskGatePosition(
+                book_id=position.book_id,
                 symbol=position.symbol,
                 qty=position.qty,
                 avg_cost=position.avg_cost,
@@ -130,9 +130,9 @@ class BookPreSubmitGate:
             )
             for position in positions
         ]
-        result = evaluate_sleeve_risk_gate_policy(
+        result = evaluate_risk_gate_policy(
             intents=[self._as_bucket_intent(intent) for intent in intents],
-            sleeve_equity_by_id=equity_by_book,
+            book_equity_by_id=equity_by_book,
             positions=sleeve_positions,
             config=self._config,
         )
@@ -153,10 +153,10 @@ class BookPreSubmitGate:
                 approved.append(original)
         return list(result.decisions), approved, blocked, rescaled
 
-    def _as_bucket_intent(self, intent: BookTradeIntent) -> SleeveTradeIntent:
+    def _as_bucket_intent(self, intent: BookTradeIntent) -> BookTradeCandidate:
         # book_id plays the sleeve_id "bucket" role; the policy only uses side,
         # symbol, qty, requested_price, and the bucket id from the intent.
-        return SleeveTradeIntent(
+        return BookTradeCandidate(
             account_id=intent.account_id,
             book_id=intent.book_id,
             strategy_name="",

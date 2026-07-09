@@ -9,7 +9,7 @@ from trading.services.accounts import get_account
 from trading.services.auto_trading.rotation_candidates import build_book_rotation_candidates
 from tests.support.repositories import insert_repository_account
 
-EVAL_FN = "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row"
+EVAL_FN = "trading.services.books.rotation_metrics.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(score: float, *, trade_count: int = 30) -> StrategyEvaluationArtifact:

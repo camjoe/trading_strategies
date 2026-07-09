@@ -134,7 +134,7 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     assert "--rolling-window-days" in calls[0][1]
 
 
-def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_auto_trader_runs_in_book_execution_mode(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -147,7 +147,7 @@ def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path, 
     assert len(auto_trader_calls) == 1
     args = auto_trader_calls[0]
     mode_index = args.index("--execution-mode")
-    assert args[mode_index + 1] == "sleeve"
+    assert args[mode_index + 1] == "book"
 
 
 def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -160,9 +160,9 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
                 "results": [
                     {
                         "account_name": "acct_a",
-                        "sleeves": [
-                            {"sleeve_id": 1, "challenger_count": 2},
-                            {"sleeve_id": 2, "challenger_count": 1},
+                        "books": [
+                            {"book_id": 1, "challenger_count": 2},
+                            {"book_id": 2, "challenger_count": 1},
                         ],
                     }
                 ],
@@ -188,7 +188,7 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
     summary = score_steps[0]["details"]["shadow_eval_summary"]
     assert summary is not None
     assert summary["account_count"] == 1
-    assert summary["sleeve_count"] == 2
+    assert summary["book_count"] == 2
     assert summary["challenger_count"] == 3
 
 
@@ -259,10 +259,10 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path, _runtim
         "daily_paper_trading_*.json",
     )
     assert payload["status"] == "failed"
-    assert payload["failed_step"] == "05_build_position_targets_by_sleeve"
+    assert payload["failed_step"] == "05_build_position_targets_by_book"
     failed_steps = [step for step in payload["step_results"] if step["status"] == "failed"]
     assert len(failed_steps) == 1
-    assert failed_steps[0]["step"] == "05_build_position_targets_by_sleeve"
+    assert failed_steps[0]["step"] == "05_build_position_targets_by_book"
 
 
 def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -346,7 +346,7 @@ def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Pat
                 "account_id": 1,
                 "account_name": "acct_a",
                 "report_date": "2026-05-07",
-                "sleeve_performance": [],
+                "book_performance": [],
                 "risk_violations": {
                     "total_decisions": 0,
                     "block_count": 0,

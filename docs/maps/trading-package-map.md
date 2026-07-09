@@ -175,14 +175,14 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
-| `sleeves/book_assignments.py` | Book strategy assignments — the single live assignment record (lazy sleeve bootstrap + dual-write during sleeve retirement) |
-| `sleeves/daily_report.py` | Sleeve daily reporting |
-| `sleeves/execution.py` | Sleeve trade execution and intent generation |
-| `sleeves/helpers.py` | Shared sleeve service helpers (math, formatting) |
-| `sleeves/rotation.py` | Sleeve rotation execution + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown) |
-| `sleeves/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
-| `sleeves/sector_config.py` | Operator-editable symbol-sector config loading |
-| `sleeves/shadow_evaluation.py` | Sleeve shadow/challenger evaluation |
+| `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
+| `books/challenger_evaluation.py` | Per-book challenger enumeration for the daily shadow-eval job (`ChallengerEvaluationRun`) |
+| `books/daily_report.py` | Multi-book daily operator report assembly |
+| `books/execution.py` | Multi-book trade-candidate generation (`generate_book_trade_intents`) |
+| `books/helpers.py` | Shared book service helpers (window math) |
+| `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown) |
+| `books/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
+| `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
 | `universe/resolver.py` | Trade-universe name resolution |
 
@@ -234,8 +234,8 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Return calculation math |
 | `rotation.py` | Rotation state-transition logic + `RotationConfig` persistence serialization |
-| `sleeve_accounting.py` | Sleeve-level accounting math (builds `models.sleeves.SleeveFillTransition`) |
-| `sleeve_risk_gate.py` | Sleeve risk-gate decision policy |
+| `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
+| `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `rotation_policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
 | `strategy_signals.py` | Strategy signal dispatch + `StrategySpec` registry (DI: holds signal callables) |
 
@@ -257,7 +257,6 @@ their public types.
 | `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
 | `strategy/` | `StrategyParamSetRecord` |
 | `settings/` | `GlobalSettingsRecord` |
-| `sleeves/` | `SleevePositionRecord`, `SleeveRecord`, `SleeveRiskDecisionRecord`, `SleeveStrategyAssignmentRecord`, `SleeveFillTransition` |
 | `evaluation/` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDiagnostics`) + version constants |
 | `promotion/` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + stage/status/review vocabulary constants |
 

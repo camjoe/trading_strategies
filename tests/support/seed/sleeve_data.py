@@ -14,7 +14,7 @@ BOOK_METRIC_DATE = "2026-01-03"
 def seed_books(conn: sqlite3.Connection) -> None:
     from trading.repositories.books import BookRepository
     from trading.repositories.daily_metrics import DailyMetricsRepository
-    from trading.services.sleeves.book_assignments import assign_book_strategy
+    from trading.services.books.book_assignments import assign_book_strategy
 
     acct_id = seed_account_id(conn, ACCT_TREND)
     ts = "2026-01-01T00:00:00Z"

@@ -47,7 +47,7 @@ The maps and this guide serve different questions:
 | Change reporting math or presentation | `src/trading/services/reporting/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
-| Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/sleeves/` |
+| Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
 | Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
 | Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |

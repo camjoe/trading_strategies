@@ -256,7 +256,7 @@ def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> No
     )
     scenario.install(monkeypatch, runtime_service)
     sleeve_runner = Mock(return_value=3)
-    monkeypatch.setattr(runtime_service, "_run_sleeve_mode_for_account", sleeve_runner)
+    monkeypatch.setattr(runtime_service, "_run_multi_book_mode_for_account", sleeve_runner)
     broker_factory = Mock()
 
     executed = run_for_account(
@@ -268,7 +268,7 @@ def test_run_for_account_routes_to_sleeve_mode_without_broker(monkeypatch) -> No
         min_trades=1,
         max_trades=3,
         fee=0.0,
-        execution_mode="sleeve",
+        execution_mode="book",
         broker_factory=broker_factory,
         feature_fetchers=make_feature_fetchers(),
     )

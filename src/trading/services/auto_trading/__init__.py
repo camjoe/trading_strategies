@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from trading.services.auto_trading.inputs import (
     EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_SLEEVE,
+    EXECUTION_MODE_BOOK,
     resolve_account_names,
     resolve_market_inputs,
     run_accounts,
@@ -30,7 +30,7 @@ from trading.services.auto_trading.runtime import (
 __all__ = [
     "RotationDeps",
     "EXECUTION_MODE_ACCOUNT",
-    "EXECUTION_MODE_SLEEVE",
+    "EXECUTION_MODE_BOOK",
     "build_iv_rank_proxy",
     "reconcile_open_broker_orders",
     "reconcile_open_ib_orders",

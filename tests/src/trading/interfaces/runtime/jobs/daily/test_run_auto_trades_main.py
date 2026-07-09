@@ -40,7 +40,7 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
         seed=123,
         accounts="acct1,acct2",
         fee=1.0,
-        execution_mode="sleeve",
+        execution_mode="book",
     )
     monkeypatch.setattr(
         module,
@@ -57,7 +57,7 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     assert "acct1: executed 2 trades" in out
     assert "acct2: executed 2 trades" in out
     assert conn.closed is True
-    assert run_accounts_mock.call_args.kwargs["execution_mode"] == "sleeve"
+    assert run_accounts_mock.call_args.kwargs["execution_mode"] == "book"
 
 
 def test_main_additional_validation_paths(monkeypatch) -> None:

@@ -12,7 +12,7 @@ from tests.src.trading.services.auto_trading.factories import make_auto_trading_
 
 # Selection scores come from the strategy evaluation artifact's decision score; the
 # champion/challenger model reads it through the shared decision-score builder.
-EVAL_FN = "trading.services.sleeves.rotation_metrics.fetch_strategy_evaluation_for_account_row"
+EVAL_FN = "trading.services.books.rotation_metrics.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(score: float, *, trade_count: int = 30) -> StrategyEvaluationArtifact:

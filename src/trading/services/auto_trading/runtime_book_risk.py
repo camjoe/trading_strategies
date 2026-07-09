@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from common.time import parse_utc_iso
-from trading.domain.sleeve_risk_gate import resolve_sector_for_symbol
+from trading.domain.risk_gate import resolve_sector_for_symbol
 
 logger = logging.getLogger(__name__)
 

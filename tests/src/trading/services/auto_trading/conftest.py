@@ -1,6 +1,6 @@
 import pytest
 
-from tests.support.sleeves import build_book_env, build_rotation_book_env
+from tests.support.books import build_book_env, build_rotation_book_env
 
 
 @pytest.fixture

@@ -19,7 +19,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W3_ALLOCATION_REVIEW_COMPLETE_SENTINEL
-from trading.services.sleeves.book_assignments import list_report_books
+from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)

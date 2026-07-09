@@ -11,10 +11,10 @@ from trading.interfaces.runtime.job_status import (
     DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL,
 )
 from trading.services.accounts import get_account
-from trading.services.sleeves.shadow_evaluation import (
-    DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
-    ShadowEvaluationRun,
-    build_sleeve_shadow_evaluation,
+from trading.services.books.challenger_evaluation import (
+    DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
+    ChallengerEvaluationRun,
+    build_book_challenger_evaluations,
 )
 
 JOB_NAME = "daily_challenger_shadow_eval"
@@ -28,10 +28,10 @@ def _add_window_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--rolling-window-days",
         type=int,
-        default=DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
+        default=DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
         help=(
             "Historical lookback window in days for challenger evidence "
-            f"(default: {DEFAULT_SHADOW_ROLLING_WINDOW_DAYS})"
+            f"(default: {DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS})"
         ),
     )
 
@@ -46,13 +46,13 @@ def _run_meta(args: argparse.Namespace) -> dict[str, object]:
     return {"rolling_window_days": int(args.rolling_window_days)}
 
 
-def _serialize_shadow_run(result: ShadowEvaluationRun) -> dict[str, object]:
+def _serialize_shadow_run(result: ChallengerEvaluationRun) -> dict[str, object]:
     return {
         "account_id": result.account_id,
         "account_name": result.account_name,
         "window_start_day": result.window_start_day,
         "window_end_day": result.window_end_day,
-        "sleeves": [
+        "books": [
             {
                 "book_id": sleeve.book_id,
                 "incumbent_strategy": sleeve.incumbent_strategy,
@@ -71,7 +71,7 @@ def _serialize_shadow_run(result: ShadowEvaluationRun) -> dict[str, object]:
                     for challenger in sleeve.challengers
                 ],
             }
-            for sleeve in result.sleeves
+            for sleeve in result.books
         ],
     }
 
@@ -82,9 +82,9 @@ def run_shadow_eval_for_account(
     account_name: str,
     rolling_window_days: int,
     as_of_iso: str,
-) -> ShadowEvaluationRun:
+) -> ChallengerEvaluationRun:
     account = get_account(conn, account_name)
-    return build_sleeve_shadow_evaluation(
+    return build_book_challenger_evaluations(
         conn,
         account=account,
         as_of_iso=as_of_iso,
@@ -116,7 +116,7 @@ def main(ctx: JobContext, account: str) -> dict[str, object]:
         rolling_window_days=int(ctx.args.rolling_window_days),
         as_of_iso=ts(),
     )
-    ctx.log(f"SHADOW_EVAL: account={account} sleeves={len(shadow_run.sleeves)}")
+    ctx.log(f"SHADOW_EVAL: account={account} books={len(shadow_run.books)}")
     return {"status": "success", **_serialize_shadow_run(shadow_run)}
 
 

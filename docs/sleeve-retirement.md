@@ -71,8 +71,13 @@ Related: [Status](status.md), [ADR 003 — Sleeve Virtualization](adr/003-sleeve
   mode into the same flow changes account-mode semantics (strategy/state resolution source) and
   cannot be proven behavior-preserving mid-retirement. Recorded as a **post-SR-7 candidate**: once
   sleeves are gone, evaluate one mode = "trade every active book with an open assignment".
-- **D-SR4 — package naming.** `services/sleeves/` → `services/books/` (or fold pieces into
-  `execution`/`auto_trading`). Decide at SR-6 with the rename table in hand.
+- ~~**D-SR4 — package naming.**~~ **Resolved (SR-6b, 2026-07-09):** `services/sleeves/` →
+  **`services/books/`** (cohesive multi-book package, not folded); the risk-gate contracts moved to
+  **`models/execution/`** (where the gate lives); the strategy-selected trade is
+  **`BookTradeCandidate`** (avoiding collision with the submission `BookTradeIntent`);
+  `shadow_evaluation` → **`challenger_evaluation`** (its actual role); execution-mode value
+  `sleeve` → **`book`** with the legacy spelling accepted and normalized (scheduled invocations
+  keep working).
 
 ## Phased plan (each phase = one green commit; `run_checks ci` gates)
 
@@ -165,7 +170,20 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
   daily-metrics repos (book-native `fetch_latest_for_book` added; `upsert` takes `book_id`), and the
   vestigial `sleeve_id` fields on `SleeveTradeIntent`/`SleeveShadowEvaluation`/`RotationRunResult`
   (the domain risk gate buckets on `intent.book_id`). Test infrastructure went book-native:
-  `tests/support/sleeves.py` (insert_test_book / assign_test_book_strategy / build_book_env /
+  `tests/support/books.py` (insert_test_book / assign_test_book_strategy / build_book_env /
   build_rotation_book_env), conftest fixtures, the seeded-DB dataset, and the repo/service/runtime
   test files. Nothing outside the data-op touches `strategy_sleeves`/`sleeve_strategy_assignments`.
   Full `run_checks ci` green.
+- 2026-07-09 — **SR-6b landed.** D-SR4 resolved; the sleeve vocabulary is gone from the code
+  (64 files renamed): `services/sleeves/` → `services/books/` (`shadow_evaluation` →
+  `challenger_evaluation`); `models/sleeves/` dissolved — risk-gate contracts to `models/execution/`
+  (`RiskGateDecision` with a real `book_id` field, `RiskGateConfig`/`Result`/`Position`,
+  `BookTradeCandidate`, `BookTradeState`) and `BookFillTransition` to `models/books/`;
+  `domain/sleeve_accounting.py` → `book_accounting.py`; `domain/sleeve_risk_gate.py` → `risk_gate.py`
+  (`evaluate_risk_gate`, `book_equity_by_id`, reason `book_notional_cap`, `max_book_notional_pct`);
+  runtime `_run_multi_book_mode_for_account` / `generate_book_trade_intents` /
+  `evaluate_and_apply_book_rotation` / `build_book_challenger_evaluations`; execution-mode value
+  `sleeve` → `book` (legacy spelling normalized in `validate_execution_mode`); challenger/daily
+  artifacts key on `books`/`book_count`; DAG step `05_build_position_targets_by_book`. The gate's
+  `asdict` yields `book_id` natively — the last translation shim is gone. Test support moved to
+  `tests/support/books.py`. Full `run_checks ci` green.

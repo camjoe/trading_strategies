@@ -24,7 +24,7 @@ from trading.models import AccountRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.auto_trading.rotation_candidates import build_book_rotation_candidates
-from trading.services.sleeves.rotation import (
+from trading.services.books.rotation import (
     RotationPolicyConfig,
     book_cooldown_active,
     evaluate_book_rotation,

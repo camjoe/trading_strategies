@@ -15,7 +15,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
-from trading.services.sleeves.book_assignments import list_report_books
+from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)

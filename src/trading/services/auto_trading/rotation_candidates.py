@@ -7,7 +7,7 @@ both a plain account (its default book) and a sleeve (its bridging book); the ca
 resolves the incumbent + schedule for the book, and the per-strategy metrics come
 from the shared decision-score builder.
 
-Generalizes the sleeve-only `build_sleeve_shadow_evaluation`. The candidate metrics
+Generalizes the sleeve-only `build_book_challenger_evaluations`. The candidate metrics
 type is the paradigm-neutral `RotationStrategyMetrics` (book-agnostic strategy data),
 built via the shared `build_rotation_strategy_metrics`.
 """
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from trading.models import AccountRecord
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.strategy_param_sets import StrategyParamSetRepository
-from trading.services.sleeves.rotation_metrics import build_rotation_strategy_metrics
+from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
 
 
 @dataclass(frozen=True, slots=True)

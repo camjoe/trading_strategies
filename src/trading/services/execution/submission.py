@@ -5,7 +5,7 @@ from collections.abc import Callable, Sequence
 
 from common.time import utc_now_iso
 from trading.domain.broker_connection import BrokerConnection
-from trading.domain.sleeve_accounting import apply_sleeve_fill_transition
+from trading.domain.book_accounting import apply_book_fill_transition
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.models.execution.submission_result import SubmissionResult
 from trading.models.orders.broker_order import BrokerOrder, OrderStatus
@@ -80,7 +80,7 @@ def apply_book_fill(
     position_qty = current.qty if current is not None else 0.0
     position_avg_cost = current.avg_cost if current is not None else 0.0
 
-    transition = apply_sleeve_fill_transition(
+    transition = apply_book_fill_transition(
         side=side,
         symbol=symbol,
         qty=fill_qty,

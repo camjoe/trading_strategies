@@ -19,7 +19,7 @@ from trading.models.portfolio.daily_metric_record import DailyMetricRecord
 from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.models.settings.global_settings_record import GlobalSettingsRecord
 from trading.models.rotation.rotation_config import RotationConfig
-from trading.models.sleeves.sleeve_position_record import SleevePositionRecord
+from trading.models.execution.risk_gate_position import RiskGatePosition
 from trading.models.strategy.strategy_param_set_record import StrategyParamSetRecord
 
 __all__ = [
@@ -35,7 +35,7 @@ __all__ = [
     "OrderStatus",
     "OrderType",
     "RotationConfig",
-    "SleevePositionRecord",
+    "RiskGatePosition",
     "StrategyParamSetRecord",
     "TimeInForce",
 ]

@@ -4,7 +4,7 @@ import pytest
 
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_book
+from tests.support.books import insert_test_book
 
 
 def _account_id(conn, name: str = "metrics_acct") -> int:

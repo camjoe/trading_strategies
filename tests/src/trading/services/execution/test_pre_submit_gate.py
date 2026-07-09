@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 from trading.models.execution.book_trade_intent import BookTradeIntent
-from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
+from trading.models.execution.risk_gate_decision import RiskGateDecision
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -31,7 +31,7 @@ class RecordingSink:
         *,
         account_id: int,
         snapshot_time: str,
-        decisions: Sequence[SleeveRiskDecision],
+        decisions: Sequence[RiskGateDecision],
         kill_switch_reasons: Sequence[str],
         kill_switch_triggered: bool,
     ) -> None:
@@ -207,7 +207,7 @@ def test_audit_sink_receives_decisions_and_reasons(conn):
     assert KILL_SWITCH_REASON_STALE_PRICE_DATA in call.kill_switch_reasons
     # The notional-gate decision is captured for the audit trail (book_id in the bucket slot).
     assert len(call.decisions) == 1
-    assert call.decisions[0].sleeve_id == book_id
+    assert call.decisions[0].book_id == book_id
 
 
 def test_sell_position_reduction_is_allowed(conn):

@@ -37,7 +37,7 @@ from trading.services.auto_trading.execution import (
 )
 from trading.services.auto_trading.inputs import (
     EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_SLEEVE,
+    EXECUTION_MODE_BOOK,
     validate_execution_mode,
 )
 from trading.services.auto_trading.runtime_reconciliation import (
@@ -50,18 +50,18 @@ from trading.services.auto_trading.runtime_book_risk import (
     persist_book_risk_snapshot,
     persist_normalized_risk_decisions,
 )
-from trading.models.sleeves.sleeve_trade_intent import SleeveTradeIntent
-from trading.models.sleeves.sleeve_risk_decision import SleeveRiskDecision
-from trading.models.sleeves.sleeve_risk_gate_config import SleeveRiskGateConfig
-from trading.services.sleeves.execution import generate_sleeve_trade_intents
-from trading.services.sleeves.sector_config import load_symbol_sector_map
-from trading.services.sleeves.rotation import (
+from trading.models.execution.book_trade_candidate import BookTradeCandidate
+from trading.models.execution.risk_gate_decision import RiskGateDecision
+from trading.models.execution.risk_gate_config import RiskGateConfig
+from trading.services.books.execution import generate_book_trade_intents
+from trading.services.books.sector_config import load_symbol_sector_map
+from trading.services.books.rotation import (
     RotationPolicyConfig,
-    evaluate_and_apply_sleeve_rotation,
+    evaluate_and_apply_book_rotation,
 )
-from trading.services.sleeves.shadow_evaluation import (
-    DEFAULT_SHADOW_ROLLING_WINDOW_DAYS,
-    build_sleeve_shadow_evaluation,
+from trading.services.books.challenger_evaluation import (
+    DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
+    build_book_challenger_evaluations,
 )
 from trading.repositories.positions import PositionRepository
 from trading.repositories.books import BookRepository
@@ -262,7 +262,7 @@ def _persist_normalized_risk_decisions(
     )
 
 
-def _run_sleeve_rotation_decisions(
+def _run_book_rotation_decisions(
     conn: sqlite3.Connection,
     *,
     account: AccountRecord,
@@ -271,24 +271,24 @@ def _run_sleeve_rotation_decisions(
     rolling_window_days = (
         int(account.rotation_lookback_days)
         if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
-        else DEFAULT_SHADOW_ROLLING_WINDOW_DAYS
+        else DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
     )
     config = RotationPolicyConfig(
         rolling_window_days=rolling_window_days,
         config_version=f"sleeve-rotation:{decision_time[:10]}",
     )
-    shadow_eval = build_sleeve_shadow_evaluation(
+    shadow_eval = build_book_challenger_evaluations(
         conn,
         account=account,
         as_of_iso=decision_time,
         rolling_window_days=rolling_window_days,
     )
-    for sleeve_eval in shadow_eval.sleeves:
-        evaluate_and_apply_sleeve_rotation(
+    for book_eval in shadow_eval.books:
+        evaluate_and_apply_book_rotation(
             conn,
-            book_id=sleeve_eval.book_id,
-            incumbent=sleeve_eval.incumbent,
-            challengers=sleeve_eval.challengers,
+            book_id=book_eval.book_id,
+            incumbent=book_eval.incumbent,
+            challengers=book_eval.challengers,
             config=config,
             decision_time=decision_time,
         )
@@ -305,19 +305,9 @@ def _resolve_account_universe(account: AccountRecord, global_universe: list[str]
     return resolve_named_universes([str(n) for n in names])
 
 
-def _risk_decisions_from_gate(decisions: list[SleeveRiskDecision]) -> list[dict[str, object]]:
-    """Convert the gate's book-bucketed decisions into book-keyed audit dicts.
-
-    Under book-as-bucket the gate emits decisions with ``sleeve_id`` set to the
-    book id (the field renames with SR-6); the clean risk audit keys on ``book_id``
-    directly — no legacy translation.
-    """
-    audit_rows: list[dict[str, object]] = []
-    for decision in decisions:
-        row = asdict(decision)
-        row["book_id"] = row.pop("sleeve_id")
-        audit_rows.append(row)
-    return audit_rows
+def _risk_decisions_from_gate(decisions: list[RiskGateDecision]) -> list[dict[str, object]]:
+    """Convert the gate's book-keyed decisions into audit dicts."""
+    return [asdict(decision) for decision in decisions]
 
 
 def _persist_book_run_audit(
@@ -348,7 +338,7 @@ def _persist_book_run_audit(
     )
 
 
-def _run_sleeve_mode_for_account(
+def _run_multi_book_mode_for_account(
     conn: sqlite3.Connection,
     *,
     account_name: str,
@@ -367,8 +357,8 @@ def _run_sleeve_mode_for_account(
     account_id = row_expect_int(account, "id")
     snapshot_time = utc_now_iso()
     effective_universe = _resolve_account_universe(account, universe)
-    _run_sleeve_rotation_decisions(conn, account=account, decision_time=snapshot_time)
-    intents = generate_sleeve_trade_intents(
+    _run_book_rotation_decisions(conn, account=account, decision_time=snapshot_time)
+    intents = generate_book_trade_intents(
         conn,
         account=account,
         universe=effective_universe,
@@ -394,7 +384,7 @@ def _run_sleeve_mode_for_account(
     # Intents are book-keyed (SR-2); keep the book → intent context for the audit
     # trail and fill notes (the intent's legacy sleeve_id feeds the risk audit).
     book_intents: list[BookTradeIntent] = []
-    sleeve_by_book: dict[int, SleeveTradeIntent] = {}
+    sleeve_by_book: dict[int, BookTradeCandidate] = {}
     for sleeve_intent in intents:
         book_intents.append(
             BookTradeIntent(
@@ -419,7 +409,7 @@ def _run_sleeve_mode_for_account(
         prices=prices,
         snapshot_time=snapshot_time,
         reconcile=False,
-        config=SleeveRiskGateConfig(symbol_sector_map=load_symbol_sector_map()),
+        config=RiskGateConfig(symbol_sector_map=load_symbol_sector_map()),
     )
     gate_result = gate.evaluate(conn, account_id=account_id, intents=book_intents)
 
@@ -458,7 +448,7 @@ def _run_sleeve_mode_for_account(
             sleeve = sleeve_by_book[book_id]
 
             def _bridge_to_account_ledger(
-                intent: BookTradeIntent, _order_id: int, placed: BrokerOrder, _sleeve: SleeveTradeIntent = sleeve
+                intent: BookTradeIntent, _order_id: int, placed: BrokerOrder, _sleeve: BookTradeCandidate = sleeve
             ) -> None:
                 fill_price = (
                     float(placed.avg_fill_price)
@@ -535,13 +525,13 @@ def run_for_account(
         return 0
     resolved_execution_mode = validate_execution_mode(execution_mode)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
-    if resolved_execution_mode == EXECUTION_MODE_SLEEVE:
+    if resolved_execution_mode == EXECUTION_MODE_BOOK:
         # Sleeve rotation is per-book (each sleeve's own champion/challenger inside
-        # _run_sleeve_mode_for_account). The account-level rotation only maintained a
+        # _run_multi_book_mode_for_account). The account-level rotation only maintained a
         # fallback strategy for unassigned sleeves, which are now simply not traded —
         # every book must carry its own assignment or it does not trade.
         account = get_account(conn, account_name)
-        return _run_sleeve_mode_for_account(
+        return _run_multi_book_mode_for_account(
             conn,
             account_name=account_name,
             account=account,
