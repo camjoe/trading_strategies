@@ -1,4 +1,4 @@
-"""Handlers for the global operational-settings edit commands (P7).
+"""Handlers for the operational-settings edit commands.
 
 Each command merges the provided flags over the current effective settings
 (flags built with ``argparse.SUPPRESS`` are absent when omitted), so a

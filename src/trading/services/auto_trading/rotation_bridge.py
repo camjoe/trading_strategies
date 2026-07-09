@@ -19,7 +19,7 @@ def select_account_rotation_strategy(
     as_of_iso: str,
 ) -> str | None:
     # Selection runs the decision-score champion/challenger model on the account's
-    # default book (2b-3), writing rotation_decisions.
+    # default book, writing rotation_decisions.
     return evaluate_account_rotation_decision(conn, account, as_of_iso)
 
 

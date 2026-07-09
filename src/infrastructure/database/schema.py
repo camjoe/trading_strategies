@@ -125,8 +125,8 @@ CREATE TABLE IF NOT EXISTS global_settings (
 );
 """
 
-# Clean-schema shape (P3 Phase E): snapshots are book-keyed; the account view is
-# the roll-up across the account's books (docs/db-schema-target.md).
+# Snapshots are book-keyed; the account view is the roll-up across the
+# account's books.
 EQUITY_SNAPSHOTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS equity_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_equity_snapshots_book_time
 ON equity_snapshots(book_id, snapshot_time DESC);
 """
 
-# Clean-schema shape (P3 Phase E): backtested strategy is a strategies FK, not a
+# The backtested strategy is a strategies FK, not a
 # name string. Nullable — reads fall back to the account strategy when unset.
 BACKTEST_RUNS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS backtest_runs (
@@ -204,8 +204,8 @@ CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id)
 CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id ON backtest_equity_snapshots(run_id);
 """
 
-# Fills key on the clean orders table. The legacy broker_orders table was dropped
-# in P4/2a-5 (the shared submission + reconciliation paths write orders/order_fills).
+# Fills key on the orders table; the shared submission + reconciliation paths
+# write orders/order_fills (the legacy broker_orders table was dropped).
 ORDER_FILLS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS order_fills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -242,8 +242,8 @@ CREATE TABLE IF NOT EXISTS strategy_param_sets (
 );
 """
 
-# Clean-schema shape (P3 Phase E): decisions are book-keyed and carry first-class
-# decision_score/decision_confidence columns (D6). Audit history — no cascade.
+# Decisions are book-keyed and carry first-class decision_score /
+# decision_confidence columns. Audit history — no cascade.
 ROTATION_DECISIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS rotation_decisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -278,13 +278,8 @@ CREATE INDEX IF NOT EXISTS idx_rotation_decisions_action_time_book
 ON rotation_decisions(rotation_action, decision_time DESC);
 """
 
-# sleeve_orders / sleeve_fills / sleeve_positions / sleeve_ledger were dropped in P4
-# (2a-5 + the migrate-off-sleeves cleanup): sleeve mode submits and accounts through
-# the shared execution service onto the clean orders/order_fills/positions/ledger
-# tables keyed by the sleeve's bridging book.
-
-# Clean-schema shape (P3 Phase E): metrics are book-keyed; account-level rows
-# live on the account's default book (docs/db-schema-target.md).
+# Metrics are book-keyed; account-level rows live on the account's default
+# book.
 DAILY_METRICS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS daily_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -316,7 +311,7 @@ CREATE INDEX IF NOT EXISTS idx_strategy_param_sets_strategy_active
 ON strategy_param_sets(strategy_name, is_active);
 """
 
-# Clean-schema shape (P3 Phase E): strategy is a strategies FK copied from the
+# The strategy is a strategies FK copied from the
 # primary run; nullable so reads fall back to the account strategy when unset.
 WALK_FORWARD_GROUPS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS walk_forward_groups (
@@ -421,11 +416,8 @@ ON promotion_review_events(review_id, created_at ASC);
 """
 
 # ---------------------------------------------------------------------------
-# Clean strategy-book schema (P3 rewrite target — docs/db-schema-target.md).
-# Added alongside the legacy tables; colliding legacy tables (equity_snapshots,
-# daily_metrics, rotation_decisions, order_fills, accounts settings columns)
-# are swapped to their target shapes in later P3 commits together with their
-# repositories, so every commit stays green.
+# Strategy-book schema (run `python -m scripts.data_ops.describe_db_schema`
+# for the live shape).
 # ---------------------------------------------------------------------------
 
 BOOKS_TABLE_SQL = """
@@ -741,7 +733,7 @@ SCHEMA_SQL = "\n".join(
         PROMOTION_REVIEWS_TABLE_SQL,
         PROMOTION_REVIEW_EVENTS_TABLE_SQL,
         PROMOTION_REVIEW_INDEXES_SQL,
-        # Clean strategy-book schema (P3). strategies before book_rotation_settings
+        # Strategy-book schema: strategies before book_rotation_settings
         # and book_strategy_assignments (FK targets); books before its
         # dependents.
         BOOKS_TABLE_SQL,

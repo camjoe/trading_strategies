@@ -79,7 +79,7 @@ def run_backtest(
         feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
-    # Pass the canonical strategy key (P3): backtest_runs stores a strategies FK,
+    # Pass the canonical strategy key: backtest_runs stores a strategies FK,
     # so aliases/display names must resolve to the seeded catalog key first.
     run_id = insert_run_fn(conn, account_id, strategy_spec.strategy_id, start_date, end_date, cfg, warnings)
 

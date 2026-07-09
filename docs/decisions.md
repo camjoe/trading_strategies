@@ -129,9 +129,12 @@ strategy-knob editing stay view-only pending demand (the P6 lesson).
 Rationale: typed columns per concern keep the SRP win that motivated the rewrite (no re-grown
 god-table), stay `CHECK`-constrainable, and give P7 an obvious per-concern read/edit surface.
 
-**Change-audit — decided: deferred to P7.** Until the unified parameter service exists, settings
-change only via seed/bootstrap CLI from git-tracked profiles; `updated_at` per settings row is
-enough. P7 adds the audit log when it adds the edit surface.
+**Change-audit — re-deferred (2026-07-09).** P7 shipped the edit surface (`configure-*` commands)
+**without** the audit log — `updated_at` per settings row remains the only trace of a change.
+Deliberate: edits are single-operator and low-volume today, and an audit table before there is
+edit traffic is speculative surface (the P6 lesson). Trigger to revisit: settings edits become
+frequent or multi-actor (e.g. the UI gains an edit surface), or an incident requires knowing *what*
+changed rather than just *when*.
 
 <a id="d5"></a>
 ### D5 — Strategy catalog granularity

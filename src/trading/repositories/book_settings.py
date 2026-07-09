@@ -6,8 +6,9 @@ from trading.models.books.book_execution_settings_record import BookExecutionSet
 from trading.models.books.book_option_settings_record import BookOptionSettingsRecord
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 
-# Per-concern typed settings tables, 1:1 with books (D4, 2026-07-03).
-# A missing row means "use code defaults"; change-audit arrives with P7.
+# Per-concern typed settings tables, 1:1 with books. A missing row means
+# "use code defaults"; change-audit stays deferred (see the D4 change-audit
+# note in docs/decisions.md).
 
 
 class BookExecutionSettingsRepository:
@@ -174,7 +175,7 @@ class BookRotationSettingsRepository:
         updated_at: str,
     ) -> None:
         # The mode/optimality/regime/overlay columns are retained on the table
-        # (append-only) but no longer written — dead config retired in 2b-7.
+        # (append-only) but are dead config — no longer written.
         self._conn.execute(
             """
             INSERT INTO book_rotation_settings (
@@ -219,8 +220,8 @@ class BookRotationSettingsRepository:
         created_at: str,
         updated_at: str,
     ) -> None:
-        # Policy-only write (P7 step 4): scheduling columns keep their values
-        # when the row already exists; a fresh row gets scheduling defaults.
+        # Policy-only write: scheduling columns keep their values when the
+        # row already exists; a fresh row gets scheduling defaults.
         self._conn.execute(
             """
             INSERT INTO book_rotation_settings (

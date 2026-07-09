@@ -15,7 +15,7 @@ from trading.interfaces.runtime.notifications import EmailNotificationConfig
 
 RUNTIME_ALERT_WEBHOOK_ENV = "TRADING_RUNTIME_ALERT_WEBHOOK_URL"
 
-# SMTP email-alert config (Plan P8, D8): env-sourced, mirroring the webhook. Email
+# SMTP email-alert config: env-sourced, mirroring the webhook. Email
 # stays fully opt-in — nothing is sent unless host, sender, and a recipient are set.
 RUNTIME_ALERT_SMTP_HOST_ENV = "TRADING_RUNTIME_ALERT_SMTP_HOST"
 RUNTIME_ALERT_SMTP_PORT_ENV = "TRADING_RUNTIME_ALERT_SMTP_PORT"

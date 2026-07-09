@@ -18,7 +18,7 @@ def insert_backtest_run(
     cfg: BacktestConfig,
     warnings: list[str],
 ) -> int:
-    # Clean schema (P3): the backtested strategy is a strategies FK. The caller
+    # The backtested strategy is a strategies FK. The caller
     # passes the canonical strategy key (resolved via resolve_strategy in the
     # service); the catalog row is seeded, so this is a lookup, not a create.
     created_at = utc_now_iso()

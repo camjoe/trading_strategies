@@ -127,10 +127,12 @@ def refresh_account_state(
 def resolve_strategy_params(account: AccountRecord, strategy_name: str) -> dict[str, object]:
     """Resolve the effective signal params for an account's active strategy.
 
-    Single seam for param resolution: today this is the registry's ``default_params``;
-    the P3 schema rewrite extends it to account/strategy-row knobs without touching callers.
+    Single seam for param resolution: today this is the registry's
+    ``default_params``. The ``strategies`` catalog stores knobs but is not the
+    read path yet; wiring it here (without touching callers) is the deferred
+    catalog work — see status.md (P6).
     """
-    del account  # account-level knobs arrive with the P3 schema rewrite
+    del account  # unused until catalog/account-level knobs are wired
     return dict(resolve_strategy(strategy_name).default_params)
 
 
@@ -178,7 +180,7 @@ def select_signal_trade_candidates(
     """Evaluate the strategy's signal per ticker and return (buy, sell) candidates.
 
     Buys are signaled tickers not already held; sells are signaled tickers held.
-    Missing history is treated as hold (D1); too-short history holds inside the
+    Missing history is treated as hold; too-short history holds inside the
     signal functions themselves.
     """
     held = {ticker for ticker, qty in positions.items() if qty >= 1}
@@ -211,7 +213,7 @@ def prepare_trade_selection(
     *,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
-    """Select the next trade from the active strategy's signals (D1 policy).
+    """Select the next trade from the active strategy's signals.
 
     Sells take priority (the forced risk-stop first, then signaled sells) so cash is
     freed before buys. Returns None when nothing signals — callers must not
@@ -435,14 +437,15 @@ def run_for_account(
     record_prepared_trade_fn: Callable[..., None],
     is_submission_window_open_fn: Callable[[str], bool],
 ) -> int:
-    # D1 policy: trade only when the strategy signals — no forced minimum.
+    # Trade only when the strategy signals — no forced minimum (see D1 in
+    # docs/decisions.md).
     account = get_account_fn(conn, account_name)
     now_iso = utc_now_iso_fn()
     if not is_submission_window_open_fn(now_iso):
         return 0
     account = rotate_account_if_due_fn(conn, account_name, account, now_iso)
     active_strategy = resolve_active_strategy(account)
-    # learning_enabled no longer drives selection (kept only for the trade note; see P10).
+    # learning_enabled no longer drives selection (kept only for the trade note).
     learning_enabled = bool(int(cast(int | float | str | bytes | bytearray, account["learning_enabled"] or 0)))
     risk_policy = str(account["risk_policy"]).strip().lower()
     stop_loss_pct = account["stop_loss_pct"]

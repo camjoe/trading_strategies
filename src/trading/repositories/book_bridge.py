@@ -1,14 +1,13 @@
-"""Bridging helpers for the P3 book-keyed tables during the legacy window.
+"""Idempotent bridging resolutions into the book-keyed tables.
 
-Until P4's converged services own the writers, book-keyed storage is reached
-from the legacy access paths through three idempotent resolutions:
+Two shared resolutions used across services (execution, rotation, parameters):
 
 - account → its default book (created bare on first write; settings rows are
-  intentionally absent — missing row means code defaults, D4),
+  intentionally absent — a missing row means code defaults),
 - strategy label → a `strategies` row (created as a draft when the catalog
   has no row for the label yet).
 
-All three retire with P4.
+These retire only if a future refactor makes callers book-native end to end.
 """
 
 from __future__ import annotations

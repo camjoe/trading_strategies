@@ -19,8 +19,8 @@ class RotationConfig:
 
         The list-valued ``rotation_schedule`` column is returned as a raw list; JSON
         encoding is applied by ``trading.domain.rotation.rotation_config_to_db_dict``.
-        The dead mode/optimality/regime/overlay columns (retired 2b-7) are left at
-        their DB defaults — no longer written from config.
+        The dead mode/optimality/regime/overlay columns are left at their DB
+        defaults — no longer written from config.
         """
         return {
             "rotation_enabled": self.enabled,

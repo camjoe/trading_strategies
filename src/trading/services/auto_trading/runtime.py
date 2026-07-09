@@ -230,7 +230,7 @@ def _persist_book_risk_snapshot(
     payload: dict[str, object],
 ) -> None:
     # Exposure is sourced from the clean book positions/equity (the submission path's
-    # source of truth); persisted to the clean account-keyed risk_snapshots (SR-5).
+    # source of truth); persisted to the account-keyed risk_snapshots table.
     persist_book_risk_snapshot(
         conn,
         account_id=account_id,
@@ -281,7 +281,7 @@ def _run_book_rotation_decisions(
     )
     for book_eval in shadow_eval.books:
         # Per-book effective policy: book_rotation_settings overrides with
-        # code-default fallback (P7 step 4).
+        # code-default fallback.
         config = resolve_rotation_policy_config(
             conn,
             book_id=book_eval.book_id,
@@ -383,7 +383,7 @@ def _run_multi_book_mode_for_account(
         )
         return 0
 
-    # Intents are book-keyed (SR-2); keep the book → intent context for the audit
+    # Intents are book-keyed; keep the book → intent context for the audit
     # trail and fill notes (the intent's legacy sleeve_id feeds the risk audit).
     book_intents: list[BookTradeIntent] = []
     sleeve_by_book: dict[int, BookTradeCandidate] = {}

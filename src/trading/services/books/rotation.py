@@ -55,7 +55,7 @@ def resolve_rotation_policy_config(
     rolling_window_days: int,
     config_version: str | None = None,
 ) -> RotationPolicyConfig:
-    """Resolve the book's effective rotation policy (P7 step 4).
+    """Resolve the book's effective rotation policy.
 
     Reads the book's ``book_rotation_settings`` policy columns; NULL fields
     (and a missing row) fall back to the ``RotationPolicyConfig`` code
@@ -220,7 +220,7 @@ def evaluate_and_apply_book_rotation(
     decision_time: str | None = None,
 ) -> RotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    # Book assignments are the single live assignment record (SR-1).
+    # Book assignments are the single live assignment record.
     assignment = open_assignment_for_book(conn, book_id=int(book_id))
     if assignment is None:
         raise ValueError(f"No incumbent assignment found for book_id={book_id}.")

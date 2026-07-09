@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-05
+Last Reviewed: 2026-07-09
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the current tracker in [status.md](status.md).
@@ -33,8 +33,10 @@ Design intent:
 
 - **Account** — the broker/custody entity. Owns the broker connection, the `live_trading_enabled`
   safety gate, and cash/positions truth. A "test" account is just an account with `broker_type="paper"`.
-- **Sleeve** — a strategy-execution unit inside an account (one broker account can host several
-  independent strategy sleeves). See [ADR 003](adr/003-sleeve-virtualization-architecture.md).
+- **Book** — the execution primitive (D14): a bounded pool of capital inside an account run to one
+  strategy; one broker account can host several independent books. (The earlier "sleeve"
+  virtualization concept was retired 2026-07-09;
+  [ADR 003](adr/003-sleeve-virtualization-architecture.md) is superseded.)
 - **Strategy** — a named signal specification (`StrategySpec`) with a signal function and default
   parameters. 14 are registered today across trend, mean-reversion, oscillator, breakout, and
   external-data ("alternative") families.
@@ -60,7 +62,7 @@ Design intent:
   (`EvaluationDecisionScore`).
 - **Promotion workflow** with research/paper/live-review stages, human gate, and append-only audit.
 - **Paper trading** with equity snapshots, trades, and benchmark overlays.
-- **Sleeve virtualization** — one broker account hosting multiple strategy sleeves (books), with
+- **Multi-book accounts** — one broker account hosting multiple strategy books, with
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
 - **Unified rotation/submission/accounting** — accounts and sleeves converged onto one book-keyed
   path (P4); rotation is one champion/challenger model on the decision-score contract.
@@ -70,7 +72,11 @@ Design intent:
 - **Runtime scheduler jobs** (daily backtest refresh, challenger shadow evaluation, governance,
   health checks, reporting) plus a **CLI** and an optional **web UI** (`apps/paper_trading_web`).
 - **Operational settings** (evaluation confidence, promotion policy, trade throttles) and
-  **account profiles** for configuration.
+  **account profiles** for configuration, plus a **unified parameter source** (P7): one `parameters`
+  view over every store with `configure-*` CLI edits for global settings and per-book rotation
+  policy.
+- **Cross-account portfolio risk rollup** (P9): exposure, symbol concentration/overlap, and sector
+  rollup via CLI, API, and a read-only Portfolio UI tab.
 
 ## Known gaps / honest current state
 
@@ -83,14 +89,15 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 - **Strategy knobs are not yet a live data lever.** The clean schema stores them (P3: a
   `strategies` catalog with `params_json`, seeded from the registry), but the read path still runs
   off code: `resolve_strategy_params` returns the registry `default_params` and `resolve_strategy`
-  reads `STRATEGY_REGISTRY`. Wiring the loader onto the catalog is P6/4a; the operator edit surface
-  is P7.
+  reads `STRATEGY_REGISTRY`. Wiring the loader onto the catalog is P6/4a. (The P7 `parameters` view
+  shows the knobs; editing them stays view-only until P6 makes the catalog canonical.)
 - **Strategies are code at the resolution layer, though the catalog is now data.** P3 seeded a
   `strategies` table, but adding a genuinely new strategy still needs a new signal function +
   `STRATEGY_REGISTRY` edit until P6 loads definitions from the catalog. A *variant/tuning* becomes a
-  pure data change once P6/P7 land.
-- **Parameters are scattered** across ~5 stores with no single view — see the unified parameter
-  source workstream (P7) in [status.md](status.md).
+  pure data change once P6 lands.
+- **Settings edits have no change-audit.** P7's edit surface records only `updated_at` per settings
+  row; a change-audit log stays deferred until edit volume justifies it (see D4 in
+  [decisions.md](decisions.md)).
 
 ## How it works (architecture)
 
@@ -129,13 +136,14 @@ decisions are in [decisions.md](decisions.md); completed work and its narrative 
 The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
 execution (P1); evaluation is unified behind one decision-score contract that backs compare,
 promotion, and rotation (P2); the clean book schema is live (P3); accounts and sleeves are converged
-onto one book-keyed submission/rotation/accounting path (P4); and the decisioning naming pass landed
-alongside (P5). Email notifications (P8) are in.
+onto one book-keyed submission/rotation/accounting path (P4, with the sleeve vocabulary fully
+retired 2026-07-09); and the decisioning naming pass landed alongside (P5). Email notifications
+(P8), the unified parameter source (P7), and the portfolio risk rollup (P9) are in.
 
-What remains **committed** is the unified parameter source (P7) and the portfolio risk rollup (P9).
-The plug-and-play strategy/provider catalog (P6), adaptive learning (P10), parameter optimization
-(P11), and backtest-recalculation cadence (P12) are **exploratory** — pursued only if evidence
-justifies. See [status.md](status.md) for the live view.
+The only **committed** work remaining is the sleeve-retirement DB migration deploy step (operator
+runbook). The plug-and-play strategy/provider catalog (P6), adaptive learning (P10), parameter
+optimization (P11), and backtest-recalculation cadence (P12) are **exploratory** — pursued only if
+evidence justifies. See [status.md](status.md) for the live view.
 
 ## Guiding constraints
 

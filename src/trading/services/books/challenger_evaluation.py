@@ -61,7 +61,7 @@ def build_book_challenger_evaluations(
         rolling_window_days=rolling_window_days,
     )
     param_set_repo = StrategyParamSetRepository(conn)
-    # Book-native enumeration (SR-2): active, non-default, openly assigned books.
+    # Book-native enumeration: active, non-default, openly assigned books.
     books: list[BookChallengerEvaluation] = []
     for trading_book in enumerate_trading_books(conn, account_id=account_id):
         incumbent_strategy = trading_book.assignment.strategy_name.strip()

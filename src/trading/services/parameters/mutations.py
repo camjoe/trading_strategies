@@ -1,4 +1,4 @@
-"""Edit workflows for the unified parameter source (P7).
+"""Edit workflows for the unified parameter source.
 
 Owns the targeted book rotation-policy edit: resolve the account's book,
 merge the provided fields over the persisted policy row, and write it back.
@@ -19,8 +19,8 @@ from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 
-# The book rotation-policy fields the edit command may touch (P7 step 4);
-# None clears a field back to the RotationPolicyConfig code default.
+# The book rotation-policy fields the edit command may touch; None clears a
+# field back to the RotationPolicyConfig code default.
 ROTATION_POLICY_FIELDS = (
     "min_trades_in_window",
     "outperformance_threshold_bps",

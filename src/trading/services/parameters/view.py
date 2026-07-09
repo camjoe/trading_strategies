@@ -1,4 +1,4 @@
-"""Read-through view over the existing parameter stores (P7, D4).
+"""Read-through view over the existing parameter stores.
 
 Assembles one legible payload from ``global_settings``, the per-book
 settings tables, book mandate columns, and strategy rows. No new store:
@@ -33,8 +33,8 @@ from trading.services.operational_settings import (
     fetch_runtime_throttle_settings,
 )
 
-# Group-level note used whenever a settings row is absent (D4: missing row
-# means code defaults apply).
+# Group-level note used whenever a settings row is absent (missing row means
+# code defaults apply).
 NO_SETTINGS_ROW_NOTE = "no settings row - code defaults apply"
 
 # Row-level audit columns carried by every settings table; not parameters.

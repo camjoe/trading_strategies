@@ -1,4 +1,4 @@
-"""Multi-book trading services package (legacy name: sleeves; renamed in SR-6).
+"""Multi-book trading services package.
 
 The stable public surface for multi-book trade orchestration: book assignments,
 intent generation, rotation, and challenger shadow evaluation.

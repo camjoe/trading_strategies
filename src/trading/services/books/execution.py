@@ -57,14 +57,15 @@ def generate_book_trade_intents(
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[BookTradeCandidate]:
-    # D1 policy: intents come only from strategy signals — no forced minimum.
+    # Intents come only from strategy signals — no forced minimum (see D1 in
+    # docs/decisions.md).
     account_id = account.id
     risk_policy = str(account.risk_policy).strip().lower()
     stop_loss_pct = account.stop_loss_pct
     take_profit_pct = account.take_profit_pct
     instrument_mode = str(account.instrument_mode).strip().lower()
 
-    # Book-native enumeration (SR-2): active, non-default, openly assigned books.
+    # Book-native enumeration: active, non-default, openly assigned books.
     # Unassigned or non-active books do not trade — no account fallback.
     trading_books = enumerate_trading_books(conn, account_id=account_id)
     if not trading_books:

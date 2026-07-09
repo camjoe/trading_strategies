@@ -17,7 +17,7 @@ from trading.services.pricing import fetch_latest_prices
 
 EXECUTION_MODE_ACCOUNT = "account"
 EXECUTION_MODE_BOOK = "book"
-# Operator-facing legacy spelling; accepted and normalized to "book" (sleeve retirement SR-6b).
+# Operator-facing legacy spelling; accepted and normalized to "book".
 LEGACY_EXECUTION_MODE_SLEEVE = "sleeve"
 SUPPORTED_EXECUTION_MODES = {
     EXECUTION_MODE_ACCOUNT,
@@ -62,7 +62,7 @@ def resolve_market_inputs(
     if not prices:
         raise ValueError("Could not fetch any prices for ticker universe.")
 
-    # One fetch pass feeds both signal evaluation and the IV-rank proxy (D1: cached per run).
+    # One fetch pass feeds both signal evaluation and the IV-rank proxy (cached per run).
     histories = fetch_close_histories(universe, provider=provider)
     iv_rank_proxy = build_iv_rank_proxy(universe, histories=histories)
     return universe, prices, iv_rank_proxy, histories

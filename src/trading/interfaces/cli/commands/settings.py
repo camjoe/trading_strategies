@@ -50,7 +50,7 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
     p_rotation_policy = sub.add_parser(
         "configure-book-rotation-policy",
         help=(
-            "Edit a book's rotation policy (P7: weights, threshold, cooldown, min-trades)."
+            "Edit a book's rotation policy (weights, threshold, cooldown, min-trades)."
             " Omitted flags keep their current values; pass 'none' to fall back to the code default."
         ),
     )

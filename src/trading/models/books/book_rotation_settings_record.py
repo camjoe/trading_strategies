@@ -10,12 +10,12 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int, 
 class BookRotationSettingsRecord:
     """Persisted book_rotation_settings row materialized from the database.
 
-    Settings only — rotation *state* lives in book_strategy_assignments (the open
-    row) and rotation_decisions history (D4, 2026-07-03). The dead mode/optimality/
-    regime/overlay columns are retained on the table (append-only) but no longer
-    materialized here (2b-7).
+    Settings only — rotation *state* lives in book_strategy_assignments (the
+    open row) and rotation_decisions history. The dead mode/optimality/regime/
+    overlay columns are retained on the table (append-only) but no longer
+    materialized here.
 
-    The rotation-policy fields (P7 step 4) are nullable: None means "use the
+    The rotation-policy fields are nullable: None means "use the
     RotationPolicyConfig code default".
     """
 

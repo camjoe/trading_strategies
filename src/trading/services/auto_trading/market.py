@@ -12,7 +12,7 @@ from trading.services.market_data import MarketDataProvider, require_provider
 
 logger = logging.getLogger(__name__)
 
-# Fixed lookback for runtime signal evaluation (D1): covers the largest indicator window.
+# Fixed lookback for runtime signal evaluation: covers the largest indicator window.
 CLOSE_HISTORY_PERIOD = "1y"
 
 

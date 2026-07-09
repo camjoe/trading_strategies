@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class SymbolConcentration:
-    """One symbol's cross-account concentration entry (D10).
+    """One symbol's cross-account concentration entry.
 
     ``portfolio_pct`` is the symbol's share of total cross-account market
     value, 0-100. ``account_count`` > 1 means the symbol is held in multiple

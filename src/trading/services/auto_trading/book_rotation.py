@@ -1,17 +1,16 @@
 """Book-keyed champion/challenger rotation selection for accounts.
 
-Routes a plain account's rotation *selection* through the same decision-score
-champion/challenger model the sleeve path uses. Given the account's default book,
-the incumbent (its active strategy) and challengers (its rotation schedule) are
-enumerated on the decision-score contract (2b-2), then the shared book-keyed
-rotation core (``evaluate_book_rotation``) picks the winner and records the decision
-on the default book's ``rotation_decisions``.
+Given the account's default book, the incumbent (its active strategy) and
+challengers (its rotation schedule) are enumerated on the decision-score
+contract, then the shared book-keyed rotation core (``evaluate_book_rotation``)
+picks the winner and records the decision on the default book's
+``rotation_decisions``.
 
-Cadence (2b-4b): the interval/schedule trigger (``is_rotation_due``) stays the "when"
-in ``rotate_account_if_due``; on top of it the account now shares the same per-book
-**cooldown guard** as sleeves, so a fresh rotation cannot churn within the cooldown
-window. This owns the "what" (which strategy); applying the winner to account state
-stays in ``rotate_account_if_due``.
+Cadence: the interval/schedule trigger (``is_rotation_due``) stays the "when"
+in ``rotate_account_if_due``; on top of it the account shares the per-book
+**cooldown guard**, so a fresh rotation cannot churn within the cooldown
+window. This owns the "what" (which strategy); applying the winner to account
+state stays in ``rotate_account_if_due``.
 """
 
 from __future__ import annotations
@@ -54,7 +53,7 @@ def evaluate_account_rotation_decision(
     book_id = default_book_id(conn, row_expect_int(account, "id"))
     if config is None:
         # Per-book effective policy: book_rotation_settings overrides with
-        # code-default fallback (P7 step 4).
+        # code-default fallback.
         config = resolve_rotation_policy_config(
             conn,
             book_id=book_id,

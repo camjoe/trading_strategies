@@ -1,4 +1,4 @@
-"""Operator-facing printed view of the unified parameter source (P7).
+"""Operator-facing printed view of the unified parameter source.
 
 Presentation only: the payload assembly lives in
 ``trading.services.parameters.view``.

@@ -39,7 +39,7 @@ def test_prints_symbol_sector_and_overlap_lines(
     show_portfolio_concentration(conn)
 
     out = capsys.readouterr().out
-    assert "Portfolio concentration by symbol (cross-account, D10):" in out
+    assert "Portfolio concentration by symbol (cross-account):" in out
     assert "- AAPL | sector=tech | mv=250.00 | 100.00% | accounts=1 (acct_reporting)" in out
     assert "Sector rollup:" in out
     assert "- tech | mv=250.00 | 100.00% | symbols=1" in out
