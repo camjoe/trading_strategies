@@ -14,13 +14,13 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
+from trading.models.books.book_assignment_view import BookAssignmentView
 from trading.models.books.book_record import BookRecord
-from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.portfolio_risk_snapshots import PortfolioRiskSnapshotRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
-from trading.services.sleeves.book_assignments import open_assignment_for_book, sync_legacy_sleeve_books
+from trading.services.sleeves.book_assignments import list_report_books
 
 
 def _next_date(report_date: str) -> str:
@@ -72,27 +72,19 @@ class AccountDailyReport:
     rotation_decisions: list[RotationDecisionRow]
 
 
-def _report_books(conn: sqlite3.Connection, account_id: int) -> list[BookRecord]:
-    """All non-default books, any status — the report shows paused/closed books too."""
-    # Mirror legacy sleeves first so never-traded sleeves still appear (dies in SR-6).
-    sync_legacy_sleeve_books(conn, account_id=account_id)
-    return [b for b in BookRepository(conn).fetch_for_account(account_id=account_id) if not b.is_default]
-
-
 def _build_book_performance(
     conn: sqlite3.Connection,
-    books: list[BookRecord],
+    books: list[tuple[BookRecord, BookAssignmentView | None]],
     report_date: str,
 ) -> list[BookPerformanceRow]:
     rows = []
-    for book in books:
+    for book, assignment in books:
         metrics = DailyMetricsRepository(conn).fetch_for_book_window(
             book_id=book.id,
             start_date=report_date,
             end_date=report_date,
         )
         metric = metrics[0] if metrics else None
-        assignment = open_assignment_for_book(conn, book_id=book.id)
         rows.append(
             BookPerformanceRow(
                 book_id=book.id,
@@ -145,11 +137,11 @@ def _build_risk_violations(
 
 def _build_rotation_summary(
     conn: sqlite3.Connection,
-    books: list[BookRecord],
+    books: list[tuple[BookRecord, BookAssignmentView | None]],
     report_date: str,
 ) -> list[RotationDecisionRow]:
     rows = []
-    for book in books:
+    for book, _assignment in books:
         decisions = RotationDecisionRepository(conn).fetch_for_book_on_date(
             book_id=book.id,
             report_date=report_date,
@@ -175,7 +167,7 @@ def build_account_daily_report(
     account_name: str,
     report_date: str,
 ) -> AccountDailyReport:
-    books = _report_books(conn, account_id)
+    books = list_report_books(conn, account_id=account_id)
     return AccountDailyReport(
         account_id=account_id,
         account_name=account_name,

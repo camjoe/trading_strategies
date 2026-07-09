@@ -58,7 +58,7 @@ class TestDedupGuard:
 
 class TestArtifactStructure:
     def test_writes_artifact_with_correct_top_level_keys(self, monkeypatch, tmp_path: Path) -> None:
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[])
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[])
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
         assert result == 0
@@ -85,12 +85,15 @@ class TestArtifactStructure:
         ]
         from types import SimpleNamespace as _NS
 
-        mocks = stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        mocks.sleeve_repo.fetch_active_assignment.return_value = _NS(strategy_name="trend_v2", param_set_id=None)
+        stub_runtime_job_basics(
+            monkeypatch,
+            module,
+            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="trend_v2", param_set_id=None))],
+        )
         monkeypatch.setattr(
             module,
-            "fetch_sleeve_performance_window",
-            lambda conn, *, sleeve_id, start_date, end_date: metrics,
+            "fetch_book_performance_window",
+            lambda conn, *, book_id, start_date, end_date: metrics,
         )
 
         result = _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
@@ -100,8 +103,8 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "monthly_governance_m3_performance_audit_*.json",
         )
-        sleeve = payload["accounts"][0]["sleeves"][0]
-        assert sleeve["sleeve_name"] == "sleeve_m"
+        sleeve = payload["accounts"][0]["books"][0]
+        assert sleeve["book_name"] == "sleeve_m"
         assert sleeve["strategy_name"] == "trend_v2"
         assert sleeve["data_points"] == 2
         assert sleeve["total_trades"] == 7
@@ -112,12 +115,12 @@ class TestArtifactStructure:
 
     def test_empty_metrics_produces_null_stats(self, monkeypatch, tmp_path: Path) -> None:
         sleeve_row = {"id": 9, "name": "sleeve_empty"}
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        # fetch_active_assignment returns None by default from stub
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[sleeve_row])
+        # unassigned book: the stubbed pair carries assignment=None
         monkeypatch.setattr(
             module,
-            "fetch_sleeve_performance_window",
-            lambda conn, *, sleeve_id, start_date, end_date: [],
+            "fetch_book_performance_window",
+            lambda conn, *, book_id, start_date, end_date: [],
         )
 
         _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
@@ -125,7 +128,7 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "monthly_governance_m3_performance_audit_*.json",
         )
-        sleeve = payload["accounts"][0]["sleeves"][0]
+        sleeve = payload["accounts"][0]["books"][0]
         assert sleeve["data_points"] == 0
         assert sleeve["cumulative_return_pct"] is None
         assert sleeve["max_drawdown_pct"] is None
@@ -145,15 +148,15 @@ class TestArtifactStructure:
         sleeve_row = {"id": 5, "name": "sleeve_m"}
         # `now` is computed in the shared runner, so patch its datetime seam.
         monkeypatch.setattr(job_runner.dt, "datetime", _FixedDateTime)
-        stub_runtime_job_basics(monkeypatch, module, sleeves_for_account=[sleeve_row])
-        # fetch_active_assignment returns None by default from stub
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[sleeve_row])
+        # unassigned book: the stubbed pair carries assignment=None
 
-        def _capture_metrics(conn, *, sleeve_id, start_date, end_date):
+        def _capture_metrics(conn, *, book_id, start_date, end_date):
             captured["start_date"] = start_date
             captured["end_date"] = end_date
             return []
 
-        monkeypatch.setattr(module, "fetch_sleeve_performance_window", _capture_metrics)
+        monkeypatch.setattr(module, "fetch_book_performance_window", _capture_metrics)
 
         result = _run_job(
             monkeypatch,
@@ -189,12 +192,12 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_main_returns_1_when_metric_lookup_raises(monkeypatch, tmp_path: Path) -> None:
-    from unittest.mock import MagicMock
-
     stub_runtime_job_basics(monkeypatch, module)
-    boom_repo = MagicMock()
-    boom_repo.fetch_for_account.side_effect = RuntimeError("boom")
-    monkeypatch.setattr(module, "SleeveRepository", lambda conn: boom_repo)
+
+    def _boom(conn, *, account_id):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module, "list_report_books", _boom)
 
     assert _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS) == 1
 

@@ -135,3 +135,11 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
   tests): `sleeves/reconciliation.py` (summed frozen sleeve balances — the live check is
   `execution/reconciliation.py`) and `sleeves/universe_config.py` (writer with no CLI/route; revive
   book-native when an operator surface needs it). Full `run_checks ci` green (incl. frontend).
+- 2026-07-08 — **SR-4 landed.** The five governance jobs (w1 leaderboard, w2 promotion review,
+  w3 allocation review, m2 parameter governance, m3 performance audit) read books via the shared
+  `list_report_books` (extracted in SR-3's wake; daily_report + monitor refactored onto it too).
+  Artifact keys renamed `books`/`book_name`/`book_status`. **Fixed a second live staleness bug:**
+  w3 allocation drift was computed from **frozen sleeve balances** — it now uses live book equity.
+  `analysis.fetch_sleeve_performance_window` → book-native `fetch_book_performance_window` (both
+  callers migrated; sleeve variant retired). Governance test stub (`stub_runtime_job_basics`)
+  migrated to a `books_for_account` contract. Full `run_checks ci` green.

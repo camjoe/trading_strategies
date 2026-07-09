@@ -22,8 +22,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W1_LEADERBOARD_COMPLETE_SENTINEL
-from trading.services.analysis import fetch_sleeve_performance_window
-from trading.repositories.sleeves import SleeveRepository
+from trading.services.analysis import fetch_book_performance_window
+from trading.services.sleeves.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -103,24 +103,21 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        sleeve_repo = SleeveRepository(ctx.conn)
-        sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
-        sleeve_rows: list[WeeklyLeaderboardSleevePayload] = []
+        book_rows: list[WeeklyLeaderboardSleevePayload] = []
 
-        for sleeve in sleeves:
-            assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
 
-            metrics = fetch_sleeve_performance_window(
+            metrics = fetch_book_performance_window(
                 ctx.conn,
-                sleeve_id=sleeve.id,
+                book_id=book.id,
                 start_date=start_str,
                 end_date=today_str,
             )
             stats = _compute_sleeve_stats(metrics)
-            sleeve_rows.append(
+            book_rows.append(
                 WeeklyLeaderboardSleevePayload(
-                    sleeve_name=sleeve.name,
+                    book_name=book.name,
                     strategy_name=strategy_name,
                     avg_return_pct=stats["avg_return_pct"],
                     avg_risk_adjusted_score=stats["avg_risk_adjusted_score"],
@@ -132,19 +129,19 @@ def main(ctx: JobContext) -> dict[str, object]:
             )
 
         # Sort by avg_risk_adjusted_score descending; nulls last.
-        sleeve_rows.sort(
+        book_rows.sort(
             key=lambda r: float(r.avg_risk_adjusted_score) if r.avg_risk_adjusted_score is not None else float("-inf"),
             reverse=True,
         )
-        ranked_sleeves = [replace(sleeve_row, rank=rank) for rank, sleeve_row in enumerate(sleeve_rows, start=1)]
+        ranked_books = [replace(book_row, rank=rank) for rank, book_row in enumerate(book_rows, start=1)]
 
         account_results.append(
             WeeklyLeaderboardAccountPayload(
                 account_name=account_name,
-                sleeves=ranked_sleeves,
+                books=ranked_books,
             )
         )
-        ctx.log(f"LEADERBOARD: account={account_name} sleeves={len(sleeve_rows)}")
+        ctx.log(f"LEADERBOARD: account={account_name} books={len(book_rows)}")
 
     payload = WeeklyLeaderboardArtifactPayload(
         week=ctx.tag,

@@ -15,14 +15,7 @@ from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.sleeve_risk_decisions import SleeveRiskDecisionRepository
-from trading.services.sleeves.book_assignments import open_assignment_for_book, sync_legacy_sleeve_books
-
-
-def _monitor_books(conn: sqlite3.Connection, account_id: int) -> list[Any]:
-    """All non-default books, any status — the monitor shows paused books too."""
-    # Mirror legacy sleeves first so never-traded sleeves still appear (dies in SR-6).
-    sync_legacy_sleeve_books(conn, account_id=account_id)
-    return [b for b in BookRepository(conn).fetch_for_account(account_id=account_id) if not b.is_default]
+from trading.services.sleeves.book_assignments import list_report_books
 
 
 def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -51,7 +44,7 @@ def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, A
                 "total_cash": round(total_cash, 2),
                 "positions_market_value": round(total_equity - total_cash, 2),
                 "return_pct": round(return_pct, 2),
-                "book_count": len(_monitor_books(conn, account.id)),
+                "book_count": len(list_report_books(conn, account_id=account.id)),
             }
         )
 
@@ -61,7 +54,7 @@ def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, A
 def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict[str, Any]]:
     """Fetch all non-default books for an account with their latest metrics."""
     result = []
-    for book in _monitor_books(conn, account_id):
+    for book, assignment in list_report_books(conn, account_id=account_id):
         latest_metrics_rows = DailyMetricsRepository(conn).fetch_for_book(book_id=book.id, limit=1)
 
         if latest_metrics_rows:
@@ -80,7 +73,6 @@ def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict
                 "metric_date": None,
             }
 
-        assignment = open_assignment_for_book(conn, book_id=book.id)
         start_equity = book.start_equity or 0.0
         curr_equity = book.current_equity or 0.0
         curr_cash = book.current_cash or 0.0
@@ -106,7 +98,7 @@ def _fetch_account_books(conn: sqlite3.Connection, account_id: int) -> list[dict
 def _fetch_recent_rotations(conn: sqlite3.Connection, account_id: int) -> list[dict[str, Any]]:
     """Fetch recent rotation decisions for the account's books."""
     all_rotations = []
-    for book in _monitor_books(conn, account_id):
+    for book, _assignment in list_report_books(conn, account_id=account_id):
         rotation_rows = RotationDecisionRepository(conn).fetch_for_book(book_id=book.id, limit=20)
 
         for rotation_row in rotation_rows:

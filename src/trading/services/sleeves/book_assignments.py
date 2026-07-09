@@ -18,6 +18,7 @@ import sqlite3
 
 from common.time import utc_now_iso
 from trading.models.books.book_assignment_view import BookAssignmentView
+from trading.models.books.book_record import BookRecord
 from trading.models.books.trading_book import TradingBook
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.repositories.book_bridge import book_id_for_sleeve, strategy_id_for_label
@@ -104,6 +105,24 @@ def sync_legacy_sleeve_books(conn: sqlite3.Connection, *, account_id: int) -> di
             )
         open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve.id)
     return sleeve_id_by_book
+
+
+def list_report_books(
+    conn: sqlite3.Connection, *, account_id: int
+) -> list[tuple[BookRecord, BookAssignmentView | None]]:
+    """The account's non-default books (any status) with their open assignments.
+
+    The read-side enumeration for reporting/monitoring/governance surfaces —
+    unlike ``enumerate_trading_books`` it includes paused/closed and unassigned
+    books, since reports show them. Runs the legacy sleeve sweep first so
+    never-traded sleeves still appear (dies in SR-6).
+    """
+    sync_legacy_sleeve_books(conn, account_id=account_id)
+    return [
+        (book, open_assignment_for_book(conn, book_id=book.id))
+        for book in BookRepository(conn).fetch_for_account(account_id=int(account_id))
+        if not book.is_default
+    ]
 
 
 def enumerate_trading_books(conn: sqlite3.Connection, *, account_id: int) -> list[TradingBook]:
