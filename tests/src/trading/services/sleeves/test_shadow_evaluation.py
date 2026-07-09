@@ -6,10 +6,10 @@ from trading.models.evaluation import (
     EvaluationConfidence,
     StrategyEvaluationArtifact,
 )
-from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import get_account
 from trading.services.sleeves.shadow_evaluation import build_sleeve_shadow_evaluation
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import assign_test_book_strategy, insert_test_book
 
 # The per-strategy metrics builder (which reads the evaluation artifact) lives in
 # rotation_metrics; patch the fetch where that module looks it up.
@@ -35,28 +35,8 @@ def test_build_sleeve_shadow_evaluation_builds_incumbent_and_challengers(conn, m
         (dump_rotation_schedule(["trend", "meanrev", "breakout"]), account_id),
     )
     conn.commit()
-    sleeve_repo = SleeveRepository(conn)
-    sleeve_id = sleeve_repo.insert(
-        account_id=account_id,
-        name="core",
-        status="active",
-        base_ccy="USD",
-        start_equity=10_000.0,
-        current_cash=10_000.0,
-        current_equity=10_000.0,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-    sleeve_repo.insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=None,
-        effective_from="2026-05-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
+    book_id = insert_test_book(conn, account_id=account_id, name="core")
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
     account = get_account(conn, account_name)
 
     scores = {"trend": 1.0, "meanrev": 2.0, "breakout": 0.5}
@@ -75,7 +55,7 @@ def test_build_sleeve_shadow_evaluation_builds_incumbent_and_challengers(conn, m
     assert result.account_name == account_name
     assert len(result.sleeves) == 1
     sleeve = result.sleeves[0]
-    assert sleeve.sleeve_id == sleeve_id
+    assert sleeve.book_id == book_id
     assert sleeve.incumbent_strategy == "trend"
     assert sleeve.incumbent.strategy_name == "trend"
     assert sleeve.incumbent.risk_adjusted_return == 1.0

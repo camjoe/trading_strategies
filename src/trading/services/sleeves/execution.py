@@ -120,7 +120,6 @@ def generate_sleeve_trade_intents(
             SleeveTradeIntent(
                 account_id=account_id,
                 book_id=book_id,
-                sleeve_id=trading_book.legacy_sleeve_id,
                 strategy_name=strategy_name,
                 param_set_id=param_set_id,
                 side=side,

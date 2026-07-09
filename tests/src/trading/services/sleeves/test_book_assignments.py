@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_bridge import book_id_for_sleeve, strategy_id_for_label
-from trading.repositories.books import BookRepository
-from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.book_assignments import (
     assign_book_strategy,
     enumerate_trading_books,
+    list_report_books,
     open_assignment_for_book,
 )
 from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_sleeve
+from tests.support.sleeves import assign_test_book_strategy, insert_test_book
 
 NOW = "2026-05-05T12:00:00Z"
 
@@ -25,182 +23,64 @@ def _insert_param_set(conn, param_set_id: int, strategy_name: str) -> None:
     )
 
 
-def _sleeve_with_assignment(conn, *, name: str, strategy: str, param_set_id: int | None) -> int:
-    account_id = insert_repository_account(conn, name=name)
-    sleeve_id = insert_test_sleeve(conn, account_id=account_id)
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name=strategy,
-        param_set_id=param_set_id,
-        effective_from="2026-05-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-    return sleeve_id
-
-
-def test_open_assignment_lazy_bootstraps_from_sleeve(conn) -> None:
-    _insert_param_set(conn, 101, "trend")
-    sleeve_id = _sleeve_with_assignment(conn, name="acct_ba_boot", strategy="trend", param_set_id=101)
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
-    assert BookAssignmentRepository(conn).fetch_open(book_id=book_id) is None  # not yet bootstrapped
-
-    view = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve_id)
-
-    assert view is not None
-    assert view.strategy_name == "trend"
-    assert view.param_set_id == 101
-    # The bootstrap persisted a real book assignment row.
-    record = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
-    assert record is not None
-    assert record.param_set_id == 101
-
-
-def test_open_assignment_book_wins_over_stale_sleeve(conn) -> None:
-    _insert_param_set(conn, 101, "trend")
-    _insert_param_set(conn, 202, "meanrev")
-    sleeve_id = _sleeve_with_assignment(conn, name="acct_ba_wins", strategy="trend", param_set_id=101)
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
-    # Book carries a *different* (newer) assignment than the sleeve row.
-    strategy_id = strategy_id_for_label(conn, "meanrev", now_iso=NOW)
-    assert strategy_id is not None
-    BookAssignmentRepository(conn).assign_strategy(
-        book_id=book_id,
-        strategy_id=strategy_id,
-        param_set_id=202,
-        effective_from=NOW,
-        created_at=NOW,
-        updated_at=NOW,
-    )
-
-    view = open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve_id)
-
-    assert view is not None
-    assert view.strategy_name == "meanrev"  # book record is authoritative
-    assert view.param_set_id == 202
-
-
-def test_open_assignment_none_when_neither_exists(conn) -> None:
+def test_open_assignment_none_when_unassigned(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_ba_none")
-    sleeve_id = insert_test_sleeve(conn, account_id=account_id)  # no assignment anywhere
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
+    book_id = insert_test_book(conn, account_id=account_id)
 
-    assert open_assignment_for_book(conn, book_id=book_id, legacy_sleeve_id=sleeve_id) is None
     assert open_assignment_for_book(conn, book_id=book_id) is None
 
 
-def test_enumerate_trading_books_mirrors_sleeves_and_lists_assigned_actives(conn) -> None:
-    _insert_param_set(conn, 101, "trend")
-    account_id = insert_repository_account(conn, name="acct_enum")
-    sleeve_id = insert_test_sleeve(conn, account_id=account_id, name="core")
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=101,
-        effective_from="2026-05-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-    # A second sleeve with no assignment does not trade.
-    insert_test_sleeve(conn, account_id=account_id, name="unassigned")
-
-    books = enumerate_trading_books(conn, account_id=account_id)
-
-    assert len(books) == 1
-    assert books[0].legacy_sleeve_id == sleeve_id
-    assert books[0].assignment.strategy_name == "trend"
-    assert books[0].assignment.param_set_id == 101
-    assert books[0].book.name == "core"
-
-
-def test_enumerate_trading_books_excludes_paused_sleeve_book(conn) -> None:
-    _insert_param_set(conn, 101, "trend")
-    account_id = insert_repository_account(conn, name="acct_enum_paused")
-    sleeve_id = insert_test_sleeve(conn, account_id=account_id, name="core", status="paused")
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=101,
-        effective_from="2026-05-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-
-    books = enumerate_trading_books(conn, account_id=account_id)
-
-    assert books == []
-    # The sweep mirrored the sleeve's paused status onto the bridging book.
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
-    assert book_id is not None
-    book = BookRepository(conn).fetch_by_id(book_id=book_id)
-    assert book is not None
-    assert book.status == "paused"
-
-
-def test_enumerate_trading_books_syncs_universes_from_sleeve(conn) -> None:
-    _insert_param_set(conn, 101, "trend")
-    sleeve_id = _sleeve_with_assignment(conn, name="acct_enum_univ", strategy="trend", param_set_id=101)
-    SleeveRepository(conn).update_trade_universes(sleeve_id=sleeve_id, trade_universes='["tech"]', updated_at=NOW)
-    account_id = SleeveRepository(conn).fetch_by_id(sleeve_id=sleeve_id).account_id
-
-    books = enumerate_trading_books(conn, account_id=account_id)
-
-    assert len(books) == 1
-    assert books[0].book.trade_universes == '["tech"]'
-
-
-def test_enumerate_trading_books_includes_book_without_sleeve(conn) -> None:
-    # Future state: a non-default book with no sleeve counterpart trades on its own.
-    account_id = insert_repository_account(conn, name="acct_enum_pure")
-    book_id = BookRepository(conn).insert(
-        account_id=account_id,
-        name="standalone",
-        is_default=0,
-        start_equity=5_000.0,
-        current_cash=5_000.0,
-        current_equity=5_000.0,
-        created_at=NOW,
-        updated_at=NOW,
-    )
-    assign_book_strategy(conn, book_id=book_id, strategy_name="trend", param_set_id=None, now_iso=NOW)
-
-    books = enumerate_trading_books(conn, account_id=account_id)
-
-    assert len(books) == 1
-    assert books[0].book.id == book_id
-    assert books[0].legacy_sleeve_id is None
-    assert books[0].assignment.strategy_name == "trend"
-
-
-def test_assign_book_strategy_writes_book_and_syncs_sleeve(conn) -> None:
-    _insert_param_set(conn, 101, "trend")
+def test_assign_book_strategy_roundtrips_with_param_set(conn) -> None:
     _insert_param_set(conn, 202, "meanrev")
-    sleeve_id = _sleeve_with_assignment(conn, name="acct_ba_assign", strategy="trend", param_set_id=101)
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
+    account_id = insert_repository_account(conn, name="acct_ba_assign")
+    book_id = insert_test_book(conn, account_id=account_id)
 
-    view = assign_book_strategy(
-        conn,
-        book_id=book_id,
-        strategy_name="meanrev",
-        param_set_id=202,
-        now_iso=NOW,
-        legacy_sleeve_id=sleeve_id,
-    )
+    view = assign_book_strategy(conn, book_id=book_id, strategy_name="meanrev", param_set_id=202, now_iso=NOW)
 
     assert view.strategy_name == "meanrev"
     assert view.param_set_id == 202
-    # Book record is the open assignment.
     record = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
     assert record is not None
     assert record.param_set_id == 202
-    # Legacy sleeve assignment stays in sync (dual-write until SR-3/SR-4 land).
-    legacy = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
-    assert legacy is not None
-    assert legacy.strategy_name == "meanrev"
-    assert legacy.param_set_id == 202
+    read_back = open_assignment_for_book(conn, book_id=book_id)
+    assert read_back is not None
+    assert read_back.strategy_name == "meanrev"
+
+
+def test_enumerate_trading_books_lists_assigned_actives_only(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_enum")
+    assigned = insert_test_book(conn, account_id=account_id, name="core")
+    assign_test_book_strategy(conn, book_id=assigned, strategy_name="trend")
+    insert_test_book(conn, account_id=account_id, name="unassigned")
+    paused = insert_test_book(conn, account_id=account_id, name="paused", status="paused")
+    assign_test_book_strategy(conn, book_id=paused, strategy_name="trend")
+
+    books = enumerate_trading_books(conn, account_id=account_id)
+
+    assert [tb.book.id for tb in books] == [assigned]
+    assert books[0].assignment.strategy_name == "trend"
+
+
+def test_enumerate_trading_books_excludes_default_book(conn) -> None:
+    from trading.repositories.book_bridge import default_book_id
+
+    account_id = insert_repository_account(conn, name="acct_enum_default")
+    default_id = default_book_id(conn, account_id)
+    assign_book_strategy(conn, book_id=default_id, strategy_name="trend", param_set_id=None, now_iso=NOW)
+
+    assert enumerate_trading_books(conn, account_id=account_id) == []
+
+
+def test_list_report_books_includes_paused_and_unassigned(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_report")
+    assigned = insert_test_book(conn, account_id=account_id, name="core")
+    assign_test_book_strategy(conn, book_id=assigned, strategy_name="trend")
+    unassigned = insert_test_book(conn, account_id=account_id, name="unassigned")
+    paused = insert_test_book(conn, account_id=account_id, name="paused", status="paused")
+
+    books = list_report_books(conn, account_id=account_id)
+
+    by_id = {book.id: assignment for book, assignment in books}
+    assert set(by_id) == {assigned, unassigned, paused}
+    assert by_id[assigned] is not None
+    assert by_id[unassigned] is None

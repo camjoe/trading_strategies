@@ -2,20 +2,18 @@ from __future__ import annotations
 
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.rotation_decisions import RotationDecisionRepository
-from trading.repositories.sleeves import SleeveRepository
 from trading.repositories.strategies import StrategyRepository
 from trading.services.sleeves.rotation import (
     RotationPolicyConfig,
     evaluate_and_apply_sleeve_rotation,
 )
 from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_sleeve
+from tests.support.sleeves import assign_test_book_strategy, insert_test_book
 
 
-def _insert_sleeve(conn, *, account_id: int, name: str = "core") -> int:
-    return insert_test_sleeve(
+def _insert_book(conn, *, account_id: int, name: str = "core") -> int:
+    return insert_test_book(
         conn,
         account_id=account_id,
         name=name,
@@ -49,19 +47,10 @@ def _insert_param_set(conn, param_set_id: int, strategy_name: str) -> None:
 
 def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_rotate")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id)
+    book_id = _insert_book(conn, account_id=account_id)
     _insert_param_set(conn, 101, "trend")
     _insert_param_set(conn, 202, "meanrev")
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=101,
-        effective_from="2026-05-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend", param_set_id=101)
 
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
@@ -73,12 +62,9 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
         cost_penalty=0.04,
         regime_fit=0.03,
     )
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
-    assert book_id is not None
     result = evaluate_and_apply_sleeve_rotation(
         conn,
         book_id=book_id,
-        legacy_sleeve_id=sleeve_id,
         incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=101),
         challengers=[challenger],
         config=RotationPolicyConfig(
@@ -95,19 +81,8 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
     assert result.decision.rotation_action == "rotate"
     assert result.decision.selected_strategy == "meanrev"
 
-    sleeve_repo = SleeveRepository(conn)
-    active_assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve_id)
-    assert active_assignment is not None
-    assert active_assignment.strategy_name == "meanrev"
-    assert active_assignment.param_set_id == 202
-
-    assignments = sleeve_repo.fetch_assignments(sleeve_id=sleeve_id)
-    assert len(assignments) == 2
-
-    # Drift-fix regression (SR-1): the *book* assignment is updated on rotate —
+    # The *book* assignment is updated on rotate —
     # book_strategy_assignments is the single live assignment record.
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=False)
-    assert book_id is not None
     book_assignment = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
     assert book_assignment is not None
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=book_assignment.strategy_id)
@@ -115,7 +90,7 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
     assert strategy.strategy_key == "meanrev"
     assert book_assignment.param_set_id == 202
 
-    latest_decision = RotationDecisionRepository(conn).fetch_latest(sleeve_id=sleeve_id)
+    latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
     assert latest_decision["rotation_action"] == "rotate"
     assert latest_decision["config_version"] == "cfg-rot-a"
@@ -123,21 +98,12 @@ def test_evaluate_and_apply_sleeve_rotation_rotates_and_updates_assignment(conn)
 
 def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_cooldown")
-    sleeve_id = _insert_sleeve(conn, account_id=account_id)
+    book_id = _insert_book(conn, account_id=account_id)
     _insert_param_set(conn, 111, "trend")
     _insert_param_set(conn, 222, "meanrev")
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name="trend",
-        param_set_id=111,
-        effective_from="2026-05-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-01T00:00:00Z",
-        updated_at="2026-05-01T00:00:00Z",
-    )
-    RotationDecisionRepository(conn).insert(
-        sleeve_id=sleeve_id,
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend", param_set_id=111)
+    RotationDecisionRepository(conn).insert_for_book(
+        book_id=book_id,
         decision_time="2026-05-04T18:00:00Z",
         incumbent_strategy="trend",
         challenger_strategy="meanrev",
@@ -148,7 +114,6 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         gate_results_json='{"demo":true}',
         decision_reason="rotate_to_challenger",
         config_version="cfg-old",
-        param_set_id=222,
         created_at="2026-05-04T18:00:00Z",
     )
 
@@ -162,12 +127,9 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
         cost_penalty=0.01,
         regime_fit=0.05,
     )
-    book_id = book_id_for_sleeve(conn, sleeve_id, create=True)
-    assert book_id is not None
     result = evaluate_and_apply_sleeve_rotation(
         conn,
         book_id=book_id,
-        legacy_sleeve_id=sleeve_id,
         incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=111),
         challengers=[challenger],
         config=RotationPolicyConfig(cooldown_days=7),
@@ -178,6 +140,8 @@ def test_evaluate_and_apply_sleeve_rotation_holds_when_cooldown_active(conn) -> 
     assert result.decision.rotation_action == "hold"
     assert result.decision.decision_reason == "cooldown_active"
 
-    active_assignment = SleeveRepository(conn).fetch_active_assignment(sleeve_id=sleeve_id)
-    assert active_assignment is not None
-    assert active_assignment.strategy_name == "trend"
+    held = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
+    assert held is not None
+    strategy = StrategyRepository(conn).fetch_by_id(strategy_id=held.strategy_id)
+    assert strategy is not None
+    assert strategy.strategy_key == "trend"

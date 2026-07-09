@@ -105,6 +105,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
+| `migrate_sleeve_books.py` | One-time sleeve→book mirror migration (SR-6a; dies with the legacy tables in SR-7) |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
@@ -204,7 +205,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `promotion.py` | Promotion decision records |
 | `risk.py` | Clean-schema risk snapshots and risk decision records |
 | `rotation_decisions.py` | Rotation decision records |
-| `sleeves.py` | Sleeve configuration and state |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
 | `strategy_param_sets.py` | Strategy parameter set records |
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs, D5) |

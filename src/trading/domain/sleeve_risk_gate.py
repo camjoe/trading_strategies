@@ -123,7 +123,7 @@ def evaluate_sleeve_risk_gate(
             blocked_count += 1
             decisions.append(
                 SleeveRiskDecision(
-                    sleeve_id=int(intent.sleeve_id),
+                    sleeve_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
                     action="block",
@@ -145,11 +145,11 @@ def evaluate_sleeve_risk_gate(
             sector = resolve_sector_for_symbol(symbol, symbol_sector_map=symbol_sector_map)
             if sector is not None:
                 sector_exposure[sector] = max(0.0, sector_exposure.get(sector, 0.0) - exposure_delta)
-            sleeve_key = (int(intent.sleeve_id), symbol)
+            sleeve_key = (int(intent.book_id), symbol)
             sleeve_symbol_exposure[sleeve_key] = max(0.0, sleeve_symbol_exposure.get(sleeve_key, 0.0) - exposure_delta)
             decisions.append(
                 SleeveRiskDecision(
-                    sleeve_id=int(intent.sleeve_id),
+                    sleeve_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
                     action="allow",
@@ -162,9 +162,9 @@ def evaluate_sleeve_risk_gate(
             )
             continue
 
-        sleeve_equity = sleeve_equity_by_id.get(int(intent.sleeve_id), 0.0)
+        sleeve_equity = sleeve_equity_by_id.get(int(intent.book_id), 0.0)
         sleeve_symbol_cap_notional = sleeve_equity * max_sleeve_notional_pct
-        current_sleeve_symbol_exposure = sleeve_symbol_exposure.get((int(intent.sleeve_id), symbol), 0.0)
+        current_sleeve_symbol_exposure = sleeve_symbol_exposure.get((int(intent.book_id), symbol), 0.0)
         remaining_sleeve_notional = max(0.0, sleeve_symbol_cap_notional - current_sleeve_symbol_exposure)
         remaining_symbol_notional = max(0.0, symbol_cap_notional - symbol_exposure.get(symbol, 0.0))
         remaining_gross_notional = max(0.0, gross_cap_notional - gross_exposure)
@@ -186,7 +186,7 @@ def evaluate_sleeve_risk_gate(
             blocked_count += 1
             decisions.append(
                 SleeveRiskDecision(
-                    sleeve_id=int(intent.sleeve_id),
+                    sleeve_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
                     action="block",
@@ -226,11 +226,11 @@ def evaluate_sleeve_risk_gate(
         symbol_exposure[symbol] = symbol_exposure.get(symbol, 0.0) + approved_notional
         if sector is not None:
             sector_exposure[sector] = sector_exposure.get(sector, 0.0) + approved_notional
-        sleeve_key = (int(intent.sleeve_id), symbol)
+        sleeve_key = (int(intent.book_id), symbol)
         sleeve_symbol_exposure[sleeve_key] = sleeve_symbol_exposure.get(sleeve_key, 0.0) + approved_notional
         decisions.append(
             SleeveRiskDecision(
-                sleeve_id=int(intent.sleeve_id),
+                sleeve_id=int(intent.book_id),
                 symbol=symbol,
                 side=side,
                 action=action,

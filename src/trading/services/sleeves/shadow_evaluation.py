@@ -16,10 +16,8 @@ DEFAULT_SHADOW_ROLLING_WINDOW_DAYS = 30
 
 @dataclass(frozen=True, slots=True)
 class SleeveShadowEvaluation:
-    # The trading book being evaluated — the primary key of the flow (SR-2).
+    # The trading book being evaluated — the primary key of the flow.
     book_id: int
-    # Legacy sleeve identity during the retirement window; None once books stand alone.
-    sleeve_id: int | None
     incumbent_strategy: str
     incumbent: RotationStrategyMetrics
     challengers: list[RotationStrategyMetrics]
@@ -89,7 +87,6 @@ def build_sleeve_shadow_evaluation(
         sleeves.append(
             SleeveShadowEvaluation(
                 book_id=trading_book.book.id,
-                sleeve_id=trading_book.legacy_sleeve_id,
                 incumbent_strategy=incumbent_strategy,
                 incumbent=incumbent,
                 challengers=challengers,

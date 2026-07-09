@@ -20,8 +20,6 @@ from trading.models.portfolio.equity_snapshot_record import EquitySnapshotRecord
 from trading.models.settings.global_settings_record import GlobalSettingsRecord
 from trading.models.rotation.rotation_config import RotationConfig
 from trading.models.sleeves.sleeve_position_record import SleevePositionRecord
-from trading.models.sleeves.sleeve_record import SleeveRecord
-from trading.models.sleeves.sleeve_strategy_assignment_record import SleeveStrategyAssignmentRecord
 from trading.models.strategy.strategy_param_set_record import StrategyParamSetRecord
 
 __all__ = [
@@ -38,8 +36,6 @@ __all__ = [
     "OrderType",
     "RotationConfig",
     "SleevePositionRecord",
-    "SleeveRecord",
-    "SleeveStrategyAssignmentRecord",
     "StrategyParamSetRecord",
     "TimeInForce",
 ]

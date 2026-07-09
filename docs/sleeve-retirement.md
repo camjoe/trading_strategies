@@ -83,7 +83,8 @@ Related: [Status](status.md), [ADR 003 — Sleeve Virtualization](adr/003-sleeve
 | **SR-3** | Reporting/monitor: daily_report, reconciliation, universe_config, ibkr_paper_monitor (+ UI labels) onto books. | M |
 | **SR-4** | Governance jobs ×5 onto book reads. | S |
 | **SR-5** | Risk audit re-keyed to books (D-SR2); `runtime_sleeve_risk` renamed. | S–M |
-| **SR-6** | Code retirement + renames: `repositories/sleeves.py`, `models/sleeves/` moves, `domain/sleeve_*` renames, `services/sleeves/` package rename (D-SR4), bridge mapping removal. | M |
+| **SR-6a** | Retire the legacy data paths: one-time `migrate_sleeve_books` data-op replaces the runtime sweep; delete lazy bootstrap + dual-write + `book_id_for_sleeve` + `SleeveRepository` + sleeve record/assignment models; drop the vestigial `sleeve_id` fields from the flow contracts. **Deploy order: run the data-op once before (or with) this code on any existing DB.** | M |
+| **SR-6b** | Renames (D-SR4): `services/sleeves/` → `services/books/`, `models/sleeves/` → book-named contracts, `domain/sleeve_*` → book/risk names, execution-mode value `sleeve` → `book` (legacy alias accepted), `shadow_evaluation` → challenger-enumeration name. | M |
 | **SR-7** | Drop `strategy_sleeves` + `sleeve_strategy_assignments` (+ old risk table per D-SR2); docs/maps sync; supersede note on ADR 003; close this tracker (fold outcome into status.md, delete this file). | S |
 
 Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
@@ -155,3 +156,16 @@ Estimated total: **L** (~2b-sized; 7 ordered green commits, multiple sessions).
   record fields are parity). Retired `SleeveRiskDecisionRepository`, `PortfolioRiskSnapshotRepository`,
   and their record models; added clean risk-repo tests (incl. new `fetch_for_account_date`).
   Old tables are now unwritten/unread — drops staged for SR-7. Full `run_checks ci` green.
+- 2026-07-09 — **SR-6a landed.** The legacy data paths are gone: the runtime lazy sweep / lazy
+  assignment bootstrap / dual-write are replaced by a **one-time idempotent data-op**
+  (`python -m trading.interfaces.runtime.data_ops.migrate_sleeve_books` — **run once on any existing
+  DB before or with this code**; it reads the legacy tables via raw SQL and dies with them in SR-7).
+  Deleted: `SleeveRepository`, `SleeveRecord`/`SleeveStrategyAssignmentRecord`,
+  `book_bridge.book_id_for_sleeve`, the legacy sleeve-keyed methods on the rotation-decisions and
+  daily-metrics repos (book-native `fetch_latest_for_book` added; `upsert` takes `book_id`), and the
+  vestigial `sleeve_id` fields on `SleeveTradeIntent`/`SleeveShadowEvaluation`/`RotationRunResult`
+  (the domain risk gate buckets on `intent.book_id`). Test infrastructure went book-native:
+  `tests/support/sleeves.py` (insert_test_book / assign_test_book_strategy / build_book_env /
+  build_rotation_book_env), conftest fixtures, the seeded-DB dataset, and the repo/service/runtime
+  test files. Nothing outside the data-op touches `strategy_sleeves`/`sleeve_strategy_assignments`.
+  Full `run_checks ci` green.

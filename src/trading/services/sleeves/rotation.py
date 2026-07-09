@@ -37,10 +37,8 @@ class RotationPolicyConfig:
 
 @dataclass(frozen=True, slots=True)
 class RotationRunResult:
-    # The rotated trading book — the primary key of the flow (SR-2).
+    # The rotated trading book — the primary key of the flow.
     book_id: int
-    # Legacy sleeve identity during the retirement window; None once books stand alone.
-    sleeve_id: int | None
     decision_id: int
     decision_time: str
     decision: RotationDecision
@@ -170,12 +168,10 @@ def evaluate_and_apply_sleeve_rotation(
     challengers: list[RotationStrategyMetrics],
     config: RotationPolicyConfig = RotationPolicyConfig(),
     decision_time: str | None = None,
-    legacy_sleeve_id: int | None = None,
 ) -> RotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    # Book assignments are the single live assignment record (SR-1); the read
-    # lazily bootstraps from the legacy sleeve assignment on existing DBs.
-    assignment = open_assignment_for_book(conn, book_id=int(book_id), legacy_sleeve_id=legacy_sleeve_id)
+    # Book assignments are the single live assignment record (SR-1).
+    assignment = open_assignment_for_book(conn, book_id=int(book_id))
     if assignment is None:
         raise ValueError(f"No incumbent assignment found for book_id={book_id}.")
 
@@ -209,21 +205,17 @@ def evaluate_and_apply_sleeve_rotation(
 
     rotated = False
     if decision.rotation_action == "rotate":
-        # Authoritative book write + legacy sleeve sync (dual-write until SR-3/SR-4
-        # migrate the remaining sleeve-assignment readers; the sync dies in SR-6).
         assign_book_strategy(
             conn,
             book_id=int(book_id),
             strategy_name=decision.selected_strategy,
             param_set_id=decision.selected_param_set_id,
             now_iso=now_iso,
-            legacy_sleeve_id=legacy_sleeve_id,
         )
         rotated = True
 
     return RotationRunResult(
         book_id=int(book_id),
-        sleeve_id=legacy_sleeve_id,
         decision_id=decision_id,
         decision_time=now_iso,
         decision=decision,

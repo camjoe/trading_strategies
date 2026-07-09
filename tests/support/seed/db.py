@@ -27,7 +27,7 @@ All constants are also importable directly from their domain module, e.g.::
 
     from tests.support.seed.accounts import ACCT_TREND
     from tests.support.seed.reporting import SNAPSHOT_T1
-    from tests.support.seed.sleeve_data import SLEEVE_TREND
+    from tests.support.seed.sleeve_data import BOOK_TREND
 """
 
 from __future__ import annotations
@@ -55,10 +55,10 @@ from tests.support.seed.reporting import (
     seed_trades,
 )
 from tests.support.seed.sleeve_data import (
-    SLEEVE_METRIC_DATE,
-    SLEEVE_STRATEGY,
-    SLEEVE_TREND,
-    seed_sleeves,
+    BOOK_METRIC_DATE,
+    BOOK_STRATEGY,
+    BOOK_TREND,
+    seed_books,
 )
 
 
@@ -74,7 +74,7 @@ def seed_session_db(conn: sqlite3.Connection) -> None:
     seed_snapshots(conn)
     seed_backtest_run(conn)
     seed_promotion_review(conn)
-    seed_sleeves(conn)
+    seed_books(conn)
     conn.commit()
 
 
@@ -84,9 +84,9 @@ __all__ = [
     "ACCT_TREND",
     "BACKTEST_RUN_NAME",
     "PROMOTION_STRATEGY",
-    "SLEEVE_METRIC_DATE",
-    "SLEEVE_STRATEGY",
-    "SLEEVE_TREND",
+    "BOOK_METRIC_DATE",
+    "BOOK_STRATEGY",
+    "BOOK_TREND",
     "SNAPSHOT_T1",
     "SNAPSHOT_T2",
     "SNAPSHOT_T3",

@@ -12,7 +12,6 @@ def _intent(*, sleeve_id: int, side: str, symbol: str, qty: int, price: float) -
     return SleeveTradeIntent(
         account_id=1,
         book_id=sleeve_id,
-        sleeve_id=sleeve_id,
         strategy_name="trend",
         param_set_id=None,
         side=side,

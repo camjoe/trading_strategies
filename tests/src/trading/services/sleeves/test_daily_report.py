@@ -2,36 +2,26 @@ from __future__ import annotations
 
 import pytest
 
-from trading.repositories.book_bridge import book_id_for_sleeve
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
-from trading.repositories.sleeves import SleeveRepository
 from trading.services.sleeves.daily_report import (
     AccountDailyReport,
     account_daily_report_as_dict,
     build_account_daily_report,
 )
 from tests.support.repositories import insert_repository_account
+from tests.support.sleeves import assign_test_book_strategy
 
 REPORT_DATE = "2026-05-07"
 
 
 def test_build_report_returns_correct_structure(conn, report_env) -> None:
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=report_env.sleeve_id,
-        strategy_name="Momentum",
-        param_set_id=None,
-        effective_from="2026-01-01T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-01-01T00:00:00Z",
-        updated_at="2026-01-01T00:00:00Z",
-    )
+    assign_test_book_strategy(conn, book_id=report_env.book_id, strategy_name="Momentum")
     DailyMetricsRepository(conn).upsert(
         account_id=report_env.account_id,
-        sleeve_id=report_env.sleeve_id,
+        book_id=report_env.book_id,
         metric_date=REPORT_DATE,
         return_pct=1.5,
         drawdown_pct=-0.3,
@@ -56,7 +46,7 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
     assert report.report_date == REPORT_DATE
     assert len(report.book_performance) == 1
     sp = report.book_performance[0]
-    assert sp.book_id == book_id_for_sleeve(conn, report_env.sleeve_id, create=False)
+    assert sp.book_id == report_env.book_id
     # Labels round-trip through the strategies catalog as canonical lowercase keys (P3).
     assert sp.strategy_name == "momentum"
     assert sp.return_pct == pytest.approx(1.5)
@@ -67,10 +57,8 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
 
 def test_book_performance_current_equity_comes_from_book(conn, report_env) -> None:
     # The report reads live equity straight from the book balance.
-    book_id = book_id_for_sleeve(conn, report_env.sleeve_id, create=True)
-    assert book_id is not None
     BookRepository(conn).update_balances(
-        book_id=book_id,
+        book_id=report_env.book_id,
         current_cash=8_000.0,
         current_equity=12_345.0,
         updated_at="2026-05-07T00:00:00Z",
@@ -84,10 +72,10 @@ def test_book_performance_current_equity_comes_from_book(conn, report_env) -> No
 
 
 def test_build_report_no_books_returns_empty_sections(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_no_sleeves")
+    account_id = insert_repository_account(conn, name="acct_no_books")
 
     report = build_account_daily_report(
-        conn, account_id=account_id, account_name="acct_no_sleeves", report_date=REPORT_DATE
+        conn, account_id=account_id, account_name="acct_no_books", report_date=REPORT_DATE
     )
 
     assert report.book_performance == []
@@ -189,8 +177,8 @@ def test_build_report_kill_switch_from_snapshot(conn) -> None:
 
 
 def test_build_report_rotation_decisions(conn, report_env) -> None:
-    RotationDecisionRepository(conn).insert(
-        sleeve_id=report_env.sleeve_id,
+    RotationDecisionRepository(conn).insert_for_book(
+        book_id=report_env.book_id,
         decision_time=f"{REPORT_DATE}T09:00:00Z",
         incumbent_strategy="Momentum",
         challenger_strategy="MeanRev",
@@ -201,12 +189,11 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
         gate_results_json="{}",
         decision_reason="challenger outperformed",
         config_version="v1",
-        param_set_id=None,
         created_at=f"{REPORT_DATE}T09:00:00Z",
     )
     # Decision on a different date — should be excluded
-    RotationDecisionRepository(conn).insert(
-        sleeve_id=report_env.sleeve_id,
+    RotationDecisionRepository(conn).insert_for_book(
+        book_id=report_env.book_id,
         decision_time="2026-05-06T09:00:00Z",
         incumbent_strategy="Momentum",
         challenger_strategy="MeanRev",
@@ -217,7 +204,6 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
         gate_results_json="{}",
         decision_reason=None,
         config_version="v1",
-        param_set_id=None,
         created_at="2026-05-06T09:00:00Z",
     )
 

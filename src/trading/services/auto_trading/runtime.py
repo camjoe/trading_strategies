@@ -291,7 +291,6 @@ def _run_sleeve_rotation_decisions(
             challengers=sleeve_eval.challengers,
             config=config,
             decision_time=decision_time,
-            legacy_sleeve_id=sleeve_eval.sleeve_id,
         )
 
 

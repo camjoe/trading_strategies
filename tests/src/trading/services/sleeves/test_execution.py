@@ -7,13 +7,12 @@ import pandas as pd
 import trading.services.sleeves.execution as sleeve_execution
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
-from trading.repositories.sleeves import SleeveRepository
 from trading.services.accounts import get_account
 from tests.support.repositories import insert_repository_account
-from tests.support.sleeves import insert_test_sleeve
+from tests.support.sleeves import assign_test_book_strategy, insert_test_book
 
 
-def _insert_sleeve(
+def _insert_book(
     conn,
     *,
     account_id: int,
@@ -21,7 +20,7 @@ def _insert_sleeve(
     status: str = "active",
     current_cash: float = 1_000.0,
 ) -> int:
-    return insert_test_sleeve(
+    return insert_test_book(
         conn,
         account_id=account_id,
         name=name,
@@ -32,29 +31,19 @@ def _insert_sleeve(
     )
 
 
-def _assign(conn, *, sleeve_id: int, strategy_name: str) -> None:
-    # Every book must carry an active strategy assignment or it does not trade.
-    SleeveRepository(conn).insert_assignment(
-        sleeve_id=sleeve_id,
-        strategy_name=strategy_name,
-        param_set_id=None,
-        effective_from="2026-05-03T00:00:00Z",
-        effective_to=None,
-        is_incumbent=1,
-        created_at="2026-05-03T00:00:00Z",
-        updated_at="2026-05-03T00:00:00Z",
-    )
+def _assign(conn, *, book_id: int, strategy_name: str) -> None:
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name=strategy_name)
 
 
 def test_generate_sleeve_trade_intents_uses_active_sleeves_and_assignments(conn, monkeypatch) -> None:
     account_name = "acct_sleeve_intents"
     account_id = insert_repository_account(conn, name=account_name)
-    sleeve_mr = _insert_sleeve(conn, account_id=account_id, name="mean-rev")
-    sleeve_trend = _insert_sleeve(conn, account_id=account_id, name="trend")
-    _insert_sleeve(conn, account_id=account_id, name="unassigned")
-    _insert_sleeve(conn, account_id=account_id, name="paused", status="paused")
-    _assign(conn, sleeve_id=sleeve_mr, strategy_name="mean_reversion")
-    _assign(conn, sleeve_id=sleeve_trend, strategy_name="trend")
+    book_mr = _insert_book(conn, account_id=account_id, name="mean-rev")
+    book_trend = _insert_book(conn, account_id=account_id, name="trend")
+    _insert_book(conn, account_id=account_id, name="unassigned")
+    _insert_book(conn, account_id=account_id, name="paused", status="paused")
+    _assign(conn, book_id=book_mr, strategy_name="mean_reversion")
+    _assign(conn, book_id=book_trend, strategy_name="trend")
     account = get_account(conn, account_name)
 
     monkeypatch.setattr(
@@ -80,18 +69,18 @@ def test_generate_sleeve_trade_intents_uses_active_sleeves_and_assignments(conn,
     )
 
     # Only the two assigned sleeves trade; the unassigned and paused sleeves are skipped.
-    assert {intent.sleeve_id for intent in intents} == {sleeve_mr, sleeve_trend}
-    strategies_by_sleeve = {intent.sleeve_id: intent.strategy_name for intent in intents}
-    assert strategies_by_sleeve[sleeve_mr] == "mean_reversion"
-    assert strategies_by_sleeve[sleeve_trend] == "trend"
+    assert {intent.book_id for intent in intents} == {book_mr, book_trend}
+    strategies_by_sleeve = {intent.book_id: intent.strategy_name for intent in intents}
+    assert strategies_by_sleeve[book_mr] == "mean_reversion"
+    assert strategies_by_sleeve[book_trend] == "trend"
 
 
 def test_generate_sleeve_trade_intents_are_signal_driven(conn) -> None:
     account_name = "acct_sleeve_signal"
     account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = _insert_sleeve(conn, account_id=account_id, name="signal")
+    book_id = _insert_book(conn, account_id=account_id, name="signal")
     account = get_account(conn, account_name)
-    _assign(conn, sleeve_id=sleeve_id, strategy_name=str(account.strategy))
+    _assign(conn, book_id=book_id, strategy_name=str(account.strategy))
 
     rising = pd.Series([float(i) for i in range(1, 41)])
     flat = pd.Series([100.0] * 40)
@@ -177,7 +166,7 @@ def test_build_sleeve_state_reads_book_and_skips_non_positive_positions(conn) ->
 def test_generate_sleeve_trade_intents_returns_empty_without_active_sleeves(conn) -> None:
     account_name = "acct_sleeve_none"
     account_id = insert_repository_account(conn, name=account_name)
-    _insert_sleeve(conn, account_id=account_id, name="paused", status="paused")
+    _insert_book(conn, account_id=account_id, name="paused", status="paused")
     account = get_account(conn, account_name)
 
     intents = sleeve_execution.generate_sleeve_trade_intents(
@@ -200,13 +189,13 @@ def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_u
 ) -> None:
     account_name = "acct_sleeve_invalid_universe"
     account_id = insert_repository_account(conn, name=account_name)
-    sleeve_id = _insert_sleeve(conn, account_id=account_id, name="invalid-universe")
-    SleeveRepository(conn).update_trade_universes(
-        sleeve_id=sleeve_id,
+    book_id = _insert_book(conn, account_id=account_id, name="invalid-universe")
+    BookRepository(conn).update_trade_universes(
+        book_id=book_id,
         trade_universes='{"name": "not-a-list"}',
         updated_at="2026-05-03T00:00:00Z",
     )
-    _assign(conn, sleeve_id=sleeve_id, strategy_name="trend")
+    _assign(conn, book_id=book_id, strategy_name="trend")
     account = get_account(conn, account_name)
     captured_universes: list[list[str]] = []
 
@@ -244,8 +233,8 @@ def test_generate_sleeve_trade_intents_uses_default_universe_for_invalid_trade_u
 def test_run_sleeve_mode_for_account_returns_generated_intent_count(conn, monkeypatch) -> None:
     account_name = "acct_sleeve_mode_count"
     account_id = insert_repository_account(conn, name=account_name)
-    _assign(conn, sleeve_id=_insert_sleeve(conn, account_id=account_id, name="s1"), strategy_name="trend")
-    _assign(conn, sleeve_id=_insert_sleeve(conn, account_id=account_id, name="s2"), strategy_name="trend")
+    _assign(conn, book_id=_insert_book(conn, account_id=account_id, name="s1"), strategy_name="trend")
+    _assign(conn, book_id=_insert_book(conn, account_id=account_id, name="s2"), strategy_name="trend")
     account = get_account(conn, account_name)
 
     monkeypatch.setattr(
