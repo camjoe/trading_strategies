@@ -24,6 +24,7 @@ _EXPECTED_COMMANDS = {
     "snapshot-history",
     "compare-strategies",
     "portfolio-exposure",
+    "portfolio-concentration",
     "backtest",
     "backtest-report",
     "backtest-leaderboard",

@@ -22,6 +22,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
 )
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_portfolio_concentration,
     handle_portfolio_exposure,
     handle_promotion_request_review,
     handle_promotion_review_action,
@@ -51,6 +52,7 @@ COMMAND_HANDLERS = {
     "snapshot-history": handle_snapshot_history,
     "compare-strategies": handle_compare_strategies,
     "portfolio-exposure": handle_portfolio_exposure,
+    "portfolio-concentration": handle_portfolio_concentration,
     "backtest": handle_backtest,
     "backtest-report": handle_backtest_report,
     "backtest-leaderboard": handle_backtest_leaderboard,

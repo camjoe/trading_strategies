@@ -9,6 +9,7 @@ from .features import router as features_router
 from .health import router as health_router
 from .ibkr_paper_monitor import router as ibkr_paper_monitor_router
 from .logs import router as logs_router
+from .portfolio import router as portfolio_router
 
 __all__ = [
     "actions_router",
@@ -20,4 +21,5 @@ __all__ = [
     "health_router",
     "ibkr_paper_monitor_router",
     "logs_router",
+    "portfolio_router",
 ]

@@ -4,6 +4,7 @@ import types
 
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_portfolio_concentration,
     handle_portfolio_exposure,
     handle_promotion_request_review,
     handle_promotion_review_action,
@@ -156,6 +157,21 @@ def test_handle_portfolio_exposure_calls_show_dep() -> None:
     deps = {"show_portfolio_exposure": lambda passed_conn: calls.append(passed_conn)}
 
     handle_portfolio_exposure(
+        conn,
+        types.SimpleNamespace(),
+        _parser(),
+        deps=deps,
+    )
+
+    assert calls == [conn]
+
+
+def test_handle_portfolio_concentration_calls_show_dep() -> None:
+    calls: list = []
+    conn = object()
+    deps = {"show_portfolio_concentration": lambda passed_conn: calls.append(passed_conn)}
+
+    handle_portfolio_concentration(
         conn,
         types.SimpleNamespace(),
         _parser(),

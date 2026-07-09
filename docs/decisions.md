@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-03
+Last Reviewed: 2026-07-09
 Purpose: The single consolidated list of decisions that must be made before or during implementation
 — "what needs to be defined." Current status lives in [status.md](status.md); design detail lives in
 the referenced specs.
@@ -25,7 +25,7 @@ yet) · **decided** (resolved — record the outcome and date).
 | [D7](#d7) | Default strategy book: real row vs virtual | P4, DB rewrite | **decided: real row (under B)** |
 | [D8](#d8) | Email notifications config | P8 | **decided: env-var SMTP (2026-07-07)** |
 | [D9](#d9) | Adaptive-learning definition | P10 | deferred |
-| [D10](#d10) | Portfolio-risk concentration definition | P9 | deferred |
+| [D10](#d10) | Portfolio-risk concentration definition | P9 | **decided: symbol + sector rollup (2026-07-09)** |
 | [D11](#d11) | Param-optimization method & guardrails | P11 | deferred |
 | [D12](#d12) | Operator UI surface: console vs incremental tabs | operator-facing UI | deferred (premature) |
 | [D13](#d13) | Decisioning naming/grouping specifics | P5 | deferred |
@@ -34,8 +34,8 @@ yet) · **decided** (resolved — record the outcome and date).
 Decided: **D1** (trade policy), **D2/D3/D7** (rewrite-first), **D5** (strategy = primitive + knobs),
 **D4** (params split + settings shape, 2026-07-03), **D6** (score columns; snapshot table deferred),
 **D14** (execution primitive named "book", 2026-07-04), **D8** (email notifications config: env-var
-SMTP, 2026-07-07). Nothing gates the rewrite anymore. **D9–D13 stay deferred** (feature-specific, not
-gating the near-term plan).
+SMTP, 2026-07-07), **D10** (concentration by symbol + sector rollup, 2026-07-09). Nothing gates the
+rewrite anymore. **D9/D11–D13 stay deferred** (feature-specific, not gating the near-term plan).
 
 ---
 
@@ -184,9 +184,17 @@ policy, and the explicit downstream effects on ranking and eligibility.
 <a id="d10"></a>
 ### D10 — Portfolio-risk concentration definition
 
-Gates: Plan P9. **Deferred.**
+Gates: Plan P9. **Decided (2026-07-09): by symbol, with a sector rollup.**
 
-Concentration measured by symbol, sector, or strategy.
+Concentration is measured **by symbol**: a symbol's share of total cross-account market value
+(from persisted `positions` rows), with cross-account overlap surfaced as the count of accounts
+holding the symbol. A **sector rollup** is layered on top reusing the existing operator-editable
+`symbol_sectors.json` reference data (built for the risk gate's sector-concentration limits);
+unmapped symbols fall back to `uncategorized`, so the rollup degrades gracefully rather than
+requiring full reference coverage. **Strategy** as a concentration dimension was rejected:
+strategy exposure is an allocation question already answered by rotation/evaluation reporting,
+not an instrument-overlap risk. No new data sources — both dimensions are served entirely from
+data that already exists.
 
 <a id="d11"></a>
 ### D11 — Param-optimization method & guardrails

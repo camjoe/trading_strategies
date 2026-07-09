@@ -135,6 +135,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/performance.py` | Book performance window queries (reads daily metrics) |
 | `analysis/risk_snapshots.py` | Latest account risk snapshot access (clean risk_snapshots) |
 | `analysis/exposure.py` | Cross-account exposure rollup over latest equity snapshots + open positions (P9 v1) |
+| `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions (P9, D10) |
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
 | `auto_trading/book_rotation.py` | Book-keyed champion/challenger rotation selection for an account's default book (writes `rotation_decisions`) (P4/2b) |
@@ -173,6 +174,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `reporting/portfolio.py` | Portfolio reporting |
 | `reporting/presentation.py` | Report presentation formatting |
 | `reporting/exposure.py` | Printed view of the cross-account exposure rollup (payload lives in `analysis/exposure.py`) |
+| `reporting/concentration.py` | Printed view of the cross-account concentration rollup (payload lives in `analysis/concentration.py`) |
 | `operational_settings/models.py` | Operational setting models |
 | `operational_settings/mutations.py` | Operational setting write operations |
 | `operational_settings/queries.py` | Operational setting read operations |
@@ -255,7 +257,7 @@ their public types.
 |---|---|
 | `accounts/` | `AccountConfig`, `AccountInsert`, `AccountRecord` (implements `Mapping`), `AccountState` |
 | `orders/` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `BrokerOrderRecord` |
-| `portfolio/` | `AccountExposure`, `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioExposureRollup`, `PortfolioRiskSnapshotRecord` |
+| `portfolio/` | `AccountExposure`, `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioConcentration`, `PortfolioExposureRollup`, `PortfolioRiskSnapshotRecord`, `SectorConcentration`, `SymbolConcentration` + rollup vocabulary constants |
 | `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
 | `strategy/` | `StrategyParamSetRecord` |
 | `settings/` | `GlobalSettingsRecord` |
