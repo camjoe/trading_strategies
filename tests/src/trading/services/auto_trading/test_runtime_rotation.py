@@ -111,7 +111,6 @@ def test_run_for_account_uses_rotated_active_strategy(monkeypatch) -> None:
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=1,
         fee=0.0,
         broker_factory=Mock(return_value=scenario.broker),

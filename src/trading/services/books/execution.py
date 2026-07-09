@@ -52,15 +52,12 @@ def generate_book_trade_intents(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    min_trades: int,
     max_trades: int,
     fee: float,
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[BookTradeCandidate]:
-    # D1 policy: intents come only from strategy signals — no forced minimum;
-    # min_trades is retained for call compatibility until P7 cleans it up.
-    del min_trades
+    # D1 policy: intents come only from strategy signals — no forced minimum.
     account_id = account.id
     risk_policy = str(account.risk_policy).strip().lower()
     stop_loss_pct = account.stop_loss_pct
@@ -141,7 +138,6 @@ def run_multi_book_mode_for_account(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    min_trades: int,
     max_trades: int,
     fee: float,
     histories: Mapping[str, pd.Series] | None = None,
@@ -154,7 +150,6 @@ def run_multi_book_mode_for_account(
             universe=universe,
             prices=prices,
             iv_rank_proxy=iv_rank_proxy,
-            min_trades=min_trades,
             max_trades=max_trades,
             fee=fee,
             histories=histories,

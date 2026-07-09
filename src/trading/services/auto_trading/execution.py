@@ -424,7 +424,6 @@ def run_for_account(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    min_trades: int,
     max_trades: int,
     fee: float,
     *,
@@ -436,9 +435,7 @@ def run_for_account(
     record_prepared_trade_fn: Callable[..., None],
     is_submission_window_open_fn: Callable[[str], bool],
 ) -> int:
-    # D1 policy: trade only when the strategy signals — no forced minimum. min_trades
-    # is retained for call/config compatibility until P7 cleans it up.
-    del min_trades
+    # D1 policy: trade only when the strategy signals — no forced minimum.
     account = get_account_fn(conn, account_name)
     now_iso = utc_now_iso_fn()
     if not is_submission_window_open_fn(now_iso):

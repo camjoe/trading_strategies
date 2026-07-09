@@ -68,7 +68,6 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         universe=universe,
         prices=prices,
         iv_rank_proxy=iv_rank,
-        min_trades=1,
         max_trades=2,
         fee=0.0,
         execution_mode="book",
@@ -98,7 +97,7 @@ def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyP
     import types
 
     fake_runtime = types.ModuleType("trading.services.auto_trading.runtime")
-    fake_runtime.run_for_account = lambda **kwargs: kwargs["min_trades"]  # type: ignore[attr-defined]
+    fake_runtime.run_for_account = lambda **kwargs: kwargs["max_trades"]  # type: ignore[attr-defined]
     import sys
 
     monkeypatch.setitem(sys.modules, "trading.services.auto_trading.runtime", fake_runtime)
@@ -109,14 +108,13 @@ def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyP
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        min_trades=3,
         max_trades=5,
         fee=0.0,
         execution_mode="account",
         broker_factory=lambda _: None,
         feature_fetchers=make_feature_fetchers(),
     )
-    assert result == 3
+    assert result == 5
     from common.time import parse_utc_iso
 
     naive = parse_utc_iso("2026-03-21T12:00:00")

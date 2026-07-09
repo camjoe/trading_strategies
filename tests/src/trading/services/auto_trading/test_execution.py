@@ -546,7 +546,6 @@ def test_run_for_account_breaks_when_submission_window_closes_mid_loop(monkeypat
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        min_trades=2,
         max_trades=2,
         fee=0.0,
         get_account_fn=lambda _conn, _name: account,
@@ -577,7 +576,6 @@ def test_run_for_account_caps_trades_at_max_and_ignores_min_floor(monkeypatch) -
         universe=["A", "B", "C"],
         prices={"A": 10.0, "B": 10.0, "C": 10.0},
         iv_rank_proxy={},
-        min_trades=3,
         max_trades=2,
         fee=0.0,
         histories={"A": rising, "B": rising, "C": rising},
@@ -611,7 +609,6 @@ def test_run_for_account_executes_nothing_when_no_signals(monkeypatch) -> None:
         universe=["A"],
         prices={"A": 100.0},
         iv_rank_proxy={},
-        min_trades=2,
         max_trades=5,
         fee=0.0,
         histories={"A": flat},
@@ -622,7 +619,7 @@ def test_run_for_account_executes_nothing_when_no_signals(monkeypatch) -> None:
         is_submission_window_open_fn=lambda _now: True,
     )
 
-    # No forced minimum: all-hold signals mean zero trades despite min_trades=2.
+    # No forced minimum: all-hold signals mean zero trades (D1 policy).
     assert executed == 0
     record_trade.assert_not_called()
 
@@ -634,7 +631,6 @@ def test_run_for_account_returns_zero_when_window_closed_initially() -> None:
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=1,
         fee=0.0,
         get_account_fn=lambda *_a, **_k: make_auto_trading_account(),
