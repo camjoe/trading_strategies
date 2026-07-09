@@ -20,8 +20,15 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_walk_forward,
     handle_backtest_walk_forward_report,
 )
+from trading.interfaces.cli.handlers.settings_handlers import (
+    handle_configure_book_rotation_policy,
+    handle_configure_evaluation,
+    handle_configure_promotion,
+    handle_configure_throttle,
+)
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_parameters,
     handle_portfolio_concentration,
     handle_portfolio_exposure,
     handle_promotion_request_review,
@@ -53,6 +60,11 @@ COMMAND_HANDLERS = {
     "compare-strategies": handle_compare_strategies,
     "portfolio-exposure": handle_portfolio_exposure,
     "portfolio-concentration": handle_portfolio_concentration,
+    "parameters": handle_parameters,
+    "configure-throttle": handle_configure_throttle,
+    "configure-evaluation": handle_configure_evaluation,
+    "configure-promotion": handle_configure_promotion,
+    "configure-book-rotation-policy": handle_configure_book_rotation_policy,
     "backtest": handle_backtest,
     "backtest-report": handle_backtest_report,
     "backtest-leaderboard": handle_backtest_leaderboard,

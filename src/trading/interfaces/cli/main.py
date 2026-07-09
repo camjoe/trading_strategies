@@ -23,6 +23,15 @@ from trading.services.promotion import (
     show_promotion_status,
 )
 from infrastructure.market_data.factory import build_provider
+from trading.services.parameters import show_parameters, update_book_rotation_policy
+from trading.services.operational_settings import (
+    fetch_evaluation_confidence_settings,
+    fetch_promotion_policy_settings,
+    fetch_runtime_throttle_settings,
+    set_evaluation_confidence_settings,
+    set_promotion_policy_settings,
+    set_runtime_throttle_settings,
+)
 from trading.services.reporting import (
     account_report,
     compare_strategies,
@@ -62,6 +71,14 @@ def _handler_deps() -> dict[str, object]:
         "show_promotion_review_history": show_promotion_review_history,
         "execute_promotion_review_action": execute_promotion_review_action,
         "compare_strategies": partial(compare_strategies, provider=provider),
+        "show_parameters": show_parameters,
+        "fetch_runtime_throttle_settings": fetch_runtime_throttle_settings,
+        "fetch_evaluation_confidence_settings": fetch_evaluation_confidence_settings,
+        "fetch_promotion_policy_settings": fetch_promotion_policy_settings,
+        "set_runtime_throttle_settings": set_runtime_throttle_settings,
+        "set_evaluation_confidence_settings": set_evaluation_confidence_settings,
+        "set_promotion_policy_settings": set_promotion_policy_settings,
+        "update_book_rotation_policy": update_book_rotation_policy,
         "show_portfolio_concentration": show_portfolio_concentration,
         "show_portfolio_exposure": show_portfolio_exposure,
         "show_snapshots": show_snapshots,

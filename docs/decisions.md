@@ -119,6 +119,13 @@ Two kinds of "parameters", stored in two places:
   on `books` beside `trade_universes` — a 3-column reporting concern doesn't warrant a table.
 - Missing settings row → code defaults (same fallback style as today's profile defaults).
 
+**P7 delivery scope (2026-07-09):** the CLI edit surface covers **global operational settings
+only** (throttle, evaluation confidence, promotion policy) plus one targeted exception — the
+rotation policy migrated in P7 step 4. Rotation policy (score weights, outperformance threshold,
+cooldown, min-trades) lives **per-book** as nullable `book_rotation_settings` columns (NULL = code
+default), edited via `configure-book-rotation-policy`. General per-book settings editing and
+strategy-knob editing stay view-only pending demand (the P6 lesson).
+
 Rationale: typed columns per concern keep the SRP win that motivated the rewrite (no re-grown
 god-table), stay `CHECK`-constrainable, and give P7 an obvious per-concern read/edit surface.
 

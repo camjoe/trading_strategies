@@ -283,4 +283,42 @@ BOOK_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
     "book_strategy_assignments": (
         ColumnMigration("param_set_id", "ALTER TABLE book_strategy_assignments ADD COLUMN param_set_id INTEGER"),
     ),
+    # P7 step 4: rotation policy (score weights, threshold, cooldown, min-trades)
+    # migrated out of code-only RotationPolicyConfig defaults. All nullable —
+    # NULL means "use the code default", preserving current behavior for
+    # existing rows and fresh installs alike.
+    "book_rotation_settings": (
+        ColumnMigration(
+            "min_trades_in_window",
+            "ALTER TABLE book_rotation_settings ADD COLUMN min_trades_in_window INTEGER",
+        ),
+        ColumnMigration(
+            "outperformance_threshold_bps",
+            "ALTER TABLE book_rotation_settings ADD COLUMN outperformance_threshold_bps REAL",
+        ),
+        ColumnMigration(
+            "cooldown_days",
+            "ALTER TABLE book_rotation_settings ADD COLUMN cooldown_days INTEGER",
+        ),
+        ColumnMigration(
+            "risk_adjusted_return_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN risk_adjusted_return_weight REAL",
+        ),
+        ColumnMigration(
+            "stability_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN stability_weight REAL",
+        ),
+        ColumnMigration(
+            "drawdown_penalty_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN drawdown_penalty_weight REAL",
+        ),
+        ColumnMigration(
+            "cost_penalty_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN cost_penalty_weight REAL",
+        ),
+        ColumnMigration(
+            "regime_fit_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN regime_fit_weight REAL",
+        ),
+    ),
 }

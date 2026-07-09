@@ -4,6 +4,7 @@ import types
 
 from trading.interfaces.cli.handlers.reporting_handlers import (
     handle_compare_strategies,
+    handle_parameters,
     handle_portfolio_concentration,
     handle_portfolio_exposure,
     handle_promotion_request_review,
@@ -179,6 +180,21 @@ def test_handle_portfolio_concentration_calls_show_dep() -> None:
     )
 
     assert calls == [conn]
+
+
+def test_handle_parameters_calls_show_dep_with_account_filter() -> None:
+    calls: list = []
+    conn = object()
+    deps = {"show_parameters": lambda passed_conn, account: calls.append((passed_conn, account))}
+
+    handle_parameters(
+        conn,
+        types.SimpleNamespace(account="alice"),
+        _parser(),
+        deps=deps,
+    )
+
+    assert calls == [(conn, "alice")]
 
 
 def test_handle_compare_strategies_calls_compare_dep() -> None:

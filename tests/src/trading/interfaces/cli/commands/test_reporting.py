@@ -38,6 +38,7 @@ def test_compare_strategies_and_snapshot_history_defaults() -> None:
 
     compare_args = parser.parse_args(["compare-strategies"])
     exposure_args = parser.parse_args(["portfolio-exposure"])
+    parameters_args = parser.parse_args(["parameters", "--account", "acct1"])
     concentration_args = parser.parse_args(["portfolio-concentration"])
     history_args = parser.parse_args(["snapshot-history", "--account", "acct1"])
     promotion_args = parser.parse_args(["promotion-status", "--account", "acct1"])
@@ -47,6 +48,7 @@ def test_compare_strategies_and_snapshot_history_defaults() -> None:
 
     assert compare_args.lookback == 10
     assert exposure_args.command == "portfolio-exposure"
+    assert parameters_args.account == "acct1"
     assert concentration_args.command == "portfolio-concentration"
     assert history_args.limit == 20
     assert promotion_args.strategy is None

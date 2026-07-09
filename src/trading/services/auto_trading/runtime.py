@@ -56,8 +56,8 @@ from trading.models.execution.risk_gate_config import RiskGateConfig
 from trading.services.books.execution import generate_book_trade_intents
 from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.books.rotation import (
-    RotationPolicyConfig,
     evaluate_and_apply_book_rotation,
+    resolve_rotation_policy_config,
 )
 from trading.services.books.challenger_evaluation import (
     DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
@@ -273,10 +273,6 @@ def _run_book_rotation_decisions(
         if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
         else DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
     )
-    config = RotationPolicyConfig(
-        rolling_window_days=rolling_window_days,
-        config_version=f"sleeve-rotation:{decision_time[:10]}",
-    )
     shadow_eval = build_book_challenger_evaluations(
         conn,
         account=account,
@@ -284,6 +280,14 @@ def _run_book_rotation_decisions(
         rolling_window_days=rolling_window_days,
     )
     for book_eval in shadow_eval.books:
+        # Per-book effective policy: book_rotation_settings overrides with
+        # code-default fallback (P7 step 4).
+        config = resolve_rotation_policy_config(
+            conn,
+            book_id=book_eval.book_id,
+            rolling_window_days=rolling_window_days,
+            config_version=f"sleeve-rotation:{decision_time[:10]}",
+        )
         evaluate_and_apply_book_rotation(
             conn,
             book_id=book_eval.book_id,
