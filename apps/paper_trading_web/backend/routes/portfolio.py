@@ -12,5 +12,6 @@ router = APIRouter()
 
 @router.get("/api/portfolio/rollup")
 def api_portfolio_rollup() -> dict[str, object]:
+    """Cross-account portfolio rollup: exposure per account plus symbol/sector concentration (P9, D10)."""
     with db_conn() as conn:
         return build_portfolio_rollup_payload(conn)
