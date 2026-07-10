@@ -6,7 +6,13 @@ from common.coercion import coerce_float
 from trading.models.accounts.account_config import AccountConfig
 from trading.repositories.accounts import AccountRepository
 from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
-from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
+from trading.services.accounts import (
+    configure_account,
+    create_account,
+    get_account,
+    set_account_strategy,
+    set_benchmark,
+)
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
 from trading.domain.rotation import rotation_config_to_db_dict
 from trading.domain.strategy_signals import validate_strategy_name
@@ -131,12 +137,8 @@ def apply_account_profiles(
             fields_updated = True
 
         if strategy is not None:
-            account = get_account(conn, name)
-            AccountRepository(conn).update(
-                account_id=account.id,
-                updates=["strategy = ?"],
-                params=[strategy],
-            )
+            # Through the service so the default book's assignment follows.
+            set_account_strategy(conn, name, strategy)
             fields_updated = True
 
         if AccountConfig.has_any_field(profile):

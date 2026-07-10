@@ -5,8 +5,10 @@ This module owns the assignment seams and the two book enumerations:
 
 - ``open_assignment_for_book`` / ``assign_book_strategy`` — read/write a book's
   open assignment (rotation's apply step writes here).
-- ``enumerate_trading_books`` — the books eligible to trade (active,
-  non-default, openly assigned).
+- ``sync_default_book_assignment`` — keep the default book's assignment in step
+  with explicit account strategy edits.
+- ``enumerate_trading_books`` — the books eligible to trade (active, openly
+  assigned; the default book included).
 - ``list_report_books`` — the read-side enumeration for reporting/monitoring/
   governance (non-default books of any status, with their open assignments).
 """
@@ -19,7 +21,7 @@ from trading.models.books.book_assignment_view import BookAssignmentView
 from trading.models.books.book_record import BookRecord
 from trading.models.books.trading_book import TradingBook
 from trading.repositories.book_assignments import BookAssignmentRepository
-from trading.repositories.book_bridge import strategy_id_for_label
+from trading.repositories.book_bridge import default_book_id, strategy_id_for_label
 from trading.repositories.books import BookRepository
 from trading.repositories.strategies import StrategyRepository
 
@@ -61,20 +63,49 @@ def list_report_books(
 
 
 def enumerate_trading_books(conn: sqlite3.Connection, *, account_id: int) -> list[TradingBook]:
-    """The account's books eligible to trade: active, non-default, openly assigned.
+    """The account's books eligible to trade: active and openly assigned.
 
-    The book-native enumeration both multi-book trading and shadow evaluation
-    iterate. Unassigned or non-active books do not trade — no account fallback.
+    The book-native enumeration both trading and shadow evaluation iterate.
+    The default book trades like any other book (the execution-mode collapse,
+    ADR 010/014). Unassigned or non-active books do not trade — no account
+    fallback.
     """
     trading_books: list[TradingBook] = []
     for book in BookRepository(conn).fetch_for_account(account_id=int(account_id)):
-        if book.is_default or book.status.strip().lower() != "active":
+        if book.status.strip().lower() != "active":
             continue
         assignment = open_assignment_for_book(conn, book_id=book.id)
         if assignment is None:
             continue
         trading_books.append(TradingBook(book=book, assignment=assignment))
     return trading_books
+
+
+def sync_default_book_assignment(
+    conn: sqlite3.Connection,
+    *,
+    account_id: int,
+    strategy_name: str,
+    now_iso: str,
+) -> BookAssignmentView:
+    """Ensure the account's default book openly runs ``strategy_name``.
+
+    Explicit account strategy edits call this so the assignment record —
+    which is what actually trades — follows the account's strategy column.
+    A no-op when the open assignment already matches, keeping the
+    ``effective_from``/``effective_to`` history free of same-strategy churn.
+    """
+    book_id = default_book_id(conn, int(account_id))
+    current = open_assignment_for_book(conn, book_id=book_id)
+    if current is not None and current.strategy_name == strategy_name.strip().lower():
+        return current
+    return assign_book_strategy(
+        conn,
+        book_id=book_id,
+        strategy_name=strategy_name,
+        param_set_id=None,
+        now_iso=now_iso,
+    )
 
 
 def assign_book_strategy(

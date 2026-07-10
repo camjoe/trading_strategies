@@ -42,7 +42,10 @@ def _serialize_trade_universes(names: list[str]) -> str:
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
+    # Deferred: services.books pulls in services.evaluation, which imports
+    # back into this package at init time.
     from trading.domain.strategy_signals import validate_strategy_name
+    from trading.services.books.book_assignments import sync_default_book_assignment
 
     normalized_strategy = strategy.strip()
     if not normalized_strategy:
@@ -54,6 +57,14 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
         updates=["strategy = ?"],
         params=[normalized_strategy],
     )
+    # The default book's assignment is what actually trades; keep it in step
+    # with the account's strategy column.
+    sync_default_book_assignment(
+        conn,
+        account_id=account.id,
+        strategy_name=normalized_strategy,
+        now_iso=utc_now_iso(),
+    )
 
 
 def create_account(
@@ -64,7 +75,9 @@ def create_account(
     benchmark_ticker: str,
     config: AccountConfig | None = None,
 ) -> None:
+    # Deferred: see set_account_strategy.
     from trading.domain.strategy_signals import validate_strategy_name
+    from trading.services.books.book_assignments import sync_default_book_assignment
 
     cfg = config or AccountConfig()
     if initial_cash <= 0:
@@ -132,6 +145,16 @@ def create_account(
         )
     except sqlite3.IntegrityError as exc:
         raise AccountAlreadyExistsError(f"Account '{name}' already exists.") from exc
+
+    # Bootstrap the default book and open its assignment so the new account
+    # trades from day one (books are the execution primitive; ADR 010/014).
+    account = get_account(conn, name)
+    sync_default_book_assignment(
+        conn,
+        account_id=account.id,
+        strategy_name=strategy,
+        now_iso=utc_now_iso(),
+    )
 
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:
