@@ -34,3 +34,8 @@ than mutating an evidence-backed definition.
 - The separate parameter-set model is legacy surface until remaining readers are retired.
 - Validation and operator editing should follow the owning concern: primitive knob schema for
   strategy rows, typed columns for book settings, and global commands for operational settings.
+- Default-tracking is asymmetric by design: the nullable book rotation-policy columns can be
+  cleared back to the code default (pass `none` to `configure-book-rotation-policy`), while the
+  `NOT NULL` global evaluation/promotion columns pin their values on first edit — an edited global
+  setting stops tracking future code-default changes. Accepted because the global columns carry
+  schema-level defaults and `CHECK` constraints; revisit only if code defaults start moving often.

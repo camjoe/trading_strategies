@@ -81,5 +81,6 @@ def update_book_rotation_policy(
         **merged,
     )
     saved = repository.fetch(book_id=book_id)
-    assert saved is not None
+    if saved is None:
+        raise RuntimeError(f"book_rotation_settings row missing after upsert for book_id={book_id}")
     return saved

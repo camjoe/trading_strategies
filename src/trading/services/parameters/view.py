@@ -13,7 +13,9 @@ from dataclasses import fields
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
+from trading.models.accounts.account_record import AccountRecord
 from trading.models.books.book_record import BookRecord
+from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
 from trading.models.parameters.parameter_entry import ParameterEntry
 from trading.models.parameters.parameter_group import ParameterGroup
@@ -27,11 +29,14 @@ from trading.repositories.book_settings import (
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
+from trading.services.books.challenger_evaluation import DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
+from trading.services.books.rotation import RotationPolicyConfig
 from trading.services.operational_settings import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
     fetch_runtime_throttle_settings,
 )
+from trading.services.parameters.mutations import ROTATION_POLICY_FIELDS
 
 # Group-level note used whenever a settings row is absent (missing row means
 # code defaults apply).
@@ -47,12 +52,21 @@ def _render(value: object) -> str:
     return str(value)
 
 
-def _entries_from_dataclass(instance: object, *, source: str) -> tuple[ParameterEntry, ...]:
+def _entries_from_dataclass(
+    instance: object, *, source: str, exclude: frozenset[str] = frozenset()
+) -> tuple[ParameterEntry, ...]:
+    skip = _NON_PARAMETER_FIELDS | exclude
     return tuple(
         ParameterEntry(name=field.name, value=_render(getattr(instance, field.name)), source=source)
         for field in fields(instance)  # type: ignore[arg-type]
-        if field.name not in _NON_PARAMETER_FIELDS
+        if field.name not in skip
     )
+
+
+def _effective_entry(name: str, *, raw: object, default: object) -> ParameterEntry:
+    if raw is not None:
+        return ParameterEntry(name=name, value=_render(raw), source=PARAMETER_SOURCE_DB)
+    return ParameterEntry(name=name, value=_render(default), source=PARAMETER_SOURCE_DEFAULT)
 
 
 def _global_groups(conn: sqlite3.Connection) -> list[ParameterGroup]:
@@ -101,13 +115,65 @@ def _settings_group(scope: str, record: Any) -> ParameterGroup:
     return ParameterGroup(scope=scope, entries=_entries_from_dataclass(record, source=PARAMETER_SOURCE_DB))
 
 
+def _rotation_group(scope: str, record: BookRotationSettingsRecord | None) -> ParameterGroup:
+    """Rotation group with the policy fields resolved per-field.
+
+    The rotation-policy columns are nullable with a defined fallback (NULL
+    means the ``RotationPolicyConfig`` code default), so each policy entry
+    shows the effective value the runtime resolves, sourced db/default per
+    field. The scheduling columns have no code-default contract and are shown
+    raw when the row exists.
+    """
+    defaults = RotationPolicyConfig()
+    policy = tuple(
+        _effective_entry(
+            name,
+            raw=getattr(record, name) if record is not None else None,
+            default=getattr(defaults, name),
+        )
+        for name in ROTATION_POLICY_FIELDS
+    )
+    if record is None:
+        return ParameterGroup(scope=scope, entries=policy, note=NO_SETTINGS_ROW_NOTE)
+    scheduling = _entries_from_dataclass(record, source=PARAMETER_SOURCE_DB, exclude=frozenset(ROTATION_POLICY_FIELDS))
+    return ParameterGroup(scope=scope, entries=scheduling + policy)
+
+
+def _account_rotation_group(account: AccountRecord) -> ParameterGroup:
+    """The account columns that drive the live rotation flow.
+
+    The runtime reads the schedule and rolling window from the account row
+    (not the per-book scheduling columns); the effective window falls back to
+    the challenger default when unset, mirroring the runtime resolution.
+    """
+    lookback = account.rotation_lookback_days
+    window_is_set = lookback is not None and int(lookback) > 0
+    entries = (
+        ParameterEntry(
+            name="rotation_enabled", value=_render(bool(account.rotation_enabled)), source=PARAMETER_SOURCE_DB
+        ),
+        ParameterEntry(name="rotation_schedule", value=_render(account.rotation_schedule), source=PARAMETER_SOURCE_DB),
+        ParameterEntry(
+            name="rotation_lookback_days",
+            value=_render(int(lookback) if window_is_set else DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS),
+            source=PARAMETER_SOURCE_DB if window_is_set else PARAMETER_SOURCE_DEFAULT,
+        ),
+        ParameterEntry(
+            name="rotation_active_strategy",
+            value=_render(account.rotation_active_strategy),
+            source=PARAMETER_SOURCE_DB,
+        ),
+    )
+    return ParameterGroup(scope=f"account {account.name} / rotation", entries=entries)
+
+
 def _book_groups(conn: sqlite3.Connection, account_name: str, book: BookRecord) -> list[ParameterGroup]:
     prefix = f"account {account_name} / book {book.name}"
     return [
         _mandate_group(prefix, book),
         _settings_group(f"{prefix} / execution", BookExecutionSettingsRepository(conn).fetch(book_id=book.id)),
         _settings_group(f"{prefix} / options", BookOptionSettingsRepository(conn).fetch(book_id=book.id)),
-        _settings_group(f"{prefix} / rotation", BookRotationSettingsRepository(conn).fetch(book_id=book.id)),
+        _rotation_group(f"{prefix} / rotation", BookRotationSettingsRepository(conn).fetch(book_id=book.id)),
     ]
 
 
@@ -145,6 +211,7 @@ def fetch_parameter_source_view(
             raise NotFoundError(f"Account not found: {account_name}")
     books = BookRepository(conn)
     for account in accounts:
+        groups.append(_account_rotation_group(account))
         for book in books.fetch_for_account(account_id=account.id):
             groups.extend(_book_groups(conn, account.name, book))
 

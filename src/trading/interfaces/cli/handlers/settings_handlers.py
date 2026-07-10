@@ -2,7 +2,9 @@
 
 Each command merges the provided flags over the current effective settings
 (flags built with ``argparse.SUPPRESS`` are absent when omitted), so a
-partial edit never resets other fields.
+partial edit never resets other fields. Every command requires at least one
+flag: a zero-flag invocation would silently persist the current effective
+values (pinning code defaults into the DB) rather than being a no-op.
 """
 
 from __future__ import annotations
@@ -10,15 +12,28 @@ from __future__ import annotations
 from typing import Any
 
 from common.time import utc_now_iso
+from trading.services.parameters import ROTATION_POLICY_FIELDS
 
 
 def _merged(args: object, current: object, field_names: tuple[str, ...]) -> dict[str, Any]:
     return {name: getattr(args, name, getattr(current, name)) for name in field_names}
 
 
+def _require_any_flag(args: object, parser, field_names: tuple[str, ...], what: str) -> None:
+    if not any(hasattr(args, name) for name in field_names):
+        parser.error(f"Provide at least one {what} flag to change.")
+
+
+_THROTTLE_FIELDS = (
+    "max_trades_per_day",
+    "max_trades_per_minute",
+)
+
+
 def handle_configure_throttle(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    _require_any_flag(args, parser, _THROTTLE_FIELDS, "throttle")
     current = deps["fetch_runtime_throttle_settings"](conn)
-    values = _merged(args, current, ("max_trades_per_day", "max_trades_per_minute"))
+    values = _merged(args, current, _THROTTLE_FIELDS)
     deps["set_runtime_throttle_settings"](
         conn,
         runtime_max_trades_per_day=values["max_trades_per_day"],
@@ -41,6 +56,7 @@ _EVALUATION_FIELDS = (
 
 
 def handle_configure_evaluation(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    _require_any_flag(args, parser, _EVALUATION_FIELDS, "evaluation")
     current = deps["fetch_evaluation_confidence_settings"](conn)
     values = _merged(args, current, _EVALUATION_FIELDS)
     deps["set_evaluation_confidence_settings"](conn, updated_at=utc_now_iso(), **values)
@@ -48,23 +64,9 @@ def handle_configure_evaluation(conn, args, parser, *, deps: dict[str, Any]) -> 
     print(f"Updated global evaluation confidence settings: {rendered}")
 
 
-_ROTATION_POLICY_FIELDS = (
-    "min_trades_in_window",
-    "outperformance_threshold_bps",
-    "cooldown_days",
-    "risk_adjusted_return_weight",
-    "stability_weight",
-    "drawdown_penalty_weight",
-    "cost_penalty_weight",
-    "regime_fit_weight",
-)
-
-
 def handle_configure_book_rotation_policy(conn, args, parser, *, deps: dict[str, Any]) -> None:
-    updates = {name: getattr(args, name) for name in _ROTATION_POLICY_FIELDS if hasattr(args, name)}
-    if not updates:
-        parser.error("Provide at least one rotation policy flag to change.")
-        return
+    _require_any_flag(args, parser, ROTATION_POLICY_FIELDS, "rotation policy")
+    updates = {name: getattr(args, name) for name in ROTATION_POLICY_FIELDS if hasattr(args, name)}
     saved = deps["update_book_rotation_policy"](
         conn,
         account_name=args.account,
@@ -72,8 +74,7 @@ def handle_configure_book_rotation_policy(conn, args, parser, *, deps: dict[str,
         updates=updates,
     )
     rendered = " ".join(
-        f"{name}={'none' if getattr(saved, name) is None else getattr(saved, name)}"
-        for name in _ROTATION_POLICY_FIELDS
+        f"{name}={'none' if getattr(saved, name) is None else getattr(saved, name)}" for name in ROTATION_POLICY_FIELDS
     )
     print(f"Updated rotation policy for book_id={saved.book_id}: {rendered}")
 
@@ -90,6 +91,7 @@ _PROMOTION_FIELDS = (
 
 
 def handle_configure_promotion(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    _require_any_flag(args, parser, _PROMOTION_FIELDS, "promotion")
     current = deps["fetch_promotion_policy_settings"](conn)
     values = _merged(args, current, _PROMOTION_FIELDS)
     deps["set_promotion_policy_settings"](conn, updated_at=utc_now_iso(), **values)

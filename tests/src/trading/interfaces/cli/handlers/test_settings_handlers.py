@@ -9,6 +9,7 @@ from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
     handle_configure_book_rotation_policy,
     handle_configure_evaluation,
+    handle_configure_promotion,
     handle_configure_throttle,
 )
 
@@ -103,3 +104,14 @@ def test_handle_configure_book_rotation_policy_requires_a_flag() -> None:
             _parser(),
             deps={},
         )
+
+
+@pytest.mark.parametrize(
+    "handler",
+    [handle_configure_throttle, handle_configure_evaluation, handle_configure_promotion],
+)
+def test_global_configure_handlers_require_a_flag(handler) -> None:
+    # A zero-flag invocation must error rather than silently persisting the
+    # current effective values (which would pin code defaults into the DB).
+    with pytest.raises(SystemExit):
+        handler(object(), types.SimpleNamespace(), _parser(), deps={})
