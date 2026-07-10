@@ -8,7 +8,7 @@ from common.coercion import row_expect_int, row_expect_str, row_str
 
 @dataclass(frozen=True, slots=True)
 class StrategyRecord:
-    """Persisted strategies row: a code primitive + its knobs (D5)."""
+    """Persisted strategies row: a code primitive + its knobs."""
 
     id: int
     strategy_key: str

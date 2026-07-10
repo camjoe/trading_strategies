@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-11
-Last Reviewed: 2026-04-25
+Last Reviewed: 2026-07-09
 Purpose: Catalog of strategy signal families, compatibility behavior, and evaluation workflow.
 Related: [Backtesting](backtesting.md), [Sentiment Signals](sentiment-signals.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -14,9 +14,14 @@ checklist for research/backtesting flows.
 
 ## Canonical Source
 
-Canonical strategy registration lives in:
+Canonical runtime strategy registration currently lives in:
 
 - `src/trading/domain/strategy_signals.py` (`STRATEGY_REGISTRY`)
+
+### P6 ongoing work
+The database `strategies` catalog stores strategy rows and `params_json`, but runtime resolution and
+runtime knobs still read the code registry defaults. Making the database catalog canonical is the
+deferred
 
 ## Strategy Families
 
@@ -65,6 +70,9 @@ Examples of compatibility labels that still resolve:
 - mean-reversion variants -> `mean_reversion`
 - `topic_rotation` / `theme_proxy` -> `topic_proxy_rotation`
 - `policy_etf` / `political_regime` -> `policy_regime`
+
+Backtest and walk-forward reports use the catalog `strategy_key` as the canonical display key. Older
+aliases such as `trend_v1` are compatibility inputs, not canonical evidence keys.
 
 ## Data and Dependency Notes
 

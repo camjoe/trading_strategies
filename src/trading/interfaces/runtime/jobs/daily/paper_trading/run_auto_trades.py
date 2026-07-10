@@ -88,7 +88,6 @@ def main() -> None:
             universe=universe,
             prices=prices,
             iv_rank_proxy=iv_rank_proxy,
-            min_trades=args.min_trades,
             max_trades=args.max_trades,
             fee=args.fee,
             execution_mode=execution_mode,

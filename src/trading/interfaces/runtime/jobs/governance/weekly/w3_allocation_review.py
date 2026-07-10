@@ -67,8 +67,8 @@ def main(ctx: JobContext) -> dict[str, object]:
 
         books = [book for book, _assignment in list_report_books(ctx.conn, account_id=account.id)]
 
-        # current_equity already includes cash for each book (live book balances,
-        # not the frozen sleeve balances the pre-SR-4 version summed).
+        # current_equity already includes cash for each book — sum live book
+        # balances, never frozen/stale ones.
         current_navs = [b.current_equity for b in books]
         total_nav = sum(current_navs)
 

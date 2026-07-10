@@ -3,10 +3,10 @@
 Compares the account's rolled-up book equity against the latest equity snapshot and
 returns kill-switch reasons (snapshot missing / stale / equity mismatch). This is the
 *equity* reconciliation the pre-submit gate consumes; the *open-order* reconciliation
-(reconcile_open_broker_orders) is a separate concern re-pointed in 2a-4.
+(reconcile_open_broker_orders) is a separate concern.
 
-**Assumes books are NAV-marked first.** Book equity is fill-marked by the fill path
-(2c-1); the runtime marks books to market (`nav.mark_account_to_market`, 2c-2) before
+**Assumes books are NAV-marked first.** Book equity is fill-marked by the fill
+path; the runtime marks books to market (`nav.mark_account_to_market`) before
 the gate runs so both sides of this comparison are market-marked, matching the
 market-marked snapshot. This function only reads.
 """

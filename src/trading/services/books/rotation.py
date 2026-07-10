@@ -12,6 +12,7 @@ from trading.domain.rotation_policy import evaluate_champion_challenger_rotation
 from trading.models.rotation.rotation_decision import RotationDecision
 from trading.models.rotation.rotation_score_weights import RotationScoreWeights
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
+from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
 
@@ -45,6 +46,55 @@ class RotationRunResult:
     rotated: bool
     window_start_date: str
     window_end_date: str
+
+
+def resolve_rotation_policy_config(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    rolling_window_days: int,
+    config_version: str | None = None,
+) -> RotationPolicyConfig:
+    """Resolve the book's effective rotation policy.
+
+    Reads the book's ``book_rotation_settings`` policy columns; NULL fields
+    (and a missing row) fall back to the ``RotationPolicyConfig`` code
+    defaults, so an untuned book behaves exactly as before the migration.
+    """
+    defaults = RotationPolicyConfig()
+    record = BookRotationSettingsRepository(conn).fetch(book_id=int(book_id))
+    if record is None:
+        return RotationPolicyConfig(rolling_window_days=rolling_window_days, config_version=config_version)
+    return RotationPolicyConfig(
+        rolling_window_days=rolling_window_days,
+        min_trades_in_window=(
+            record.min_trades_in_window if record.min_trades_in_window is not None else defaults.min_trades_in_window
+        ),
+        outperformance_threshold_bps=(
+            record.outperformance_threshold_bps
+            if record.outperformance_threshold_bps is not None
+            else defaults.outperformance_threshold_bps
+        ),
+        cooldown_days=record.cooldown_days if record.cooldown_days is not None else defaults.cooldown_days,
+        config_version=config_version,
+        risk_adjusted_return_weight=(
+            record.risk_adjusted_return_weight
+            if record.risk_adjusted_return_weight is not None
+            else defaults.risk_adjusted_return_weight
+        ),
+        stability_weight=record.stability_weight if record.stability_weight is not None else defaults.stability_weight,
+        drawdown_penalty_weight=(
+            record.drawdown_penalty_weight
+            if record.drawdown_penalty_weight is not None
+            else defaults.drawdown_penalty_weight
+        ),
+        cost_penalty_weight=(
+            record.cost_penalty_weight if record.cost_penalty_weight is not None else defaults.cost_penalty_weight
+        ),
+        regime_fit_weight=(
+            record.regime_fit_weight if record.regime_fit_weight is not None else defaults.regime_fit_weight
+        ),
+    )
 
 
 def _weights_from_config(config: RotationPolicyConfig) -> RotationScoreWeights:
@@ -170,7 +220,7 @@ def evaluate_and_apply_book_rotation(
     decision_time: str | None = None,
 ) -> RotationRunResult:
     now_iso = decision_time or utc_now_iso()
-    # Book assignments are the single live assignment record (SR-1).
+    # Book assignments are the single live assignment record.
     assignment = open_assignment_for_book(conn, book_id=int(book_id))
     if assignment is None:
         raise ValueError(f"No incumbent assignment found for book_id={book_id}.")

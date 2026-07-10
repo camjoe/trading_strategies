@@ -1,8 +1,6 @@
 """Kill-switch reasons and safety thresholds for the shared execution path.
 
-Owned centrally so every book inherits the same guards. The account/sleeve
-routing phases (2a-3/2a-4) import these instead of the copies currently living
-in ``auto_trading/runtime.py``, which are removed when the legacy paths retire.
+Owned centrally so every book inherits the same guards.
 """
 
 from __future__ import annotations

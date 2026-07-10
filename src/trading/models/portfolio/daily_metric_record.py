@@ -10,9 +10,7 @@ from common.coercion import row_expect_int, row_expect_str, row_float, row_int
 class DailyMetricRecord:
     """Daily metrics row (book-keyed storage).
 
-    ``account_id`` is carried by every repository query via the books join;
-    ``sleeve_id`` is the legacy access-path context injected by the repository
-    for sleeve-keyed reads (retired with P4).
+    ``account_id`` is carried by every repository query via the books join.
     """
 
     id: int

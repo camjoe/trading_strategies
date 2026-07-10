@@ -52,11 +52,13 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `commands/accounts.py` | argparse subcommands for account actions |
 | `commands/backtesting.py` | argparse subcommands for backtesting |
 | `commands/reporting.py` | argparse subcommands for reporting |
+| `commands/settings.py` | argparse subcommands for operational-settings and rotation-policy edits (P7) |
 | `commands/builder.py` | Assembles the argparse parser + subcommand groups |
 | `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
+| `handlers/settings_handlers.py` | Business dispatch for settings edit commands — merges partial flags over current effective values (P7) |
 | `handlers/router.py` | Top-level command-to-handler routing |
 | `handlers/shared.py` | Shared handler utilities |
 | `main.py` | CLI entrypoint (argparse); builds the parser, injects service deps, dispatches to handlers |
@@ -184,7 +186,10 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `books/daily_report.py` | Multi-book daily operator report assembly |
 | `books/execution.py` | Multi-book trade-candidate generation (`generate_book_trade_intents`) |
 | `books/helpers.py` | Shared book service helpers (window math) |
-| `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown) |
+| `books/rotation.py` | Book rotation apply + shared book-keyed rotation core (`RotationPolicyConfig`, `evaluate_book_rotation`, cooldown, per-book policy resolution `resolve_rotation_policy_config`) |
+| `parameters/view.py` | Unified parameter source: read-through view over global settings, book settings, and strategy rows (P7, D4) |
+| `parameters/presentation.py` | Printed view of the unified parameter source |
+| `parameters/mutations.py` | Targeted book rotation-policy edit workflow (P7 step 4) |
 | `books/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
@@ -257,6 +262,7 @@ their public types.
 |---|---|
 | `accounts/` | `AccountConfig`, `AccountInsert`, `AccountRecord` (implements `Mapping`), `AccountState` |
 | `orders/` | `BrokerOrder` (+ `OrderFill`/`OrderStatus`/`OrderType`/`TimeInForce`), `BrokerOrderRecord` |
+| `parameters/` | `ParameterEntry`, `ParameterGroup`, `ParameterSourceView` + source vocabulary constants (P7) |
 | `portfolio/` | `AccountExposure`, `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioConcentration`, `PortfolioExposureRollup`, `PortfolioRiskSnapshotRecord`, `SectorConcentration`, `SymbolConcentration` + rollup vocabulary constants |
 | `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
 | `strategy/` | `StrategyParamSetRecord` |

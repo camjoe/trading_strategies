@@ -87,6 +87,25 @@ def test_evaluate_account_rotation_decision_cooldown_holds_after_recent_rotate(c
     assert decision["decision_reason"] == "cooldown_active"
 
 
+def test_evaluate_account_rotation_decision_uses_book_rotation_policy(conn, monkeypatch) -> None:
+    from trading.services.parameters import update_book_rotation_policy
+
+    create_account(conn, "acct_bp", "trend", 10000.0, "SPY")
+    _set_rotation(conn, "acct_bp", schedule='["trend","mean_reversion"]')
+    account = get_account(conn, "acct_bp")
+    _patch_scores(monkeypatch, {"trend": 1.0, "mean_reversion": 5.0})
+    # Per-book policy override (P7): disable the cooldown for this book.
+    update_book_rotation_policy(conn, account_name="acct_bp", updates={"cooldown_days": 0})
+
+    assert evaluate_account_rotation_decision(conn, account, "2026-03-20T00:00:00Z") == "mean_reversion"
+
+    # With the code-default 7-day cooldown this next-day call would hold (see the
+    # cooldown test above); the per-book cooldown_days=0 lets it rotate again.
+    assert evaluate_account_rotation_decision(conn, account, "2026-03-21T00:00:00Z") == "mean_reversion"
+    decision = _fetch_decision(conn, book_id=default_book_id(conn, int(account["id"])))
+    assert decision["rotation_action"] == "rotate"
+
+
 def test_evaluate_account_rotation_decision_returns_none_without_incumbent() -> None:
     from tests.src.trading.services.auto_trading.factories import make_auto_trading_account
 

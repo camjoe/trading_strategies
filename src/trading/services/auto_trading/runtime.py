@@ -56,8 +56,8 @@ from trading.models.execution.risk_gate_config import RiskGateConfig
 from trading.services.books.execution import generate_book_trade_intents
 from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.books.rotation import (
-    RotationPolicyConfig,
     evaluate_and_apply_book_rotation,
+    resolve_rotation_policy_config,
 )
 from trading.services.books.challenger_evaluation import (
     DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
@@ -230,7 +230,7 @@ def _persist_book_risk_snapshot(
     payload: dict[str, object],
 ) -> None:
     # Exposure is sourced from the clean book positions/equity (the submission path's
-    # source of truth); persisted to the clean account-keyed risk_snapshots (SR-5).
+    # source of truth); persisted to the account-keyed risk_snapshots table.
     persist_book_risk_snapshot(
         conn,
         account_id=account_id,
@@ -273,10 +273,6 @@ def _run_book_rotation_decisions(
         if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
         else DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
     )
-    config = RotationPolicyConfig(
-        rolling_window_days=rolling_window_days,
-        config_version=f"sleeve-rotation:{decision_time[:10]}",
-    )
     shadow_eval = build_book_challenger_evaluations(
         conn,
         account=account,
@@ -284,6 +280,14 @@ def _run_book_rotation_decisions(
         rolling_window_days=rolling_window_days,
     )
     for book_eval in shadow_eval.books:
+        # Per-book effective policy: book_rotation_settings overrides with
+        # code-default fallback.
+        config = resolve_rotation_policy_config(
+            conn,
+            book_id=book_eval.book_id,
+            rolling_window_days=rolling_window_days,
+            config_version=f"sleeve-rotation:{decision_time[:10]}",
+        )
         evaluate_and_apply_book_rotation(
             conn,
             book_id=book_eval.book_id,
@@ -346,7 +350,6 @@ def _run_multi_book_mode_for_account(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    min_trades: int,
     max_trades: int,
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
@@ -364,7 +367,6 @@ def _run_multi_book_mode_for_account(
         universe=effective_universe,
         prices=prices,
         iv_rank_proxy=iv_rank_proxy,
-        min_trades=min_trades,
         max_trades=max_trades,
         fee=fee,
         histories=histories,
@@ -381,7 +383,7 @@ def _run_multi_book_mode_for_account(
         )
         return 0
 
-    # Intents are book-keyed (SR-2); keep the book → intent context for the audit
+    # Intents are book-keyed; keep the book → intent context for the audit
     # trail and fill notes (the intent's legacy sleeve_id feeds the risk audit).
     book_intents: list[BookTradeIntent] = []
     sleeve_by_book: dict[int, BookTradeCandidate] = {}
@@ -510,7 +512,6 @@ def run_for_account(
     universe: list[str],
     prices: dict[str, float],
     iv_rank_proxy: dict[str, float],
-    min_trades: int,
     max_trades: int,
     fee: float,
     execution_mode: str = EXECUTION_MODE_ACCOUNT,
@@ -538,7 +539,6 @@ def run_for_account(
             universe=universe,
             prices=prices,
             iv_rank_proxy=iv_rank_proxy,
-            min_trades=min_trades,
             max_trades=max_trades,
             fee=fee,
             broker_factory=broker_factory,
@@ -577,7 +577,6 @@ def run_for_account(
             effective_universe,
             prices,
             iv_rank_proxy,
-            min_trades,
             max_trades,
             fee,
             histories=histories,

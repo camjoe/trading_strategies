@@ -19,7 +19,7 @@ class GateResult:
     per-intent outcomes (allow/rescale/block + reason codes), bucketed by book;
     callers use them to persist the risk audit. (``RiskGateDecision`` is the
     reused decision contract — its ``sleeve_id`` field carries the ``book_id``
-    under the book-as-bucket model; P5 renames it.)
+    under the book-as-bucket model.)
     """
 
     approved_intents: list[BookTradeIntent] = field(default_factory=list)

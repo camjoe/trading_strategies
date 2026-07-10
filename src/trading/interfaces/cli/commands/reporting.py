@@ -70,6 +70,15 @@ def add_reporting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPars
         ),
     )
 
+    p_parameters = sub.add_parser(
+        "parameters",
+        help=(
+            "Show the unified parameter source: global settings, per-book settings,"
+            " and strategy knobs with their effective values and sources."
+        ),
+    )
+    p_parameters.add_argument("--account", default=None, help="Optional account filter for book settings")
+
     sub.add_parser(
         "portfolio-concentration",
         help=(

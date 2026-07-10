@@ -732,7 +732,7 @@ def available_strategy_ids() -> list[str]:
 class PrimitiveSpec:
     """A code signal primitive: the tested signal function plus its knob schema.
 
-    The code half of the strategy = primitive + knobs model (D5). A `strategies`
+    The code half of the strategy = primitive + knobs model. A `strategies`
     row binds one primitive to a concrete knob dict; the knob schema here is the
     primitive's tunable knob names with their code defaults.
     """

@@ -8,7 +8,7 @@ from trading.models.portfolio.symbol_concentration import SymbolConcentration
 
 @dataclass(frozen=True, slots=True)
 class PortfolioConcentration:
-    """Cross-account concentration payload (P9 second slice, D10).
+    """Cross-account concentration payload.
 
     ``symbols`` and ``sectors`` are ordered by market value, largest first.
     Overlap is read from ``symbols`` entries with ``account_count`` > 1.

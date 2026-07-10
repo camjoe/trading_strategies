@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-14
-Last Reviewed: 2026-05-07
+Last Reviewed: 2026-07-09
 Purpose: Reference for backtesting commands, layering overview, and safeguards.
 Related: [ADR: Backtesting Layering](../adr/002-backtesting-layering.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -67,6 +67,8 @@ Key behavior:
 - Phase 2 strategy ids are documented in `docs/reference/strategies.md`.
 - Backtests resolve active strategy through shared rotation-aware logic.
 - If account rotation metadata is configured, backtests use the resolved active strategy.
+- Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
+  the paper trade path used a placeholder instead of strategy signals.
 
 ## Safeguards and Approximation Notes
 

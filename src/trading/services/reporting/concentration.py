@@ -20,7 +20,7 @@ def show_portfolio_concentration(conn: sqlite3.Connection) -> PortfolioConcentra
         print("No open positions found.")
         return concentration
 
-    print("Portfolio concentration by symbol (cross-account, D10):")
+    print("Portfolio concentration by symbol (cross-account):")
     for entry in concentration.symbols:
         holders = ", ".join(entry.account_names)
         print(
