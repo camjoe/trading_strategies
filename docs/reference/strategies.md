@@ -119,5 +119,4 @@ Use this checklist when proposing new strategies:
 
 - `docs/reference/backtesting.md`
 - `docs/reference/sentiment-signals.md`
-- `docs/plans/plug-and-play-strategy-catalog.md`
 - `src/trading/backtesting/README.md`

@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-07-08
 Last Reviewed: 2026-07-09
 Purpose: Current status summary for remaining committed work and deferred independent workstreams.
-Related: [Overview](overview.md), [Plans](local/plans/README.md)
+Related: [Overview](overview.md)
 
 Completed phase detail lives in git history and durable decisions live in [ADRs](adr/).
 
@@ -23,11 +23,11 @@ Fresh DBs need nothing.
 
 | Workstream | Why deferred | Trigger to revisit |
 |---|---|---|
-| [P6 - Plug-and-play strategy catalog](local/plans/plug-and-play-strategy-catalog.md) | Catalog rows exist, but wiring them now duplicates the code registry before there is demand | Concrete demand to add or tune strategy variants without deploys |
-| [P10 - Adaptive learning](local/plans/adaptive-learning.md) | Design-heavy and not yet proven to beat the static decision score | Evidence that a learned layer improves decisions |
-| [P11 - Parameter optimization](local/plans/parameter-optimization.md) | Requires catalog-backed variants and explicit overfitting guardrails | Demand for systematic parameter sweeps |
-| [P12 - Backtest freshness cadence](local/plans/backtest-freshness-cadence.md) | Policy question, not current implementation pressure | Evidence that stale backtests skew rotation or promotion |
-| [Execution-mode collapse](local/plans/execution-mode-collapse.md) | Changes account-mode compatibility semantics after sleeve retirement | Runtime mode handling is next touched |
+| P6 - Plug-and-play strategy catalog | Catalog rows exist, but wiring them now duplicates the code registry before there is demand | Concrete demand to add or tune strategy variants without deploys |
+| P10 - Adaptive learning | Design-heavy and not yet proven to beat the static decision score | Evidence that a learned layer improves decisions |
+| P11 - Parameter optimization | Requires catalog-backed variants and explicit overfitting guardrails | Demand for systematic parameter sweeps |
+| P12 - Backtest freshness cadence | Policy question, not current implementation pressure | Evidence that stale backtests skew rotation or promotion |
+| Execution-mode collapse | Changes account-mode compatibility semantics after sleeve retirement | Runtime mode handling is next touched |
 
 ## Dropped (do not silently re-add)
 

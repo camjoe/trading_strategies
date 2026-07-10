@@ -5,7 +5,7 @@ Status: Accepted
 Created: 2026-07-09
 Last Reviewed: 2026-07-09
 Purpose: Record where strategy knobs and execution settings belong after the clean schema rewrite.
-Related: [Strategies Reference](../reference/strategies.md), [Plug-and-Play Strategy Catalog Plan](../plans/plug-and-play-strategy-catalog.md)
+Related: [Strategies Reference](../reference/strategies.md)
 
 ## Context
 

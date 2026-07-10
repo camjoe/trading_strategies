@@ -7,7 +7,7 @@ Last Reviewed: 2026-07-09
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the current tracker in [status.md](status.md).
-Related: [Status](status.md), [Plans](plans/README.md),
+Related: [Status](status.md),
 [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline for **why/what**. When priorities or capabilities change,
@@ -130,8 +130,7 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 ## Direction and plan
 
 The strategic order here is the north star (the "why/what"). The **authoritative, itemized tracker**
-for what is left is [status.md](status.md). Independent deferred workstreams live in
-[plans/](plans/README.md). Durable decisions live in [ADRs](adr/); completed implementation narrative
+for what is left is [status.md](status.md). Durable decisions live in [ADRs](adr/); completed implementation narrative
 lives in git history.
 
 The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
@@ -144,7 +143,8 @@ retired 2026-07-09); and the decisioning naming pass landed alongside (P5). Emai
 The only **committed** work remaining is the sleeve-retirement DB migration deploy step (operator
 runbook). The plug-and-play strategy catalog (P6), adaptive learning (P10), parameter optimization
 (P11), backtest freshness cadence (P12), and execution-mode collapse are independent deferred
-workstreams, pursued only when their triggers are met.
+workstreams, pursued only when their triggers are met. Details on deferred work live in
+[status.md](status.md).
 
 ## Guiding constraints
 

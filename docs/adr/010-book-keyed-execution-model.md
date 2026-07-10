@@ -5,7 +5,7 @@ Status: Accepted
 Created: 2026-07-09
 Last Reviewed: 2026-07-09
 Purpose: Record the accepted book-keyed execution primitive after sleeve retirement.
-Related: [Overview](../overview.md), [Execution Mode Collapse Plan](../plans/execution-mode-collapse.md), [ADR 003](003-sleeve-virtualization-architecture.md)
+Related: [Overview](../overview.md), [ADR 003](003-sleeve-virtualization-architecture.md)
 
 ## Context
 
