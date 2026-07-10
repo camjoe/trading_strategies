@@ -62,10 +62,10 @@ def test_policy_write_preserves_scheduling_fields(
     conn: sqlite3.Connection, account_with_book: tuple[str, int]
 ) -> None:
     account_name, book_id = account_with_book
-    BookRotationSettingsRepository(conn).upsert(
+    BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
         rotation_enabled=1,
-        rotation_interval_days=7,
+        rotation_lookback_days=45,
         created_at="2026-01-01T00:00:00Z",
         updated_at="2026-01-01T00:00:00Z",
     )
@@ -80,7 +80,7 @@ def test_policy_write_preserves_scheduling_fields(
     saved = BookRotationSettingsRepository(conn).fetch(book_id=book_id)
     assert saved is not None
     assert saved.rotation_enabled == 1
-    assert saved.rotation_interval_days == 7
+    assert saved.rotation_lookback_days == 45
     assert saved.cooldown_days == 5
 
 

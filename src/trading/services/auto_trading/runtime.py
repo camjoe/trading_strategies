@@ -59,10 +59,7 @@ from trading.services.books.rotation import (
     evaluate_and_apply_book_rotation,
     resolve_rotation_policy_config,
 )
-from trading.services.books.challenger_evaluation import (
-    DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
-    build_book_challenger_evaluations,
-)
+from trading.services.books.challenger_evaluation import build_book_challenger_evaluations
 from trading.repositories.positions import PositionRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.book_bridge import default_book_id
@@ -268,16 +265,12 @@ def _run_book_rotation_decisions(
     account: AccountRecord,
     decision_time: str,
 ) -> None:
-    rolling_window_days = (
-        int(account.rotation_lookback_days)
-        if account.rotation_lookback_days is not None and int(account.rotation_lookback_days) > 0
-        else DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
-    )
+    # Scheduling is book-owned (ADR 014): the evaluation resolves each book's
+    # enabled gate, challenger schedule, and lookback from its settings row.
     shadow_eval = build_book_challenger_evaluations(
         conn,
         account=account,
         as_of_iso=decision_time,
-        rolling_window_days=rolling_window_days,
     )
     for book_eval in shadow_eval.books:
         # Per-book effective policy: book_rotation_settings overrides with
@@ -285,8 +278,8 @@ def _run_book_rotation_decisions(
         config = resolve_rotation_policy_config(
             conn,
             book_id=book_eval.book_id,
-            rolling_window_days=rolling_window_days,
-            config_version=f"sleeve-rotation:{decision_time[:10]}",
+            rolling_window_days=book_eval.rolling_window_days,
+            config_version=f"book-rotation:{decision_time[:10]}",
         )
         evaluate_and_apply_book_rotation(
             conn,

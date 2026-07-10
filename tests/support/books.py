@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from trading.domain.rotation import dump_rotation_schedule
+from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -59,6 +60,26 @@ def assign_test_book_strategy(
     )
 
 
+def set_test_book_rotation_scheduling(
+    conn,
+    *,
+    book_id: int,
+    enabled: int = 1,
+    schedule: list[str] | None = None,
+    lookback_days: int | None = None,
+    now_iso: str = DEFAULT_BOOK_TIMESTAMP,
+) -> None:
+    """Write the book's rotation-scheduling row (book-owned since ADR 014)."""
+    BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
+        book_id=book_id,
+        rotation_enabled=enabled,
+        rotation_lookback_days=lookback_days,
+        rotation_schedule=dump_rotation_schedule(schedule) if schedule is not None else None,
+        created_at=now_iso,
+        updated_at=now_iso,
+    )
+
+
 def build_book_env(
     conn,
     *,
@@ -110,6 +131,14 @@ def build_rotation_book_env(
 
     book_id = insert_test_book(conn, account_id=account_id, start_equity=start_equity)
     assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
+    # Rotation scheduling is book-owned (ADR 014).
+    set_test_book_rotation_scheduling(
+        conn,
+        book_id=book_id,
+        enabled=1,
+        schedule=rotation_strategies,
+        lookback_days=30,
+    )
 
     # Two metric rows for rotation scoring
     for metric_date, created_at in [("2026-05-03", "2026-05-03T23:59:00Z"), ("2026-05-04", "2026-05-04T23:59:00Z")]:
@@ -145,6 +174,7 @@ def build_rotation_book_env(
 __all__ = [
     "insert_test_book",
     "assign_test_book_strategy",
+    "set_test_book_rotation_scheduling",
     "build_book_env",
     "build_rotation_book_env",
 ]
