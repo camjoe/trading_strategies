@@ -3,7 +3,7 @@
 Type: index
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-09
 Purpose: Navigation index for docs/ — folder guide, links to all maps and key reference docs.
 Related: [Docs Map](maps/docs-map.md), [Documentation Authoring Standard](conventions/docs-authoring.md)
 
@@ -26,9 +26,8 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`status.md`](status.md) — **the tracker**: current status per workstream (done / active / blocked / deferred + next action)
-- [`decisions.md`](decisions.md) — **what was decided / needs defining**: ADR-style decision records
-- [`developer-notes.md`](developer-notes.md) — durable developer gotchas
+- [`status.md`](status.md) — **the tracker**: remaining committed work and deferred workstream links
+- [`adr/`](adr/) — durable architecture and product decisions
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
 ```sh
@@ -61,6 +60,11 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/broker-setup-alpaca.md`](reference/broker-setup-alpaca.md) — Alpaca setup guide (Draft — adapter not yet implemented)
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
+- [`adr/013-portfolio-concentration-dimensions.md`](adr/013-portfolio-concentration-dimensions.md) — portfolio concentration is symbol plus sector rollup
+- [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration
+- [`adr/011-strategy-catalog-and-parameter-ownership.md`](adr/011-strategy-catalog-and-parameter-ownership.md) — strategy knobs, book settings, and operational settings ownership
+- [`adr/010-book-keyed-execution-model.md`](adr/010-book-keyed-execution-model.md) — books are the execution primitive after sleeve retirement
+- [`adr/009-regime-overlay-rotation-retired.md`](adr/009-regime-overlay-rotation-retired.md) — regime/overlay rotation was retired; design preserved for revival
 - [`adr/008-production-runtime-hosting-and-deployment.md`](adr/008-production-runtime-hosting-and-deployment.md) — dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders

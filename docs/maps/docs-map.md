@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-09
 Purpose: Full inventory of documentation files — use to audit staleness, find coverage gaps, and check for redundancy.
 Related: [Docs README](../README.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -95,9 +95,7 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
-| `docs/status.md` | Current status per workstream (done/active/blocked/deferred + next action) — the tracker | A workstream changes state or a next action is taken |
-| `docs/decisions.md` | ADR-style decision records ("what was decided / needs defining") | A decision is made, added, or its status changes |
-| `docs/developer-notes.md` | Durable developer gotchas | Recurring dev pitfalls or required checks change |
+| `docs/status.md` | Remaining committed work and deferred workstream links | A workstream changes state or a next action is taken |
 
 ### ADRs
 
@@ -111,6 +109,11 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/006-cross-cutting-decorators.md` | Sanctioned decorator/context-manager pattern for cross-cutting concerns | Changing the cross-cutting pattern rules |
 | `docs/adr/007-ui-error-mapping.md` | Centralized UI domain-exception → HTTP mapping | Changing the backend error-mapping approach |
 | `docs/adr/008-production-runtime-hosting-and-deployment.md` | Dedicated Linux host runs jobs from a `main`-tracking checkout; blue/green deferred | Moving to live trading / VPS, or adopting a hot-standby environment |
+| `docs/adr/009-regime-overlay-rotation-retired.md` | Regime/overlay rotation selection was retired; revival design preserved | Reintroducing regime-aware rotation |
+| `docs/adr/010-book-keyed-execution-model.md` | Books are the execution primitive after sleeve retirement | Introducing another execution primitive or abandoning book-keyed flow |
+| `docs/adr/011-strategy-catalog-and-parameter-ownership.md` | Strategy knobs live on strategy rows; execution settings live on typed book settings | Consolidating these settings into a different ownership model |
+| `docs/adr/012-runtime-alert-email-configuration.md` | Runtime SMTP alerts use environment variables | Moving SMTP settings into database or operator UI configuration |
+| `docs/adr/013-portfolio-concentration-dimensions.md` | Portfolio concentration is symbol plus sector rollup | Adding or replacing concentration dimensions |
 
 ### Templates and Standards
 

@@ -1,4 +1,4 @@
-# Trading Strategies — App Overview
+# Trading Strategies - App Overview
 
 Type: overview
 Status: Active
@@ -7,7 +7,7 @@ Last Reviewed: 2026-07-09
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. Entry point that
 frames the current tracker in [status.md](status.md).
-Related: [Status](status.md), [Decisions](decisions.md),
+Related: [Status](status.md), [Plans](plans/README.md),
 [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
 
 > This document is the definitive guideline for **why/what**. When priorities or capabilities change,
@@ -40,7 +40,8 @@ Design intent:
 - **Strategy** — a named signal specification (`StrategySpec`) with a signal function and default
   parameters. 14 are registered today across trend, mean-reversion, oscillator, breakout, and
   external-data ("alternative") families.
-- **Parameter set** — a versioned set of tunable parameters for a strategy (`StrategyParamSetRepository`).
+- **Strategy knobs** — tunable parameters for a strategy primitive. Runtime still reads code defaults
+  today; catalog-backed strategy rows are deferred in the P6 plan.
 - **Evaluation** — the canonical `StrategyEvaluationArtifact`: backtest + walk-forward + paper/live
   evidence fused into confidence and a blended decision score.
 - **Rotation** — automated switching of the active strategy, book-keyed, via champion/challenger on
@@ -96,8 +97,7 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   `STRATEGY_REGISTRY` edit until P6 loads definitions from the catalog. A *variant/tuning* becomes a
   pure data change once P6 lands.
 - **Settings edits have no change-audit.** P7's edit surface records only `updated_at` per settings
-  row; a change-audit log stays deferred until edit volume justifies it (see D4 in
-  [decisions.md](decisions.md)).
+  row; a change-audit log stays deferred until edit volume justifies it.
 
 ## How it works (architecture)
 
@@ -122,16 +122,17 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 - **Primary:** runtime scheduler jobs and CLI commands, run from the repo root with the venv
   interpreter (see [runbooks](runbooks/README.md) and `AGENTS.md`). Configuration is via account
   profiles, operational settings, and DB entries.
-- **Optional:** the `apps/paper_trading_web` UI for viewing results and editing parameters.
-- **Adding data (target workflow):** new accounts and (once parameters are wired) new parameter sets
-  for existing strategies should be data changes; new strategy *logic* and new feature providers are
-  contained code additions.
+- **Optional:** the `apps/paper_trading_web` UI for viewing results and account configuration.
+- **Adding data (target workflow):** new accounts are data changes today. New strategy variants
+  become data changes after the deferred P6 catalog work; new strategy logic and new feature
+  providers remain contained code additions.
 
-## Direction & plan (north star)
+## Direction and plan
 
 The strategic order here is the north star (the "why/what"). The **authoritative, itemized tracker**
-— what is left, the steps to complete it, and what is deferred — is [status.md](status.md); open
-decisions are in [decisions.md](decisions.md); completed work and its narrative live in git history.
+for what is left is [status.md](status.md). Independent deferred workstreams live in
+[plans/](plans/README.md). Durable decisions live in [ADRs](adr/); completed implementation narrative
+lives in git history.
 
 The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
 execution (P1); evaluation is unified behind one decision-score contract that backs compare,
@@ -141,9 +142,9 @@ retired 2026-07-09); and the decisioning naming pass landed alongside (P5). Emai
 (P8), the unified parameter source (P7), and the portfolio risk rollup (P9) are in.
 
 The only **committed** work remaining is the sleeve-retirement DB migration deploy step (operator
-runbook). The plug-and-play strategy/provider catalog (P6), adaptive learning (P10), parameter
-optimization (P11), and backtest-recalculation cadence (P12) are **exploratory** — pursued only if
-evidence justifies. See [status.md](status.md) for the live view.
+runbook). The plug-and-play strategy catalog (P6), adaptive learning (P10), parameter optimization
+(P11), backtest freshness cadence (P12), and execution-mode collapse are independent deferred
+workstreams, pursued only when their triggers are met.
 
 ## Guiding constraints
 
