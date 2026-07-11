@@ -123,11 +123,6 @@ def build_rotation_book_env(
         rotation_strategies = ["trend", "meanrev"]
 
     account_id = insert_repository_account(conn, name=account_name, strategy="trend")
-    conn.execute(
-        "UPDATE accounts SET rotation_schedule = ?, rotation_lookback_days = ? WHERE id = ?",
-        (dump_rotation_schedule(rotation_strategies), 30, account_id),
-    )
-    conn.commit()
 
     book_id = insert_test_book(conn, account_id=account_id, start_equity=start_equity)
     assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")

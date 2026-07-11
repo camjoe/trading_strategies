@@ -21,15 +21,6 @@ def make_auto_trading_account(**overrides: object):
         "initial_cash": 5000.0,
         "id": 1,
         "strategy": "trend",
-        "rotation_enabled": 0,
-        "rotation_schedule": None,
-        "rotation_active_index": 0,
-        "rotation_last_at": None,
-        "rotation_active_strategy": None,
-        "rotation_mode": "time",
-        "rotation_optimality_mode": "previous_period_best",
-        "rotation_lookback_days": 180,
-        "rotation_overlay_mode": "none",
     }
     values.update(overrides)
     return make_account_record(**values)

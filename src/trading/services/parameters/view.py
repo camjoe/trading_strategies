@@ -13,7 +13,6 @@ from dataclasses import fields
 from typing import Any
 
 from trading.domain.exceptions import NotFoundError
-from trading.models.accounts.account_record import AccountRecord
 from trading.models.books.book_record import BookRecord
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
@@ -29,8 +28,7 @@ from trading.repositories.book_settings import (
 from trading.repositories.books import BookRepository
 from trading.repositories.global_settings import GlobalSettingsRepository
 from trading.repositories.strategies import StrategyRepository
-from trading.services.books.challenger_evaluation import DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
-from trading.services.books.rotation import RotationPolicyConfig
+from trading.services.books.rotation import BookRotationScheduleConfig, RotationPolicyConfig
 from trading.services.operational_settings import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
@@ -116,55 +114,43 @@ def _settings_group(scope: str, record: Any) -> ParameterGroup:
 
 
 def _rotation_group(scope: str, record: BookRotationSettingsRecord | None) -> ParameterGroup:
-    """Rotation group with the policy fields resolved per-field.
+    """Rotation group with every field resolved per-field (book-owned, ADR 014).
 
-    The rotation-policy columns are nullable with a defined fallback (NULL
-    means the ``RotationPolicyConfig`` code default), so each policy entry
-    shows the effective value the runtime resolves, sourced db/default per
-    field. The scheduling columns have no code-default contract and are shown
-    raw when the row exists.
+    Both the scheduling columns (enabled gate, challenger schedule, lookback)
+    and the policy columns are nullable with a code-default contract, so each
+    entry shows the effective value the runtime resolves, sourced db/default
+    per field.
     """
-    defaults = RotationPolicyConfig()
+    schedule_defaults = BookRotationScheduleConfig()
+    policy_defaults = RotationPolicyConfig()
+    scheduling = (
+        _effective_entry(
+            "rotation_enabled",
+            raw=bool(record.rotation_enabled) if record is not None else None,
+            default=schedule_defaults.rotation_enabled,
+        ),
+        _effective_entry(
+            "rotation_schedule",
+            raw=record.rotation_schedule if record is not None else None,
+            # The code default is an empty schedule (incumbent-only).
+            default=None,
+        ),
+        _effective_entry(
+            "rotation_lookback_days",
+            raw=record.rotation_lookback_days if record is not None else None,
+            default=schedule_defaults.lookback_days,
+        ),
+    )
     policy = tuple(
         _effective_entry(
             name,
             raw=getattr(record, name) if record is not None else None,
-            default=getattr(defaults, name),
+            default=getattr(policy_defaults, name),
         )
         for name in ROTATION_POLICY_FIELDS
     )
-    if record is None:
-        return ParameterGroup(scope=scope, entries=policy, note=NO_SETTINGS_ROW_NOTE)
-    scheduling = _entries_from_dataclass(record, source=PARAMETER_SOURCE_DB, exclude=frozenset(ROTATION_POLICY_FIELDS))
-    return ParameterGroup(scope=scope, entries=scheduling + policy)
-
-
-def _account_rotation_group(account: AccountRecord) -> ParameterGroup:
-    """The account columns that drive the live rotation flow.
-
-    The runtime reads the schedule and rolling window from the account row
-    (not the per-book scheduling columns); the effective window falls back to
-    the challenger default when unset, mirroring the runtime resolution.
-    """
-    lookback = account.rotation_lookback_days
-    window_is_set = lookback is not None and int(lookback) > 0
-    entries = (
-        ParameterEntry(
-            name="rotation_enabled", value=_render(bool(account.rotation_enabled)), source=PARAMETER_SOURCE_DB
-        ),
-        ParameterEntry(name="rotation_schedule", value=_render(account.rotation_schedule), source=PARAMETER_SOURCE_DB),
-        ParameterEntry(
-            name="rotation_lookback_days",
-            value=_render(int(lookback) if window_is_set else DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS),
-            source=PARAMETER_SOURCE_DB if window_is_set else PARAMETER_SOURCE_DEFAULT,
-        ),
-        ParameterEntry(
-            name="rotation_active_strategy",
-            value=_render(account.rotation_active_strategy),
-            source=PARAMETER_SOURCE_DB,
-        ),
-    )
-    return ParameterGroup(scope=f"account {account.name} / rotation", entries=entries)
+    note = NO_SETTINGS_ROW_NOTE if record is None else None
+    return ParameterGroup(scope=scope, entries=scheduling + policy, note=note)
 
 
 def _book_groups(conn: sqlite3.Connection, account_name: str, book: BookRecord) -> list[ParameterGroup]:
@@ -211,7 +197,6 @@ def fetch_parameter_source_view(
             raise NotFoundError(f"Account not found: {account_name}")
     books = BookRepository(conn)
     for account in accounts:
-        groups.append(_account_rotation_group(account))
         for book in books.fetch_for_account(account_id=account.id):
             groups.extend(_book_groups(conn, account.name, book))
 

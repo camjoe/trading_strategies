@@ -8,7 +8,13 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str, ro
 
 @dataclass(frozen=True, slots=True)
 class AccountRecord(Mapping[str, object]):
-    """Persisted account row materialized from the database."""
+    """Persisted account row materialized from the database.
+
+    The retired account rotation columns (rotation_*) are retained on the
+    table (append-only) but no longer materialized here — rotation scheduling
+    is book-owned and rotation state lives in book_strategy_assignments and
+    rotation_decisions (ADR 014).
+    """
 
     id: int
     name: str
@@ -41,23 +47,6 @@ class AccountRecord(Mapping[str, object]):
     roll_dte_threshold: int | None
     profit_take_pct: float | None
     max_loss_pct: float | None
-    rotation_enabled: int | None = None
-    rotation_mode: str | None = None
-    rotation_optimality_mode: str | None = None
-    rotation_interval_days: int | None = None
-    rotation_interval_minutes: int | None = None
-    rotation_lookback_days: int | None = None
-    rotation_schedule: str | None = None
-    rotation_regime_strategy_risk_on: str | None = None
-    rotation_regime_strategy_neutral: str | None = None
-    rotation_regime_strategy_risk_off: str | None = None
-    rotation_overlay_mode: str | None = None
-    rotation_overlay_min_tickers: int | None = None
-    rotation_overlay_confidence_threshold: float | None = None
-    rotation_overlay_watchlist: str | None = None
-    rotation_active_index: int | None = None
-    rotation_last_at: str | None = None
-    rotation_active_strategy: str | None = None
     broker_type: str | None = None
     broker_host: str | None = None
     broker_port: int | None = None
@@ -99,23 +88,6 @@ class AccountRecord(Mapping[str, object]):
             roll_dte_threshold=row_int(values, "roll_dte_threshold"),
             profit_take_pct=row_float(values, "profit_take_pct"),
             max_loss_pct=row_float(values, "max_loss_pct"),
-            rotation_enabled=row_int(values, "rotation_enabled"),
-            rotation_mode=row_str(values, "rotation_mode"),
-            rotation_optimality_mode=row_str(values, "rotation_optimality_mode"),
-            rotation_interval_days=row_int(values, "rotation_interval_days"),
-            rotation_interval_minutes=row_int(values, "rotation_interval_minutes"),
-            rotation_lookback_days=row_int(values, "rotation_lookback_days"),
-            rotation_schedule=row_str(values, "rotation_schedule"),
-            rotation_regime_strategy_risk_on=row_str(values, "rotation_regime_strategy_risk_on"),
-            rotation_regime_strategy_neutral=row_str(values, "rotation_regime_strategy_neutral"),
-            rotation_regime_strategy_risk_off=row_str(values, "rotation_regime_strategy_risk_off"),
-            rotation_overlay_mode=row_str(values, "rotation_overlay_mode"),
-            rotation_overlay_min_tickers=row_int(values, "rotation_overlay_min_tickers"),
-            rotation_overlay_confidence_threshold=row_float(values, "rotation_overlay_confidence_threshold"),
-            rotation_overlay_watchlist=row_str(values, "rotation_overlay_watchlist"),
-            rotation_active_index=row_int(values, "rotation_active_index"),
-            rotation_last_at=row_str(values, "rotation_last_at"),
-            rotation_active_strategy=row_str(values, "rotation_active_strategy"),
             broker_type=row_str(values, "broker_type"),
             broker_host=row_str(values, "broker_host"),
             broker_port=row_int(values, "broker_port"),
