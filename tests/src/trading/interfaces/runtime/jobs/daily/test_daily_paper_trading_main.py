@@ -131,7 +131,25 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     assert calls
     assert calls[0][0] == "Challenger Shadow Eval"
     assert "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval" in calls[0][1]
-    assert "--rolling-window-days" in calls[0][1]
+    # An explicit operator window is forwarded to the shadow-eval job.
+    window_index = calls[0][1].index("--rolling-window-days")
+    assert calls[0][1][window_index + 1] == "45"
+
+
+def test_shadow_eval_defaults_to_book_owned_window(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # Without an operator override the flag is omitted, so each book's own
+    # configured lookback drives the shadow evaluation (ADR 014).
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--run-challenger-shadow-eval"],
+    )
+
+    assert code == 0
+    shadow_calls = [args for label, args in _runtime_harness.stream_calls if label == "Challenger Shadow Eval"]
+    assert len(shadow_calls) == 1
+    assert "--rolling-window-days" not in shadow_calls[0]
 
 
 def test_auto_trader_argv_has_no_execution_mode_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

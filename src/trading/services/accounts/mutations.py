@@ -11,6 +11,7 @@ from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.queries import find_account
+from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.accounts.config import (
     ACCOUNT_KIND_MANAGED,
     append_numeric_updates,
@@ -42,10 +43,7 @@ def _serialize_trade_universes(names: list[str]) -> str:
 
 
 def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: str) -> None:
-    # Deferred: services.books pulls in services.evaluation, which imports
-    # back into this package at init time.
     from trading.domain.strategy_signals import validate_strategy_name
-    from trading.services.books.book_assignments import sync_default_book_assignment
 
     normalized_strategy = strategy.strip()
     if not normalized_strategy:
@@ -75,9 +73,7 @@ def create_account(
     benchmark_ticker: str,
     config: AccountConfig | None = None,
 ) -> None:
-    # Deferred: see set_account_strategy.
     from trading.domain.strategy_signals import validate_strategy_name
-    from trading.services.books.book_assignments import sync_default_book_assignment
 
     cfg = config or AccountConfig()
     if initial_cash <= 0:

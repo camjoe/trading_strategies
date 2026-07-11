@@ -11,8 +11,6 @@ from trading.services.books.helpers import resolve_window_bounds as _resolve_win
 from trading.services.books.rotation import resolve_book_rotation_schedule
 from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
 
-DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS = 30
-
 
 @dataclass(frozen=True, slots=True)
 class BookChallengerEvaluation:

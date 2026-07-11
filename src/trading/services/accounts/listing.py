@@ -5,6 +5,7 @@ import sqlite3
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.repositories.accounts import AccountRepository
+from trading.services.books.book_assignments import active_strategy_for_account
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
 GOAL_NOT_SET_TEXT = "not-set"
@@ -86,10 +87,6 @@ def build_account_listing_lines(
 
 
 def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> list[str]:
-    # Deferred: services.books pulls in services.evaluation, which imports
-    # back into this package at init time.
-    from trading.services.books.book_assignments import active_strategy_for_account
-
     accounts = AccountRepository(conn).fetch_listing()
     if not accounts:
         return []

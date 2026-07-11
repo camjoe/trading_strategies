@@ -14,9 +14,9 @@ from tests.support.books import (
     set_test_book_rotation_scheduling,
 )
 
-# The per-strategy metrics builder (which reads the evaluation artifact) lives in
-# rotation_metrics; patch the fetch where that module looks it up.
-_FETCH_TARGET = "trading.services.books.rotation_metrics.fetch_strategy_evaluation_for_account_row"
+# rotation_metrics resolves the evaluation fetch lazily (the one deliberate
+# books -> evaluation back-edge), so patch it on the evaluation package.
+_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(*, blended_score: float | None, trade_count: int, available: bool = True) -> StrategyEvaluationArtifact:

@@ -35,6 +35,8 @@ from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.books.rotation import resolve_default_book_rotation_schedule
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -64,11 +66,6 @@ WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
 def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
-    # Deferred import: services.books imports back into services.evaluation
-    # at package-init time (rotation_metrics), so this seam cannot be a
-    # module-level import.
-    from trading.services.books.book_assignments import active_strategy_for_account
-
     return active_strategy_for_account(
         conn,
         row_expect_int(account, "id"),
@@ -83,9 +80,6 @@ def _default_book_rotation_enabled(conn: sqlite3.Connection, account_id: int) ->
     timeline, so the isolation question is exactly whether that book's
     strategy churns. Read-only: a missing default book means no rotation.
     """
-    # Deferred import: see _active_strategy.
-    from trading.services.books.rotation import resolve_default_book_rotation_schedule
-
     return resolve_default_book_rotation_schedule(conn, account_id=account_id).rotation_enabled
 
 

@@ -119,8 +119,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--shadow-eval-rolling-window-days",
         type=int,
-        default=30,
-        help="Lookback window passed to challenger shadow evaluation (default: 30).",
+        default=None,
+        help=(
+            "Override the challenger shadow-eval lookback window in days"
+            " (default: each book's own configured lookback)."
+        ),
     )
     parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
     parser.add_argument(
@@ -237,7 +240,7 @@ def main() -> int:
     if args.primary_min_trades < 1:
         print("--primary-min-trades must be >= 1", file=sys.stderr)
         return 1
-    if args.shadow_eval_rolling_window_days < 1:
+    if args.shadow_eval_rolling_window_days is not None and args.shadow_eval_rolling_window_days < 1:
         print("--shadow-eval-rolling-window-days must be >= 1", file=sys.stderr)
         return 1
     if args.primary_max_trades < args.primary_min_trades:
@@ -329,6 +332,13 @@ def main() -> int:
 
         shadow_eval_summary: dict[str, object] | None = None
         if args.run_challenger_shadow_eval:
+            # An explicit window overrides every book's own lookback (ADR 014),
+            # so the flag is only forwarded when the operator set one.
+            shadow_eval_window_args = (
+                ["--rolling-window-days", str(args.shadow_eval_rolling_window_days)]
+                if args.shadow_eval_rolling_window_days is not None
+                else []
+            )
             run_dag_step(
                 step_results,
                 step_id="02_run_signals_all_strategies",
@@ -342,14 +352,19 @@ def main() -> int:
                             "--accounts",
                             ",".join(accounts),
                             "--enable-run",
-                            "--rolling-window-days",
-                            str(args.shadow_eval_rolling_window_days),
+                            *shadow_eval_window_args,
                             "--run-source",
                             "daily-paper-trading",
                         ],
                         repo_root,
                     ),
-                    {"rolling_window_days": args.shadow_eval_rolling_window_days},
+                    {
+                        "rolling_window_days": (
+                            args.shadow_eval_rolling_window_days
+                            if args.shadow_eval_rolling_window_days is not None
+                            else "book-owned"
+                        )
+                    },
                 )[1],
                 now_iso=ts,
             )
