@@ -3,22 +3,15 @@
 from __future__ import annotations
 
 import logging
-import sqlite3
 from typing import Callable, Mapping, Protocol, cast
 
 import pandas as pd
 
-from common.coercion import row_expect_int, row_float, row_int
-from common.time import utc_now_iso
+from common.coercion import row_int
 from trading.domain.strategy_signals import evaluate_signal, resolve_strategy
-from trading.domain.accounting import compute_account_state
 import trading.domain.auto_trading_policy as auto_trader_policy
-from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.domain.feature_provider import FeatureFetcherSet
-from trading.domain.rotation import resolve_active_strategy
-from trading.models import AccountRecord, AccountState
-from trading.services.accounting import list_account_trades
-from trading.services.operational_settings import enforce_runtime_trade_throttles
+from trading.models import AccountRecord
 
 logger = logging.getLogger(__name__)
 
@@ -112,16 +105,6 @@ def _current_position_value(
         trade_price=trade_price,
     )
     return qty * mark_price
-
-
-def refresh_account_state(
-    conn: sqlite3.Connection,
-    account: AccountRecord,
-) -> AccountState:
-    return compute_account_state(
-        row_float(account, "initial_cash") or 0.0,
-        list_account_trades(conn, row_expect_int(account, "id")),
-    )
 
 
 def resolve_strategy_params(account: AccountRecord, strategy_name: str) -> dict[str, object]:
@@ -263,45 +246,6 @@ def prepare_trade_selection(
     return "buy", ticker, qty, trade_price, delta_est, iv_est
 
 
-def record_prepared_trade(
-    conn: sqlite3.Connection,
-    account_name: str,
-    account: AccountRecord,
-    learning_enabled: bool,
-    risk_policy: str,
-    instrument_mode: str,
-    active_strategy: str | None,
-    fee: float,
-    selection: tuple[str, str, int, float, float | None, float | None],
-    forced_sell: str | None,
-    *,
-    record_trade_fn: Callable[..., None],
-    trade_time_iso: str | None = None,
-) -> None:
-    side, ticker, qty, trade_price, delta_est, iv_est = selection
-    record_trade_fn(
-        conn,
-        account_name=account_name,
-        side=side,
-        ticker=ticker,
-        qty=qty,
-        price=trade_price,
-        fee=fee,
-        trade_time=trade_time_iso or utc_now_iso(),
-        note=auto_trader_policy.build_trade_note(
-            learning_enabled,
-            forced_sell,
-            risk_policy,
-            instrument_mode,
-            account,
-            side,
-            delta_est,
-            iv_est,
-            active_strategy,
-        ),
-    )
-
-
 def _size_buy_for_ticker(
     account: AccountRecord,
     instrument_mode: str,
@@ -418,91 +362,3 @@ def prepare_sell_trade(
 
         return ticker, qty, float(price)
     return None
-
-
-def run_for_account(
-    conn: sqlite3.Connection,
-    account_name: str,
-    universe: list[str],
-    prices: dict[str, float],
-    iv_rank_proxy: dict[str, float],
-    max_trades: int,
-    fee: float,
-    *,
-    histories: Mapping[str, pd.Series] | None = None,
-    feature_history_fn: FeatureHistoryFn | None = None,
-    get_account_fn: Callable[[sqlite3.Connection, str], AccountRecord],
-    utc_now_iso_fn: Callable[[], str],
-    rotate_account_if_due_fn: Callable[[sqlite3.Connection, str, AccountRecord, str], AccountRecord],
-    record_prepared_trade_fn: Callable[..., None],
-    is_submission_window_open_fn: Callable[[str], bool],
-) -> int:
-    # Trade only when the strategy signals — no forced minimum (see D1 in
-    # docs/decisions.md).
-    account = get_account_fn(conn, account_name)
-    now_iso = utc_now_iso_fn()
-    if not is_submission_window_open_fn(now_iso):
-        return 0
-    account = rotate_account_if_due_fn(conn, account_name, account, now_iso)
-    active_strategy = resolve_active_strategy(account)
-    # learning_enabled no longer drives selection (kept only for the trade note).
-    learning_enabled = bool(int(cast(int | float | str | bytes | bytearray, account["learning_enabled"] or 0)))
-    risk_policy = str(account["risk_policy"]).strip().lower()
-    stop_loss_pct = account["stop_loss_pct"]
-    take_profit_pct = account["take_profit_pct"]
-    instrument_mode = str(account["instrument_mode"]).strip().lower()
-    executed = 0
-    for _ in range(max_trades):
-        if not is_submission_window_open_fn(utc_now_iso_fn()):
-            break
-        state = refresh_account_state(conn, account)
-        can_sell = [ticker for ticker, qty in state.positions.items() if qty >= 1]
-        forced_sell = auto_trader_policy.choose_sell_ticker_by_risk(
-            can_sell,
-            prices,
-            state,
-            risk_policy,
-            stop_loss_pct,
-            take_profit_pct,
-        )
-
-        selection = prepare_trade_selection(
-            account,
-            active_strategy,
-            state,
-            forced_sell,
-            universe,
-            prices,
-            histories or {},
-            iv_rank_proxy,
-            instrument_mode,
-            fee,
-            feature_history_fn=feature_history_fn,
-        )
-        if selection is None:
-            break
-
-        trade_time_iso = utc_now_iso_fn()
-        try:
-            enforce_runtime_trade_throttles(
-                conn,
-                trade_time_iso=trade_time_iso,
-            )
-            record_prepared_trade_fn(
-                conn,
-                account_name,
-                account,
-                learning_enabled,
-                risk_policy,
-                instrument_mode,
-                active_strategy,
-                fee,
-                selection,
-                forced_sell,
-                trade_time_iso=trade_time_iso,
-            )
-        except RuntimeTradeThrottleExceededError:
-            break
-        executed += 1
-
-    return executed

@@ -19,6 +19,7 @@ from trading.models.orders.broker_order import OrderFill, OrderStatus
 from trading.models.execution.book_trade_candidate import BookTradeCandidate
 from trading.services.auto_trading.runtime import run_for_account
 import trading.services.auto_trading.runtime as runtime_service
+from trading.services.operational_settings import set_runtime_throttle_settings
 from tests.src.trading.services.auto_trading.factories import FakeBroker, make_feature_fetchers
 from tests.support.repositories import insert_repository_account
 from tests.support.books import insert_test_book
@@ -84,11 +85,6 @@ def _patch_runtime_sleeve_execution(
 ) -> None:
     monkeypatch.setattr(runtime_service, "_is_runtime_submission_window_open", lambda _now: True)
     monkeypatch.setattr(runtime_service, "utc_now_iso", lambda: now_iso)
-    monkeypatch.setattr(
-        runtime_service,
-        "_rotate_runtime_account",
-        lambda _conn, _account_name, account_row, _now_iso, **_kwargs: account_row,
-    )
 
 
 def _patch_reconciliation_clean(monkeypatch) -> None:
@@ -129,7 +125,6 @@ def test_run_for_account_sleeve_mode_applies_rotation_before_intent_generation(
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=Mock(),
         feature_fetchers=make_feature_fetchers(),
     )
@@ -179,7 +174,6 @@ def test_run_for_account_sleeve_mode_respects_rotation_cooldown(rotation_book_en
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=Mock(),
         feature_fetchers=make_feature_fetchers(),
     )
@@ -211,7 +205,6 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(book_env, conn,
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -272,6 +265,55 @@ def test_run_for_account_sleeve_mode_submits_and_persists_orders(book_env, conn,
     broker.disconnect.assert_called_once()
 
 
+def test_run_for_account_trade_throttle_blocks_submission(book_env, conn, monkeypatch) -> None:
+    # The global trade throttle (operational settings) gates the book path:
+    # a hit day cap blocks submission and records a risk decision.
+    account_name = book_env.account_name
+    account_id = book_env.account_id
+    book_id = book_env.book_id
+    broker = FakeBroker()
+
+    set_runtime_throttle_settings(
+        conn,
+        runtime_max_trades_per_day=1,
+        runtime_max_trades_per_minute=None,
+        updated_at=DEFAULT_RUNTIME_NOW_ISO,
+    )
+    conn.execute(
+        """
+        INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, DEFAULT_RUNTIME_NOW_ISO, "existing"),
+    )
+    conn.commit()
+
+    _patch_runtime_sleeve_execution(monkeypatch)
+    _patch_reconciliation_clean(monkeypatch)
+    _patch_single_buy_intent(monkeypatch, conn, account_id=account_id, book_id=book_id)
+
+    executed = run_for_account(
+        conn,
+        account_name=account_name,
+        universe=["AAPL"],
+        prices={"AAPL": 100.0},
+        iv_rank_proxy={},
+        max_trades=1,
+        fee=0.0,
+        broker_factory=lambda _, b=broker: b,
+        feature_fetchers=make_feature_fetchers(),
+    )
+
+    assert executed == 0
+    broker.place_order.assert_not_called()
+    broker.disconnect.assert_called_once()
+    throttle_rows = conn.execute(
+        "SELECT reason_code FROM risk_decisions WHERE account_id = ? AND action = 'block'",
+        (account_id,),
+    ).fetchall()
+    assert any(row["reason_code"] == "trade_throttle_exceeded" for row in throttle_rows)
+
+
 def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(book_env, conn, monkeypatch) -> None:
     account_name = book_env.account_name
     account_id = book_env.account_id
@@ -290,7 +332,6 @@ def test_run_for_account_sleeve_mode_applies_risk_rescale_before_submit(book_env
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -339,7 +380,6 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_price_blocks_submission(b
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -387,7 +427,6 @@ def test_run_for_account_sleeve_mode_kill_switch_reconciliation_mismatch(book_en
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -445,7 +484,6 @@ def test_run_for_account_sleeve_mode_kill_switch_broker_anomaly(book_env, conn, 
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -508,7 +546,6 @@ def test_run_for_account_sleeve_mode_kill_switch_stale_reconciliation_snapshot(c
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -545,7 +582,6 @@ def test_run_for_account_sleeve_mode_kill_switch_when_reconciliation_snapshot_mi
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -594,7 +630,6 @@ def test_run_for_account_sleeve_mode_submitted_order_with_no_broker_id_skips_bro
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )
@@ -645,7 +680,6 @@ def test_run_for_account_sleeve_mode_persists_broker_fills_when_present(book_env
         iv_rank_proxy={},
         max_trades=1,
         fee=0.0,
-        execution_mode="book",
         broker_factory=lambda _, b=broker: b,
         feature_fetchers=make_feature_fetchers(),
     )

@@ -139,7 +139,6 @@ def make_run_auto_trades_args(**overrides):
         "accounts": "acct1",
         "tickers_file": "src/infrastructure/config/trade_universe.txt",
         "fee": 0.0,
-        "execution_mode": "account",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)

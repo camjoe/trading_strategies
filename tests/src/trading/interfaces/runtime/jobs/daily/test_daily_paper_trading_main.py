@@ -134,7 +134,8 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     assert "--rolling-window-days" in calls[0][1]
 
 
-def test_auto_trader_runs_in_book_execution_mode(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_auto_trader_argv_has_no_execution_mode_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # The execution-mode collapse (ADR 014): one path, no flag.
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -145,9 +146,7 @@ def test_auto_trader_runs_in_book_execution_mode(monkeypatch, tmp_path: Path, _r
     assert code == 0
     auto_trader_calls = [args for label, args in _runtime_harness.stream_calls if label.startswith("Auto Trader")]
     assert len(auto_trader_calls) == 1
-    args = auto_trader_calls[0]
-    mode_index = args.index("--execution-mode")
-    assert args[mode_index + 1] == "book"
+    assert "--execution-mode" not in auto_trader_calls[0]
 
 
 def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

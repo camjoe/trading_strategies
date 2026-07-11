@@ -89,34 +89,6 @@ class AccountRepository:
         )
         self._conn.commit()
 
-    def update_rotation_state(
-        self,
-        *,
-        account_id: int,
-        strategy: str,
-        rotation_active_index: int,
-        rotation_active_strategy: str,
-        rotation_last_at: str,
-    ) -> None:
-        self._conn.execute(
-            """
-            UPDATE accounts
-            SET strategy = ?,
-                rotation_active_index = ?,
-                rotation_active_strategy = ?,
-                rotation_last_at = ?
-            WHERE id = ?
-            """,
-            (
-                strategy,
-                rotation_active_index,
-                rotation_active_strategy,
-                rotation_last_at,
-                account_id,
-            ),
-        )
-        self._conn.commit()
-
     def update_benchmark(self, *, account_id: int, benchmark_ticker: str) -> None:
         self._conn.execute(
             "UPDATE accounts SET benchmark_ticker = ? WHERE id = ?",

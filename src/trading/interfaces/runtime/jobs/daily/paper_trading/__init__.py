@@ -51,7 +51,6 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     write_artifact,
 )
 from trading.interfaces.runtime.notifications import notify_runtime_event
-from trading.services.auto_trading import EXECUTION_MODE_BOOK
 
 REPO_ROOT = get_repo_root(__file__)
 LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
@@ -185,8 +184,6 @@ def run_auto_trader_group(
         str(max_trades),
         "--fee",
         str(fee),
-        "--execution-mode",
-        EXECUTION_MODE_BOOK,
     ]
     if seed is not None:
         auto_trader_args.extend(["--seed", str(seed)])

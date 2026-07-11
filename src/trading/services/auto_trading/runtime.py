@@ -20,31 +20,20 @@ from trading.models.orders.broker_order import BrokerOrder, OrderFill
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.market_hours import is_regular_us_equity_market_open
+from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.services.accounts import get_account
 from trading.services.accounting import record_trade
+from trading.services.operational_settings import enforce_runtime_trade_throttles
 from trading.services.universe import resolve_named_universes
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
-from trading.repositories.accounts import AccountRepository
-from trading.domain.rotation import (
-    is_rotation_due,
-)
 from trading.services.auto_trading.execution import (
     FeatureHistoryFn,
     build_feature_history_fn,
-    record_prepared_trade as record_prepared_trade_impl,
-    refresh_account_state as refresh_account_state_impl,
-    run_for_account as run_for_account_impl,
-)
-from trading.services.auto_trading.inputs import (
-    EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_BOOK,
-    validate_execution_mode,
 )
 from trading.services.auto_trading.runtime_reconciliation import (
     reconcile_open_orders_impl,
     resolve_reconciliation_exec_id,
 )
-from trading.services.auto_trading.runtime_rotation import rotate_runtime_account
 from trading.services.market_data import MarketDataProvider
 from trading.services.auto_trading.runtime_book_risk import (
     persist_book_risk_snapshot,
@@ -62,7 +51,6 @@ from trading.services.books.rotation import (
 from trading.services.books.challenger_evaluation import build_book_challenger_evaluations
 from trading.repositories.positions import PositionRepository
 from trading.repositories.books import BookRepository
-from trading.repositories.book_bridge import default_book_id
 from trading.models.execution.book_trade_intent import BookTradeIntent
 from trading.services.execution.submission import submit_book_intents
 from trading.services.execution.gate import AllowAllGate
@@ -86,119 +74,8 @@ KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
 # Maximum allowed age for account snapshot freshness validation (seconds).
 MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
 
-
-def _rotate_runtime_account(
-    conn: sqlite3.Connection,
-    account_name: str,
-    account: AccountRecord,
-    now_iso: str,
-) -> AccountRecord:
-    return rotate_runtime_account(
-        conn,
-        account_name,
-        account,
-        now_iso,
-        is_rotation_due_fn=is_rotation_due,
-        update_account_rotation_state_fn=AccountRepository(conn).update_rotation_state,
-        get_account_fn=get_account,
-    )
-
-
-def _refresh_runtime_account_state(conn: sqlite3.Connection, account: AccountRecord):
-    return refresh_account_state_impl(conn, account)
-
-
-def _record_runtime_trade(
-    conn: sqlite3.Connection,
-    account_name: str,
-    account: AccountRecord,
-    learning_enabled: bool,
-    risk_policy: str,
-    instrument_mode: str,
-    active_strategy: str | None,
-    fee: float,
-    selection,
-    forced_sell: str | None,
-    trade_time_iso: str | None = None,
-    *,
-    _injected_broker: BrokerConnection | None = None,
-    _prices: dict[str, float],
-    _snapshot_time: str,
-) -> None:
-    # The caller always supplies the broker and owns the disconnect lifecycle.
-    broker = _injected_broker
-    assert broker is not None, "_record_runtime_trade requires an injected broker"
-    account_id = row_expect_int(account, "id")
-
-    def _book_submit_record_trade(
-        conn: sqlite3.Connection,
-        *,
-        account_name: str,
-        side: str,
-        ticker: str,
-        qty: float,
-        price: float,
-        fee: float,
-        trade_time: str,
-        note: str | None,
-    ) -> None:
-        # Account mode is the account's single default book. Submit through the shared
-        # execution service (writes the clean orders/fills/positions/ledger + book
-        # balances) instead of the legacy broker_orders + record_trade path.
-        book_id = default_book_id(conn, account_id)
-        intent = BookTradeIntent(
-            book_id=book_id,
-            account_id=account_id,
-            strategy_id=None,
-            symbol=ticker,
-            side=side,
-            qty=float(qty),
-            requested_price=float(price),
-        )
-        # Reconciliation ran once pre-flight (see run_for_account); the per-trade gate
-        # keeps only the stale-price + notional-cap checks.
-        gate = BookPreSubmitGate(prices=_prices, snapshot_time=_snapshot_time, reconcile=False)
-
-        def _bridge_to_account_ledger(_intent: BookTradeIntent, _order_id: int, placed: BrokerOrder) -> None:
-            # Keep the legacy account ledger (trades) in sync so account_report /
-            # snapshots stay aligned with the book path until 2c fully retires it.
-            record_trade(
-                conn,
-                account_name=account_name,
-                side=side,
-                ticker=ticker,
-                qty=float(placed.filled_qty) if placed.filled_qty > 0 else float(qty),
-                price=placed.avg_fill_price if placed.avg_fill_price is not None else price,
-                fee=fee,
-                trade_time=trade_time,
-                note=note,
-            )
-
-        submit_book_intents(
-            conn,
-            book_id=book_id,
-            account_id=account_id,
-            intents=[intent],
-            broker=broker,
-            gate=gate,
-            fee=fee,
-            on_fill=_bridge_to_account_ledger,
-        )
-
-    record_prepared_trade_impl(
-        conn,
-        account_name,
-        account,
-        learning_enabled,
-        risk_policy,
-        instrument_mode,
-        active_strategy,
-        fee,
-        selection,
-        forced_sell,
-        record_trade_fn=_book_submit_record_trade,
-        trade_time_iso=trade_time_iso,
-    )
+# Risk-decision reason when the global trade throttle blocks further submissions.
+RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"
 
 
 def _is_runtime_submission_window_open(now_iso: str) -> bool:
@@ -335,7 +212,7 @@ def _persist_book_run_audit(
     )
 
 
-def _run_multi_book_mode_for_account(
+def _run_books_for_account(
     conn: sqlite3.Connection,
     *,
     account_name: str,
@@ -395,7 +272,7 @@ def _run_multi_book_mode_for_account(
         sleeve_by_book[sleeve_intent.book_id] = sleeve_intent
 
     # Pre-flight: NAV-mark books, then run the equity reconciliation kill switch once
-    # for the run (consistent with account mode — reconciliation is per-run, not
+    # for the run (reconciliation is per-run, not
     # per-book). The batch gate then applies the notional caps + stale-price across all
     # books with reconcile=False, so cross-book exposure caps are enforced together.
     mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=snapshot_time)
@@ -441,6 +318,20 @@ def _run_multi_book_mode_for_account(
         submitted_count = 0
         for book_id, book_intents_for_book in approved_by_book.items():
             sleeve = sleeve_by_book[book_id]
+
+            # The global trade throttle (operational settings) applies across
+            # the whole run: once exceeded, no further books submit.
+            try:
+                enforce_runtime_trade_throttles(conn, trade_time_iso=utc_now_iso())
+            except RuntimeTradeThrottleExceededError:
+                risk_decisions.append(
+                    {
+                        "action": "block",
+                        "reason_code": RISK_REASON_TRADE_THROTTLE_EXCEEDED,
+                        "book_id": sleeve.book_id,
+                    }
+                )
+                break
 
             def _bridge_to_account_ledger(
                 intent: BookTradeIntent, _order_id: int, placed: BrokerOrder, _sleeve: BookTradeCandidate = sleeve
@@ -507,83 +398,36 @@ def run_for_account(
     iv_rank_proxy: dict[str, float],
     max_trades: int,
     fee: float,
-    execution_mode: str = EXECUTION_MODE_ACCOUNT,
     *,
     histories: Mapping[str, pd.Series] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
 ) -> int:
+    """Run the account's trading books (the one execution path, ADR 014).
+
+    Every active, openly assigned book — the default book included — trades
+    through the book flow. Books without an open assignment do not trade.
+    """
     now_iso = utc_now_iso()
     if not _is_runtime_submission_window_open(now_iso):
         return 0
-    resolved_execution_mode = validate_execution_mode(execution_mode)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
-    if resolved_execution_mode == EXECUTION_MODE_BOOK:
-        # Sleeve rotation is per-book (each sleeve's own champion/challenger inside
-        # _run_multi_book_mode_for_account). The account-level rotation only maintained a
-        # fallback strategy for unassigned sleeves, which are now simply not traded —
-        # every book must carry its own assignment or it does not trade.
-        account = get_account(conn, account_name)
-        return _run_multi_book_mode_for_account(
-            conn,
-            account_name=account_name,
-            account=account,
-            universe=universe,
-            prices=prices,
-            iv_rank_proxy=iv_rank_proxy,
-            max_trades=max_trades,
-            fee=fee,
-            broker_factory=broker_factory,
-            feature_fetchers=feature_fetchers,
-            histories=histories,
-            feature_history_fn=feature_history_fn,
-        )
-    # Open one broker connection for the entire account trade loop so that
-    # keepalive (e.g. IBKR Web API /tickle) remains effective across all
-    # trades in the run.  Broker settings (broker_type, live_trading_enabled)
-    # are stable within a single run — rotation updates strategy, not broker
-    # config — so it is safe to resolve the broker from the initial account row.
-    bootstrap_account = get_account(conn, account_name)
-    effective_universe = _resolve_account_universe(bootstrap_account, universe)
-    account_id = row_expect_int(bootstrap_account, "id")
-
-    # Pre-flight (once per run): NAV-mark the account's books to market, then run the
-    # equity reconciliation kill switch. It is a per-run check, not per-trade — after a
-    # fill, book equity drifts from the snapshot by the fee, so the per-trade gate skips
-    # it (reconcile=False). A mismatch holds the whole run.
-    mark_account_to_market(conn, account_id=account_id, prices=prices, as_of=now_iso)
-    reconciliation_reasons = reconcile_book_equity(conn, account_id=account_id, now_iso=now_iso)
-    if reconciliation_reasons:
-        logger.warning(
-            "Account %s pre-submit reconciliation kill switch: %s; holding the run.",
-            account_name,
-            ", ".join(reconciliation_reasons),
-        )
-        return 0
-
-    broker = broker_factory(bootstrap_account)
-    try:
-        return run_for_account_impl(
-            conn,
-            account_name,
-            effective_universe,
-            prices,
-            iv_rank_proxy,
-            max_trades,
-            fee,
-            histories=histories,
-            feature_history_fn=feature_history_fn,
-            get_account_fn=get_account,
-            utc_now_iso_fn=utc_now_iso,
-            rotate_account_if_due_fn=lambda c, n, a, i: _rotate_runtime_account(c, n, a, i),
-            record_prepared_trade_fn=lambda *args, **kwargs: _record_runtime_trade(
-                *args, **kwargs, _injected_broker=broker, _prices=prices, _snapshot_time=now_iso
-            ),
-            is_submission_window_open_fn=_is_runtime_submission_window_open,
-        )
-    finally:
-        broker.disconnect()
+    account = get_account(conn, account_name)
+    return _run_books_for_account(
+        conn,
+        account_name=account_name,
+        account=account,
+        universe=universe,
+        prices=prices,
+        iv_rank_proxy=iv_rank_proxy,
+        max_trades=max_trades,
+        fee=fee,
+        broker_factory=broker_factory,
+        feature_fetchers=feature_fetchers,
+        histories=histories,
+        feature_history_fn=feature_history_fn,
+    )
 
 
 def reconcile_open_broker_orders(

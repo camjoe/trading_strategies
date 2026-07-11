@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Mapping
 
 from common.coercion import coerce_int
-from common.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 from common.time import parse_utc_iso
 
 if TYPE_CHECKING:
@@ -86,22 +85,6 @@ def _rotation_schedule(account: Mapping[str, object]) -> list[str]:
     return parse_rotation_schedule(_account_field(account, "rotation_schedule"))
 
 
-def _rotation_last_at(account: Mapping[str, object]) -> datetime | None:
-    return _parse_iso(_account_text(account, "rotation_last_at"))
-
-
-def _rotation_interval_seconds(account: Mapping[str, object]) -> int:
-    interval_minutes = _coerce_default_int(_account_field(account, "rotation_interval_minutes"), default=0)
-    if interval_minutes > 0:
-        return interval_minutes * SECONDS_PER_MINUTE
-
-    interval_days = _coerce_default_int(_account_field(account, "rotation_interval_days"), default=0)
-    if interval_days > 0:
-        return interval_days * SECONDS_PER_DAY
-
-    return 0
-
-
 def parse_rotation_schedule(raw_value: object | None) -> list[str]:
     return _parse_unique_string_list(
         raw_value,
@@ -138,28 +121,3 @@ def resolve_active_strategy(account: Mapping[str, object]) -> str:
 
     idx = _coerce_default_int(_account_field(account, "rotation_active_index"), default=0)
     return schedule[idx % len(schedule)]
-
-
-def is_rotation_due(account: Mapping[str, object], *, as_of_iso: str) -> bool:
-    rotation_enabled = bool(_coerce_default_int(_account_field(account, "rotation_enabled"), default=0))
-    if not rotation_enabled:
-        return False
-
-    schedule = _rotation_schedule(account)
-    if len(schedule) < 2:
-        return False
-
-    interval_seconds = _rotation_interval_seconds(account)
-    if interval_seconds <= 0:
-        return False
-
-    now = _parse_iso(as_of_iso)
-    if now is None:
-        raise ValueError("as_of_iso must be a valid ISO datetime.")
-
-    last_rotation = _rotation_last_at(account)
-    if last_rotation is None:
-        return True
-
-    elapsed_seconds = (now - last_rotation).total_seconds()
-    return elapsed_seconds >= interval_seconds

@@ -1,10 +1,9 @@
-"""Rotation strategy-metrics builder (paradigm-neutral).
+"""Rotation strategy-metrics builder.
 
 Builds a strategy's rotation metrics from the canonical evaluation artifact's
-decision score. This is the shared per-strategy scoring core used by both candidate
-enumerators — the book-keyed ``build_book_rotation_candidates`` (an account's default
-book) and the sleeve ``build_book_challenger_evaluations`` (sleeve books) — so every
-incumbent and challenger is scored apples-to-apples through one source.
+decision score. This is the per-strategy scoring core behind
+``build_book_challenger_evaluations``, so every incumbent and challenger is
+scored apples-to-apples through one source.
 """
 
 from __future__ import annotations

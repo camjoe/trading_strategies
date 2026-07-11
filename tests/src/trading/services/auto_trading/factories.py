@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping
 from unittest.mock import Mock
 
-import trading.services.auto_trading.execution as execution_service
 from trading.domain.feature_provider import ExternalFeatureBundle, FeatureFetcherSet
 from trading.models.accounts.account_state import AccountState
 from trading.models.orders.broker_order import OrderStatus
@@ -96,77 +94,10 @@ def make_account_state(
     )
 
 
-@dataclass
-class RuntimeScenario:
-    account: object
-    state: object
-    prepared_selection: object | Sequence[object] = ("buy", "AAPL", 1, 100.0, None, None)
-    now_values: Sequence[str] = field(default_factory=lambda: [MARKET_OPEN_TIME_ISO])
-    rotated_account: object | None = None
-    broker: FakeBroker = field(default_factory=FakeBroker)
-    trade_recorder: Mock = field(default_factory=Mock)
-    window_open_fn: Callable[[str], bool] = field(default=lambda _now: True)
-    forced_sell_ticker: str | None = None
-
-    def install(self, monkeypatch, runtime_module) -> None:
-        times = list(self.now_values)
-        if not times:
-            times = [MARKET_OPEN_TIME_ISO]
-
-        def _next_time() -> str:
-            if len(times) > 1:
-                return times.pop(0)
-            return times[0]
-
-        selections = self.prepared_selection
-        if isinstance(selections, Sequence) and selections and isinstance(selections[0], tuple):
-            selection_values = list(selections)
-
-            def _prepare_selection(*_args, **_kwargs):
-                if not selection_values:
-                    return None
-                next_selection = selection_values.pop(0)
-                return next_selection
-        else:
-
-            def _prepare_selection(*_args, **_kwargs):
-                return selections
-
-        monkeypatch.setattr(runtime_module, "get_account", Mock(return_value=self.account))
-        monkeypatch.setattr(runtime_module, "_is_runtime_submission_window_open", self.window_open_fn)
-        monkeypatch.setattr(runtime_module, "utc_now_iso", Mock(side_effect=_next_time))
-        monkeypatch.setattr(
-            runtime_module,
-            "_rotate_runtime_account",
-            Mock(return_value=self.rotated_account or self.account),
-        )
-        monkeypatch.setattr(
-            execution_service,
-            "refresh_account_state",
-            Mock(return_value=self.state),
-        )
-        monkeypatch.setattr(
-            execution_service,
-            "prepare_trade_selection",
-            Mock(side_effect=_prepare_selection),
-        )
-        monkeypatch.setattr(
-            execution_service.auto_trader_policy,
-            "choose_sell_ticker_by_risk",
-            Mock(return_value=self.forced_sell_ticker),
-        )
-        # Account-mode pre-flight (NAV mark + equity reconciliation) is DB-backed; these
-        # orchestration scenarios use a fake conn and mock the recorder, so stub it clean.
-        monkeypatch.setattr(runtime_module, "mark_account_to_market", Mock())
-        monkeypatch.setattr(runtime_module, "reconcile_book_equity", Mock(return_value=[]))
-        monkeypatch.setattr(runtime_module, "_record_runtime_trade", self.trade_recorder)
-
-
 __all__ = [
     "FakeBroker",
     "MARKET_CLOSED_TIME_ISO",
     "MARKET_OPEN_TIME_ISO",
-    "RuntimeScenario",
     "make_account_state",
     "make_auto_trading_account",
     "make_feature_bundle",
