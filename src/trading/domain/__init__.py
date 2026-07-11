@@ -15,7 +15,6 @@ from trading.domain.returns import safe_return_pct
 from trading.domain.rotation import (
     dump_rotation_schedule,
     parse_rotation_schedule,
-    resolve_active_strategy,
 )
 from trading.domain.book_accounting import (
     apply_book_fill_transition,
@@ -37,7 +36,6 @@ __all__ = [
     "safe_return_pct",
     "dump_rotation_schedule",
     "parse_rotation_schedule",
-    "resolve_active_strategy",
     "apply_book_fill_transition",
     "compute_sleeve_equity",
     "normalize_sleeve_order_input",

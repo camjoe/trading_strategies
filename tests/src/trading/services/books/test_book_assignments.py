@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from trading.repositories.book_assignments import BookAssignmentRepository
 from trading.services.books.book_assignments import (
+    active_strategy_for_account,
     assign_book_strategy,
     enumerate_trading_books,
     list_report_books,
@@ -84,6 +85,18 @@ def test_enumerate_trading_books_skips_unassigned_default_book(conn) -> None:
     default_book_id(conn, account_id)
 
     assert enumerate_trading_books(conn, account_id=account_id) == []
+
+
+def test_active_strategy_for_account_resolves_default_book_assignment(conn) -> None:
+    account_id = insert_repository_account(conn, name="acct_active")
+
+    # No default book yet: read-only fallback, no bootstrap.
+    assert active_strategy_for_account(conn, account_id, fallback=" Trend ") == "Trend"
+    assert conn.execute("SELECT COUNT(*) FROM books WHERE account_id = ?", (account_id,)).fetchone()[0] == 0
+
+    sync_default_book_assignment(conn, account_id=account_id, strategy_name="meanrev", now_iso=NOW)
+
+    assert active_strategy_for_account(conn, account_id, fallback="Trend") == "meanrev"
 
 
 def test_sync_default_book_assignment_opens_and_is_idempotent(conn) -> None:

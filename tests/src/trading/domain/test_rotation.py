@@ -5,9 +5,7 @@ import pytest
 from common.time import as_utc_iso
 import trading.domain.rotation as rotation
 from trading.domain.rotation import (
-    dump_rotation_schedule,
     parse_rotation_schedule,
-    resolve_active_strategy,
 )
 
 
@@ -38,33 +36,6 @@ class TestParseRotationSchedule:
 
     def test_blank_string_returns_empty_schedule(self) -> None:
         assert parse_rotation_schedule("   ") == []
-
-
-class TestResolveActiveStrategy:
-    def test_prefers_strategy_from_rotation_state(self) -> None:
-        account = {
-            "strategy": "trend",
-            "rotation_schedule": '["trend","mean_reversion"]',
-            "rotation_active_index": 1,
-            "rotation_active_strategy": "mean_reversion",
-        }
-
-        assert resolve_active_strategy(account) == "mean_reversion"
-
-    def test_falls_back_to_primary_strategy_without_schedule(self) -> None:
-        account = {"strategy": "trend", "rotation_schedule": None, "rotation_active_strategy": ""}
-
-        assert resolve_active_strategy(account) == "trend"
-
-    def test_uses_modulo_index_when_active_strategy_mismatch(self) -> None:
-        account = {
-            "strategy": "trend",
-            "rotation_schedule": dump_rotation_schedule(["trend", "mean_reversion"]),
-            "rotation_active_strategy": "unknown",
-            "rotation_active_index": 3,
-        }
-
-        assert resolve_active_strategy(account) == "mean_reversion"
 
 
 class TestRotationTimeAndGuardrails:

@@ -88,16 +88,17 @@ def test_account_report_prints_unavailable_benchmark_and_leaps_fields(
 
 
 def test_account_report_shows_rotation_active_strategy(conn, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    # The active strategy is the default book's open assignment (ADR 014).
+    from trading.services.books.book_assignments import sync_default_book_assignment
+
     create_account(conn, "acct_rot", "Trend", 1000.0, "SPY")
-    conn.execute(
-        """
-        UPDATE accounts
-        SET rotation_enabled = 1,
-            rotation_active_strategy = 'mean_reversion'
-        WHERE name = 'acct_rot'
-        """
+    account = get_account(conn, "acct_rot")
+    sync_default_book_assignment(
+        conn,
+        account_id=account["id"],
+        strategy_name="mean_reversion",
+        now_iso="2026-01-01T00:00:00Z",
     )
-    conn.commit()
 
     monkeypatch.setattr("trading.services.reporting.portfolio.fetch_latest_prices", lambda _tickers, **_kwargs: {})
     monkeypatch.setattr(

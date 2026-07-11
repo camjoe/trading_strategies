@@ -30,7 +30,12 @@ def test_execution_service_rejects_short_history() -> None:
         execution_service.run_backtest(
             conn=object(),
             cfg=cfg,
-            get_account_fn=lambda _conn, _name: {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0},
+            get_account_fn=lambda _conn, _name: {
+                "benchmark_ticker": "SPY",
+                "id": 1,
+                "initial_cash": 1000.0,
+                "strategy": "trend",
+            },
             resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
             warnings_for_config_fn=lambda _account, _allow: [],
             resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
@@ -49,7 +54,9 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
     idx = pd.date_range("2026-01-01", periods=3, freq="B")
 
     with (
-        patch.object(execution_service, "resolve_active_strategy", lambda _account: "trend"),
+        patch.object(
+            execution_service, "active_strategy_for_account", lambda _conn, _account_id, *, fallback: "trend"
+        ),
         patch.object(
             execution_service,
             "resolve_strategy",
@@ -69,7 +76,12 @@ def test_execution_service_returns_result_for_hold_only_run() -> None:
         result = execution_service.run_backtest(
             conn=SimpleNamespace(commit=lambda: None),
             cfg=cfg,
-            get_account_fn=lambda _conn, _name: {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0},
+            get_account_fn=lambda _conn, _name: {
+                "benchmark_ticker": "SPY",
+                "id": 1,
+                "initial_cash": 1000.0,
+                "strategy": "trend",
+            },
             resolve_backtest_dates_fn=lambda _s, _e, _l: (date(2026, 1, 1), date(2026, 1, 3)),
             warnings_for_config_fn=lambda _account, _allow: ["w1"],
             resolve_universe_fn=lambda _cfg, _start, _end: (["AAPL"], {"2026-01": ["AAPL"]}, ["AAPL"], []),
@@ -119,7 +131,7 @@ def _patched_run_backtest(
 ):
     """Run a minimal backtest with all I/O patched; returns BacktestResult."""
     if account is None:
-        account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0}
+        account = {"benchmark_ticker": "SPY", "id": 1, "initial_cash": 1000.0, "strategy": "trend"}
     kwargs = dict(
         conn=SimpleNamespace(commit=lambda: None),
         cfg=_base_cfg(),
@@ -137,7 +149,9 @@ def _patched_run_backtest(
         kwargs["choose_buy_qty_fn"] = choose_buy_qty_fn
 
     with (
-        patch.object(execution_service, "resolve_active_strategy", lambda _account: "trend"),
+        patch.object(
+            execution_service, "active_strategy_for_account", lambda _conn, _account_id, *, fallback: "trend"
+        ),
         patch.object(
             execution_service,
             "resolve_strategy",

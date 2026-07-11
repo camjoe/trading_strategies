@@ -2,32 +2,12 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Mapping
+from typing import TYPE_CHECKING, Callable
 
-from common.coercion import coerce_int
 from common.time import parse_utc_iso
 
 if TYPE_CHECKING:
     from trading.models.rotation.rotation_config import RotationConfig
-
-
-def _account_field(account: Mapping[str, object], key: str) -> object | None:
-    """Safely read an account field from either dict-like rows or mappings."""
-    if hasattr(account, "get"):
-        return account.get(key)
-    try:
-        return account[key]
-    except KeyError, TypeError:
-        return None
-
-
-def _account_text(account: Mapping[str, object], key: str) -> str:
-    return str(_account_field(account, key) or "").strip()
-
-
-def _coerce_default_int(value: object | None, default: int = 0) -> int:
-    converted = coerce_int(value)
-    return default if converted is None else converted
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -81,10 +61,6 @@ def _parse_unique_string_list(
     return items
 
 
-def _rotation_schedule(account: Mapping[str, object]) -> list[str]:
-    return parse_rotation_schedule(_account_field(account, "rotation_schedule"))
-
-
 def parse_rotation_schedule(raw_value: object | None) -> list[str]:
     return _parse_unique_string_list(
         raw_value,
@@ -106,18 +82,3 @@ def rotation_config_to_db_dict(cfg: RotationConfig) -> dict[str, object]:
     values = cfg.to_db_dict()
     values["rotation_schedule"] = dump_rotation_schedule(cfg.schedule) if cfg.schedule else None
     return values
-
-
-def resolve_active_strategy(account: Mapping[str, object]) -> str:
-    fallback = _account_text(account, "strategy")
-    schedule = _rotation_schedule(account)
-    if not schedule:
-        active = _account_text(account, "rotation_active_strategy")
-        return active or fallback
-
-    active = _account_text(account, "rotation_active_strategy")
-    if active and active in schedule:
-        return active
-
-    idx = _coerce_default_int(_account_field(account, "rotation_active_index"), default=0)
-    return schedule[idx % len(schedule)]

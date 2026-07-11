@@ -81,6 +81,23 @@ def enumerate_trading_books(conn: sqlite3.Connection, *, account_id: int) -> lis
     return trading_books
 
 
+def active_strategy_for_account(conn: sqlite3.Connection, account_id: int, *, fallback: str) -> str:
+    """The strategy the account's default book actually runs.
+
+    Resolves from the default book's open assignment — the record rotation
+    applies to (ADR 014) — falling back to the account's base ``strategy``
+    column when no default book or assignment exists yet. Read-only: it never
+    bootstraps the default book.
+    """
+    book = BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
+    if book is None:
+        return fallback.strip()
+    view = open_assignment_for_book(conn, book_id=book.id)
+    if view is not None:
+        return view.strategy_name
+    return fallback.strip()
+
+
 def sync_default_book_assignment(
     conn: sqlite3.Connection,
     *,
