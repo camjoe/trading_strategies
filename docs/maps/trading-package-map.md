@@ -108,6 +108,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `csv_export.py` | One-off CSV export operation |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
 | `migrate_sleeve_books.py` | One-time sleeve→book mirror migration (SR-6a; dies with the legacy tables in SR-7) |
+| `migrate_book_rotation.py` | One-time book-rotation cutover: sync scheduling onto books + open default-book assignments (ADR 014; delete after every DB is migrated) |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
@@ -140,13 +141,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `analysis/concentration.py` | Cross-account symbol/sector concentration rollup over persisted positions (P9, D10) |
 | `auto_trading/execution.py` | Trade execution orchestration |
 | `auto_trading/inputs.py` | Auto-trading input assembly |
-| `auto_trading/book_rotation.py` | Book-keyed champion/challenger rotation selection for an account's default book (writes `rotation_decisions`) (P4/2b) |
 | `auto_trading/market.py` | Market state helpers |
-| `auto_trading/rotation_bridge.py` | Connects auto-trading to rotation domain logic |
-| `auto_trading/rotation.py` | Rotation decision service |
-| `auto_trading/rotation_candidates.py` | Book-keyed rotation candidate enumeration (incumbent + challengers scored on the decision-score contract) (P4/2b) |
 | `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
-| `auto_trading/runtime_rotation.py` | Runtime rotation execution |
 | `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
 | `evaluation/evidence.py` | Rotation episode evidence assembly |

@@ -19,6 +19,13 @@ The sleeve retirement (SR-1...SR-7) is **code-complete**; one operator step rema
 migration tooling): **[runbooks/sleeve-retirement-db-migration.md](runbooks/sleeve-retirement-db-migration.md)**.
 Fresh DBs need nothing.
 
+### Deploy step pending - book-rotation cutover
+
+The execution-mode collapse (ADR 014) is **code-complete**; one operator step remains when the
+`features/book-owned-rotation-scheduling` branch deploys to a host with an existing DB. Full
+procedure (backup -> run the one-time data-op -> verify -> confirm runtime -> delete the tooling):
+**[runbooks/book-rotation-cutover.md](runbooks/book-rotation-cutover.md)**. Fresh DBs need nothing.
+
 ## Deferred independent work
 
 | Workstream | Why deferred | Trigger to revisit |
@@ -27,7 +34,6 @@ Fresh DBs need nothing.
 | P10 - Adaptive learning | Design-heavy and not yet proven to beat the static decision score | Evidence that a learned layer improves decisions |
 | P11 - Parameter optimization | Requires catalog-backed variants and explicit overfitting guardrails | Demand for systematic parameter sweeps |
 | P12 - Backtest freshness cadence | Policy question, not current implementation pressure | Evidence that stale backtests skew rotation or promotion |
-| Execution-mode collapse | Changes account-mode compatibility semantics after sleeve retirement | Runtime mode handling is next touched |
 
 ## Dropped (do not silently re-add)
 

@@ -18,10 +18,8 @@ work becomes justified.
 | File | Workstream | Revisit when |
 |---|---|---|
 | [plug-and-play-strategy-catalog.md](plug-and-play-strategy-catalog.md) | P6 - plug-and-play strategy catalog | There is concrete demand to add or tune strategy variants without deploys |
-| [adaptive-learning.md](adaptive-learning.md) | P10 - adaptive learning | Evidence shows a learned layer can beat the static decision score |
 | [parameter-optimization.md](parameter-optimization.md) | P11 - parameter optimization | Systematic parameter sweeps become an active need |
 | [backtest-freshness-cadence.md](backtest-freshness-cadence.md) | P12 - backtest freshness cadence | Stale backtests are suspected of skewing rotation or promotion decisions |
-| [execution-mode-collapse.md](execution-mode-collapse.md) | Execution-mode collapse | Runtime mode handling is next touched after sleeve retirement |
 
 ## Usage
 
