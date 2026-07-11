@@ -17,6 +17,26 @@ def float_or_none(raw: str) -> float | None:
     return float(raw)
 
 
+def bool_flag(raw: str) -> bool:
+    """Argparse type for explicit true/false flags."""
+    normalized = raw.strip().lower()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off"}:
+        return False
+    raise argparse.ArgumentTypeError(f"expected true/false, got {raw!r}")
+
+
+def schedule_or_none(raw: str) -> list[str] | None:
+    """Argparse type for a comma-separated strategy list: pass 'none' to clear."""
+    if raw.strip().lower() == "none":
+        return None
+    names = [name.strip() for name in raw.split(",") if name.strip()]
+    if not names:
+        raise argparse.ArgumentTypeError("expected a comma-separated strategy list or 'none'")
+    return names
+
+
 def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p_throttle = sub.add_parser(
         "configure-throttle",
@@ -64,6 +84,34 @@ def add_settings_commands(sub: argparse._SubParsersAction[argparse.ArgumentParse
     p_rotation_policy.add_argument("--drawdown-penalty-weight", type=float_or_none, default=argparse.SUPPRESS)
     p_rotation_policy.add_argument("--cost-penalty-weight", type=float_or_none, default=argparse.SUPPRESS)
     p_rotation_policy.add_argument("--regime-fit-weight", type=float_or_none, default=argparse.SUPPRESS)
+
+    p_rotation = sub.add_parser(
+        "configure-book-rotation",
+        help=(
+            "Edit a book's rotation scheduling (enabled gate, challenger schedule, lookback)."
+            " Omitted flags keep their current values; pass 'none' to clear schedule/lookback."
+        ),
+    )
+    p_rotation.add_argument("--account", required=True, help="Account name")
+    p_rotation.add_argument("--book", default=None, help="Book name (default: the account's default book)")
+    p_rotation.add_argument(
+        "--enabled",
+        type=bool_flag,
+        default=argparse.SUPPRESS,
+        help="Whether the book rotates (true/false)",
+    )
+    p_rotation.add_argument(
+        "--schedule",
+        type=schedule_or_none,
+        default=argparse.SUPPRESS,
+        help="Comma-separated challenger strategy names, or 'none' for incumbent-only",
+    )
+    p_rotation.add_argument(
+        "--lookback-days",
+        type=int_or_none,
+        default=argparse.SUPPRESS,
+        help="Evidence lookback window in days, or 'none' for the code default",
+    )
 
     p_promotion = sub.add_parser(
         "configure-promotion",

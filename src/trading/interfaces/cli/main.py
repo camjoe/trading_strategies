@@ -23,7 +23,11 @@ from trading.services.promotion import (
     show_promotion_status,
 )
 from infrastructure.market_data.factory import build_provider
-from trading.services.parameters import show_parameters, update_book_rotation_policy
+from trading.services.parameters import (
+    show_parameters,
+    update_book_rotation_policy,
+    update_book_rotation_scheduling,
+)
 from trading.services.operational_settings import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
@@ -79,6 +83,7 @@ def _handler_deps() -> dict[str, object]:
         "set_evaluation_confidence_settings": set_evaluation_confidence_settings,
         "set_promotion_policy_settings": set_promotion_policy_settings,
         "update_book_rotation_policy": update_book_rotation_policy,
+        "update_book_rotation_scheduling": update_book_rotation_scheduling,
         "show_portfolio_concentration": show_portfolio_concentration,
         "show_portfolio_exposure": show_portfolio_exposure,
         "show_snapshots": show_snapshots,

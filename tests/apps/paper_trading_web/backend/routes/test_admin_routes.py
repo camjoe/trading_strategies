@@ -29,12 +29,11 @@ class TestAdminRoutes:
                 "tradeSizePct": 12,
                 "maxPositionPct": 24,
                 "instrumentMode": "equity",
-                "rotationEnabled": True,
-                "rotationIntervalDays": 14,
-                "rotationIntervalMinutes": 240,
-                "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
-                "rotationActiveIndex": 0,
-                "rotationActiveStrategy": "trend",
+                "rotation": {
+                    "enabled": True,
+                    "schedule": ["trend", "ma_crossover", "mean_reversion"],
+                    "lookbackDays": 45,
+                },
             },
         )
         assert response.status_code == 200
@@ -44,10 +43,11 @@ class TestAdminRoutes:
         assert payload["account"]["name"] == "acct_admin_create"
         assert payload["account"]["tradeSizePct"] == 12
         assert payload["account"]["maxPositionPct"] == 24
-        assert payload["account"]["rotationEnabled"] is True
-        assert payload["account"]["rotationIntervalDays"] == 14
-        assert payload["account"]["rotationIntervalMinutes"] == 240
-        assert payload["account"]["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
+        assert payload["account"]["rotation"] == {
+            "enabled": True,
+            "schedule": ["trend", "ma_crossover", "mean_reversion"],
+            "lookbackDays": 45,
+        }
 
     def test_admin_delete_requires_confirmation(self, api_client: TestClient) -> None:
         response = api_client.post(

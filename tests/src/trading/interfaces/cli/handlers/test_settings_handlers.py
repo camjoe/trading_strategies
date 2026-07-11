@@ -7,6 +7,7 @@ import pytest
 from trading.services.operational_settings.models import RuntimeThrottleSettings
 from trading.domain.evaluation_confidence import EvaluationConfidenceSettings
 from trading.interfaces.cli.handlers.settings_handlers import (
+    handle_configure_book_rotation,
     handle_configure_book_rotation_policy,
     handle_configure_evaluation,
     handle_configure_promotion,
@@ -115,3 +116,39 @@ def test_global_configure_handlers_require_a_flag(handler) -> None:
     # current effective values (which would pin code defaults into the DB).
     with pytest.raises(SystemExit):
         handler(object(), types.SimpleNamespace(), _parser(), deps={})
+
+
+def test_handle_configure_book_rotation_maps_flags_to_fields(capsys) -> None:
+    calls: dict = {}
+
+    def fake_update(_conn, *, account_name, book_name, updates):
+        calls.update({"account_name": account_name, "book_name": book_name, "updates": dict(updates)})
+        return types.SimpleNamespace(
+            book_id=9,
+            rotation_enabled=1,
+            rotation_schedule='["trend","meanrev"]',
+            rotation_lookback_days=None,
+        )
+
+    handle_configure_book_rotation(
+        object(),
+        types.SimpleNamespace(account="acct1", book=None, enabled=True, schedule=["trend", "meanrev"]),
+        _parser(),
+        deps={"update_book_rotation_scheduling": fake_update},
+    )
+
+    assert calls["account_name"] == "acct1"
+    assert calls["updates"] == {"rotation_enabled": True, "rotation_schedule": ["trend", "meanrev"]}
+    out = capsys.readouterr().out
+    assert "book_id=9" in out
+    assert "rotation_lookback_days=none" in out
+
+
+def test_handle_configure_book_rotation_requires_a_flag() -> None:
+    with pytest.raises(SystemExit):
+        handle_configure_book_rotation(
+            object(),
+            types.SimpleNamespace(account="acct1", book=None),
+            _parser(),
+            deps={},
+        )

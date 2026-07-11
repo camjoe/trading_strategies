@@ -60,3 +60,40 @@ def test_parameters_account_filter_defaults_to_none() -> None:
     args = parser.parse_args(["parameters"])
 
     assert args.account is None
+
+
+def test_configure_book_rotation_parses_typed_flags() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "configure-book-rotation",
+            "--account",
+            "acct1",
+            "--enabled",
+            "true",
+            "--schedule",
+            "trend, meanrev",
+            "--lookback-days",
+            "45",
+        ]
+    )
+    assert args.enabled is True
+    assert args.schedule == ["trend", "meanrev"]
+    assert args.lookback_days == 45
+
+    cleared = parser.parse_args(
+        ["configure-book-rotation", "--account", "acct1", "--schedule", "none", "--lookback-days", "none"]
+    )
+    assert cleared.schedule is None
+    assert cleared.lookback_days is None
+
+
+def test_configure_book_rotation_omitted_flags_are_absent() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(["configure-book-rotation", "--account", "acct1", "--enabled", "false"])
+
+    assert args.enabled is False
+    assert not hasattr(args, "schedule")
+    assert not hasattr(args, "lookback_days")

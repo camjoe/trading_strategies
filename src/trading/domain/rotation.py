@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Callable
 from common.time import parse_utc_iso
 
 if TYPE_CHECKING:
-    from trading.models.rotation.rotation_config import RotationConfig
+    pass
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -71,14 +71,3 @@ def parse_rotation_schedule(raw_value: object | None) -> list[str]:
 
 def dump_rotation_schedule(schedule: list[str]) -> str:
     return json.dumps(schedule, separators=(",", ":"))
-
-
-def rotation_config_to_db_dict(cfg: RotationConfig) -> dict[str, object]:
-    """Finalize ``RotationConfig.to_db_dict()`` for persistence.
-
-    The model owns the field→column mapping; this applies the domain-owned JSON
-    encoding to the list-valued ``rotation_schedule`` column.
-    """
-    values = cfg.to_db_dict()
-    values["rotation_schedule"] = dump_rotation_schedule(cfg.schedule) if cfg.schedule else None
-    return values

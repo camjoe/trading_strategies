@@ -1,7 +1,15 @@
 import pytest
 
+from trading.repositories.book_bridge import default_book_id
+from trading.repositories.book_settings import BookRotationSettingsRepository
 from trading.services.accounts import get_account
 from trading.services.profiles import apply_account_profiles
+
+
+def _rotation_row(conn, account_name: str):
+    account = get_account(conn, account_name)
+    book_id = default_book_id(conn, int(account["id"]))
+    return BookRotationSettingsRepository(conn).fetch(book_id=book_id)
 
 
 class TestApplyAccountProfiles:
@@ -123,123 +131,59 @@ class TestApplyAccountProfiles:
             apply_account_profiles(conn, [{"name": "null_cash", "initial_cash": None}], create_missing=True)
 
 
-class TestApplyRotationFields:
-    def test_created_account(self, conn):
+class TestApplyBookRotationSettings:
+    def test_created_account_writes_default_book_scheduling(self, conn):
         profiles = [
             {
                 "name": "rot_new",
                 "strategy": "trend",
                 "initial_cash": 2500,
-                "rotation_enabled": True,
-                "rotation_interval_days": 7,
-                "rotation_schedule": ["trend", "mean_reversion"],
-                "rotation_active_index": 1,
-                "rotation_last_at": "2026-03-01T00:00:00Z",
+                "rotation": {
+                    "enabled": True,
+                    "schedule": ["trend", "mean_reversion"],
+                    "lookback_days": 45,
+                },
             }
         ]
 
         created, updated, skipped = apply_account_profiles(conn, profiles, create_missing=True)
         assert (created, updated, skipped) == (1, 0, 0)
 
-        account = get_account(conn, "rot_new")
-        assert int(account["rotation_enabled"]) == 1
-        assert int(account["rotation_interval_days"]) == 7
-        assert account["rotation_schedule"] == '["trend","mean_reversion"]'
-        assert int(account["rotation_active_index"]) == 1
-        assert account["rotation_last_at"] == "2026-03-01T00:00:00Z"
-        assert account["rotation_active_strategy"] == "mean_reversion"
+        row = _rotation_row(conn, "rot_new")
+        assert row is not None
+        assert row.rotation_enabled == 1
+        assert row.rotation_schedule == '["trend","mean_reversion"]'
+        assert row.rotation_lookback_days == 45
 
-    def test_existing_account(self, conn):
+    def test_existing_account_partial_update_keeps_other_fields(self, conn):
         apply_account_profiles(
-            conn,
-            [{"name": "rot_upd", "initial_cash": 1000, "strategy": "trend"}],
-            create_missing=True,
-        )
-
-        created, updated, skipped = apply_account_profiles(
             conn,
             [
                 {
                     "name": "rot_upd",
-                    "rotation_enabled": True,
-                    "rotation_interval_days": 14,
-                    "rotation_schedule": ["trend", "breakout", "mean_reversion"],
-                    "rotation_active_strategy": "breakout",
+                    "initial_cash": 1000,
+                    "strategy": "trend",
+                    "rotation": {"enabled": True, "schedule": ["trend", "breakout"], "lookback_days": 60},
                 }
             ],
-            create_missing=False,
-        )
-
-        assert (created, updated, skipped) == (0, 1, 0)
-        account = get_account(conn, "rot_upd")
-        assert int(account["rotation_enabled"]) == 1
-        assert int(account["rotation_interval_days"]) == 14
-        assert account["rotation_schedule"] == '["trend","breakout","mean_reversion"]'
-        assert account["rotation_active_strategy"] == "breakout"
-
-    def test_rotation_fields_applied(self, conn):
-        apply_account_profiles(
-            conn,
-            [{"name": "rot_opt", "initial_cash": 1000, "strategy": "trend"}],
             create_missing=True,
         )
 
         created, updated, skipped = apply_account_profiles(
             conn,
-            [
-                {
-                    "name": "rot_opt",
-                    "rotation_enabled": True,
-                    "rotation_interval_days": 7,
-                    "rotation_schedule": ["trend", "mean_reversion"],
-                    "rotation_lookback_days": 90,
-                }
-            ],
+            [{"name": "rot_upd", "rotation": {"schedule": ["trend", "breakout", "mean_reversion"]}}],
             create_missing=False,
         )
 
         assert (created, updated, skipped) == (0, 1, 0)
-        account = get_account(conn, "rot_opt")
-        assert int(account["rotation_interval_days"]) == 7
-        assert int(account["rotation_lookback_days"]) == 90
-
-    def test_rejects_zero_interval_days(self, conn):
-        with pytest.raises(ValueError, match="rotation_interval_days"):
-            apply_account_profiles(
-                conn,
-                [
-                    {
-                        "name": "bad_rot",
-                        "initial_cash": 1000,
-                        "strategy": "trend",
-                        "rotation_enabled": True,
-                        "rotation_interval_days": 0,
-                    }
-                ],
-                create_missing=True,
-            )
-
-    def test_rejects_active_strategy_not_in_schedule(self, conn):
-        apply_account_profiles(
-            conn,
-            [{"name": "bad_rot2", "initial_cash": 1000, "strategy": "trend"}],
-            create_missing=True,
-        )
-        with pytest.raises(ValueError, match="rotation_active_strategy"):
-            apply_account_profiles(
-                conn,
-                [
-                    {
-                        "name": "bad_rot2",
-                        "rotation_schedule": ["trend", "mean_reversion"],
-                        "rotation_active_strategy": "macd",
-                    }
-                ],
-                create_missing=False,
-            )
+        row = _rotation_row(conn, "rot_upd")
+        assert row is not None
+        assert row.rotation_enabled == 1
+        assert row.rotation_schedule == '["trend","breakout","mean_reversion"]'
+        assert row.rotation_lookback_days == 60
 
     def test_rejects_zero_lookback_days(self, conn):
-        with pytest.raises(ValueError, match="rotation_lookback_days"):
+        with pytest.raises(ValueError, match="rotation.lookback_days"):
             apply_account_profiles(
                 conn,
                 [
@@ -247,67 +191,46 @@ class TestApplyRotationFields:
                         "name": "bad_rot_lookback",
                         "initial_cash": 1000,
                         "strategy": "trend",
-                        "rotation_lookback_days": 0,
+                        "rotation": {"lookback_days": 0},
                     }
                 ],
                 create_missing=True,
             )
 
-    def test_rejects_negative_active_index(self, conn):
-        with pytest.raises(ValueError, match="rotation_active_index"):
-            apply_account_profiles(
-                conn,
-                [
-                    {
-                        "name": "bad_rot_index",
-                        "initial_cash": 1000,
-                        "strategy": "trend",
-                        "rotation_active_index": -1,
-                    }
-                ],
-                create_missing=True,
-            )
-
-    def test_index_normalized_to_schedule_length(self, conn):
+    def test_rejects_unknown_schedule_strategy(self, conn):
         apply_account_profiles(
             conn,
-            [{"name": "rot_mod", "initial_cash": 1000, "strategy": "trend"}],
+            [{"name": "bad_rot2", "initial_cash": 1000, "strategy": "trend"}],
             create_missing=True,
         )
+        with pytest.raises(ValueError, match="rotation.schedule"):
+            apply_account_profiles(
+                conn,
+                [{"name": "bad_rot2", "rotation": {"schedule": ["trend", "mystery_strategy"]}}],
+                create_missing=False,
+            )
 
-        created, updated, skipped = apply_account_profiles(
+    def test_account_columns_stay_untouched(self, conn):
+        # Rotation is book-owned (ADR 014): applying rotation config must not
+        # write the retained account rotation columns.
+        apply_account_profiles(
             conn,
             [
                 {
-                    "name": "rot_mod",
-                    "rotation_schedule": ["trend", "breakout"],
-                    "rotation_active_index": 5,
+                    "name": "rot_cols",
+                    "initial_cash": 1000,
+                    "strategy": "trend",
+                    "rotation": {"enabled": True, "schedule": ["trend", "breakout"]},
                 }
             ],
-            create_missing=False,
-        )
-
-        assert (created, updated, skipped) == (0, 1, 0)
-        account = get_account(conn, "rot_mod")
-        assert int(account["rotation_active_index"]) == 1
-        assert account["rotation_active_strategy"] == "breakout"
-
-    def test_only_active_strategy_updates_field(self, conn):
-        apply_account_profiles(
-            conn,
-            [{"name": "rot_noop", "initial_cash": 1000, "strategy": "trend"}],
             create_missing=True,
         )
 
-        created, updated, skipped = apply_account_profiles(
-            conn,
-            [{"name": "rot_noop", "rotation_active_strategy": "trend"}],
-            create_missing=False,
-        )
-
-        assert (created, updated, skipped) == (0, 1, 0)
-        account = get_account(conn, "rot_noop")
-        assert account["rotation_active_strategy"] == "trend"
+        row = conn.execute(
+            "SELECT rotation_enabled, rotation_schedule FROM accounts WHERE name = 'rot_cols'"
+        ).fetchone()
+        assert not row["rotation_enabled"]
+        assert row["rotation_schedule"] is None
 
     def test_trade_universes_stored_on_create(self, conn) -> None:
         import json

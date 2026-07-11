@@ -140,7 +140,9 @@ export function createAdminAccountsController(
     }
 
     const data = new FormData(form);
-    const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv")) ?? [];
+    const rotationEnabled = data.get("rotationEnabled") === "on";
+    const rotationSchedule = csvListOrUndefined(data.get("rotationScheduleCsv"));
+    const rotationLookbackDays = intOrUndefined(data.get("rotationLookbackDays"));
 
     const payload: AdminCreateAccountPayload = {
       name: strOrUndefined(data.get("name")),
@@ -169,14 +171,11 @@ export function createAdminAccountsController(
       rollDteThreshold: intOrUndefined(data.get("rollDteThreshold")),
       profitTakePct: numOrUndefined(data.get("profitTakePct")),
       maxLossPct: numOrUndefined(data.get("maxLossPct")),
-      rotationEnabled: data.get("rotationEnabled") === "on",
-      rotationIntervalDays: intOrUndefined(data.get("rotationIntervalDays")),
-      rotationIntervalMinutes: intOrUndefined(data.get("rotationIntervalMinutes")),
-      rotationLookbackDays: intOrUndefined(data.get("rotationLookbackDays")),
-      rotationSchedule,
-      rotationActiveIndex: intOrUndefined(data.get("rotationActiveIndex")) ?? 0,
-      rotationLastAt: strOrUndefined(data.get("rotationLastAt")),
-      rotationActiveStrategy: strOrUndefined(data.get("rotationActiveStrategy")),
+      rotation: {
+        enabled: rotationEnabled,
+        schedule: rotationSchedule,
+        lookbackDays: rotationLookbackDays,
+      },
     };
 
     if (!payload.name || !payload.strategy || payload.initialCash === undefined) {

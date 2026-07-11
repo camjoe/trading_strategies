@@ -29,6 +29,7 @@ _EXPECTED_COMMANDS = {
     "configure-throttle",
     "configure-evaluation",
     "configure-promotion",
+    "configure-book-rotation",
     "configure-book-rotation-policy",
     "backtest",
     "backtest-report",

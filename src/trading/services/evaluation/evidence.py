@@ -33,7 +33,6 @@ from trading.models.evaluation import (
 from trading.domain.returns import safe_return_pct
 from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
-from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 
@@ -85,12 +84,9 @@ def _default_book_rotation_enabled(conn: sqlite3.Connection, account_id: int) ->
     strategy churns. Read-only: a missing default book means no rotation.
     """
     # Deferred import: see _active_strategy.
-    from trading.services.books.rotation import resolve_book_rotation_schedule
+    from trading.services.books.rotation import resolve_default_book_rotation_schedule
 
-    book = BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
-    if book is None:
-        return False
-    return resolve_book_rotation_schedule(conn, book_id=book.id).rotation_enabled
+    return resolve_default_book_rotation_schedule(conn, account_id=account_id).rotation_enabled
 
 
 def resolve_requested_strategy(conn: sqlite3.Connection, account: AccountRecord, strategy_name: str | None) -> str:

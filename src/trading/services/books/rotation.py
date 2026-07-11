@@ -14,6 +14,7 @@ from trading.models.rotation.rotation_decision import RotationDecision
 from trading.models.rotation.rotation_score_weights import RotationScoreWeights
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
 
@@ -83,6 +84,18 @@ def resolve_book_rotation_schedule(conn: sqlite3.Connection, *, book_id: int) ->
         schedule=schedule,
         lookback_days=(int(lookback) if lookback is not None and int(lookback) > 0 else DEFAULT_ROLLING_WINDOW_DAYS),
     )
+
+
+def resolve_default_book_rotation_schedule(conn: sqlite3.Connection, *, account_id: int) -> BookRotationScheduleConfig:
+    """The account's default-book rotation scheduling, read-only.
+
+    A missing default book resolves to the untuned code defaults (rotation
+    disabled) — it is never bootstrapped from a read path.
+    """
+    book = BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
+    if book is None:
+        return BookRotationScheduleConfig()
+    return resolve_book_rotation_schedule(conn, book_id=book.id)
 
 
 def resolve_rotation_policy_config(

@@ -7,7 +7,7 @@ from trading.services.accounts import (
     create_account,
 )
 from trading.services.admin import delete_accounts
-from trading.services.profiles import apply_rotation_fields
+from trading.services.profiles import apply_book_rotation_settings
 
 from ..account_contract import AdminCreateAccountCommand
 from .db import db_conn
@@ -41,7 +41,8 @@ def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateA
         )
     except (ValueError, AccountAlreadyExistsError) as error:
         raise ValueError(str(error)) from error
-    apply_rotation_fields(conn, command.name, command.rotation_profile)
+    if command.rotation_settings:
+        apply_book_rotation_settings(conn, command.name, {"rotation": command.rotation_settings})
 
 
 def delete_account_and_dependents(account_name: str) -> dict[str, int]:
