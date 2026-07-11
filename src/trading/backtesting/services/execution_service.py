@@ -17,7 +17,7 @@ from trading.backtesting.domain.simulation_math import (
 )
 from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
-from trading.backtesting.trading_bridge import active_strategy_for_account
+from trading.services.books.book_assignments import active_strategy_for_account
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 

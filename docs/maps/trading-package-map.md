@@ -275,7 +275,6 @@ Self-contained backtest subsystem with its own layered sub-packages.
 | Module | Responsibility |
 |---|---|
 | `backtest.py` | Backtest execution engine |
-| `trading_bridge.py` | Bridge to live trading domain logic |
 | `models.py` | Backtest input/output models |
 | `report_models.py` | Backtest report models |
 | `domain/` | Backtesting-specific domain logic |
