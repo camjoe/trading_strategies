@@ -30,6 +30,7 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
 )
+from trading.domain.backtest_freshness import assess_backtest_freshness
 from trading.domain.returns import safe_return_pct
 from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
@@ -389,6 +390,7 @@ def build_diagnostics(
     backtest: EvaluationBacktestEvidence,
     paper_live: EvaluationPaperLiveEvidence,
     walk_forward: EvaluationWalkForwardEvidence,
+    generated_at: str,
 ) -> EvaluationDiagnostics:
     data_gaps: list[str] = []
     if not backtest.available:
@@ -397,4 +399,8 @@ def build_diagnostics(
         data_gaps.append(PAPER_LIVE_EVIDENCE_GAP)
     if not walk_forward.available:
         data_gaps.append(WALK_FORWARD_EVIDENCE_GAP)
-    return EvaluationDiagnostics(data_gaps=data_gaps)
+    freshness = assess_backtest_freshness(
+        backtest_created_at=backtest.created_at,
+        reference_iso=generated_at,
+    )
+    return EvaluationDiagnostics(data_gaps=data_gaps, backtest_freshness=freshness)

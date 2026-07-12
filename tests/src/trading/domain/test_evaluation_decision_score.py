@@ -98,3 +98,27 @@ def test_null_blended_score_marks_absent_evidence() -> None:
         "missing_backtest_evidence",
         "missing_paper_live_evidence",
     )
+
+
+def test_backtest_freshness_does_not_affect_decision_score() -> None:
+    # Freshness is advisory-only (P12): it must never change the derived score.
+    from dataclasses import replace
+
+    from trading.models.evaluation import BacktestFreshness
+
+    base = _artifact(
+        blended_score=8.0,
+        overall_confidence=0.5,
+        backtest_confidence=0.6,
+        paper_live_confidence=0.4,
+        data_gaps=[],
+    )
+    stale = replace(
+        base,
+        diagnostics=replace(
+            base.diagnostics,
+            backtest_freshness=BacktestFreshness(available=True, age_days=99.0, stale_threshold_days=3, is_stale=True),
+        ),
+    )
+
+    assert derive_decision_score(stale) == derive_decision_score(base)
