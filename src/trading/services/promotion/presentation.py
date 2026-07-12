@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.models.evaluation.backtest_freshness import BacktestFreshness
 from trading.models.promotion import PromotionAssessment
 from trading.services.promotion.helpers import NONE_TEXT, render_bool, render_section
 from trading.services.promotion.assessment import fetch_current_promotion_assessment
@@ -15,6 +16,13 @@ from trading.services.promotion.history import (
     PromotionReviewHistoryEntry,
     fetch_promotion_review_history,
 )
+
+
+def _format_backtest_freshness(freshness: BacktestFreshness | None) -> str:
+    if freshness is None or not freshness.available or freshness.age_days is None:
+        return NONE_TEXT
+    label = "stale" if freshness.is_stale else "fresh"
+    return f"{freshness.age_days:.1f} days ({label})"
 
 
 def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
@@ -28,6 +36,7 @@ def render_promotion_status_lines(assessment: PromotionAssessment) -> list[str]:
         f"Live Trading Enabled: {render_bool(assessment.live_trading_enabled)}",
         f"Overall Confidence: {assessment.overall_confidence:.2f}",
         f"Evaluation Generated At: {assessment.evaluation_generated_at or NONE_TEXT}",
+        f"Backtest Freshness: {_format_backtest_freshness(assessment.backtest_freshness)}",
         "Data Gaps: " + (", ".join(assessment.data_gaps) if assessment.data_gaps else NONE_TEXT),
         f"Next Action: {assessment.next_action}",
     ]

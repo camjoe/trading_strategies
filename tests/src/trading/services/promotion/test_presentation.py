@@ -21,6 +21,23 @@ def test_render_promotion_status_lines_returns_read_only_summary() -> None:
     assert "Stage: paper_observing" in joined
     assert "Data Gaps: missing_paper_live_evidence" in joined
     assert "- Paper evidence is required before manual promotion review." in joined
+    # No backtest freshness on the observing fixture → none (P12 advisory line).
+    assert "Backtest Freshness: none" in joined
+
+
+def test_render_promotion_status_lines_shows_stale_backtest_freshness() -> None:
+    from dataclasses import replace
+
+    from trading.models.evaluation import BacktestFreshness
+
+    assessment = replace(
+        make_observing_assessment(),
+        backtest_freshness=BacktestFreshness(available=True, age_days=6.0, stale_threshold_days=3, is_stale=True),
+    )
+
+    joined = "\n".join(render_promotion_status_lines(assessment))
+
+    assert "Backtest Freshness: 6.0 days (stale)" in joined
 
 
 def test_show_promotion_status_prints_read_only_summary(
