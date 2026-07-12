@@ -146,9 +146,9 @@ backtest-refresh job and the `refresh-stale-backtests` command close the loop by
 stale or missing backtests across each account's rotation candidates.
 
 The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
-and the book-rotation cutover — operator runbooks). The plug-and-play strategy catalog (P6),
-adaptive learning (P10), and parameter optimization (P11) are independent deferred workstreams,
-pursued only when their triggers are met. Details on deferred work live in [status.md](status.md).
+and the book-rotation cutover — operator runbooks). The plug-and-play strategy catalog (P6) and
+parameter optimization (P11) are independent deferred workstreams, pursued only when their triggers
+are met. Details on deferred work live in [status.md](status.md).
 
 ## Guiding constraints
 
