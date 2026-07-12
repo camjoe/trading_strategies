@@ -14,6 +14,7 @@ For a complete schema change, run all four tasks in order unless asked for a spe
 | Task | Use when | Reference |
 |---|---|---|
 | Create migration | Adding a new column or table to the schema | [create-migration.md](create-migration.md) |
+| SQLite table rebuild | Changing FK actions, constraints, or other SQLite schema details that cannot use additive column migrations | [sqlite-table-rebuild.md](sqlite-table-rebuild.md) |
 | Validate migration | Checking a proposed migration for safety and correctness | [validate-migration.md](validate-migration.md) |
 | Estimate risk | Assessing blast radius, index needs, and backtest impact | [estimate-risk.md](estimate-risk.md) |
 | Generate rollback | Planning how to undo a migration safely | [generate-rollback.md](generate-rollback.md) |
@@ -23,6 +24,7 @@ For a complete schema change, run all four tasks in order unless asked for a spe
 - Migrations are **additive and idempotent** — no DROP, no rename, no type changes without an explicit plan.
 - Every `NOT NULL` column **must** have a `DEFAULT`.
 - New migrations are **appended** to the tuple — never reorder deployed migrations.
+- FK action changes require a SQLite table rebuild; use the table-rebuild reference before editing DDL.
 - `post_sql` that updates or deletes existing rows requires explicit human review.
 - Backup required before any destructive data-op.
 
