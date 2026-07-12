@@ -6,23 +6,6 @@ import trading.services.auto_trading.execution as trade_execution_service
 from tests.src.trading.services.auto_trading.factories import make_auto_trading_account
 
 
-def test_resolve_strategy_params_returns_registry_defaults() -> None:
-    account = make_auto_trading_account()
-
-    params = trade_execution_service.resolve_strategy_params(account, "trend")
-
-    assert params == {"fast_window": 10, "slow_window": 20}
-
-
-def test_resolve_strategy_params_returns_a_copy() -> None:
-    account = make_auto_trading_account()
-
-    params = trade_execution_service.resolve_strategy_params(account, "trend")
-    params["fast_window"] = 1
-
-    assert trade_execution_service.resolve_strategy_params(account, "trend")["fast_window"] == 10
-
-
 def test_prepare_buy_trade_equity() -> None:
     state = SimpleNamespace(cash=1000.0)
     choose_buy_qty = Mock(return_value=2)
@@ -347,6 +330,7 @@ def test_prepare_trade_selection_uses_forced_sell_path() -> None:
         selection = trade_execution_service.prepare_trade_selection(
             account=account,
             active_strategy="trend",
+            params={"fast_window": 10, "slow_window": 20},
             state=state,
             forced_sell="AAPL",
             universe=["AAPL"],
@@ -367,6 +351,7 @@ def test_prepare_trade_selection_returns_none_when_nothing_signals() -> None:
     selection = trade_execution_service.prepare_trade_selection(
         account=make_auto_trading_account(),
         active_strategy="trend",
+        params={"fast_window": 10, "slow_window": 20},
         state=state,
         forced_sell=None,
         universe=["AAPL"],
@@ -384,6 +369,7 @@ def test_prepare_trade_selection_buys_on_buy_signal() -> None:
     selection = trade_execution_service.prepare_trade_selection(
         account=make_auto_trading_account(),
         active_strategy="trend",
+        params={"fast_window": 10, "slow_window": 20},
         state=state,
         forced_sell=None,
         universe=["AAPL"],
@@ -405,6 +391,7 @@ def test_prepare_trade_selection_sells_on_sell_signal_for_held_ticker(monkeypatc
     selection = trade_execution_service.prepare_trade_selection(
         account=make_auto_trading_account(),
         active_strategy="trend",
+        params={"fast_window": 10, "slow_window": 20},
         state=state,
         forced_sell=None,
         universe=["AAPL"],
@@ -422,6 +409,7 @@ def test_prepare_trade_selection_unknown_strategy_holds() -> None:
     selection = trade_execution_service.prepare_trade_selection(
         account=make_auto_trading_account(),
         active_strategy="totally_unknown_xyz",
+        params={},
         state=state,
         forced_sell=None,
         universe=["AAPL"],
@@ -450,6 +438,7 @@ def test_prepare_trade_selection_returns_buy_selection_with_estimates() -> None:
         selection = trade_execution_service.prepare_trade_selection(
             account=make_auto_trading_account(),
             active_strategy="trend",
+            params={"fast_window": 10, "slow_window": 20},
             state=SimpleNamespace(positions={}, avg_cost={}, cash=1000.0),
             forced_sell=None,
             universe=["AAPL"],

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from typing import TYPE_CHECKING, Mapping
 
@@ -13,10 +14,16 @@ from trading.models.execution.book_trade_state import BookTradeState
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
+from trading.services.strategy_catalog.resolution import (
+    UnknownCatalogStrategyError,
+    resolve_catalog_params,
+)
 from trading.services.universe import resolve_named_universes
 
 if TYPE_CHECKING:
     from trading.services.auto_trading.execution import FeatureHistoryFn
+
+logger = logging.getLogger(__name__)
 
 
 def _prepare_trade_selection(*args, **kwargs):
@@ -80,6 +87,11 @@ def generate_book_trade_intents(
         book_id = book.id
         strategy_name = trading_book.assignment.strategy_name.strip()
         param_set_id = trading_book.assignment.param_set_id
+        try:
+            strategy_params = resolve_catalog_params(conn, strategy_name)
+        except UnknownCatalogStrategyError:
+            logger.warning("Book %s: strategy %r has no catalog row; skipping (no trades).", book_id, strategy_name)
+            continue
         if book.trade_universes:
             book_universe_names: object = json.loads(book.trade_universes)
             if isinstance(book_universe_names, list) and book_universe_names:
@@ -101,6 +113,7 @@ def generate_book_trade_intents(
         selection = _prepare_trade_selection(
             account,
             strategy_name,
+            strategy_params,
             state,
             forced_sell,
             effective_universe,

@@ -208,7 +208,8 @@ def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_uni
     monkeypatch.setattr(
         sleeve_execution,
         "_prepare_trade_selection",
-        lambda *_args, **_kwargs: captured_universes.append(list(_args[4])) or None,
+        # positional args: (account, strategy_name, params, state, forced_sell, universe, ...)
+        lambda *_args, **_kwargs: captured_universes.append(list(_args[5])) or None,
     )
 
     intents = sleeve_execution.generate_book_trade_intents(
