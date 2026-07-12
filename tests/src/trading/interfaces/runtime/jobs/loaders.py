@@ -69,6 +69,7 @@ def make_daily_backtest_refresh_args(**overrides):
         "enable_run": True,
         "max_attempts": 2,
         "backoff_seconds": 0.0,
+        "stale_threshold_days": 3,
         "tickers_file": "tickers.txt",
         "universe_history_dir": None,
         "start": None,
