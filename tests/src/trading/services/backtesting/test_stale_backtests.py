@@ -28,25 +28,39 @@ def _rotation_account(conn, name: str, *, schedule: list[str], enabled: int = 1)
 
 
 def test_targets_missing_and_stale_across_incumbent_and_challengers(conn: sqlite3.Connection) -> None:
-    account_id = _rotation_account(conn, "acct_stale", schedule=["trend", "meanrev", "breakout"])
-    # trend (incumbent): fresh; meanrev: stale; breakout: no backtest at all.
+    # Backtests are keyed on canonical strategy keys (what run_backtest stores).
+    account_id = _rotation_account(conn, "acct_stale", schedule=["trend", "mean_reversion", "breakout"])
+    # trend (incumbent): fresh; mean_reversion: stale; breakout: no backtest at all.
     _seed_run(conn, account_id=account_id, strategy_name="trend", created_at="2026-03-15T00:00:00Z")
-    _seed_run(conn, account_id=account_id, strategy_name="meanrev", created_at="2026-03-08T00:00:00Z")
+    _seed_run(conn, account_id=account_id, strategy_name="mean_reversion", created_at="2026-03-08T00:00:00Z")
 
     targets = find_stale_backtests(conn, reference_iso=REFERENCE)
 
     by_strategy = {t.strategy_name: t for t in targets}
-    assert set(by_strategy) == {"meanrev", "breakout"}  # trend is fresh → not targeted
-    assert by_strategy["meanrev"].reason == "stale"
-    assert by_strategy["meanrev"].age_days == 8.0
+    assert set(by_strategy) == {"mean_reversion", "breakout"}  # trend is fresh → not targeted
+    assert by_strategy["mean_reversion"].reason == "stale"
+    assert by_strategy["mean_reversion"].age_days == 8.0
     assert by_strategy["breakout"].reason == "missing"
     assert by_strategy["breakout"].age_days is None
     assert all(t.account_name == "acct_stale" and t.account_id == account_id for t in targets)
 
 
+def test_alias_schedule_name_matches_canonical_backtest(conn: sqlite3.Connection) -> None:
+    # A schedule entry can be an alias ("meanrev") whose backtest is stored under
+    # the canonical key ("mean_reversion"). A fresh canonical run must satisfy the
+    # alias — otherwise remediation would re-run it forever.
+    account_id = _rotation_account(conn, "acct_alias", schedule=["trend", "meanrev"])
+    _seed_run(conn, account_id=account_id, strategy_name="trend", created_at="2026-03-15T00:00:00Z")
+    _seed_run(conn, account_id=account_id, strategy_name="mean_reversion", created_at="2026-03-15T00:00:00Z")
+
+    targets = find_stale_backtests(conn, reference_iso=REFERENCE)
+
+    assert targets == []
+
+
 def test_challengers_skipped_when_rotation_disabled(conn: sqlite3.Connection) -> None:
     # Rotation off: only the incumbent's backtest matters.
-    account_id = _rotation_account(conn, "acct_off", schedule=["trend", "meanrev"], enabled=0)
+    _rotation_account(conn, "acct_off", schedule=["trend", "meanrev"], enabled=0)
 
     targets = find_stale_backtests(conn, reference_iso=REFERENCE)
 
@@ -55,9 +69,9 @@ def test_challengers_skipped_when_rotation_disabled(conn: sqlite3.Connection) ->
 
 
 def test_incumbent_in_schedule_is_deduplicated(conn: sqlite3.Connection) -> None:
-    account_id = _rotation_account(conn, "acct_dedup", schedule=["trend", "trend", "meanrev"])
+    account_id = _rotation_account(conn, "acct_dedup", schedule=["trend", "trend", "mean_reversion"])
     _seed_run(conn, account_id=account_id, strategy_name="trend", created_at="2026-03-15T00:00:00Z")
-    _seed_run(conn, account_id=account_id, strategy_name="meanrev", created_at="2026-03-15T00:00:00Z")
+    _seed_run(conn, account_id=account_id, strategy_name="mean_reversion", created_at="2026-03-15T00:00:00Z")
 
     # Everything fresh → no targets, and trend was only evaluated once.
     assert find_stale_backtests(conn, reference_iso=REFERENCE) == []

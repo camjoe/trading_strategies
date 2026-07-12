@@ -22,6 +22,7 @@ from trading.domain.backtest_freshness import (
     DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS,
     assess_backtest_freshness,
 )
+from trading.domain.strategy_signals import resolve_strategy
 from trading.models.accounts.account_record import AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.books.book_assignments import enumerate_trading_books
@@ -43,10 +44,24 @@ class StaleBacktestTarget:
     reason: str  # REASON_MISSING | REASON_STALE
 
 
+def _canonical_strategy_key(name: str) -> str:
+    """The catalog key a backtest is stored under, so freshness lookups match.
+
+    Schedule entries may be aliases (e.g. ``macd_trend`` -> ``macd``);
+    ``run_backtest`` persists the resolved ``strategy_id``. Unknown labels keep
+    their lowercased form — they surface as missing and their backtest errors
+    rather than looping.
+    """
+    try:
+        return resolve_strategy(name).strategy_id
+    except ValueError:
+        return name.lower()
+
+
 def _candidate_strategies(conn: sqlite3.Connection, account: AccountRecord) -> list[str]:
     """The strategies rotation could run for the account: each active book's
     incumbent, plus its challenger schedule when that book has rotation enabled.
-    Deduplicated case-insensitively (freshness lookup is case-insensitive)."""
+    Names are canonicalized to their catalog key and deduplicated."""
     names: list[str] = []
     seen: set[str] = set()
     for trading_book in enumerate_trading_books(conn, account_id=account.id):
@@ -55,11 +70,12 @@ def _candidate_strategies(conn: sqlite3.Connection, account: AccountRecord) -> l
         if schedule_config.rotation_enabled:
             candidates.extend(schedule_config.schedule)
         for raw in candidates:
-            name = raw.strip()
-            key = name.lower()
-            if name and key not in seen:
+            if not raw.strip():
+                continue
+            key = _canonical_strategy_key(raw.strip())
+            if key not in seen:
                 seen.add(key)
-                names.append(name)
+                names.append(key)
     return names
 
 

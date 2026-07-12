@@ -15,6 +15,7 @@ from infrastructure.database.config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
+from trading.services.backtesting import find_stale_backtests
 from trading.services.profiles import apply_account_profiles, load_account_profiles
 from trading.services.promotion import (
     execute_promotion_review_action,
@@ -65,6 +66,7 @@ def _handler_deps() -> dict[str, object]:
         "backtest_report": backtest_report,
         "walk_forward_report": walk_forward_report,
         "run_backtest": run_backtest,
+        "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_backtest": run_walk_forward_backtest,
         "load_account_profiles": load_account_profiles,
