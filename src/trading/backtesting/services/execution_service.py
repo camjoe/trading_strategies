@@ -68,7 +68,14 @@ def run_backtest(
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
-    strategy_name = active_strategy_for_account(conn, account_id, fallback=row_expect_str(account, "strategy"))
+    # An explicit override backtests a specific strategy (e.g. a rotation
+    # challenger); otherwise the account's active strategy is used.
+    strategy_override = getattr(cfg, "strategy", None)
+    strategy_name = (
+        strategy_override.strip()
+        if strategy_override and strategy_override.strip()
+        else active_strategy_for_account(conn, account_id, fallback=row_expect_str(account, "strategy"))
+    )
     strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)

@@ -19,3 +19,9 @@ def as_utc_iso(value: datetime) -> str:
 
 def utc_now_iso() -> str:
     return as_utc_iso(datetime.now(timezone.utc))
+
+
+def days_between(earlier_iso: str, later_iso: str) -> float:
+    """Fractional days from ``earlier_iso`` to ``later_iso`` (negative if reversed)."""
+    delta = parse_utc_iso(later_iso) - parse_utc_iso(earlier_iso)
+    return delta.total_seconds() / 86400.0

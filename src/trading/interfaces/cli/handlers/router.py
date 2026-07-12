@@ -14,6 +14,7 @@ from trading.interfaces.cli.handlers.accounts_handlers import (
 )
 from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest,
+    handle_refresh_stale_backtests,
     handle_backtest_batch,
     handle_backtest_leaderboard,
     handle_backtest_report,
@@ -68,6 +69,7 @@ COMMAND_HANDLERS = {
     "configure-book-rotation": handle_configure_book_rotation,
     "configure-book-rotation-policy": handle_configure_book_rotation_policy,
     "backtest": handle_backtest,
+    "refresh-stale-backtests": handle_refresh_stale_backtests,
     "backtest-report": handle_backtest_report,
     "backtest-leaderboard": handle_backtest_leaderboard,
     "backtest-batch": handle_backtest_batch,

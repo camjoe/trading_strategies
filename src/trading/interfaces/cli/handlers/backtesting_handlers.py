@@ -7,6 +7,55 @@ def _format_metric(value: float | None, *, suffix: str = "") -> str:
     return "n/a" if value is None else f"{value:.2f}{suffix}"
 
 
+def _target_age_label(target: Any) -> str:
+    return "missing" if target.age_days is None else f"{target.age_days:.1f}d"
+
+
+def handle_refresh_stale_backtests(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    targets = deps["find_stale_backtests"](conn, account_name=args.account)
+    if args.limit is not None:
+        targets = targets[: max(0, args.limit)]
+
+    if not targets:
+        print("No stale or missing backtests found.")
+        return
+
+    if args.dry_run:
+        print(f"{len(targets)} stale/missing backtest target(s):")
+        for target in targets:
+            print(f"  {target.account_name}/{target.strategy_name} ({target.reason}, {_target_age_label(target)})")
+        return
+
+    refreshed = 0
+    failed = 0
+    for target in targets:
+        try:
+            result = deps["run_backtest"](
+                conn,
+                deps["BacktestConfig"](
+                    account_name=target.account_name,
+                    tickers_file=args.tickers_file,
+                    universe_history_dir=args.universe_history_dir,
+                    start=args.start,
+                    end=args.end,
+                    lookback_months=args.lookback_months,
+                    slippage_bps=args.slippage_bps,
+                    fee_per_trade=args.fee,
+                    run_name=f"refresh_{target.strategy_name}",
+                    allow_approximate_leaps=bool(args.allow_approximate_leaps),
+                    strategy=target.strategy_name,
+                ),
+            )
+        except Exception as error:  # noqa: BLE001 - one bad target must not abort the batch
+            print(f"Failed {target.account_name}/{target.strategy_name}: {error}")
+            failed += 1
+            continue
+        print(f"Refreshed {target.account_name}/{target.strategy_name}: run_id={result.run_id}")
+        refreshed += 1
+
+    print(f"Done: {refreshed} refreshed, {failed} failed.")
+
+
 def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
     try:
         result = deps["run_backtest"](
@@ -22,6 +71,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 fee_per_trade=args.fee,
                 run_name=args.run_name,
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
+                strategy=args.strategy,
             ),
         )
     except ValueError as error:

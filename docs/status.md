@@ -33,7 +33,6 @@ procedure (backup -> run the one-time data-op -> verify -> confirm runtime -> de
 | P6 - Plug-and-play strategy catalog | Catalog rows exist, but wiring them now duplicates the code registry before there is demand | Concrete demand to add or tune strategy variants without deploys |
 | P10 - Adaptive learning | Design-heavy and not yet proven to beat the static decision score | Evidence that a learned layer improves decisions |
 | P11 - Parameter optimization | Requires catalog-backed variants and explicit overfitting guardrails | Demand for systematic parameter sweeps |
-| P12 - Backtest freshness cadence | Policy question, not current implementation pressure | Evidence that stale backtests skew rotation or promotion |
 
 ## Dropped (do not silently re-add)
 

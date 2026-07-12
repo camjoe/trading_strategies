@@ -19,7 +19,6 @@ work becomes justified.
 |---|---|---|
 | [plug-and-play-strategy-catalog.md](plug-and-play-strategy-catalog.md) | P6 - plug-and-play strategy catalog | There is concrete demand to add or tune strategy variants without deploys |
 | [parameter-optimization.md](parameter-optimization.md) | P11 - parameter optimization | Systematic parameter sweeps become an active need |
-| [backtest-freshness-cadence.md](backtest-freshness-cadence.md) | P12 - backtest freshness cadence | Stale backtests are suspected of skewing rotation or promotion decisions |
 
 ## Usage
 

@@ -32,6 +32,7 @@ _EXPECTED_COMMANDS = {
     "configure-book-rotation",
     "configure-book-rotation-policy",
     "backtest",
+    "refresh-stale-backtests",
     "backtest-report",
     "backtest-leaderboard",
     "backtest-batch",

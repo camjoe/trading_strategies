@@ -60,6 +60,15 @@ export interface PromotionEvaluationSummary {
   backtestConfidence: number;
   paperLiveConfidence: number;
   dataGaps: string[];
+  backtestStale: boolean;
+}
+
+// Advisory backtest staleness (P12); never affects scores or decisions.
+export interface BacktestFreshness {
+  available: boolean;
+  ageDays: number | null;
+  isStale: boolean;
+  staleThresholdDays: number | null;
 }
 
 export interface PromotionEvaluationDetail {
@@ -86,6 +95,7 @@ export interface PromotionEvaluationDetail {
   };
   confidence: PromotionEvaluationSummary;
   dataGaps: string[];
+  backtestFreshness: BacktestFreshness;
 }
 
 export interface PromotionReviewRecord {

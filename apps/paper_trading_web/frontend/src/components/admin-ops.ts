@@ -1,5 +1,6 @@
 import { esc, pct } from "../lib/format";
 import type {
+  BacktestFreshness,
   OperationArtifact,
   OperationJobStatus,
   OperationsOverviewResponse,
@@ -132,6 +133,11 @@ function formatCount(value: number | null | undefined): string {
   return value === null || value === undefined ? "n/a" : value.toString();
 }
 
+function formatBacktestFreshness(freshness: BacktestFreshness): string {
+  if (!freshness.available || freshness.ageDays === null) return "n/a";
+  return `${freshness.ageDays.toFixed(1)}d (${freshness.isStale ? "stale" : "fresh"})`;
+}
+
 function renderEvidenceStat(label: string, value: string): string {
   return `
     <div class="analysis-stat">
@@ -151,6 +157,7 @@ function renderPromotionEvaluation(data: PromotionOverviewResponse): string {
         ${renderEvidenceStat("Backtest Return", formatPctValue(evaluation.backtest.returnPct))}
         ${renderEvidenceStat("Backtest Trades", formatCount(evaluation.backtest.tradeCount))}
         ${renderEvidenceStat("Backtest Snapshots", formatCount(evaluation.backtest.snapshotCount))}
+        ${renderEvidenceStat("Backtest Freshness", formatBacktestFreshness(evaluation.backtestFreshness))}
         ${renderEvidenceStat("Max Drawdown", formatPctValue(evaluation.backtest.maxDrawdownPct))}
         ${renderEvidenceStat("Walk-Forward Grouped", evaluation.walkForward.grouped ? "yes" : "no")}
         ${renderEvidenceStat("WF Average Return", formatPctValue(evaluation.walkForward.averageReturnPct))}

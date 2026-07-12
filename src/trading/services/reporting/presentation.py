@@ -170,6 +170,14 @@ def _format_paper_live_evidence_summary(evaluation: StrategyEvaluationArtifact) 
     )
 
 
+def _format_backtest_freshness_summary(evaluation: StrategyEvaluationArtifact) -> str:
+    freshness = evaluation.diagnostics.backtest_freshness
+    if freshness is None or not freshness.available or freshness.age_days is None:
+        return "backtest_age=N/A"
+    label = "stale" if freshness.is_stale else "fresh"
+    return f"backtest_age={freshness.age_days:.1f}d ({label})"
+
+
 def _evaluation_summary_line(
     evaluation: StrategyEvaluationArtifact,
     *,
@@ -178,6 +186,7 @@ def _evaluation_summary_line(
     return (
         f"{prefix}{_format_backtest_evidence_summary(evaluation)} | "
         f"{_format_paper_live_evidence_summary(evaluation)} | "
+        f"{_format_backtest_freshness_summary(evaluation)} | "
         f"blended_score={_format_percentage_or_na(evaluation.confidence.blended_score)} | "
         f"confidence={evaluation.confidence.overall_confidence:.2f}"
     )
