@@ -141,7 +141,9 @@ retired 2026-07-09); and the decisioning naming pass landed alongside (P5). Emai
 (P8), the unified parameter source (P7), and the portfolio risk rollup (P9) are in. The
 execution-mode collapse landed with book-owned rotation scheduling (ADR 014): one book-keyed
 runtime path, rotation gated per book and evaluated continuously under cooldown. Backtest freshness
-(P12) ships as an advisory staleness diagnostic on evaluations (CLI + web), non-blocking.
+(P12) ships as a non-blocking advisory staleness diagnostic on evaluations (CLI + web); the daily
+backtest-refresh job and the `refresh-stale-backtests` command close the loop by re-running only the
+stale or missing backtests across each account's rotation candidates.
 
 The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
 and the book-rotation cutover — operator runbooks). The plug-and-play strategy catalog (P6),

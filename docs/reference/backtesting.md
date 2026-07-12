@@ -57,6 +57,9 @@ Recurring refreshes for persisted account backtests are handled by:
 
 Key behavior:
 
+- **targeted, not blind** — refreshes only the stale or missing backtests across each account's
+  rotation candidate strategies (incumbent + challenger schedule), driven by the freshness signal
+  below (`--stale-threshold-days`, default 3)
 - explicit opt-in via `--enable-run` or `DAILY_BACKTEST_REFRESH_ENABLED=1`
 - duplicate same-day run guard unless `--force-run` is supplied
 - transient retry handling for market-data failures
@@ -101,8 +104,9 @@ is not re-run once fresh.
 ## Strategy Notes
 
 - Phase 2 strategy ids are documented in `docs/reference/strategies.md`.
-- Backtests resolve active strategy through shared rotation-aware logic.
-- If account rotation metadata is configured, backtests use the resolved active strategy.
+- By default a backtest runs the account's active strategy — the default book's open assignment
+  (ADR 014). Pass `--strategy` to backtest a specific strategy instead (e.g. a rotation challenger);
+  the remediation flows use this to refresh challenger evidence.
 - Paper results before 2026-07-03 are not strategy evidence. Before the execution loop was closed,
   the paper trade path used a placeholder instead of strategy signals.
 

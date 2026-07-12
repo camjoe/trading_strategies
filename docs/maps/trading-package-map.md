@@ -74,7 +74,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
 | `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
 | `daily/snapshot.py` | Daily equity snapshot job |
-| `daily/backtest_refresh.py` | Daily backtest result refresh job |
+| `daily/backtest_refresh.py` | Daily job that re-runs only stale/missing backtests across each account's rotation candidates (incumbent + challengers) |
 | `daily/challenger_shadow_eval.py` | Daily challenger shadow evaluation job |
 | `daily/trader_health.py` | Daily health-check job |
 | `governance/weekly/w1_leaderboard.py` | Weekly leaderboard governance job |
@@ -145,7 +145,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `auto_trading/runtime_reconciliation.py` | Runtime order/fill reconciliation |
 | `auto_trading/runtime_book_risk.py` | Book-keyed runtime risk persistence (exposure snapshot + normalized decisions to the clean risk tables) |
 | `auto_trading/runtime.py` | Auto-trading runtime coordination |
-| `evaluation/evidence.py` | Rotation episode evidence assembly |
+| `backtesting/stale_backtests.py` | Enumerate (account, strategy) pairs whose backtest is stale or missing across each account's rotation candidates (P12 remediation) |
+| `evaluation/evidence.py` | Strategy evaluation evidence assembly (backtest, walk-forward, paper/live windows) + the advisory backtest-freshness diagnostic |
 | `evaluation/queries.py` | Evaluation data queries |
 | `execution/constants.py` | Kill-switch reasons + reconciliation thresholds for the shared execution path (P4) |
 | `execution/gate.py` | Pre-submit safety-gate protocol + pass-through gate + audit-sink protocol — the injected kill-switch seam for book submission (P4) |
@@ -160,7 +161,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `market_data/factory.py` | `build_feature_provider` (the concrete market-data adapter + factory live in `src/infrastructure/market_data/`) |
 | `pricing/lookups.py` | Price lookup queries |
 | `profiles/application.py` | Account profile application logic |
-| `profiles/rotation_config_parser.py` | TOML rotation config parser |
+| `profiles/rotation_config_parser.py` | Parse the profile's nested `rotation` object into a `BookRotationConfig` (book-owned scheduling, ADR 014) |
 | `profiles/source.py` | Profile source loading |
 | `promotion/actions.py` | Promotion action execution |
 | `promotion/assessment.py` | Promotion eligibility assessment |
@@ -229,6 +230,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 |---|---|
 | `accounting.py` | Cash and equity accounting rules |
 | `auto_trading_policy.py` | Auto-trading eligibility and policy rules |
+| `backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps (P12) |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `evaluation_confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |
 | `evaluation_decision_score.py` | `derive_decision_score` pure adapter from `StrategyEvaluationArtifact` to the shared `EvaluationDecisionScore` contract |
@@ -238,7 +240,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `market_hours.py` | US-equity market-hours / trading-calendar policy (regular hours, holidays, early closes) |
 | `promotion_policy.py` | Promotion eligibility rules + `PromotionPolicySettings` policy knobs |
 | `returns.py` | Return calculation math |
-| `rotation.py` | Rotation state-transition logic + `RotationConfig` persistence serialization |
+| `rotation.py` | Rotation schedule parse/dump helpers (`parse_rotation_schedule`, `dump_rotation_schedule`) |
 | `book_accounting.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `rotation_policy.py` | Champion/challenger rotation scoring/decision policy (builds `models.rotation` value objects) |
