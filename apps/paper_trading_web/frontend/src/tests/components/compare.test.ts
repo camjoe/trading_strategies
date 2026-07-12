@@ -22,6 +22,7 @@ function makeRow(overrides: Partial<AccountComparisonRow> = {}): AccountComparis
       backtestConfidence: 0.9,
       paperLiveConfidence: 0.74,
       dataGaps: [],
+      backtestStale: false,
     },
     ...overrides,
   };
@@ -47,6 +48,7 @@ describe("renderComparisonTable", () => {
           backtestConfidence: 0,
           paperLiveConfidence: 0,
           dataGaps: ["missing_backtest_evidence", "missing_paper_live_evidence"],
+          backtestStale: true,
         },
       }),
     ]);
@@ -54,5 +56,6 @@ describe("renderComparisonTable", () => {
     expect(html).toContain("Score n/a");
     expect(html).toContain("2 gaps");
     expect(html).toContain("missing_backtest_evidence, missing_paper_live_evidence");
+    expect(html).toContain("Stale backtest");
   });
 });

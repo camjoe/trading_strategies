@@ -19,6 +19,9 @@ function renderEvaluationSummary(row: AccountComparisonRow): string {
     ? `${evaluation.dataGaps.length} gap${evaluation.dataGaps.length === 1 ? "" : "s"}`
     : "No gaps";
   const gapTitle = evaluation.dataGaps.length ? ` title="${esc(evaluation.dataGaps.join(", "))}"` : "";
+  const staleBadge = evaluation.backtestStale
+    ? `<span class="compare-stale" title="Backtest evidence is stale">Stale backtest</span>`
+    : "";
   return `
     <div class="compare-evaluation">
       <span>Score ${score}</span>
@@ -26,6 +29,7 @@ function renderEvaluationSummary(row: AccountComparisonRow): string {
       <span>Backtest ${evaluation.backtestConfidence.toFixed(2)}</span>
       <span>Paper/live ${evaluation.paperLiveConfidence.toFixed(2)}</span>
       <span${gapTitle}>${esc(gapLabel)}</span>
+      ${staleBadge}
     </div>
   `;
 }
