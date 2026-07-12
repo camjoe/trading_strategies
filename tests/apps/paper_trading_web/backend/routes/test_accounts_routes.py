@@ -203,25 +203,19 @@ class TestAccountParamsEndpoint:
         resp = api_client.patch(
             "/api/accounts/acct_params_rotation/params",
             json={
-                "rotationEnabled": True,
-                "rotationIntervalDays": 7,
-                "rotationIntervalMinutes": 240,
-                "rotationLookbackDays": 30,
-                "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
-                "rotationActiveIndex": 1,
-                "rotationActiveStrategy": "ma_crossover",
-                "rotationLastAt": "2026-03-20T00:00:00Z",
+                "rotation": {
+                    "enabled": True,
+                    "schedule": ["trend", "ma_crossover", "mean_reversion"],
+                    "lookbackDays": 30,
+                },
             },
         )
         assert resp.status_code == 200
 
         detail = api_client.get("/api/accounts/acct_params_rotation").json()
         account = detail["account"]
-        assert account["rotationEnabled"] is True
-        assert account["rotationIntervalDays"] == 7
-        assert account["rotationIntervalMinutes"] == 240
-        assert account["rotationLookbackDays"] == 30
-        assert account["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
-        assert account["rotationActiveIndex"] == 1
-        assert account["rotationActiveStrategy"] == "ma_crossover"
-        assert account["rotationLastAt"] == "2026-03-20T00:00:00Z"
+        assert account["rotation"] == {
+            "enabled": True,
+            "schedule": ["trend", "ma_crossover", "mean_reversion"],
+            "lookbackDays": 30,
+        }

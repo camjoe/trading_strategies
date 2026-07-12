@@ -68,16 +68,16 @@ class TestBuildAccountListingLines:
         assert "" in lines
 
     def test_rotation_accounts_show_base_and_active_strategy(self) -> None:
+        # The active strategy comes from the default-book assignment (ADR 014),
+        # resolved by list_accounts and threaded through the pure formatters.
         rows = [
             make_accounts_service_row(
                 name="rot",
                 strategy="Trend",
-                rotation_enabled=1,
-                rotation_active_strategy="mean_reversion",
             ),
         ]
 
-        lines = build_account_listing_lines(rows, by_strategy=False)
+        lines = build_account_listing_lines(rows, by_strategy=False, active_strategies={rows[0].id: "mean_reversion"})
 
         assert "account_policy=base_strategy=Trend | active_strategy=mean_reversion" in lines[0]
         assert "display_name=Account" in lines[0]

@@ -138,13 +138,15 @@ execution (P1); evaluation is unified behind one decision-score contract that ba
 promotion, and rotation (P2); the clean book schema is live (P3); accounts and sleeves are converged
 onto one book-keyed submission/rotation/accounting path (P4, with the sleeve vocabulary fully
 retired 2026-07-09); and the decisioning naming pass landed alongside (P5). Email notifications
-(P8), the unified parameter source (P7), and the portfolio risk rollup (P9) are in.
+(P8), the unified parameter source (P7), and the portfolio risk rollup (P9) are in. The
+execution-mode collapse landed with book-owned rotation scheduling (ADR 014): one book-keyed
+runtime path, rotation gated per book and evaluated continuously under cooldown.
 
-The only **committed** work remaining is the sleeve-retirement DB migration deploy step (operator
-runbook). The plug-and-play strategy catalog (P6), adaptive learning (P10), parameter optimization
-(P11), backtest freshness cadence (P12), and execution-mode collapse are independent deferred
-workstreams, pursued only when their triggers are met. Details on deferred work live in
-[status.md](status.md).
+The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
+and the book-rotation cutover — operator runbooks). The plug-and-play strategy catalog (P6),
+adaptive learning (P10), parameter optimization (P11), and backtest freshness cadence (P12) are
+independent deferred workstreams, pursued only when their triggers are met. Details on deferred
+work live in [status.md](status.md).
 
 ## Guiding constraints
 

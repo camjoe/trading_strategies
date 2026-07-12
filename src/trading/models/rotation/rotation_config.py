@@ -4,31 +4,27 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class RotationConfig:
+class BookRotationConfig:
+    """Caller-facing book rotation-scheduling input (profiles / admin API).
+
+    Fields mirror the book-owned scheduling columns (ADR 014): the enabled
+    gate, the challenger schedule, and the evidence lookback. ``None`` means
+    the caller did not supply the field.
+    """
+
     enabled: bool | None = None
-    interval_days: int | None = None
-    interval_minutes: int | None = None
-    lookback_days: int | None = None
     schedule: list[str] | None = None
-    active_index: int | None = None
-    last_at: str | None = None
-    active_strategy: str | None = None
+    lookback_days: int | None = None
 
     def to_db_dict(self) -> dict[str, object]:
-        """Map fields to account-table column values.
+        """Map fields to ``book_rotation_settings`` column values.
 
-        The list-valued ``rotation_schedule`` column is returned as a raw list; JSON
-        encoding is applied by ``trading.domain.rotation.rotation_config_to_db_dict``.
-        The dead mode/optimality/regime/overlay columns are left at their DB
-        defaults — no longer written from config.
+        The list-valued ``rotation_schedule`` column is returned as a raw
+        list; JSON encoding is applied by the writer via
+        ``trading.domain.rotation.dump_rotation_schedule``.
         """
         return {
             "rotation_enabled": self.enabled,
-            "rotation_interval_days": self.interval_days,
-            "rotation_interval_minutes": self.interval_minutes,
-            "rotation_lookback_days": self.lookback_days,
             "rotation_schedule": self.schedule,
-            "rotation_active_index": self.active_index,
-            "rotation_last_at": self.last_at,
-            "rotation_active_strategy": self.active_strategy,
+            "rotation_lookback_days": self.lookback_days,
         }

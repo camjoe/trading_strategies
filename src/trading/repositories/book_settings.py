@@ -162,32 +162,29 @@ class BookRotationSettingsRepository:
         ).fetchone()
         return BookRotationSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
-    def upsert(
+    def upsert_rotation_scheduling(
         self,
         *,
         book_id: int,
         rotation_enabled: int = 0,
-        rotation_interval_days: int | None = None,
-        rotation_interval_minutes: int | None = None,
         rotation_lookback_days: int | None = None,
         rotation_schedule: str | None = None,
         created_at: str,
         updated_at: str,
     ) -> None:
-        # The mode/optimality/regime/overlay columns are retained on the table
-        # (append-only) but are dead config — no longer written.
+        # Scheduling-only write: policy columns keep their values when the row
+        # already exists; a fresh row gets policy NULLs (code defaults). The
+        # mode/optimality/regime/overlay and interval columns are retained on
+        # the table (append-only) but are dead config — no longer written.
         self._conn.execute(
             """
             INSERT INTO book_rotation_settings (
-                book_id, rotation_enabled, rotation_interval_days,
-                rotation_interval_minutes, rotation_lookback_days, rotation_schedule,
+                book_id, rotation_enabled, rotation_lookback_days, rotation_schedule,
                 created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(book_id) DO UPDATE SET
                 rotation_enabled = excluded.rotation_enabled,
-                rotation_interval_days = excluded.rotation_interval_days,
-                rotation_interval_minutes = excluded.rotation_interval_minutes,
                 rotation_lookback_days = excluded.rotation_lookback_days,
                 rotation_schedule = excluded.rotation_schedule,
                 updated_at = excluded.updated_at
@@ -195,8 +192,6 @@ class BookRotationSettingsRepository:
             (
                 int(book_id),
                 int(rotation_enabled),
-                rotation_interval_days,
-                rotation_interval_minutes,
                 rotation_lookback_days,
                 rotation_schedule,
                 created_at,

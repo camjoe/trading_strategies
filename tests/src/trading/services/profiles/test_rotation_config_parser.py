@@ -1,120 +1,51 @@
 import pytest
 
-from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
+from trading.services.profiles.rotation_config_parser import parse_book_rotation_config_from_profile
 
 
-class TestParseRotationConfigFromProfile:
+class TestParseBookRotationConfigFromProfile:
     def test_minimal_disabled_profile(self):
-        rc = parse_rotation_config_from_profile({"rotation_enabled": False})
+        rc = parse_book_rotation_config_from_profile({"rotation": {"enabled": False}})
         assert rc.enabled is False
+        assert rc.schedule is None
+        assert rc.lookback_days is None
 
-    def test_enabled_with_interval_and_schedule(self):
-        rc = parse_rotation_config_from_profile(
+    def test_enabled_with_schedule_and_lookback(self):
+        rc = parse_book_rotation_config_from_profile(
             {
-                "rotation_enabled": True,
-                "rotation_interval_days": 7,
-                "rotation_schedule": ["momentum", "meanrev"],
+                "rotation": {
+                    "enabled": True,
+                    "schedule": ["momentum", "meanrev"],
+                    "lookback_days": 90,
+                }
             }
         )
         assert rc.enabled is True
-        assert rc.interval_days == 7
         assert rc.schedule == ["momentum", "meanrev"]
-        assert rc.active_index == 0
-        assert rc.active_strategy == "momentum"
+        assert rc.lookback_days == 90
 
-    def test_enabled_with_minute_interval_and_schedule(self):
-        rc = parse_rotation_config_from_profile(
-            {
-                "rotation_enabled": True,
-                "rotation_interval_minutes": 240,
-                "rotation_schedule": ["momentum", "meanrev"],
-            }
-        )
-        assert rc.enabled is True
-        assert rc.interval_minutes == 240
-        assert rc.schedule == ["momentum", "meanrev"]
+    def test_missing_rotation_object_uses_defaults(self):
+        rc = parse_book_rotation_config_from_profile({})
+        assert rc.enabled is None
+        assert rc.schedule is None
+        assert rc.lookback_days is None
 
-    def test_explicit_active_index_sets_strategy(self):
-        rc = parse_rotation_config_from_profile(
-            {
-                "rotation_enabled": True,
-                "rotation_interval_days": 7,
-                "rotation_schedule": ["trend", "breakout", "macd"],
-                "rotation_active_index": 1,
-            }
-        )
-        assert rc.active_index == 1
-        assert rc.active_strategy == "breakout"
-
-    def test_explicit_active_strategy_sets_index(self):
-        rc = parse_rotation_config_from_profile(
-            {
-                "rotation_enabled": True,
-                "rotation_interval_days": 7,
-                "rotation_schedule": ["trend", "breakout", "macd"],
-                "rotation_active_strategy": "breakout",
-            }
-        )
-        assert rc.active_index == 1
-        assert rc.active_strategy == "breakout"
-
-    def test_active_index_wraps_when_exceeds_schedule_length(self):
-        rc = parse_rotation_config_from_profile(
-            {
-                "rotation_enabled": True,
-                "rotation_interval_days": 7,
-                "rotation_schedule": ["trend", "breakout"],
-                "rotation_active_index": 4,
-            }
-        )
-        assert rc.active_index == 0
-        assert rc.active_strategy == "trend"
-
-    def test_lookback_days_and_last_at_stored(self):
-        rc = parse_rotation_config_from_profile(
-            {
-                "rotation_interval_minutes": 60,
-                "rotation_lookback_days": 30,
-                "rotation_last_at": "2026-01-01T00:00:00Z",
-            }
-        )
-        assert rc.interval_minutes == 60
-        assert rc.lookback_days == 30
-        assert rc.last_at == "2026-01-01T00:00:00Z"
-
-    def test_enabled_without_interval_raises(self):
-        with pytest.raises(ValueError, match="rotation interval must be configured"):
-            parse_rotation_config_from_profile({"rotation_enabled": True})
-
-    def test_interval_minutes_zero_raises(self):
-        with pytest.raises(ValueError, match="rotation_interval_minutes"):
-            parse_rotation_config_from_profile({"rotation_interval_minutes": 0})
+    def test_non_mapping_rotation_raises(self):
+        with pytest.raises(ValueError, match="rotation must be an object"):
+            parse_book_rotation_config_from_profile({"rotation": "yes"})
 
     def test_lookback_days_zero_raises(self):
-        with pytest.raises(ValueError, match="rotation_lookback_days"):
-            parse_rotation_config_from_profile({"rotation_lookback_days": 0})
+        with pytest.raises(ValueError, match="rotation.lookback_days"):
+            parse_book_rotation_config_from_profile({"rotation": {"lookback_days": 0}})
 
     def test_lookback_days_negative_raises(self):
-        with pytest.raises(ValueError, match="rotation_lookback_days"):
-            parse_rotation_config_from_profile({"rotation_lookback_days": -5})
+        with pytest.raises(ValueError, match="rotation.lookback_days"):
+            parse_book_rotation_config_from_profile({"rotation": {"lookback_days": -5}})
 
-    def test_active_index_negative_raises(self):
-        with pytest.raises(ValueError, match="rotation_active_index"):
-            parse_rotation_config_from_profile({"rotation_active_index": -1})
+    def test_unknown_schedule_strategy_raises(self):
+        with pytest.raises(ValueError, match=r"rotation.schedule\[1\]"):
+            parse_book_rotation_config_from_profile({"rotation": {"schedule": ["trend", "mystery_strategy"]}})
 
-    def test_active_strategy_not_in_schedule_raises(self):
-        with pytest.raises(ValueError, match="rotation_active_strategy"):
-            parse_rotation_config_from_profile(
-                {
-                    "rotation_enabled": True,
-                    "rotation_interval_days": 7,
-                    "rotation_schedule": ["trend", "breakout"],
-                    "rotation_active_strategy": "macd",
-                }
-            )
-
-    def test_empty_profile_uses_defaults(self):
-        rc = parse_rotation_config_from_profile({})
-        assert rc.enabled is None
-        assert rc.interval_days is None
-        assert rc.schedule is None
+    def test_blank_schedule_entry_raises(self):
+        with pytest.raises(ValueError):
+            parse_book_rotation_config_from_profile({"rotation": {"schedule": ["trend", ""]}})

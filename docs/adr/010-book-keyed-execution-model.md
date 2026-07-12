@@ -34,4 +34,5 @@ identity.
 - Broker accounts still own custody, broker routing, cash/position truth, and the
   `live_trading_enabled` safety gate.
 - Any future execution-mode cleanup should collapse remaining account-mode compatibility onto the
-  default-book model rather than reintroducing a separate execution primitive.
+  default-book model rather than reintroducing a separate execution primitive. Done — see
+  [ADR 014](014-execution-mode-collapse.md).

@@ -21,6 +21,7 @@ from trading.interfaces.cli.handlers.backtesting_handlers import (
     handle_backtest_walk_forward_report,
 )
 from trading.interfaces.cli.handlers.settings_handlers import (
+    handle_configure_book_rotation,
     handle_configure_book_rotation_policy,
     handle_configure_evaluation,
     handle_configure_promotion,
@@ -64,6 +65,7 @@ COMMAND_HANDLERS = {
     "configure-throttle": handle_configure_throttle,
     "configure-evaluation": handle_configure_evaluation,
     "configure-promotion": handle_configure_promotion,
+    "configure-book-rotation": handle_configure_book_rotation,
     "configure-book-rotation-policy": handle_configure_book_rotation_policy,
     "backtest": handle_backtest,
     "backtest-report": handle_backtest_report,

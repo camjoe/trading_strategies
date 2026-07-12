@@ -34,7 +34,29 @@ def _make_state(
     )
 
 
+def _patch_book_reads(
+    monkeypatch,
+    *,
+    rotation=None,
+    active_strategy: str = "trend",
+) -> None:
+    """Stub the book-owned rotation/assignment reads (ADR 014) for conn=None tests."""
+    from trading.services.books.rotation import BookRotationScheduleConfig
+
+    monkeypatch.setattr(
+        account_summaries,
+        "resolve_default_book_rotation_schedule",
+        lambda _conn, *, account_id: rotation or BookRotationScheduleConfig(),
+    )
+    monkeypatch.setattr(
+        account_summaries,
+        "active_strategy_for_account",
+        lambda _conn, _account_id, *, fallback: active_strategy or fallback,
+    )
+
+
 def test_build_account_summary_uses_snapshot_delta(monkeypatch) -> None:
+    _patch_book_reads(monkeypatch)
     monkeypatch.setattr(
         account_summaries,
         "build_account_stats",
@@ -174,6 +196,7 @@ class TestBuildPositionsFromStats:
 
 class TestBuildAccountSummaryShape:
     def test_required_keys_present(self, monkeypatch) -> None:
+        _patch_book_reads(monkeypatch)
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
@@ -201,6 +224,8 @@ class TestBuildAccountSummaryShape:
             assert key in summary, f"Missing key: {key}"
 
     def test_rotation_keys_present_and_parsed(self, monkeypatch) -> None:
+        from trading.services.books.rotation import BookRotationScheduleConfig
+
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",
@@ -211,30 +236,30 @@ class TestBuildAccountSummaryShape:
             "get_latest_account_snapshot",
             lambda _conn, _account_id: None,
         )
+        _patch_book_reads(
+            monkeypatch,
+            rotation=BookRotationScheduleConfig(
+                rotation_enabled=True,
+                schedule=("trend", "ma_crossover", "mean_reversion"),
+                lookback_days=30,
+            ),
+            active_strategy="ma_crossover",
+        )
         row = _account_record(
             name="acct_rotation",
             descriptive_name="Rotation Account",
-            rotation_enabled=1,
-            rotation_interval_days=7,
-            rotation_interval_minutes=240,
-            rotation_lookback_days=30,
-            rotation_schedule='["trend","ma_crossover","mean_reversion"]',
-            rotation_active_index=1,
-            rotation_active_strategy="ma_crossover",
-            rotation_last_at="2026-03-20T00:00:00Z",
         )
 
         summary = account_summaries.build_account_summary(conn=None, row=row)
-        assert summary["rotationEnabled"] is True
-        assert summary["rotationIntervalDays"] == 7
-        assert summary["rotationIntervalMinutes"] == 240
-        assert summary["rotationLookbackDays"] == 30
-        assert summary["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
-        assert summary["rotationActiveIndex"] == 1
-        assert summary["rotationLastAt"] == "2026-03-20T00:00:00Z"
-        assert summary["rotationActiveStrategy"] == "ma_crossover"
+        assert summary["activeStrategy"] == "ma_crossover"
+        assert summary["rotation"] == {
+            "enabled": True,
+            "schedule": ["trend", "ma_crossover", "mean_reversion"],
+            "lookbackDays": 30,
+        }
 
     def test_deposit_model_account_zero_initial_cash(self, monkeypatch) -> None:
+        _patch_book_reads(monkeypatch)
         monkeypatch.setattr(
             account_summaries,
             "build_account_stats",

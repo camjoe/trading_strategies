@@ -37,14 +37,15 @@ export interface AccountConfigFields {
   rollDteThreshold: number | null;
   profitTakePct: number | null;
   maxLossPct: number | null;
-  rotationEnabled?: boolean;
-  rotationIntervalDays?: number | null;
-  rotationIntervalMinutes?: number | null;
-  rotationLookbackDays?: number | null;
-  rotationSchedule?: string[] | null;
-  rotationActiveIndex?: number | null;
-  rotationLastAt?: string | null;
-  rotationActiveStrategy?: string | null;
+  activeStrategy?: string;
+  rotation?: RotationSettings | null;
+}
+
+// Book-owned rotation scheduling (ADR 014); nested object on the account payloads.
+export interface RotationSettings {
+  enabled?: boolean | null;
+  schedule?: string[] | null;
+  lookbackDays?: number | null;
 }
 
 export interface AccountMutableIdentityFields {

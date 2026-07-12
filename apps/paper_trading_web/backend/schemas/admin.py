@@ -3,6 +3,14 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class RotationSettingsPayload(BaseModel):
+    """Book-owned rotation scheduling (ADR 014); absent keys keep persisted values."""
+
+    enabled: bool | None = None
+    schedule: list[str] | None = None
+    lookbackDays: int | None = None
+
+
 class AdminCreateAccountRequest(BaseModel):
     name: str
     strategy: str
@@ -33,14 +41,7 @@ class AdminCreateAccountRequest(BaseModel):
     rollDteThreshold: int | None = None
     profitTakePct: float | None = None
     maxLossPct: float | None = None
-    rotationEnabled: bool = False
-    rotationIntervalDays: int | None = None
-    rotationIntervalMinutes: int | None = None
-    rotationLookbackDays: int | None = None
-    rotationSchedule: list[str] | None = None
-    rotationActiveIndex: int = 0
-    rotationLastAt: str | None = None
-    rotationActiveStrategy: str | None = None
+    rotation: RotationSettingsPayload | None = None
 
 
 class AdminDeleteAccountRequest(BaseModel):

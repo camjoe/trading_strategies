@@ -20,8 +20,6 @@ def make_accounts_service_row(
     max_position_pct: float = 20.0,
     instrument_mode: str = "equity",
     created_at: str = "2026-01-01T00:00:00",
-    rotation_enabled: int = 0,
-    rotation_active_strategy: str | None = None,
 ):
     return make_account_record(
         id=id,
@@ -39,8 +37,6 @@ def make_accounts_service_row(
         trade_size_pct=trade_size_pct,
         max_position_pct=max_position_pct,
         instrument_mode=instrument_mode,
-        rotation_enabled=rotation_enabled,
-        rotation_active_strategy=rotation_active_strategy,
     )
 
 

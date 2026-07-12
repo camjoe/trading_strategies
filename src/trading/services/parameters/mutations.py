@@ -1,8 +1,8 @@
 """Edit workflows for the unified parameter source.
 
-Owns the targeted book rotation-policy edit: resolve the account's book,
-merge the provided fields over the persisted policy row, and write it back.
-Global operational settings edits live in
+Owns the targeted book rotation edits (policy and scheduling): resolve the
+account's book, merge the provided fields over the persisted row, and write
+it back. Global operational settings edits live in
 ``trading.services.operational_settings.mutations``.
 """
 
@@ -13,6 +13,8 @@ from collections.abc import Mapping
 
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
+from trading.domain.rotation import dump_rotation_schedule, parse_rotation_schedule
+from trading.domain.strategy_signals import validate_strategy_name
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.book_bridge import default_book_id
@@ -30,6 +32,14 @@ ROTATION_POLICY_FIELDS = (
     "drawdown_penalty_weight",
     "cost_penalty_weight",
     "regime_fit_weight",
+)
+
+# The book rotation-scheduling fields the edit command may touch (book-owned,
+# ADR 014); None clears schedule/lookback back to the code default.
+ROTATION_SCHEDULING_FIELDS = (
+    "rotation_enabled",
+    "rotation_schedule",
+    "rotation_lookback_days",
 )
 
 
@@ -79,6 +89,69 @@ def update_book_rotation_policy(
         created_at=current.created_at if current is not None else now_iso,
         updated_at=now_iso,
         **merged,
+    )
+    saved = repository.fetch(book_id=book_id)
+    if saved is None:
+        raise RuntimeError(f"book_rotation_settings row missing after upsert for book_id={book_id}")
+    return saved
+
+
+def update_book_rotation_scheduling(
+    conn: sqlite3.Connection,
+    *,
+    account_name: str,
+    book_name: str | None = None,
+    updates: Mapping[str, object],
+) -> BookRotationSettingsRecord:
+    """Merge ``updates`` over the book's persisted rotation scheduling and save.
+
+    Only keys from ``ROTATION_SCHEDULING_FIELDS`` are accepted.
+    ``rotation_schedule`` takes a list of strategy names (validated) or None
+    for no challengers; ``rotation_lookback_days`` None falls back to the code
+    default. Returns the persisted row.
+    """
+    unknown = sorted(set(updates) - set(ROTATION_SCHEDULING_FIELDS))
+    if unknown:
+        raise ValueError(f"Unknown rotation scheduling fields: {', '.join(unknown)}")
+    if not updates:
+        raise ValueError("No rotation scheduling fields provided.")
+
+    book_id = _resolve_book_id(conn, account_name=account_name, book_name=book_name)
+    repository = BookRotationSettingsRepository(conn)
+    current = repository.fetch(book_id=book_id)
+
+    if "rotation_enabled" in updates:
+        enabled = int(bool(updates["rotation_enabled"]))
+    else:
+        enabled = int(current.rotation_enabled) if current is not None else 0
+    if "rotation_lookback_days" in updates:
+        raw_lookback = updates["rotation_lookback_days"]
+        if raw_lookback is None:
+            lookback = None
+        elif isinstance(raw_lookback, int):
+            lookback = raw_lookback
+        else:
+            raise ValueError("rotation_lookback_days must be an integer or None")
+        if lookback is not None and lookback <= 0:
+            raise ValueError("rotation_lookback_days must be > 0")
+    else:
+        lookback = current.rotation_lookback_days if current is not None else None
+    if "rotation_schedule" in updates:
+        names = parse_rotation_schedule(updates["rotation_schedule"])
+        for name in names:
+            validate_strategy_name(name)
+        schedule = dump_rotation_schedule(names) if names else None
+    else:
+        schedule = current.rotation_schedule if current is not None else None
+
+    now_iso = utc_now_iso()
+    repository.upsert_rotation_scheduling(
+        book_id=book_id,
+        rotation_enabled=enabled,
+        rotation_lookback_days=lookback,
+        rotation_schedule=schedule,
+        created_at=current.created_at if current is not None else now_iso,
+        updated_at=now_iso,
     )
     saved = repository.fetch(book_id=book_id)
     if saved is None:

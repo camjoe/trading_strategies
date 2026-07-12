@@ -11,7 +11,7 @@ from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.book_settings import BookRotationSettingsRepository
-from trading.services.parameters import update_book_rotation_policy
+from trading.services.parameters import update_book_rotation_policy, update_book_rotation_scheduling
 
 
 @pytest.fixture
@@ -62,10 +62,10 @@ def test_policy_write_preserves_scheduling_fields(
     conn: sqlite3.Connection, account_with_book: tuple[str, int]
 ) -> None:
     account_name, book_id = account_with_book
-    BookRotationSettingsRepository(conn).upsert(
+    BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
         rotation_enabled=1,
-        rotation_interval_days=7,
+        rotation_lookback_days=45,
         created_at="2026-01-01T00:00:00Z",
         updated_at="2026-01-01T00:00:00Z",
     )
@@ -80,7 +80,7 @@ def test_policy_write_preserves_scheduling_fields(
     saved = BookRotationSettingsRepository(conn).fetch(book_id=book_id)
     assert saved is not None
     assert saved.rotation_enabled == 1
-    assert saved.rotation_interval_days == 7
+    assert saved.rotation_lookback_days == 45
     assert saved.cooldown_days == 5
 
 
@@ -122,4 +122,71 @@ def test_unknown_account_and_book_raise(conn: sqlite3.Connection, account_with_b
     with pytest.raises(NotFoundError):
         update_book_rotation_policy(
             conn, account_name=account_name, book_name="missing_book", updates={"cooldown_days": 1}
+        )
+
+
+def test_update_book_rotation_scheduling_creates_and_merges(
+    conn: sqlite3.Connection, account_with_book: tuple[str, int]
+) -> None:
+    account_name, book_id = account_with_book
+
+    saved = update_book_rotation_scheduling(
+        conn,
+        account_name=account_name,
+        book_name="book_a",
+        updates={"rotation_enabled": True, "rotation_schedule": ["trend", "meanrev"], "rotation_lookback_days": 45},
+    )
+    assert saved.book_id == book_id
+    assert saved.rotation_enabled == 1
+    assert saved.rotation_schedule == '["trend","meanrev"]'
+    assert saved.rotation_lookback_days == 45
+
+    # Partial update keeps the other scheduling fields.
+    saved = update_book_rotation_scheduling(
+        conn,
+        account_name=account_name,
+        book_name="book_a",
+        updates={"rotation_lookback_days": None},
+    )
+    assert saved.rotation_enabled == 1
+    assert saved.rotation_schedule == '["trend","meanrev"]'
+    assert saved.rotation_lookback_days is None
+
+
+def test_update_book_rotation_scheduling_preserves_policy_fields(
+    conn: sqlite3.Connection, account_with_book: tuple[str, int]
+) -> None:
+    account_name, book_id = account_with_book
+    update_book_rotation_policy(conn, account_name=account_name, book_name="book_a", updates={"cooldown_days": 9})
+
+    update_book_rotation_scheduling(
+        conn, account_name=account_name, book_name="book_a", updates={"rotation_enabled": True}
+    )
+
+    saved = BookRotationSettingsRepository(conn).fetch(book_id=book_id)
+    assert saved is not None
+    assert saved.cooldown_days == 9
+    assert saved.rotation_enabled == 1
+
+
+def test_update_book_rotation_scheduling_validates_input(
+    conn: sqlite3.Connection, account_with_book: tuple[str, int]
+) -> None:
+    account_name, _ = account_with_book
+    with pytest.raises(ValueError, match="Unknown rotation scheduling fields"):
+        update_book_rotation_scheduling(
+            conn, account_name=account_name, book_name="book_a", updates={"cooldown_days": 1}
+        )
+    with pytest.raises(ValueError, match="No rotation scheduling fields"):
+        update_book_rotation_scheduling(conn, account_name=account_name, book_name="book_a", updates={})
+    with pytest.raises(ValueError, match="rotation_lookback_days must be > 0"):
+        update_book_rotation_scheduling(
+            conn, account_name=account_name, book_name="book_a", updates={"rotation_lookback_days": 0}
+        )
+    with pytest.raises(ValueError, match="Unknown strategy"):
+        update_book_rotation_scheduling(
+            conn,
+            account_name=account_name,
+            book_name="book_a",
+            updates={"rotation_schedule": ["mystery_strategy"]},
         )

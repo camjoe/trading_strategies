@@ -8,11 +8,13 @@ import sqlite3
 from common.time import parse_utc_iso
 from common.time import utc_now_iso
 from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
+from trading.domain.rotation import parse_rotation_schedule
 from trading.domain.rotation_policy import evaluate_champion_challenger_rotation
 from trading.models.rotation.rotation_decision import RotationDecision
 from trading.models.rotation.rotation_score_weights import RotationScoreWeights
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.services.books.book_assignments import assign_book_strategy, open_assignment_for_book
 
@@ -46,6 +48,54 @@ class RotationRunResult:
     rotated: bool
     window_start_date: str
     window_end_date: str
+
+
+@dataclass(frozen=True, slots=True)
+class BookRotationScheduleConfig:
+    """The book's effective rotation-scheduling inputs (ADR 014).
+
+    Code defaults describe an untuned book: rotation disabled, no challenger
+    schedule (incumbent-only), default evidence window.
+    """
+
+    rotation_enabled: bool = False
+    schedule: tuple[str, ...] = ()
+    lookback_days: int = DEFAULT_ROLLING_WINDOW_DAYS
+
+
+def resolve_book_rotation_schedule(conn: sqlite3.Connection, *, book_id: int) -> BookRotationScheduleConfig:
+    """Resolve the book's effective rotation scheduling.
+
+    Reads the book's ``book_rotation_settings`` scheduling columns; NULL
+    fields (and a missing row) fall back to the ``BookRotationScheduleConfig``
+    code defaults. A malformed schedule value degrades to no challengers
+    rather than failing the run.
+    """
+    record = BookRotationSettingsRepository(conn).fetch(book_id=int(book_id))
+    if record is None:
+        return BookRotationScheduleConfig()
+    try:
+        schedule = tuple(name for name in parse_rotation_schedule(record.rotation_schedule) if name)
+    except ValueError:
+        schedule = ()
+    lookback = record.rotation_lookback_days
+    return BookRotationScheduleConfig(
+        rotation_enabled=bool(record.rotation_enabled),
+        schedule=schedule,
+        lookback_days=(int(lookback) if lookback is not None and int(lookback) > 0 else DEFAULT_ROLLING_WINDOW_DAYS),
+    )
+
+
+def resolve_default_book_rotation_schedule(conn: sqlite3.Connection, *, account_id: int) -> BookRotationScheduleConfig:
+    """The account's default-book rotation scheduling, read-only.
+
+    A missing default book resolves to the untuned code defaults (rotation
+    disabled) — it is never bootstrapped from a read path.
+    """
+    book = BookRepository(conn).fetch_default_for_account(account_id=int(account_id))
+    if book is None:
+        return BookRotationScheduleConfig()
+    return resolve_book_rotation_schedule(conn, book_id=book.id)
 
 
 def resolve_rotation_policy_config(

@@ -10,7 +10,7 @@ Related: [Strategy Catalog](strategies.md), [Trading Package Map](../maps/tradin
 ## Purpose
 
 Capture the current architecture and extension points for alternative-data
-signals used by strategy execution and rotation overlays.
+signals used by strategy execution.
 
 This document intentionally focuses on current behavior. It is not a phase
 history or backlog tracker.
@@ -22,7 +22,7 @@ This reference covers:
 - `policy_regime`
 - `news_sentiment`
 - `social_trend_rotation`
-- account-level news/social overlay behavior for regime rotation
+- live feature injection for alternative strategies
 
 Strategy catalog details (all strategy families) live in:
 
@@ -62,15 +62,15 @@ Degradation contract:
 - when required features are unavailable, strategy logic returns conservative
   behavior (typically `hold`)
 
-Rotation overlays:
+Live strategy execution:
 
-- `src/trading/services/auto_trading/rotation.py` applies news/social overlay votes
-  when `rotation_overlay_mode` is enabled.
-- Overlay coverage uses the union of current holdings and
-  `rotation_overlay_watchlist`.
-- Overlay watchlist defaults are seeded from `src/infrastructure/config/trade_universe.txt`
-  at schema/default time. Changing that file later does not automatically
-  update already-migrated DB values.
+- `src/trading/services/auto_trading/execution.py` builds per-ticker feature
+  history for alternative strategies with `build_feature_history_fn`.
+- `news_sentiment` uses the configured news fetcher; `social_trend_rotation`
+  uses the configured social fetcher. Missing or failing providers return no
+  feature history, so the signal functions degrade to conservative behavior.
+- Regime/news/social rotation overlays were retired; see
+  `docs/adr/009-regime-overlay-rotation-retired.md` for the preserved design.
 
 Operator visibility:
 

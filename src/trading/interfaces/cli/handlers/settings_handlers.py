@@ -64,6 +64,34 @@ def handle_configure_evaluation(conn, args, parser, *, deps: dict[str, Any]) -> 
     print(f"Updated global evaluation confidence settings: {rendered}")
 
 
+# CLI flag name → book_rotation_settings scheduling field (book-owned, ADR 014).
+_ROTATION_SCHEDULING_ARG_TO_FIELD = {
+    "enabled": "rotation_enabled",
+    "schedule": "rotation_schedule",
+    "lookback_days": "rotation_lookback_days",
+}
+
+
+def handle_configure_book_rotation(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    _require_any_flag(args, parser, tuple(_ROTATION_SCHEDULING_ARG_TO_FIELD), "rotation scheduling")
+    updates = {
+        field: getattr(args, arg_name)
+        for arg_name, field in _ROTATION_SCHEDULING_ARG_TO_FIELD.items()
+        if hasattr(args, arg_name)
+    }
+    saved = deps["update_book_rotation_scheduling"](
+        conn,
+        account_name=args.account,
+        book_name=args.book,
+        updates=updates,
+    )
+    rendered = " ".join(
+        f"{field}={'none' if getattr(saved, field) is None else getattr(saved, field)}"
+        for field in _ROTATION_SCHEDULING_ARG_TO_FIELD.values()
+    )
+    print(f"Updated rotation scheduling for book_id={saved.book_id}: {rendered}")
+
+
 def handle_configure_book_rotation_policy(conn, args, parser, *, deps: dict[str, Any]) -> None:
     _require_any_flag(args, parser, ROTATION_POLICY_FIELDS, "rotation policy")
     updates = {name: getattr(args, name) for name in ROTATION_POLICY_FIELDS if hasattr(args, name)}

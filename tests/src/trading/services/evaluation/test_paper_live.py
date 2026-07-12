@@ -1,24 +1,22 @@
 import pytest
 
+from tests.support.books import set_test_book_rotation_scheduling
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts import create_account, get_account
+from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.evaluation import fetch_strategy_evaluation
 
 
 def _enable_rotation(conn, name: str, *, active: str) -> None:
-    conn.execute(
-        """
-        UPDATE accounts
-        SET rotation_enabled = 1,
-            rotation_schedule = '["trend_v1","mean_reversion"]',
-            rotation_active_strategy = ?
-        WHERE name = ?
-        """,
-        (active, name),
-    )
-    conn.commit()
+    # Rotation is book-owned (ADR 014): enable it on the default book and make
+    # sure the book's open assignment runs the requested active strategy.
+    account = get_account(conn, name)
+    account_id = int(account["id"])
+    book_id = default_book_id(conn, account_id)
+    sync_default_book_assignment(conn, account_id=account_id, strategy_name=active, now_iso="2026-01-01T00:00:00Z")
+    set_test_book_rotation_scheduling(conn, book_id=book_id, enabled=1, schedule=["trend_v1", "mean_reversion"])
 
 
 def _snapshot(conn, account_id: int, *, at: str, equity: float) -> None:

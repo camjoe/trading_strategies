@@ -7,13 +7,12 @@ import sqlite3
 import pytest
 
 from common.time import utc_now_iso
-from tests.support.books import insert_test_book
+from tests.support.books import insert_test_book, set_test_book_rotation_scheduling
 from tests.support.repositories import insert_repository_account
 from trading.domain.exceptions import NotFoundError
 from trading.models.parameters.constants import PARAMETER_SOURCE_DB, PARAMETER_SOURCE_DEFAULT
 from trading.repositories.book_bridge import strategy_id_for_label
-from trading.services.books.challenger_evaluation import DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS
-from trading.services.books.rotation import RotationPolicyConfig
+from trading.services.books.rotation import BookRotationScheduleConfig, RotationPolicyConfig
 from trading.services.operational_settings import set_runtime_throttle_settings
 from trading.services.parameters import fetch_parameter_source_view, update_book_rotation_policy
 
@@ -113,28 +112,41 @@ class TestBookGroups:
         assert not any("second_acct" in scope for scope in scopes)
 
 
-class TestAccountRotationGroup:
-    def test_lookback_defaults_when_unset(self, conn: sqlite3.Connection) -> None:
-        insert_repository_account(conn, name="acct_rotation")
-
-        view = fetch_parameter_source_view(conn, account_name="acct_rotation")
-
-        group = _group(view, "account acct_rotation / rotation")
-        lookback = _entry(group, "rotation_lookback_days")
-        assert lookback.value == str(DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS)
-        assert lookback.source == PARAMETER_SOURCE_DEFAULT
-
-    def test_lookback_db_source_when_set(self, conn: sqlite3.Connection) -> None:
+class TestBookRotationSchedulingDisplay:
+    def test_scheduling_defaults_when_no_row(self, conn: sqlite3.Connection) -> None:
         account_id = insert_repository_account(conn, name="acct_rotation")
-        conn.execute("UPDATE accounts SET rotation_lookback_days = 45 WHERE id = ?", (account_id,))
-        conn.commit()
+        insert_test_book(conn, account_id=account_id, name="book_a")
 
         view = fetch_parameter_source_view(conn, account_name="acct_rotation")
 
-        group = _group(view, "account acct_rotation / rotation")
-        lookback = _entry(group, "rotation_lookback_days")
+        rotation = _group(view, "account acct_rotation / book book_a / rotation")
+        enabled = _entry(rotation, "rotation_enabled")
+        assert enabled.value == "False"
+        assert enabled.source == PARAMETER_SOURCE_DEFAULT
+        lookback = _entry(rotation, "rotation_lookback_days")
+        assert lookback.value == str(BookRotationScheduleConfig().lookback_days)
+        assert lookback.source == PARAMETER_SOURCE_DEFAULT
+        assert _entry(rotation, "rotation_schedule").value == "none"
+
+    def test_scheduling_db_source_when_set(self, conn: sqlite3.Connection) -> None:
+        account_id = insert_repository_account(conn, name="acct_rotation")
+        book_id = insert_test_book(conn, account_id=account_id, name="book_a")
+        set_test_book_rotation_scheduling(
+            conn, book_id=book_id, enabled=1, schedule=["trend", "meanrev"], lookback_days=45
+        )
+
+        view = fetch_parameter_source_view(conn, account_name="acct_rotation")
+
+        rotation = _group(view, "account acct_rotation / book book_a / rotation")
+        enabled = _entry(rotation, "rotation_enabled")
+        assert enabled.value == "True"
+        assert enabled.source == PARAMETER_SOURCE_DB
+        lookback = _entry(rotation, "rotation_lookback_days")
         assert lookback.value == "45"
         assert lookback.source == PARAMETER_SOURCE_DB
+        schedule = _entry(rotation, "rotation_schedule")
+        assert schedule.value == '["trend","meanrev"]'
+        assert schedule.source == PARAMETER_SOURCE_DB
 
 
 class TestStrategyGroups:

@@ -17,7 +17,7 @@ from trading.backtesting.domain.simulation_math import (
 )
 from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
-from trading.backtesting.trading_bridge import resolve_active_strategy
+from trading.services.books.book_assignments import active_strategy_for_account
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
@@ -68,7 +68,7 @@ def run_backtest(
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
-    strategy_name = resolve_active_strategy(account)
+    strategy_name = active_strategy_for_account(conn, account_id, fallback=row_expect_str(account, "strategy"))
     strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)

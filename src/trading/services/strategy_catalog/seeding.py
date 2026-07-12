@@ -94,11 +94,11 @@ def _copy_book_settings_from_account(
             updated_at=now,
         )
 
-    BookRotationSettingsRepository(conn).upsert(
+    # The interval-cadence columns are dead (ADR 014): only the book-owned
+    # scheduling inputs are copied.
+    BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
         rotation_enabled=row_expect_int(row, "rotation_enabled"),
-        rotation_interval_days=row_int(row, "rotation_interval_days"),
-        rotation_interval_minutes=row_int(row, "rotation_interval_minutes"),
         rotation_lookback_days=row_int(row, "rotation_lookback_days"),
         rotation_schedule=row_str(row, "rotation_schedule"),
         created_at=now,

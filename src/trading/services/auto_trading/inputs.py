@@ -15,15 +15,6 @@ from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_clos
 from trading.services.market_data import MarketDataProvider
 from trading.services.pricing import fetch_latest_prices
 
-EXECUTION_MODE_ACCOUNT = "account"
-EXECUTION_MODE_BOOK = "book"
-# Operator-facing legacy spelling; accepted and normalized to "book".
-LEGACY_EXECUTION_MODE_SLEEVE = "sleeve"
-SUPPORTED_EXECUTION_MODES = {
-    EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_BOOK,
-}
-
 
 def validate_trade_count_range(min_trades: int, max_trades: int) -> None:
     if min_trades < 1:
@@ -37,16 +28,6 @@ def resolve_account_names(accounts_arg: str) -> list[str]:
     if not accounts:
         raise ValueError("No accounts provided.")
     return accounts
-
-
-def validate_execution_mode(execution_mode: str) -> str:
-    normalized_mode = execution_mode.strip().lower()
-    if normalized_mode == LEGACY_EXECUTION_MODE_SLEEVE:
-        normalized_mode = EXECUTION_MODE_BOOK
-    if normalized_mode not in SUPPORTED_EXECUTION_MODES:
-        options = ", ".join(sorted(SUPPORTED_EXECUTION_MODES))
-        raise ValueError(f"execution_mode must be one of: {options}")
-    return normalized_mode
 
 
 def resolve_market_inputs(
@@ -94,13 +75,11 @@ def run_accounts(
     iv_rank_proxy: dict[str, float],
     max_trades: int,
     fee: float,
-    execution_mode: str = EXECUTION_MODE_ACCOUNT,
     histories: Mapping[str, pd.Series] | None = None,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
     provider: MarketDataProvider | None = None,
 ) -> list[tuple[str, int]]:
-    resolved_execution_mode = validate_execution_mode(execution_mode)
     results: list[tuple[str, int]] = []
     for account_name in account_names:
         executed = _run_account_trade_loop(
@@ -114,7 +93,6 @@ def run_accounts(
             iv_rank_proxy=iv_rank_proxy,
             max_trades=max_trades,
             fee=fee,
-            execution_mode=resolved_execution_mode,
             histories=histories,
         )
         results.append((account_name, executed))
