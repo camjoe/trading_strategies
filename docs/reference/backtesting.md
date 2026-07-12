@@ -83,6 +83,21 @@ evidence that has drifted (e.g. the refresh job is disabled or failing):
 If stale evidence is later proven to skew decisions, this advisory is the hook
 to tighten into confidence decay or a hard gate.
 
+### Remediation
+
+The freshness signal drives remediation — refreshing stale or missing backtests
+across each account's rotation candidate strategies (incumbent + challenger
+schedule), not just the active one:
+
+- On demand: `python -m trading.interfaces.cli.main refresh-stale-backtests`
+  (`--account` filter, `--dry-run` to list targets, `--limit` to cap a batch).
+- Scheduled: the `Trading\DailyBacktestRefresh` job re-runs only the drifted
+  backtests each day (see [runtime-jobs.md](runtime-jobs.md)).
+
+Candidate strategy names are canonicalized through the strategy catalog, so an
+aliased challenger (e.g. `macd_trend` → `macd`) matches its stored backtest and
+is not re-run once fresh.
+
 ## Strategy Notes
 
 - Phase 2 strategy ids are documented in `docs/reference/strategies.md`.
