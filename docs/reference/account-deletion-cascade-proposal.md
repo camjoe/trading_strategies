@@ -5,7 +5,7 @@ Status: Draft
 Created: 2026-07-10
 Last Reviewed: 2026-07-10
 Purpose: Proposed cascade changes and decision dependencies for simplifying account deletion without losing intentional history.
-Related: [Account Deletion Cascade Audit](account-deletion-cascade-audit.md), [Database Relationship Map](database-relationship-map.md), [DB Migration System](db-migration-system.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
+Related: [Database Diagram Viewer](database-diagram-viewer.html), [DB Migration System](db-migration-system.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
 ## Purpose
 
@@ -84,6 +84,5 @@ The example pattern lives in `.ai/skills/db-migration/sqlite-table-rebuild.md`.
 
 ## Related Docs
 
-- [Account Deletion Cascade Audit](account-deletion-cascade-audit.md)
-- [Database Relationship Map](database-relationship-map.md)
+- [Database Diagram Viewer](database-diagram-viewer.html)
 - [DB Migration System](db-migration-system.md)

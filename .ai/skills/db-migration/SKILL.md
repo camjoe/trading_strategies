@@ -1,6 +1,6 @@
 ---
 name: db-migration
-description: Manages SQLite schema migrations for the trading database — creating, validating, estimating risk, and generating rollback strategies. Use when asked to add a column, validate a migration, assess schema change risk, or plan a rollback.
+description: Manages SQLite schema migrations for the trading database — creating, validating, estimating risk, generating rollback strategies, and planning FK cascade/table-rebuild changes. Use when asked to add a column, validate a migration, assess schema change risk, change foreign-key actions, plan account-deletion cascades, or plan a rollback.
 invoker: any
 ---
 
@@ -33,4 +33,8 @@ For a complete schema change, run all four tasks in order unless asked for a spe
 - `src/infrastructure/database/schema.py`
 - `src/infrastructure/database/migrations.py`
 - `src/infrastructure/database/init.py`
+- `scripts/data_ops/audit_foreign_keys.py`
+- `scripts/data_ops/build_database_diagram_viewer.py`
+- `docs/reference/account-deletion-cascade-proposal.md`
+- `docs/reference/database-diagram-viewer.html`
 - `docs/architecture/architecture-conventions.md`
