@@ -22,6 +22,7 @@ def handle_backtest(conn, args, parser, *, deps: dict[str, Any]) -> None:
                 fee_per_trade=args.fee,
                 run_name=args.run_name,
                 allow_approximate_leaps=bool(args.allow_approximate_leaps),
+                strategy=args.strategy,
             ),
         )
     except ValueError as error:

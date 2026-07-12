@@ -41,6 +41,11 @@ def add_backtesting_commands(sub: argparse._SubParsersAction[argparse.ArgumentPa
     )
     p_backtest.add_argument("--account", required=True, help="Account name")
     _add_shared_backtest_args(p_backtest)
+    p_backtest.add_argument(
+        "--strategy",
+        default=None,
+        help="Optional strategy override (default: the account's active strategy)",
+    )
     p_backtest.add_argument("--run-name", default=None, help="Optional run label")
 
     p_backtest_report = sub.add_parser(
