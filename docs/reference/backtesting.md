@@ -62,6 +62,27 @@ Key behavior:
 - transient retry handling for market-data failures
 - machine-readable JSON artifacts under `local/exports/daily_backtest_refresh/`
 
+### Freshness cadence (advisory)
+
+Every strategy evaluation carries an advisory **backtest freshness** diagnostic
+(P12): the age of the newest backtest run (`backtest_runs.created_at`) measured
+against the evaluation's generation time. When that age exceeds the stale
+threshold (default **3 days**, `DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS` in
+`trading.domain.backtest_freshness`) the diagnostic is flagged stale.
+
+It is **advisory only** — it never blocks rotation or promotion and never
+changes confidence or the blended score. It surfaces so operators can spot
+evidence that has drifted (e.g. the refresh job is disabled or failing):
+
+- CLI `report` / `compare-strategies`: a `backtest_age=<n>d (fresh|stale)`
+  fragment on the evaluation summary line.
+- CLI `promotion-status`: a `Backtest Freshness` line.
+- Web: `backtestFreshness` on the evaluation detail payload and a `backtestStale`
+  flag on the summary, shown in the promotion evidence grid and the compare view.
+
+If stale evidence is later proven to skew decisions, this advisory is the hook
+to tighten into confidence decay or a hard gate.
+
 ## Strategy Notes
 
 - Phase 2 strategy ids are documented in `docs/reference/strategies.md`.
