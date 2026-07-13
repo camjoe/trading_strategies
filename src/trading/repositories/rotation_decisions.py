@@ -25,11 +25,10 @@ WHERE d.book_id = ?
 
 
 class RotationDecisionRepository:
-    """Book-keyed rotation decisions with the legacy sleeve access path.
+    """Book-keyed rotation decisions.
 
-    Storage follows the clean schema (strategy-id FKs; D6 score columns).
-    Legacy sleeve ids and strategy labels are bridged via book_bridge until
-    P4's unified rotation service owns this table.
+    Storage uses strategy-id FKs and first-class score columns; strategy
+    labels are bridged to strategies rows via book_bridge.
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:

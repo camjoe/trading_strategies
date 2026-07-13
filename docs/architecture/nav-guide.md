@@ -41,11 +41,13 @@ The maps and this guide serve different questions:
 | Change account listing or filtering | `src/trading/services/accounts/listing.py` |
 | Change account snapshot logic | `src/trading/services/accounts/queries.py` + `src/trading/repositories/accounts.py` |
 | Change auto-trading execution flow | `src/trading/services/auto_trading/` |
-| Change rotation logic | `src/trading/services/auto_trading/rotation.py` + `src/trading/domain/rotation.py` |
+| Change rotation logic | `src/trading/services/books/rotation.py` + `src/trading/domain/rotation.py` |
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change reporting math or presentation | `src/trading/services/reporting/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
+| Change the unified parameter view or its edit workflows (P7) | `src/trading/services/parameters/` |
+| Change per-book rotation policy resolution | `src/trading/services/books/rotation.py` (`resolve_rotation_policy_config`) |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
 | Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_float, row_expect_str, row_float
+from common.coercion import row_expect_float, row_expect_int, row_expect_str, row_float
 from common.time import utc_now_iso
 from trading.models.evaluation import StrategyEvaluationArtifact
 from trading.models import AccountRecord
@@ -22,6 +22,7 @@ from trading.services.accounts import (
     list_account_records,
     list_account_snapshots,
 )
+from trading.services.books.book_assignments import active_strategy_for_account
 from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 from trading.services.reporting.math import (
     alpha_pct,
@@ -55,10 +56,13 @@ def _print_leaps_params(account: AccountRecord) -> None:
     )
 
 
-def _print_account_header(account: AccountRecord) -> None:
+def _print_account_header(conn: sqlite3.Connection, account: AccountRecord) -> None:
+    active_strategy = active_strategy_for_account(
+        conn, row_expect_int(account, "id"), fallback=row_expect_str(account, "strategy")
+    )
     print(f"Account: {account['name']}")
     print(f"Display Name: {account['descriptive_name']}")
-    print(f"Account Policy: {format_account_policy_text(account)}")
+    print(f"Account Policy: {format_account_policy_text(account, active_strategy=active_strategy)}")
     goal_text = format_goal_text(account)
     if goal_text != GOAL_NOT_SET_TEXT:
         print(f"Goal Metadata: {goal_text}")
@@ -166,6 +170,14 @@ def _format_paper_live_evidence_summary(evaluation: StrategyEvaluationArtifact) 
     )
 
 
+def _format_backtest_freshness_summary(evaluation: StrategyEvaluationArtifact) -> str:
+    freshness = evaluation.diagnostics.backtest_freshness
+    if freshness is None or not freshness.available or freshness.age_days is None:
+        return "backtest_age=N/A"
+    label = "stale" if freshness.is_stale else "fresh"
+    return f"backtest_age={freshness.age_days:.1f}d ({label})"
+
+
 def _evaluation_summary_line(
     evaluation: StrategyEvaluationArtifact,
     *,
@@ -174,6 +186,7 @@ def _evaluation_summary_line(
     return (
         f"{prefix}{_format_backtest_evidence_summary(evaluation)} | "
         f"{_format_paper_live_evidence_summary(evaluation)} | "
+        f"{_format_backtest_freshness_summary(evaluation)} | "
         f"blended_score={_format_percentage_or_na(evaluation.confidence.blended_score)} | "
         f"confidence={evaluation.confidence.overall_confidence:.2f}"
     )
@@ -197,7 +210,7 @@ def account_report(
     )
     strategy_return_pct_value = strategy_return_pct(equity, effective_initial) if effective_initial else 0.0
 
-    _print_account_header(account)
+    _print_account_header(conn, account)
     _print_performance_lines(
         account,
         state.cash,
@@ -256,7 +269,8 @@ def compare_strategies(
         position_count, positions_text = positions_summary_text(state.positions)
 
         print(_compare_account_header(account))
-        print(f"  account_policy={format_account_policy_text(account)}")
+        active_strategy = active_strategy_for_account(conn, account.id, fallback=account.strategy)
+        print(f"  account_policy={format_account_policy_text(account, active_strategy=active_strategy)}")
         goal_metadata_line = _compare_goal_metadata_line(account)
         if goal_metadata_line is not None:
             print(goal_metadata_line)

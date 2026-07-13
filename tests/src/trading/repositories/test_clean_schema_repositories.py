@@ -166,13 +166,77 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert option is not None and option.option_type == "call"
 
     rotation_repo = BookRotationSettingsRepository(conn)
-    rotation_repo.upsert(book_id=book_id, rotation_enabled=1, rotation_interval_days=7, created_at=NOW, updated_at=NOW)
+    rotation_repo.upsert_rotation_scheduling(
+        book_id=book_id, rotation_enabled=1, rotation_lookback_days=45, created_at=NOW, updated_at=NOW
+    )
     rotation = rotation_repo.fetch(book_id=book_id)
     assert rotation is not None and rotation.rotation_enabled == 1
+    assert rotation.rotation_lookback_days == 45
 
     # Missing row → None (callers fall back to code defaults per D4).
     _, other_book = _insert_book(conn, name="other")
     assert execution_repo.fetch(book_id=other_book) is None
+
+
+def test_book_rotation_policy_upsert_preserves_scheduling_columns(conn) -> None:
+    _, book_id = _insert_book(conn)
+    rotation_repo = BookRotationSettingsRepository(conn)
+    rotation_repo.upsert_rotation_scheduling(
+        book_id=book_id, rotation_enabled=1, rotation_lookback_days=45, created_at=NOW, updated_at=NOW
+    )
+
+    rotation_repo.upsert_rotation_policy(
+        book_id=book_id,
+        min_trades_in_window=5,
+        outperformance_threshold_bps=40.0,
+        cooldown_days=10,
+        risk_adjusted_return_weight=None,
+        stability_weight=0.5,
+        drawdown_penalty_weight=None,
+        cost_penalty_weight=None,
+        regime_fit_weight=None,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    saved = rotation_repo.fetch(book_id=book_id)
+    assert saved is not None
+    assert saved.rotation_enabled == 1
+    assert saved.rotation_lookback_days == 45
+    assert saved.min_trades_in_window == 5
+    assert saved.outperformance_threshold_bps == pytest.approx(40.0)
+    assert saved.cooldown_days == 10
+    assert saved.stability_weight == pytest.approx(0.5)
+    assert saved.risk_adjusted_return_weight is None
+
+
+def test_book_rotation_scheduling_upsert_preserves_policy_columns(conn) -> None:
+    _, book_id = _insert_book(conn)
+    rotation_repo = BookRotationSettingsRepository(conn)
+    rotation_repo.upsert_rotation_policy(
+        book_id=book_id,
+        min_trades_in_window=5,
+        outperformance_threshold_bps=None,
+        cooldown_days=10,
+        risk_adjusted_return_weight=None,
+        stability_weight=None,
+        drawdown_penalty_weight=None,
+        cost_penalty_weight=None,
+        regime_fit_weight=None,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    rotation_repo.upsert_rotation_scheduling(
+        book_id=book_id, rotation_enabled=1, rotation_lookback_days=45, created_at=NOW, updated_at=NOW
+    )
+
+    saved = rotation_repo.fetch(book_id=book_id)
+    assert saved is not None
+    assert saved.rotation_enabled == 1
+    assert saved.rotation_lookback_days == 45
+    assert saved.min_trades_in_window == 5
+    assert saved.cooldown_days == 10
 
 
 def test_order_round_trip_and_book_account_integrity_guard(conn) -> None:

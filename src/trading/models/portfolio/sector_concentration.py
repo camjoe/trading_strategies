@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class SectorConcentration:
-    """One sector's share of total cross-account market value (D10 rollup).
+    """One sector's share of total cross-account market value.
 
     ``portfolio_pct`` is 0-100; symbols missing from the sector reference
     data aggregate under ``UNCATEGORIZED_SECTOR``.

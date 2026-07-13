@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-09
 Purpose: Repo-specific Python guidance that ruff cannot enforce: type-hint best practices, docstring expectations, and filesystem path handling.
 Related: [General Style](general-style.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Documentation Authoring Standard](docs-authoring.md)
 
@@ -50,3 +50,12 @@ Use `pathlib.Path` for filesystem paths. For repo-relative paths, logging, and c
 - `common.files.sorted_by_mtime_desc(paths)` / `latest_by_mtime(paths)` for newest-file selection.
 
 Keep platform-specific string normalization only at input boundaries (e.g. user-provided route parameters), never for filesystem paths.
+
+---
+
+## Tooling
+
+- Run mypy through the project runner:
+  `.venv\Scripts\python.exe -m scripts.checks.python.mypy_check` on Windows or
+  `./.venv/bin/python -m scripts.checks.python.mypy_check` on POSIX. Ad-hoc `mypy <file>` commands
+  do not resolve the `src/` layout reliably and can report false import errors.

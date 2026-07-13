@@ -30,15 +30,12 @@ ACCOUNT_CONFIG_API_FIELDS = (
     ApiFieldMapping("maxLossPct", "max_loss_pct"),
 )
 
+# The nested `rotation` object (book-owned scheduling, ADR 014); storage names
+# match the profile-service `rotation` object keys.
 ROTATION_API_FIELDS = (
-    ApiFieldMapping("rotationEnabled", "rotation_enabled"),
-    ApiFieldMapping("rotationIntervalDays", "rotation_interval_days"),
-    ApiFieldMapping("rotationIntervalMinutes", "rotation_interval_minutes"),
-    ApiFieldMapping("rotationLookbackDays", "rotation_lookback_days"),
-    ApiFieldMapping("rotationSchedule", "rotation_schedule"),
-    ApiFieldMapping("rotationActiveIndex", "rotation_active_index"),
-    ApiFieldMapping("rotationLastAt", "rotation_last_at"),
-    ApiFieldMapping("rotationActiveStrategy", "rotation_active_strategy"),
+    ApiFieldMapping("enabled", "enabled"),
+    ApiFieldMapping("schedule", "schedule"),
+    ApiFieldMapping("lookbackDays", "lookback_days"),
 )
 
 TEXT_API_FIELDS = frozenset({"descriptiveName", "optionType"})

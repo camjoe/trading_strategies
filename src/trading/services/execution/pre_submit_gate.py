@@ -42,7 +42,7 @@ class BookPreSubmitGate:
     Constructed per run with the price marks and the run's ``snapshot_time`` (used
     both as the reconciliation "now" and as the audit stamp). ``config`` supplies
     the notional caps + sector map; if omitted the domain defaults apply. An
-    optional ``audit_sink`` persists the risk decisions/reasons (wired at 2a-4).
+    optional ``audit_sink`` persists the risk decisions/reasons.
     """
 
     def __init__(

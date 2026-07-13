@@ -126,7 +126,7 @@ def count_equity_snapshots_for_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
 ) -> int:
-    # Snapshots are book-keyed (P3); count through the account's books.
+    # Snapshots are book-keyed; count through the account's books.
     placeholders = in_placeholders(account_ids)
     row = conn.execute(
         "SELECT COUNT(*) AS n FROM equity_snapshots WHERE book_id IN "
@@ -140,7 +140,7 @@ def delete_equity_snapshots_by_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
 ) -> None:
-    # Snapshots are book-keyed (P3); delete through the account's books.
+    # Snapshots are book-keyed; delete through the account's books.
     placeholders = in_placeholders(account_ids)
     conn.execute(
         f"DELETE FROM equity_snapshots WHERE book_id IN (SELECT id FROM books WHERE account_id IN ({placeholders}))",

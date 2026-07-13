@@ -63,7 +63,6 @@ def test_generate_book_trade_intents_uses_active_sleeves_and_assignments(conn, m
         universe=["AAPL"],
         prices={"AAPL": 101.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=4,
         fee=0.0,
     )
@@ -91,7 +90,6 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
         universe=["AAPL"],
         prices={"AAPL": 10.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=2,
         fee=0.0,
         histories={"AAPL": rising},
@@ -105,7 +103,6 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
         universe=["AAPL"],
         prices={"AAPL": 10.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=2,
         fee=0.0,
         histories={"AAPL": flat},
@@ -175,7 +172,6 @@ def test_generate_book_trade_intents_returns_empty_without_active_sleeves(conn) 
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=1,
         fee=0.0,
     )
@@ -221,7 +217,6 @@ def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_uni
         universe=["SPY", "QQQ"],
         prices={"SPY": 500.0, "QQQ": 400.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=1,
         fee=0.0,
     )
@@ -254,7 +249,6 @@ def test_run_multi_book_mode_for_account_returns_generated_intent_count(conn, mo
         universe=["MSFT"],
         prices={"MSFT": 300.0},
         iv_rank_proxy={},
-        min_trades=1,
         max_trades=1,
         fee=0.0,
     )

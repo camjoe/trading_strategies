@@ -44,12 +44,13 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
     return ChallengerEvaluationRun(
         account_id=1,
         account_name=account_name,
-        window_start_day="2026-04-08",
-        window_end_day="2026-05-07",
         books=[
             BookChallengerEvaluation(
                 book_id=77,
                 incumbent_strategy="trend",
+                rolling_window_days=30,
+                window_start_day="2026-04-08",
+                window_end_day="2026-05-07",
                 incumbent=RotationStrategyMetrics(
                     strategy_name="trend",
                     param_set_id=None,

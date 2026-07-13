@@ -1,4 +1,4 @@
-"""Seed the P3 clean-schema catalog: strategies from code, default books per account.
+"""Seed the catalog tables: strategies from code, default books per account.
 
 Idempotent — safe to re-run; only missing rows are created.
 

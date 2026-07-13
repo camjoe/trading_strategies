@@ -1,4 +1,4 @@
-"""Cross-account concentration rollup for analysis consumers (P9, D10).
+"""Cross-account concentration rollup for analysis consumers.
 
 Owns the symbol-level cross-account aggregation over persisted ``positions``
 rows and the sector rollup over the operator-editable symbol->sector
@@ -73,7 +73,7 @@ def _sector_entries(
 
 
 def fetch_portfolio_concentration(conn: sqlite3.Connection) -> PortfolioConcentration:
-    """Aggregate cross-account symbol and sector concentration (D10).
+    """Aggregate cross-account symbol and sector concentration.
 
     Market values come from persisted ``positions`` rows — no live pricing.
     The settlement ticker is excluded: it represents cash held as a position,

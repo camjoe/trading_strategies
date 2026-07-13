@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.models.evaluation import (
+    BacktestFreshness,
     EvaluationBacktestEvidence,
     EvaluationBasicScope,
     EvaluationConfidence,
+    EvaluationDiagnostics,
     EvaluationPaperLiveEvidence,
     StrategyEvaluationArtifact,
 )
@@ -51,6 +53,7 @@ def make_evaluation_artifact(
     paper_live_snapshot_count: int | None = None,
     blended_score: float | None = None,
     overall_confidence: float = 0.0,
+    backtest_freshness: BacktestFreshness | None = None,
 ) -> StrategyEvaluationArtifact:
     return StrategyEvaluationArtifact(
         basic=EvaluationBasicScope(account_id=account_id, account_name=account_name),
@@ -69,6 +72,7 @@ def make_evaluation_artifact(
             overall_confidence=overall_confidence,
             blended_score=blended_score,
         ),
+        diagnostics=EvaluationDiagnostics(backtest_freshness=backtest_freshness),
     )
 
 

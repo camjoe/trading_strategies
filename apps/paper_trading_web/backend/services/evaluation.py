@@ -4,6 +4,11 @@ from trading.domain.evaluation_decision_score import derive_decision_score
 from trading.models.evaluation import StrategyEvaluationArtifact
 
 
+def _backtest_stale(artifact: StrategyEvaluationArtifact) -> bool:
+    freshness = artifact.diagnostics.backtest_freshness
+    return bool(freshness is not None and freshness.is_stale)
+
+
 def build_evaluation_summary_payload(artifact: StrategyEvaluationArtifact) -> dict[str, object]:
     decision = derive_decision_score(artifact)
     return {
@@ -12,6 +17,19 @@ def build_evaluation_summary_payload(artifact: StrategyEvaluationArtifact) -> di
         "backtestConfidence": decision.backtest_confidence,
         "paperLiveConfidence": decision.paper_live_confidence,
         "dataGaps": list(decision.data_gaps),
+        "backtestStale": _backtest_stale(artifact),
+    }
+
+
+def _backtest_freshness_payload(artifact: StrategyEvaluationArtifact) -> dict[str, object]:
+    freshness = artifact.diagnostics.backtest_freshness
+    if freshness is None:
+        return {"available": False, "ageDays": None, "isStale": False, "staleThresholdDays": None}
+    return {
+        "available": freshness.available,
+        "ageDays": freshness.age_days,
+        "isStale": freshness.is_stale,
+        "staleThresholdDays": freshness.stale_threshold_days,
     }
 
 
@@ -43,6 +61,7 @@ def build_evaluation_detail_payload(artifact: StrategyEvaluationArtifact) -> dic
         },
         "confidence": build_evaluation_summary_payload(artifact),
         "dataGaps": list(artifact.diagnostics.data_gaps),
+        "backtestFreshness": _backtest_freshness_payload(artifact),
     }
 
 

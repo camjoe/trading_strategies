@@ -40,6 +40,14 @@ def _map_api_values(
     return mapped
 
 
+def _map_rotation_settings(values: Mapping[str, object]) -> dict[str, object]:
+    """Convert the nested camelCase ``rotation`` object to the profile shape."""
+    raw = values.get("rotation")
+    if not isinstance(raw, Mapping):
+        return {}
+    return _map_api_values(raw, ROTATION_API_FIELDS)
+
+
 def build_admin_create_account_command(payload: BaseModel) -> AdminCreateAccountCommand:
     values = _dump_model(payload, exclude_none=True)
     return AdminCreateAccountCommand(
@@ -48,7 +56,7 @@ def build_admin_create_account_command(payload: BaseModel) -> AdminCreateAccount
         initial_cash=_coerce_float(values["initialCash"]),
         benchmark_ticker=str(values.get("benchmarkTicker", "SPY")).strip().upper() or "SPY",
         config_values=_map_api_values(values, ACCOUNT_CONFIG_API_FIELDS),
-        rotation_profile=_map_api_values(values, ROTATION_API_FIELDS),
+        rotation_settings=_map_rotation_settings(values),
     )
 
 
@@ -58,5 +66,5 @@ def build_account_params_update_command(body: BaseModel) -> AccountParamsUpdateC
     return AccountParamsUpdateCommand(
         strategy=_clean_text(strategy_value) if strategy_value is not None else None,
         config_values=_map_api_values(values, ACCOUNT_CONFIG_API_FIELDS),
-        rotation_profile=_map_api_values(values, ROTATION_API_FIELDS),
+        rotation_settings=_map_rotation_settings(values),
     )

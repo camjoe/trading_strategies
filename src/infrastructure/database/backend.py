@@ -51,8 +51,8 @@ class SQLiteBackend(DatabaseBackend):
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        # Clean-schema convention (docs/db-schema-target.md): every *_id is a real,
-        # enforced FK. SQLite defaults the pragma to OFF per connection.
+        # Schema convention: every *_id is a real, enforced FK. SQLite
+        # defaults the pragma to OFF per connection.
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 

@@ -1,4 +1,4 @@
-"""Multi-book trading services package (legacy name: sleeves; renamed in SR-6).
+"""Multi-book trading services package.
 
 The stable public surface for multi-book trade orchestration: book assignments,
 intent generation, rotation, and challenger shadow evaluation.
@@ -21,7 +21,6 @@ from trading.services.books.rotation import (
 )
 from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
 from trading.services.books.challenger_evaluation import (
-    DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS,
     ChallengerEvaluationRun,
     BookChallengerEvaluation,
     build_book_challenger_evaluations,
@@ -38,7 +37,6 @@ __all__ = [
     "RotationRunResult",
     "evaluate_and_apply_book_rotation",
     "build_rotation_strategy_metrics",
-    "DEFAULT_CHALLENGER_ROLLING_WINDOW_DAYS",
     "ChallengerEvaluationRun",
     "BookChallengerEvaluation",
     "build_book_challenger_evaluations",

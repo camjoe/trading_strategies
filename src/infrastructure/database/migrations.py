@@ -159,7 +159,7 @@ ACCOUNT_MIGRATIONS = (
     ColumnMigration("trade_universes", "ALTER TABLE accounts ADD COLUMN trade_universes TEXT"),
 )
 
-# BACKTEST_RUN_MIGRATIONS retired with the P3 clean-schema swap: backtest_runs
+# BACKTEST_RUN_MIGRATIONS retired with the clean-schema swap: backtest_runs
 # keys the backtested strategy as a strategies FK (strategy_id) in the DDL,
 # replacing the additive strategy_name column.
 BACKTEST_RUN_MIGRATIONS: tuple[ColumnMigration, ...] = ()
@@ -176,7 +176,7 @@ ACCOUNT_BROKER_MIGRATIONS = (
         "live_trading_enabled",
         "ALTER TABLE accounts ADD COLUMN live_trading_enabled INTEGER NOT NULL DEFAULT 0",
     ),
-    # P3 clean-schema custody columns (docs/db-schema-target.md).
+    # Clean-schema custody columns.
     ColumnMigration(
         "base_ccy",
         "ALTER TABLE accounts ADD COLUMN base_ccy TEXT NOT NULL DEFAULT 'USD'",
@@ -184,7 +184,7 @@ ACCOUNT_BROKER_MIGRATIONS = (
     ColumnMigration("updated_at", "ALTER TABLE accounts ADD COLUMN updated_at TEXT"),
 )
 
-# ORDER_FILL_MIGRATIONS retired with the P3 clean-schema order_fills swap:
+# ORDER_FILL_MIGRATIONS retired with the clean-schema order_fills swap:
 # the table is order-keyed with exec_id + its unique constraint in the DDL.
 
 GLOBAL_SETTINGS_MIGRATIONS = (
@@ -278,9 +278,47 @@ TABLE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
 # Additive column migrations for the clean book tables (greenfield CREATEs cover
 # fresh DBs; these bring existing DBs up to the current shape).
 BOOK_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
-    # param_set_id: assignments pin the rotation winner's param set (sleeve
-    # retirement SR-1 / D-SR1a — book assignments are the single assignment record).
+    # param_set_id: assignments pin the rotation winner's param set — book
+    # assignments are the single live assignment record.
     "book_strategy_assignments": (
         ColumnMigration("param_set_id", "ALTER TABLE book_strategy_assignments ADD COLUMN param_set_id INTEGER"),
+    ),
+    # Rotation policy (score weights, threshold, cooldown, min-trades),
+    # migrated out of code-only RotationPolicyConfig defaults. All nullable —
+    # NULL means "use the code default", preserving current behavior for
+    # existing rows and fresh installs alike.
+    "book_rotation_settings": (
+        ColumnMigration(
+            "min_trades_in_window",
+            "ALTER TABLE book_rotation_settings ADD COLUMN min_trades_in_window INTEGER",
+        ),
+        ColumnMigration(
+            "outperformance_threshold_bps",
+            "ALTER TABLE book_rotation_settings ADD COLUMN outperformance_threshold_bps REAL",
+        ),
+        ColumnMigration(
+            "cooldown_days",
+            "ALTER TABLE book_rotation_settings ADD COLUMN cooldown_days INTEGER",
+        ),
+        ColumnMigration(
+            "risk_adjusted_return_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN risk_adjusted_return_weight REAL",
+        ),
+        ColumnMigration(
+            "stability_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN stability_weight REAL",
+        ),
+        ColumnMigration(
+            "drawdown_penalty_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN drawdown_penalty_weight REAL",
+        ),
+        ColumnMigration(
+            "cost_penalty_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN cost_penalty_weight REAL",
+        ),
+        ColumnMigration(
+            "regime_fit_weight",
+            "ALTER TABLE book_rotation_settings ADD COLUMN regime_fit_weight REAL",
+        ),
     ),
 }

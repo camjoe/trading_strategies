@@ -30,12 +30,14 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
 )
+from trading.domain.backtest_freshness import assess_backtest_freshness
 from trading.domain.returns import safe_return_pct
-from trading.domain.rotation import resolve_active_strategy
 from trading.models import AccountRecord, EquitySnapshotRecord
 from trading.repositories.book_bridge import default_book_id
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
+from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.books.rotation import resolve_default_book_rotation_schedule
 
 # Current non-broker-managed evaluation evidence mode for standard accounts.
 PAPER_EVIDENCE_MODE = "paper"
@@ -64,25 +66,45 @@ PAPER_LIVE_EVIDENCE_GAP = "missing_paper_live_evidence"
 WALK_FORWARD_EVIDENCE_GAP = "walk_forward_grouping_not_persisted"
 
 
-def resolve_requested_strategy(account: AccountRecord, strategy_name: str | None) -> str:
+def _active_strategy(conn: sqlite3.Connection, account: AccountRecord) -> str:
+    return active_strategy_for_account(
+        conn,
+        row_expect_int(account, "id"),
+        fallback=row_expect_str(account, "strategy"),
+    )
+
+
+def _default_book_rotation_enabled(conn: sqlite3.Connection, account_id: int) -> bool:
+    """Whether the account's default book rotates (book-owned, ADR 014).
+
+    The evidence windows are sliced by the default book's rotation-decision
+    timeline, so the isolation question is exactly whether that book's
+    strategy churns. Read-only: a missing default book means no rotation.
+    """
+    return resolve_default_book_rotation_schedule(conn, account_id=account_id).rotation_enabled
+
+
+def resolve_requested_strategy(conn: sqlite3.Connection, account: AccountRecord, strategy_name: str | None) -> str:
     if strategy_name is not None:
         normalized = strategy_name.strip()
         if normalized:
             return normalized
-    return resolve_active_strategy(account)
+    return _active_strategy(conn, account)
 
 
-def build_basic_scope(account: AccountRecord, requested_strategy: str) -> EvaluationBasicScope:
+def build_basic_scope(
+    conn: sqlite3.Connection, account: AccountRecord, requested_strategy: str
+) -> EvaluationBasicScope:
     return EvaluationBasicScope(
         account_id=row_expect_int(account, "id"),
         account_name=row_expect_str(account, "name"),
         descriptive_name=row_str(account, "descriptive_name"),
         requested_strategy=requested_strategy,
         base_strategy=row_expect_str(account, "strategy"),
-        active_strategy=resolve_active_strategy(account),
+        active_strategy=_active_strategy(conn, account),
         benchmark_ticker=row_expect_str(account, "benchmark_ticker"),
         instrument_mode=row_str(account, "instrument_mode"),
-        rotation_enabled=bool(row_int(account, "rotation_enabled")),
+        rotation_enabled=_default_book_rotation_enabled(conn, row_expect_int(account, "id")),
         live_trading_enabled=bool(row_int(account, "live_trading_enabled")),
     )
 
@@ -178,10 +200,10 @@ def _book_strategy_window_timeline(
     """
     decisions = RotationDecisionRepository(conn).fetch_selected_strategy_timeline(book_id=book_id)
     if not decisions:
-        base_strategy = resolve_active_strategy(account)
+        base_strategy = _active_strategy(conn, account)
         return [(inception_time, base_strategy)] if base_strategy else []
 
-    inception_strategy = decisions[0][1] or resolve_active_strategy(account)
+    inception_strategy = decisions[0][1] or _active_strategy(conn, account)
     timeline: list[tuple[str, str]] = []
     if inception_strategy:
         timeline.append((inception_time, inception_strategy))
@@ -263,7 +285,7 @@ def build_paper_live_evidence(
     requested_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = account.id
-    rotation_enabled = bool(account.rotation_enabled)
+    rotation_enabled = _default_book_rotation_enabled(conn, account_id)
     initial_cash = account.initial_cash
     latest_snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
     evidence = (
@@ -368,6 +390,7 @@ def build_diagnostics(
     backtest: EvaluationBacktestEvidence,
     paper_live: EvaluationPaperLiveEvidence,
     walk_forward: EvaluationWalkForwardEvidence,
+    generated_at: str,
 ) -> EvaluationDiagnostics:
     data_gaps: list[str] = []
     if not backtest.available:
@@ -376,4 +399,8 @@ def build_diagnostics(
         data_gaps.append(PAPER_LIVE_EVIDENCE_GAP)
     if not walk_forward.available:
         data_gaps.append(WALK_FORWARD_EVIDENCE_GAP)
-    return EvaluationDiagnostics(data_gaps=data_gaps)
+    freshness = assess_backtest_freshness(
+        backtest_created_at=backtest.created_at,
+        reference_iso=generated_at,
+    )
+    return EvaluationDiagnostics(data_gaps=data_gaps, backtest_freshness=freshness)

@@ -61,5 +61,9 @@ def handle_portfolio_concentration(conn, args, parser, *, deps: dict[str, Any]) 
     deps["show_portfolio_concentration"](conn)
 
 
+def handle_parameters(conn, args, parser, *, deps: dict[str, Any]) -> None:
+    deps["show_parameters"](conn, args.account)
+
+
 def handle_compare_strategies(conn, args, parser, *, deps: dict[str, Any]) -> None:
     deps["compare_strategies"](conn, args.lookback)

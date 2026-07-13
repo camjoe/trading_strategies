@@ -10,7 +10,7 @@ class StrategyImmutableError(ValueError):
 
 
 class StrategyRepository:
-    """SQL access for the strategies catalog (a strategy = primitive + knobs, D5).
+    """SQL access for the strategies catalog (a strategy = primitive + knobs).
 
     Immutability guard: a strategy's primitive/knobs are editable only while
     `status = 'draft'`. Freezing is one-way; tuning a frozen strategy means

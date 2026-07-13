@@ -9,7 +9,7 @@ from trading.services.accounts import get_account
 from trading.services.books.rotation_metrics import build_rotation_strategy_metrics
 from tests.support.repositories import insert_repository_account
 
-_FETCH_TARGET = "trading.services.books.rotation_metrics.fetch_strategy_evaluation_for_account_row"
+_FETCH_TARGET = "trading.services.evaluation.fetch_strategy_evaluation_for_account_row"
 
 
 def _artifact(*, blended_score: float | None, trade_count: int, available: bool = True) -> StrategyEvaluationArtifact:

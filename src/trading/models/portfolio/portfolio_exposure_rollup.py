@@ -7,7 +7,7 @@ from trading.models.portfolio.account_exposure import AccountExposure
 
 @dataclass(frozen=True, slots=True)
 class PortfolioExposureRollup:
-    """Cross-account exposure rollup (P9 v1 payload contract).
+    """Cross-account exposure rollup payload contract.
 
     ``accounts`` holds one entry per account, ordered by account name.
     Totals sum only the accounts that have at least one equity snapshot

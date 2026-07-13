@@ -30,9 +30,9 @@ def fetch_strategy_evaluation_for_account_row(
     *,
     strategy_name: str | None = None,
 ) -> StrategyEvaluationArtifact:
-    requested_strategy = resolve_requested_strategy(account, strategy_name)
+    requested_strategy = resolve_requested_strategy(conn, account, strategy_name)
     account_id = account.id
-    basic = build_basic_scope(account, requested_strategy)
+    basic = build_basic_scope(conn, account, requested_strategy)
     backtest = build_backtest_evidence(
         conn,
         account_id=account_id,
@@ -54,13 +54,15 @@ def fetch_strategy_evaluation_for_account_row(
         paper_live=paper_live,
         settings=confidence_settings,
     )
+    generated_at = utc_now_iso()
     diagnostics = build_diagnostics(
         backtest=backtest,
         paper_live=paper_live,
         walk_forward=walk_forward,
+        generated_at=generated_at,
     )
     return StrategyEvaluationArtifact(
-        meta=EvaluationMeta(generated_at=utc_now_iso()),
+        meta=EvaluationMeta(generated_at=generated_at),
         basic=basic,
         backtest=backtest,
         walk_forward=walk_forward,

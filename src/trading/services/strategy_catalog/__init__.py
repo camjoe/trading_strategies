@@ -1,4 +1,4 @@
-"""Strategy catalog seeding and clean-schema bootstrap (P3)."""
+"""Strategy catalog seeding and schema bootstrap."""
 
 from trading.services.strategy_catalog.seeding import (
     ensure_default_books,

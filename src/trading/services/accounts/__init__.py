@@ -36,9 +36,6 @@ from trading.domain.auto_trading_policy import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
 )
-from trading.domain.rotation import (
-    parse_rotation_schedule,
-)
 from trading.services.accounts.config import (
     ACCOUNT_KINDS,
     ACCOUNT_KIND_LOCAL,
@@ -73,7 +70,6 @@ __all__ = [
     "list_account_records",
     "list_account_snapshots",
     "load_runtime_eligible_account_names",
-    "parse_rotation_schedule",
     "RISK_POLICIES",
     "set_account_strategy",
     "set_benchmark",

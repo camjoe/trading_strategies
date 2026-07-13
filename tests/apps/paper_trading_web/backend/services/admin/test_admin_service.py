@@ -170,7 +170,7 @@ def test_create_account_with_rotation_wraps_duplicate_error(conn, monkeypatch) -
         initial_cash=1000.0,
         benchmark_ticker="SPY",
         config_values={},
-        rotation_profile={},
+        rotation_settings={},
     )
 
     def _raise_duplicate(*_args, **_kwargs) -> None:

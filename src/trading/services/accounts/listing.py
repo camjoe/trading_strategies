@@ -5,6 +5,7 @@ import sqlite3
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 from trading.repositories.accounts import AccountRepository
+from trading.services.books.book_assignments import active_strategy_for_account
 
 HEURISTIC_EXPLORATION_LABEL = "heuristic_exploration"
 GOAL_NOT_SET_TEXT = "not-set"
@@ -23,18 +24,12 @@ def format_goal_text(row: AccountRecord) -> str:
     return f"<= {max_goal:.2f}% per {goal_period}"
 
 
-def _resolve_base_and_active_strategy(row: AccountRecord) -> tuple[str, str]:
+def format_account_policy_text(row: AccountRecord, *, active_strategy: str | None = None) -> str:
+    """Format the policy line; ``active_strategy`` is the default-book
+    assignment's strategy (ADR 014), defaulting to the base column when the
+    caller has no connection to resolve it."""
     base_strategy = row.strategy
-    rotation_enabled = bool(row.rotation_enabled)
-    if not rotation_enabled:
-        return base_strategy, base_strategy
-
-    active_strategy = row.rotation_active_strategy or base_strategy
-    return base_strategy, active_strategy
-
-
-def format_account_policy_text(row: AccountRecord) -> str:
-    base_strategy, active_strategy = _resolve_base_and_active_strategy(row)
+    active_strategy = active_strategy or base_strategy
     learning_enabled = row.learning_enabled
     trade_size_pct = row.trade_size_pct
     max_position_pct = row.max_position_pct
@@ -52,10 +47,10 @@ def format_account_policy_text(row: AccountRecord) -> str:
     )
 
 
-def build_account_summary_line(row: AccountRecord) -> str:
+def build_account_summary_line(row: AccountRecord, *, active_strategy: str | None = None) -> str:
     initial_cash = row.initial_cash
     initial_cash_text = f"{initial_cash:.2f}" if initial_cash is not None else "n/a"
-    policy_text = format_account_policy_text(row)
+    policy_text = format_account_policy_text(row, active_strategy=active_strategy)
     summary = (
         f"[{row.id}] {row.name} | display_name={row.descriptive_name} | "
         f"initial_cash={initial_cash_text} | account_policy={policy_text} | "
@@ -67,7 +62,13 @@ def build_account_summary_line(row: AccountRecord) -> str:
     return summary
 
 
-def build_account_listing_lines(accounts: list[AccountRecord], *, by_strategy: bool) -> list[str]:
+def build_account_listing_lines(
+    accounts: list[AccountRecord],
+    *,
+    by_strategy: bool,
+    active_strategies: dict[int, str] | None = None,
+) -> list[str]:
+    resolved = active_strategies or {}
     lines: list[str] = []
     if by_strategy:
         current_strategy = None
@@ -78,10 +79,10 @@ def build_account_listing_lines(accounts: list[AccountRecord], *, by_strategy: b
                     lines.append("")
                 current_strategy = strategy
                 lines.append(f"Base Strategy: {current_strategy}")
-            lines.append(f"  {build_account_summary_line(account)}")
+            lines.append(f"  {build_account_summary_line(account, active_strategy=resolved.get(account.id))}")
         return lines
     for account in accounts:
-        lines.append(build_account_summary_line(account))
+        lines.append(build_account_summary_line(account, active_strategy=resolved.get(account.id)))
     return lines
 
 
@@ -89,4 +90,7 @@ def list_accounts(conn: sqlite3.Connection, by_strategy: bool = True) -> list[st
     accounts = AccountRepository(conn).fetch_listing()
     if not accounts:
         return []
-    return build_account_listing_lines(accounts, by_strategy=by_strategy)
+    active_strategies = {
+        account.id: active_strategy_for_account(conn, account.id, fallback=account.strategy) for account in accounts
+    }
+    return build_account_listing_lines(accounts, by_strategy=by_strategy, active_strategies=active_strategies)

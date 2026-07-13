@@ -1,1 +1,1 @@
-"""Strategy-book data contracts (clean schema, P3)."""
+"""Strategy-book data contracts."""

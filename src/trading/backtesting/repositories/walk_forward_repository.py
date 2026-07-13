@@ -8,7 +8,7 @@ from trading.domain.exceptions import NotFoundError
 
 
 def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> dict[str, object] | None:
-    # Copy the run's strategies FK directly onto the group (P3); no name resolution.
+    # Copy the run's strategies FK directly onto the group; no name resolution.
     row = conn.execute(
         """
         SELECT r.account_id, r.strategy_id

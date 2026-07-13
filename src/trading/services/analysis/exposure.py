@@ -1,4 +1,4 @@
-"""Cross-account exposure rollup for analysis consumers (P9 v1).
+"""Cross-account exposure rollup for analysis consumers.
 
 Owns the read-only aggregation over equity snapshots and open positions
 beneath the stable ``trading.services.analysis`` package surface.

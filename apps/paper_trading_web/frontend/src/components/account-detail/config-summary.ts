@@ -64,14 +64,12 @@ export function renderConfigSummary(detail: AccountDetail): string {
       <section class="config-summary-card">
         <h5>Rotation Settings</h5>
         <div class="analysis-summary">
-          ${configStat("Rotation Enabled", account.rotationEnabled ? "On" : "Off")}
-          ${configStat("Interval Days", formatOptionalNumber(account.rotationIntervalDays, 0))}
-          ${configStat("Interval Minutes", formatOptionalNumber(account.rotationIntervalMinutes, 0))}
-          ${configStat("Lookback Days", formatOptionalNumber(account.rotationLookbackDays, 0))}
-          ${configStat("Active Strategy", esc(account.rotationActiveStrategy ?? "—"))}
+          ${configStat("Rotation Enabled", account.rotation?.enabled ? "On" : "Off")}
+          ${configStat("Lookback Days", formatOptionalNumber(account.rotation?.lookbackDays, 0))}
+          ${configStat("Active Strategy", esc(account.activeStrategy ?? "—"))}
         </div>
         <div class="config-summary-note">
-          <strong>Schedule:</strong> ${formatOptionalList(account.rotationSchedule)}
+          <strong>Schedule:</strong> ${formatOptionalList(account.rotation?.schedule)}
         </div>
       </section>
     </div>

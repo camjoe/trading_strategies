@@ -1,13 +1,13 @@
-"""Seed the clean-schema catalog tables from code and legacy account config.
+"""Seed the catalog tables from code and legacy account config.
 
-Two idempotent bootstrap passes (P3 Phase D):
+Two idempotent bootstrap passes:
 
 - `seed_strategy_catalog` re-creates the code registry's strategies as
-  `strategies` rows (primitive + default knobs, D5) so nothing is lost when
+  `strategies` rows (primitive + default knobs) so nothing is lost when
   strategies go data.
-- `ensure_default_books` gives every account its real default book
-  (D7) and copies the account's legacy settings columns into the per-concern
-  book settings tables (D4) so book-keyed reads have data to stand on.
+- `ensure_default_books` gives every account its real default book and copies
+  the account's legacy settings columns into the per-concern book settings
+  tables so book-keyed reads have data to stand on.
 """
 
 from __future__ import annotations
@@ -94,11 +94,11 @@ def _copy_book_settings_from_account(
             updated_at=now,
         )
 
-    BookRotationSettingsRepository(conn).upsert(
+    # The interval-cadence columns are dead (ADR 014): only the book-owned
+    # scheduling inputs are copied.
+    BookRotationSettingsRepository(conn).upsert_rotation_scheduling(
         book_id=book_id,
         rotation_enabled=row_expect_int(row, "rotation_enabled"),
-        rotation_interval_days=row_int(row, "rotation_interval_days"),
-        rotation_interval_minutes=row_int(row, "rotation_interval_minutes"),
         rotation_lookback_days=row_int(row, "rotation_lookback_days"),
         rotation_schedule=row_str(row, "rotation_schedule"),
         created_at=now,
@@ -107,7 +107,7 @@ def _copy_book_settings_from_account(
 
 
 def ensure_default_books(conn: sqlite3.Connection, *, now_iso: str | None = None) -> int:
-    """Create the real default book (D7) + settings rows for accounts missing one.
+    """Create the real default book + settings rows for accounts missing one.
 
     Also opens the book's strategy assignment from the account's legacy strategy
     label when the seeded catalog knows it. Returns books created.

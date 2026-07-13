@@ -12,13 +12,10 @@ from infrastructure.database.init import db_session
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.services.auto_trading import (
-    EXECUTION_MODE_ACCOUNT,
-    EXECUTION_MODE_BOOK,
     resolve_account_names,
     resolve_market_inputs,
     run_accounts,
     run_for_account,
-    validate_execution_mode,
     validate_trade_count_range,
 )
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
@@ -50,19 +47,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-trades", type=int, default=5, help="Maximum trades per account")
     parser.add_argument("--fee", type=float, default=0.0, help="Per-trade fee")
     parser.add_argument("--seed", type=int, default=None, help="Optional random seed")
-    parser.add_argument(
-        "--execution-mode",
-        default=EXECUTION_MODE_ACCOUNT,
-        choices=[EXECUTION_MODE_ACCOUNT, EXECUTION_MODE_BOOK],
-        help="Execution mode: account (current path) or sleeve (increment 3 path).",
-    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     validate_trade_count_range(args.min_trades, args.max_trades)
-    execution_mode = validate_execution_mode(args.execution_mode)
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -88,10 +78,8 @@ def main() -> None:
             universe=universe,
             prices=prices,
             iv_rank_proxy=iv_rank_proxy,
-            min_trades=args.min_trades,
             max_trades=args.max_trades,
             fee=args.fee,
-            execution_mode=execution_mode,
             histories=histories,
             broker_factory=get_broker_for_account,
             feature_fetchers=feature_fetchers,

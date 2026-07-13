@@ -41,9 +41,9 @@ _ACCOUNT_VIEW_SELECT_WITH_UPPER_BOUND = _ACCOUNT_VIEW_SELECT.replace(
 class EquitySnapshotRepository:
     """Book-keyed snapshot storage with account-level roll-up reads.
 
-    Until P4's shared execution services own the writers, `insert` keeps the
-    legacy account-keyed signature and resolves (bootstrapping if needed) the
-    account's default book.
+    `insert` is the account-keyed convenience writer: it resolves
+    (bootstrapping if needed) the account's default book. `insert_for_book`
+    is the book-keyed writer.
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:

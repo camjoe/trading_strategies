@@ -96,3 +96,8 @@
   color: var(--ink);
   font-weight: 700;
 }
+
+.compare-evaluation .compare-stale {
+  color: var(--warning, #b8860b);
+  font-weight: 700;
+}

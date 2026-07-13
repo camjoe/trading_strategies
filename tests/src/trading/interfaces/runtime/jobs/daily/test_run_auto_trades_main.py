@@ -40,7 +40,6 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
         seed=123,
         accounts="acct1,acct2",
         fee=1.0,
-        execution_mode="book",
     )
     monkeypatch.setattr(
         module,
@@ -57,7 +56,6 @@ def test_main_happy_path_dispatches_accounts(monkeypatch, capsys) -> None:
     assert "acct1: executed 2 trades" in out
     assert "acct2: executed 2 trades" in out
     assert conn.closed is True
-    assert run_accounts_mock.call_args.kwargs["execution_mode"] == "book"
 
 
 def test_main_additional_validation_paths(monkeypatch) -> None:
@@ -117,7 +115,6 @@ def test_run_auto_trades_module_entrypoint(monkeypatch) -> None:
     conn = FakeConn()
     monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
     monkeypatch.setattr(auto_trading_module, "validate_trade_count_range", lambda *_a: None)
-    monkeypatch.setattr(auto_trading_module, "validate_execution_mode", lambda value: value)
     monkeypatch.setattr(auto_trading_module, "resolve_account_names", lambda _accounts: ["acct1"])
     monkeypatch.setattr(
         auto_trading_module,

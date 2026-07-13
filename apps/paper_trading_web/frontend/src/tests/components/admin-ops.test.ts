@@ -80,8 +80,10 @@ describe("renderPromotionOverview", () => {
           backtestConfidence: 0.95,
           paperLiveConfidence: 0.82,
           dataGaps: [],
+          backtestStale: false,
         },
         dataGaps: [],
+        backtestFreshness: { available: true, ageDays: 1.0, isStale: false, staleThresholdDays: 3 },
       },
       history: [
         {
@@ -120,6 +122,8 @@ describe("renderPromotionOverview", () => {
     const html = renderPromotionOverview(payload);
     expect(html).toContain("ready_for_review");
     expect(html).toContain("0.91");
+    expect(html).toContain("Backtest Freshness");
+    expect(html).toContain("1.0d (fresh)");
     expect(html).toContain("Review #7");
     expect(html).toContain("Needs operator sign-off.");
     expect(html).toContain("Ready for ops review.");
@@ -174,8 +178,10 @@ describe("renderPromotionOverview", () => {
           backtestConfidence: 0,
           paperLiveConfidence: 0,
           dataGaps: ["missing_backtest_evidence"],
+          backtestStale: true,
         },
         dataGaps: ["missing_backtest_evidence"],
+        backtestFreshness: { available: true, ageDays: 6.0, isStale: true, staleThresholdDays: 3 },
       },
       history: [],
     };
@@ -183,6 +189,7 @@ describe("renderPromotionOverview", () => {
     const html = renderPromotionOverview(payload);
     expect(html).toContain("n/a");
     expect(html).toContain("missing_backtest_evidence");
+    expect(html).toContain("6.0d (stale)");
     expect(html).toContain("No persisted promotion reviews found");
   });
 });

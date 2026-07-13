@@ -19,12 +19,11 @@ _METRIC_COLUMNS = (
 
 
 class DailyMetricsRepository:
-    """Book-keyed daily metrics with the legacy account/sleeve access paths.
+    """Book-keyed daily metrics with an account-level convenience path.
 
-    Storage keys on ``book_id`` (UNIQUE per book+metric_date). Until P4 retires
-    the sleeve paradigm, account-level rows live on the account's default book
-    and sleeve rows on a bridging book named after the sleeve; both are created
-    on first write.
+    Storage keys on ``book_id`` (UNIQUE per book+metric_date). Account-level
+    rows live on the account's default book, created (bootstrapped) on first
+    write.
     """
 
     def __init__(self, conn: sqlite3.Connection) -> None:

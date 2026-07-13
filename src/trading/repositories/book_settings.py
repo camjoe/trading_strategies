@@ -6,8 +6,9 @@ from trading.models.books.book_execution_settings_record import BookExecutionSet
 from trading.models.books.book_option_settings_record import BookOptionSettingsRecord
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 
-# Per-concern typed settings tables, 1:1 with books (D4, 2026-07-03).
-# A missing row means "use code defaults"; change-audit arrives with P7.
+# Per-concern typed settings tables, 1:1 with books. A missing row means
+# "use code defaults"; change-audit stays deferred (see the D4 change-audit
+# note in docs/decisions.md).
 
 
 class BookExecutionSettingsRepository:
@@ -161,32 +162,29 @@ class BookRotationSettingsRepository:
         ).fetchone()
         return BookRotationSettingsRecord.from_mapping(dict(row)) if row is not None else None
 
-    def upsert(
+    def upsert_rotation_scheduling(
         self,
         *,
         book_id: int,
         rotation_enabled: int = 0,
-        rotation_interval_days: int | None = None,
-        rotation_interval_minutes: int | None = None,
         rotation_lookback_days: int | None = None,
         rotation_schedule: str | None = None,
         created_at: str,
         updated_at: str,
     ) -> None:
-        # The mode/optimality/regime/overlay columns are retained on the table
-        # (append-only) but no longer written — dead config retired in 2b-7.
+        # Scheduling-only write: policy columns keep their values when the row
+        # already exists; a fresh row gets policy NULLs (code defaults). The
+        # mode/optimality/regime/overlay and interval columns are retained on
+        # the table (append-only) but are dead config — no longer written.
         self._conn.execute(
             """
             INSERT INTO book_rotation_settings (
-                book_id, rotation_enabled, rotation_interval_days,
-                rotation_interval_minutes, rotation_lookback_days, rotation_schedule,
+                book_id, rotation_enabled, rotation_lookback_days, rotation_schedule,
                 created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(book_id) DO UPDATE SET
                 rotation_enabled = excluded.rotation_enabled,
-                rotation_interval_days = excluded.rotation_interval_days,
-                rotation_interval_minutes = excluded.rotation_interval_minutes,
                 rotation_lookback_days = excluded.rotation_lookback_days,
                 rotation_schedule = excluded.rotation_schedule,
                 updated_at = excluded.updated_at
@@ -194,10 +192,61 @@ class BookRotationSettingsRepository:
             (
                 int(book_id),
                 int(rotation_enabled),
-                rotation_interval_days,
-                rotation_interval_minutes,
                 rotation_lookback_days,
                 rotation_schedule,
+                created_at,
+                updated_at,
+            ),
+        )
+        self._conn.commit()
+
+    def upsert_rotation_policy(
+        self,
+        *,
+        book_id: int,
+        min_trades_in_window: int | None,
+        outperformance_threshold_bps: float | None,
+        cooldown_days: int | None,
+        risk_adjusted_return_weight: float | None,
+        stability_weight: float | None,
+        drawdown_penalty_weight: float | None,
+        cost_penalty_weight: float | None,
+        regime_fit_weight: float | None,
+        created_at: str,
+        updated_at: str,
+    ) -> None:
+        # Policy-only write: scheduling columns keep their values when the
+        # row already exists; a fresh row gets scheduling defaults.
+        self._conn.execute(
+            """
+            INSERT INTO book_rotation_settings (
+                book_id, min_trades_in_window, outperformance_threshold_bps,
+                cooldown_days, risk_adjusted_return_weight, stability_weight,
+                drawdown_penalty_weight, cost_penalty_weight, regime_fit_weight,
+                created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(book_id) DO UPDATE SET
+                min_trades_in_window = excluded.min_trades_in_window,
+                outperformance_threshold_bps = excluded.outperformance_threshold_bps,
+                cooldown_days = excluded.cooldown_days,
+                risk_adjusted_return_weight = excluded.risk_adjusted_return_weight,
+                stability_weight = excluded.stability_weight,
+                drawdown_penalty_weight = excluded.drawdown_penalty_weight,
+                cost_penalty_weight = excluded.cost_penalty_weight,
+                regime_fit_weight = excluded.regime_fit_weight,
+                updated_at = excluded.updated_at
+            """,
+            (
+                int(book_id),
+                min_trades_in_window,
+                outperformance_threshold_bps,
+                cooldown_days,
+                risk_adjusted_return_weight,
+                stability_weight,
+                drawdown_penalty_weight,
+                cost_penalty_weight,
+                regime_fit_weight,
                 created_at,
                 updated_at,
             ),

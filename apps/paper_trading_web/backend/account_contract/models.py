@@ -18,7 +18,8 @@ class AdminCreateAccountCommand:
     initial_cash: float
     benchmark_ticker: str
     config_values: dict[str, object]
-    rotation_profile: dict[str, object]
+    # The profile-shaped `rotation` object (book-owned scheduling, ADR 014).
+    rotation_settings: dict[str, object]
 
     @property
     def config(self) -> AccountConfig:
@@ -29,7 +30,8 @@ class AdminCreateAccountCommand:
 class AccountParamsUpdateCommand:
     strategy: str | None
     config_values: dict[str, object]
-    rotation_profile: dict[str, object]
+    # The profile-shaped `rotation` object (book-owned scheduling, ADR 014).
+    rotation_settings: dict[str, object]
 
     @property
     def config(self) -> AccountConfig:

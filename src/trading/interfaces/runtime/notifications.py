@@ -107,7 +107,7 @@ def notify_webhook_best_effort(
 
 @dataclass(frozen=True)
 class EmailNotificationConfig:
-    """SMTP delivery settings for runtime email notifications (Plan P8, D8).
+    """SMTP delivery settings for runtime email notifications.
 
     Sourced from environment variables at the job boundary (see
     ``resolve_email_config_from_env``). Auth is optional: leave ``username``/

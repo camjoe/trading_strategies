@@ -1,26 +1,24 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 
 from common.coercion import coerce_float
+from common.time import utc_now_iso
 from trading.models.accounts.account_config import AccountConfig
-from trading.repositories.accounts import AccountRepository
-from trading.services.profiles.rotation_config_parser import parse_rotation_config_from_profile
-from trading.services.accounts import configure_account, create_account, get_account, set_benchmark
+from trading.repositories.book_bridge import default_book_id
+from trading.repositories.book_settings import BookRotationSettingsRepository
+from trading.services.profiles.rotation_config_parser import parse_book_rotation_config_from_profile
+from trading.services.accounts import (
+    configure_account,
+    create_account,
+    get_account,
+    set_account_strategy,
+    set_benchmark,
+)
 from trading.services.profiles.source import AccountProfileSource, JsonAccountProfileSource
-from trading.domain.rotation import rotation_config_to_db_dict
+from trading.domain.rotation import dump_rotation_schedule
 from trading.domain.strategy_signals import validate_strategy_name
-
-ROTATION_KEYS = {
-    "rotation_enabled",
-    "rotation_interval_days",
-    "rotation_interval_minutes",
-    "rotation_lookback_days",
-    "rotation_schedule",
-    "rotation_active_index",
-    "rotation_last_at",
-    "rotation_active_strategy",
-}
 
 
 def load_account_profiles_from_source(source: AccountProfileSource) -> list[dict[str, object]]:
@@ -31,39 +29,45 @@ def load_account_profiles(file_path: str) -> list[dict[str, object]]:
     return load_account_profiles_from_source(JsonAccountProfileSource(file_path))
 
 
-def apply_rotation_fields(conn: sqlite3.Connection, name: str, profile: dict[str, object]) -> bool:
-    if not any(key in profile for key in ROTATION_KEYS):
+def apply_book_rotation_settings(conn: sqlite3.Connection, name: str, profile: dict[str, object]) -> bool:
+    """Apply the profile's nested ``rotation`` object to the default book.
+
+    Rotation scheduling is book-owned (ADR 014): the account profile's
+    rotation config lands on the account's default book. Keys absent from the
+    ``rotation`` object keep their persisted values (partial edit).
+    """
+    raw = profile.get("rotation")
+    if raw is None:
         return False
+    cfg = parse_book_rotation_config_from_profile(profile)
+    assert isinstance(raw, Mapping)  # parse rejects non-mapping values
 
     account = get_account(conn, name)
-    cfg = parse_rotation_config_from_profile(profile)
+    book_id = default_book_id(conn, account.id)
+    repository = BookRotationSettingsRepository(conn)
+    current = repository.fetch(book_id=book_id)
 
-    has_schedule_input = "rotation_schedule" in profile
-    has_index_input = "rotation_active_index" in profile
+    if "enabled" in raw:
+        enabled = int(bool(cfg.enabled))
+    else:
+        enabled = int(current.rotation_enabled) if current is not None else 0
+    if "lookback_days" in raw:
+        lookback_days = cfg.lookback_days
+    else:
+        lookback_days = current.rotation_lookback_days if current is not None else None
+    if "schedule" in raw:
+        schedule = dump_rotation_schedule(cfg.schedule) if cfg.schedule else None
+    else:
+        schedule = current.rotation_schedule if current is not None else None
 
-    write_keys: set[str] = {k for k in ROTATION_KEYS if k in profile}
-    if has_schedule_input or has_index_input:
-        write_keys.add("rotation_active_strategy")
-    if has_schedule_input:
-        write_keys.add("rotation_active_index")
-
-    field_values = rotation_config_to_db_dict(cfg)
-
-    updates: list[str] = []
-    params: list[object] = []
-    for key, value in field_values.items():
-        if key not in write_keys:
-            continue
-        updates.append(f"{key} = ?")
-        params.append(value)
-
-    if not updates:
-        return False
-
-    AccountRepository(conn).update(
-        account_id=account.id,
-        updates=updates,
-        params=params,
+    now_iso = utc_now_iso()
+    repository.upsert_rotation_scheduling(
+        book_id=book_id,
+        rotation_enabled=enabled,
+        rotation_lookback_days=lookback_days,
+        rotation_schedule=schedule,
+        created_at=current.created_at if current is not None else now_iso,
+        updated_at=now_iso,
     )
     return True
 
@@ -120,7 +124,7 @@ def apply_account_profiles(
                 benchmark,
                 config=account_config,
             )
-            apply_rotation_fields(conn, name, profile)
+            apply_book_rotation_settings(conn, name, profile)
             created += 1
             continue
 
@@ -131,19 +135,15 @@ def apply_account_profiles(
             fields_updated = True
 
         if strategy is not None:
-            account = get_account(conn, name)
-            AccountRepository(conn).update(
-                account_id=account.id,
-                updates=["strategy = ?"],
-                params=[strategy],
-            )
+            # Through the service so the default book's assignment follows.
+            set_account_strategy(conn, name, strategy)
             fields_updated = True
 
         if AccountConfig.has_any_field(profile):
             configure_account(conn, account_name=name, config=account_config)
             fields_updated = True
 
-        if apply_rotation_fields(conn, name, profile):
+        if apply_book_rotation_settings(conn, name, profile):
             fields_updated = True
 
         if fields_updated:
