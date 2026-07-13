@@ -81,8 +81,43 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "toggleConstraints" in html
     assert "toggleDeleteActions" in html
     assert "fk-arrow" in html
+    assert 'markerWidth="11"' in html
+    assert 'markerHeight="8"' in html
     assert "edgePoint" in html
     assert "cardBounds" in html
+    assert "columnBounds" in html
+    assert "combineRelationships" in html
+    assert "relationshipSourceBounds" in html
+    assert "targetAnchorBounds" in html
+    assert "targetSlotAssignments" in html
+    assert "arrowStorageKey" in html
+    assert "attachArrowDragHandle" in html
+    assert "handleArrowPointerMove" in html
+    assert "handleArrowPointerUp" in html
+    assert 'window.addEventListener("pointermove", handleArrowPointerMove)' in html
+    assert "saveArrowTarget" in html
+    assert "ns-resize" in html
+    assert "sideOffsetPoint" in html
+    assert "routeRespectsEndpointDirection" in html
+    assert "sourceTurnsBack" in html
+    assert "targetTurnsBack" in html
+    assert 'data-column="' in html
+    assert "routeRelationship" in html
+    assert "routeCandidates" in html
+    assert "routeBendCount" in html
+    assert "routeOverlapScore" in html
+    assert "segmentOverlapLength" in html
+    assert "obstacleAvoidanceCandidates" in html
+    assert "simplifyRoute(points, 2)" in html
+    assert "routedPathData" in html
+    assert "segmentCrossing" in html
+    assert "appendSegmentWithBridges" in html
+    assert "relationshipLaneOffset" in html
+    assert "bridgedCrossings" in html
+    assert "reserveBridge" in html
+    assert "oppositeSide" not in html
+    assert 'side === "top"' not in html
+    assert 'side === "bottom"' not in html
     assert "resetLayout" in html
     assert "Drag table cards" in html
     assert "child/FK table points to referenced parent table" in html

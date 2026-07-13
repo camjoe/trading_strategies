@@ -28,7 +28,7 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
         "id": "orders",
         "label": "Orders",
-        "color": "#9333ea",
+        "color": "#dc2626",
         "tables": ("orders", "order_fills"),
     },
     {
