@@ -102,7 +102,7 @@ written for the formerly account-mode accounts.
 ### 5. Cleanup (after every environment is migrated)
 
 Delete `src/trading/interfaces/runtime/data_ops/migrate_book_rotation.py`, its test, and this
-runbook; remove the "Deploy step pending" row from `docs/status.md`.
+runbook; remove Step 2 from `docs/pending-deploy-steps.md`.
 
 ## Rollback
 

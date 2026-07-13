@@ -5,13 +5,13 @@ Status: Active
 Created: 2026-07-01
 Last Reviewed: 2026-07-09
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
-do today (honestly, including known gaps), how it works, and where it is going. Entry point that
-frames the current tracker in [status.md](status.md).
-Related: [Status](status.md),
-[Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
+do today (honestly, including known gaps), how it works, and where it is going. The entry point and
+the itemized tracker for what remains.
+Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md),
+[Pending One-Time DB Steps](pending-deploy-steps.md)
 
-> This document is the definitive guideline for **why/what**. When priorities or capabilities change,
-> update this file first, then reconcile current status in [status.md](status.md).
+> This document is the definitive guideline for **why/what** and the tracker for what's left. When
+> priorities or capabilities change, update this file first.
 
 ## What this app is
 
@@ -128,8 +128,8 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 
 ## Direction and plan
 
-The strategic order here is the north star (the "why/what"). The **authoritative, itemized tracker**
-for what is left is [status.md](status.md). Durable decisions live in [ADRs](adr/); completed implementation narrative
+The strategic order here is the north star (the "why/what") and the authoritative, itemized tracker
+for what is left. Durable decisions live in [ADRs](adr/); completed implementation narrative
 lives in git history.
 
 The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
@@ -147,9 +147,8 @@ catalog (P6) made the `strategies` catalog canonical for definitions and knobs, 
 variants and the legacy parameter-set store retired.
 
 The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
-and the book-rotation cutover — operator runbooks). Parameter optimization (P11) is the one
-independent deferred workstream, pursued only when its trigger is met. Details on deferred work live
-in [status.md](status.md).
+and the book-rotation cutover — operator runbooks) plus one not-yet-built schema cleanup, all tracked
+in [pending-deploy-steps.md](pending-deploy-steps.md).
 
 ## Guiding constraints
 
@@ -161,3 +160,10 @@ in [status.md](status.md).
 - **Feature providers are signal inputs, not evaluation evidence** — their effect reaches evaluation
   only through realized paper/live P&L.
 - **One evidence-driven evaluation** backs comparison, rotation, and promotion.
+
+## Out of scope (do not silently re-add)
+
+- **Trends workflow integration into API/UI** — `apps/trends/` stays a standalone CLI.
+- **Non-proxy alternative-data expansion** — ETF-proxy feature providers are sufficient for now.
+- **Native `IbApiClient` socket path** — the Client Portal / Web API client is the active IBKR
+  integration; the legacy socket path stays documented stubs only.

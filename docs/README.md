@@ -26,7 +26,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`status.md`](status.md) — **the tracker**: remaining committed work and deferred workstream links
+- [`pending-deploy-steps.md`](pending-deploy-steps.md) — one-time DB steps pending for existing databases (two to run, one to build)
 - [`adr/`](adr/) — durable architecture and product decisions
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
