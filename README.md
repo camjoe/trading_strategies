@@ -1,6 +1,12 @@
 # Trading Strategies
 
-A Python suite for stock trends analysis, backtesting, paper trading, and strategy development.
+A system for developing, evaluating, and progressively automating quantitative trading strategies. It
+takes a strategy from **backtest → walk-forward → paper → human-gated live**, continuously compares
+strategies against one another, and rotates toward the best performer — with the goal of a
+data-driven automated trader deployable from paper to a live IBKR account in a near-identical way.
+
+**Start here:** [`docs/overview.md`](docs/overview.md) — the definitive explainer of what the app is,
+what it can do today (with honest gaps), how it works, and where it's going.
 
 ## Project Overview
 

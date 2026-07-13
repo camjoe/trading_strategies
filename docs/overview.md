@@ -3,7 +3,7 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-12
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
 do today (honestly, including known gaps), how it works, and where it is going. The entry point and
 the itemized tracker for what remains.
@@ -63,6 +63,10 @@ Design intent:
   paper/live evidence into confidence + a blended score, exposed through one decision-score contract
   (`EvaluationDecisionScore`).
 - **Promotion workflow** with research/paper/live-review stages, human gate, and append-only audit.
+- **Signal-driven live/paper execution** — selection evaluates the active strategy's signal function
+  per candidate ticker through the same `evaluate_signal(...)` entry the backtester uses: trade only
+  on real signals, no forced minimum, a per-run max cap. Rotation changes what the trader actually
+  does (no random/style-biased placeholder).
 - **Paper trading** with equity snapshots, trades, and benchmark overlays.
 - **Multi-book accounts** — one broker account hosting multiple strategy books, with
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
@@ -87,10 +91,6 @@ Design intent:
 
 These are real and shape the plan. None are hidden by the UI — they are core-logic gaps.
 
-- **The execution loop is closed (2026-07-03).** Live/paper selection now evaluates the active
-  strategy's signal function per candidate ticker through the same `evaluate_signal(...)` entry the
-  backtester uses: trade only on real signals, no forced minimum, a per-run max cap. Rotation now
-  changes what the trader actually does. (The legacy random/style-biased placeholder is removed.)
 - **New signal *logic* is still a code change.** The `strategies` catalog is canonical for
   strategy definitions and knobs — variants and tuning are data, editable via CLI and resolved at
   runtime from catalog rows. But a genuinely new *signal primitive* still needs a new signal function
@@ -129,21 +129,8 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
 ## Direction and plan
 
 The strategic order here is the north star (the "why/what") and the authoritative, itemized tracker
-for what is left. Durable decisions live in [ADRs](adr/); completed implementation narrative
-lives in git history.
-
-The spine is complete: the execution loop is closed so strategy signals drive live/paper execution;
-evaluation is unified behind one decision-score contract that backs compare, promotion, and rotation;
-the clean book schema is live; and accounts and sleeves converged onto one book-keyed
-submission/rotation/accounting path (the sleeve vocabulary fully retired 2026-07-09). Email
-notifications, the unified parameter source, and the cross-account portfolio risk rollup are in. The
-execution-mode collapse landed with book-owned rotation scheduling (ADR 014): one book-keyed
-runtime path, rotation gated per book and evaluated continuously under cooldown. Backtest freshness
-ships as a non-blocking advisory staleness diagnostic on evaluations (CLI + web); the daily
-backtest-refresh job and the `refresh-stale-backtests` command close the loop by re-running only the
-stale or missing backtests across each account's rotation candidates. The plug-and-play strategy
-catalog made the `strategies` catalog canonical for definitions and knobs, with CLI edits for
-variants and the legacy parameter-set store retired.
+for what is left. Today's delivered capabilities are in "What it can do today" above; durable
+decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
 The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
 and the book-rotation cutover — operator runbooks) plus one not-yet-built schema cleanup, all tracked
