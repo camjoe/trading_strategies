@@ -5,13 +5,12 @@ import sqlite3
 
 from trading.repositories.book_bridge import strategy_id_for_label
 
-# Reads join strategies to keep emitting the legacy label columns
-# (incumbent_strategy / challenger_strategy / selected_strategy) plus the
-# caller's sleeve_id, so raw-row consumers are unchanged during the window.
-_LEGACY_ROW_SELECT = """
+# Reads join strategies to emit the label columns
+# (incumbent_strategy / challenger_strategy / selected_strategy) alongside the
+# stored strategy-id FKs, so row consumers read strategy keys directly.
+_ROW_WITH_LABELS_SELECT = """
 SELECT
     d.*,
-    ? AS sleeve_id,
     si.strategy_key AS incumbent_strategy,
     sc.strategy_key AS challenger_strategy,
     ss.strategy_key AS selected_strategy
@@ -56,9 +55,9 @@ class RotationDecisionRepository:
     ) -> int:
         """Record a rotation decision keyed directly on a book.
 
-        The book-native writer used by the unified rotation path (a plain account's
-        default book or a sleeve's bridging book). ``insert`` layers the legacy
-        ``sleeve_id`` → ``book_id`` bridge on top of this.
+        The book-native writer used by the unified rotation path — every book
+        (the default book and any additional books alike) records its decisions
+        keyed on ``book_id``.
         """
         cursor = self._conn.execute(
             """
@@ -110,23 +109,23 @@ class RotationDecisionRepository:
 
     def fetch_latest_for_book(self, *, book_id: int) -> sqlite3.Row | None:
         rows = self._conn.execute(
-            _LEGACY_ROW_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT 1",
-            (None, int(book_id)),
+            _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT 1",
+            (int(book_id),),
         ).fetchall()
         return rows[0] if rows else None
 
     def fetch_for_book(self, *, book_id: int, limit: int) -> list[sqlite3.Row]:
         return self._conn.execute(
-            _LEGACY_ROW_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT ?",
-            (None, int(book_id), int(limit)),
+            _ROW_WITH_LABELS_SELECT + " ORDER BY d.decision_time DESC, d.id DESC LIMIT ?",
+            (int(book_id), int(limit)),
         ).fetchall()
 
     def fetch_for_book_on_date(self, *, book_id: int, report_date: str) -> list[sqlite3.Row]:
         next_date = (dt.date.fromisoformat(report_date) + dt.timedelta(days=1)).isoformat()
         return self._conn.execute(
-            _LEGACY_ROW_SELECT
+            _ROW_WITH_LABELS_SELECT
             + " AND d.decision_time >= ? AND d.decision_time < ? ORDER BY d.decision_time ASC, d.id ASC",
-            (None, int(book_id), report_date, next_date),
+            (int(book_id), report_date, next_date),
         ).fetchall()
 
     def fetch_selected_strategy_timeline(self, *, book_id: int) -> list[tuple[str, str | None, str | None]]:
