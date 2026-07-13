@@ -72,16 +72,13 @@ or `reconciliation`) instead of treating the package root as a facade.
 
 ## UI Backend boundary rule
 
-`apps/paper_trading_web/backend/services/` is a **transport-only** layer.
+`apps/paper_trading_web/backend/services/` is a **transport-only** layer — HTTP
+conversion, FastAPI error handling, and camelCase response shaping only. If a
+calculation would be useful to a CLI command or a runtime job, it belongs in
+`src/trading/services/`, not the UI backend.
 
-- ✅ HTTP request → domain model conversion
-- ✅ FastAPI error handling (`raise HTTPException`)
-- ✅ Response payload shaping (camelCase dicts for the frontend)
-- ❌ Domain calculations, business rules, or data assembly
-
-If a calculation would be useful to a CLI command or a runtime job, it belongs
-in `src/trading/services/` — not in the UI backend.  See
-`docs/architecture/architecture-conventions.md` for the full rule.
+Full rule (allowed/disallowed responsibilities, interface primacy, HTTP error
+mapping): [architecture-conventions.md](architecture-conventions.md#ui-backend-boundary-rule).
 
 ---
 

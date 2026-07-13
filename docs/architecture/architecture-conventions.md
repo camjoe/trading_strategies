@@ -390,7 +390,7 @@ that prevents live broker orders from being submitted accidentally.
    code or automated process.
 
 3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
-   `trading.brokers.factory`).  If this error surfaces, it must propagate so
+   `infrastructure.brokers.factory`).  If this error surfaces, it must propagate so
    the operator can investigate.
 
 4. **Shared test fixtures and helper factories must default to
