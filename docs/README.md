@@ -40,7 +40,6 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
 - [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
 - [`docs/architecture/architecture-conventions.md`](../docs/architecture/architecture-conventions.md) — authoritative layering and import boundary rules
-- [`architecture/restructure-notes.md`](architecture/restructure-notes.md) — `src/` restructure notes: outcome, reusable patterns, and the open domain-slicing question (foundation phase complete)
 
 ## Maps (file/directory inventories)
 

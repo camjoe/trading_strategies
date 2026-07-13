@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Task-oriented lookup table — given "I want to X", tells you which file to touch.
 Related: [Service Cookbook](service-cookbook.md), [Trading Package Map](../maps/trading-package-map.md), [UI Map](../maps/ui-map.md)
 
@@ -41,9 +41,11 @@ The maps and this guide serve different questions:
 | Change account listing or filtering | `src/trading/services/accounts/listing.py` |
 | Change account snapshot logic | `src/trading/services/accounts/queries.py` + `src/trading/repositories/accounts.py` |
 | Change auto-trading execution flow | `src/trading/services/auto_trading/` |
+| Change shared book order submission, fill handling, reconciliation, or pre-submit gates | `src/trading/services/execution/` |
 | Change rotation logic | `src/trading/services/books/rotation.py` + `src/trading/domain/rotation.py` |
 | Change promotion logic | `src/trading/services/promotion/` |
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
+| Change strategy catalog seeding, resolution, variants, configuration, or freezing | `src/trading/services/strategy_catalog/` |
 | Change reporting math or presentation | `src/trading/services/reporting/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
 | Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
@@ -55,6 +57,8 @@ The maps and this guide serve different questions:
 | Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
 | Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
+| Change stale-backtest target discovery/remediation support | `src/trading/services/backtesting/` |
+| Change IBKR paper monitor operator/dashboard queries or artifacts | `src/trading/services/ibkr_paper_monitor/` |
 
 ### Configuration
 
@@ -138,8 +142,6 @@ The maps and this guide serve different questions:
 | Add shared utility (HTTP, formatting, DOM) | `apps/paper_trading_web/frontend/src/lib/` |
 | Add/change an API response type | `apps/paper_trading_web/frontend/src/types/<area>.ts` |
 | Change design tokens or base styles | `apps/paper_trading_web/frontend/src/styles/tokens.css` or `base.css` |
-| Update finance/market terms in the in-app docs | `docs/reference/financial-market-knowledge.md`, then run `python -m scripts.documentation_ui.sync` |
-| Update API or software reference content in the in-app docs | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
 
 ---
 
@@ -179,7 +181,7 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Back up the DB | `python -m scripts.data_ops.backup_db` |
 | Export DB to CSV | `python -m scripts.data_ops.export_db_csv` |
 | Inspect schema | `python -m scripts.data_ops.describe_db_schema` |
-| Launch the UI | `python scripts/launch_ui.py` |
+| Launch the UI | `python -m scripts.launch_ui` |
 
 ---
 
