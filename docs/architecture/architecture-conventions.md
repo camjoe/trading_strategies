@@ -69,11 +69,11 @@ Disallowed:
 
 6. `src/trading/models/`: passive data contracts (the lowest layer)
    - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
-     state/order models, and domain value objects (evaluation/promotion/sleeve).
+     state/order models, and domain value objects (evaluation/promotion/books).
    - No business logic, no I/O, and **no imports from `domain`, `services`,
      `repositories`, `interfaces`, or `infrastructure`** — enforced by
      `scripts/checks/repo/layer_check.py`. `domain` may import `models`, never the reverse.
-   - Organized into feature subfolders (`accounts/`, `sleeves/`, `evaluation/`, …),
+   - Organized into feature subfolders (`accounts/`, `books/`, `evaluation/`, …),
      one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
 
 7. `src/trading/repositories/`: SQL persistence adapters

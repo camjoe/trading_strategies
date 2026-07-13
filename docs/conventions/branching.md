@@ -27,7 +27,7 @@ All work branches off `develop`. When a feature or refactor is ready, open a PR 
 | `fix/[task]` | Bug fixes |
 | `hotfix/[task]` | Urgent fixes applied directly to `main` (see Hotfix Flow below) |
 
-Use lowercase kebab-case for `[task]` — e.g., `features/sleeve-promotion-api`, `fix/order-fill-rounding`.
+Use lowercase kebab-case for `[task]` — e.g., `features/book-rotation-api`, `fix/order-fill-rounding`.
 
 ## Workflow Summary
 

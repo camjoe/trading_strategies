@@ -77,7 +77,7 @@ Before enabling autonomous mode, an operator must verify all items below.
 
 - [ ] `check_burn_in_status` returns `ready_for_live: true`
 - [ ] No kill switch events in the burn-in window
-- [ ] All sleeve NAV balances reconcile with broker account state
+- [ ] All book NAV balances reconcile with broker account state
 - [ ] No open promotion review requests that need resolution
 
 ### Risk controls
@@ -91,7 +91,7 @@ Before enabling autonomous mode, an operator must verify all items below.
 
 - [ ] W1 leaderboard artifact reviewed — no unexpected strategy rank reversals
 - [ ] W2 promotion review artifact reviewed — no stale retirement-risk strategies
-- [ ] W3 allocation review artifact reviewed — sleeve drift within acceptable range
+- [ ] W3 allocation review artifact reviewed — book drift within acceptable range
 - [ ] M1 risk rebaseline reviewed for baseline establishment
 
 ### Sign-off

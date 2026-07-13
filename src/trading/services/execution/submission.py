@@ -16,10 +16,10 @@ from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
 
-# Clean cash-flow ledger vocabulary (2c): each entry is a cash movement, so a book's
+# Clean cash-flow ledger vocabulary: each entry is a cash movement, so a book's
 # cash = starting cash + Σ(ledger.amount). A fill posts a gross `trade` entry plus a
 # `fee` entry; the two sum to the net cash delta. `realized_pnl`/`cash_movement` from
-# the sleeve ledger are intentionally NOT used — the clean `ledger` CHECK forbids them,
+# the legacy ledger are intentionally NOT used — the clean `ledger` CHECK forbids them,
 # and realized P&L is derived for reporting, not a cash flow.
 LEDGER_ENTRY_TYPE_TRADE = "trade"
 LEDGER_ENTRY_TYPE_FEE = "fee"
@@ -162,7 +162,7 @@ def submit_book_intents(
     cash-flow ``ledger``, and the book's ``current_cash``/``current_equity`` — all
     keyed by ``book_id``. A pre-submit kill switch (from the gate) holds the whole
     book; a broker-API exception mid-loop appends the anomaly reason and stops,
-    mirroring the legacy sleeve path.
+    mirroring the legacy submission path.
     """
     gate_result = gate.evaluate(conn, account_id=account_id, intents=intents)
     kill_switch_reasons = list(gate_result.kill_switch_reasons)

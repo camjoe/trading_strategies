@@ -24,4 +24,4 @@ The foundation phase is **done**. The repo has a clean three-sibling base — `s
 
 ## Open question — domain slicing
 
-The remaining decision is whether to carve more `sleeves`-like bounded contexts out of the layer-first structure. Guidance: **slice by coupling, not uniformly**, and treat it as a separate effort — start with an analysis pass (identify the most cohesive/coupled candidates) before any moves. Not started.
+The remaining decision is whether to carve more cohesive bounded contexts out of the layer-first structure. Guidance: **slice by coupling, not uniformly**, and treat it as a separate effort — start with an analysis pass (identify the most cohesive/coupled candidates) before any moves. Not started.

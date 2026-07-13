@@ -34,8 +34,8 @@ class GateAuditSink(Protocol):
     Injected so the concrete persistence (risk snapshot + normalized decisions
     through the existing repos) stays out of this module — the execution
     service must not depend on the ``auto_trading`` layer that calls it.
-    ``decisions`` are the notional-gate outcomes; under the book-as-bucket
-    model their ``sleeve_id`` field carries the ``book_id``.
+    ``decisions`` are the notional-gate outcomes, bucketed by ``book_id``
+    under the book-as-bucket model.
     """
 
     def record(

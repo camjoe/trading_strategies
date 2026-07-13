@@ -23,21 +23,21 @@ Run each of the three weekly jobs after Friday's close or over the weekend.
 
 ### W1 — Strategy parameter leaderboard
 
-Ranks sleeves by 30-day risk-adjusted performance score.
+Ranks books by 30-day risk-adjusted performance score.
 
 ```bash
 .venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard
 ```
 
 **Key fields in artifact:**
-- `sleeves[].rank` — performance rank within the account (1 = best)
-- `sleeves[].avg_risk_adjusted_score` — primary ranking signal
-- `sleeves[].avg_return_pct` — average daily return over window
-- `sleeves[].max_drawdown_pct` — worst drawdown in window
+- `books[].rank` — performance rank within the account (1 = best)
+- `books[].avg_risk_adjusted_score` — primary ranking signal
+- `books[].avg_return_pct` — average daily return over window
+- `books[].max_drawdown_pct` — worst drawdown in window
 
 **When to act:**
-- If a sleeve holds rank 1 consistently → consider it for promotion review
-- If a sleeve stays at the bottom for multiple weeks → flag for W2 retirement review
+- If a book holds rank 1 consistently → consider it for promotion review
+- If a book stays at the bottom for multiple weeks → flag for W2 retirement review
 
 ---
 
@@ -52,30 +52,30 @@ Reports promotion readiness and any blocking violations for each account.
 **Key fields in artifact:**
 - `ready_for_live` — whether the account's incumbent strategy meets promotion criteria
 - `blockers` — list of reasons blocking promotion
-- `sleeves[].sleeve_status` — `active`, `inactive`, or other status
+- `books[].book_status` — `active`, `inactive`, or other status
 
 **When to act:**
 - `ready_for_live: true` with no blockers → open a promotion review via the CLI
-- Any sleeve with `sleeve_status` other than `active` for an extended period → investigate
+- Any book with `book_status` other than `active` for an extended period → investigate
 
 ---
 
 ### W3 — Allocation reweight review
 
-Compares actual sleeve NAV allocation against original `start_equity` ratios.
+Compares actual book NAV allocation against original `start_equity` ratios.
 
 ```bash
 .venv/bin/python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review
 ```
 
 **Key fields in artifact:**
-- `sleeves[].current_pct` — actual current NAV percentage
-- `sleeves[].target_pct` — target percentage based on original start equity
-- `sleeves[].drift_pct` — current minus target
-- `sleeves[].reweight_suggested` — true when `|drift_pct| >= threshold` (default 5%)
+- `books[].current_pct` — actual current NAV percentage
+- `books[].target_pct` — target percentage based on original start equity
+- `books[].drift_pct` — current minus target
+- `books[].reweight_suggested` — true when `|drift_pct| >= threshold` (default 5%)
 
 **When to act:**
-- Any sleeve with `reweight_suggested: true` → review whether drift is driven by performance (acceptable) or by an accounting error (investigate)
+- Any book with `reweight_suggested: true` → review whether drift is driven by performance (acceptable) or by an accounting error (investigate)
 
 **Changing the drift threshold:**
 ```bash
@@ -131,17 +131,17 @@ Inventories all active strategy parameter sets for operator review.
 
 ### M3 — Long-horizon performance audit
 
-90-day compound return, max drawdown, and average hit rate per sleeve.
+90-day compound return, max drawdown, and average hit rate per book.
 
 ```bash
 .venv/bin/python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit
 ```
 
 **Key fields in artifact:**
-- `sleeves[].cumulative_return_pct` — compound return over audit window
-- `sleeves[].max_drawdown_pct` — worst drawdown over audit window
-- `sleeves[].avg_hit_rate` — average win rate
-- `sleeves[].total_trades` — total trade count
+- `books[].cumulative_return_pct` — compound return over audit window
+- `books[].max_drawdown_pct` — worst drawdown over audit window
+- `books[].avg_hit_rate` — average win rate
+- `books[].total_trades` — total trade count
 
 **Changing the audit window:**
 ```bash

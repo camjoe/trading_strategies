@@ -45,7 +45,7 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```
    Check: top-level `status == "success"`; all `step_results` entries show `status: ok` or `status: skipped`.
 
-3. **Review daily operator report** — step 10 artifact section contains per-account sleeve performance, risk violations, and rotation decisions.
+3. **Review daily operator report** — step 10 artifact section contains per-account book performance, risk violations, and rotation decisions.
 
 ---
 
@@ -54,11 +54,11 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
 | Step ID | Purpose |
 |---|---|
 | `00_ingest_market_and_account` | Load market data and account state |
-| `01_mark_sleeve_nav` | Mark sleeve NAV (handled by snapshot/reconciliation) |
+| `01_mark_book_nav` | Mark book NAV (handled by snapshot/reconciliation) |
 | `02_run_signals_all_strategies` | Challenger shadow evaluation (if enabled) |
 | `03_score_incumbent_vs_challengers` | Score strategies |
-| `04_rotation_decision` | Evaluate and apply sleeve rotation |
-| `05_build_position_targets_by_sleeve` | Build position targets |
+| `04_rotation_decision` | Evaluate and apply book rotation |
+| `05_build_position_targets_by_book` | Build position targets |
 | `06_pretrade_risk_gate` | Pre-trade risk gate evaluation |
 | `07_submit_ibkr_orders` | Submit orders to IBKR auto-trader |
 | `08_reconcile_fills_update_ledgers` | Reconcile fills and update ledgers |

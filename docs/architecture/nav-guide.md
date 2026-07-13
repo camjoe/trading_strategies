@@ -49,8 +49,8 @@ The maps and this guide serve different questions:
 | Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
 | Change per-book rotation policy resolution | `src/trading/services/books/rotation.py` (`resolve_rotation_policy_config`) |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
-| Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
-| Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
+| Change book logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
+| Change book performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
 | Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
 | Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |

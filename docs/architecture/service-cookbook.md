@@ -51,8 +51,8 @@ derivation is `resolve_*`.
 | Fetch prices | `trading.services.pricing` | Latest-price lookups over the injected provider |
 | Get/switch the market-data or feature provider | `trading.services.market_data` | Ports + `require_*` guards; concrete adapter lives in `src/infrastructure/market_data/` |
 | Run auto-trading for accounts; rotation-if-due; broker-order reconciliation | `trading.services.auto_trading` | Runtime orchestration; injected `broker_factory` and provider |
-| Sleeve execution, fills, risk gate, rotation, reconciliation | `trading.services.sleeves` | Sleeve mode; shares trade selection with `auto_trading` |
-| Sleeve performance windows; portfolio risk snapshots; account analysis | `trading.services.analysis` | Flat service modules (`performance.py`, `risk_snapshots.py`) — import directly |
+| Book execution, fills, risk gate, rotation, reconciliation | `trading.services.books` | Shares trade selection with `auto_trading` |
+| Book performance windows; portfolio risk snapshots; account analysis | `trading.services.analysis` | Flat service modules (`performance.py`, `risk_snapshots.py`) — import directly |
 | Promotion assessments, review requests/actions, history | `trading.services.promotion` | Human-gated review workflow + CLI rendering |
 | Canonical strategy evaluation (evidence + decision score) | `trading.services.evaluation` | Backs compare, rotation, and promotion via `derive_decision_score` |
 | Operational settings: throttles, evaluation confidence, promotion policy | `trading.services.operational_settings` | Also owns trade-throttle enforcement |

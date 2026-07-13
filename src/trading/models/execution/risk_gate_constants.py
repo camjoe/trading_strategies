@@ -1,4 +1,4 @@
-"""Sleeve risk-gate default limit values for :class:`RiskGateConfig`.
+"""Book risk-gate default limit values for :class:`RiskGateConfig`.
 
 Callers may override any of these per evaluation.  They live in the models layer
 because they are the data-contract defaults the config carries, mirroring how
@@ -11,7 +11,7 @@ service layer (see ``trading.services.books.sector_config``).
 
 from __future__ import annotations
 
-# Default share of a sleeve's equity that any single symbol position may occupy.
+# Default share of a book's equity that any single symbol position may occupy.
 DEFAULT_MAX_BOOK_NOTIONAL_PCT = 0.25
 # Default share of total portfolio equity that any single symbol may occupy.
 DEFAULT_MAX_SYMBOL_CONCENTRATION_PCT = 0.30

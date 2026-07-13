@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M3 monthly governance job — 90-day long-horizon performance audit across all sleeves."""
+"""M3 monthly governance job — 90-day long-horizon performance audit across all books."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ def _compute_audit_stats(metrics: list) -> dict[str, object]:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="month",
-    description="M3 monthly governance: 90-day long-horizon performance audit across all sleeves.",
+    description="M3 monthly governance: 90-day long-horizon performance audit across all books.",
     add_arguments=_add_audit_window_arg,
     validate=_validate_args,
 )

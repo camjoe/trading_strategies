@@ -44,12 +44,12 @@ Runnable entrypoints with weekly or monthly duplicate guards; **not** registered
 
 | Job | Entrypoint | Frequency | Why it exists / how it is used |
 |---|---|---|---|
-| W1 weekly leaderboard | `python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard` | Weekly dedup guard | Ranks account sleeves by recent performance, default 30-day window, for governance review. |
+| W1 weekly leaderboard | `python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard` | Weekly dedup guard | Ranks account books by recent performance, default 30-day window, for governance review. |
 | W2 weekly promotion review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review` | Weekly dedup guard | Produces promotion/retirement readiness review for runtime-eligible accounts. |
-| W3 weekly allocation review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review` | Weekly dedup guard | Compares actual sleeve NAV allocation against target/start-equity ratios and flags drift. |
+| W3 weekly allocation review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review` | Weekly dedup guard | Compares actual book NAV allocation against target/start-equity ratios and flags drift. |
 | M1 monthly risk rebaseline | `python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline` | Monthly dedup guard | Captures latest risk snapshots per account for operator risk budget review. |
-| M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories active strategy assignments and parameter sets per sleeve. |
-| M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Runs a longer-horizon sleeve performance audit, default 90 days. |
+| M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories each book's active strategy assignment and effective parameters. |
+| M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Runs a longer-horizon book performance audit, default 90 days. |
 
 ## Helper modules
 

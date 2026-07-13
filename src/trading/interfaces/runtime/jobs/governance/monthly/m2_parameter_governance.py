@@ -38,7 +38,7 @@ def already_completed_this_month(log_dir: Path, tag: str) -> bool:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="month",
-    description="M2 monthly governance: inventory active strategy parameters per sleeve.",
+    description="M2 monthly governance: inventory active strategy parameters per book.",
 )
 def main(ctx: JobContext) -> dict[str, object]:
     account_results: list[dict[str, object]] = []

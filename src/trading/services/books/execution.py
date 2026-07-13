@@ -33,9 +33,8 @@ def _prepare_trade_selection(*args, **kwargs):
 
 
 def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeState:
-    # A sleeve's live state (cash + holdings) is its bridging book's — the submission
-    # path maintains book balances/positions, and the sleeve_positions/strategy_sleeves
-    # tables are frozen once sleeve mode submits through the shared execution service.
+    # A book's live state (cash + holdings) is authoritative — the submission path
+    # maintains book balances and positions through the shared execution service.
     book = BookRepository(conn).fetch_by_id(book_id=book_id)
     current_cash = book.current_cash if book is not None else 0.0
     positions: dict[str, float] = {}

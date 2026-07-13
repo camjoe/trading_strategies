@@ -210,7 +210,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |
 | `ledger.py` | Clean-schema book-keyed ledger entry records |
-| `orders.py` | Clean-schema orders table (unifies broker + sleeve orders) |
+| `orders.py` | Clean-schema orders table (unifies broker + book orders) |
 | `positions.py` | Clean-schema position records keyed by (book_id, symbol) |
 | `promotion.py` | Promotion decision records |
 | `risk.py` | Clean-schema risk snapshots and risk decision records |
@@ -221,7 +221,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `books.py` | Clean-schema strategy books — execution primitives |
 | `book_settings.py` | Per-concern typed book settings (execution, rotation, options) |
 | `book_assignments.py` | Book-strategy assignment and lifecycle records |
-| `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/sleeve/label access paths |
+| `book_bridge.py` | Interim bridges reaching clean-schema tables from legacy account/label access paths |
 
 ---
 

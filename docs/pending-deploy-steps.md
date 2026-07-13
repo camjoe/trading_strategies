@@ -169,3 +169,8 @@ Both are unused and always NULL. This step removes them for good.
 
 **Note:** the `docs/reference/db-schema.md` row for `strategy_param_sets` should be removed as part of
 the code-cleanup commit (or regenerated via `python -m scripts.data_ops.describe_db_schema`).
+
+**Related sleeve leftover:** once the legacy sleeve tables are dropped (Step 1), also remove the
+`rotation_decisions` legacy-compat `? AS sleeve_id` synthetic column (and its explanatory comments)
+in `src/trading/repositories/rotation_decisions.py`. It's an unread query alias kept only for
+raw-row consumers during the transition — a pure code cleanup, no data-op needed.

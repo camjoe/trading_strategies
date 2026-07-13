@@ -24,7 +24,7 @@ KILL_SWITCH_REASON_BROKER_API_ANOMALY = "broker_api_anomaly"
 # --- reconciliation thresholds ----------------------------------------------
 
 # Maximum allowed age for the reconciliation snapshot (seconds); 6h mirrors the
-# legacy sleeve guard.
+# legacy guard.
 MAX_RECONCILIATION_SNAPSHOT_AGE_SECONDS = 6 * 60 * 60
 # Absolute equity tolerance for the book-vs-snapshot reconciliation check.
 RECONCILIATION_EQUITY_TOLERANCE = 0.01

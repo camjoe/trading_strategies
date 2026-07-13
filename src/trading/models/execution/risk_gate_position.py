@@ -8,10 +8,7 @@ from common.coercion import row_expect_float, row_expect_int, row_expect_str
 
 @dataclass(frozen=True, slots=True)
 class RiskGatePosition:
-    """Persisted sleeve_positions row materialized from the database.
-
-    The primary key is (sleeve_id, symbol) — there is no separate id column.
-    """
+    """A book position materialized from the database, keyed by (book_id, symbol)."""
 
     book_id: int
     symbol: str

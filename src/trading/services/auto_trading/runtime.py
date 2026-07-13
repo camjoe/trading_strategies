@@ -62,7 +62,7 @@ logger = logging.getLogger(__name__)
 
 # Kill-switch reason when required price marks are unavailable or invalid.
 KILL_SWITCH_REASON_STALE_PRICE_DATA = "stale_price_data"
-# Kill-switch reason when sleeve/account equity reconciliation is out of tolerance.
+# Kill-switch reason when book/account equity reconciliation is out of tolerance.
 KILL_SWITCH_REASON_RECONCILIATION_MISMATCH = "reconciliation_mismatch"
 # Kill-switch reason when no account snapshot exists for reconciliation guard.
 KILL_SWITCH_REASON_RECONCILIATION_SNAPSHOT_MISSING = "reconciliation_snapshot_missing"
@@ -254,22 +254,22 @@ def _run_books_for_account(
         return 0
 
     # Intents are book-keyed; keep the book → intent context for the audit
-    # trail and fill notes (the intent's legacy sleeve_id feeds the risk audit).
+    # trail and fill notes (the intent's book_id feeds the risk audit).
     book_intents: list[BookTradeIntent] = []
-    sleeve_by_book: dict[int, BookTradeCandidate] = {}
-    for sleeve_intent in intents:
+    candidate_by_book: dict[int, BookTradeCandidate] = {}
+    for candidate in intents:
         book_intents.append(
             BookTradeIntent(
-                book_id=sleeve_intent.book_id,
-                account_id=sleeve_intent.account_id,
+                book_id=candidate.book_id,
+                account_id=candidate.account_id,
                 strategy_id=None,
-                symbol=sleeve_intent.symbol,
-                side=sleeve_intent.side,
-                qty=float(sleeve_intent.qty),
-                requested_price=float(sleeve_intent.requested_price),
+                symbol=candidate.symbol,
+                side=candidate.side,
+                qty=float(candidate.qty),
+                requested_price=float(candidate.requested_price),
             )
         )
-        sleeve_by_book[sleeve_intent.book_id] = sleeve_intent
+        candidate_by_book[candidate.book_id] = candidate
 
     # Pre-flight: NAV-mark books, then run the equity reconciliation kill switch once
     # for the run (reconciliation is per-run, not
@@ -317,7 +317,7 @@ def _run_books_for_account(
     try:
         submitted_count = 0
         for book_id, book_intents_for_book in approved_by_book.items():
-            sleeve = sleeve_by_book[book_id]
+            candidate = candidate_by_book[book_id]
 
             # The global trade throttle (operational settings) applies across
             # the whole run: once exceeded, no further books submit.
@@ -328,13 +328,16 @@ def _run_books_for_account(
                     {
                         "action": "block",
                         "reason_code": RISK_REASON_TRADE_THROTTLE_EXCEEDED,
-                        "book_id": sleeve.book_id,
+                        "book_id": candidate.book_id,
                     }
                 )
                 break
 
             def _bridge_to_account_ledger(
-                intent: BookTradeIntent, _order_id: int, placed: BrokerOrder, _sleeve: BookTradeCandidate = sleeve
+                intent: BookTradeIntent,
+                _order_id: int,
+                placed: BrokerOrder,
+                _candidate: BookTradeCandidate = candidate,
             ) -> None:
                 fill_price = (
                     float(placed.avg_fill_price)
@@ -352,7 +355,7 @@ def _run_books_for_account(
                     price=fill_price,
                     fee=float(fee),
                     trade_time=fill_time,
-                    note=f"book_fill book_id={_sleeve.book_id} strategy={_sleeve.strategy_name}",
+                    note=f"book_fill book_id={_candidate.book_id} strategy={_candidate.strategy_name}",
                 )
 
             result = submit_book_intents(
@@ -372,7 +375,7 @@ def _run_books_for_account(
                     {
                         "action": "block",
                         "reason_code": KILL_SWITCH_REASON_BROKER_API_ANOMALY,
-                        "book_id": sleeve.book_id,
+                        "book_id": candidate.book_id,
                     }
                 )
                 break
