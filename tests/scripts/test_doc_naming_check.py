@@ -39,12 +39,19 @@ def test_adr_requires_numbered_prefix(tmp_path: Path) -> None:
     assert check_file(path, tmp_path).problems == ["ADR filename must be `NNN-kebab-case.md`"]
 
 
-def test_adr_sequence_gap_is_reported(tmp_path: Path, capsys) -> None:
+def test_adr_sequence_gap_is_allowed(tmp_path: Path) -> None:
     _write(tmp_path / "docs/adr/001-first.md")
     _write(tmp_path / "docs/adr/003-third.md")
 
+    assert run_doc_naming_check(tmp_path, enforce=True) == 0
+
+
+def test_duplicate_adr_number_is_reported(tmp_path: Path, capsys) -> None:
+    _write(tmp_path / "docs/adr/001-first.md")
+    _write(tmp_path / "docs/adr/001-second.md")
+
     assert run_doc_naming_check(tmp_path, enforce=True) == 1
-    assert "missing ADR number(s) in sequence: 002" in capsys.readouterr().out
+    assert "duplicate ADR number 001" in capsys.readouterr().out
 
 
 def test_advisory_mode_exits_zero_with_findings(tmp_path: Path) -> None:

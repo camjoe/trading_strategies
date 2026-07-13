@@ -60,7 +60,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/broker-setup-alpaca.md`](reference/broker-setup-alpaca.md) — Alpaca setup guide (Draft — adapter not yet implemented)
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
-- [`adr/013-portfolio-concentration-dimensions.md`](adr/013-portfolio-concentration-dimensions.md) — portfolio concentration is symbol plus sector rollup
 - [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned
 - [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration
 - [`adr/011-strategy-catalog-and-parameter-ownership.md`](adr/011-strategy-catalog-and-parameter-ownership.md) — strategy knobs, book settings, and operational settings ownership
