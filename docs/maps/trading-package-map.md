@@ -53,12 +53,14 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `commands/backtesting.py` | argparse subcommands for backtesting |
 | `commands/reporting.py` | argparse subcommands for reporting |
 | `commands/settings.py` | argparse subcommands for operational-settings and rotation-policy edits (P7) |
+| `commands/strategy_catalog.py` | argparse subcommands for strategy-catalog editing (variant, configure, freeze) (P6) |
 | `commands/builder.py` | Assembles the argparse parser + subcommand groups |
 | `commands/options.py` | Reusable argparse option definitions |
 | `handlers/accounts_handlers.py` | Business dispatch for account CLI commands |
 | `handlers/backtesting_handlers.py` | Business dispatch for backtesting CLI commands |
 | `handlers/reporting_handlers.py` | Business dispatch for reporting CLI commands |
 | `handlers/settings_handlers.py` | Business dispatch for settings edit commands — merges partial flags over current effective values (P7) |
+| `handlers/strategy_catalog_handlers.py` | Business dispatch for strategy-catalog CLI commands (P6) |
 | `handlers/router.py` | Top-level command-to-handler routing |
 | `handlers/shared.py` | Shared handler utilities |
 | `main.py` | CLI entrypoint (argparse); builds the parser, injects service deps, dispatches to handlers |
