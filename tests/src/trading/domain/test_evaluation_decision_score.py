@@ -101,7 +101,7 @@ def test_null_blended_score_marks_absent_evidence() -> None:
 
 
 def test_backtest_freshness_does_not_affect_decision_score() -> None:
-    # Freshness is advisory-only (P12): it must never change the derived score.
+    # Freshness is advisory-only: it must never change the derived score.
     from dataclasses import replace
 
     from trading.models.evaluation import BacktestFreshness

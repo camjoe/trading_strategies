@@ -64,8 +64,8 @@ def generate_book_trade_intents(
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[BookTradeCandidate]:
-    # Intents come only from strategy signals — no forced minimum (see D1 in
-    # docs/decisions.md).
+    # Intents come only from strategy signals — no forced minimum; a run with no
+    # signals produces no trades.
     account_id = account.id
     risk_policy = str(account.risk_policy).strip().lower()
     stop_loss_pct = account.stop_loss_pct
@@ -95,7 +95,7 @@ def generate_book_trade_intents(
                 strategy_name,
             )
             continue
-        # Signals resolve through the catalog row's canonical primitive (P6-2),
+        # Signals resolve through the catalog row's canonical primitive,
         # so a data variant runs the right primitive; the intent keeps the
         # assigned label for display and rotation bookkeeping.
         signal_primitive = resolved.primitive

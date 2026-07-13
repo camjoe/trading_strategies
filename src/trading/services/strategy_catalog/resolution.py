@@ -1,6 +1,6 @@
 """Resolve a catalog strategy row into its runnable form.
 
-The catalog-canonical read path (P6): a book's assignment names a
+The catalog-canonical read path: a book's assignment names a
 ``strategies`` row, and this module turns that row into the code primitive that
 produces signals plus the effective knobs to run it with. The knobs are the
 primitive's code defaults with the row's ``params_json`` layered on top.

@@ -5,26 +5,26 @@ Status: Accepted
 Created: 2026-07-07
 Last Reviewed: 2026-07-07
 Purpose: Record why the regime-driven account-rotation selection (policy regime + news/social overlays)
-was removed in P4/2b, and preserve its design so it can be revived if performance-based rotation is
-later augmented with regime awareness.
-Related: the 2b work order and convergence plan (completed; retrievable from git history),
+was removed when rotation was unified onto the decision-score contract, and preserve its design so it
+can be revived if performance-based rotation is later augmented with regime awareness.
+Related: the rotation-convergence work (completed; retrievable from git history),
 [ADR 003 — Sleeve Virtualization](003-sleeve-virtualization-architecture.md)
 
 ## Context
 
 The system had two rotation paradigms: **performance-based** (champion/challenger + the decision-score
 contract; and the account `select_optimal_strategy` over a schedule) and **regime-driven**
-(`select_regime_strategy`). P4/2b unifies rotation onto the single decision-score contract.
+(`select_regime_strategy`). The convergence unifies rotation onto the single decision-score contract.
 
 A 2026-07-07 investigation of the live DB found the regime/overlay path **provably unused**: all
 accounts had `rotation_overlay_mode='none'`, no `rotation_regime_strategy_*` values, and none in
 `rotation_mode='regime'`; no account profile configured it. The regime branch was therefore
-unreachable dead code. Rather than keep dead-but-untested code inline (which works against 2b's goal of
+unreachable dead code. Rather than keep dead-but-untested code inline (which works against the goal of
 reducing rotation sprawl), we remove it and preserve the design here for revival.
 
 ## Decision
 
-Remove the regime/overlay **rotation selection** code in P4/2b-1 (commit `74312df`, branch
+Remove the regime/overlay **rotation selection** code (commit `74312df`, branch
 `features/phase4-2b-unified-rotation`). Retrieve the exact implementation with
 `git show 74312df` or `git log --follow -- src/trading/services/auto_trading/rotation.py`.
 

@@ -1,4 +1,4 @@
-"""Tests for trading.services.parameters.update_book_rotation_policy (P7)."""
+"""Tests for trading.services.parameters.update_book_rotation_policy."""
 
 from __future__ import annotations
 

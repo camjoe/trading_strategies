@@ -67,8 +67,8 @@ Key behavior:
 
 ### Freshness cadence (advisory)
 
-Every strategy evaluation carries an advisory **backtest freshness** diagnostic
-(P12): the age of the newest backtest run (`backtest_runs.created_at`) measured
+Every strategy evaluation carries an advisory **backtest freshness** diagnostic:
+the age of the newest backtest run (`backtest_runs.created_at`) measured
 against the evaluation's generation time. When that age exceeds the stale
 threshold (default **3 days**, `DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS` in
 `trading.domain.backtest_freshness`) the diagnostic is flagged stale.
@@ -103,7 +103,7 @@ is not re-run once fresh.
 
 ## Strategy Notes
 
-- Phase 2 strategy ids are documented in `docs/reference/strategies.md`.
+- The full strategy catalog and its ids are documented in `docs/reference/strategies.md`.
 - By default a backtest runs the account's active strategy — the default book's open assignment
   (ADR 014). Pass `--strategy` to backtest a specific strategy instead (e.g. a rotation challenger);
   the remediation flows use this to refresh challenger evidence.

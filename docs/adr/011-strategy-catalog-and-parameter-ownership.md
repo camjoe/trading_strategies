@@ -30,10 +30,10 @@ than mutating an evidence-backed definition.
 
 ## Consequences
 
-- New strategy variants are data changes (delivered in P6): runtime resolution reads the catalog row
+- New strategy variants are data changes: runtime resolution reads the catalog row
   (`resolve_catalog_strategy` — primitive plus `params_json` over the primitive defaults), and
   operators edit via `create-strategy-variant` / `configure-strategy` / `freeze-strategy`.
-- The separate parameter-set model is retired (P6): its readers were removed and
+- The separate parameter-set model is retired: its readers were removed and
   `StrategyParamSetRepository` deleted. The `strategy_param_sets` table and the
   `book_strategy_assignments.param_set_id` column persist (unused, left NULL) until a data-op drops
   them.

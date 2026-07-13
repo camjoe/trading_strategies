@@ -53,7 +53,7 @@ GitHub's auto-delete setting covers this for most cases; manually delete any tha
 ## PR Titles and Descriptions
 
 - **Title:** imperative summary of the change, ≤ 72 characters (e.g. "Fix burn-in readiness never
-  counting successful daily runs"). Prefix with the area when it aids scanning ("Docs:", "P3:").
+  counting successful daily runs"). Prefix with the area when it aids scanning ("Docs:", "Backtest:").
 - **Description:** what changed and why, in prose; a **Validation** section stating the checks/tests
   run (or why none apply); links to the driving plan item, work order, or decision when one exists.
 - Agent-opened PRs additionally follow the output-style rules in `AGENTS.md` (developer

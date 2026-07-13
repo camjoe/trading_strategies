@@ -45,7 +45,7 @@ def test_account_report_prints_benchmark_and_evaluation(conn, monkeypatch: pytes
     assert "Benchmark Equity: 1050.00" in out
     assert "Account Alpha vs Benchmark %: -1.00" in out
     assert "Evaluation Summary: backtest=12.50% (18 trades) | paper=4.00% (6 snapshots)" in out
-    # No freshness on this artifact → advisory shows N/A (P12).
+    # No freshness on this artifact → advisory shows N/A.
     assert "backtest_age=N/A" in out
 
 

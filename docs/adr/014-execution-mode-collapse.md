@@ -61,7 +61,7 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
 
 - The execution-mode collapse plan is delivered and deleted; `docs/pending-deploy-steps.md` tracks
   the one-time cutover as a pending deploy step.
-- The rotation core (`evaluate_book_rotation`, cooldown, decision log) and the P7 policy-editing
+- The rotation core (`evaluate_book_rotation`, cooldown, decision log) and the parameter policy-editing
   surface are unchanged.
 - Future rotation features (per-book cadence preferences, schedule editing UI) extend
   `book_rotation_settings` — never the account row.

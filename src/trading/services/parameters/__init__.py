@@ -2,9 +2,8 @@
 
 The stable public surface for the read-through parameter view: one legible
 place over the existing stores (global settings, per-book settings tables,
-strategy rows) — deliberately a view, not a new consolidated store (see D4 in
-docs/decisions.md). Concrete logic lives in focused modules beneath this
-package root.
+strategy rows) — deliberately a view, not a new consolidated store. Concrete
+logic lives in focused modules beneath this package root.
 """
 
 from __future__ import annotations

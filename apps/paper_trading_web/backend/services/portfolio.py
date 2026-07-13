@@ -1,6 +1,6 @@
 """Portfolio rollup payload shaping for the UI backend.
 
-Transport-only: aggregation lives in ``trading.services.analysis`` (P9);
+Transport-only: aggregation lives in ``trading.services.analysis``;
 this module reshapes those payloads into the camelCase response contract.
 """
 

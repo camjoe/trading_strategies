@@ -1,4 +1,4 @@
-"""Handlers for the strategy-catalog edit commands (P6).
+"""Handlers for the strategy-catalog edit commands.
 
 Create a tuned variant of a code primitive, edit a draft strategy's knobs, or
 freeze a strategy. Knob overrides are validated against the primitive's code

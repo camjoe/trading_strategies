@@ -1,8 +1,8 @@
-"""P3 clean strategy-book schema: tables, invariants, and FK enforcement.
+"""Clean strategy-book schema: tables, invariants, and FK enforcement.
 
-Target: docs/db-schema-target.md. Colliding legacy tables (equity_snapshots,
-daily_metrics, rotation_decisions, order_fills) swap to their target shapes in
-later P3 commits; this file covers the additive tables from Phase A.
+Covers the additive clean-schema tables. Colliding legacy tables
+(equity_snapshots, daily_metrics, rotation_decisions, order_fills) were swapped
+to their clean shapes separately.
 """
 
 from pathlib import Path

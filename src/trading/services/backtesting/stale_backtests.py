@@ -1,6 +1,6 @@
 """Enumerate strategies whose backtest evidence is stale or missing.
 
-The remediation counterpart to the P12 freshness diagnostic: for each account,
+The remediation counterpart to the backtest freshness diagnostic: for each account,
 the candidate strategy set rotation could promote (each active book's incumbent
 plus its challenger schedule) is checked against the same
 ``assess_backtest_freshness`` policy. A strategy is a target when it has no

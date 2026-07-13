@@ -46,14 +46,14 @@ The maps and this guide serve different questions:
 | Change evaluation/evidence gathering | `src/trading/services/evaluation/evidence.py` |
 | Change reporting math or presentation | `src/trading/services/reporting/` |
 | Change operational settings | `src/trading/services/operational_settings/` |
-| Change the unified parameter view or its edit workflows (P7) | `src/trading/services/parameters/` |
+| Change the unified parameter view or its edit workflows | `src/trading/services/parameters/` |
 | Change per-book rotation policy resolution | `src/trading/services/books/rotation.py` (`resolve_rotation_policy_config`) |
 | Change trade throttling | `src/trading/services/operational_settings/enforcement.py` |
 | Change sleeve logic (accounting, execution, rotation, risk) | `src/trading/services/books/` |
 | Change sleeve performance queries | `src/trading/services/analysis/performance.py` (reads daily metrics) |
 | Change portfolio risk-snapshot access | `src/trading/services/analysis/risk_snapshots.py` |
 | Change the cross-account exposure rollup | `src/trading/services/analysis/exposure.py` (payload) + `src/trading/services/reporting/exposure.py` (printed view) |
-| Change cross-account concentration (symbol/sector, D10) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
+| Change cross-account concentration (symbol/sector) | `src/trading/services/analysis/concentration.py` (payload) + `src/trading/services/reporting/concentration.py` (printed view) |
 | Change trade-universe resolution | `src/trading/services/universe/resolver.py` |
 
 ### Configuration

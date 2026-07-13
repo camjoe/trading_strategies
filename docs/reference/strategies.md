@@ -23,7 +23,7 @@ A strategy is a **code primitive plus data knobs**, split across two sources:
 - **Strategy definitions (data)** — the `strategies` catalog table: each row binds a primitive to a
   concrete `params_json`, plus style, status (`draft`/`frozen`/`retired`), and `enabled`.
 
-Since **P6 the catalog is canonical at runtime**: a book's assignment names a `strategies` row, and
+**The `strategies` catalog is canonical at runtime**: a book's assignment names a `strategies` row, and
 `resolve_catalog_strategy` (`trading.services.strategy_catalog.resolution`) resolves it to the
 primitive's signal function plus the effective knobs (the primitive's defaults with the row's
 `params_json` layered on top). A *variant* — a new `strategy_key` on the same primitive with tuned

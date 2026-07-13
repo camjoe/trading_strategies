@@ -21,9 +21,9 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-32 tables — the clean strategy-book tables (P3 rewrite) plus the legacy tables not yet retired. The
+32 tables — the clean strategy-book tables plus the legacy tables not yet retired. The
 legacy order/accounting tables (`broker_orders`, `sleeve_orders`, `sleeve_fills`, `sleeve_positions`,
-`sleeve_ledger`) were dropped in P4 as the submission/accounting spine moved onto the book tables. One
+`sleeve_ledger`) were dropped as the submission/accounting spine moved onto the book tables. One
 row per table — use this for orientation and context. For column details, read `db_schema.py` directly.
 
 | Table | Purpose | Key relationships |

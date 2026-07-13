@@ -1,4 +1,4 @@
-"""Backtest freshness assessment (P12, advisory-only).
+"""Backtest freshness assessment (advisory-only).
 
 Pure policy over backtest-run timestamps: how many days old the newest backtest
 is, and whether that exceeds the advisory staleness threshold. Never affects

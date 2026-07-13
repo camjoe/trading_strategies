@@ -1,7 +1,5 @@
-"""P2/1c — cross-surface regression: compare, promotion, and rotation all read the same
+"""Cross-surface regression: compare, promotion, and rotation all read the same
 decision-score contract (`derive_decision_score`) and handle missing evidence identically.
-
-See docs/implementation/p2-evaluation-contract-tests.md.
 """
 
 from __future__ import annotations

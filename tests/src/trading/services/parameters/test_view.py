@@ -1,4 +1,4 @@
-"""Tests for trading.services.parameters.fetch_parameter_source_view (P7)."""
+"""Tests for trading.services.parameters.fetch_parameter_source_view."""
 
 from __future__ import annotations
 

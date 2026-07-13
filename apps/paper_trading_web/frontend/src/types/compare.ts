@@ -6,7 +6,7 @@ export type AccountComparisonEvaluation = {
   backtestConfidence: number;
   paperLiveConfidence: number;
   dataGaps: string[];
-  // Advisory backtest staleness (P12); does not affect the score.
+  // Advisory backtest staleness; does not affect the score.
   backtestStale: boolean;
 };
 

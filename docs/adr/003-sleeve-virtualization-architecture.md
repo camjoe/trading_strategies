@@ -8,10 +8,10 @@ Purpose: Record the proposed design for sleeve virtualization, allowing one brok
 Related: [Broker Integration](../reference/broker-integration.md)
 
 > **Superseded (2026-07-09, sleeve retirement).** The sleeve concept this ADR introduced was
-> realized and then generalized into first-class **books** on the clean schema (P3/P4): one
+> realized and then generalized into first-class **books** on the clean schema: one
 > account hosts many books; `books` + `book_strategy_assignments` replaced `strategy_sleeves` +
 > `sleeve_strategy_assignments`, and the sleeve tables/repositories/vocabulary were removed
-> (git history: the `features/sleeve-retirement` branch, phases SR-1…SR-7). The architectural
+> (git history: the `features/sleeve-retirement` branch). The architectural
 > intent — multiple independent strategy units inside one broker account, attributed and risk-gated
 > per unit — lives on unchanged in the book model.
 

@@ -36,7 +36,7 @@ def _assert_signal(
     assert strategy_signals.resolve_signal(strategy_name, history, feature_history) == expected
 
 
-def test_available_strategy_ids_include_phase2_families() -> None:
+def test_available_strategy_ids_include_expanded_families() -> None:
     ids = set(strategy_signals.available_strategy_ids())
     assert "breakout" in ids
     assert "pullback_trend" in ids
