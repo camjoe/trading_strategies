@@ -135,7 +135,7 @@ def test_fetch_account_books_with_metrics(mock_conn: MagicMock) -> None:
         _make_book(id=1, name="Growth Book", start_equity=50_000.0, current_equity=55_000.0, current_cash=5_000.0)
     ]
     metric = SimpleNamespace(hit_rate=0.65, drawdown_pct=-10.5, trade_count=25, metric_date="2026-05-10")
-    assignment = SimpleNamespace(strategy_name="momentum", param_set_id=None)
+    assignment = SimpleNamespace(strategy_name="momentum")
 
     with patch(
         "trading.services.ibkr_paper_monitor.queries.list_report_books",

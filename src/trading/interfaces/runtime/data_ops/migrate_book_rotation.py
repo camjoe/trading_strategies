@@ -99,7 +99,6 @@ def migrate_book_rotation(conn: sqlite3.Connection) -> tuple[int, int]:
                     conn,
                     book_id=book_id,
                     strategy_name=strategy_name,
-                    param_set_id=None,
                     now_iso=now_iso,
                 )
                 assignments_opened += 1

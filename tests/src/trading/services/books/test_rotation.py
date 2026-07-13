@@ -22,10 +22,9 @@ def _insert_book(conn, *, account_id: int, name: str = "core") -> int:
     )
 
 
-def _incumbent_metrics(*, strategy_name: str, param_set_id: int | None) -> RotationStrategyMetrics:
+def _incumbent_metrics(*, strategy_name: str) -> RotationStrategyMetrics:
     return RotationStrategyMetrics(
         strategy_name=strategy_name,
-        param_set_id=param_set_id,
         trade_count=12,
         risk_adjusted_return=0.9,
         stability=0.5,
@@ -35,26 +34,13 @@ def _incumbent_metrics(*, strategy_name: str, param_set_id: int | None) -> Rotat
     )
 
 
-def _insert_param_set(conn, param_set_id: int, strategy_name: str) -> None:
-    conn.execute(
-        """
-        INSERT INTO strategy_param_sets (id, strategy_name, version, params_json, created_at, updated_at)
-        VALUES (?, ?, 'v1', '{}', '2026-05-01T00:00:00Z', '2026-05-01T00:00:00Z')
-        """,
-        (param_set_id, strategy_name),
-    )
-
-
 def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_rotate")
     book_id = _insert_book(conn, account_id=account_id)
-    _insert_param_set(conn, 101, "trend")
-    _insert_param_set(conn, 202, "meanrev")
-    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend", param_set_id=101)
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
 
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
-        param_set_id=202,
         trade_count=30,
         risk_adjusted_return=1.4,
         stability=0.62,
@@ -65,7 +51,7 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
     result = evaluate_and_apply_book_rotation(
         conn,
         book_id=book_id,
-        incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=101),
+        incumbent=_incumbent_metrics(strategy_name="trend"),
         challengers=[challenger],
         config=RotationPolicyConfig(
             rolling_window_days=30,
@@ -88,7 +74,6 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
     strategy = StrategyRepository(conn).fetch_by_id(strategy_id=book_assignment.strategy_id)
     assert strategy is not None
     assert strategy.strategy_key == "meanrev"
-    assert book_assignment.param_set_id == 202
 
     latest_decision = RotationDecisionRepository(conn).fetch_latest_for_book(book_id=book_id)
     assert latest_decision is not None
@@ -99,9 +84,7 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
 def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_sleeve_cooldown")
     book_id = _insert_book(conn, account_id=account_id)
-    _insert_param_set(conn, 111, "trend")
-    _insert_param_set(conn, 222, "meanrev")
-    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend", param_set_id=111)
+    assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
     RotationDecisionRepository(conn).insert_for_book(
         book_id=book_id,
         decision_time="2026-05-04T18:00:00Z",
@@ -119,7 +102,6 @@ def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> No
 
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
-        param_set_id=222,
         trade_count=40,
         risk_adjusted_return=2.0,
         stability=0.70,
@@ -130,7 +112,7 @@ def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> No
     result = evaluate_and_apply_book_rotation(
         conn,
         book_id=book_id,
-        incumbent=_incumbent_metrics(strategy_name="trend", param_set_id=111),
+        incumbent=_incumbent_metrics(strategy_name="trend"),
         challengers=[challenger],
         config=RotationPolicyConfig(cooldown_days=7),
         decision_time="2026-05-05T12:00:00Z",

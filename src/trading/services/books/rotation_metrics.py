@@ -20,7 +20,6 @@ def build_rotation_strategy_metrics(
     *,
     account: AccountRecord,
     strategy_name: str,
-    param_set_id: int | None,
 ) -> RotationStrategyMetrics:
     """Build rotation metrics for one strategy from the canonical evaluation artifact.
 
@@ -42,7 +41,6 @@ def build_rotation_strategy_metrics(
     comparable_score = decision.score if decision.score is not None else 0.0
     return RotationStrategyMetrics(
         strategy_name=strategy_name,
-        param_set_id=param_set_id,
         trade_count=artifact.backtest.trade_count or 0,
         risk_adjusted_return=comparable_score,
         stability=0.0,

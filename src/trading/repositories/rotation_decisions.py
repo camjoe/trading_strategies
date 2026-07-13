@@ -12,7 +12,6 @@ _LEGACY_ROW_SELECT = """
 SELECT
     d.*,
     ? AS sleeve_id,
-    NULL AS param_set_id,
     si.strategy_key AS incumbent_strategy,
     sc.strategy_key AS challenger_strategy,
     ss.strategy_key AS selected_strategy

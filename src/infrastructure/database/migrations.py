@@ -278,8 +278,9 @@ TABLE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
 # Additive column migrations for the clean book tables (greenfield CREATEs cover
 # fresh DBs; these bring existing DBs up to the current shape).
 BOOK_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
-    # param_set_id: assignments pin the rotation winner's param set — book
-    # assignments are the single live assignment record.
+    # param_set_id: legacy and unused since P6 (a strategy row is its own
+    # parameterization); the column is left NULL and persists only until a
+    # data-op drops it, so existing DBs keep matching the schema DDL.
     "book_strategy_assignments": (
         ColumnMigration("param_set_id", "ALTER TABLE book_strategy_assignments ADD COLUMN param_set_id INTEGER"),
     ),

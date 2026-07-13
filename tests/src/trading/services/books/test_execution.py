@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import Mock
 
 import pandas as pd
@@ -7,6 +8,7 @@ import pandas as pd
 import trading.services.books.execution as sleeve_execution
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
+from trading.repositories.strategies import StrategyRepository
 from trading.services.accounts import get_account
 from tests.support.repositories import insert_repository_account
 from tests.support.books import assign_test_book_strategy, insert_test_book
@@ -110,6 +112,40 @@ def test_generate_book_trade_intents_are_signal_driven(conn) -> None:
     assert hold_intents == []
 
 
+def test_generate_book_trade_intents_runs_variant_under_its_primitive(conn) -> None:
+    # A data variant: a distinct catalog key bound to the trend primitive. It
+    # should trade on the trend signal while the intent keeps the variant label.
+    StrategyRepository(conn).insert(
+        strategy_key="trend_fast",
+        primitive="trend",
+        params_json=json.dumps({"fast_window": 5, "slow_window": 10}),
+        style="trend",
+        created_at="2026-07-12T00:00:00Z",
+        updated_at="2026-07-12T00:00:00Z",
+    )
+    account_name = "acct_variant_signal"
+    account_id = insert_repository_account(conn, name=account_name)
+    book_id = _insert_book(conn, account_id=account_id, name="variant")
+    account = get_account(conn, account_name)
+    _assign(conn, book_id=book_id, strategy_name="trend_fast")
+
+    rising = pd.Series([float(i) for i in range(1, 41)])
+    intents = sleeve_execution.generate_book_trade_intents(
+        conn,
+        account=account,
+        universe=["AAPL"],
+        prices={"AAPL": 10.0},
+        iv_rank_proxy={},
+        max_trades=2,
+        fee=0.0,
+        histories={"AAPL": rising},
+    )
+
+    assert [(intent.side, intent.symbol) for intent in intents] == [("buy", "AAPL")]
+    # Display/bookkeeping keeps the assigned variant key, not the primitive.
+    assert intents[0].strategy_name == "trend_fast"
+
+
 def test_prepare_trade_selection_delegates_to_auto_trading_execution(monkeypatch) -> None:
     recorder = Mock(return_value=("buy", "SPY", 1, 100.0, None, None))
     monkeypatch.setattr("trading.services.auto_trading.execution.prepare_trade_selection", recorder)
@@ -208,7 +244,8 @@ def test_generate_book_trade_intents_uses_default_universe_for_invalid_trade_uni
     monkeypatch.setattr(
         sleeve_execution,
         "_prepare_trade_selection",
-        lambda *_args, **_kwargs: captured_universes.append(list(_args[4])) or None,
+        # positional args: (account, strategy_name, params, state, forced_sell, universe, ...)
+        lambda *_args, **_kwargs: captured_universes.append(list(_args[5])) or None,
     )
 
     intents = sleeve_execution.generate_book_trade_intents(

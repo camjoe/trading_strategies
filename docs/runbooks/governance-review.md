@@ -118,13 +118,14 @@ Inventories all active strategy parameter sets for operator review.
 ```
 
 **Key fields in artifact:**
-- `sleeves[].strategy_name` — active strategy
-- `sleeves[].param_set_id` — active parameter set ID
-- `sleeves[].params` — full parameter dict
+- `books[].strategy_name` — active strategy (catalog key)
+- `books[].primitive` — the code primitive backing it
+- `books[].params` — effective knobs (primitive defaults with catalog `params_json` layered on top)
 
 **When to act:**
 - Compare params against the ranges defined in the strategy documentation
-- Any strategy without an active param set → investigate whether the assignment is correct
+- Any assigned book whose strategy does not resolve to a code primitive (`params` null) →
+  investigate whether the assignment is correct
 
 ---
 

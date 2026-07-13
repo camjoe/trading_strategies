@@ -14,14 +14,28 @@ checklist for research/backtesting flows.
 
 ## Canonical Source
 
-Canonical runtime strategy registration currently lives in:
+A strategy is a **code primitive plus data knobs**, split across two sources:
 
-- `src/trading/domain/strategy_signals.py` (`STRATEGY_REGISTRY`)
+- **Signal primitives (code)** — `src/trading/domain/strategy_signals.py`
+  (`PRIMITIVE_CATALOG`): the tested signal functions and their knob schemas. Adding genuinely new
+  signal *logic* is still a code change. `STRATEGY_REGISTRY` seeds the primitive catalog and remains
+  the alias-compat source for legacy labels.
+- **Strategy definitions (data)** — the `strategies` catalog table: each row binds a primitive to a
+  concrete `params_json`, plus style, status (`draft`/`frozen`/`retired`), and `enabled`.
 
-### P6 ongoing work
-The database `strategies` catalog stores strategy rows and `params_json`, but runtime resolution and
-runtime knobs still read the code registry defaults. Making the database catalog canonical is the
-deferred
+Since **P6 the catalog is canonical at runtime**: a book's assignment names a `strategies` row, and
+`resolve_catalog_strategy` (`trading.services.strategy_catalog.resolution`) resolves it to the
+primitive's signal function plus the effective knobs (the primitive's defaults with the row's
+`params_json` layered on top). A *variant* — a new `strategy_key` on the same primitive with tuned
+knobs — is therefore a pure data change, no deploy.
+
+Operators edit the catalog through the CLI (`trading.services.strategy_catalog.mutations`):
+
+- `create-strategy-variant --strategy <key> --primitive <p> --set knob=value …` — a new draft row.
+- `configure-strategy --strategy <key> --set knob=value … [--enabled true|false]` — edit a draft's
+  knobs (merged over the existing ones); knob overrides are validated against the primitive schema.
+- `freeze-strategy --strategy <key>` — freeze a strategy once it has evidence or live usage; tuning a
+  frozen row then requires a new variant.
 
 ## Strategy Families
 
@@ -53,8 +67,12 @@ deferred
 
 ## Strategy Resolution Behavior
 
-Resolution is handled by `resolve_strategy(...)` in
-`src/trading/domain/strategy_signals.py`.
+At runtime a book's assigned `strategy_key` resolves through the catalog row's `primitive`
+(`resolve_catalog_strategy` → `resolve_primitive`), so data variants run the correct signal function.
+
+Label compatibility for legacy/alias inputs is still handled by `resolve_strategy(...)` in
+`src/trading/domain/strategy_signals.py` (used by the catalog resolver's alias fallback, the label
+bridge, and backtesting).
 
 Order of resolution:
 

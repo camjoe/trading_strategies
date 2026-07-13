@@ -41,9 +41,13 @@ class BookAssignmentRepository:
         effective_from: str,
         created_at: str,
         updated_at: str,
-        param_set_id: int | None = None,
     ) -> int:
-        """Close the book's open assignment (if any) and open a new incumbent."""
+        """Close the book's open assignment (if any) and open a new incumbent.
+
+        The legacy ``param_set_id`` column is left NULL — a strategy row is its
+        own parameterization now (P6); the column persists only until a data-op
+        drops it.
+        """
         try:
             self._conn.execute(
                 """
@@ -56,15 +60,14 @@ class BookAssignmentRepository:
             cursor = self._conn.execute(
                 """
                 INSERT INTO book_strategy_assignments (
-                    book_id, strategy_id, param_set_id, effective_from, effective_to,
+                    book_id, strategy_id, effective_from, effective_to,
                     is_incumbent, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, NULL, 1, ?, ?)
+                VALUES (?, ?, ?, NULL, 1, ?, ?)
                 """,
                 (
                     int(book_id),
                     int(strategy_id),
-                    int(param_set_id) if param_set_id is not None else None,
                     effective_from,
                     created_at,
                     updated_at,

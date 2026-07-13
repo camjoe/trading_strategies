@@ -51,7 +51,6 @@ def _make_buy_intent(*, account_id: int, book_id: int, qty: int = 1) -> BookTrad
         account_id=account_id,
         book_id=book_id,
         strategy_name="trend",
-        param_set_id=None,
         side="buy",
         symbol="AAPL",
         qty=qty,

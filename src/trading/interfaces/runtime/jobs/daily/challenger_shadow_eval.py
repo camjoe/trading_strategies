@@ -62,7 +62,6 @@ def _serialize_shadow_run(result: ChallengerEvaluationRun) -> dict[str, object]:
                 "challengers": [
                     {
                         "strategy_name": challenger.strategy_name,
-                        "param_set_id": challenger.param_set_id,
                         "trade_count": challenger.trade_count,
                         "risk_adjusted_return": challenger.risk_adjusted_return,
                         "stability": challenger.stability,

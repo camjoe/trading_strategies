@@ -7,7 +7,6 @@ from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMe
 def _incumbent() -> RotationStrategyMetrics:
     return RotationStrategyMetrics(
         strategy_name="trend",
-        param_set_id=11,
         trade_count=30,
         risk_adjusted_return=1.0,
         stability=0.52,
@@ -20,7 +19,6 @@ def _incumbent() -> RotationStrategyMetrics:
 def test_evaluate_champion_challenger_rotation_rotates_when_all_gates_pass() -> None:
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
-        param_set_id=22,
         trade_count=40,
         risk_adjusted_return=1.5,
         stability=0.60,
@@ -39,7 +37,6 @@ def test_evaluate_champion_challenger_rotation_rotates_when_all_gates_pass() -> 
 
     assert decision.rotation_action == "rotate"
     assert decision.selected_strategy == "meanrev"
-    assert decision.selected_param_set_id == 22
     assert decision.decision_reason == "rotate_to_challenger"
     assert decision.gate_results["cooldown_gate_passed"] is True
     assert decision.gate_results["sample_size_gate_passed"] is True
@@ -50,7 +47,6 @@ def test_evaluate_champion_challenger_rotation_rotates_when_all_gates_pass() -> 
 def test_evaluate_champion_challenger_rotation_holds_on_cooldown() -> None:
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
-        param_set_id=22,
         trade_count=40,
         risk_adjusted_return=1.8,
         stability=0.70,
@@ -76,7 +72,6 @@ def test_evaluate_champion_challenger_rotation_holds_on_cooldown() -> None:
 def test_evaluate_champion_challenger_rotation_holds_when_threshold_not_met() -> None:
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
-        param_set_id=22,
         trade_count=30,
         risk_adjusted_return=1.05,
         stability=0.60,
@@ -102,7 +97,6 @@ def test_evaluate_champion_challenger_rotation_holds_when_threshold_not_met() ->
 def test_evaluate_champion_challenger_rotation_holds_when_sample_size_not_met() -> None:
     challenger = RotationStrategyMetrics(
         strategy_name="meanrev",
-        param_set_id=22,
         trade_count=5,
         risk_adjusted_return=2.0,
         stability=0.65,

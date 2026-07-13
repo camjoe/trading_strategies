@@ -160,7 +160,6 @@ class BookPreSubmitGate:
             account_id=intent.account_id,
             book_id=intent.book_id,
             strategy_name="",
-            param_set_id=None,
             side=intent.side,
             symbol=intent.symbol,
             qty=int(intent.qty),

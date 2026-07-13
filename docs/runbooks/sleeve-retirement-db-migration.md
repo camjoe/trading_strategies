@@ -104,7 +104,7 @@ small cleanup commit:
 - `src/trading/interfaces/runtime/data_ops/migrate_sleeve_books.py`
 - this runbook (`docs/runbooks/sleeve-retirement-db-migration.md`)
 - the corresponding rows in `docs/runbooks/README.md` and `docs/maps/trading-package-map.md`,
-  and the "Deploy step pending" row in `docs/status.md`
+  and Step 1 in `docs/pending-deploy-steps.md`
 
 ## Rollback
 

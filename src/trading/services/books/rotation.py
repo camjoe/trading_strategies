@@ -181,17 +181,9 @@ def _is_cooldown_active(
 def _normalize_challengers(
     *,
     incumbent_strategy: str,
-    incumbent_param_set_id: int | None,
     challengers: list[RotationStrategyMetrics],
 ) -> list[RotationStrategyMetrics]:
-    normalized: list[RotationStrategyMetrics] = []
-    for challenger in challengers:
-        is_same_strategy = challenger.strategy_name == incumbent_strategy
-        is_same_param_set = challenger.param_set_id == incumbent_param_set_id
-        if is_same_strategy and is_same_param_set:
-            continue
-        normalized.append(challenger)
-    return normalized
+    return [challenger for challenger in challengers if challenger.strategy_name != incumbent_strategy]
 
 
 def book_cooldown_active(
@@ -276,7 +268,6 @@ def evaluate_and_apply_book_rotation(
         raise ValueError(f"No incumbent assignment found for book_id={book_id}.")
 
     incumbent_strategy = assignment.strategy_name.strip()
-    incumbent_param_set_id = assignment.param_set_id
     window_start_date, window_end_date = _resolve_window_bounds(
         as_of_iso=now_iso,
         rolling_window_days=max(1, int(config.rolling_window_days)),
@@ -290,7 +281,6 @@ def evaluate_and_apply_book_rotation(
 
     normalized_challengers = _normalize_challengers(
         incumbent_strategy=incumbent_strategy,
-        incumbent_param_set_id=incumbent_param_set_id,
         challengers=challengers,
     )
     decision, decision_id = evaluate_book_rotation(
@@ -309,7 +299,6 @@ def evaluate_and_apply_book_rotation(
             conn,
             book_id=int(book_id),
             strategy_name=decision.selected_strategy,
-            param_set_id=decision.selected_param_set_id,
             now_iso=now_iso,
         )
         rotated = True

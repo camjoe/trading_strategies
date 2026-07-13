@@ -94,8 +94,8 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/broker-setup-alpaca.md` | Alpaca setup guide (Draft — adapter not implemented) | Alpaca adapter work starts or is dropped |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
-| `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
-| `docs/status.md` | Remaining committed work and deferred workstream links | A workstream changes state or a next action is taken |
+| `docs/overview.md` | Definitive app explainer + north-star direction + itemized tracker of what remains (entry point) | Purpose, capabilities, direction, or remaining-work list change |
+| `docs/pending-deploy-steps.md` | Consolidated tracker for the one-time DB steps (two to run, one to build); full procedures link to the runbooks | A one-time DB step is added, run everywhere, or built |
 
 ### ADRs
 

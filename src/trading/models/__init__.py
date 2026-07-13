@@ -28,7 +28,6 @@ from trading.models.portfolio.symbol_concentration import SymbolConcentration
 from trading.models.settings.global_settings_record import GlobalSettingsRecord
 from trading.models.rotation.rotation_config import BookRotationConfig
 from trading.models.execution.risk_gate_position import RiskGatePosition
-from trading.models.strategy.strategy_param_set_record import StrategyParamSetRecord
 
 __all__ = [
     "AccountConfig",
@@ -51,7 +50,6 @@ __all__ = [
     "BookRotationConfig",
     "RiskGatePosition",
     "SectorConcentration",
-    "StrategyParamSetRecord",
     "SymbolConcentration",
     "TimeInForce",
 ]

@@ -80,7 +80,7 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
         if assignment_repo.fetch_open(book_id=book_id) is not None:
             continue
         legacy = conn.execute(
-            "SELECT strategy_name, param_set_id, effective_from, created_at, updated_at"
+            "SELECT strategy_name, effective_from, created_at, updated_at"
             " FROM sleeve_strategy_assignments"
             " WHERE sleeve_id = ? AND effective_to IS NULL"
             " ORDER BY id DESC LIMIT 1",
@@ -94,7 +94,6 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
         assignment_repo.assign_strategy(
             book_id=book_id,
             strategy_id=int(strategy_id),
-            param_set_id=int(legacy["param_set_id"]) if legacy["param_set_id"] is not None else None,
             effective_from=str(legacy["effective_from"]),
             created_at=str(legacy["created_at"]),
             updated_at=str(legacy["updated_at"]),
