@@ -900,9 +900,16 @@ def render_html(payload: dict[str, Any]) -> str:
         .map((points) => ({{ points, segments: routeSegments(points) }}))
         .map((route) => ({{
           ...route,
+          tableCrossings: routeTableCrossingCount(route.segments, obstacles, fromBounds.tableName, toBounds.tableName),
+          overlappingSegments: routeOverlapCount(route.segments, previousSegments),
           score: scoreRoute(route, obstacles, fromBounds.tableName, toBounds.tableName, previousSegments),
         }}))
-        .sort((left, right) => left.score - right.score);
+        .sort(
+          (left, right) =>
+            left.tableCrossings - right.tableCrossings
+            || left.overlappingSegments - right.overlappingSegments
+            || left.score - right.score,
+        );
       return scored[0];
     }}
 
@@ -1054,6 +1061,10 @@ def render_html(payload: dict[str, Any]) -> str:
     }}
 
     function routeScore(segments, obstacles, sourceTableName, targetTableName) {{
+      return routeTableCrossingCount(segments, obstacles, sourceTableName, targetTableName) * ROUTE_TABLE_COLLISION_PENALTY;
+    }}
+
+    function routeTableCrossingCount(segments, obstacles, sourceTableName, targetTableName) {{
       let score = 0;
       for (let index = 0; index < segments.length; index += 1) {{
         const segment = segments[index];
@@ -1061,7 +1072,7 @@ def render_html(payload: dict[str, Any]) -> str:
           const isSourceExit = index === 0 && obstacle.tableName === sourceTableName;
           const isTargetApproach = index === segments.length - 1 && obstacle.tableName === targetTableName;
           if (isSourceExit || isTargetApproach) continue;
-          if (segmentIntersectsRect(segment, obstacle)) score += ROUTE_TABLE_COLLISION_PENALTY;
+          if (segmentIntersectsRect(segment, obstacle)) score += 1;
         }}
       }}
       return score;
@@ -1076,6 +1087,16 @@ def render_html(payload: dict[str, Any]) -> str:
         }}
       }}
       return score;
+    }}
+
+    function routeOverlapCount(segments, previousSegments) {{
+      let count = 0;
+      for (const segment of segments) {{
+        for (const previous of previousSegments) {{
+          if (segmentOverlapLength(segment, previous) > 0) count += 1;
+        }}
+      }}
+      return count;
     }}
 
     function segmentOverlapLength(segment, previous) {{

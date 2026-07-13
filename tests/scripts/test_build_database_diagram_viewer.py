@@ -107,9 +107,11 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "routeRelationship" in html
     assert "routeCandidates" in html
     assert "scoreRoute" in html
+    assert "routeTableCrossingCount" in html
     assert "ROUTE_BEND_PENALTY" in html
     assert "routeBendCount" in html
     assert "routeOverlapScore" in html
+    assert "routeOverlapCount" in html
     assert "segmentOverlapLength" in html
     assert "obstacleAvoidanceCandidates" in html
     assert "simplifyRoute(points, 2)" in html
