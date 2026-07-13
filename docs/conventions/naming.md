@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Define how documentation files and folders are named so paths are predictable for both developers and agents.
 Related: [Documentation Authoring Standard](docs-authoring.md), [Docs Map](../maps/docs-map.md)
 

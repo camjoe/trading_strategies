@@ -3,9 +3,9 @@
 Type: convention
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Define the required metadata header, document types, templates, and reference/ADR layouts for docs/ files.
-Related: [README Layout Standard](readme-layout.md), [File Naming Convention](naming.md), [Docs Map](../maps/docs-map.md)
+Related: [Documentation Maintenance](documentation-maintenance.md), [README Layout Standard](readme-layout.md), [File Naming Convention](naming.md), [Docs Map](../maps/docs-map.md)
 
 ## Header Format
 
