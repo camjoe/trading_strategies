@@ -21,7 +21,7 @@ def test_kebab_case_doc_name_passes(tmp_path: Path) -> None:
 
 def test_reserved_and_template_names_pass(tmp_path: Path) -> None:
     readme = _write(tmp_path / "docs/README.md")
-    template = _write(tmp_path / "docs/reference/TEMPLATE.notes.md")
+    template = _write(tmp_path / "docs/adr/TEMPLATE.adr.md")
 
     assert check_file(readme, tmp_path).problems == []
     assert check_file(template, tmp_path).problems == []

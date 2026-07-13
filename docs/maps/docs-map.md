@@ -116,7 +116,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers |
 |---|---|
 | `docs/adr/TEMPLATE.adr.md` | Template for new ADR files |
-| `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
 
 ---
 

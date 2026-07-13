@@ -192,6 +192,6 @@ Tests mirror the source tree. If you edit `src/trading/services/reporting/`, the
 | Find which docs to update after a code change | [`docs/maps/docs-map.md`](../maps/docs-map.md) — "Goes stale when" column |
 | Update finance/market terms in the in-app docs | `docs/reference/financial-market-knowledge.md`, then run `python -m scripts.documentation_ui.sync` |
 | Update API or software reference content in the in-app docs | `scripts/documentation_ui/api/` or `scripts/documentation_ui/software/`, then run `python -m scripts.documentation_ui.sync` |
-| Add a new reference note or ADR | `docs/reference/` — use `TEMPLATE.notes.md` or `TEMPLATE.adr.md` |
+| Add a new reference note or ADR | `docs/reference/` — use the inline reference-note template in `docs/conventions/docs-authoring.md` or `docs/adr/TEMPLATE.adr.md` |
 | Update a runbook | `docs/runbooks/<runbook>.md` |
 | Check README freshness | `python -m scripts.checks.docs.readme_check --repo-root . --max-age-days 90` |

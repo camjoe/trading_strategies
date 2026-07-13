@@ -94,7 +94,7 @@ def test_parse_header_returns_none_without_h1(tmp_path: Path) -> None:
 
 def test_discover_docs_scopes_to_docs_and_skips_templates(tmp_path: Path) -> None:
     _write(tmp_path / "docs/keep.md", VALID_HEADER)
-    _write(tmp_path / "docs/reference/TEMPLATE.notes.md", "# [Title]\n\nType: notes\n")
+    _write(tmp_path / "docs/adr/TEMPLATE.adr.md", "# [Title]\n\nType: adr\n")
     _write(tmp_path / "README.md", "# Root readme (out of scope)\n")
     names = {path.name for path in discover_docs(tmp_path)}
     assert names == {"keep.md"}
