@@ -14,9 +14,8 @@ strategy tuning becomes a bottleneck.
 
 ## Current State
 
-- Strategy defaults live in code at runtime.
-- The clean schema has strategy rows with `params_json`, but P6 must make that catalog canonical
-  before parameter optimization can safely write tuned variants.
+- The `strategies` catalog is canonical at runtime (P6, delivered): tuned variants are new catalog
+  rows created via `create-strategy-variant`, so parameter optimization can write variants safely.
 - Backtesting and walk-forward workflows exist and should be the validation backbone.
 
 ## Decisions To Make
@@ -28,9 +27,9 @@ strategy tuning becomes a bottleneck.
 
 ## Constraints
 
-- Optimization results must create new immutable strategy variants, not mutate evidence-backed rows.
+- Optimization results must create new immutable strategy variants, not mutate evidence-backed rows
+  (the catalog's freeze guard already enforces draft-only edits).
 - The workflow must compare tuned results against simple baselines and the existing default variant.
-- Runtime use should wait for P6 catalog-backed resolution.
 
 ## Trigger
 

@@ -190,6 +190,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `books/rotation_metrics.py` | Paradigm-neutral rotation strategy-metrics builder (decision score → `RotationStrategyMetrics`) |
 | `books/sector_config.py` | Operator-editable symbol-sector config loading |
 | `strategy_catalog/seeding.py` | Seed strategies catalog and per-account default books from code |
+| `strategy_catalog/resolution.py` | Resolve a catalog strategy key to its primitive + effective knobs (canonical runtime read path, P6) |
+| `strategy_catalog/mutations.py` | Operator edits: create variant, configure draft knobs, freeze (P6) |
 | `universe/resolver.py` | Trade-universe name resolution |
 
 ---
@@ -212,7 +214,6 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 | `risk.py` | Clean-schema risk snapshots and risk decision records |
 | `rotation_decisions.py` | Rotation decision records |
 | `snapshots.py` | Equity snapshot records (`EquitySnapshotRecord`) |
-| `strategy_param_sets.py` | Strategy parameter set records |
 | `strategies.py` | Clean-schema strategies catalog (primitive + knobs, D5) |
 | `trades.py` | Trade execution records |
 | `books.py` | Clean-schema strategy books — execution primitives |
@@ -263,7 +264,7 @@ their public types.
 | `parameters/` | `ParameterEntry`, `ParameterGroup`, `ParameterSourceView` + source vocabulary constants (P7) |
 | `portfolio/` | `AccountExposure`, `DailyMetricRecord`, `EquitySnapshotRecord`, `PortfolioConcentration`, `PortfolioExposureRollup`, `PortfolioRiskSnapshotRecord`, `SectorConcentration`, `SymbolConcentration` + rollup vocabulary constants |
 | `rotation/` | `RotationConfig` (field→column `to_db_dict`; JSON encoding applied in `domain.rotation`), `RotationDecision`, `RotationStrategyMetrics`, `RotationStrategyScore`, `RotationScoreWeights` |
-| `strategy/` | `StrategyParamSetRecord` |
+| `strategy/` | `StrategyRecord` |
 | `settings/` | `GlobalSettingsRecord` |
 | `evaluation/` | `StrategyEvaluationArtifact` + its parts (`EvaluationMeta`, `EvaluationBasicScope`, `EvaluationBacktestEvidence`, `EvaluationPaperLiveEvidence`, `EvaluationWalkForwardEvidence`, `EvaluationConfidence`, `EvaluationDiagnostics`) + version constants |
 | `promotion/` | `PromotionAssessment`, `PromotionReviewRecord`, `PromotionReviewEvent` + stage/status/review vocabulary constants |

@@ -30,8 +30,7 @@ procedure (backup -> run the one-time data-op -> verify -> confirm runtime -> de
 
 | Workstream | Why deferred | Trigger to revisit |
 |---|---|---|
-| P6 - Plug-and-play strategy catalog | Catalog rows exist, but wiring them now duplicates the code registry before there is demand | Concrete demand to add or tune strategy variants without deploys |
-| P11 - Parameter optimization | Requires catalog-backed variants and explicit overfitting guardrails | Demand for systematic parameter sweeps |
+| P11 - Parameter optimization | Requires explicit overfitting guardrails and honest out-of-sample validation | Demand for systematic parameter sweeps |
 
 ## Dropped (do not silently re-add)
 
