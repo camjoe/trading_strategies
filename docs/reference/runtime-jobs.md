@@ -3,8 +3,8 @@
 Type: notes
 Status: Active
 Created: 2026-06-25
-Last Reviewed: 2026-07-02
-Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler. (Merged with the former runtime-jobs-inventory.md.)
+Last Reviewed: 2026-07-13
+Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Governance Review Guide](../runbooks/governance-review.md), [Trading Package Map](../maps/trading-package-map.md)
 
 How to run and schedule the runtime job entrypoints. For the full structural module inventory see
@@ -16,7 +16,8 @@ All commands run as Python modules from the repository root with the active venv
 
 ## Scheduled jobs
 
-Jobs registered by the installer (`manage_job_schedules.py`).
+Jobs the scheduler installer (`manage_job_schedules.py`) can register. Optional
+entries are installed only when their time flag is provided.
 
 | Job | Entrypoint | Task name | Frequency | Why it exists / how it is used |
 |---|---|---|---|---|
@@ -50,12 +51,6 @@ Runnable entrypoints with weekly or monthly duplicate guards; **not** registered
 | M1 monthly risk rebaseline | `python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline` | Monthly dedup guard | Captures latest risk snapshots per account for operator risk budget review. |
 | M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories each book's active strategy assignment and effective parameters. |
 | M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Runs a longer-horizon book performance audit, default 90 days. |
-
-## Helper modules
-
-These support the jobs above but are not standalone jobs: `job_helpers.py`, the `job_runner/`
-package (`governance_job`, `daily_account_job`, `maintenance_job` decorators),
-`scheduling/scheduler_installer.py`, and `daily/paper_trading/{caps,dag,reporting}.py`.
 
 ## Running jobs directly
 
