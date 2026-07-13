@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Inventory the `src/infrastructure/` package — the concrete adapters and external-dependency boundaries that the trading domain depends on only through ports, plus the database backend and static config assets.
 Related: [Trading Package Map](trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Broker Integration](../reference/broker-integration.md)
 

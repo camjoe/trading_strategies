@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-13
 Purpose: Full inventory of documentation files — use to audit staleness, find coverage gaps, and check for redundancy.
 Related: [Docs README](../README.md), [Navigation Guide](../architecture/nav-guide.md)
 
