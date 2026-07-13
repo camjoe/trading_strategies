@@ -242,7 +242,6 @@ def render_html(payload: dict[str, Any]) -> str:
     .rel-line.CASCADE {{ stroke: var(--cascade); }}
     .rel-line.NO_ACTION {{ stroke: var(--no-action); stroke-dasharray: 5 5; }}
     .rel-line.RESTRICT {{ stroke: var(--restrict); stroke-dasharray: 2 4; }}
-    .rel-bridge {{ fill: none; stroke-width: 2.3; stroke-linecap: round; }}
     .rel-label-bg {{ fill: rgba(255, 255, 255, 0.96); stroke: var(--line); }}
     .rel-label {{
       font-size: 12px;
@@ -341,7 +340,6 @@ def render_html(payload: dict[str, Any]) -> str:
   <script>
     const payload = JSON.parse(document.getElementById("schema-payload").textContent);
     const tablesByName = new Map(payload.tables.map((table) => [table.name, table]));
-    const sectionsById = new Map(payload.sections.map((section) => [section.id, section]));
     const tabsEl = document.getElementById("tabs");
     const cardsEl = document.getElementById("cards");
     const sectionsEl = document.getElementById("sections");
@@ -356,6 +354,11 @@ def render_html(payload: dict[str, Any]) -> str:
     const toggleLabelsEl = document.getElementById("toggleLabels");
     const toggleConstraintsEl = document.getElementById("toggleConstraints");
     const toggleDeleteActionsEl = document.getElementById("toggleDeleteActions");
+    const ROUTE_TABLE_COLLISION_PENALTY = 10000;
+    const ROUTE_OVERLAP_BASE_PENALTY = 6500;
+    const ROUTE_OVERLAP_LENGTH_PENALTY = 30;
+    const ROUTE_BEND_PENALTY = 220;
+    const ROUTE_LENGTH_DIVISOR = 100;
     let activeView = payload.views[0];
     let scale = 0.78;
     let offsetX = 40;
@@ -377,6 +380,18 @@ def render_html(payload: dict[str, Any]) -> str:
 
     function arrowStorageKey() {{
       return `database-diagram-arrow-targets:${{activeView.id}}`;
+    }}
+
+    function loadJson(key) {{
+      try {{
+        return JSON.parse(localStorage.getItem(key) || "{{}}");
+      }} catch {{
+        return {{}};
+      }}
+    }}
+
+    function saveJson(key, value) {{
+      localStorage.setItem(key, JSON.stringify(value));
     }}
 
     function fkColumns(table) {{
@@ -495,16 +510,12 @@ def render_html(payload: dict[str, Any]) -> str:
     }}
 
     function loadSavedPositions() {{
-      try {{
-        return JSON.parse(localStorage.getItem(storageKey()) || "{{}}");
-      }} catch {{
-        return {{}};
-      }}
+      return loadJson(storageKey());
     }}
 
     function saveCurrentPositions() {{
       const value = Object.fromEntries(currentPositions.entries());
-      localStorage.setItem(storageKey(), JSON.stringify(value));
+      saveJson(storageKey(), value);
     }}
 
     function relationshipsFor(viewTables) {{
@@ -798,17 +809,13 @@ def render_html(payload: dict[str, Any]) -> str:
     }}
 
     function loadArrowTargets() {{
-      try {{
-        return JSON.parse(localStorage.getItem(arrowStorageKey()) || "{{}}");
-      }} catch {{
-        return {{}};
-      }}
+      return loadJson(arrowStorageKey());
     }}
 
     function saveArrowTarget(relationship, y) {{
       const targets = loadArrowTargets();
       targets[relationshipKey(relationship)] = y;
-      localStorage.setItem(arrowStorageKey(), JSON.stringify(targets));
+      saveJson(arrowStorageKey(), targets);
     }}
 
     function attachArrowDragHandle(relationship, targetPoint, color) {{
@@ -893,11 +900,7 @@ def render_html(payload: dict[str, Any]) -> str:
         .map((points) => ({{ points, segments: routeSegments(points) }}))
         .map((route) => ({{
           ...route,
-          score:
-            routeScore(route.segments, obstacles, fromBounds.tableName, toBounds.tableName)
-            + routeOverlapScore(route.segments, previousSegments)
-            + routeBendCount(route.points) * 220
-            + routeLength(route.segments) / 100,
+          score: scoreRoute(route, obstacles, fromBounds.tableName, toBounds.tableName, previousSegments),
         }}))
         .sort((left, right) => left.score - right.score);
       return scored[0];
@@ -1041,6 +1044,15 @@ def render_html(payload: dict[str, Any]) -> str:
       return segments;
     }}
 
+    function scoreRoute(route, obstacles, sourceTableName, targetTableName, previousSegments) {{
+      return (
+        routeScore(route.segments, obstacles, sourceTableName, targetTableName)
+        + routeOverlapScore(route.segments, previousSegments)
+        + routeBendCount(route.points) * ROUTE_BEND_PENALTY
+        + routeLength(route.segments) / ROUTE_LENGTH_DIVISOR
+      );
+    }}
+
     function routeScore(segments, obstacles, sourceTableName, targetTableName) {{
       let score = 0;
       for (let index = 0; index < segments.length; index += 1) {{
@@ -1049,7 +1061,7 @@ def render_html(payload: dict[str, Any]) -> str:
           const isSourceExit = index === 0 && obstacle.tableName === sourceTableName;
           const isTargetApproach = index === segments.length - 1 && obstacle.tableName === targetTableName;
           if (isSourceExit || isTargetApproach) continue;
-          if (segmentIntersectsRect(segment, obstacle)) score += 10000;
+          if (segmentIntersectsRect(segment, obstacle)) score += ROUTE_TABLE_COLLISION_PENALTY;
         }}
       }}
       return score;
@@ -1060,7 +1072,7 @@ def render_html(payload: dict[str, Any]) -> str:
       for (const segment of segments) {{
         for (const previous of previousSegments) {{
           const overlap = segmentOverlapLength(segment, previous);
-          if (overlap > 0) score += 6500 + overlap * 30;
+          if (overlap > 0) score += ROUTE_OVERLAP_BASE_PENALTY + overlap * ROUTE_OVERLAP_LENGTH_PENALTY;
         }}
       }}
       return score;
@@ -1303,27 +1315,6 @@ def render_html(payload: dict[str, Any]) -> str:
         height,
         centerX: position.x + width / 2,
         centerY: position.y + height / 2,
-      }};
-    }}
-
-    function edgePoint(bounds, otherBounds, outwardPadding) {{
-      const dx = otherBounds.centerX - bounds.centerX;
-      const dy = otherBounds.centerY - bounds.centerY;
-      const halfWidth = bounds.width / 2;
-      const halfHeight = bounds.height / 2;
-      if (dx === 0 && dy === 0) {{
-        return {{ x: bounds.centerX, y: bounds.top - outwardPadding }};
-      }}
-      const scaleToEdge = Math.min(
-        Math.abs(halfWidth / (dx || 0.0001)),
-        Math.abs(halfHeight / (dy || 0.0001)),
-      );
-      const edgeX = bounds.centerX + dx * scaleToEdge;
-      const edgeY = bounds.centerY + dy * scaleToEdge;
-      const length = Math.hypot(dx, dy);
-      return {{
-        x: edgeX + (dx / length) * outwardPadding,
-        y: edgeY + (dy / length) * outwardPadding,
       }};
     }}
 

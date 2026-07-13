@@ -83,7 +83,7 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "fk-arrow" in html
     assert 'markerWidth="11"' in html
     assert 'markerHeight="8"' in html
-    assert "edgePoint" in html
+    assert "edgePoint" not in html
     assert "cardBounds" in html
     assert "columnBounds" in html
     assert "combineRelationships" in html
@@ -91,6 +91,8 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "targetAnchorBounds" in html
     assert "targetSlotAssignments" in html
     assert "arrowStorageKey" in html
+    assert "loadJson" in html
+    assert "saveJson" in html
     assert "attachArrowDragHandle" in html
     assert "handleArrowPointerMove" in html
     assert "handleArrowPointerUp" in html
@@ -104,6 +106,8 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert 'data-column="' in html
     assert "routeRelationship" in html
     assert "routeCandidates" in html
+    assert "scoreRoute" in html
+    assert "ROUTE_BEND_PENALTY" in html
     assert "routeBendCount" in html
     assert "routeOverlapScore" in html
     assert "segmentOverlapLength" in html
