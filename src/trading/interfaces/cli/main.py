@@ -29,6 +29,11 @@ from trading.services.parameters import (
     update_book_rotation_policy,
     update_book_rotation_scheduling,
 )
+from trading.services.strategy_catalog import (
+    configure_strategy,
+    create_strategy_variant,
+    freeze_strategy,
+)
 from trading.services.operational_settings import (
     fetch_evaluation_confidence_settings,
     fetch_promotion_policy_settings,
@@ -86,6 +91,9 @@ def _handler_deps() -> dict[str, object]:
         "set_promotion_policy_settings": set_promotion_policy_settings,
         "update_book_rotation_policy": update_book_rotation_policy,
         "update_book_rotation_scheduling": update_book_rotation_scheduling,
+        "configure_strategy": configure_strategy,
+        "create_strategy_variant": create_strategy_variant,
+        "freeze_strategy": freeze_strategy,
         "show_portfolio_concentration": show_portfolio_concentration,
         "show_portfolio_exposure": show_portfolio_exposure,
         "show_snapshots": show_snapshots,

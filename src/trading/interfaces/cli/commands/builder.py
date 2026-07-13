@@ -7,6 +7,7 @@ from trading.interfaces.cli.commands.backtesting import add_backtesting_commands
 from trading.interfaces.cli.commands.options import add_option_args
 from trading.interfaces.cli.commands.reporting import add_reporting_commands
 from trading.interfaces.cli.commands.settings import add_settings_commands
+from trading.interfaces.cli.commands.strategy_catalog import add_strategy_catalog_commands
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -16,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_account_commands(sub, add_option_args)
     add_reporting_commands(sub)
     add_settings_commands(sub)
+    add_strategy_catalog_commands(sub)
     add_backtesting_commands(sub)
 
     return parser
