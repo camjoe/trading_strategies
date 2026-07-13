@@ -77,16 +77,40 @@ def test_missing_row_raises_unknown_catalog_strategy(conn) -> None:
         resolve_catalog_params(conn, "no_such_strategy")
 
 
-def test_noncanonical_primitive_falls_back_to_registry_defaults(conn) -> None:
-    # The label bridge mints draft rows whose primitive is the raw alias label
-    # (P6-1 transitional). "meanrev" is not a canonical primitive id, but it
-    # resolves leniently to the mean_reversion primitive's defaults.
+def test_alias_primitive_resolves_to_canonical_primitive(conn) -> None:
+    # A legacy row whose primitive column holds an alias ("meanrev") resolves,
+    # via the registry alias-compat shim, to the canonical mean_reversion
+    # primitive and its defaults.
     _insert_strategy(conn, strategy_key="meanrev", primitive="meanrev", params_json="{}")
 
-    assert resolve_catalog_params(conn, "meanrev") == {"window": 20, "band_pct": 0.02}
+    resolved = resolve_catalog_strategy(conn, "meanrev")
+
+    assert resolved.primitive == "mean_reversion"
+    assert resolved.params == {"window": 20, "band_pct": 0.02}
 
 
-def test_unresolvable_primitive_and_key_yields_empty_params(conn) -> None:
+def test_variant_key_runs_its_primitives_signal_fn(conn) -> None:
+    # A data variant: distinct key, same trend primitive, tuned knob. It exposes
+    # the trend primitive's signal function so execution runs the right code.
+    from trading.domain.strategy_signals import PRIMITIVE_CATALOG
+
+    _insert_strategy(
+        conn,
+        strategy_key="trend_fast",
+        primitive="trend",
+        params_json=json.dumps({"fast_window": 5}),
+        style="trend",
+    )
+
+    resolved = resolve_catalog_strategy(conn, "trend_fast")
+
+    assert resolved.primitive == "trend"
+    assert resolved.primitive_spec.signal_fn is PRIMITIVE_CATALOG["trend"].signal_fn
+    assert resolved.params == {"fast_window": 5, "slow_window": 20}
+
+
+def test_unresolvable_primitive_raises(conn) -> None:
     _insert_strategy(conn, strategy_key="zzz_unknown", primitive="zzz_unknown", params_json="{}")
 
-    assert resolve_catalog_params(conn, "zzz_unknown") == {}
+    with pytest.raises(UnknownCatalogStrategyError):
+        resolve_catalog_params(conn, "zzz_unknown")

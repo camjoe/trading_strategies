@@ -16,7 +16,7 @@ from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
-    resolve_catalog_params,
+    resolve_catalog_strategy,
 )
 from trading.services.universe import resolve_named_universes
 
@@ -88,10 +88,19 @@ def generate_book_trade_intents(
         strategy_name = trading_book.assignment.strategy_name.strip()
         param_set_id = trading_book.assignment.param_set_id
         try:
-            strategy_params = resolve_catalog_params(conn, strategy_name)
+            resolved = resolve_catalog_strategy(conn, strategy_name)
         except UnknownCatalogStrategyError:
-            logger.warning("Book %s: strategy %r has no catalog row; skipping (no trades).", book_id, strategy_name)
+            logger.warning(
+                "Book %s: strategy %r does not resolve to a code primitive; skipping (no trades).",
+                book_id,
+                strategy_name,
+            )
             continue
+        # Signals resolve through the catalog row's canonical primitive (P6-2),
+        # so a data variant runs the right primitive; the intent keeps the
+        # assigned label for display and rotation bookkeeping.
+        signal_primitive = resolved.primitive
+        strategy_params = resolved.params
         if book.trade_universes:
             book_universe_names: object = json.loads(book.trade_universes)
             if isinstance(book_universe_names, list) and book_universe_names:
@@ -112,7 +121,7 @@ def generate_book_trade_intents(
         )
         selection = _prepare_trade_selection(
             account,
-            strategy_name,
+            signal_primitive,
             strategy_params,
             state,
             forced_sell,

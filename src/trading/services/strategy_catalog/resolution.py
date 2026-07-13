@@ -1,10 +1,15 @@
-"""Resolve a catalog strategy row into its runnable knobs.
+"""Resolve a catalog strategy row into its runnable form.
 
 The catalog-canonical read path (P6): a book's assignment names a
-``strategies`` row, and this module turns that row into the effective signal
-knobs — the primitive's code knob-schema defaults with the row's ``params_json``
-layered on top. Making the catalog the source of the *knobs* is P6-1; the
-signal-primitive resolution itself moves onto the row's ``primitive`` in P6-2.
+``strategies`` row, and this module turns that row into the code primitive that
+produces signals plus the effective knobs to run it with. The knobs are the
+primitive's code defaults with the row's ``params_json`` layered on top.
+
+Resolution is keyed on the row's ``primitive`` column, so a data *variant* — a
+new ``strategy_key`` bound to the same primitive with different knobs — runs the
+right signal function. ``STRATEGY_REGISTRY`` is consulted only as an alias-compat
+shim for legacy rows whose primitive column holds an alias rather than a
+canonical id.
 """
 
 from __future__ import annotations
@@ -14,12 +19,13 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
-from trading.domain.strategy_signals import resolve_primitive, resolve_strategy
+from trading.domain.strategy_signals import PrimitiveSpec, resolve_primitive, resolve_strategy
+from trading.models.strategy.strategy_record import StrategyRecord
 from trading.repositories.strategies import StrategyRepository
 
 
 class UnknownCatalogStrategyError(ValueError):
-    """Raised when a strategy key has no ``strategies`` catalog row."""
+    """Raised when a strategy has no catalog row or an unresolvable primitive."""
 
 
 @dataclass(frozen=True)
@@ -27,24 +33,30 @@ class ResolvedStrategy:
     """A catalog strategy resolved to its runnable form for a trading run."""
 
     strategy_key: str
-    primitive: str
+    primitive_spec: PrimitiveSpec
     params: dict[str, Any]
+
+    @property
+    def primitive(self) -> str:
+        """The canonical code primitive id backing this strategy."""
+        return self.primitive_spec.primitive
 
 
 def resolve_catalog_strategy(conn: sqlite3.Connection, strategy_key: str) -> ResolvedStrategy:
-    """Resolve a catalog strategy key to its primitive and effective knobs.
+    """Resolve a catalog strategy key to its code primitive and effective knobs.
 
     The knobs are the primitive's code defaults with the row's ``params_json``
     layered over them, so a partial or stale ``params_json`` never drops a knob
     the signal function needs. Raises :class:`UnknownCatalogStrategyError` when
-    no catalog row exists for the key.
+    no catalog row exists for the key or its primitive does not resolve to code.
     """
     key = strategy_key.strip().lower()
     record = StrategyRepository(conn).fetch_by_key(strategy_key=key)
     if record is None:
         raise UnknownCatalogStrategyError(f"No strategy catalog row for '{strategy_key}'.")
-    params = {**_primitive_defaults(record.primitive, record.strategy_key), **_parse_params_json(record.params_json)}
-    return ResolvedStrategy(strategy_key=record.strategy_key, primitive=record.primitive, params=params)
+    primitive_spec = _resolve_primitive_spec(record)
+    params = {**dict(primitive_spec.knob_schema), **_parse_params_json(record.params_json)}
+    return ResolvedStrategy(strategy_key=record.strategy_key, primitive_spec=primitive_spec, params=params)
 
 
 def resolve_catalog_params(conn: sqlite3.Connection, strategy_key: str) -> dict[str, Any]:
@@ -52,23 +64,24 @@ def resolve_catalog_params(conn: sqlite3.Connection, strategy_key: str) -> dict[
     return resolve_catalog_strategy(conn, strategy_key).params
 
 
-def _primitive_defaults(primitive: str, strategy_key: str) -> dict[str, Any]:
-    """The code knob-schema defaults for a row's primitive.
+def _resolve_primitive_spec(record: StrategyRecord) -> PrimitiveSpec:
+    """Resolve a row's ``primitive`` column to its canonical code spec.
 
-    Transitional (P6-1): the label bridge mints draft rows whose ``primitive``
-    is the raw assignment label, which can be a lenient alias rather than a
-    canonical primitive id. When the primitive is not a canonical id, fall back
-    to lenient registry resolution so knob defaults match the pre-catalog read
-    path exactly. P6-2 makes ``primitive`` an authoritative canonical id and
-    removes this fallback.
+    A row's primitive is normally a canonical primitive id. Legacy rows minted
+    by the label bridge can hold an alias (e.g. ``momentum``) instead; those
+    resolve through the registry alias map — the one runtime use of
+    ``STRATEGY_REGISTRY`` kept as an alias-compat shim.
     """
     try:
-        return dict(resolve_primitive(primitive).knob_schema)
+        return resolve_primitive(record.primitive)
     except ValueError:
-        try:
-            return dict(resolve_strategy(strategy_key).default_params)
-        except ValueError:
-            return {}
+        pass
+    try:
+        return resolve_primitive(resolve_strategy(record.primitive).strategy_id)
+    except ValueError as exc:
+        raise UnknownCatalogStrategyError(
+            f"Strategy '{record.strategy_key}' primitive {record.primitive!r} does not resolve to a code primitive."
+        ) from exc
 
 
 def _parse_params_json(params_json: str) -> dict[str, Any]:
