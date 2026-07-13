@@ -35,6 +35,7 @@ For a complete schema change, run all four tasks in order unless asked for a spe
 - `src/infrastructure/database/init.py`
 - `scripts/data_ops/audit_foreign_keys.py`
 - `scripts/data_ops/build_database_diagram_viewer.py`
+- `scripts/database_diagrams/`
 - `docs/reference/account-deletion-cascade-proposal.md`
 - `docs/reference/database-diagram-viewer.html`
 - `docs/architecture/architecture-conventions.md`
