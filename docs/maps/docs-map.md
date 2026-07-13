@@ -91,7 +91,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/runtime-jobs.md` | Runtime job entrypoint catalog — how to run and schedule each job | Runtime job entrypoints, scheduler flags, or task names change |
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
 | `docs/reference/broker-setup-ibkr.md` | IBKR Client Portal Gateway operator setup checklist | IBKR gateway setup steps or connection config change |
-| `docs/reference/broker-setup-alpaca.md` | Alpaca setup guide (Draft — adapter not implemented) | Alpaca adapter work starts or is dropped |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
 | `docs/overview.md` | Definitive app explainer + north-star direction + itemized tracker of what remains (entry point) | Purpose, capabilities, direction, or remaining-work list change |
