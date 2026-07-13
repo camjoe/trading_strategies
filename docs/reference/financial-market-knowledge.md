@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-30
-Last Reviewed: 2026-06-30
+Last Reviewed: 2026-07-13
 Purpose: Canonical glossary source for financial, market, and strategy terms shown in the documentation UI.
 Related: [Strategies](strategies.md), [Backtesting](backtesting.md), [Docs Index](../README.md)
 
@@ -99,9 +99,6 @@ The optional `UI Label` column overrides the displayed label in the UI while pre
 
 | Term | Use | Definition | UI Label |
 |---|---|---|---|
-| Factor-Based Signals | ui | Use quantitative factors (value, quality, momentum, low-volatility) to rank and select assets. |  |
-| Momentum (Cross-Sectional) | ui | Rank assets by recent relative performance and go long the top performers. |  |
-| Pairs / Statistical Arbitrage | ui | Exploit temporary divergences in the price spread between historically correlated instruments. |  |
 | Regime-Aware Models | ui | Adjust strategy behavior based on detected market regime (trending vs. mean-reverting, etc.). |  |
 | Trend Following | ui | Enter positions in the direction of an established price trend; exit when the trend weakens. |  |
 | Volatility Breakout | ui | Enter positions when price breaks out of a defined volatility range. |  |
@@ -110,11 +107,8 @@ The optional `UI Label` column overrides the displayed label in the UI while pre
 
 | Term | Use | Definition | UI Label |
 |---|---|---|---|
-| Crypto | both | Digital assets via feeds like ccxt - not currently active. |  |
 | Equities | both | Individual stocks - core focus area. |  |
 | ETFs | both | Sector, factor, and index ETFs - useful for regime and trend strategies. |  |
-| Forex | both | Currency pairs - not currently active. |  |
-| Futures | both | Commodity and index futures - not currently active. |  |
 | Macro | both | Macro-level signals (rates, volatility indices) for regime context. |  |
 | Options / LEAPs | both | Long-dated options used to simulate leveraged equity exposure with defined risk. |  |
 
