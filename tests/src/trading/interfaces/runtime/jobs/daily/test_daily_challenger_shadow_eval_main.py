@@ -53,7 +53,6 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
                 window_end_day="2026-05-07",
                 incumbent=RotationStrategyMetrics(
                     strategy_name="trend",
-                    param_set_id=None,
                     trade_count=15,
                     risk_adjusted_return=0.5,
                     stability=0.0,
@@ -64,7 +63,6 @@ def _sample_run(account_name: str) -> ChallengerEvaluationRun:
                 challengers=[
                     RotationStrategyMetrics(
                         strategy_name="meanrev",
-                        param_set_id=22,
                         trade_count=12,
                         risk_adjusted_return=0.9,
                         stability=0.58,

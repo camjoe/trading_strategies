@@ -32,11 +32,9 @@ def test_build_rotation_strategy_metrics_maps_decision_score(conn, monkeypatch) 
         conn,
         account=account,
         strategy_name="meanrev",
-        param_set_id=7,
     )
 
     assert metrics.strategy_name == "meanrev"
-    assert metrics.param_set_id == 7
     assert metrics.trade_count == 18
     assert metrics.risk_adjusted_return == 4.5
     assert metrics.stability == 0.0
@@ -55,7 +53,6 @@ def test_build_rotation_strategy_metrics_defaults_missing_score(conn, monkeypatc
         conn,
         account=account,
         strategy_name="meanrev",
-        param_set_id=None,
     )
 
     assert metrics.risk_adjusted_return == 0.0

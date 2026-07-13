@@ -48,14 +48,12 @@ def assign_test_book_strategy(
     *,
     book_id: int,
     strategy_name: str,
-    param_set_id: int | None = None,
     now_iso: str = DEFAULT_BOOK_TIMESTAMP,
 ) -> None:
     assign_book_strategy(
         conn,
         book_id=book_id,
         strategy_name=strategy_name,
-        param_set_id=param_set_id,
         now_iso=now_iso,
     )
 

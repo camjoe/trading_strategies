@@ -86,7 +86,6 @@ def generate_book_trade_intents(
         book = trading_book.book
         book_id = book.id
         strategy_name = trading_book.assignment.strategy_name.strip()
-        param_set_id = trading_book.assignment.param_set_id
         try:
             resolved = resolve_catalog_strategy(conn, strategy_name)
         except UnknownCatalogStrategyError:
@@ -141,7 +140,6 @@ def generate_book_trade_intents(
                 account_id=account_id,
                 book_id=book_id,
                 strategy_name=strategy_name,
-                param_set_id=param_set_id,
                 side=side,
                 symbol=symbol,
                 qty=qty,

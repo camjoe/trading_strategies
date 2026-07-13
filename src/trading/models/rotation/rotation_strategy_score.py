@@ -6,7 +6,6 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class RotationStrategyScore:
     strategy_name: str
-    param_set_id: int | None
     score: float
     score_components: dict[str, float]
     trade_count: int

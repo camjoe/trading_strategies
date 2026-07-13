@@ -120,7 +120,6 @@ def test_rotation_metrics_use_same_contract(scenario: str, monkeypatch) -> None:
         object(),
         account=object(),
         strategy_name="any",
-        param_set_id=None,
     )
 
     expected_score = decision.score if decision.score is not None else 0.0

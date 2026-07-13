@@ -14,4 +14,3 @@ class BookAssignmentView:
     book_id: int
     strategy_id: int
     strategy_name: str
-    param_set_id: int | None

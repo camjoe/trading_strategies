@@ -98,7 +98,7 @@ class TestArtifactStructure:
         stub_runtime_job_basics(
             monkeypatch,
             module,
-            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev", param_set_id=None))],
+            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev"))],
         )
         monkeypatch.setattr(
             module,

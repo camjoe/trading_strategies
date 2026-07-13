@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
@@ -14,8 +13,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
-from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.books.book_assignments import list_report_books
+from trading.services.strategy_catalog import UnknownCatalogStrategyError, resolve_catalog_strategy
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -49,30 +48,27 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        param_set_repo = StrategyParamSetRepository(ctx.conn)
         book_rows: list[dict[str, object]] = []
 
         for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name: str | None = None
-            param_set_id: int | None = None
+            primitive: str | None = None
             params: object = None
 
             if assignment is not None:
                 strategy_name = assignment.strategy_name
-                if assignment.param_set_id is not None:
-                    param_set_id = assignment.param_set_id
-                    param_set = param_set_repo.fetch_by_id(param_set_id=param_set_id)
-                    if param_set is not None:
-                        try:
-                            params = json.loads(param_set.params_json) if param_set.params_json else None
-                        except ValueError, TypeError:
-                            params = None
+                try:
+                    resolved = resolve_catalog_strategy(ctx.conn, strategy_name)
+                    primitive = resolved.primitive
+                    params = resolved.params
+                except UnknownCatalogStrategyError:
+                    params = None
 
             book_rows.append(
                 {
                     "book_name": book.name,
                     "strategy_name": strategy_name,
-                    "param_set_id": param_set_id,
+                    "primitive": primitive,
                     "params": params,
                 }
             )
