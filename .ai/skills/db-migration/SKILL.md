@@ -1,7 +1,6 @@
 ---
 name: db-migration
 description: Manages SQLite schema migrations for the trading database — creating, validating, estimating risk, and generating rollback strategies. Use when asked to add a column, validate a migration, assess schema change risk, or plan a rollback.
-invoker: any
 ---
 
 # DB Migration

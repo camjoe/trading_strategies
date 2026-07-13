@@ -1,7 +1,6 @@
 ---
 name: create-runtime-job
 description: Scaffolds a new runtime job under src/trading/interfaces/runtime/jobs using the shared job_runner — picks the right decorator (daily_account_job, governance_job, or maintenance_job), then generates the module, its harness test, the completion sentinel, optional schedule wiring, and the inventory row. Use when adding a new scheduled runtime job, daily account job, governance review job, or maintenance job.
-invoker: any
 ---
 
 # Create Runtime Job
