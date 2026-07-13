@@ -75,11 +75,11 @@ class TestArtifactStructure:
     def test_params_reported_from_catalog(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace as _NS
 
-        sleeve_row = {"id": 7, "name": "sleeve_q"}
+        book_row = {"id": 7, "name": "book_q"}
         stub_runtime_job_basics(
             monkeypatch,
             module,
-            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev"))],
+            books_for_account=[(_NS(**book_row), _NS(strategy_name="mean_rev"))],
         )
         captured: dict[str, str] = {}
 
@@ -97,15 +97,15 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "monthly_governance_m2_parameter_governance_*.json",
         )
-        sleeve = payload["accounts"][0]["books"][0]
-        assert sleeve["book_name"] == "sleeve_q"
-        assert sleeve["strategy_name"] == "mean_rev"
-        assert sleeve["primitive"] == "mean_reversion"
-        assert sleeve["params"] == {"window": 20, "band_pct": 0.5}
+        book = payload["accounts"][0]["books"][0]
+        assert book["book_name"] == "book_q"
+        assert book["strategy_name"] == "mean_rev"
+        assert book["primitive"] == "mean_reversion"
+        assert book["params"] == {"window": 20, "band_pct": 0.5}
 
     def test_no_params_when_no_assignment(self, monkeypatch, tmp_path: Path) -> None:
-        sleeve_row = {"id": 8, "name": "sleeve_r"}
-        stub_runtime_job_basics(monkeypatch, module, books_for_account=[sleeve_row])
+        book_row = {"id": 8, "name": "book_r"}
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[book_row])
         # unassigned book: the stubbed pair carries assignment=None
 
         _run_job(monkeypatch, tmp_path, RUN_ALL_FORCE_ARGS)
@@ -113,10 +113,10 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "monthly_governance_m2_parameter_governance_*.json",
         )
-        sleeve = payload["accounts"][0]["books"][0]
-        assert sleeve["strategy_name"] is None
-        assert sleeve["primitive"] is None
-        assert sleeve["params"] is None
+        book = payload["accounts"][0]["books"][0]
+        assert book["strategy_name"] is None
+        assert book["primitive"] is None
+        assert book["params"] is None
 
 
 def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -140,11 +140,11 @@ def test_missing_account_in_db_is_skipped(monkeypatch, tmp_path: Path) -> None:
 def test_unresolvable_strategy_falls_back_to_none(monkeypatch, tmp_path: Path) -> None:
     from types import SimpleNamespace as _NS
 
-    sleeve_row = {"id": 7, "name": "sleeve_q"}
+    book_row = {"id": 7, "name": "book_q"}
     stub_runtime_job_basics(
         monkeypatch,
         module,
-        books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev"))],
+        books_for_account=[(_NS(**book_row), _NS(strategy_name="mean_rev"))],
     )
 
     def _resolve(_conn, _strategy_key):

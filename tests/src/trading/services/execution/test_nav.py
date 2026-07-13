@@ -87,15 +87,15 @@ def test_empty_book_equity_equals_cash(conn):
 def test_mark_account_marks_every_book(conn):
     account_id = insert_repository_account(conn, name="nav_multi")
     default_book = _book(conn, account_id=account_id, name="default", is_default=1, cash=1_000.0)
-    sleeve_book = _book(conn, account_id=account_id, name="sleeve_a", is_default=0, cash=500.0)
+    book_book = _book(conn, account_id=account_id, name="book_a", is_default=0, cash=500.0)
     _position(conn, book_id=default_book, symbol="AAPL", qty=10.0, avg_cost=100.0)
-    _position(conn, book_id=sleeve_book, symbol="AAPL", qty=5.0, avg_cost=100.0)
+    _position(conn, book_id=book_book, symbol="AAPL", qty=5.0, avg_cost=100.0)
 
     results = mark_account_to_market(conn, account_id=account_id, prices={"AAPL": 110.0}, as_of=AS_OF)
 
     equity_by_book = {r.book_id: r.current_equity for r in results}
     assert equity_by_book[default_book] == pytest.approx(1_000.0 + 10 * 110.0)
-    assert equity_by_book[sleeve_book] == pytest.approx(500.0 + 5 * 110.0)
+    assert equity_by_book[book_book] == pytest.approx(500.0 + 5 * 110.0)
 
 
 def test_missing_book_raises(conn):

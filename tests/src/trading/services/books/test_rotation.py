@@ -35,7 +35,7 @@ def _incumbent_metrics(*, strategy_name: str) -> RotationStrategyMetrics:
 
 
 def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_sleeve_rotate")
+    account_id = insert_repository_account(conn, name="acct_book_rotate")
     book_id = _insert_book(conn, account_id=account_id)
     assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
 
@@ -82,7 +82,7 @@ def test_evaluate_and_apply_book_rotation_rotates_and_updates_assignment(conn) -
 
 
 def test_evaluate_and_apply_book_rotation_holds_when_cooldown_active(conn) -> None:
-    account_id = insert_repository_account(conn, name="acct_sleeve_cooldown")
+    account_id = insert_repository_account(conn, name="acct_book_cooldown")
     book_id = _insert_book(conn, account_id=account_id)
     assign_test_book_strategy(conn, book_id=book_id, strategy_name="trend")
     RotationDecisionRepository(conn).insert_for_book(

@@ -35,8 +35,8 @@ def _set_account_rotation_columns(
 
 def test_syncs_scheduling_to_all_books_and_opens_default_assignment(conn) -> None:
     account_id = insert_repository_account(conn, name="cutover_acct", strategy="trend")
-    sleeve_book = insert_test_book(conn, account_id=account_id, name="sleeve_book")
-    assign_test_book_strategy(conn, book_id=sleeve_book, strategy_name="meanrev")
+    book_book = insert_test_book(conn, account_id=account_id, name="book_book")
+    assign_test_book_strategy(conn, book_id=book_book, strategy_name="meanrev")
     _set_account_rotation_columns(conn, account_id, active_strategy="meanrev")
 
     scheduling_synced, assignments_opened = migrate_book_rotation(conn)
@@ -45,22 +45,22 @@ def test_syncs_scheduling_to_all_books_and_opens_default_assignment(conn) -> Non
     book_id = default_book_id(conn, account_id)
     assert scheduling_synced == 2
     repo = BookRotationSettingsRepository(conn)
-    for synced_book in (book_id, sleeve_book):
+    for synced_book in (book_id, book_book):
         row = repo.fetch(book_id=synced_book)
         assert row is not None
         assert row.rotation_enabled == 1
         assert row.rotation_schedule == '["trend","meanrev"]'
         assert row.rotation_lookback_days == 45
 
-    # The default book got the legacy active strategy; the sleeve book's
+    # The default book got the legacy active strategy; the book book's
     # existing assignment was untouched.
     assert assignments_opened == 1
     default_assignment = open_assignment_for_book(conn, book_id=book_id)
     assert default_assignment is not None
     assert default_assignment.strategy_name == "meanrev"
-    sleeve_assignment = open_assignment_for_book(conn, book_id=sleeve_book)
-    assert sleeve_assignment is not None
-    assert sleeve_assignment.strategy_name == "meanrev"
+    book_assignment = open_assignment_for_book(conn, book_id=book_book)
+    assert book_assignment is not None
+    assert book_assignment.strategy_name == "meanrev"
 
 
 def test_idempotent_and_never_overwrites_open_assignment(conn) -> None:

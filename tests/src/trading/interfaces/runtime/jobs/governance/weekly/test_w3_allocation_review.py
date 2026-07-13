@@ -79,14 +79,14 @@ class TestArtifactStructure:
         book_rows = [
             {
                 "id": 1,
-                "name": "sleeve_a",
+                "name": "book_a",
                 "start_equity": 600.0,
                 "current_cash": 100.0,
                 "current_equity": 600.0,
             },
             {
                 "id": 2,
-                "name": "sleeve_b",
+                "name": "book_b",
                 "start_equity": 400.0,
                 "current_cash": 100.0,
                 "current_equity": 400.0,
@@ -107,17 +107,17 @@ class TestArtifactStructure:
         )
         acct = payload["accounts"][0]
         assert acct["total_nav"] == 1000.0  # 600 + 400
-        sleeves = {s["book_name"]: s for s in acct["books"]}
-        # sleeve_a: current_nav=600, current_pct=60, target_pct=60, drift=0 → no reweight
-        assert abs(sleeves["sleeve_a"]["current_pct"] - 60.0) < 0.01
-        assert abs(sleeves["sleeve_a"]["target_pct"] - 60.0) < 0.01
-        assert abs(sleeves["sleeve_a"]["drift_pct"] - 0.0) < 0.01
-        assert sleeves["sleeve_a"]["reweight_suggested"] is False
-        # sleeve_b: current_nav=400, current_pct=40, target_pct=40, drift=0 → no reweight
-        assert abs(sleeves["sleeve_b"]["current_pct"] - 40.0) < 0.01
-        assert abs(sleeves["sleeve_b"]["target_pct"] - 40.0) < 0.01
-        assert abs(sleeves["sleeve_b"]["drift_pct"] - 0.0) < 0.01
-        assert sleeves["sleeve_b"]["reweight_suggested"] is False
+        books = {s["book_name"]: s for s in acct["books"]}
+        # book_a: current_nav=600, current_pct=60, target_pct=60, drift=0 → no reweight
+        assert abs(books["book_a"]["current_pct"] - 60.0) < 0.01
+        assert abs(books["book_a"]["target_pct"] - 60.0) < 0.01
+        assert abs(books["book_a"]["drift_pct"] - 0.0) < 0.01
+        assert books["book_a"]["reweight_suggested"] is False
+        # book_b: current_nav=400, current_pct=40, target_pct=40, drift=0 → no reweight
+        assert abs(books["book_b"]["current_pct"] - 40.0) < 0.01
+        assert abs(books["book_b"]["target_pct"] - 40.0) < 0.01
+        assert abs(books["book_b"]["drift_pct"] - 0.0) < 0.01
+        assert books["book_b"]["reweight_suggested"] is False
 
 
 def test_main_returns_1_when_no_accounts(monkeypatch, tmp_path: Path, capsys) -> None:
