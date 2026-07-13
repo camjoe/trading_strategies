@@ -101,9 +101,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
-| `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
-| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `src/trading/backtesting/` out of its current bounded-context shape |
-| `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
 | `docs/adr/004-runtime-naming-and-operational-settings.md` | "runtime" naming disambiguation; `operational_settings` package | Renaming the scheduler layer or the settings package |
 | `docs/adr/005-models-as-lowest-data-layer.md` | `models/` holds all passive data contracts as the lowest layer | Restructuring the models layer or layering direction |
 | `docs/adr/006-cross-cutting-decorators.md` | Sanctioned decorator/context-manager pattern for cross-cutting concerns | Changing the cross-cutting pattern rules |

@@ -7,8 +7,7 @@ Last Reviewed: 2026-07-07
 Purpose: Record why the regime-driven account-rotation selection (policy regime + news/social overlays)
 was removed when rotation was unified onto the decision-score contract, and preserve its design so it
 can be revived if performance-based rotation is later augmented with regime awareness.
-Related: the rotation-convergence work (completed; retrievable from git history),
-[ADR 003 — Sleeve Virtualization](003-sleeve-virtualization-architecture.md)
+Related: the rotation-convergence work (completed; retrievable from git history)
 
 ## Context
 

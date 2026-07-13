@@ -70,9 +70,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders
 - [`adr/004-runtime-naming-and-operational-settings.md`](adr/004-runtime-naming-and-operational-settings.md) — disambiguate "runtime" naming; operational_settings package
-- [`adr/003-sleeve-virtualization-architecture.md`](adr/003-sleeve-virtualization-architecture.md) — sleeve virtualization architecture decision record
-- [`adr/002-backtesting-layering.md`](adr/002-backtesting-layering.md) — decision rationale for backtesting module layering
-- [`adr/001-cross-platform-paths.md`](adr/001-cross-platform-paths.md) — pathlib cross-platform usage decision record
 
 ## Conventions
 

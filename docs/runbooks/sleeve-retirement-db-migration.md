@@ -8,7 +8,7 @@ Purpose: The one-time operator procedure that migrates an existing database off 
 tables after the sleeve-retirement branch deploys — run the data-op, verify, drop the orphaned
 tables, then delete the migration tooling.
 Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md),
-[ADR 003 — Sleeve Virtualization (superseded)](../adr/003-sleeve-virtualization-architecture.md)
+[ADR 010 — Book-Keyed Execution Model](../adr/010-book-keyed-execution-model.md)
 
 ## Why this exists
 

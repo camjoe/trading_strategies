@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-14
 Last Reviewed: 2026-07-09
 Purpose: Reference for backtesting commands, layering overview, and safeguards.
-Related: [ADR: Backtesting Layering](../adr/002-backtesting-layering.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [Trading Package Map](../maps/trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Backtesting is implemented in:
 - `src/trading/backtesting/backtest.py`
@@ -24,9 +24,10 @@ Backtesting follows a layered structure:
 - Domain (`src/trading/backtesting/domain/`): pure calculations and policy helpers.
 - Entrypoint (`src/trading/backtesting/backtest.py`): public API composition and call routing.
 
-Detailed rationale is in:
-
-- `docs/adr/002-backtesting-layering.md`
+The split keeps SQL, orchestration, and pure simulation logic independently testable. Backtesting
+continues to use explicit SQL and the in-house engine because current needs are analytics-heavy and
+query-shape specific; revisit a framework or ORM only if object-graph complexity, relationship
+tracking, or portability pressure materially increases.
 
 ## Commands
 
@@ -138,4 +139,5 @@ Operational notes:
 ## Related Docs
 
 - `docs/reference/strategies.md`
-- `docs/adr/002-backtesting-layering.md`
+- `docs/maps/trading-package-map.md`
+- `src/trading/backtesting/README.md`

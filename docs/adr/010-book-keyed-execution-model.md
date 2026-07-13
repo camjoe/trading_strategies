@@ -5,7 +5,7 @@ Status: Accepted
 Created: 2026-07-09
 Last Reviewed: 2026-07-09
 Purpose: Record the accepted book-keyed execution primitive after sleeve retirement.
-Related: [Overview](../overview.md), [ADR 003](003-sleeve-virtualization-architecture.md)
+Related: [Overview](../overview.md)
 
 ## Context
 
@@ -16,6 +16,9 @@ paths.
 
 Alternatives considered were keeping sleeves, using a generic "trading unit" name, or using a
 finance-native "book" model.
+
+The retired sleeve design is no longer kept as a live ADR; recover it from git history if the
+pre-book model needs to be reconstructed.
 
 ## Decision
 

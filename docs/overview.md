@@ -35,8 +35,7 @@ Design intent:
   safety gate, and cash/positions truth. A "test" account is just an account with `broker_type="paper"`.
 - **Book** — the execution primitive: a bounded pool of capital inside an account run to one
   strategy; one broker account can host several independent books. (The earlier "sleeve"
-  virtualization concept was retired 2026-07-09;
-  [ADR 003](adr/003-sleeve-virtualization-architecture.md) is superseded.)
+  virtualization concept was retired 2026-07-09 in favor of books.)
 - **Strategy** — a named signal specification (`StrategySpec`) with a signal function and default
   parameters. 14 are registered today across trend, mean-reversion, oscillator, breakout, and
   external-data ("alternative") families.

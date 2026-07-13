@@ -293,4 +293,5 @@ Self-contained backtest subsystem with its own layered sub-packages.
 - [service-cookbook.md](../architecture/service-cookbook.md) — task-oriented API reference ("what function do I call to do X?")
 - [nav-guide.md](../architecture/nav-guide.md) — "I want to X → look/edit Y" lookup table
 - `docs/architecture/architecture-conventions.md` — authoritative import boundary and layering rules
-- `docs/adr/002-backtesting-layering.md`
+- `docs/reference/backtesting.md`
+- `src/trading/backtesting/README.md`
