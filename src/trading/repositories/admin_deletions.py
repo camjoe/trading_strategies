@@ -73,20 +73,6 @@ def fetch_walk_forward_group_ids_for_account_ids(
     return _fetch_ids_by_account_ids(conn, table="walk_forward_groups", account_ids=account_ids)
 
 
-def delete_backtest_equity_snapshots_by_run_ids(
-    conn: sqlite3.Connection,
-    run_ids: tuple[int, ...],
-) -> None:
-    _delete_by_ids(conn, table="backtest_equity_snapshots", column_name="run_id", ids=run_ids)
-
-
-def delete_backtest_trades_by_run_ids(
-    conn: sqlite3.Connection,
-    run_ids: tuple[int, ...],
-) -> None:
-    _delete_by_ids(conn, table="backtest_trades", column_name="run_id", ids=run_ids)
-
-
 def delete_backtest_runs_by_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
@@ -94,25 +80,11 @@ def delete_backtest_runs_by_account_ids(
     _delete_by_ids(conn, table="backtest_runs", column_name="account_id", ids=account_ids)
 
 
-def delete_promotion_review_events_by_review_ids(
-    conn: sqlite3.Connection,
-    review_ids: tuple[int, ...],
-) -> None:
-    _delete_by_ids(conn, table="promotion_review_events", column_name="review_id", ids=review_ids)
-
-
 def delete_promotion_reviews_by_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
 ) -> None:
     _delete_by_ids(conn, table="promotion_reviews", column_name="account_id", ids=account_ids)
-
-
-def delete_walk_forward_group_runs_by_group_ids(
-    conn: sqlite3.Connection,
-    group_ids: tuple[int, ...],
-) -> None:
-    _delete_by_ids(conn, table="walk_forward_group_runs", column_name="group_id", ids=group_ids)
 
 
 def delete_walk_forward_groups_by_account_ids(

@@ -2,14 +2,10 @@ from __future__ import annotations
 
 from trading.repositories.admin_deletions import (
     delete_accounts_by_ids,
-    delete_backtest_equity_snapshots_by_run_ids,
     delete_backtest_runs_by_account_ids,
-    delete_backtest_trades_by_run_ids,
     delete_equity_snapshots_by_account_ids,
-    delete_promotion_review_events_by_review_ids,
     delete_promotion_reviews_by_account_ids,
     delete_trades_by_account_ids,
-    delete_walk_forward_group_runs_by_group_ids,
     delete_walk_forward_groups_by_account_ids,
     fetch_backtest_run_ids_for_account_ids,
     fetch_promotion_review_ids_for_account_ids,
@@ -102,36 +98,6 @@ class TestFetchBacktestRunIdsForAccountIds:
         assert id_b in ids
 
 
-class TestDeleteBacktestEquitySnapshotsByRunIds:
-    def test_removes_snapshots_for_run(self, conn) -> None:
-        acct_id = _account_id(conn)
-        run_id = _insert_backtest_run(conn, account_id=acct_id)
-        conn.execute(
-            "INSERT INTO backtest_equity_snapshots (run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl) VALUES (?,?,?,?,?,?,?)",
-            (run_id, "2026-01-01T00:00:00Z", 0.0, 0.0, 1000.0, 0.0, 0.0),
-        )
-        conn.commit()
-        delete_backtest_equity_snapshots_by_run_ids(conn, (run_id,))
-        count = conn.execute(
-            "SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = ?", (run_id,)
-        ).fetchone()["n"]
-        assert count == 0
-
-
-class TestDeleteBacktestTradesByRunIds:
-    def test_removes_trades_for_run(self, conn) -> None:
-        acct_id = _account_id(conn)
-        run_id = _insert_backtest_run(conn, account_id=acct_id)
-        conn.execute(
-            "INSERT INTO backtest_trades (run_id, trade_time, ticker, side, qty, price) VALUES (?,?,?,?,?,?)",
-            (run_id, "2026-01-01T10:00:00Z", "AAPL", "buy", 1.0, 100.0),
-        )
-        conn.commit()
-        delete_backtest_trades_by_run_ids(conn, (run_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM backtest_trades WHERE run_id = ?", (run_id,)).fetchone()["n"]
-        assert count == 0
-
-
 class TestDeleteBacktestRunsByAccountIds:
     def test_removes_runs_for_account(self, conn) -> None:
         acct_id = _account_id(conn)
@@ -197,9 +163,6 @@ class TestPromotionAndWalkForwardHelpers:
         acct_id = _account_id(conn)
         delete_promotion_reviews_by_account_ids(conn, (acct_id,))
 
-    def test_delete_promotion_review_events_noop_when_empty(self, conn) -> None:
-        delete_promotion_review_events_by_review_ids(conn, ())
-
     def test_fetch_walk_forward_group_ids_returns_empty(self, conn) -> None:
         acct_id = _account_id(conn)
         assert fetch_walk_forward_group_ids_for_account_ids(conn, (acct_id,)) == ()
@@ -207,6 +170,3 @@ class TestPromotionAndWalkForwardHelpers:
     def test_delete_walk_forward_groups_noop_when_empty(self, conn) -> None:
         acct_id = _account_id(conn)
         delete_walk_forward_groups_by_account_ids(conn, (acct_id,))
-
-    def test_delete_walk_forward_group_runs_noop_when_empty(self, conn) -> None:
-        delete_walk_forward_group_runs_by_group_ids(conn, ())

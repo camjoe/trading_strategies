@@ -74,6 +74,37 @@ class TestDeleteAccounts:
         assert int(walk_forward_groups["n"]) == 0
         assert int(walk_forward_group_runs["n"]) == 0
 
+    def test_delete_accounts_cascades_match_dry_run_counts(self, seeded_conn: sqlite3.Connection) -> None:
+        """Cascade-backed deletion removes exactly the rows dry-run reported."""
+        dry_counts = admin_service.delete_accounts(
+            seeded_conn,
+            account_names=["acct_a"],
+            delete_all=False,
+            dry_run=True,
+        )
+
+        counts = admin_service.delete_accounts(
+            seeded_conn,
+            account_names=["acct_a"],
+            delete_all=False,
+            dry_run=False,
+        )
+
+        assert counts == dry_counts
+        assert seeded_conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+        # The untouched account keeps its child rows across every cascaded table.
+        surviving = {
+            "backtest_trades": "SELECT COUNT(*) AS n FROM backtest_trades WHERE run_id = 22",
+            "backtest_equity_snapshots": "SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = 22",
+            "promotion_review_events": "SELECT COUNT(*) AS n FROM promotion_review_events WHERE review_id = 202",
+            "walk_forward_group_runs": "SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE group_id = 302",
+        }
+        for label, query in surviving.items():
+            row = seeded_conn.execute(query).fetchone()
+            assert row is not None
+            assert int(row["n"]) == 1, f"{label} for acct_b should survive acct_a deletion"
+
     def test_delete_accounts_raises_for_missing_named_account(self, seeded_conn: sqlite3.Connection) -> None:
         with pytest.raises(ValueError, match="Accounts not found: missing"):
             admin_service.delete_accounts(

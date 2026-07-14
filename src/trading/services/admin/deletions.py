@@ -9,14 +9,10 @@ from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin_deletions import (
     count_equity_snapshots_for_account_ids,
     delete_accounts_by_ids,
-    delete_backtest_equity_snapshots_by_run_ids,
     delete_backtest_runs_by_account_ids,
-    delete_backtest_trades_by_run_ids,
     delete_equity_snapshots_by_account_ids,
-    delete_promotion_review_events_by_review_ids,
     delete_promotion_reviews_by_account_ids,
     delete_trades_by_account_ids,
-    delete_walk_forward_group_runs_by_group_ids,
     delete_walk_forward_groups_by_account_ids,
     fetch_backtest_run_ids_for_account_ids,
     fetch_promotion_review_ids_for_account_ids,
@@ -133,19 +129,13 @@ def delete_accounts(
     if dry_run:
         return counts
 
+    # Child rows (walk_forward_group_runs, backtest_trades, backtest_equity_snapshots,
+    # promotion_review_events) are removed by ON DELETE CASCADE. Groups must go
+    # before backtest_runs: walk_forward_group_runs.run_id still restricts run deletion.
     conn.execute("BEGIN")
-    if walk_forward_group_ids:
-        delete_walk_forward_group_runs_by_group_ids(conn, walk_forward_group_ids)
-    if run_ids:
-        delete_backtest_equity_snapshots_by_run_ids(conn, run_ids)
-        delete_backtest_trades_by_run_ids(conn, run_ids)
-        delete_backtest_runs_by_account_ids(conn, account_ids)
-    if review_ids:
-        delete_promotion_review_events_by_review_ids(conn, review_ids)
-        delete_promotion_reviews_by_account_ids(conn, account_ids)
-    if walk_forward_group_ids:
-        delete_walk_forward_groups_by_account_ids(conn, account_ids)
-
+    delete_walk_forward_groups_by_account_ids(conn, account_ids)
+    delete_promotion_reviews_by_account_ids(conn, account_ids)
+    delete_backtest_runs_by_account_ids(conn, account_ids)
     delete_equity_snapshots_by_account_ids(conn, account_ids)
     delete_trades_by_account_ids(conn, account_ids)
     delete_accounts_by_ids(conn, account_ids)
