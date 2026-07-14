@@ -227,31 +227,27 @@ def _insert_trade(conn, *, account_id: int) -> None:
     conn.commit()
 
 
-class TestFetchOwnedRowCount:
-    def test_returns_zero_for_empty_table(self, conn) -> None:
+class TestFetchDeleteCounts:
+    def test_returns_zeroes_for_empty_tables(self, conn) -> None:
         acct_id = _account_id(conn)
-        assert AccountRepository(conn).fetch_owned_row_count("trades", (acct_id,)) == 0
+        counts = AccountRepository(conn).fetch_delete_counts((acct_id,))
+        assert counts["trades"] == 0
+        assert counts["backtest_trades"] == 0
 
-    def test_counts_matching_rows(self, conn) -> None:
+    def test_counts_directly_owned_rows(self, conn) -> None:
         acct_id = _account_id(conn)
         _insert_trade(conn, account_id=acct_id)
         _insert_trade(conn, account_id=acct_id)
-        assert AccountRepository(conn).fetch_owned_row_count("trades", (acct_id,)) == 2
+        assert AccountRepository(conn).fetch_delete_counts((acct_id,))["trades"] == 2
 
-    def test_only_counts_matching_rows(self, conn) -> None:
+    def test_only_counts_direct_rows_for_matching_accounts(self, conn) -> None:
         acct_a = _account_id(conn, "count_a")
         acct_b = _account_id(conn, "count_b")
         _insert_trade(conn, account_id=acct_a)
         _insert_trade(conn, account_id=acct_b)
-        assert AccountRepository(conn).fetch_owned_row_count("trades", (acct_a,)) == 1
+        assert AccountRepository(conn).fetch_delete_counts((acct_a,))["trades"] == 1
 
-
-class TestFetchChildRowCount:
-    def test_returns_zero_without_child_rows(self, conn) -> None:
-        acct_id = _account_id(conn)
-        assert AccountRepository(conn).fetch_child_row_count("backtest_trades", (acct_id,)) == 0
-
-    def test_counts_rows_through_owning_parent(self, conn) -> None:
+    def test_counts_rows_reached_through_owning_parent(self, conn) -> None:
         acct_id = _account_id(conn)
         run_id = _insert_backtest_run(conn, account_id=acct_id)
         conn.execute(
@@ -259,18 +255,23 @@ class TestFetchChildRowCount:
             (run_id, "2026-01-01T10:00:00Z", "AAPL", "buy", 1.0, 100.0),
         )
         conn.commit()
-        assert AccountRepository(conn).fetch_child_row_count("backtest_trades", (acct_id,)) == 1
+        assert AccountRepository(conn).fetch_delete_counts((acct_id,))["backtest_trades"] == 1
 
     def test_counts_book_keyed_snapshots(self, conn) -> None:
         acct_id = _account_id(conn)
         _insert_equity_snapshot(conn, account_id=acct_id)
-        assert AccountRepository(conn).fetch_child_row_count("equity_snapshots", (acct_id,)) == 1
+        assert AccountRepository(conn).fetch_delete_counts((acct_id,))["equity_snapshots"] == 1
 
     def test_does_not_count_other_accounts(self, conn) -> None:
         acct_a = _account_id(conn, "count_a")
         acct_b = _account_id(conn, "count_b")
         _insert_equity_snapshot(conn, account_id=acct_b)
-        assert AccountRepository(conn).fetch_child_row_count("equity_snapshots", (acct_a,)) == 0
+        assert AccountRepository(conn).fetch_delete_counts((acct_a,))["equity_snapshots"] == 0
+
+    def test_empty_account_ids_return_zeroes(self, conn) -> None:
+        counts = AccountRepository(conn).fetch_delete_counts(())
+        assert counts
+        assert set(counts.values()) == {0}
 
 
 class TestDeleteByIds:
@@ -283,7 +284,7 @@ class TestDeleteByIds:
         repo.delete_by_ids((acct_id,))
 
         assert conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone() is None
-        assert repo.fetch_owned_row_count("trades", (acct_id,)) == 0
+        assert repo.fetch_delete_counts((acct_id,))["trades"] == 0
         assert conn.execute("SELECT id FROM backtest_runs WHERE id = ?", (run_id,)).fetchone() is None
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
 

@@ -25,27 +25,6 @@ DELETE_COUNT_KEYS = (
     "risk_decisions",
 )
 
-# Tables keyed directly to accounts.id; counted with a plain account_id filter.
-_ACCOUNT_KEYED_COUNT_TABLES = (
-    "trades",
-    "orders",
-    "backtest_runs",
-    "walk_forward_groups",
-    "promotion_reviews",
-    "risk_snapshots",
-    "risk_decisions",
-)
-
-# Child tables counted through their owning parent (see AccountRepository).
-_CHILD_COUNT_TABLES = (
-    "order_fills",
-    "equity_snapshots",
-    "backtest_trades",
-    "backtest_equity_snapshots",
-    "walk_forward_group_runs",
-    "promotion_review_events",
-)
-
 
 def _resolve_delete_targets(
     conn: sqlite3.Connection,
@@ -93,24 +72,36 @@ def delete_accounts(
     delete_all: bool,
     dry_run: bool,
 ) -> dict[str, int]:
-    targets = _resolve_delete_targets(conn, account_names, delete_all)
-    if not targets:
-        return _empty_delete_counts()
-
-    account_ids = _collect_required_ids(targets, key="id", label="account")
-    repo = AccountRepository(conn)
-
-    counts = _empty_delete_counts()
-    counts["accounts"] = len(targets)
-    for table in _ACCOUNT_KEYED_COUNT_TABLES:
-        counts[table] = repo.fetch_owned_row_count(table, account_ids)
-    for table in _CHILD_COUNT_TABLES:
-        counts[table] = repo.fetch_child_row_count(table, account_ids)
-
     if dry_run:
+        targets = _resolve_delete_targets(conn, account_names, delete_all)
+        if not targets:
+            return _empty_delete_counts()
+        account_ids = _collect_required_ids(targets, key="id", label="account")
+        repo = AccountRepository(conn)
+        counts = _empty_delete_counts()
+        counts["accounts"] = len(targets)
+        counts.update(repo.fetch_delete_counts(account_ids))
         return counts
 
-    # One atomic statement: ON DELETE CASCADE removes every account-owned row
-    # (books, orders, fills, snapshots, research, governance, risk).
-    repo.delete_by_ids(account_ids)
+    if conn.in_transaction:
+        raise RuntimeError("Cannot delete accounts while the connection has an open transaction.")
+
+    # Acquire the write reservation before counting so the reported rows cannot
+    # change before the cascade-backed delete commits.
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        targets = _resolve_delete_targets(conn, account_names, delete_all)
+        if not targets:
+            conn.commit()
+            return _empty_delete_counts()
+        account_ids = _collect_required_ids(targets, key="id", label="account")
+        repo = AccountRepository(conn)
+        counts = _empty_delete_counts()
+        counts["accounts"] = len(targets)
+        counts.update(repo.fetch_delete_counts(account_ids))
+        repo.delete_by_ids(account_ids, commit=False)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     return counts

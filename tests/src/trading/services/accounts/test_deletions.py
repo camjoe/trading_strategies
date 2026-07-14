@@ -4,6 +4,7 @@ import sqlite3
 
 import pytest
 
+from trading.repositories.accounts import AccountRepository
 from trading.services import accounts as accounts_service
 
 
@@ -110,6 +111,31 @@ class TestDeleteAccounts:
             row = deletion_seeded_conn.execute(query).fetchone()
             assert row is not None
             assert int(row["n"]) == 1, f"{label} for acct_b should survive acct_a deletion"
+
+    def test_delete_accounts_rolls_back_counts_and_delete_on_failure(
+        self,
+        deletion_seeded_conn: sqlite3.Connection,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        original_delete = AccountRepository.delete_by_ids
+
+        def delete_then_fail(self, account_ids, *, commit=True):
+            original_delete(self, account_ids, commit=commit)
+            raise RuntimeError("simulated failure")
+
+        monkeypatch.setattr(AccountRepository, "delete_by_ids", delete_then_fail)
+
+        with pytest.raises(RuntimeError, match="simulated failure"):
+            accounts_service.delete_accounts(
+                deletion_seeded_conn,
+                account_names=["acct_a"],
+                delete_all=False,
+                dry_run=False,
+            )
+
+        row = deletion_seeded_conn.execute("SELECT id FROM accounts WHERE name = 'acct_a'").fetchone()
+        assert row is not None
+        assert not deletion_seeded_conn.in_transaction
 
     def test_delete_accounts_raises_for_missing_named_account(self, deletion_seeded_conn: sqlite3.Connection) -> None:
         with pytest.raises(ValueError, match="Accounts not found: missing"):
