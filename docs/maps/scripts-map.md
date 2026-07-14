@@ -106,7 +106,8 @@ Project-agnostic diagram tooling. Adapters inspect a database or load a neutral 
 
 | Module | Responsibility |
 |---|---|
-| `html_viewer.py` | Render the interactive HTML database diagram from a neutral payload |
+| `html_viewer.py` | Assemble the interactive HTML database diagram from a neutral payload and the `assets/` files |
+| `assets/` | Viewer markup, styles, and behavior (`viewer.html`, `viewer.css`, `viewer.js`) edited as real HTML/CSS/JS |
 | `render_html.py` | CLI for rendering a neutral schema JSON payload to HTML |
 | `sqlite.py` | CLI for inspecting a SQLite database file and writing neutral JSON and/or HTML |
 | `sqlite_introspection.py` | SQLite schema introspection adapter that builds the neutral payload |
