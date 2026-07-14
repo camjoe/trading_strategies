@@ -72,6 +72,13 @@
       "purpose": "REST API framework for the paper_trading_ui backend."
     },
     {
+      "name": "httpx2",
+      "version": ">=2.0.0,<3.0.0",
+      "scope": "development",
+      "group": "Backend & Validation",
+      "purpose": ""
+    },
+    {
       "name": "pydantic",
       "version": "==2.12.5",
       "scope": "runtime",
