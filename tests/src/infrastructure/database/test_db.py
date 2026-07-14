@@ -43,6 +43,9 @@ def test_ensure_db_creates_core_tables(sqlite_backend: SQLiteBackend) -> None:
         assert "backtest_equity_snapshots" in names
         assert "promotion_reviews" in names
         assert "promotion_review_events" in names
+        assert "books" in names
+        assert "book_strategy_assignments" in names
+        assert "book_rotation_settings" in names
     finally:
         conn.close()
 

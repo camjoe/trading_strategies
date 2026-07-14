@@ -109,8 +109,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
-| `migrate_sleeve_books.py` | One-time sleeve→book mirror migration (dies with the legacy sleeve tables) |
-| `migrate_book_rotation.py` | One-time book-rotation cutover: sync scheduling onto books + open default-book assignments (ADR 014; delete after every DB is migrated) |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
 

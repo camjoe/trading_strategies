@@ -20,8 +20,6 @@ weekly runtime jobs, manage the burn-in period, and conduct weekly/monthly gover
 | [runtime-operations.md](runtime-operations.md) | Daily + weekly-backup monitoring, failure recovery, log inspection |
 | [burn-in-protocol.md](burn-in-protocol.md) | Burn-in period definition, stability thresholds, go-live checklist |
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |
-| [sleeve-retirement-db-migration.md](sleeve-retirement-db-migration.md) | One-time cutover: migrate an existing DB off the legacy sleeve tables after the sleeve-retirement branch deploys |
-| [book-rotation-cutover.md](book-rotation-cutover.md) | One-time cutover: sync book rotation scheduling + default-book assignments after the execution-mode-collapse branch deploys |
 
 ## Quick Start
 

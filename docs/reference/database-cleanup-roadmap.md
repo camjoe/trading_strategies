@@ -78,7 +78,7 @@ Expected target: `book_option_settings`.
 
 ### Account-Level Rotation Columns
 
-Likely cleanup candidates after `docs/pending-deploy-steps.md` Step 2 has run everywhere:
+Cleanup candidates now that the book-rotation cutover has run everywhere:
 
 - `rotation_enabled`
 - `rotation_mode`

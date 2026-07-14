@@ -131,9 +131,10 @@ The strategic order here is the north star (the "why/what") and the authoritativ
 for what is left. Today's delivered capabilities are in "What it can do today" above; durable
 decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
-The remaining committed deployment work is one automatic FK table-rebuild step plus two one-time
-operator data-ops for existing databases. One not-yet-built schema cleanup remains deferred. All are
-tracked in [pending-deploy-steps.md](pending-deploy-steps.md).
+The completed sleeve-retirement and book-rotation cutovers have been retired. The remaining
+committed deployment work is one automatic FK table-rebuild step, while the not-yet-built
+`strategy_param_sets` schema cleanup remains deferred. Both are tracked in
+[pending-deploy-steps.md](pending-deploy-steps.md).
 
 ## Guiding constraints
 
