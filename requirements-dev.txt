@@ -11,6 +11,11 @@ httpx2>=2.0.0,<3.0.0
 # Dev tooling
 playwright>=1.50.0
 
+# Quality tools invoked by scripts/run_checks and the CI quality gates.
+# Pinned so local runs and .github/workflows/quality-gates.yml use the same versions.
+ruff==0.15.21
+mypy==2.3.0
+
 # Editable install of this workspace so the apps/ and src/ packages
 # (infrastructure, paper_trading_web, trends) import by their top-level names.
 # Replaces the old pytest.ini `pythonpath` and scripts/__init__.py path hacks.
