@@ -127,8 +127,7 @@ def _print_text(payload: dict[str, Any]) -> None:
             continue
         for fk in foreign_keys:
             print(
-                f"- {fk['column']} -> {fk['references_table']}.{fk['references_column']} "
-                f"ON DELETE {fk['on_delete']}"
+                f"- {fk['column']} -> {fk['references_table']}.{fk['references_column']} ON DELETE {fk['on_delete']}"
             )
 
 

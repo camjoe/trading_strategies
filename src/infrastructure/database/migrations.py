@@ -48,26 +48,36 @@ def _run_rebuild(
     copy_sql: str,
     index_sql: str = "",
 ) -> None:
+    # PRAGMA foreign_keys is a silent no-op inside an open transaction, so an
+    # inherited transaction would defeat the OFF/ON bracketing below.
+    if conn.in_transaction:
+        raise RuntimeError(
+            f"Cannot rebuild {table_name}: connection has an open transaction. "
+            "Commit or roll back before running table-rebuild migrations."
+        )
+
     conn.execute("PRAGMA foreign_keys = OFF")
-    conn.execute("BEGIN")
     try:
-        conn.execute(create_sql)
-        conn.execute(copy_sql)
-        conn.execute(f"DROP TABLE {table_name}")
-        conn.execute(f"ALTER TABLE {table_name}_new RENAME TO {table_name}")
-        for stmt in index_sql.split(";"):
-            if stmt.strip():
-                conn.execute(stmt)
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+        conn.execute("BEGIN")
+        try:
+            conn.execute(create_sql)
+            conn.execute(copy_sql)
+            conn.execute(f"DROP TABLE {table_name}")
+            conn.execute(f"ALTER TABLE {table_name}_new RENAME TO {table_name}")
+            for stmt in index_sql.split(";"):
+                if stmt.strip():
+                    conn.execute(stmt)
+            # Check before commit so a violation rolls the rebuild back instead
+            # of being detected after the schema change is already durable.
+            violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if violations:
+                raise RuntimeError(f"Foreign-key violations after {table_name} rebuild: {violations!r}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
     finally:
         conn.execute("PRAGMA foreign_keys = ON")
-
-    violations = conn.execute("PRAGMA foreign_key_check").fetchall()
-    if violations:
-        raise RuntimeError(f"Foreign-key violations after {table_name} rebuild: {violations!r}")
 
 
 def ensure_order_fills_order_delete_cascade(conn: sqlite3.Connection) -> None:
@@ -159,10 +169,7 @@ def ensure_backtest_run_child_delete_cascades(conn: sqlite3.Connection) -> None:
                 SELECT id, run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
                 FROM backtest_equity_snapshots
             """,
-            index_sql=(
-                "CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id "
-                "ON backtest_equity_snapshots(run_id);"
-            ),
+            index_sql=("CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id ON backtest_equity_snapshots(run_id);"),
         )
 
 

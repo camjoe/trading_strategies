@@ -7,6 +7,7 @@ from infrastructure.database.init import _column_names, _ensure_column, ensure_d
 from infrastructure.database.migrations import (
     ACCOUNT_MIGRATIONS,
     DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,
+    ensure_order_fills_order_delete_cascade,
 )
 
 
@@ -282,6 +283,91 @@ def test_init_schema_rebuilds_legacy_child_owned_foreign_keys(sqlite_backend: SQ
         conn.execute("DELETE FROM backtest_runs WHERE id = 1")
         assert conn.execute("SELECT COUNT(*) FROM backtest_trades").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM backtest_equity_snapshots").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def _create_legacy_order_fills_schema(conn) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            book_id INTEGER NOT NULL,
+            account_id INTEGER NOT NULL,
+            symbol TEXT NOT NULL,
+            side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+            qty REAL NOT NULL,
+            status TEXT NOT NULL,
+            filled_qty REAL NOT NULL DEFAULT 0,
+            commission REAL NOT NULL DEFAULT 0,
+            submitted_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE TABLE order_fills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            broker_fill_id TEXT,
+            exec_id TEXT,
+            filled_qty REAL NOT NULL,
+            fill_price REAL NOT NULL,
+            commission REAL NOT NULL DEFAULT 0,
+            fill_time TEXT NOT NULL,
+            FOREIGN KEY (order_id) REFERENCES orders(id),
+            UNIQUE (order_id, exec_id)
+        );
+        INSERT INTO orders (
+            id, book_id, account_id, symbol, side, qty, status, submitted_at, updated_at
+        ) VALUES (1, 1, 1, 'SPY', 'buy', 1, 'filled', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+        INSERT INTO order_fills (order_id, exec_id, filled_qty, fill_price, fill_time)
+        VALUES (1, 'exec-1', 1, 100, '2026-01-01T00:00:00Z');
+        """
+    )
+
+
+def test_table_rebuild_rejects_open_transaction(sqlite_backend: SQLiteBackend) -> None:
+    conn = sqlite_backend.open_connection()
+    try:
+        _create_legacy_order_fills_schema(conn)
+
+        conn.execute("BEGIN")
+        conn.execute("UPDATE orders SET filled_qty = 2 WHERE id = 1")
+        with pytest.raises(RuntimeError, match="open transaction"):
+            ensure_order_fills_order_delete_cascade(conn)
+        conn.rollback()
+
+        # Legacy FK action untouched by the rejected attempt; succeeds once clean.
+        assert _fk_delete_action(conn, "order_fills", "order_id", "orders") == "NO ACTION"
+        ensure_order_fills_order_delete_cascade(conn)
+        assert _fk_delete_action(conn, "order_fills", "order_id", "orders") == "CASCADE"
+    finally:
+        conn.close()
+
+
+def test_table_rebuild_rolls_back_on_foreign_key_violation(sqlite_backend: SQLiteBackend) -> None:
+    conn = sqlite_backend.open_connection()
+    try:
+        _create_legacy_order_fills_schema(conn)
+
+        # Seed an orphaned fill (no matching order) with enforcement off, mimicking
+        # a legacy database that predates FK enforcement.
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute(
+            """
+            INSERT INTO order_fills (order_id, exec_id, filled_qty, fill_price, fill_time)
+            VALUES (999, 'exec-orphan', 1, 100, '2026-01-01T00:00:00Z')
+            """
+        )
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.commit()
+
+        with pytest.raises(RuntimeError, match="Foreign-key violations"):
+            ensure_order_fills_order_delete_cascade(conn)
+
+        # The rebuild rolled back: legacy FK action and every row (orphan included)
+        # remain for the operator to repair.
+        assert _fk_delete_action(conn, "order_fills", "order_id", "orders") == "NO ACTION"
+        assert conn.execute("SELECT COUNT(*) FROM order_fills").fetchone()[0] == 2
+        assert bool(conn.execute("PRAGMA foreign_keys").fetchone()[0])
     finally:
         conn.close()
 

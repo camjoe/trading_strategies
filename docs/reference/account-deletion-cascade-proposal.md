@@ -21,7 +21,11 @@ Keep `trading.services.admin.delete_accounts()` as the account-deletion orchestr
 - backup-before-delete integration through the runtime data-ops CLI
 - stable count keys consumed by the UI and CLI
 
-The schema can take over row cleanup only after tests prove that deleting a parent removes the same child rows the service currently deletes explicitly.
+The schema has taken over child-row cleanup for the implemented cascades below: the service no longer
+deletes `order_fills`, `backtest_trades`, `backtest_equity_snapshots`, `promotion_review_events`, or
+`walk_forward_group_runs` explicitly. Deletion order still matters — `walk_forward_groups` must be
+deleted before `backtest_runs` because `walk_forward_group_runs.run_id` remains `NO ACTION` (an open
+decision below).
 
 ## Implemented Child-Owned Cascades
 
@@ -80,7 +84,8 @@ The example pattern lives in `.ai/skills/db-migration/sqlite-table-rebuild.md`.
 - [x] Add table-rebuild migration support under `src/infrastructure/database/`.
 - [x] Update fresh DDL in `src/infrastructure/database/schema.py`.
 - [x] Add migration tests for a legacy table shape upgraded to the target FK action.
-- [ ] Add service tests proving account deletion still reports counts and leaves no FK violations.
+- [x] Add service tests proving account deletion still reports counts and leaves no FK violations.
+- [x] Simplify `delete_accounts()` to rely on the implemented child-owned cascades.
 
 ## Related Docs
 
