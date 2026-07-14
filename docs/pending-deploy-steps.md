@@ -169,3 +169,4 @@ Both are unused and always NULL. This step removes them for good.
 
 **Note:** the `docs/reference/db-schema.md` row for `strategy_param_sets` should be removed as part of
 the code-cleanup commit (or regenerated via `python -m scripts.data_ops.describe_db_schema`).
+

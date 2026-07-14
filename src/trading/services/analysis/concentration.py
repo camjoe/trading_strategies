@@ -4,6 +4,10 @@ Owns the symbol-level cross-account aggregation over persisted ``positions``
 rows and the sector rollup over the operator-editable symbol->sector
 reference data, beneath the stable ``trading.services.analysis`` package
 surface.
+
+Portfolio concentration is instrument-overlap risk: symbol share plus sector
+rollup. Strategy exposure is handled by rotation, evaluation, and allocation
+reporting rather than this concentration view.
 """
 
 from __future__ import annotations

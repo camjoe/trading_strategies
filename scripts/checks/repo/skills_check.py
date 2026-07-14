@@ -11,8 +11,7 @@ from common.paths.repo_paths import get_repo_root
 # documentation-maintenance.md, principle 2):
 #   1. The AGENTS.md "Current skill inventory" table matches the .ai/skills/ folders on disk,
 #      in both directions.
-#   2. Every SKILL.md carries complete frontmatter (name / description / invoker) with a valid
-#      invoker value.
+#   2. Every SKILL.md carries complete frontmatter (name / description).
 # Humans author the meaning (purpose text, routing); this check only verifies the mechanical.
 
 SKILLS_DIR = Path(".ai") / "skills"
@@ -22,8 +21,7 @@ AGENTS_FILE = "AGENTS.md"
 # in the first cell, so they do not match).
 INVENTORY_ROW_RE = re.compile(r"^\|\s*`([a-z0-9-]+)/`\s*\|")
 
-REQUIRED_FRONTMATTER = ("name", "description", "invoker")
-INVOKER_VOCAB = {"any", "human"}
+REQUIRED_FRONTMATTER = ("name", "description")
 
 FRONTMATTER_FIELD_RE = re.compile(r"^([a-z-]+):\s*(.*)$")
 
@@ -63,9 +61,6 @@ def frontmatter_problems(skill_md: Path) -> list[str]:
         return ["unterminated frontmatter block"]
 
     problems = [f"missing frontmatter field: {name}" for name in REQUIRED_FRONTMATTER if not fields.get(name)]
-    invoker = fields.get("invoker")
-    if invoker and invoker not in INVOKER_VOCAB:
-        problems.append(f"invalid invoker: {invoker!r} (allowed: {', '.join(sorted(INVOKER_VOCAB))})")
     return problems
 
 

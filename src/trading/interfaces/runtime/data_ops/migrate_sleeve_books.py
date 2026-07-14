@@ -1,4 +1,4 @@
-"""One-time migration: mirror legacy sleeves onto their books (sleeve retirement SR-6a).
+"""One-time migration: mirror legacy sleeves onto their books (sleeve retirement).
 
 Replaces the retired runtime lazy sweep. For every legacy ``strategy_sleeves`` row:
 ensure the bridging book exists (same account + name), mirror the sleeve's status and
@@ -45,7 +45,7 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
             " trade_universes, created_at FROM strategy_sleeves ORDER BY id ASC"
         ).fetchall()
     except sqlite3.OperationalError:
-        # Fresh DB (SR-7 schema): the legacy tables never existed — nothing to migrate.
+        # Fresh DB: the legacy tables never existed — nothing to migrate.
         return 0, 0
     for sleeve in sleeves:
         row = conn.execute(

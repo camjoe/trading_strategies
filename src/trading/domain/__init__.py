@@ -18,8 +18,8 @@ from trading.domain.rotation import (
 )
 from trading.domain.book_accounting import (
     apply_book_fill_transition,
-    compute_sleeve_equity,
-    normalize_sleeve_order_input,
+    compute_book_equity,
+    normalize_book_order_input,
 )
 
 __all__ = [
@@ -37,6 +37,6 @@ __all__ = [
     "dump_rotation_schedule",
     "parse_rotation_schedule",
     "apply_book_fill_transition",
-    "compute_sleeve_equity",
-    "normalize_sleeve_order_input",
+    "compute_book_equity",
+    "normalize_book_order_input",
 ]

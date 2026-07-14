@@ -161,7 +161,7 @@ class TestBacktestRunFlow:
         conn.commit()
 
         # The report reflects the run's own strategy (a strategies FK snapshot),
-        # not the account's later strategy. P3 stores the canonical catalog key,
+        # not the account's later strategy. The catalog stores the canonical key,
         # so the alias "trend_v1" surfaces as "trend" — still independent of the
         # account now being "mean_reversion".
         summary = backtest_module.backtest_report(conn, result.run_id)

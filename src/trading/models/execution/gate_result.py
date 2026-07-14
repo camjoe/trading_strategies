@@ -18,8 +18,8 @@ class GateResult:
     book is held and nothing is submitted. ``decisions`` are the notional-gate's
     per-intent outcomes (allow/rescale/block + reason codes), bucketed by book;
     callers use them to persist the risk audit. (``RiskGateDecision`` is the
-    reused decision contract — its ``sleeve_id`` field carries the ``book_id``
-    under the book-as-bucket model.)
+    reused decision contract, bucketed by ``book_id`` under the book-as-bucket
+    model.)
     """
 
     approved_intents: list[BookTradeIntent] = field(default_factory=list)

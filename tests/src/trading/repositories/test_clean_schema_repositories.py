@@ -1,4 +1,4 @@
-"""Round-trip and invariant-guard tests for the P3 clean-schema repositories."""
+"""Round-trip and invariant-guard tests for the clean-schema repositories."""
 
 from __future__ import annotations
 
@@ -173,7 +173,7 @@ def test_book_settings_upsert_and_fetch_round_trip(conn) -> None:
     assert rotation is not None and rotation.rotation_enabled == 1
     assert rotation.rotation_lookback_days == 45
 
-    # Missing row → None (callers fall back to code defaults per D4).
+    # Missing row → None (callers fall back to code defaults).
     _, other_book = _insert_book(conn, name="other")
     assert execution_repo.fetch(book_id=other_book) is None
 

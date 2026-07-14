@@ -45,7 +45,7 @@ class BookAssignmentRepository:
         """Close the book's open assignment (if any) and open a new incumbent.
 
         The legacy ``param_set_id`` column is left NULL — a strategy row is its
-        own parameterization now (P6); the column persists only until a data-op
+        own parameterization now; the column persists only until a data-op
         drops it.
         """
         try:

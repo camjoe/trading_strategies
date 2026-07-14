@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-03
-Last Reviewed: 2026-04-25
+Last Reviewed: 2026-07-13
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
@@ -42,7 +42,7 @@ Key files:
 - `src/infrastructure/brokers/legacy/factory.py`: legacy backend selector (`ib_async` vs `ibapi`)
 - `src/infrastructure/brokers/legacy/ib_adapter.py`: legacy socket/TWS adapter
 - `src/infrastructure/brokers/legacy/ib_client.py`: legacy client protocol + `IbAsyncClient` + `IbApiClient` stub
-- `src/trading/repositories/orders.py`: persisted order state (clean book-keyed `orders`/`order_fills`; the submission + reconciliation paths write here — the legacy `broker_orders` repository was retired in P4/2a-5)
+- `src/trading/repositories/orders.py`: persisted order state (clean book-keyed `orders`/`order_fills`; the submission + reconciliation paths write here — the legacy `broker_orders` repository was retired)
 
 ## Account Fields and Routing
 
@@ -67,7 +67,7 @@ Broker-related account fields:
 `live_trading_enabled` is a hard runtime gate for live broker paths.
 
 - default is `0`
-- live paths raise `LiveTradingNotEnabledError` unless set to `1`
+- live paths raise `LiveTradingNotEnabledError` from `infrastructure.brokers.factory` unless set to `1`
 - this flag must be enabled manually by a human
 
 Manual enable example:
@@ -78,11 +78,10 @@ SET live_trading_enabled = 1
 WHERE name = 'my-live-account';
 ```
 
-Guardrail rules:
-
-- bots must never set `live_trading_enabled = 1`
-- bots must never suppress `LiveTradingNotEnabledError`
-- test fixtures keep `live_trading_enabled = 0`
+The canonical guardrail rules live in
+[`docs/architecture/architecture-conventions.md`](../architecture/architecture-conventions.md#live-trading-safety-guard).
+This reference summarizes the runtime behavior; architecture conventions remain
+the source of truth for what automated processes may and may not change.
 
 ## IBKR Web API Configuration
 
@@ -172,8 +171,9 @@ Open-order reconciliation is handled by:
 Reconciliation behavior:
 
 - polls open broker orders
-- persists fill updates to `broker_orders` / `order_fills`
-- writes filled trades into account ledger via `record_trade`
+- persists fill updates to clean book-keyed `orders` / `order_fills`
+- applies fills through shared book accounting and mirrors completed fills into
+  the legacy account ledger via `record_trade`
 
 ## Legacy Socket/TWS Path
 
@@ -196,9 +196,11 @@ When adding a new broker:
 
 1. implement adapter under `src/infrastructure/brokers/`
 2. add broker-type routing in `src/infrastructure/brokers/factory.py`
-3. update account `broker_type` constraints/docs
-4. add tests under `tests/src/infrastructure/brokers/` and related runtime tests
-5. update this document
+3. define the private config/env loading contract next to the adapter
+4. update account `broker_type` constraints/docs
+5. add tests under `tests/src/infrastructure/brokers/` and related runtime tests
+6. add an operator setup guide only once the adapter has a real setup flow
+7. update this document
 
 ## Related References
 
@@ -206,4 +208,3 @@ When adding a new broker:
 - `scripts/README.md`
 - `docs/architecture/architecture-conventions.md`
 - [`broker-setup-ibkr.md`](broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup checklist
-- [`broker-setup-alpaca.md`](broker-setup-alpaca.md) — Alpaca setup guide (Draft)

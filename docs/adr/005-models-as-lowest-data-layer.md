@@ -13,7 +13,7 @@ Related: [Architecture Conventions](../architecture/architecture-conventions.md)
 contracts (`*Record`/`*Insert`/`*Config`), but `domain/` also held passive
 dataclasses — `evaluation_models.py`, `promotion_models.py` (one even named
 `PromotionReviewRecord`), plus value objects embedded in logic files
-(`SleeveFillTransition`, the sleeve rotation value objects). A repository
+(the book fill-transition and rotation value objects). A repository
 (`repositories/promotion.py`) imported its data contracts from `domain/` while
 every other repository used `models/`. The two packages also imported each other
 (`models/rotation_config.py → domain.rotation`), so they were entangled peers
@@ -25,7 +25,7 @@ rather than cleanly layered.
 
 1. **All passive data contracts live in `models/`.** This includes
    `*Config`/`*Insert`/`*Record`, state/order models, and domain value objects
-   (evaluation artifact + parts, promotion assessment/review, sleeve transition
+   (evaluation artifact + parts, promotion assessment/review, book transition
    and rotation value objects).
 
 2. **`models/` is the lowest layer.** It imports nothing from `domain`,
@@ -40,7 +40,7 @@ rather than cleanly layered.
    imports.
 
 4. **`models/` is organized into feature subfolders** (`accounts/`, `orders/`,
-   `portfolio/`, `sleeves/`, `rotation/`, `strategy/`, `settings/`, `evaluation/`,
+   `portfolio/`, `books/`, `rotation/`, `strategy/`, `settings/`, `evaluation/`,
    `promotion/`), one contract per file. The package root re-exports the public
    types; the cluster subpackages (`evaluation/`, `promotion/`) also re-export
    from their `__init__`.
@@ -87,6 +87,6 @@ Resolved:
 
 Trade-offs:
 
-- A few domain value objects (sleeve transition/rotation results) now live apart
+- A few domain value objects (book transition/rotation results) now live apart
   from the pure functions that build them; the functions import them back from
   `models/`.

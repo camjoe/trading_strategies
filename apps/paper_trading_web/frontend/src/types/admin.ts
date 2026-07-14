@@ -63,7 +63,7 @@ export interface PromotionEvaluationSummary {
   backtestStale: boolean;
 }
 
-// Advisory backtest staleness (P12); never affects scores or decisions.
+// Advisory backtest staleness; never affects scores or decisions.
 export interface BacktestFreshness {
   available: boolean;
   ageDays: number | null;

@@ -1,4 +1,4 @@
-"""Shared utilities for the sleeves service package."""
+"""Shared utilities for the books service package."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ def _account_id(conn, name: str = "metrics_acct") -> int:
     return insert_repository_account(conn, name=name)
 
 
-def _sleeve_id(conn, account_id: int) -> int:
+def _book_id(conn, account_id: int) -> int:
     return insert_test_book(conn, account_id=account_id)
 
 
@@ -54,12 +54,12 @@ class TestUpsert:
         assert len(rows) == 1
         assert rows[0].return_pct == pytest.approx(9.9)
 
-    def test_sleeve_and_portfolio_rows_are_distinct(self, conn) -> None:
+    def test_book_and_portfolio_rows_are_distinct(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
-        id_sleeve = _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-01")
+        bk_id = _book_id(conn, acct_id)
+        id_book = _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-01")
         id_portfolio = _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-01")
-        assert id_sleeve != id_portfolio
+        assert id_book != id_portfolio
 
     def test_raises_on_insert_failure(self) -> None:
         class _Cursor:
@@ -129,15 +129,15 @@ class TestFetchForAccount:
         assert dates == sorted(dates, reverse=True)
 
 
-class TestFetchForSleeve:
-    def test_empty_when_no_sleeve_metrics(self, conn) -> None:
+class TestFetchForBook:
+    def test_empty_when_no_book_metrics(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         assert DailyMetricsRepository(conn).fetch_for_book(book_id=bk_id, limit=10) == []
 
     def test_excludes_portfolio_level_rows(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _upsert(conn, account_id=acct_id, book_id=None, metric_date="2026-01-01")
         _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-01", return_pct=3.0)
         rows = DailyMetricsRepository(conn).fetch_for_book(book_id=bk_id, limit=10)
@@ -145,10 +145,10 @@ class TestFetchForSleeve:
         assert rows[0].return_pct == pytest.approx(3.0)
 
 
-class TestFetchForSleeveWindow:
+class TestFetchForBookWindow:
     def test_returns_only_rows_within_window(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-01")
         _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-05")
         _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-10")
@@ -160,7 +160,7 @@ class TestFetchForSleeveWindow:
 
     def test_window_boundaries_are_inclusive(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-01")
         _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date="2026-01-05")
         rows = DailyMetricsRepository(conn).fetch_for_book_window(
@@ -170,7 +170,7 @@ class TestFetchForSleeveWindow:
 
     def test_ordered_by_metric_date_asc(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         for day in ("2026-01-03", "2026-01-01", "2026-01-02"):
             _upsert(conn, account_id=acct_id, book_id=bk_id, metric_date=day)
         rows = DailyMetricsRepository(conn).fetch_for_book_window(

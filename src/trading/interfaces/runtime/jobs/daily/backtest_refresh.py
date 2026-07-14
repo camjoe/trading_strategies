@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh stale/missing backtests, targeted by the P12 freshness signal.
+"""Refresh stale/missing backtests, targeted by the backtest freshness signal.
 
 For each account this enumerates the strategies rotation could promote (each
 active book's incumbent plus its challenger schedule) whose newest backtest is

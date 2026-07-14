@@ -30,7 +30,7 @@ def insert_trade(
 
 
 def insert_snapshot(conn, account_id: int, snapshot_time: str, equity: float) -> None:
-    # Snapshots are book-keyed (P3); the repository resolves the default book.
+    # Snapshots are book-keyed; the repository resolves the default book.
     EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time=snapshot_time,

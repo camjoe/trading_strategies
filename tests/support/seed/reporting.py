@@ -38,7 +38,7 @@ def seed_trades(conn: sqlite3.Connection) -> None:
 
 def seed_snapshots(conn: sqlite3.Connection) -> None:
     acct_id = seed_account_id(conn, ACCT_TREND)
-    # Snapshots are book-keyed (P3); the repository resolves the default book.
+    # Snapshots are book-keyed; the repository resolves the default book.
     repo = EquitySnapshotRepository(conn)
     for snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl in [
         (SNAPSHOT_T1, 9_500.0, 500.0, 10_000.0, 0.0, 0.0),

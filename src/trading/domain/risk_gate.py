@@ -1,6 +1,6 @@
-"""Pure sleeve risk-gate decision policy — no I/O, no repository calls.
+"""Pure book risk-gate decision policy — no I/O, no repository calls.
 
-Given a batch of proposed sleeve trade intents plus the current sleeve equity
+Given a batch of proposed book trade intents plus the current book equity
 and position exposures, decide whether each intent is allowed, rescaled to fit a
 notional cap, or blocked.  The service layer
 (``trading.services.books.risk_gate``) owns the repository reads that build the

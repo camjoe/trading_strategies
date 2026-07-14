@@ -3,7 +3,7 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Step-by-step setup of the dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it, with a trackable setup checklist.
 Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
@@ -17,8 +17,8 @@ Conventions used below (adjust to your host):
 | Placeholder | Meaning | Example |
 |---|---|---|
 | `<user>` | Login user on the Linux host | `cam` |
-| `~/trading-prod` | Production checkout (tracks `main`, cron runs from here) | `/home/cam/trading-prod` |
-| `~/trading-staging` | Optional staging checkout (tracks `develop`, no cron) | `/home/cam/trading-staging` |
+| `~/trading-prod` | Production checkout (tracks `main`, scheduled jobs run from here) | `/home/cam/trading-prod` |
+| `~/trading-staging` | Optional staging checkout (tracks `develop`, no scheduler) | `/home/cam/trading-staging` |
 
 Repo URL (already filled into the commands below): `https://github.com/camjoe/trading_strategies.git`
 
@@ -36,8 +36,8 @@ Repo URL (already filled into the commands below): `https://github.com/camjoe/tr
    ```
    > Python 3.14 is new — if your distro's default `python3` is older, install 3.14 via the deadsnakes
    > PPA or pyenv and use that interpreter to create the venv in §1.2. Verify with `python3 --version`.
-2. **Set the timezone** — cron fires on local time, so this must match the timezone your schedule
-   times assume:
+2. **Set the timezone** — OS schedulers fire on local time, so this must match the timezone your
+   schedule times assume:
    ```bash
    timedatectl                       # check current
    sudo timedatectl set-timezone America/New_York   # set to your market timezone
@@ -55,11 +55,7 @@ Repo URL (already filled into the commands below): `https://github.com/camjoe/tr
      ```bash
      gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 3600
      ```
-4. **Ensure cron runs and starts on boot:**
-   ```bash
-   sudo systemctl enable --now cron
-   ```
-5. Configure unattended security updates to **not** auto-reboot during market hours (or schedule any
+4. Configure unattended security updates to **not** auto-reboot during market hours (or schedule any
    reboot window outside them). This is the Linux analogue of the Windows-update problem we are
    leaving behind.
 
@@ -72,6 +68,7 @@ git checkout main
 python3 -m venv .venv
 ./.venv/bin/pip install --upgrade pip
 ./.venv/bin/pip install -r requirements-base.txt   # runtime-only deps (no test deps needed in prod)
+./.venv/bin/pip install -e . --no-build-isolation  # expose src/ and apps/ packages
 ```
 
 ### 1.3 Secrets and configuration
@@ -81,7 +78,7 @@ Copy the committed template and fill in real values:
 ```bash
 cd ~/trading-prod
 cp .env.example .env        # .env is gitignored
-$EDITOR .env                # set TRADING_IBKR_WEB_API_ACCOUNT_ID, TRADING_RUNTIME_ALERT_WEBHOOK_URL, etc.
+$EDITOR .env                # set TRADING_IBKR_WEB_API_ACCOUNT_ID, runtime notifications, etc.
 chmod 600 .env              # readable only by the runtime user
 ```
 
@@ -156,8 +153,9 @@ TRADING_IBKR_WEB_API_ACCOUNT_ID=...
 Least preferred — secrets end up visible in `crontab -l` output.
 
 At minimum set:
-- `TRADING_RUNTIME_ALERT_WEBHOOK_URL` so missed/failed runs are visible (see
-  [runtime-operations.md](runtime-operations.md#webhook-notifications)).
+- Runtime notifications so missed/failed runs are visible: either `TRADING_RUNTIME_ALERT_WEBHOOK_URL`
+  or the SMTP variables documented in
+  [runtime-operations.md](runtime-operations.md#runtime-notifications).
 - `TRADING_IBKR_WEB_API_ACCOUNT_ID` (required) — configure the rest of the IBKR connection per
   [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md).
 
@@ -203,14 +201,13 @@ systemctl list-timers --all | grep trading
 
 ```bash
 cd ~/trading-prod
-# A safe manual run of the daily job (or --dry-run if you want zero writes):
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
-# Confirm health check sees a fresh successful artifact:
+# Confirm the runtime can import, read its environment, and inspect recent artifacts:
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
 
 Then confirm monitoring per [runtime-operations.md](runtime-operations.md): logs land in `local/logs/`,
-artifacts in `local/exports/`, and `python -m scripts.check_jobs` summarizes status.
+artifacts in `local/exports/`, and `./.venv/bin/python -m scripts.check_jobs` summarizes status.
 
 ---
 
@@ -237,8 +234,8 @@ Run on the dev machine against the change you intend to ship:
 .venv/bin/python -m scripts.checks.run_suite --base develop
 ```
 
-For a risky change, also smoke it in the **staging checkout** (Part 3) with `--dry-run` against a copy
-of the production DB before promoting.
+For a risky change, also smoke it in the **staging checkout** (Part 3) against a copy of the
+production DB before promoting.
 
 ### 2.3 Promote to `main`
 
@@ -254,6 +251,7 @@ git status                 # confirm clean working tree, on main
 git pull origin main
 # If dependencies changed:
 ./.venv/bin/pip install -r requirements-base.txt
+./.venv/bin/pip install -e . --no-build-isolation
 # If a DB migration shipped: apply it (see db-migration-system.md)
 # If job set or schedule times changed: re-run Part 1.5 registration
 ```
@@ -263,7 +261,7 @@ git pull origin main
 ```bash
 cd ~/trading-prod
 ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
-python -m scripts.check_jobs
+./.venv/bin/python -m scripts.check_jobs
 ```
 
 Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
@@ -274,7 +272,8 @@ Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
 ## Part 3 — Optional staging checkout (pre-deploy smoke test)
 
 A lightweight stand-in for blue/green (see [ADR 008 §4](../adr/008-production-runtime-hosting-and-deployment.md#decision)).
-It has **no cron**, so it never trades — it exists only for manual dry-runs.
+It has **no scheduler**, so it never trades automatically. Use it for deterministic checks and
+manual smoke tests against a copy of production state.
 
 ```bash
 git clone https://github.com/camjoe/trading_strategies.git ~/trading-staging
@@ -293,8 +292,12 @@ Smoke a candidate before promoting:
 cd ~/trading-staging
 git pull origin develop
 ./.venv/bin/python -m scripts.run_checks ci
-./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --dry-run
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
+./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
+
+Do not run `daily.paper_trading` from staging with real broker credentials unless you intentionally
+want a paper-broker execution test. The job has no `--dry-run` flag.
 
 ---
 
@@ -308,6 +311,7 @@ cd ~/trading-prod
 git log --oneline -n 10            # find the last-good commit
 git checkout <good-sha>            # detached HEAD on the known-good code
 ./.venv/bin/pip install -r requirements-base.txt   # if deps differ
+./.venv/bin/pip install -e . --no-build-isolation
 # If the bad deploy corrupted data, restore from the weekly backup:
 #   see runtime-operations.md "Weekly database backup"
 ```
@@ -333,7 +337,7 @@ This splits the problem into two states:
 This machine runs jobs for ~35 minutes per day (12:58–13:35) and suspends the rest of the time.
 The systemd timers installed in §1.5 include `WakeSystem=yes`, which sets the RTC alarm so the
 machine wakes from suspend automatically before each job fires. No cron daemon or always-on
-requirement needed.
+requirement is needed for the recommended systemd path.
 
 Setup (already applied on this host):
 
@@ -373,7 +377,7 @@ Even with the above, treat a missed run as expected-occasionally, not catastroph
 Tick these as the one-time setup is completed on the Linux host. (Mirrors ADR 008 follow-ups.)
 
 - [ ] 1.1 Base system: packages installed, **timezone set**, sleep/suspend configured (suspend+wake or always-on), auto-reboot kept out of market hours
-- [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base)
+- [ ] 1.2 Production checkout `~/trading-prod` on `main` with its own `.venv` (requirements-base + editable install)
 - [ ] 1.3 Secrets in `.env` on the host only (mode 600), loading mechanism chosen; no `.env` on dev machine
 - [ ] 1.4 Database seeded and migrations current
 - [ ] 1.5 Systemd timers registered from `~/trading-prod`; `systemctl list-timers --all | grep trading` verified

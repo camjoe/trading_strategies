@@ -82,7 +82,7 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         assert "descriptive_name" in account_columns
         assert "rotation_overlay_watchlist" in account_columns
         assert "rotation_active_strategy" in account_columns
-        # backtest_runs no longer carries an additive strategy_name column (P3): the
+        # backtest_runs no longer carries an additive strategy_name column: the
         # backtested strategy is a strategies FK created in the base DDL, so there is
         # no backtest_runs migration to assert here.
         global_settings_columns = _column_names(conn, "global_settings")

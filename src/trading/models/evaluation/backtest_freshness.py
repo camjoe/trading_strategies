@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class BacktestFreshness:
-    """Advisory staleness of a strategy's newest backtest evidence (P12).
+    """Advisory staleness of a strategy's newest backtest evidence.
 
     ``age_days`` is the fractional age of the backtest run against the
     evaluation's generation time; ``is_stale`` compares it to

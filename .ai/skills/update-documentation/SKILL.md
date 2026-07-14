@@ -1,7 +1,6 @@
 ---
 name: update-documentation
 description: Rewrites and freshens README files, architecture notes, and operational documentation when prose or responsibilities have drifted from reality. Use when docs are stale, misleading, or incomplete — not just out-of-date by timestamp.
-invoker: any
 ---
 
 # Update Documentation

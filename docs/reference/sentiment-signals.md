@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-30
-Last Reviewed: 2026-04-25
+Last Reviewed: 2026-07-13
 Purpose: Capture the current architecture and extension points for alternative-data signals used in strategy execution.
 Related: [Strategy Catalog](strategies.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -40,11 +40,15 @@ Signal dispatch and registration:
 Provider boundary:
 
 - `src/trading/domain/feature_provider.py` defines `ExternalFeatureProvider` and
-  `ExternalFeatureBundle`.
-- Concrete providers:
-  - `src/infrastructure/feature_providers/policy_provider.py`
-  - `src/infrastructure/feature_providers/news_provider.py`
-  - `src/infrastructure/feature_providers/social_provider.py`
+   `ExternalFeatureBundle`.
+- Concrete provider ownership:
+
+| Strategy | Provider | Feature source |
+|---|---|---|
+| `policy_regime` | `src/infrastructure/feature_providers/policy_provider.py` | ETF proxy returns such as TLT/GLD/XLU/UUP vs SPY |
+| `news_sentiment` | `src/infrastructure/feature_providers/news_provider.py` | RSS headlines plus optional NewsAPI supplementation, scored with VADER |
+| `social_trend_rotation` | `src/infrastructure/feature_providers/social_provider.py` | Google Trends interest plus Reddit mention/sentiment data |
+
 - Feature-provider imports are isolated to `src/infrastructure/feature_providers/`.
 
 Market-data dependency:
@@ -65,26 +69,22 @@ Degradation contract:
 Live strategy execution:
 
 - `src/trading/services/auto_trading/execution.py` builds per-ticker feature
-  history for alternative strategies with `build_feature_history_fn`.
-- `news_sentiment` uses the configured news fetcher; `social_trend_rotation`
-  uses the configured social fetcher. Missing or failing providers return no
-  feature history, so the signal functions degrade to conservative behavior.
+   history for alternative strategies with `build_feature_history_fn`.
+- `policy_regime` uses the configured policy fetcher, `news_sentiment` uses the
+  configured news fetcher, and `social_trend_rotation` uses the configured
+  social fetcher. Missing or failing providers return no feature history, so
+  the signal functions degrade to conservative behavior.
 - Regime/news/social rotation overlays were retired; see
-  `docs/adr/009-regime-overlay-rotation-retired.md` for the preserved design.
+   `docs/adr/009-regime-overlay-rotation-retired.md` for the preserved design.
 
 Operator visibility:
 
-- UI feature status and signal inspection are exposed via
-  `paper_trading_web` feature routes/services.
-
-## Not Implemented in This Slice
-
-Still out of scope for the current implementation:
-
-- historical sentiment feature store for backfill/replay
-- event-calendar and earnings-driver integrations
-- insider-flow and unusual-options-flow datasets
-- experiment-tracking infrastructure for model research workflows
+- The `alt-strategies` UI tab exposes provider status and feature-only signal
+  inspection.
+- Backend orchestration lives in `apps/paper_trading_web/backend/services/features/`.
+- Feature-only UI signal inspection intentionally omits live price history, so
+  price-momentum guards remain active and the response reports `available:
+  false` even when provider features are present.
 
 ## Related References
 

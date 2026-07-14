@@ -11,7 +11,7 @@ def _account_id(conn, name: str = "rot_dec_acct") -> int:
     return insert_repository_account(conn, name=name)
 
 
-def _sleeve_id(conn, account_id: int) -> int:
+def _book_id(conn, account_id: int) -> int:
     return insert_test_book(conn, account_id=account_id)
 
 
@@ -45,7 +45,7 @@ def _insert(
 class TestInsert:
     def test_returns_positive_id(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         row_id = _insert(conn, book_id=bk_id, decision_time="2026-01-01T10:00:00Z")
         assert row_id > 0
 
@@ -88,12 +88,12 @@ class TestInsert:
 class TestFetchLatest:
     def test_returns_none_when_no_decisions(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         assert RotationDecisionRepository(conn).fetch_latest_for_book(book_id=bk_id) is None
 
     def test_returns_most_recent_by_decision_time(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T09:00:00Z", decision_reason="first")
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T11:00:00Z", decision_reason="latest")
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T10:00:00Z", decision_reason="middle")
@@ -101,23 +101,23 @@ class TestFetchLatest:
         assert row is not None
         assert row["decision_reason"] == "latest"
 
-    def test_isolated_per_sleeve(self, conn) -> None:
+    def test_isolated_per_book(self, conn) -> None:
         acct_id = _account_id(conn)
-        slv_a = _sleeve_id(conn, acct_id)
-        bk_b = insert_test_book(conn, account_id=acct_id, name="sleeve_b")
+        slv_a = _book_id(conn, acct_id)
+        bk_b = insert_test_book(conn, account_id=acct_id, name="book_b")
         _insert(conn, book_id=slv_a, decision_time="2026-01-01T10:00:00Z", decision_reason="for_a")
         assert RotationDecisionRepository(conn).fetch_latest_for_book(book_id=bk_b) is None
 
 
-class TestFetchForSleeve:
+class TestFetchForBook:
     def test_returns_empty_list_when_no_decisions(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         assert RotationDecisionRepository(conn).fetch_for_book(book_id=bk_id, limit=10) == []
 
     def test_limit_is_respected(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         for hour in range(5):
             _insert(conn, book_id=bk_id, decision_time=f"2026-01-01T{hour:02d}:00:00Z")
         rows = RotationDecisionRepository(conn).fetch_for_book(book_id=bk_id, limit=3)
@@ -125,7 +125,7 @@ class TestFetchForSleeve:
 
     def test_ordered_by_decision_time_desc(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T09:00:00Z")
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T11:00:00Z")
         rows = RotationDecisionRepository(conn).fetch_for_book(book_id=bk_id, limit=10)
@@ -133,10 +133,10 @@ class TestFetchForSleeve:
         assert times == sorted(times, reverse=True)
 
 
-class TestFetchForSleeveOnDate:
+class TestFetchForBookOnDate:
     def test_returns_only_rows_on_given_date(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T23:59:00Z", decision_reason="before")
         _insert(conn, book_id=bk_id, decision_time="2026-01-02T09:00:00Z", decision_reason="on_date")
         _insert(conn, book_id=bk_id, decision_time="2026-01-03T00:00:00Z", decision_reason="after")
@@ -146,7 +146,7 @@ class TestFetchForSleeveOnDate:
 
     def test_date_boundary_is_exclusive_at_end(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-02T23:59:59Z", decision_reason="last_second")
         _insert(conn, book_id=bk_id, decision_time="2026-01-03T00:00:00Z", decision_reason="next_day")
         rows = RotationDecisionRepository(conn).fetch_for_book_on_date(book_id=bk_id, report_date="2026-01-02")
@@ -155,7 +155,7 @@ class TestFetchForSleeveOnDate:
 
     def test_ordered_by_decision_time_asc(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-02T11:00:00Z")
         _insert(conn, book_id=bk_id, decision_time="2026-01-02T09:00:00Z")
         rows = RotationDecisionRepository(conn).fetch_for_book_on_date(book_id=bk_id, report_date="2026-01-02")
@@ -166,13 +166,13 @@ class TestFetchForSleeveOnDate:
 class TestFetchLatestRotateAction:
     def test_returns_none_when_no_rotate_decisions(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(conn, book_id=bk_id, decision_time="2026-01-01T10:00:00Z", rotation_action="hold")
         assert RotationDecisionRepository(conn).fetch_latest_rotate_action_for_book(book_id=bk_id) is None
 
     def test_returns_most_recent_rotate_ignoring_holds(self, conn) -> None:
         acct_id = _account_id(conn)
-        bk_id = _sleeve_id(conn, acct_id)
+        bk_id = _book_id(conn, acct_id)
         _insert(
             conn,
             book_id=bk_id,

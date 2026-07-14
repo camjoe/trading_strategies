@@ -33,9 +33,8 @@ def _prepare_trade_selection(*args, **kwargs):
 
 
 def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeState:
-    # A sleeve's live state (cash + holdings) is its bridging book's — the submission
-    # path maintains book balances/positions, and the sleeve_positions/strategy_sleeves
-    # tables are frozen once sleeve mode submits through the shared execution service.
+    # A book's live state (cash + holdings) is authoritative — the submission path
+    # maintains book balances and positions through the shared execution service.
     book = BookRepository(conn).fetch_by_id(book_id=book_id)
     current_cash = book.current_cash if book is not None else 0.0
     positions: dict[str, float] = {}
@@ -64,8 +63,8 @@ def generate_book_trade_intents(
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[BookTradeCandidate]:
-    # Intents come only from strategy signals — no forced minimum (see D1 in
-    # docs/decisions.md).
+    # Intents come only from strategy signals — no forced minimum; a run with no
+    # signals produces no trades.
     account_id = account.id
     risk_policy = str(account.risk_policy).strip().lower()
     stop_loss_pct = account.stop_loss_pct
@@ -95,7 +94,7 @@ def generate_book_trade_intents(
                 strategy_name,
             )
             continue
-        # Signals resolve through the catalog row's canonical primitive (P6-2),
+        # Signals resolve through the catalog row's canonical primitive,
         # so a data variant runs the right primitive; the intent keeps the
         # assigned label for display and rotation bookkeeping.
         signal_primitive = resolved.primitive

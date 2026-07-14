@@ -1,7 +1,6 @@
 ---
 name: manage-skill
 description: Creates, improves, or refactors SKILL.md files in .ai/skills. Use when asked to create a new skill, update an existing skill, fix skill triggering, reduce skill verbosity, or restructure skill references.
-invoker: any
 ---
 
 # Manage Skill
@@ -58,14 +57,12 @@ Skills live as folder-based entries:
 ---
 name: doing-something
 description: Does X and Y. Use when Z or when the user asks about W.
-invoker: any
 ---
 ```
 
 - Use third person: "Reviews code changes", not "I can review" or "Use this to review".
 - Include both WHAT and WHEN; discovery depends on `description`.
 - Include specific words users will actually say.
-- Keep `invoker` aligned with `docs/reference/skill-invocation-policy.md`.
 
 ## Body guidance
 
@@ -117,5 +114,4 @@ Match instruction detail to task fragility:
 ## Repo references
 
 - `AGENTS.md` — repo routing guide and current skill inventory.
-- `docs/reference/skill-invocation-policy.md` — `invoker` policy.
 - `.ai/skills/` — existing skills for reference and consistency.

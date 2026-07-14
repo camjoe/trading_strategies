@@ -1,16 +1,16 @@
 """Book-generic pre-submit safety gate.
 
 Composes the pre-submit kill switches (stale-price + reconciliation) with the
-notional risk gate, so every book — a plain account's default book and a sleeve's
-bridging book alike — inherits the same guards.
+notional risk gate, so every book — a plain account's default book and any
+additional book alike — inherits the same guards.
 
 **Book-as-bucket.** ``book_id`` is the risk bucket. The notional risk-gate
 *policy* (``trading.domain.risk_gate.evaluate_risk_gate``) is reused
 **unchanged**; this module only adapts book intents / equity / positions into the
-sleeve-shaped inputs the policy expects (a sleeve was always just "the bucket").
+bucket-shaped inputs the policy expects (a book is just "the bucket").
 Reconciliation likewise rolls up book equity for the account. Kept free of any
-``auto_trading``/``sleeves`` *service* dependency so ``auto_trading`` can call this
-at the cutover without a cycle.
+``auto_trading`` *service* dependency so ``auto_trading`` can call this
+without a cycle.
 """
 
 from __future__ import annotations
@@ -118,7 +118,7 @@ class BookPreSubmitGate:
         books = BookRepository(conn).fetch_for_account(account_id=account_id)
         equity_by_book = {book.id: book.current_equity for book in books}
         positions = PositionRepository(conn).fetch_for_account(account_id=account_id)
-        sleeve_positions = [
+        gate_positions = [
             RiskGatePosition(
                 book_id=position.book_id,
                 symbol=position.symbol,
@@ -133,7 +133,7 @@ class BookPreSubmitGate:
         result = evaluate_risk_gate_policy(
             intents=[self._as_bucket_intent(intent) for intent in intents],
             book_equity_by_id=equity_by_book,
-            positions=sleeve_positions,
+            positions=gate_positions,
             config=self._config,
         )
 
@@ -154,7 +154,7 @@ class BookPreSubmitGate:
         return list(result.decisions), approved, blocked, rescaled
 
     def _as_bucket_intent(self, intent: BookTradeIntent) -> BookTradeCandidate:
-        # book_id plays the sleeve_id "bucket" role; the policy only uses side,
+        # book_id is the risk bucket key; the policy only uses side,
         # symbol, qty, requested_price, and the bucket id from the intent.
         return BookTradeCandidate(
             account_id=intent.account_id,

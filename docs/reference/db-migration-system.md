@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-31
 Last Reviewed: 2026-07-02
 Purpose: Reference for the hand-rolled SQLite migration system — key files, conventions, and schema snapshot commands.
-Related: [ADR: Cross-Platform Paths](../adr/001-cross-platform-paths.md)
+Related: [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 ---
 

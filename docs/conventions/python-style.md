@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-13
 Purpose: Repo-specific Python guidance that ruff cannot enforce: type-hint best practices, docstring expectations, and filesystem path handling.
 Related: [General Style](general-style.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Documentation Authoring Standard](docs-authoring.md)
 
@@ -55,6 +55,9 @@ Keep platform-specific string normalization only at input boundaries (e.g. user-
 
 ## Tooling
 
+- Run the normal Python quality gate through the project runner:
+  `.venv\Scripts\python.exe -m scripts.run_checks python` on Windows or
+  `./.venv/bin/python -m scripts.run_checks python` on POSIX.
 - Run mypy through the project runner:
   `.venv\Scripts\python.exe -m scripts.checks.python.mypy_check` on Windows or
   `./.venv/bin/python -m scripts.checks.python.mypy_check` on POSIX. Ad-hoc `mypy <file>` commands

@@ -188,7 +188,7 @@ def prepare_trade_selection(
     """Select the next trade from the active strategy's signals.
 
     ``params`` are the strategy's effective knobs, resolved by the caller from
-    the catalog (P6). Sells take priority (the forced risk-stop first, then
+    the catalog. Sells take priority (the forced risk-stop first, then
     signaled sells) so cash is freed before buys. Returns None when nothing
     signals — callers must not manufacture a trade in that case.
     """

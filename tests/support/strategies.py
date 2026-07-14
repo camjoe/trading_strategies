@@ -1,4 +1,4 @@
-"""Test helper: resolve a strategy label to a strategies-row id (P3 clean schema).
+"""Test helper: resolve a strategy label to a strategies-row id (clean schema).
 
 Backtest tables key the strategy as a ``strategy_id`` FK. Tests that raw-insert
 backtest runs use this to obtain a valid id, draft-creating a catalog row when

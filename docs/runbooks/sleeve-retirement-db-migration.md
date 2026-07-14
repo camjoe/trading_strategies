@@ -8,19 +8,19 @@ Purpose: The one-time operator procedure that migrates an existing database off 
 tables after the sleeve-retirement branch deploys — run the data-op, verify, drop the orphaned
 tables, then delete the migration tooling.
 Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md),
-[ADR 003 — Sleeve Virtualization (superseded)](../adr/003-sleeve-virtualization-architecture.md)
+[ADR 010 — Book-Keyed Execution Model](../adr/010-book-keyed-execution-model.md)
 
 ## Why this exists
 
-The sleeve retirement (branch `features/sleeve-retirement`, phases SR-1…SR-7) removed the sleeve
+The sleeve retirement (branch `features/sleeve-retirement`) removed the sleeve
 concept: **books** + `book_strategy_assignments` are now the only store for which strategy units an
 account runs. During the transition the runtime *self-migrated* legacy data lazily (copying each
-sleeve's config onto its book at first read). That lazy machinery was deliberately deleted in SR-6a,
+sleeve's config onto its book at first read). That lazy machinery was later deleted,
 so the deployed code **no longer reads the legacy tables at all** — an existing database must be
 migrated **once, explicitly**, or any sleeve configuration that was never mirrored simply won't
 trade (fail-safe: unassigned books are skipped; nothing errors, but nothing trades on them either).
 
-Fresh databases need **nothing** — since SR-7 the schema no longer creates the legacy tables, and
+Fresh databases need **nothing** — the current schema no longer creates the legacy tables, and
 the data-op detects that and exits as a no-op.
 
 ## What the data-op does
@@ -61,7 +61,7 @@ ls local/db_backups/   # confirm a fresh snapshot exists
 ```
 
 Expected output: the created/copied counts. Zeros are fine — it means everything was already
-mirrored by the pre-SR-6a lazy migration during normal runs.
+mirrored by the earlier lazy migration during normal runs.
 
 ### 3. Verify
 

@@ -1,7 +1,6 @@
 ---
 name: code-review
 description: Reviews code changes for behavioral regressions, architecture and ownership issues, contract drift, missing test evidence, and cleanup risk. Use when asked to review a diff, branch, PR, codebase area, or cleanup/refactor.
-invoker: any
 ---
 
 # Code Review

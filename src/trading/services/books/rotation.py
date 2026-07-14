@@ -195,7 +195,7 @@ def book_cooldown_active(
 ) -> bool:
     """Whether the book is still within its post-rotation cooldown window.
 
-    The unified "when" guard for both account and sleeve rotation: read the book's
+    The unified "when" guard for book rotation: read the book's
     latest 'rotate' decision and compare against ``decision_time``.
     """
     latest_rotate = RotationDecisionRepository(conn).fetch_latest_rotate_action_for_book(book_id=int(book_id))
@@ -223,8 +223,8 @@ def evaluate_book_rotation(
 ) -> tuple[RotationDecision, int]:
     """Run champion/challenger for one book and record the decision on it.
 
-    The shared book-keyed rotation core used by both the account (default book) and
-    sleeve (bridging book) paths. Candidate enumeration and applying the winner stay
+    The shared book-keyed rotation core used by every book (the default book and any
+    additional books alike). Candidate enumeration and applying the winner stay
     caller-specific; this owns the policy call + the ``rotation_decisions`` audit.
     """
     decision = evaluate_champion_challenger_rotation(

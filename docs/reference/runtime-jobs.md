@@ -3,8 +3,8 @@
 Type: notes
 Status: Active
 Created: 2026-06-25
-Last Reviewed: 2026-07-02
-Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler. (Merged with the former runtime-jobs-inventory.md.)
+Last Reviewed: 2026-07-13
+Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Governance Review Guide](../runbooks/governance-review.md), [Trading Package Map](../maps/trading-package-map.md)
 
 How to run and schedule the runtime job entrypoints. For the full structural module inventory see
@@ -16,7 +16,8 @@ All commands run as Python modules from the repository root with the active venv
 
 ## Scheduled jobs
 
-Jobs registered by the installer (`manage_job_schedules.py`).
+Jobs the scheduler installer (`manage_job_schedules.py`) can register. Optional
+entries are installed only when their time flag is provided.
 
 | Job | Entrypoint | Task name | Frequency | Why it exists / how it is used |
 |---|---|---|---|---|
@@ -24,7 +25,7 @@ Jobs registered by the installer (`manage_job_schedules.py`).
 | Daily paper trading fallback | `python -m trading.interfaces.runtime.jobs.daily.paper_trading --run-source scheduled-daily-fallback` | `Trading\DailyPaperTradingFallback` | Daily at `--daily-paper-trading-fallback-time` | Second duplicate-guarded attempt in case the primary daily run missed or failed before completion. |
 | Challenger shadow evaluation | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily at `--daily-challenger-shadow-eval-time`, or auto-derived before paper trading with `--auto-shadow-eval-from-daily-paper` | Scores challenger strategies against incumbents for runtime-eligible accounts and writes account-level shadow-evaluation artifacts. Disabled unless `--enable-run` or the matching environment enable is set. |
 | Daily snapshot | `python -m trading.interfaces.runtime.jobs.daily.snapshot` | `Trading\DailySnapshot` | Daily at `--daily-snapshot-time` | Runs account snapshots with duplicate-run guard and retry handling. Disabled unless `--enable-run` or the matching environment enable is set. |
-| Daily backtest refresh | `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh` | `Trading\DailyBacktestRefresh` | Daily at `--daily-backtest-refresh-time` | Refreshes only the backtests that have drifted: for each account it re-runs the strategies rotation could promote (each active book's incumbent plus its challenger schedule) whose newest backtest is stale or missing, per the P12 freshness threshold (`--stale-threshold-days`, default 3). Captures run IDs, retries transient failures, writes JSON artifacts under `local/exports/daily_backtest_refresh/`. Disabled unless `--enable-run` or the matching environment enable is set. |
+| Daily backtest refresh | `python -m trading.interfaces.runtime.jobs.daily.backtest_refresh` | `Trading\DailyBacktestRefresh` | Daily at `--daily-backtest-refresh-time` | Refreshes only the backtests that have drifted: for each account it re-runs the strategies rotation could promote (each active book's incumbent plus its challenger schedule) whose newest backtest is stale or missing, per the backtest freshness threshold (`--stale-threshold-days`, default 3). Captures run IDs, retries transient failures, writes JSON artifacts under `local/exports/daily_backtest_refresh/`. Disabled unless `--enable-run` or the matching environment enable is set. |
 | Daily trader health check | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Daily at `--health-check-time` | Checks that the latest daily paper-trading log is recent and contains the success sentinel; can notify on failure. |
 | Weekly DB backup | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly at `--weekly-db-backup-time` on `--weekly-db-backup-day-of-week` | Runs the database backup command with a same-week duplicate guard. |
 
@@ -44,18 +45,12 @@ Runnable entrypoints with weekly or monthly duplicate guards; **not** registered
 
 | Job | Entrypoint | Frequency | Why it exists / how it is used |
 |---|---|---|---|
-| W1 weekly leaderboard | `python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard` | Weekly dedup guard | Ranks account sleeves by recent performance, default 30-day window, for governance review. |
+| W1 weekly leaderboard | `python -m trading.interfaces.runtime.jobs.governance.weekly.w1_leaderboard` | Weekly dedup guard | Ranks account books by recent performance, default 30-day window, for governance review. |
 | W2 weekly promotion review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w2_promotion_review` | Weekly dedup guard | Produces promotion/retirement readiness review for runtime-eligible accounts. |
-| W3 weekly allocation review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review` | Weekly dedup guard | Compares actual sleeve NAV allocation against target/start-equity ratios and flags drift. |
+| W3 weekly allocation review | `python -m trading.interfaces.runtime.jobs.governance.weekly.w3_allocation_review` | Weekly dedup guard | Compares actual book NAV allocation against target/start-equity ratios and flags drift. |
 | M1 monthly risk rebaseline | `python -m trading.interfaces.runtime.jobs.governance.monthly.m1_risk_rebaseline` | Monthly dedup guard | Captures latest risk snapshots per account for operator risk budget review. |
-| M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories active strategy assignments and parameter sets per sleeve. |
-| M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Runs a longer-horizon sleeve performance audit, default 90 days. |
-
-## Helper modules
-
-These support the jobs above but are not standalone jobs: `job_helpers.py`, the `job_runner/`
-package (`governance_job`, `daily_account_job`, `maintenance_job` decorators),
-`scheduling/scheduler_installer.py`, and `daily/paper_trading/{caps,dag,reporting}.py`.
+| M2 monthly parameter governance | `python -m trading.interfaces.runtime.jobs.governance.monthly.m2_parameter_governance` | Monthly dedup guard | Inventories each book's active strategy assignment and effective parameters. |
+| M3 monthly performance audit | `python -m trading.interfaces.runtime.jobs.governance.monthly.m3_performance_audit` | Monthly dedup guard | Runs a longer-horizon book performance audit, default 90 days. |
 
 ## Running jobs directly
 

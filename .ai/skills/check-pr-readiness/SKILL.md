@@ -1,7 +1,6 @@
 ---
 name: check-pr-readiness
 description: Orchestrates the full pre-PR workflow: deterministic validation, AI architecture/style/quality review, advisory docs check, and a saved readiness report. Use when preparing to submit a pull request or when asked to run a PR readiness check.
-invoker: any
 ---
 
 # Checking PR Readiness

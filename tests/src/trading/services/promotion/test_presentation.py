@@ -21,7 +21,7 @@ def test_render_promotion_status_lines_returns_read_only_summary() -> None:
     assert "Stage: paper_observing" in joined
     assert "Data Gaps: missing_paper_live_evidence" in joined
     assert "- Paper evidence is required before manual promotion review." in joined
-    # No backtest freshness on the observing fixture → none (P12 advisory line).
+    # No backtest freshness on the observing fixture → none (advisory line).
     assert "Backtest Freshness: none" in joined
 
 

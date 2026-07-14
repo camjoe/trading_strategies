@@ -1,10 +1,10 @@
 """Book NAV marking — mark a book's positions to market and refresh its equity.
 
-Fills leave `books.current_equity` marked at *fill* price (2c-1); the reconciliation
+Fills leave `books.current_equity` marked at *fill* price; the reconciliation
 kill switch and the notional caps need equity marked at *current* prices, matching
-the market-marked equity snapshot they reconcile against. This service is the
-book-level equivalent of the sleeve NAV marking the runtime snapshot/reconciliation
-relies on: given the current price marks, it re-marks each position and recomputes
+the market-marked equity snapshot they reconcile against. This is the NAV marking
+the runtime snapshot/reconciliation relies on: given the current price marks, it
+re-marks each position and recomputes
 `current_equity = current_cash + Σ(qty × mark)`.
 
 Cash is untouched (marking never moves cash). Positions with no valid live mark are
@@ -80,6 +80,6 @@ def mark_account_to_market(
     prices: Mapping[str, float],
     as_of: str,
 ) -> list[BookNavMarkResult]:
-    """Re-mark every book of an account to ``prices`` (default book + any sleeve books)."""
+    """Re-mark every book of an account to ``prices`` (default book + any additional books)."""
     books = BookRepository(conn).fetch_for_account(account_id=account_id)
     return [mark_book_to_market(conn, book_id=book.id, prices=prices, as_of=as_of) for book in books]

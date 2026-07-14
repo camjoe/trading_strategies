@@ -1,6 +1,6 @@
 """Operator edit workflows for the strategy catalog.
 
-The write side of making strategies data (P6): create a tuned *variant* of a
+The write side of making strategies data: create a tuned *variant* of a
 code primitive, edit a draft strategy's knobs, or freeze a strategy so it stops
 changing once it has evidence. Knob edits are validated against the primitive's
 code schema, and only ``draft`` rows are mutable — tuning a frozen strategy

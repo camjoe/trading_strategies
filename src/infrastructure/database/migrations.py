@@ -278,7 +278,7 @@ TABLE_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
 # Additive column migrations for the clean book tables (greenfield CREATEs cover
 # fresh DBs; these bring existing DBs up to the current shape).
 BOOK_MIGRATIONS_BY_TABLE: dict[str, tuple[ColumnMigration, ...]] = {
-    # param_set_id: legacy and unused since P6 (a strategy row is its own
+    # param_set_id: legacy and unused since the strategy catalog became canonical (a strategy row is its own
     # parameterization); the column is left NULL and persists only until a
     # data-op drops it, so existing DBs keep matching the schema DDL.
     "book_strategy_assignments": (

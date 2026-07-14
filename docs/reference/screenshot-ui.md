@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-06
-Last Reviewed: 2026-05-02
+Last Reviewed: 2026-07-13
 Purpose: Instructions for using scripts/screenshot_ui.py to capture full-page UI screenshots with Playwright.
 Related: [UI Map](../maps/ui-map.md), [Scripts Map](../maps/scripts-map.md)
 
@@ -20,7 +20,8 @@ assistants to verify UI state without a live browser session.
     # From repo root, with venv active
     python -m scripts.launch_ui
     ```
-   Default addresses: frontend `http://127.0.0.1:5173`, backend `http://127.0.0.1:8000`.
+   Default addresses come from `scripts/ui_config.py`: frontend `http://127.0.0.1:5173`,
+   backend `http://127.0.0.1:8000`.
 
 2. **Dependencies** — Playwright and Chromium must be installed:
    ```sh
@@ -29,25 +30,6 @@ assistants to verify UI state without a live browser session.
    ```
    Both are needed once per environment.  The `playwright` package is declared in
    `requirements-dev.txt`.
-
----
-
-## Setup (first time on a new machine)
-
-```sh
-# 1. Create and activate the virtual environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1          # Windows PowerShell
-# source .venv/bin/activate           # macOS / Linux
-
-# 2. Install all project dependencies
-pip install -r requirements-dev.txt
-
-# 3. Install the Playwright browser binary
-python -m playwright install chromium
-```
-
----
 
 ## Basic usage
 
@@ -60,6 +42,7 @@ python -m scripts.screenshot_ui
 # Any other tab
 python -m scripts.screenshot_ui --tab accounts
 python -m scripts.screenshot_ui --tab compare
+python -m scripts.screenshot_ui --tab portfolio
 python -m scripts.screenshot_ui --tab backtesting
 python -m scripts.screenshot_ui --tab ibkr-paper-monitor
 python -m scripts.screenshot_ui --tab alt-strategies
@@ -90,7 +73,8 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 ```
 accounts        alt-strategies
 compare         admin
-docs            ibkr-paper-monitor
+portfolio       docs
+ibkr-paper-monitor
 backtesting
 ```
 
@@ -121,24 +105,10 @@ python -m scripts.screenshot_ui --width 768 --height 1024
 
 ---
 
-## For AI assistants (Copilot / bots)
+## Verification workflow
 
-To visually verify a UI change, run the script from within the session:
-
-```python
-# Example: capture the accounts page and inspect the screenshot
-import subprocess, sys
-result = subprocess.run(
-    [sys.executable, "-m", "scripts.screenshot_ui",
-     "--tab", "accounts", "--wait-analysis"],
-    capture_output=True, text=True
-)
-print(result.stdout)
-# Screenshot path is on the last "✓  Saved:" line
-```
-
-The screenshot is saved to `local/screenshots/` and can be read back as an
-image to verify layout, section spacing, or panel content.
+For visual UI verification, capture the relevant tab and inspect the generated
+image under `local/screenshots/`.
 
 **Important:** the UI must already be running before invoking the script.  If
 `launch_ui.py` is not active, the script will fail with a connection error.

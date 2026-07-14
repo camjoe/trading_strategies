@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""W3 weekly governance job — allocation reweight review comparing actual vs target sleeve NAV."""
+"""W3 weekly governance job — allocation reweight review comparing actual vs target book NAV."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyAllocationAccountPayload,
     WeeklyAllocationArtifactPayload,
-    WeeklyAllocationSleevePayload,
+    WeeklyAllocationBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
@@ -52,7 +52,7 @@ def _add_drift_threshold_arg(parser: argparse.ArgumentParser) -> None:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="week",
-    description="W3 weekly governance: compare actual sleeve NAV allocation vs original start_equity ratios.",
+    description="W3 weekly governance: compare actual book NAV allocation vs original start_equity ratios.",
     add_arguments=_add_drift_threshold_arg,
 )
 def main(ctx: JobContext) -> dict[str, object]:
@@ -76,7 +76,7 @@ def main(ctx: JobContext) -> dict[str, object]:
         start_equities = [b.start_equity for b in books]
         total_start_equity = sum(start_equities)
 
-        book_rows: list[WeeklyAllocationSleevePayload] = []
+        book_rows: list[WeeklyAllocationBookPayload] = []
         for book, current_nav, start_equity in zip(books, current_navs, start_equities):
             current_pct = (current_nav / total_nav * 100.0) if total_nav != 0.0 else 0.0
             target_pct = (start_equity / total_start_equity * 100.0) if total_start_equity != 0.0 else 0.0
@@ -84,7 +84,7 @@ def main(ctx: JobContext) -> dict[str, object]:
             reweight_suggested = abs(drift_pct) >= drift_threshold
 
             book_rows.append(
-                WeeklyAllocationSleevePayload(
+                WeeklyAllocationBookPayload(
                     book_name=book.name,
                     current_nav=current_nav,
                     current_pct=current_pct,

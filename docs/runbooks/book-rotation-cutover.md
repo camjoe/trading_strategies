@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active — delete this runbook (and the data-op module) once every existing DB has been migrated
 Created: 2026-07-10
-Last Reviewed: 2026-07-10
+Last Reviewed: 2026-07-13
 Purpose: The one-time operator procedure that moves rotation scheduling ownership from the retained
 account columns onto `book_rotation_settings` and opens default-book assignments after the
 execution-mode-collapse branch deploys.
@@ -36,7 +36,7 @@ and their book scheduling from profiles / the admin API.
 For every account it:
 
 1. **Ensures the default book exists** (bootstrapped from the account row).
-2. **Re-syncs rotation scheduling onto every book of the account's** — `rotation_enabled`,
+2. **Re-syncs rotation scheduling onto every book of the account** — `rotation_enabled`,
    `rotation_schedule`, `rotation_lookback_days` copied from the retained account columns;
    policy columns (weights, threshold, cooldown, min-trades) are preserved.
 3. **Opens the default book's assignment where missing**, resolved the way the retired account

@@ -3,7 +3,7 @@
 Type: convention
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Define how documentation files and folders are named so paths are predictable for both developers and agents.
 Related: [Documentation Authoring Standard](docs-authoring.md), [Docs Map](../maps/docs-map.md)
 
@@ -26,10 +26,11 @@ over names that repeat `notes`, `standard`, `guide`, or `convention`.
 
 ## ADRs are numbered
 
-Files in `adr/` use a three-digit sequential prefix: `NNN-title.md`. The number is the stable
-`ADR-NNN` id and never changes once assigned.
+Files in `adr/` use a three-digit prefix: `NNN-title.md`. The number is the stable `ADR-NNN` id
+and never changes once assigned. Gaps are allowed when an ADR is retired or deleted; do not renumber
+later ADRs to fill them.
 
 ## Enforcement
 
-`python -m scripts.checks.docs.doc_naming_check --enforce` verifies docs filenames and ADR numbering in
-the CI profile.
+`python -m scripts.checks.docs.doc_naming_check --enforce` verifies docs filenames and ADR number
+uniqueness in the CI profile.
