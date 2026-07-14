@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS trades (
     fee REAL NOT NULL DEFAULT 0,
     trade_time TEXT NOT NULL,
     note TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 );
 """
 
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     tickers_file TEXT,
     notes TEXT,
     warnings TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS backtest_trades (
     fee REAL NOT NULL DEFAULT 0,
     slippage_bps REAL NOT NULL DEFAULT 0,
     note TEXT,
-    FOREIGN KEY (run_id) REFERENCES backtest_runs(id)
+    FOREIGN KEY (run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE
 );
 """
 
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS backtest_equity_snapshots (
     equity REAL NOT NULL,
     realized_pnl REAL NOT NULL,
     unrealized_pnl REAL NOT NULL,
-    FOREIGN KEY (run_id) REFERENCES backtest_runs(id)
+    FOREIGN KEY (run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE
 );
 """
 
@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS order_fills (
     fill_price REAL NOT NULL,
     commission REAL NOT NULL DEFAULT 0,
     fill_time TEXT NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     UNIQUE (order_id, exec_id)
 );
 """
@@ -330,7 +330,7 @@ CREATE TABLE IF NOT EXISTS walk_forward_groups (
     best_return_pct REAL NOT NULL,
     worst_return_pct REAL NOT NULL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
@@ -344,7 +344,7 @@ CREATE TABLE IF NOT EXISTS walk_forward_group_runs (
     window_start TEXT NOT NULL,
     window_end TEXT NOT NULL,
     total_return_pct REAL NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id),
+    FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id) ON DELETE CASCADE,
     FOREIGN KEY (run_id) REFERENCES backtest_runs(id),
     UNIQUE(group_id, window_index)
 );
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS promotion_reviews (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     closed_at TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 );
 """
 
@@ -396,7 +396,7 @@ CREATE TABLE IF NOT EXISTS promotion_review_events (
     note TEXT,
     event_payload TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
-    FOREIGN KEY (review_id) REFERENCES promotion_reviews(id),
+    FOREIGN KEY (review_id) REFERENCES promotion_reviews(id) ON DELETE CASCADE,
     UNIQUE(review_id, event_seq)
 );
 """
@@ -672,7 +672,7 @@ CREATE TABLE IF NOT EXISTS risk_snapshots (
     daily_loss_pct REAL,
     kill_switch_triggered INTEGER NOT NULL DEFAULT 0 CHECK (kill_switch_triggered IN (0, 1)),
     risk_payload_json TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     UNIQUE (account_id, snapshot_time)
 );
 """
@@ -693,8 +693,8 @@ CREATE TABLE IF NOT EXISTS risk_decisions (
     approved_notional REAL,
     risk_payload_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (book_id) REFERENCES books(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE SET NULL
 );
 """
 

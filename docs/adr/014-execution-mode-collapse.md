@@ -6,8 +6,7 @@ Created: 2026-07-10
 Last Reviewed: 2026-07-10
 Purpose: Record the collapse of the account/book runtime split onto one book-keyed path and the move
 of rotation scheduling ownership onto `book_rotation_settings`.
-Related: [ADR 010](010-book-keyed-execution-model.md), [ADR 011](011-strategy-catalog-and-parameter-ownership.md),
-[Book-Rotation Cutover Runbook](../runbooks/book-rotation-cutover.md)
+Related: [ADR 010](010-book-keyed-execution-model.md), [ADR 011](011-strategy-catalog-and-parameter-ownership.md)
 
 ## Context
 
@@ -40,8 +39,8 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
    book's settings row. The CLI edits scheduling via `configure-book-rotation` (interface primacy).
 5. **Columns retire append-only.** All 17 account `rotation_*` columns and the book interval
    columns stay on their tables but are no longer materialized, read, or written (the 2b-7
-   precedent). Existing databases cut over once via the
-   `migrate_book_rotation` data-op — see the runbook.
+   precedent). Existing databases completed a one-time book-rotation cutover; its temporary
+   data-op and runbook were then retired.
 
 ## Accepted behavior changes
 
@@ -59,8 +58,8 @@ Rotation inputs were split incoherently: the live book path read `accounts.rotat
 
 ## Consequences
 
-- The execution-mode collapse plan is delivered and deleted; `docs/pending-deploy-steps.md` tracks
-  the one-time cutover as a pending deploy step.
+- The execution-mode collapse plan and one-time cutover tooling were retired after all environments
+  completed the cutover.
 - The rotation core (`evaluate_book_rotation`, cooldown, decision log) and the parameter policy-editing
   surface are unchanged.
 - Future rotation features (per-book cadence preferences, schedule editing UI) extend

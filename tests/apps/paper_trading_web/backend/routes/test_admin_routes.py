@@ -70,7 +70,29 @@ class TestAdminRoutes:
         )
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
-        assert response.json()["deleted"]["accounts"] == 1
+        assert response.json()["deleted"] == {"accountName": "acct_admin_delete"}
+
+    def test_admin_delete_preview_happy_path(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_admin_preview", strategy="trend")
+
+        response = api_client.get(
+            "/api/admin/accounts/delete-preview",
+            params={"accountName": "acct_admin_preview"},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "status": "ok",
+            "preview": {
+                "accountName": "acct_admin_preview",
+                "descriptiveName": "acct_admin_preview",
+                "strategy": "trend",
+            },
+        }
 
     def test_admin_create_account_handles_value_error(self, api_client: TestClient) -> None:
         create_mock = Mock(side_effect=ValueError("bad payload"))

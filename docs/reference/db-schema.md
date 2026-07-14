@@ -3,8 +3,8 @@
 Type: notes
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-06-19
-Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read src/infrastructure/database/db_schema.py directly.
+Last Reviewed: 2026-07-13
+Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read src/infrastructure/database/schema.py directly.
 Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
@@ -21,16 +21,17 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-32 tables — the clean strategy-book tables plus the legacy tables not yet retired. The
-legacy order/accounting tables (`broker_orders`, `sleeve_orders`, `sleeve_fills`, `sleeve_positions`,
-`sleeve_ledger`) were dropped as the submission/accounting spine moved onto the book tables. One
-row per table — use this for orientation and context. For column details, read `db_schema.py` directly.
+27 tables — the clean strategy-book tables plus the remaining account-level history, research, and
+configuration tables. The legacy order/accounting tables (`broker_orders`, `sleeve_orders`,
+`sleeve_fills`, `sleeve_positions`, `sleeve_ledger`) were dropped as the submission/accounting spine
+moved onto the book tables. One row per table — use this for orientation and context. For column
+details, read `schema.py` directly.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
 | `accounts` | Paper/live trading account config — strategy, risk policy, instrument mode, broker, rotation settings | — |
 | `trades` | Individual paper trades (equities and options) | → `accounts` |
-| `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `accounts` |
+| `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `books` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
 | `order_fills` | Individual fill events for a clean order | → `orders` |
 | `backtest_runs` | Metadata for a single backtest execution (dates, fees, slippage, notes) | → `accounts` |

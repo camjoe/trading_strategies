@@ -102,7 +102,7 @@ Accepted and shipped as the first slice:
 - The not-found-only routes dropped their local 404 mapping
   (`routes/backtests.py`, `routes/ibkr_paper_monitor.py`,
   `services/accounts/data_access.require_account_row`), and
-  `services/admin.delete_account_and_dependents` dropped its
+  `services/admin.delete_managed_account` dropped its
   `"Accounts not found:"` string heuristic — all now rely on the app handler.
 
 **Conversion principle.** Only "a requested entity does not exist" (a lookup

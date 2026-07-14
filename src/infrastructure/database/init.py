@@ -12,6 +12,7 @@ from infrastructure.database.migrations import (
     ColumnMigration,
     GLOBAL_SETTINGS_MIGRATIONS,
     TABLE_MIGRATIONS_BY_TABLE,
+    ensure_table_rebuild_migrations,
 )
 from infrastructure.database.schema import SCHEMA_SQL
 
@@ -69,4 +70,5 @@ def init_schema(conn: DBConnection) -> None:
     for table_name, migrations in BOOK_MIGRATIONS_BY_TABLE.items():
         for migration in migrations:
             _ensure_column(conn, table_name, migration)
+    ensure_table_rebuild_migrations(conn)
     conn.commit()

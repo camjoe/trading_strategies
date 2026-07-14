@@ -36,6 +36,7 @@ IGNORED_DIR_PARTS = {
     ".git",
     ".venv",
     "venv",
+    "local",
     "node_modules",
     "__pycache__",
     ".pytest_cache",

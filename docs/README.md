@@ -26,7 +26,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`pending-deploy-steps.md`](pending-deploy-steps.md) — one-time DB steps pending for existing databases (two to run, one to build)
+- [`pending-deploy-steps.md`](pending-deploy-steps.md) — ordered checklist for pending one-time DB steps on existing databases
 - [`adr/`](adr/) — durable architecture and product decisions
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
@@ -52,12 +52,15 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 
 Full listing: [`reference/`](reference/). Key entries:
 
+- [`reference/account-deletion-cascade-proposal.md`](reference/account-deletion-cascade-proposal.md) — proposed FK cascades and retention decisions for account deletion
 - [`reference/backtesting.md`](reference/backtesting.md) — backtesting commands, safeguards, and layering overview
 - [`reference/broker-integration.md`](reference/broker-integration.md) — broker abstraction, adapter wiring, live-trading safety
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
+- [`reference/database-cleanup-roadmap.md`](reference/database-cleanup-roadmap.md) — future database cleanup ideas for narrowing `accounts` and retiring legacy columns
+- [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
 - [`adr/014-execution-mode-collapse.md`](adr/014-execution-mode-collapse.md) — one book-keyed runtime path; rotation scheduling is book-owned
 - [`adr/012-runtime-alert-email-configuration.md`](adr/012-runtime-alert-email-configuration.md) — runtime SMTP alerts use environment configuration
 - [`adr/011-strategy-catalog-and-parameter-ownership.md`](adr/011-strategy-catalog-and-parameter-ownership.md) — strategy knobs, book settings, and operational settings ownership
@@ -82,7 +85,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`runbooks/runtime-operations.md`](runbooks/runtime-operations.md) — daily + weekly-backup job monitoring and recovery
 - [`runbooks/burn-in-protocol.md`](runbooks/burn-in-protocol.md) — burn-in protocol for new strategies
 - [`runbooks/governance-review.md`](runbooks/governance-review.md) — weekly/monthly governance review
-- [`runbooks/sleeve-retirement-db-migration.md`](runbooks/sleeve-retirement-db-migration.md) — one-time DB migration off the legacy sleeve tables (delete after all DBs are migrated)
 
 ## Keeping Docs Fresh
 

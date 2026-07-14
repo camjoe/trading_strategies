@@ -8,8 +8,9 @@ from ..services.accounts.benchmark import attach_live_benchmark_summary
 from ..services.accounts.data_access import require_account_row
 from ..services.accounts.summaries import build_account_summary
 from ..services.admin import (
+    build_account_deletion_preview,
     create_account_with_rotation,
-    delete_account_and_dependents,
+    delete_managed_account,
 )
 from ..services.db import db_conn
 from ..services.exports import list_csv_exports, preview_csv_export
@@ -39,12 +40,14 @@ def api_admin_delete_account(payload: AdminDeleteAccountRequest) -> dict[str, ob
     if not payload.confirm:
         raise HTTPException(status_code=400, detail="Deletion requires explicit confirmation.")
 
-    with db_conn() as conn:
-        requested_name = payload.accountName.strip()
-        require_account_row(conn, requested_name)
+    deleted_name = delete_managed_account(payload.accountName)
+    return {"status": "ok", "deleted": {"accountName": deleted_name}}
 
-    counts = delete_account_and_dependents(requested_name)
-    return {"status": "ok", "deleted": counts}
+
+@router.get("/api/admin/accounts/delete-preview")
+def api_admin_delete_account_preview(accountName: str = Query(..., min_length=1)) -> dict[str, object]:  # noqa: N803
+    """Return account identity details for confirmation before deletion."""
+    return {"status": "ok", "preview": build_account_deletion_preview(accountName)}
 
 
 @router.get("/api/admin/exports/csv")

@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-03-31
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Reference for the hand-rolled SQLite migration system — key files, conventions, and schema snapshot commands.
 Related: [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
@@ -11,7 +11,7 @@ Related: [Python Style](../conventions/python-style.md), [Architecture Conventio
 
 ## Overview
 
-This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `src/infrastructure/database/` via a `ColumnMigration` dataclass and is applied automatically at startup.
+This project uses a **hand-rolled SQLite migration system** — there is no Alembic, Django migrations, or other migration framework. Schema evolution is managed in `src/infrastructure/database/` via additive `ColumnMigration` entries plus narrowly scoped SQLite table-rebuild migrations for constraint/FK changes. Migrations are applied automatically at startup.
 
 ---
 
@@ -19,9 +19,9 @@ This project uses a **hand-rolled SQLite migration system** — there is no Alem
 
 | File | Role |
 |------|------|
-| `src/infrastructure/database/init.py` | `ensure_db()`, `init_schema()`, and column-guard helpers |
+| `src/infrastructure/database/init.py` | `ensure_db()`, `init_schema()`, column-guard helpers, and table-rebuild dispatch |
 | `src/infrastructure/database/schema.py` | Canonical table/index DDL and `SCHEMA_SQL` |
-| `src/infrastructure/database/migrations.py` | `ColumnMigration` dataclass, migration tuples, and seeded overlay-watchlist defaults |
+| `src/infrastructure/database/migrations.py` | `ColumnMigration` dataclass, migration tuples, table-rebuild migrations, and seeded overlay-watchlist defaults |
 | `src/infrastructure/database/backend.py` | `DatabaseBackend` ABC, `SQLiteBackend`, `get_backend()` / `set_backend()` |
 | `src/infrastructure/database/config.py` | DB path resolution: env var → config file → default `local/paper_trading.db` |
 | `src/infrastructure/database/sql_helpers.py` | SQL helper functions such as `in_placeholders()` |
@@ -57,8 +57,15 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "accounts", migration)
     for migration in BACKTEST_RUN_MIGRATIONS:             # 3. Apply backtest_runs migrations
         _ensure_column(conn, "backtest_runs", migration)
-    for migration in GLOBAL_SETTINGS_MIGRATIONS:          # 5. Apply singleton global-settings migrations
+    for migration in GLOBAL_SETTINGS_MIGRATIONS:          # 4. Apply singleton global-settings migrations
         _ensure_column(conn, "global_settings", migration)
+    for table_name, migrations in TABLE_MIGRATIONS_BY_TABLE.items():
+        for migration in migrations:
+            _ensure_column(conn, table_name, migration)
+    for table_name, migrations in BOOK_MIGRATIONS_BY_TABLE.items():
+        for migration in migrations:
+            _ensure_column(conn, table_name, migration)
+    ensure_table_rebuild_migrations(conn)                 # 5. Apply FK/constraint rebuilds
     conn.commit()
 ```
 
@@ -95,12 +102,33 @@ def _ensure_column(conn, table_name, migration):
 ## Migration Tuples
 
 ```
-ACCOUNT_MIGRATIONS       → applied to the `accounts` table
-BACKTEST_RUN_MIGRATIONS  → applied to the `backtest_runs` table
-GLOBAL_SETTINGS_MIGRATIONS → applied to the `global_settings` table
+ACCOUNT_MIGRATIONS          → applied to the `accounts` table
+ACCOUNT_BROKER_MIGRATIONS   → applied to the `accounts` table
+BACKTEST_RUN_MIGRATIONS     → applied to the `backtest_runs` table
+GLOBAL_SETTINGS_MIGRATIONS  → applied to the `global_settings` table
+TABLE_MIGRATIONS_BY_TABLE   → table-name keyed additive migrations
+BOOK_MIGRATIONS_BY_TABLE    → table-name keyed additive migrations for book-owned tables
 ```
 
-Both tuples are processed by `init_schema()`. Any new table requiring additive migrations must also be registered in `init_schema()`.
+These collections are processed by `init_schema()`. Any new table requiring additive migrations must also be registered in `init_schema()`.
+
+## SQLite Table-Rebuild Migrations
+
+SQLite cannot alter foreign-key actions, constraints, or primary keys in place. Those changes use
+idempotent table-rebuild helpers in `migrations.py`, dispatched by `ensure_table_rebuild_migrations()`
+after `SCHEMA_SQL` and additive column migrations have run.
+
+The rebuild pattern is:
+
+1. Skip when `PRAGMA foreign_key_list(<table>)` already shows the target action.
+2. Disable FK enforcement for the rebuild window.
+3. Create `<table>_new` with the target schema.
+4. Copy rows using an explicit column list.
+5. Drop the old table and rename the replacement.
+6. Recreate indexes/unique constraints.
+7. Re-enable FK enforcement and run `PRAGMA foreign_key_check`.
+
+Use this path only when an additive `ALTER TABLE ... ADD COLUMN` migration cannot express the change.
 
 ---
 
@@ -150,12 +178,12 @@ backup_database(destination=None) -> Path
 - Custom destination: pass a directory path (file name auto-generated) or a full `.db` path.
 - Uses `shutil.copy2` — preserves metadata.
 
-**Backup-before-delete pattern** (implemented in `_cmd_delete_accounts`):
+**Backup-before-delete pattern** (implemented in `_cmd_delete_account`):
 ```bash
-python -m trading.interfaces.runtime.data_ops.admin delete-accounts --backup-before --all --yes
+python -m trading.interfaces.runtime.data_ops.admin delete-account ACCOUNT_NAME --backup-before
 ```
 
-The `--backup-before` flag calls `backup_database()` before `delete_accounts()`. Any future destructive data-ops flow should follow this same pattern.
+The `--backup-before` flag calls `backup_database()` before `delete_account()`. Any future destructive data-ops flow should follow this same pattern.
 
 ---
 

@@ -157,6 +157,14 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/accounts/delete-preview",
+      "handler": "api_admin_delete_account_preview",
+      "module": "admin",
+      "group": "Admin Endpoints",
+      "description": "Return account identity details for confirmation before deletion."
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/exports/csv",
       "handler": "api_csv_exports",
       "module": "admin",

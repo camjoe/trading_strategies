@@ -4,6 +4,8 @@ import pytest
 
 from trading.models import AccountInsert
 from trading.repositories.accounts import AccountRepository
+from tests.support.repositories import insert_repository_account
+from tests.support.strategies import ensure_strategy_id_for_label
 
 
 def _make_account_insert(**overrides: object) -> AccountInsert:
@@ -183,3 +185,56 @@ class TestFetchAllAccountNames:
 
     def test_empty_table_returns_empty(self, conn) -> None:
         assert AccountRepository(conn).fetch_names() == []
+
+
+def _account_id(conn, name: str = "count_acct") -> int:
+    return insert_repository_account(conn, name=name)
+
+
+def _insert_backtest_run(conn, *, account_id: int, strategy_name: str = "trend") -> int:
+    cursor = conn.execute(
+        "INSERT INTO backtest_runs (account_id, strategy_id, start_date, end_date, created_at) VALUES (?,?,?,?,?)",
+        (
+            account_id,
+            ensure_strategy_id_for_label(conn, strategy_name),
+            "2026-01-01",
+            "2026-06-01",
+            "2026-01-01T00:00:00Z",
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def _insert_trade(conn, *, account_id: int) -> None:
+    conn.execute(
+        "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?,?,?,?,?,?,?)",
+        (account_id, "AAPL", "buy", 1.0, 100.0, 0.0, "2026-01-01T10:00:00Z"),
+    )
+    conn.commit()
+
+
+class TestDeleteByName:
+    def test_removes_account_and_cascades_owned_rows(self, conn) -> None:
+        acct_id = _account_id(conn)
+        _insert_trade(conn, account_id=acct_id)
+        run_id = _insert_backtest_run(conn, account_id=acct_id)
+
+        repo = AccountRepository(conn)
+        deleted = repo.delete_by_name("count_acct")
+
+        assert deleted is not None
+        assert deleted.name == "count_acct"
+        assert conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone() is None
+        assert conn.execute("SELECT id FROM backtest_runs WHERE id = ?", (run_id,)).fetchone() is None
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+    def test_does_not_remove_other_accounts(self, conn) -> None:
+        _account_id(conn, "del_a")
+        acct_b = _account_id(conn, "del_b")
+        AccountRepository(conn).delete_by_name("del_a")
+        row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_b,)).fetchone()
+        assert row is not None
+
+    def test_returns_none_for_missing_account(self, conn) -> None:
+        assert AccountRepository(conn).delete_by_name("missing") is None

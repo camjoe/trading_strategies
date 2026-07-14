@@ -109,8 +109,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `admin.py` | One-off admin data operations (schema init, cleanup) |
 | `csv_export.py` | One-off CSV export operation |
 | `seed_clean_schema.py` | Seed clean-schema strategy catalog and default strategy books bootstrap |
-| `migrate_sleeve_books.py` | One-time sleeve→book mirror migration (dies with the legacy sleeve tables) |
-| `migrate_book_rotation.py` | One-time book-rotation cutover: sync scheduling onto books + open default-book assignments (ADR 014; delete after every DB is migrated) |
 
 **Runtime (shared)** (`src/trading/interfaces/runtime/`)
 
@@ -133,8 +131,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `accounts/mutations.py` | Account create/update operations |
 | `accounts/queries.py` | Account read queries (snapshots, config) |
 | `accounts/config.py` | Account configuration helpers |
+| `accounts/deletions.py` | Account deletion workflow (dry-run counts + cascade-backed delete) |
 | `accounts/runtime_loader.py` | Load runtime-eligible account names; has documented layer-boundary exception to import from `src/infrastructure/database/` |
-| `admin/deletions.py` | Admin bulk-deletion workflows |
 | `analysis/position.py` | Position analysis calculations |
 | `analysis/queries.py` | Analysis data queries |
 | `analysis/performance.py` | Book performance window queries (reads daily metrics) |
@@ -204,8 +202,7 @@ SQL persistence adapters only. Each file owns one logical data area. Builds SQL 
 
 | Module | Responsibility |
 |---|---|
-| `accounts.py` | Equity snapshot and account snapshot persistence |
-| `admin_deletions.py` | Admin/maintenance deletion operations (row counts, dependent deletes) |
+| `accounts.py` | Account records, deletion-count queries, and cascade-backed account deletion |
 | `daily_metrics.py` | Daily performance metric snapshots |
 | `feature_providers.py` | Feature provider enablement and config records |
 | `global_settings.py` | Key-value global settings table |

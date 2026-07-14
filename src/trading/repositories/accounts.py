@@ -59,16 +59,6 @@ class AccountRepository:
         row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
         return self._row_to_record(row) if row is not None else None
 
-    def fetch_by_names(self, names: tuple[str, ...]) -> list[AccountRecord]:
-        if not names:
-            return []
-        placeholders = ", ".join("?" for _ in names)
-        rows = self._conn.execute(
-            f"SELECT * FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
-            names,
-        ).fetchall()
-        return [self._row_to_record(row) for row in rows]
-
     def fetch_listing(self) -> list[AccountRecord]:
         rows = self._conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
         return [self._row_to_record(row) for row in rows]
@@ -95,3 +85,12 @@ class AccountRepository:
             (benchmark_ticker, account_id),
         )
         self._conn.commit()
+
+    def delete_by_name(self, account_name: str) -> AccountRecord | None:
+        """Delete one account and return it; database cascades remove owned rows."""
+        row = self._conn.execute(
+            "DELETE FROM accounts WHERE name = ? RETURNING *",
+            (account_name,),
+        ).fetchone()
+        self._conn.commit()
+        return self._row_to_record(row) if row is not None else None

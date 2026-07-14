@@ -4,12 +4,17 @@ import type { AccountSummary } from "../../types/accounts";
 export interface DeleteResponse {
   status: string;
   deleted: {
-    accounts: number;
-    trades: number;
-    equitySnapshots: number;
-    backtestRuns: number;
-    backtestTrades: number;
-    backtestEquitySnapshots: number;
+    accountName: string;
+  };
+}
+
+
+export interface DeletePreviewResponse {
+  status: string;
+  preview: {
+    accountName: string;
+    descriptiveName: string;
+    strategy: string;
   };
 }
 

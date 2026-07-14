@@ -1,12 +1,16 @@
 """Accounts service package.
 
-This package owns the implementation split for account listing, config, and
-mutation helpers. Prefer ``trading.services.accounts`` as the stable public
+This package owns the implementation split for account listing, config,
+mutation, and deletion helpers. Prefer ``trading.services.accounts`` as the stable public
 import surface unless a tightly scoped internal import is clearer.
 """
 
 from __future__ import annotations
 
+from trading.services.accounts.deletions import (
+    delete_account,
+    preview_account_deletion,
+)
 from trading.services.accounts.listing import (
     GOAL_NOT_SET_TEXT,
     HEURISTIC_EXPLORATION_LABEL,
@@ -52,6 +56,7 @@ __all__ = [
     "AccountAlreadyExistsError",
     "DEFAULT_MAX_POSITION_PCT",
     "DEFAULT_TRADE_SIZE_PCT",
+    "delete_account",
     "find_account",
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",
@@ -70,6 +75,7 @@ __all__ = [
     "list_account_records",
     "list_account_snapshots",
     "load_runtime_eligible_account_names",
+    "preview_account_deletion",
     "RISK_POLICIES",
     "set_account_strategy",
     "set_benchmark",

@@ -100,11 +100,25 @@
       "purpose": "HTTP client used in API and integration tests."
     },
     {
+      "name": "httpx2",
+      "version": ">=2.0.0,<3.0.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "HTTP client used by Starlette's TestClient for FastAPI route and integration tests."
+    },
+    {
       "name": "hypothesis",
       "version": "==6.131.26",
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "Property-based testing library for broader edge-case coverage."
+    },
+    {
+      "name": "mypy",
+      "version": "==2.3.0",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Static type checker used by local and CI Python quality gates."
     },
     {
       "name": "playwright",
@@ -140,6 +154,13 @@
       "scope": "development",
       "group": "Developer Tooling",
       "purpose": "Parallel test execution plugin used to speed up larger local and CI pytest runs."
+    },
+    {
+      "name": "ruff",
+      "version": "==0.15.21",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "Python linter and formatter used by local and CI quality gates."
     }
   ],
   "projects": [

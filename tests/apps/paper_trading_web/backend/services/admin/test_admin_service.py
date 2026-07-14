@@ -8,30 +8,14 @@ from paper_trading_web.backend.services.admin import create_account_with_rotatio
 from trading.domain import AccountAlreadyExistsError
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.admin import DELETE_COUNT_KEYS
 
 
-def test_managed_account_delete_count_mapping_uses_known_service_keys() -> None:
-    assert set(services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS) <= set(DELETE_COUNT_KEYS)
-
-
-def test_managed_account_delete_count_mapping_exposes_stable_web_subset() -> None:
-    assert services_admin._MANAGED_ACCOUNT_DELETE_COUNT_KEYS == {
-        "accounts": "accounts",
-        "trades": "trades",
-        "equity_snapshots": "equitySnapshots",
-        "backtest_runs": "backtestRuns",
-        "backtest_trades": "backtestTrades",
-        "backtest_equity_snapshots": "backtestEquitySnapshots",
-    }
-
-
-def test_delete_account_and_dependents_not_found_raises(conn) -> None:
+def test_delete_managed_account_not_found_raises(conn) -> None:
     with pytest.raises(NotFoundError):
-        services_admin.delete_account_and_dependents("missing")
+        services_admin.delete_managed_account("missing")
 
 
-def test_delete_account_and_dependents_removes_related_rows(conn, create_account_row) -> None:
+def test_delete_managed_account_removes_related_rows(conn, create_account_row) -> None:
     account_id = create_account_row("acct_delete")
     conn.execute(
         "INSERT INTO trades (account_id, ticker, side, qty, price, fee, trade_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -126,15 +110,8 @@ def test_delete_account_and_dependents_removes_related_rows(conn, create_account
     )
     conn.commit()
 
-    counts = services_admin.delete_account_and_dependents("acct_delete")
-    assert counts == {
-        "accounts": 1,
-        "trades": 1,
-        "equitySnapshots": 1,
-        "backtestRuns": 1,
-        "backtestTrades": 1,
-        "backtestEquitySnapshots": 1,
-    }
+    deleted_name = services_admin.delete_managed_account("acct_delete")
+    assert deleted_name == "acct_delete"
 
     assert conn.execute("SELECT COUNT(*) AS n FROM accounts WHERE id = ?", (account_id,)).fetchone()["n"] == 0
     assert conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (account_id,)).fetchone()["n"] == 0

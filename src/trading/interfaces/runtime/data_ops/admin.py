@@ -9,8 +9,8 @@ from typing import Callable, cast
 from common.paths.project_paths import DB_BACKUPS_DIR
 from infrastructure.database.init import db_session
 from infrastructure.database.backend import SQLiteBackend, get_backend
+from trading.services.accounts import delete_account, preview_account_deletion
 from trading.services.accounts.listing import list_accounts
-from trading.services.admin import delete_accounts, iter_delete_count_items
 
 
 def _sqlite_db_path() -> Path:
@@ -18,20 +18,6 @@ def _sqlite_db_path() -> Path:
     if not isinstance(backend, SQLiteBackend):
         raise RuntimeError("This tool currently supports only SQLite backends.")
     return backend.db_path
-
-
-def _parse_account_names(raw_names: list[str]) -> list[str]:
-    names: list[str] = []
-    seen: set[str] = set()
-    for raw in raw_names:
-        for part in str(raw).split(","):
-            name = part.strip()
-            if not name:
-                continue
-            if name not in seen:
-                seen.add(name)
-                names.append(name)
-    return names
 
 
 def backup_database(destination: str | None = None) -> Path:
@@ -57,12 +43,6 @@ def backup_database(destination: str | None = None) -> Path:
     return target
 
 
-def _print_delete_summary(action: str, counts: dict[str, int]) -> None:
-    print(f"{action} summary")
-    for key, value in iter_delete_count_items(counts):
-        print(f"  {key}: {value}")
-
-
 def _cmd_backup_db(args: argparse.Namespace) -> int:
     target = backup_database(args.destination)
     print(f"Backup created: {target}")
@@ -80,29 +60,26 @@ def _cmd_list_accounts(_args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_delete_accounts(args: argparse.Namespace) -> int:
-    names = _parse_account_names(args.accounts or [])
+def _cmd_delete_account(args: argparse.Namespace) -> int:
+    account_name = str(args.account).strip()
+    if not account_name:
+        raise ValueError("Provide an account name.")
 
-    if args.all and not args.yes:
-        raise ValueError("--all requires --yes to avoid accidental mass deletion.")
-
-    if not args.all and not names:
-        raise ValueError("Provide at least one account name, or use --all --yes.")
-
-    if args.backup_before:
+    if args.backup_before and not args.dry_run:
         backup_path = backup_database(args.backup_destination)
         print(f"Backup created before delete: {backup_path}")
 
     with db_session() as conn:
-        counts = delete_accounts(
-            conn,
-            account_names=names,
-            delete_all=bool(args.all),
-            dry_run=bool(args.dry_run),
-        )
-
-    action = "Dry-run delete" if args.dry_run else "Delete"
-    _print_delete_summary(action, counts)
+        if args.dry_run:
+            preview = preview_account_deletion(conn, account_name)
+            print(
+                f"Deleting account '{preview.account_name}' "
+                f"({preview.descriptive_name}, strategy: {preview.strategy}) "
+                "would remove all related data."
+            )
+        else:
+            deleted = delete_account(conn, account_name)
+            print(f"Deleted account '{deleted.name}' and its related rows.")
     return 0
 
 
@@ -126,14 +103,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_backup.set_defaults(handler=_cmd_backup_db)
 
-    p_delete = sub.add_parser("delete-accounts", help="Delete one or more accounts and related records.")
+    p_delete = sub.add_parser("delete-account", help="Delete one account and its related records.")
     p_delete.add_argument(
-        "accounts",
-        nargs="*",
-        help="Account name(s), supports comma-separated values.",
+        "account",
+        help="Account name.",
     )
-    p_delete.add_argument("--all", action="store_true", help="Delete all accounts in the database.")
-    p_delete.add_argument("--yes", action="store_true", help="Required with --all to confirm mass deletion.")
     p_delete.add_argument("--dry-run", action="store_true", help="Show what would be deleted without changes.")
     p_delete.add_argument(
         "--backup-before",
@@ -145,7 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional backup destination path when using --backup-before.",
     )
-    p_delete.set_defaults(handler=_cmd_delete_accounts)
+    p_delete.set_defaults(handler=_cmd_delete_account)
 
     return parser
 

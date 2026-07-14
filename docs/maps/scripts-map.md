@@ -93,10 +93,24 @@ One-off data operations. Safe to run on the live DB when noted.
 
 | Module | Responsibility |
 |---|---|
+| `audit_foreign_keys.py` | Read-only FK action audit for account-deletion cascade planning and broader schema inspection |
 | `backup_db.py` | SQLite DB backup — copies the live DB to a timestamped backup file |
+| `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
 | `export_db_csv.py` | Export all DB tables to individual CSV files |
 | `export_db_csv_zip.py` | Export all DB tables to a single zipped CSV archive |
+
+## Database Diagrams (`scripts/database_diagrams/`)
+
+Project-agnostic diagram tooling. Adapters inspect a database or load a neutral schema JSON payload; the renderer writes a self-contained HTML viewer.
+
+| Module | Responsibility |
+|---|---|
+| `html_viewer.py` | Assemble the interactive HTML database diagram from a neutral payload and the `assets/` files |
+| `assets/` | Viewer markup, styles, and behavior (`viewer.html`, `viewer.css`, `viewer.js`) edited as real HTML/CSS/JS |
+| `render_html.py` | CLI for rendering a neutral schema JSON payload to HTML |
+| `sqlite.py` | CLI for inspecting a SQLite database file and writing neutral JSON and/or HTML |
+| `sqlite_introspection.py` | SQLite schema introspection adapter that builds the neutral payload |
 
 **Inspect current schema:**
 ```

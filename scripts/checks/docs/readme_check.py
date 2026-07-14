@@ -29,6 +29,7 @@ def discover_readmes(repo_root: Path) -> list[Path]:
         ".git",
         ".venv",
         "venv",
+        "local",
         "node_modules",
         "db_backups",
         "__pycache__",
