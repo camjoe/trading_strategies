@@ -37,23 +37,15 @@ export interface AccountConfigFields {
   rollDteThreshold: number | null;
   profitTakePct: number | null;
   maxLossPct: number | null;
-  rotationEnabled?: boolean;
-  rotationMode?: string;
-  rotationOptimalityMode?: string;
-  rotationIntervalDays?: number | null;
-  rotationIntervalMinutes?: number | null;
-  rotationLookbackDays?: number | null;
-  rotationSchedule?: string[] | null;
-  rotationRegimeStrategyRiskOn?: string | null;
-  rotationRegimeStrategyNeutral?: string | null;
-  rotationRegimeStrategyRiskOff?: string | null;
-  rotationOverlayMode?: string;
-  rotationOverlayMinTickers?: number | null;
-  rotationOverlayConfidenceThreshold?: number | null;
-  rotationOverlayWatchlist?: string[] | null;
-  rotationActiveIndex?: number | null;
-  rotationLastAt?: string | null;
-  rotationActiveStrategy?: string | null;
+  activeStrategy?: string;
+  rotation?: RotationSettings | null;
+}
+
+// Book-owned rotation scheduling (ADR 014); nested object on the account payloads.
+export interface RotationSettings {
+  enabled?: boolean | null;
+  schedule?: string[] | null;
+  lookbackDays?: number | null;
 }
 
 export interface AccountMutableIdentityFields {
@@ -65,9 +57,6 @@ export interface AccountConfigOptionDefaults {
   goalPeriod: string;
   riskPolicy: string;
   instrumentMode: string;
-  rotationMode: string;
-  rotationOptimalityMode: string;
-  rotationOverlayMode: string;
 }
 
 export interface AccountConfigOptions {
@@ -75,9 +64,6 @@ export interface AccountConfigOptions {
   riskPolicies: string[];
   instrumentModes: string[];
   optionTypes: string[];
-  rotationModes: string[];
-  rotationOptimalityModes: string[];
-  rotationOverlayModes: string[];
   defaults: AccountConfigOptionDefaults;
 }
 

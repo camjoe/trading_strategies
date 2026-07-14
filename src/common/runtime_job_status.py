@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 
+# Top-level `status` vocabulary written to daily paper-trading run artifacts
+# (local/exports/daily_paper_trading/*.json) and read by the burn-in readiness scan.
+# Distinct from the per-step statuses ("ok" | "skipped" | "failed") inside step_results.
+DAILY_RUN_STATUS_SUCCESS = "success"
+DAILY_RUN_STATUS_FAILED = "failed"
+
 BURN_IN_STATUS_COMPLETE_SENTINEL = "COMPLETE: Burn-in status check succeeded."
 DAILY_PAPER_TRADING_COMPLETE_SENTINEL = "COMPLETE: Daily paper trading run succeeded."
 DAILY_SNAPSHOT_COMPLETE_SENTINEL = "COMPLETE: Daily snapshot run succeeded."
@@ -24,6 +30,8 @@ MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL = (
 )
 
 __all__ = [
+    "DAILY_RUN_STATUS_SUCCESS",
+    "DAILY_RUN_STATUS_FAILED",
     "BURN_IN_STATUS_COMPLETE_SENTINEL",
     "DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL",
     "DAILY_CHALLENGER_SHADOW_EVAL_COMPLETE_SENTINEL",

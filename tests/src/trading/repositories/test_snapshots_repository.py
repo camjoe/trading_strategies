@@ -158,3 +158,30 @@ class TestSnapshotCounts:
         )
         assert repo.fetch_count(account_id=acct_a) == 3
         assert repo.fetch_count(account_id=acct_b) == 1
+
+
+class TestWindowReads:
+    def test_earliest_and_boundary_reads(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_window_acct")
+        _insert(conn, acct_id, snapshot_time="2026-02-01T00:00:00Z", equity=1000.0)
+        _insert(conn, acct_id, snapshot_time="2026-02-05T00:00:00Z", equity=1050.0)
+        _insert(conn, acct_id, snapshot_time="2026-02-10T00:00:00Z", equity=1100.0)
+        repo = EquitySnapshotRepository(conn)
+
+        assert repo.fetch_earliest(account_id=acct_id).equity == pytest.approx(1000.0)
+        # First at/after the window start snaps forward to the next available row.
+        assert repo.fetch_first_at_or_after(account_id=acct_id, iso="2026-02-03T00:00:00Z").equity == pytest.approx(
+            1050.0
+        )
+        # Last at/before the window end snaps back to the prior available row.
+        assert repo.fetch_last_at_or_before(account_id=acct_id, iso="2026-02-07T00:00:00Z").equity == pytest.approx(
+            1050.0
+        )
+
+    def test_boundary_reads_return_none_outside_range(self, conn) -> None:
+        acct_id = _account_id(conn, "snap_window_empty")
+        _insert(conn, acct_id, snapshot_time="2026-02-05T00:00:00Z", equity=1050.0)
+        repo = EquitySnapshotRepository(conn)
+
+        assert repo.fetch_first_at_or_after(account_id=acct_id, iso="2026-03-01T00:00:00Z") is None
+        assert repo.fetch_last_at_or_before(account_id=acct_id, iso="2026-01-01T00:00:00Z") is None

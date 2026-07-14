@@ -32,26 +32,24 @@ def test_validate_trade_count_range_and_account_names() -> None:
     assert auto_trading_service.resolve_account_names("acct1, acct2") == ["acct1", "acct2"]
     with pytest.raises(ValueError, match="No accounts"):
         auto_trading_service.resolve_account_names(" , ")
-    assert auto_trading_service.validate_execution_mode("ACCOUNT") == "account"
-    assert auto_trading_service.validate_execution_mode("sleeve") == "sleeve"
-    with pytest.raises(ValueError, match="execution_mode must be one of"):
-        auto_trading_service.validate_execution_mode("invalid-mode")
 
 
 def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
+    close_series = pd.Series(range(1, 50), dtype=float)
     monkeypatch.setattr(auto_trading_inputs, "load_tickers_from_file", lambda _path: ["AAPL"])
     monkeypatch.setattr(auto_trading_inputs, "fetch_latest_prices", lambda _universe, **_kwargs: {"AAPL": 101.0})
+    monkeypatch.setattr(
+        auto_trading_inputs, "fetch_close_histories", lambda _universe, **_kwargs: {"AAPL": close_series}
+    )
     monkeypatch.setattr(auto_trading_inputs, "build_iv_rank_proxy", lambda _universe, **_kwargs: {"AAPL": 50.0})
 
-    universe, prices, iv_rank = auto_trading_service.resolve_market_inputs("tickers.txt")
+    universe, prices, iv_rank, histories = auto_trading_service.resolve_market_inputs("tickers.txt")
     assert universe == ["AAPL"]
     assert prices == {"AAPL": 101.0}
     assert iv_rank == {"AAPL": 50.0}
-
-    seen_modes: list[str] = []
+    assert histories == {"AAPL": close_series}
 
     def _fake_trade_loop(**kwargs):
-        seen_modes.append(kwargs["execution_mode"])
         return 2 if kwargs["account_name"] == "acct1" else 1
 
     monkeypatch.setattr(auto_trading_inputs, "_run_account_trade_loop", _fake_trade_loop)
@@ -61,15 +59,12 @@ def test_resolve_market_inputs_and_run_accounts(monkeypatch: pytest.MonkeyPatch)
         universe=universe,
         prices=prices,
         iv_rank_proxy=iv_rank,
-        min_trades=1,
         max_trades=2,
         fee=0.0,
-        execution_mode="sleeve",
         broker_factory=lambda _: None,
         feature_fetchers=make_feature_fetchers(),
     )
     assert results == [("acct1", 2), ("acct2", 1)]
-    assert seen_modes == ["sleeve", "sleeve"]
 
 
 def test_resolve_market_inputs_raises_when_universe_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -91,7 +86,7 @@ def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyP
     import types
 
     fake_runtime = types.ModuleType("trading.services.auto_trading.runtime")
-    fake_runtime.run_for_account = lambda **kwargs: kwargs["min_trades"]  # type: ignore[attr-defined]
+    fake_runtime.run_for_account = lambda **kwargs: kwargs["max_trades"]  # type: ignore[attr-defined]
     import sys
 
     monkeypatch.setitem(sys.modules, "trading.services.auto_trading.runtime", fake_runtime)
@@ -102,14 +97,12 @@ def test_run_account_trade_loop_delegates_to_runtime(monkeypatch: pytest.MonkeyP
         universe=["AAPL"],
         prices={"AAPL": 100.0},
         iv_rank_proxy={},
-        min_trades=3,
         max_trades=5,
         fee=0.0,
-        execution_mode="account",
         broker_factory=lambda _: None,
         feature_fetchers=make_feature_fetchers(),
     )
-    assert result == 3
+    assert result == 5
     from common.time import parse_utc_iso
 
     naive = parse_utc_iso("2026-03-21T12:00:00")

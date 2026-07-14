@@ -36,13 +36,6 @@ from trading.domain.auto_trading_policy import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
 )
-from trading.domain.rotation import (
-    OPTIMALITY_MODES,
-    ROTATION_MODES,
-    ROTATION_OVERLAY_MODES,
-    parse_rotation_overlay_watchlist,
-    parse_rotation_schedule,
-)
 from trading.services.accounts.config import (
     ACCOUNT_KINDS,
     ACCOUNT_KIND_LOCAL,
@@ -63,7 +56,6 @@ __all__ = [
     "GOAL_NOT_SET_TEXT",
     "HEURISTIC_EXPLORATION_LABEL",
     "INSTRUMENT_MODES",
-    "OPTIMALITY_MODES",
     "OPTION_TYPES",
     "build_account_listing_lines",
     "configure_account",
@@ -78,11 +70,7 @@ __all__ = [
     "list_account_records",
     "list_account_snapshots",
     "load_runtime_eligible_account_names",
-    "parse_rotation_overlay_watchlist",
-    "parse_rotation_schedule",
     "RISK_POLICIES",
-    "ROTATION_MODES",
-    "ROTATION_OVERLAY_MODES",
     "set_account_strategy",
     "set_benchmark",
 ]

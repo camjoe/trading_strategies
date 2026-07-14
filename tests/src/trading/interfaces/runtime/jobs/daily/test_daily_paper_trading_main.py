@@ -59,7 +59,7 @@ def _runtime_harness(monkeypatch):
     )
     monkeypatch.setattr(f"{DAILY_PAPER_TRADING_MODULE}.stream_command", _stream)
     monkeypatch.setattr(
-        f"{DAILY_PAPER_TRADING_MODULE}.notify_webhook_best_effort",
+        f"{DAILY_PAPER_TRADING_MODULE}.notify_runtime_event",
         lambda **kwargs: state.notifications.append(kwargs) or True,
     )
     return state
@@ -131,10 +131,29 @@ def test_optional_shadow_eval_step_runs_before_auto_trader(monkeypatch, tmp_path
     assert calls
     assert calls[0][0] == "Challenger Shadow Eval"
     assert "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval" in calls[0][1]
-    assert "--rolling-window-days" in calls[0][1]
+    # An explicit operator window is forwarded to the shadow-eval job.
+    window_index = calls[0][1].index("--rolling-window-days")
+    assert calls[0][1][window_index + 1] == "45"
 
 
-def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_shadow_eval_defaults_to_book_owned_window(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # Without an operator override the flag is omitted, so each book's own
+    # configured lookback drives the shadow evaluation (ADR 014).
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--run-challenger-shadow-eval"],
+    )
+
+    assert code == 0
+    shadow_calls = [args for label, args in _runtime_harness.stream_calls if label == "Challenger Shadow Eval"]
+    assert len(shadow_calls) == 1
+    assert "--rolling-window-days" not in shadow_calls[0]
+
+
+def test_auto_trader_argv_has_no_execution_mode_flag(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    # The execution-mode collapse (ADR 014): one path, no flag.
     code = run_runtime_job_main(
         monkeypatch,
         tmp_path,
@@ -145,9 +164,7 @@ def test_auto_trader_runs_in_sleeve_execution_mode(monkeypatch, tmp_path: Path, 
     assert code == 0
     auto_trader_calls = [args for label, args in _runtime_harness.stream_calls if label.startswith("Auto Trader")]
     assert len(auto_trader_calls) == 1
-    args = auto_trader_calls[0]
-    mode_index = args.index("--execution-mode")
-    assert args[mode_index + 1] == "sleeve"
+    assert "--execution-mode" not in auto_trader_calls[0]
 
 
 def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -160,9 +177,9 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
                 "results": [
                     {
                         "account_name": "acct_a",
-                        "sleeves": [
-                            {"sleeve_id": 1, "challenger_count": 2},
-                            {"sleeve_id": 2, "challenger_count": 1},
+                        "books": [
+                            {"book_id": 1, "challenger_count": 2},
+                            {"book_id": 2, "challenger_count": 1},
                         ],
                     }
                 ],
@@ -188,7 +205,7 @@ def test_shadow_eval_summary_is_embedded_in_daily_artifact(monkeypatch, tmp_path
     summary = score_steps[0]["details"]["shadow_eval_summary"]
     assert summary is not None
     assert summary["account_count"] == 1
-    assert summary["sleeve_count"] == 2
+    assert summary["book_count"] == 2
     assert summary["challenger_count"] == 3
 
 
@@ -259,10 +276,10 @@ def test_stream_command_exception_returns_1(monkeypatch, tmp_path: Path, _runtim
         "daily_paper_trading_*.json",
     )
     assert payload["status"] == "failed"
-    assert payload["failed_step"] == "05_build_position_targets_by_sleeve"
+    assert payload["failed_step"] == "05_build_position_targets_by_book"
     failed_steps = [step for step in payload["step_results"] if step["status"] == "failed"]
     assert len(failed_steps) == 1
-    assert failed_steps[0]["step"] == "05_build_position_targets_by_sleeve"
+    assert failed_steps[0]["step"] == "05_build_position_targets_by_book"
 
 
 def test_step_results_preserve_dag_order(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
@@ -346,7 +363,7 @@ def test_step_10_operator_report_embedded_in_artifact(monkeypatch, tmp_path: Pat
                 "account_id": 1,
                 "account_name": "acct_a",
                 "report_date": "2026-05-07",
-                "sleeve_performance": [],
+                "book_performance": [],
                 "risk_violations": {
                     "total_decisions": 0,
                     "block_count": 0,
@@ -495,10 +512,9 @@ def test_paper_trading_module_import_logs_account_import_failures(monkeypatch, t
 
 
 def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, conn, _runtime_harness) -> None:
-    # conn sets the global backend to a test DB. When run_module_as_main re-executes
-    # the module fresh via runpy, the local import of load_runtime_eligible_account_names
-    # bypasses the _runtime_harness patch — conn ensures get_backend() doesn't hit
-    # the real on-disk database.
+    # Run the package's __main__ shim (not the package itself): popping/re-executing
+    # the package __init__ via runpy would corrupt the shared module object for
+    # sibling tests. conn keeps get_backend() off the real on-disk database.
     monkeypatch.setattr(
         sys,
         "argv",
@@ -506,7 +522,7 @@ def test_paper_trading_module_main_entrypoint(monkeypatch, tmp_path: Path, conn,
     )
 
     with pytest.raises(SystemExit) as excinfo:
-        run_module_as_main(module.__name__)
+        run_module_as_main(module.__name__ + ".__main__")
 
     assert excinfo.value.code == 1
 

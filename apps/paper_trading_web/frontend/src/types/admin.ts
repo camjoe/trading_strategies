@@ -54,6 +54,50 @@ export interface PromotionAssessment {
   next_action: string | null;
 }
 
+export interface PromotionEvaluationSummary {
+  blendedScore: number | null;
+  overallConfidence: number;
+  backtestConfidence: number;
+  paperLiveConfidence: number;
+  dataGaps: string[];
+  backtestStale: boolean;
+}
+
+// Advisory backtest staleness; never affects scores or decisions.
+export interface BacktestFreshness {
+  available: boolean;
+  ageDays: number | null;
+  isStale: boolean;
+  staleThresholdDays: number | null;
+}
+
+export interface PromotionEvaluationDetail {
+  backtest: {
+    available: boolean;
+    returnPct: number | null;
+    tradeCount: number | null;
+    snapshotCount: number | null;
+    maxDrawdownPct: number | null;
+  };
+  walkForward: {
+    available: boolean;
+    grouped: boolean;
+    averageReturnPct: number | null;
+    bestReturnPct: number | null;
+    worstReturnPct: number | null;
+  };
+  paperLive: {
+    available: boolean;
+    returnPct: number | null;
+    snapshotCount: number | null;
+    sourceLevel: string | null;
+    strategyIsolated: boolean;
+  };
+  confidence: PromotionEvaluationSummary;
+  dataGaps: string[];
+  backtestFreshness: BacktestFreshness;
+}
+
 export interface PromotionReviewRecord {
   id: number | null;
   account_name_snapshot: string | null;
@@ -89,5 +133,6 @@ export interface PromotionReviewHistoryEntry {
 
 export interface PromotionOverviewResponse {
   assessment: PromotionAssessment;
+  evaluation: PromotionEvaluationDetail;
   history: PromotionReviewHistoryEntry[];
 }

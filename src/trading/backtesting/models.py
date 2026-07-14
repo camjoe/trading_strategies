@@ -16,6 +16,8 @@ class BacktestConfig:
     fee_per_trade: float
     run_name: str | None
     allow_approximate_leaps: bool
+    # Optional strategy override; None backtests the account's active strategy.
+    strategy: str | None = None
 
 
 @dataclass

@@ -1,28 +1,12 @@
 ---
 name: db-migration
-description: Manages SQLite schema migrations for the trading database — creating, validating, estimating risk, and generating rollback strategies. Typically invoked by the DB Migration Steward agent. Use when asked to add a column, validate a migration, assess schema change risk, or plan a rollback.
-invoker: agent:db-migration-steward
+description: Manages SQLite schema migrations for the trading database — creating, validating, estimating risk, and generating rollback strategies. Use when asked to add a column, validate a migration, assess schema change risk, or plan a rollback.
 ---
 
 # DB Migration
 
-## Invocation Check
-
-This skill is restricted to the **DB Migration Steward** agent.
-
-- If you are the DB Migration Steward agent, proceed with the workflow below.
-- If you are a human user or a different agent, **stop** and respond:
-
-  > "This skill is restricted to the **DB Migration Steward** agent, which enforces additive-only migration rules and backup hygiene before executing schema changes.
-  > To proceed safely, invoke the agent instead:
-  > `@db-migration-steward <your migration description>`
-  > The agent will use this skill to complete the task within its safety guardrails."
-
-Do not execute any workflow steps below until the invoker check passes.
-
----
-
 Handles the full lifecycle of a schema change: design → validate → risk check → rollback plan.
+For a complete schema change, run all four tasks in order unless asked for a specific one.
 
 ## Choose a task
 

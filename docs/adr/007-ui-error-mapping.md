@@ -110,7 +110,7 @@ miss) becomes `NotFoundError`. Deliberately left as `ValueError`: *bad input*
 (`backtest_data_service` bad directory path, `csv_export` invalid table — 400
 -class) and *internal post-write integrity* checks (`repositories/promotion`
 "not found after insert", `services/promotion/actions` "not found after request
-creation", `services/sleeves/accounting` fill-processing invariants — 500-class,
+creation", `services/books/accounting` fill-processing invariants — 500-class,
 not user not-found).
 
 Deferred (still behavior-preserving today *because* `NotFoundError` is a

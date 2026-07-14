@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-06-16
 Last Reviewed: 2026-06-19
 Purpose: Schema orientation for agents and developers — quick-reference table (all tables, purposes, FK relationships) and semantic notes. For full DDL, read src/infrastructure/database/db_schema.py directly.
-Related: [DB Migration System](db-migration-system.md), [Accounts Schema Usage](accounts-schema-usage.md)
+Related: [DB Migration System](db-migration-system.md)
 
 **Sources of truth:**
 - `src/infrastructure/database/schema.py` — CREATE TABLE statements (organized by table as named constants)
@@ -21,7 +21,10 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 
 ## Quick Reference
 
-25 tables. One row per table — use this for orientation and context. For column details, read `db_schema.py` directly.
+32 tables — the clean strategy-book tables plus the legacy tables not yet retired. The
+legacy order/accounting tables (`broker_orders`, `sleeve_orders`, `sleeve_fills`, `sleeve_positions`,
+`sleeve_ledger`) were dropped as the submission/accounting spine moved onto the book tables. One
+row per table — use this for orientation and context. For column details, read `db_schema.py` directly.
 
 | Table | Purpose | Key relationships |
 |---|---|---|
@@ -29,29 +32,31 @@ For a terminal schema view: `python -m scripts.data_ops.describe_db_schema` (or 
 | `trades` | Individual paper trades (equities and options) | → `accounts` |
 | `equity_snapshots` | Point-in-time cash/equity/P&L snapshots | → `accounts` |
 | `global_settings` | Singleton row of system-wide runtime, evaluation, and promotion thresholds | — |
-| `broker_orders` | Live broker orders submitted to an external broker | → `accounts` |
-| `order_fills` | Individual fill events for a broker order | → `broker_orders` |
+| `order_fills` | Individual fill events for a clean order | → `orders` |
 | `backtest_runs` | Metadata for a single backtest execution (dates, fees, slippage, notes) | → `accounts` |
 | `backtest_trades` | Simulated trades within a backtest run | → `backtest_runs` |
 | `backtest_equity_snapshots` | Point-in-time equity snapshots within a backtest run | → `backtest_runs` |
 | `walk_forward_groups` | Walk-forward group summary: date range, window count, aggregate return stats | → `accounts` |
 | `walk_forward_group_runs` | Individual backtest runs belonging to a walk-forward group | → `walk_forward_groups`, `backtest_runs` |
-| `strategy_sleeves` | Virtual sub-accounts within an account; each runs one strategy at a time | → `accounts` |
 | `strategy_param_sets` | Versioned strategy parameter sets; one `is_active` per `strategy_name` | — |
-| `sleeve_strategy_assignments` | History of which param set is/was incumbent for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
-| `rotation_decisions` | Records of each hold/rotate decision for a sleeve | → `strategy_sleeves`, `strategy_param_sets` |
-| `rotation_episodes` | Continuous runs of a single strategy on an account (started_at → ended_at) | → `accounts` |
-| `sleeve_orders` | Orders placed by a sleeve strategy, including broker order ID | → `accounts`, `strategy_sleeves`, `rotation_decisions` |
-| `sleeve_fills` | Fill events for sleeve orders | → `sleeve_orders`, `strategy_sleeves` |
-| `sleeve_positions` | Current open positions per sleeve (qty, avg cost, market value) | → `strategy_sleeves` |
-| `sleeve_ledger` | Cash movements, realized P&L, fees, and transfers per sleeve | → `strategy_sleeves` |
-| `sleeve_risk_decisions` | Allow/rescale/block decisions from the risk layer for a proposed trade | → `accounts`, `strategy_sleeves` |
-| `portfolio_risk_snapshots` | Portfolio-level risk metrics snapshot (exposure, concentration, drawdown) | → `accounts` |
-| `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per account or sleeve | → `accounts`, `strategy_sleeves` |
+| `rotation_decisions` | Records of each hold/rotate decision for a book | → `books`, `strategies` |
+| `daily_metrics` | Per-day performance metrics (return, drawdown, hit rate) per book | → `books` |
 | `promotion_reviews` | Strategy promotion review records (lifecycle: requested → closed) | → `accounts` |
 | `promotion_review_events` | Audit trail of state transitions and notes within a promotion review | → `promotion_reviews` |
+| `books` | Clean-schema strategy-execution primitive; one default book per account (partial-unique) | → `accounts` |
+| `strategies` | Data-defined strategy catalog: code primitive + knobs (`params_json`), draft/frozen/retired | — |
+| `feature_providers` | Pluggable external-feature provider catalog (enablement is data; fetch logic is code) | — |
+| `book_execution_settings` | Per-unit execution/risk settings (risk policy, stops, sizing, per-run cap) | → `books` |
+| `book_option_settings` | Per-unit option/leaps config (strike offset, DTE, delta/IV bounds, caps) | → `books` |
+| `book_rotation_settings` | Per-unit rotation settings (mode, interval, schedule, regime/overlay config) | → `books`, `strategies` |
+| `book_strategy_assignments` | Which strategy a book runs; one open assignment per book (partial-unique) | → `books`, `strategies` |
+| `orders` | Clean-schema orders (unifies broker + sleeve orders), book-keyed with broker linkage | → `books`, `accounts`, `strategies` |
+| `positions` | Current open positions per book, keyed `(book_id, symbol)` | → `books` |
+| `ledger` | Unit-keyed cash/trade/fee ledger entries (unifies sleeve ledger + account trades) | → `books` |
+| `risk_snapshots` | Account-level risk metrics snapshots (clean-schema successor to `portfolio_risk_snapshots`) | → `accounts` |
+| `risk_decisions` | Allow/rescale/block risk decisions (clean-schema successor to `sleeve_risk_decisions`) | → `accounts`, `books` |
 
-*Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.db_schema_check`.*
+*Update this table manually when tables are added or removed. Drift is detected by `python -m scripts.checks.docs.db_schema_check`.*
 
 ---
 

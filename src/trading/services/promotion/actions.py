@@ -20,12 +20,14 @@ from trading.models.promotion import (
     PromotionReviewState,
 )
 from trading.repositories.promotion import PromotionReviewRepository
+from trading.services.promotion.assessment import fetch_current_promotion_snapshot
 from trading.services.promotion.helpers import normalize_optional_text
-from trading.services.promotion.assessment import _fetch_current_promotion_snapshot
 
 PROMOTION_REVIEW_ACTION_APPROVE = "approve"
 PROMOTION_REVIEW_ACTION_REJECT = "reject"
 PROMOTION_REVIEW_ACTION_NOTE = "note"
+
+_fetch_current_promotion_snapshot = fetch_current_promotion_snapshot
 
 
 def _require_request_context(

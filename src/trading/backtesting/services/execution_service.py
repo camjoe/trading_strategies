@@ -17,7 +17,7 @@ from trading.backtesting.domain.simulation_math import (
 )
 from trading.domain.strategy_signals import resolve_signal, resolve_strategy
 from trading.backtesting.models import BacktestResult
-from trading.backtesting.trading_bridge import resolve_active_strategy
+from trading.services.books.book_assignments import active_strategy_for_account
 from trading.domain.auto_trading_policy import choose_buy_qty as default_choose_buy_qty
 from trading.services.market_data import FeatureDataProvider, require_feature_provider
 
@@ -49,7 +49,7 @@ def run_backtest(
     insert_snapshot_fn,
     choose_buy_qty_fn: Callable[..., int] = default_choose_buy_qty,
     feature_provider: FeatureDataProvider | None = None,
-):
+) -> BacktestResult:
     account = get_account_fn(conn, cfg.account_name)
     start_date, end_date = resolve_backtest_dates_fn(cfg.start, cfg.end, cfg.lookback_months)
     warnings = warnings_for_config_fn(account, cfg.allow_approximate_leaps)
@@ -68,7 +68,14 @@ def run_backtest(
     benchmark_ticker = row_expect_str(account, "benchmark_ticker")
     account_id = row_expect_int(account, "id")
     initial_cash = row_expect_float(account, "initial_cash")
-    strategy_name = resolve_active_strategy(account)
+    # An explicit override backtests a specific strategy (e.g. a rotation
+    # challenger); otherwise the account's active strategy is used.
+    strategy_override = getattr(cfg, "strategy", None)
+    strategy_name = (
+        strategy_override.strip()
+        if strategy_override and strategy_override.strip()
+        else active_strategy_for_account(conn, account_id, fallback=row_expect_str(account, "strategy"))
+    )
     strategy_spec = resolve_strategy(strategy_name)
 
     benchmark_series = fetch_benchmark_close_fn(benchmark_ticker, start_date, end_date)
@@ -79,7 +86,9 @@ def run_backtest(
         feature_bundle = active_feature_provider.build_feature_bundle(all_tickers, start_date, end_date, close)
         warnings.extend(feature_bundle.warnings)
 
-    run_id = insert_run_fn(conn, account_id, strategy_name, start_date, end_date, cfg, warnings)
+    # Pass the canonical strategy key: backtest_runs stores a strategies FK,
+    # so aliases/display names must resolve to the seeded catalog key first.
+    run_id = insert_run_fn(conn, account_id, strategy_spec.strategy_id, start_date, end_date, cfg, warnings)
 
     cash = initial_cash
     realized_pnl = 0.0

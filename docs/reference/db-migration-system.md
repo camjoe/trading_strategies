@@ -3,9 +3,9 @@
 Type: notes
 Status: Active
 Created: 2026-03-31
-Last Reviewed: 2026-04-22
+Last Reviewed: 2026-07-02
 Purpose: Reference for the hand-rolled SQLite migration system — key files, conventions, and schema snapshot commands.
-Related: [Accounts Schema Usage](accounts-schema-usage.md), [ADR: Cross-Platform Paths](../adr/001-cross-platform-paths.md)
+Related: [Python Style](../conventions/python-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 ---
 
@@ -131,23 +131,14 @@ Both tuples are processed by `init_schema()`. Any new table requiring additive m
 
 ## Tables in `SCHEMA_SQL`
 
-| Table | Purpose |
-|-------|---------|
-| `accounts` | Account profiles with strategy config, risk policy, and rotation settings |
-| `trades` | Live trade records linked to accounts |
-| `global_settings` | Singleton row for repo-wide platform policy such as runtime throttles, evaluation confidence, and promotion thresholds |
-| `equity_snapshots` | Daily/periodic equity snapshots per account |
-| `backtest_runs` | Backtest run metadata |
-| `backtest_trades` | Individual trades within a backtest run |
-| `backtest_equity_snapshots` | Equity curve for a backtest run |
-
-Indexes: `idx_trades_trade_time`, `idx_backtest_runs_account_id`, `idx_backtest_trades_run_id`, `idx_backtest_equity_run_id`
+Do not maintain a table list here — it drifts. For the full current inventory (all tables, purposes,
+FK relationships) see [db-schema.md](db-schema.md) (drift-checked by
+`python -m scripts.checks.docs.db_schema_check`), or run
+`python -m scripts.data_ops.describe_db_schema` for a live snapshot.
 
 ---
 
 ## Backup System
-
-### Trading Database Backups
 
 Backup logic lives in `src/trading/interfaces/runtime/data_ops/admin.py`:
 
@@ -165,15 +156,6 @@ python -m trading.interfaces.runtime.data_ops.admin delete-accounts --backup-bef
 ```
 
 The `--backup-before` flag calls `backup_database()` before `delete_accounts()`. Any future destructive data-ops flow should follow this same pattern.
-
-### Project Manager DB Backups (separate concern)
-
-The `tools/project_manager/` submodule manages its own backup system:
-- Backup location: `tools/project_manager/db_backups/project_db_session_YYYY-MM-DD.json`
-- Marker file: `tools/project_manager/db_backups/.session_backup_marker`
-- `data/` and `db_backups/` are gitignored in the submodule — changes are local-only.
-
-Do not mix trading DB backup logic with project_manager DB backups.
 
 ---
 

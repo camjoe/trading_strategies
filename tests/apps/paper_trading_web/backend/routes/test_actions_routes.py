@@ -22,7 +22,7 @@ class TestActionsRoutes:
 
         account = get_account(api_conn, "acct_snapshot")
         count = api_conn.execute(
-            "SELECT COUNT(*) AS n FROM equity_snapshots WHERE account_id = ?",
+            "SELECT COUNT(*) AS n FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
             (account["id"],),
         ).fetchone()["n"]
         assert int(count) == 1

@@ -1,4 +1,5 @@
-local/
+local/*
+!local/README.md
 trading/database/*.db
 trading/database/backups/*.db
 
@@ -22,6 +23,10 @@ coverage.xml
 .venv
 env/
 venv/
+
+# Claude local tooling
+.claude/launch.json
+.claude/settings.local.json
 
 # mypy
 .mypy_cache/

@@ -1,6 +1,12 @@
 # Trading Strategies
 
-A Python suite for stock trends analysis, backtesting, paper trading, and strategy development.
+A system for developing, evaluating, and progressively automating quantitative trading strategies. It
+takes a strategy from **backtest → walk-forward → paper → human-gated live**, continuously compares
+strategies against one another, and rotates toward the best performer — with the goal of a
+data-driven automated trader deployable from paper to a live IBKR account in a near-identical way.
+
+**Start here:** [`docs/overview.md`](docs/overview.md) — the definitive explainer of what the app is,
+what it can do today (with honest gaps), how it works, and where it's going.
 
 ## Project Overview
 
@@ -20,7 +26,6 @@ This repository provides tools for:
 | `src/infrastructure/` | Concrete adapters isolated from the domain: brokers, market-data, feature providers, database. |
 | `src/common/` | Shared kernel utilities used across packages (coercion, constants, paths, tickers, time). |
 | `apps/paper_trading_web/` | Web dashboard (FastAPI backend + TypeScript frontend) for paper trading. |
-| `.ai/agents/` | Repo-specific agent definitions for project-only execution flows. |
 | `.ai/skills/` | Reusable skill definitions and templates for localized overlays. |
 | `docs/` | Detailed documentation and guides. |
 | `tests/` | Test suite for all modules. |
@@ -49,18 +54,16 @@ pip install -r requirements-dev.txt
 Run the same core checks used by GitHub Actions from the repository root:
 
 ```sh
-python -m scripts.run_checks --profile ci
+python -m scripts.run_checks ci
 ```
 
-Optional flags:
+For deterministic local cleanup before re-running checks:
 
 ```sh
-# Skip frontend checks
-python -m scripts.run_checks --profile ci --skip-frontend
-
-# Skip python checks
-python -m scripts.run_checks --profile ci --skip-python
+python -m scripts.fix_checks
 ```
+
+This runs Ruff safe fixes, Ruff formatting, generated API/software reference-doc asset sync, and docs drift fixes (DB schema Quick Reference sync, stale map row removal).
 
 ## Quick Start
 
@@ -115,4 +118,3 @@ Tests cover both `trading` and `trends` packages with a minimum 70% coverage thr
 ## Documentation Index
 
 For detailed documentation on all components, see [docs/README.md](docs/README.md).
-

@@ -9,9 +9,9 @@ from trading.services.accounts import (
     DEFAULT_MAX_POSITION_PCT,
     DEFAULT_TRADE_SIZE_PCT,
     get_latest_account_snapshot,
-    parse_rotation_overlay_watchlist,
-    parse_rotation_schedule,
 )
+from trading.services.books.book_assignments import active_strategy_for_account
+from trading.services.books.rotation import resolve_default_book_rotation_schedule
 from trading.services.reporting import (
     build_account_stats,
     inject_settlement_price,
@@ -75,8 +75,10 @@ def _build_summary_from_stats(
     total_deposited: float = 0.0,
 ) -> dict[str, object]:
     latest_snapshot = get_latest_account_snapshot(conn, row.id)
-    rotation_schedule = parse_rotation_schedule(row.rotation_schedule)
-    rotation_overlay_watchlist = parse_rotation_overlay_watchlist(row.rotation_overlay_watchlist)
+    # Rotation scheduling is book-owned (ADR 014): read the default book's
+    # resolved settings and the assignment-derived active strategy.
+    rotation = resolve_default_book_rotation_schedule(conn, account_id=row.id)
+    active_strategy = active_strategy_for_account(conn, row.id, fallback=row.strategy)
 
     effective_initial = row.initial_cash if row.initial_cash else total_deposited
     delta = equity - effective_initial
@@ -124,23 +126,12 @@ def _build_summary_from_stats(
         "rollDteThreshold": row.roll_dte_threshold,
         "profitTakePct": row.profit_take_pct,
         "maxLossPct": row.max_loss_pct,
-        "rotationEnabled": bool(row.rotation_enabled),
-        "rotationMode": row.rotation_mode or "time",
-        "rotationOptimalityMode": row.rotation_optimality_mode or "previous_period_best",
-        "rotationIntervalDays": row.rotation_interval_days,
-        "rotationIntervalMinutes": row.rotation_interval_minutes,
-        "rotationLookbackDays": row.rotation_lookback_days,
-        "rotationSchedule": rotation_schedule or None,
-        "rotationRegimeStrategyRiskOn": row.rotation_regime_strategy_risk_on,
-        "rotationRegimeStrategyNeutral": row.rotation_regime_strategy_neutral,
-        "rotationRegimeStrategyRiskOff": row.rotation_regime_strategy_risk_off,
-        "rotationOverlayMode": row.rotation_overlay_mode or "none",
-        "rotationOverlayMinTickers": row.rotation_overlay_min_tickers,
-        "rotationOverlayConfidenceThreshold": row.rotation_overlay_confidence_threshold,
-        "rotationOverlayWatchlist": rotation_overlay_watchlist,
-        "rotationActiveIndex": row.rotation_active_index if row.rotation_active_index is not None else 0,
-        "rotationLastAt": row.rotation_last_at,
-        "rotationActiveStrategy": row.rotation_active_strategy,
+        "activeStrategy": active_strategy,
+        "rotation": {
+            "enabled": rotation.rotation_enabled,
+            "schedule": list(rotation.schedule) or None,
+            "lookbackDays": rotation.lookback_days,
+        },
     }
 
 
@@ -175,6 +166,7 @@ def _build_positions_from_stats(state: object, prices: dict[str, float]) -> list
 def build_comparison_account_payload(
     summary: dict[str, object],
     latest_backtest: dict[str, object] | None,
+    evaluation: dict[str, object],
 ) -> dict[str, object]:
     """Build comparison payload from a fully-enriched account summary.
 
@@ -195,4 +187,5 @@ def build_comparison_account_payload(
         "liveBenchmarkReturnPct": summary["liveBenchmarkReturnPct"],
         "liveAlphaPct": summary["liveAlphaPct"],
         "latestBacktest": latest_backtest,
+        "evaluation": evaluation,
     }

@@ -52,7 +52,7 @@ Run these common commands from the repository root:
 ```sh
 python -m trading.interfaces.cli.main init
 python -m trading.interfaces.cli.main create-account --name momentum_5k --strategy "Momentum" --initial-cash 5000
-python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
 ```
 
 For scheduler operations, promotion review flows, and data-ops commands, use the detailed sections below.
@@ -69,7 +69,7 @@ python -m trading.interfaces.cli.main snapshot --account momentum_5k
 python -m trading.interfaces.cli.main compare-strategies --lookback 10
 python -m trading.interfaces.cli.main promotion-status --account momentum_5k
 python -m trading.interfaces.cli.main promotion-request-review --account momentum_5k --requested-by operator
-python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
 ```
 
 Backup and export:
@@ -110,14 +110,14 @@ Trade universe files live under `src/infrastructure/config/`. The default is `tr
 | `src/infrastructure/config/trade_universe.txt` | Default universe (general-purpose) |
 | `src/infrastructure/config/trade_universe_sp500_broad.txt` | Broad S&P 500 universe (~50 tickers across all 11 GICS sectors) |
 
-Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.run_auto_trades --help` for all options.
+Pass `--tickers-file` to use a non-default universe. Use `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --help` for all options.
 
 ```sh
 # Default universe
-python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k
 
 # S&P 500 broad universe
-python -m trading.interfaces.runtime.jobs.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/infrastructure/config/trade_universe_sp500_broad.txt
+python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades --accounts momentum_5k,meanrev_5k --tickers-file src/infrastructure/config/trade_universe_sp500_broad.txt
 ```
 
 For live broker accounts, each account run now reuses a single broker
@@ -205,8 +205,9 @@ CLI defaults use `src/infrastructure/config/account_profiles/default.json`.
 
 ## Boundary Snapshot
 
-- The CLI entry point is `src/trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `src/trading/interfaces/runtime/jobs/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.run_auto_trades`). There are no top-level facade modules in `src/trading/`.
+- The CLI entry point is `src/trading/interfaces/cli/main.py` (`python -m trading.interfaces.cli.main`). The auto-trader entry point is `src/trading/interfaces/runtime/jobs/daily/paper_trading/run_auto_trades.py` (`python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades`). There are no top-level facade modules in `src/trading/`.
 - SQL access is owned by repository modules under `src/trading/repositories/`.
 - Orchestration and composition are owned by service modules under `src/trading/services/`.
 - Policy logic is owned by domain modules under `src/trading/domain/`.
-- **External-data feature providers** live in `src/infrastructure/feature_providers/` — the only package permitted to import `praw`, `pytrends`, `vaderSentiment`, `newsapi-python`, or make calls to third-party external data services. Signal functions in `src/trading/domain/strategy_signals.py` consume normalised `ExternalFeatureBundle` values from this package; they never call external APIs directly.
+- Concrete broker, market-data, and external-data adapters live in `src/infrastructure/`; import
+  ownership is enforced by `scripts/checks/repo/layer_check.py`.

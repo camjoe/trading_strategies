@@ -8,10 +8,10 @@ from infrastructure.database.migrations import (
     ACCOUNT_BROKER_MIGRATIONS,
     ACCOUNT_MIGRATIONS,
     BACKTEST_RUN_MIGRATIONS,
+    BOOK_MIGRATIONS_BY_TABLE,
     ColumnMigration,
     GLOBAL_SETTINGS_MIGRATIONS,
-    ORDER_FILL_MIGRATIONS,
-    SLEEVE_MIGRATIONS_BY_TABLE,
+    TABLE_MIGRATIONS_BY_TABLE,
 )
 from infrastructure.database.schema import SCHEMA_SQL
 
@@ -61,11 +61,12 @@ def init_schema(conn: DBConnection) -> None:
         _ensure_column(conn, "backtest_runs", migration)
     for migration in ACCOUNT_BROKER_MIGRATIONS:
         _ensure_column(conn, "accounts", migration)
-    for migration in ORDER_FILL_MIGRATIONS:
-        _ensure_column(conn, "order_fills", migration)
     for migration in GLOBAL_SETTINGS_MIGRATIONS:
         _ensure_column(conn, "global_settings", migration)
-    for table_name, migrations in SLEEVE_MIGRATIONS_BY_TABLE.items():
+    for table_name, migrations in TABLE_MIGRATIONS_BY_TABLE.items():
+        for migration in migrations:
+            _ensure_column(conn, table_name, migration)
+    for table_name, migrations in BOOK_MIGRATIONS_BY_TABLE.items():
         for migration in migrations:
             _ensure_column(conn, table_name, migration)
     conn.commit()

@@ -11,6 +11,7 @@ from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.queries import find_account
+from trading.services.books.book_assignments import sync_default_book_assignment
 from trading.services.accounts.config import (
     ACCOUNT_KIND_MANAGED,
     append_numeric_updates,
@@ -53,6 +54,14 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
         account_id=account.id,
         updates=["strategy = ?"],
         params=[normalized_strategy],
+    )
+    # The default book's assignment is what actually trades; keep it in step
+    # with the account's strategy column.
+    sync_default_book_assignment(
+        conn,
+        account_id=account.id,
+        strategy_name=normalized_strategy,
+        now_iso=utc_now_iso(),
     )
 
 
@@ -132,6 +141,16 @@ def create_account(
         )
     except sqlite3.IntegrityError as exc:
         raise AccountAlreadyExistsError(f"Account '{name}' already exists.") from exc
+
+    # Bootstrap the default book and open its assignment so the new account
+    # trades from day one (books are the execution primitive; ADR 010/014).
+    account = get_account(conn, name)
+    sync_default_book_assignment(
+        conn,
+        account_id=account.id,
+        strategy_name=strategy,
+        now_iso=utc_now_iso(),
+    )
 
 
 def set_benchmark(conn: sqlite3.Connection, account_name: str, benchmark_ticker: str) -> None:

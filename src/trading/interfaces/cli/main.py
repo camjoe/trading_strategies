@@ -15,6 +15,7 @@ from infrastructure.database.config import get_db_path
 from trading.interfaces.cli.commands import build_parser
 from trading.interfaces.cli.handlers.router import dispatch_command
 from trading.backtesting.models import BacktestBatchConfig, BacktestConfig, WalkForwardConfig
+from trading.services.backtesting import find_stale_backtests
 from trading.services.profiles import apply_account_profiles, load_account_profiles
 from trading.services.promotion import (
     execute_promotion_review_action,
@@ -23,7 +24,32 @@ from trading.services.promotion import (
     show_promotion_status,
 )
 from infrastructure.market_data.factory import build_provider
-from trading.services.reporting import account_report, compare_strategies, show_snapshots, snapshot_account
+from trading.services.parameters import (
+    show_parameters,
+    update_book_rotation_policy,
+    update_book_rotation_scheduling,
+)
+from trading.services.strategy_catalog import (
+    configure_strategy,
+    create_strategy_variant,
+    freeze_strategy,
+)
+from trading.services.operational_settings import (
+    fetch_evaluation_confidence_settings,
+    fetch_promotion_policy_settings,
+    fetch_runtime_throttle_settings,
+    set_evaluation_confidence_settings,
+    set_promotion_policy_settings,
+    set_runtime_throttle_settings,
+)
+from trading.services.reporting import (
+    account_report,
+    compare_strategies,
+    show_portfolio_concentration,
+    show_portfolio_exposure,
+    show_snapshots,
+    snapshot_account,
+)
 
 
 def _handler_deps() -> dict[str, object]:
@@ -32,6 +58,7 @@ def _handler_deps() -> dict[str, object]:
     # reporting flows that read live prices/benchmarks (no global locator access).
     provider = build_provider()
     return {
+        "db_path": get_db_path(),
         "record_trade": record_trade,
         "configure_account": configure_account,
         "create_account": create_account,
@@ -44,6 +71,7 @@ def _handler_deps() -> dict[str, object]:
         "backtest_report": backtest_report,
         "walk_forward_report": walk_forward_report,
         "run_backtest": run_backtest,
+        "find_stale_backtests": find_stale_backtests,
         "run_backtest_batch": run_backtest_batch,
         "run_walk_forward_backtest": run_walk_forward_backtest,
         "load_account_profiles": load_account_profiles,
@@ -54,6 +82,20 @@ def _handler_deps() -> dict[str, object]:
         "show_promotion_review_history": show_promotion_review_history,
         "execute_promotion_review_action": execute_promotion_review_action,
         "compare_strategies": partial(compare_strategies, provider=provider),
+        "show_parameters": show_parameters,
+        "fetch_runtime_throttle_settings": fetch_runtime_throttle_settings,
+        "fetch_evaluation_confidence_settings": fetch_evaluation_confidence_settings,
+        "fetch_promotion_policy_settings": fetch_promotion_policy_settings,
+        "set_runtime_throttle_settings": set_runtime_throttle_settings,
+        "set_evaluation_confidence_settings": set_evaluation_confidence_settings,
+        "set_promotion_policy_settings": set_promotion_policy_settings,
+        "update_book_rotation_policy": update_book_rotation_policy,
+        "update_book_rotation_scheduling": update_book_rotation_scheduling,
+        "configure_strategy": configure_strategy,
+        "create_strategy_variant": create_strategy_variant,
+        "freeze_strategy": freeze_strategy,
+        "show_portfolio_concentration": show_portfolio_concentration,
+        "show_portfolio_exposure": show_portfolio_exposure,
         "show_snapshots": show_snapshots,
         "snapshot_account": partial(snapshot_account, provider=provider),
     }
@@ -64,14 +106,7 @@ def main() -> None:
     args = parser.parse_args()
 
     with db_session() as conn:
-        dispatch_command(
-            conn,
-            args,
-            parser,
-            deps=_handler_deps(),
-            module_file=__file__,
-            db_path=get_db_path(),
-        )
+        dispatch_command(conn, args, parser, deps=_handler_deps())
 
 
 if __name__ == "__main__":

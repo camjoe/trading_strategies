@@ -5,7 +5,6 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
-from infrastructure.database.migrations import DEFAULT_ROTATION_OVERLAY_WATCHLIST
 
 _CREATE_ACCOUNT = "paper_trading_web.backend.routes.admin.create_account_with_rotation"
 _LIST_CSV_EXPORTS = "paper_trading_web.backend.routes.admin.list_csv_exports"
@@ -30,20 +29,11 @@ class TestAdminRoutes:
                 "tradeSizePct": 12,
                 "maxPositionPct": 24,
                 "instrumentMode": "equity",
-                "rotationEnabled": True,
-                "rotationMode": "regime",
-                "rotationIntervalDays": 14,
-                "rotationIntervalMinutes": 240,
-                "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
-                "rotationRegimeStrategyRiskOn": "trend",
-                "rotationRegimeStrategyNeutral": "ma_crossover",
-                "rotationRegimeStrategyRiskOff": "mean_reversion",
-                "rotationOverlayMode": "news",
-                "rotationOverlayMinTickers": 2,
-                "rotationOverlayConfidenceThreshold": 0.5,
-                "rotationOverlayWatchlist": ["AAPL", "MSFT", "NVDA"],
-                "rotationActiveIndex": 0,
-                "rotationActiveStrategy": "trend",
+                "rotation": {
+                    "enabled": True,
+                    "schedule": ["trend", "ma_crossover", "mean_reversion"],
+                    "lookbackDays": 45,
+                },
             },
         )
         assert response.status_code == 200
@@ -53,46 +43,11 @@ class TestAdminRoutes:
         assert payload["account"]["name"] == "acct_admin_create"
         assert payload["account"]["tradeSizePct"] == 12
         assert payload["account"]["maxPositionPct"] == 24
-        assert payload["account"]["rotationEnabled"] is True
-        assert payload["account"]["rotationMode"] == "regime"
-        assert payload["account"]["rotationIntervalDays"] == 14
-        assert payload["account"]["rotationIntervalMinutes"] == 240
-        assert payload["account"]["rotationSchedule"] == ["trend", "ma_crossover", "mean_reversion"]
-        assert payload["account"]["rotationRegimeStrategyRiskOn"] == "trend"
-        assert payload["account"]["rotationRegimeStrategyNeutral"] == "ma_crossover"
-        assert payload["account"]["rotationRegimeStrategyRiskOff"] == "mean_reversion"
-        assert payload["account"]["rotationOverlayMode"] == "news"
-        assert payload["account"]["rotationOverlayMinTickers"] == 2
-        assert payload["account"]["rotationOverlayConfidenceThreshold"] == 0.5
-        assert payload["account"]["rotationOverlayWatchlist"] == ["AAPL", "MSFT", "NVDA"]
-
-    def test_admin_create_account_uses_seeded_watchlist_when_omitted(self, api_client: TestClient) -> None:
-        response = api_client.post(
-            "/api/admin/accounts/create",
-            json={
-                "name": "acct_admin_seeded_watchlist",
-                "strategy": "trend",
-                "initialCash": 5000,
-                "benchmarkTicker": "SPY",
-                "rotationEnabled": True,
-                "rotationMode": "regime",
-                "rotationIntervalMinutes": 240,
-                "rotationSchedule": ["trend", "ma_crossover", "mean_reversion"],
-                "rotationRegimeStrategyRiskOn": "trend",
-                "rotationRegimeStrategyNeutral": "ma_crossover",
-                "rotationRegimeStrategyRiskOff": "mean_reversion",
-                "rotationOverlayMode": "news_social",
-                "rotationOverlayMinTickers": 2,
-                "rotationOverlayConfidenceThreshold": 0.5,
-                "rotationActiveIndex": 0,
-                "rotationActiveStrategy": "trend",
-            },
-        )
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["status"] == "ok"
-        assert payload["account"]["name"] == "acct_admin_seeded_watchlist"
-        assert payload["account"]["rotationOverlayWatchlist"] == DEFAULT_ROTATION_OVERLAY_WATCHLIST
+        assert payload["account"]["rotation"] == {
+            "enabled": True,
+            "schedule": ["trend", "ma_crossover", "mean_reversion"],
+            "lookbackDays": 45,
+        }
 
     def test_admin_delete_requires_confirmation(self, api_client: TestClient) -> None:
         response = api_client.post(
@@ -188,7 +143,7 @@ class TestAdminRoutes:
 
     def test_promotion_overview_happy_path(self, api_client: TestClient, seed_account) -> None:
         seed_account("acct_promo_overview")
-        expected = {"assessment": {"status": "ok"}, "history": []}
+        expected = {"assessment": {"status": "ok"}, "evaluation": {"dataGaps": []}, "history": []}
         with patch(_BUILD_PROMOTION_OVERVIEW, Mock(return_value=expected)):
             response = api_client.get(
                 "/api/admin/promotion/overview",
@@ -197,6 +152,23 @@ class TestAdminRoutes:
 
         assert response.status_code == 200
         assert response.json() == expected
+
+    def test_promotion_overview_includes_evaluation_detail(self, api_client: TestClient, seed_account) -> None:
+        seed_account("acct_promo_evaluation")
+
+        response = api_client.get(
+            "/api/admin/promotion/overview",
+            params={"accountName": "acct_promo_evaluation"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert "assessment" in payload
+        assert "evaluation" in payload
+        assert "history" in payload
+        assert payload["evaluation"]["backtest"]["returnPct"] is None
+        assert payload["evaluation"]["confidence"]["blendedScore"] is None
+        assert "missing_backtest_evidence" in payload["evaluation"]["dataGaps"]
 
     def test_promotion_overview_missing_account_name_returns_422(self, api_client: TestClient) -> None:
         response = api_client.get("/api/admin/promotion/overview")

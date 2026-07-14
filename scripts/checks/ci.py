@@ -6,49 +6,15 @@ from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
 
-from scripts.checks.db_schema_check import run_db_schema_check
-from scripts.checks.layer_check import run_layer_check
-from scripts.checks.link_check import run_link_check
-from scripts.checks.maps_check import run_maps_check
-from scripts.checks.module_ref_check import run_module_ref_check
-from scripts.checks.mypy_check import run_mypy
-from scripts.checks.pytest_check import run_pytest
-from scripts.checks.readme_check import run_readme_consistency
-from scripts.checks.ruff_check import run_ruff
-from scripts.documentation_ui.check import run_reference_docs_check
-from scripts.checks.shared import resolve_npm_exe, resolve_python_exe, run_step
+from scripts.checks._runner import CheckStep, resolve_npm_exe, resolve_python_exe, run_check_steps, run_step
+from scripts.checks.docs.docs_check import run_docs_check
+from scripts.checks.python.python_check import run_python_check
+from scripts.checks.repo.repo_check import run_repo_check
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run local smoke checks that mirror core GitHub Actions workflows.",
-    )
-    parser.add_argument("--skip-python", action="store_true", help="Skip Python checks.")
-    parser.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
-    parser.add_argument(
-        "--skip-readme-consistency",
-        action="store_true",
-        help="Skip README consistency check.",
-    )
-    parser.add_argument(
-        "--skip-db-schema-check",
-        action="store_true",
-        help="Skip DB schema drift check.",
-    )
-    parser.add_argument(
-        "--skip-maps-check",
-        action="store_true",
-        help="Skip maps drift check.",
-    )
-    parser.add_argument(
-        "--skip-link-check",
-        action="store_true",
-        help="Skip doc link check.",
-    )
-    parser.add_argument(
-        "--skip-module-ref-check",
-        action="store_true",
-        help="Skip doc `-m` module reference check.",
     )
     parser.add_argument(
         "--readme-max-age-days",
@@ -56,11 +22,7 @@ def parse_args() -> argparse.Namespace:
         default=90,
         help="Max README age in days for advisory consistency check.",
     )
-    parser.add_argument(
-        "--with-reference-doc-checks",
-        action="store_true",
-        help="Also run all Financial & Market, Software, and API reference sync checks.",
-    )
+    parser.add_argument("--skip-frontend", action="store_true", help="Skip frontend checks.")
     return parser.parse_args()
 
 
@@ -76,52 +38,27 @@ def _run_frontend_ci(repo_root: Path) -> None:
 def run_ci(
     repo_root: Path,
     python_exe: str,
-    skip_python: bool = False,
     skip_frontend: bool = False,
-    skip_readme_consistency: bool = False,
-    skip_db_schema_check: bool = False,
-    skip_maps_check: bool = False,
-    skip_link_check: bool = False,
-    skip_module_ref_check: bool = False,
     readme_max_age_days: int = 90,
-    with_reference_doc_checks: bool = False,
 ) -> int:
     try:
-        if not skip_python:
-            if not skip_readme_consistency:
-                run_readme_consistency(
-                    repo_root=repo_root,
-                    max_age_days=readme_max_age_days,
-                    quiet=True,
-                )
-            if not skip_maps_check:
-                run_maps_check(repo_root=repo_root, quiet=True)
-            if not skip_db_schema_check:
-                run_db_schema_check(repo_root=repo_root, quiet=True)
-            if not skip_link_check:
-                run_link_check(repo_root=repo_root, quiet=True)
-            if not skip_module_ref_check:
-                run_module_ref_check(repo_root=repo_root, quiet=True)
-            layer_exit = run_layer_check(repo_root=repo_root)
-            if layer_exit != 0:
-                return layer_exit
-            if with_reference_doc_checks:
-                reference_doc_exit = run_reference_docs_check(repo_root=repo_root)
-                if reference_doc_exit != 0:
-                    return reference_doc_exit
-            run_step(
-                "Python: upgrade pip",
-                [python_exe, "-m", "pip", "install", "-q", "--upgrade", "pip"],
-                repo_root,
-            )
-            run_step(
-                "Python: install requirements-dev.txt",
-                [python_exe, "-m", "pip", "install", "-q", "-r", "requirements-dev.txt"],
-                repo_root,
-            )
-            run_ruff(repo_root=repo_root, python_exe=python_exe)
-            run_mypy(repo_root=repo_root, python_exe=python_exe)
-            run_pytest(repo_root=repo_root, python_exe=python_exe)
+        check_exit = run_check_steps(
+            [
+                CheckStep(
+                    "Documentation checks",
+                    lambda: run_docs_check(
+                        repo_root=repo_root,
+                        enforce=True,
+                        quiet=True,
+                        readme_max_age_days=readme_max_age_days,
+                    ),
+                ),
+                CheckStep("Repository checks", lambda: run_repo_check(repo_root=repo_root)),
+                CheckStep("Python checks", lambda: run_python_check(repo_root=repo_root, python_exe=python_exe)),
+            ]
+        )
+        if check_exit != 0:
+            return check_exit
 
         if not skip_frontend:
             _run_frontend_ci(repo_root)
@@ -141,15 +78,8 @@ def main() -> int:
     return run_ci(
         repo_root=repo_root,
         python_exe=python_exe,
-        skip_python=args.skip_python,
         skip_frontend=args.skip_frontend,
-        skip_readme_consistency=args.skip_readme_consistency,
-        skip_db_schema_check=args.skip_db_schema_check,
-        skip_maps_check=args.skip_maps_check,
-        skip_link_check=args.skip_link_check,
-        skip_module_ref_check=args.skip_module_ref_check,
         readme_max_age_days=args.readme_max_age_days,
-        with_reference_doc_checks=args.with_reference_doc_checks,
     )
 
 

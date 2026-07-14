@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from .admin import RotationSettingsPayload
+
 
 class AccountParamsRequest(BaseModel):
     strategy: str | None = None
@@ -30,20 +32,4 @@ class AccountParamsRequest(BaseModel):
     rollDteThreshold: int | None = None
     profitTakePct: float | None = None
     maxLossPct: float | None = None
-    rotationEnabled: bool | None = None
-    rotationMode: str | None = None
-    rotationOptimalityMode: str | None = None
-    rotationIntervalDays: int | None = None
-    rotationIntervalMinutes: int | None = None
-    rotationLookbackDays: int | None = None
-    rotationSchedule: list[str] | None = None
-    rotationRegimeStrategyRiskOn: str | None = None
-    rotationRegimeStrategyNeutral: str | None = None
-    rotationRegimeStrategyRiskOff: str | None = None
-    rotationOverlayMode: str | None = None
-    rotationOverlayMinTickers: int | None = None
-    rotationOverlayConfidenceThreshold: float | None = None
-    rotationOverlayWatchlist: list[str] | None = None
-    rotationActiveIndex: int | None = None
-    rotationLastAt: str | None = None
-    rotationActiveStrategy: str | None = None
+    rotation: RotationSettingsPayload | None = None

@@ -122,11 +122,30 @@ def delete_walk_forward_groups_by_account_ids(
     _delete_by_ids(conn, table="walk_forward_groups", column_name="account_id", ids=account_ids)
 
 
+def count_equity_snapshots_for_account_ids(
+    conn: sqlite3.Connection,
+    account_ids: tuple[int, ...],
+) -> int:
+    # Snapshots are book-keyed; count through the account's books.
+    placeholders = in_placeholders(account_ids)
+    row = conn.execute(
+        "SELECT COUNT(*) AS n FROM equity_snapshots WHERE book_id IN "
+        f"(SELECT id FROM books WHERE account_id IN ({placeholders}))",
+        account_ids,
+    ).fetchone()
+    return int(row["n"]) if row is not None else 0
+
+
 def delete_equity_snapshots_by_account_ids(
     conn: sqlite3.Connection,
     account_ids: tuple[int, ...],
 ) -> None:
-    _delete_by_ids(conn, table="equity_snapshots", column_name="account_id", ids=account_ids)
+    # Snapshots are book-keyed; delete through the account's books.
+    placeholders = in_placeholders(account_ids)
+    conn.execute(
+        f"DELETE FROM equity_snapshots WHERE book_id IN (SELECT id FROM books WHERE account_id IN ({placeholders}))",
+        account_ids,
+    )
 
 
 def delete_trades_by_account_ids(

@@ -2,22 +2,46 @@ from __future__ import annotations
 
 import sqlite3
 
-from common.coercion import row_expect_int, row_expect_str
+from common.coercion import row_expect_int
 from common.time import utc_now_iso
 from trading.domain.exceptions import NotFoundError
 
 
 def _fetch_backtest_run_scope(conn: sqlite3.Connection, *, run_id: int) -> dict[str, object] | None:
+    # Copy the run's strategies FK directly onto the group; no name resolution.
     row = conn.execute(
         """
-        SELECT r.account_id, COALESCE(r.strategy_name, a.strategy) AS strategy_name
+        SELECT r.account_id, r.strategy_id
         FROM backtest_runs r
-        JOIN accounts a ON a.id = r.account_id
         WHERE r.id = ?
         """,
         (int(run_id),),
     ).fetchone()
     return dict(row) if row is not None else None
+
+
+# Group reads emit strategy_name via the catalog key, falling back to the account
+# strategy when the FK is unset — so consumers keep reading a `strategy_name` column.
+_GROUP_SELECT = """
+SELECT g.id,
+       g.grouping_key,
+       g.account_id,
+       COALESCE(s.strategy_key, a.strategy) AS strategy_name,
+       g.run_name_prefix,
+       g.start_date,
+       g.end_date,
+       g.test_months,
+       g.step_months,
+       g.window_count,
+       g.average_return_pct,
+       g.median_return_pct,
+       g.best_return_pct,
+       g.worst_return_pct,
+       g.created_at
+FROM walk_forward_groups g
+JOIN accounts a ON a.id = g.account_id
+LEFT JOIN strategies s ON s.id = g.strategy_id
+"""
 
 
 def insert_walk_forward_group(
@@ -46,7 +70,7 @@ def insert_walk_forward_group(
         INSERT INTO walk_forward_groups (
             grouping_key,
             account_id,
-            strategy_name,
+            strategy_id,
             run_name_prefix,
             start_date,
             end_date,
@@ -64,7 +88,7 @@ def insert_walk_forward_group(
         (
             grouping_key,
             row_expect_int(run_scope, "account_id"),
-            row_expect_str(run_scope, "strategy_name"),
+            run_scope.get("strategy_id"),
             run_name_prefix,
             start_date,
             end_date,
@@ -122,26 +146,11 @@ def fetch_latest_walk_forward_group_for_account_strategy(
     strategy_name: str,
 ) -> dict[str, object] | None:
     row = conn.execute(
-        """
-        SELECT id,
-               grouping_key,
-               account_id,
-               strategy_name,
-               run_name_prefix,
-               start_date,
-               end_date,
-               test_months,
-               step_months,
-               window_count,
-               average_return_pct,
-               median_return_pct,
-               best_return_pct,
-               worst_return_pct,
-               created_at
-        FROM walk_forward_groups
-        WHERE account_id = ?
-          AND LOWER(strategy_name) = LOWER(?)
-        ORDER BY created_at DESC, id DESC
+        _GROUP_SELECT
+        + """
+        WHERE g.account_id = ?
+          AND LOWER(COALESCE(s.strategy_key, a.strategy)) = LOWER(?)
+        ORDER BY g.created_at DESC, g.id DESC
         LIMIT 1
         """,
         (int(account_id), strategy_name),
@@ -155,25 +164,10 @@ def fetch_latest_walk_forward_group_for_account(
     account_id: int,
 ) -> dict[str, object] | None:
     row = conn.execute(
-        """
-        SELECT id,
-               grouping_key,
-               account_id,
-               strategy_name,
-               run_name_prefix,
-               start_date,
-               end_date,
-               test_months,
-               step_months,
-               window_count,
-               average_return_pct,
-               median_return_pct,
-               best_return_pct,
-               worst_return_pct,
-               created_at
-        FROM walk_forward_groups
-        WHERE account_id = ?
-        ORDER BY created_at DESC, id DESC
+        _GROUP_SELECT
+        + """
+        WHERE g.account_id = ?
+        ORDER BY g.created_at DESC, g.id DESC
         LIMIT 1
         """,
         (int(account_id),),
@@ -187,25 +181,7 @@ def fetch_walk_forward_group_by_id(
     group_id: int,
 ) -> dict[str, object] | None:
     row = conn.execute(
-        """
-        SELECT id,
-               grouping_key,
-               account_id,
-               strategy_name,
-               run_name_prefix,
-               start_date,
-               end_date,
-               test_months,
-               step_months,
-               window_count,
-               average_return_pct,
-               median_return_pct,
-               best_return_pct,
-               worst_return_pct,
-               created_at
-        FROM walk_forward_groups
-        WHERE id = ?
-        """,
+        _GROUP_SELECT + " WHERE g.id = ?",
         (int(group_id),),
     ).fetchone()
     return dict(row) if row is not None else None

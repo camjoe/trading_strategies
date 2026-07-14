@@ -9,7 +9,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyPromotionAccountPayload,
     WeeklyPromotionArtifactPayload,
-    WeeklyPromotionSleevePayload,
+    WeeklyPromotionBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
@@ -18,7 +18,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import WEEKLY_GOVERNANCE_W2_PROMOTION_REVIEW_COMPLETE_SENTINEL
-from trading.repositories.sleeves import SleeveRepository
+from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 from trading.services.promotion.assessment import fetch_current_promotion_assessment
 
@@ -55,18 +55,15 @@ def main(ctx: JobContext) -> dict[str, object]:
 
         assessment = fetch_current_promotion_assessment(ctx.conn, account_name=account_name)
 
-        sleeve_repo = SleeveRepository(ctx.conn)
-        sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
-        sleeve_rows: list[WeeklyPromotionSleevePayload] = []
-        for sleeve in sleeves:
-            assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        book_rows: list[WeeklyPromotionBookPayload] = []
+        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
 
-            sleeve_rows.append(
-                WeeklyPromotionSleevePayload(
-                    sleeve_name=sleeve.name,
+            book_rows.append(
+                WeeklyPromotionBookPayload(
+                    book_name=book.name,
                     strategy_name=strategy_name,
-                    sleeve_status=sleeve.status,
+                    book_status=book.status,
                 )
             )
 
@@ -75,7 +72,7 @@ def main(ctx: JobContext) -> dict[str, object]:
                 account_name=account_name,
                 ready_for_live=bool(assessment.ready_for_live),
                 blockers=list(assessment.blockers),
-                sleeves=sleeve_rows,
+                books=book_rows,
             )
         )
         ctx.log(

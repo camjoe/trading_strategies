@@ -11,12 +11,12 @@ from types import SimpleNamespace
 RUN_ALL_ACCOUNTS_ARGS: tuple[str, ...] = ("--accounts", "all")
 
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
-DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading_reporting"
+DAILY_PAPER_TRADING_REPORTING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reporting"
 DAILY_BACKTEST_REFRESH_MODULE = "trading.interfaces.runtime.jobs.daily.backtest_refresh"
 CHECK_DAILY_TRADER_HEALTH_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
-MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.jobs.manage_job_schedules"
+MANAGE_JOB_SCHEDULES_MODULE = "trading.interfaces.runtime.scheduling.manage_job_schedules"
 DAILY_SNAPSHOT_MODULE = "trading.interfaces.runtime.jobs.daily.snapshot"
-RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.run_auto_trades"
+RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 
 
@@ -69,6 +69,7 @@ def make_daily_backtest_refresh_args(**overrides):
         "enable_run": True,
         "max_attempts": 2,
         "backoff_seconds": 0.0,
+        "stale_threshold_days": 3,
         "tickers_file": "tickers.txt",
         "universe_history_dir": None,
         "start": None,
@@ -110,6 +111,9 @@ def make_manage_job_schedules_args(**overrides):
         "unregister": False,
         "dry_run": False,
         "python": "/tmp/.venv/bin/python",
+        "scheduler": "auto",
+        "wake_system": True,
+        "env_file": "",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -136,7 +140,6 @@ def make_run_auto_trades_args(**overrides):
         "accounts": "acct1",
         "tickers_file": "src/infrastructure/config/trade_universe.txt",
         "fee": 0.0,
-        "execution_mode": "account",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -210,19 +213,20 @@ def stub_runtime_job_basics(
     runtime_accounts: list[str] | None = None,
     db_conn=None,
     account_lookup: Callable[[str], object | None] | None = None,
-    sleeves_for_account: list[dict[str, object]] | None = None,
+    books_for_account: list[object] | None = None,
 ) -> SimpleNamespace:
     """Apply common runtime-job test stubs for DB/account surfaces.
 
+    ``books_for_account`` items are either ``(book, assignment)`` tuples or plain
+    dicts of book fields (paired with ``None`` assignment); they stub the module's
+    ``list_report_books``.
+
     Returns a SimpleNamespace with:
       - conn: the stubbed DB connection
-      - sleeve_repo: the MagicMock SleeveRepository instance (if patched)
-      - param_set_repo: the MagicMock StrategyParamSetRepository instance (if patched)
+      - books: the stubbed (book, assignment) pairs (if patched)
     """
-    from unittest.mock import MagicMock
-
     import infrastructure.database.init as db_init
-    import trading.interfaces.runtime.jobs.job_runner as job_runner
+    import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 
     resolved_accounts = list(runtime_accounts or ["acct1"])
     resolved_conn = db_conn or SimpleNamespace(close=lambda: None)
@@ -240,24 +244,15 @@ def stub_runtime_job_basics(
     if hasattr(module, "find_account"):
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 
-    mock_sleeve_repo = None
-    mock_param_repo = None
+    book_pairs = None
 
-    if sleeves_for_account is not None and hasattr(module, "SleeveRepository"):
-        sleeve_records = [SimpleNamespace(**row) if isinstance(row, dict) else row for row in sleeves_for_account]
-        mock_sleeve_repo = MagicMock()
-        mock_sleeve_repo.fetch_for_account.return_value = sleeve_records
-        mock_sleeve_repo.fetch_active_assignment.return_value = None
-        mock_sleeve_repo.fetch_assignments.return_value = []
-        monkeypatch.setattr(module, "SleeveRepository", lambda conn: mock_sleeve_repo)
+    if books_for_account is not None and hasattr(module, "list_report_books"):
+        book_pairs = [
+            (SimpleNamespace(**item), None) if isinstance(item, dict) else item for item in books_for_account
+        ]
+        monkeypatch.setattr(module, "list_report_books", lambda conn, *, account_id: list(book_pairs))
 
-    if hasattr(module, "StrategyParamSetRepository"):
-        mock_param_repo = MagicMock()
-        mock_param_repo.fetch_by_id.return_value = None
-        mock_param_repo.fetch_active.return_value = None
-        monkeypatch.setattr(module, "StrategyParamSetRepository", lambda conn: mock_param_repo)
-
-    return SimpleNamespace(conn=resolved_conn, sleeve_repo=mock_sleeve_repo, param_set_repo=mock_param_repo)
+    return SimpleNamespace(conn=resolved_conn, books=book_pairs)
 
 
 __all__ = [

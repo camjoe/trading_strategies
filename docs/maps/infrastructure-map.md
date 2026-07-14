@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-06-24
+Last Reviewed: 2026-07-13
 Purpose: Inventory the `src/infrastructure/` package — the concrete adapters and external-dependency boundaries that the trading domain depends on only through ports, plus the database backend and static config assets.
 Related: [Trading Package Map](trading-package-map.md), [Architecture Conventions](../architecture/architecture-conventions.md), [Broker Integration](../reference/broker-integration.md)
 
@@ -13,9 +13,10 @@ Related: [Trading Package Map](trading-package-map.md), [Architecture Convention
 
 ## Boundary rules
 
-- `src/trading/` must **never** import from `src/infrastructure/brokers/`, `src/infrastructure/feature_providers/`, or `src/infrastructure/market_data/`. These are wired in at the interface layer (`src/trading/interfaces/`) and the backtest composition seam only. Enforced by `scripts/checks/layer_check.py`.
+- `src/infrastructure/` owns concrete adapters and third-party SDK imports. Trading code consumes
+  ports and receives adapters at composition seams.
 - `src/infrastructure/database/` is the one infrastructure package the domain reaches *through repositories*: only `src/trading/repositories/` (and the documented `accounts/runtime_loader.py` exception) import it.
-- Third-party SDK imports stay inside their owning subpackage: `ib_async`/`ibapi` in `brokers/`, `yfinance` in `market_data/`, `praw`/`pytrends`/`vaderSentiment`/`newsapi` in `feature_providers/`.
+- Import ownership is enforced by `python -m scripts.checks.repo.layer_check`.
 
 ## Module Directory
 
@@ -55,7 +56,9 @@ Legacy TWS/socket broker support (ib_async / TWS), retained behind the same fact
 
 ### `src/infrastructure/feature_providers/`
 
-External-data feature providers for alternative strategies. The **only** place that may import external-data libraries or make third-party network calls. Each subclasses `ExternalFeatureProvider` (contract in `src/trading/domain/feature_provider.py`) and degrades gracefully to `available=False`.
+External-data feature providers for alternative strategies. Each subclasses
+`ExternalFeatureProvider` (contract in `src/trading/domain/feature_provider.py`) and degrades
+gracefully to `available=False`.
 
 | Module | Responsibility |
 |---|---|
@@ -65,7 +68,8 @@ External-data feature providers for alternative strategies. The **only** place t
 
 ### `src/infrastructure/market_data/`
 
-Concrete market-data adapter + provider factory. The `yfinance` import is isolated here. The `MarketDataProvider` port and the proxy feature provider stay in `src/trading/services/market_data/`.
+Concrete market-data adapter + provider factory. The `MarketDataProvider` port and the proxy
+feature provider stay in `src/trading/services/market_data/`.
 
 | Module | Responsibility |
 |---|---|
@@ -79,7 +83,7 @@ Static file-backed configuration assets. Read at runtime; not imported as Python
 
 | Asset | Description |
 |---|---|
-| `account_profiles/` | TOML account profile presets |
+| `account_profiles/` | JSON account profile presets |
 | `trade_universes/` | Trade-universe definition files |
 | `account_trade_caps.json` | Account-level trade-cap limits |
 | `trade_universe.txt` | Default trade-universe ticker list |

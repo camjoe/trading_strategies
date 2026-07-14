@@ -20,7 +20,7 @@ def test_api_ibkr_paper_accounts_returns_list(api_client: TestClient) -> None:
                     "account_id": 1,
                     "name": "paper_account_1",
                     "total_equity": 50000.0,
-                    "sleeve_count": 2,
+                    "book_count": 2,
                 },
             ]
 
@@ -47,9 +47,9 @@ def test_api_ibkr_paper_account_detail_returns_data(api_client: TestClient) -> N
                     "account_id": 1,
                     "name": "test_account",
                     "total_equity": 50000.0,
-                    "sleeve_count": 2,
+                    "book_count": 2,
                 },
-                "sleeves": [],
+                "books": [],
                 "daily_workflow": {"status": "success"},
                 "governance_checks": {},
                 "burn_in_status": {"ready_for_live": False},

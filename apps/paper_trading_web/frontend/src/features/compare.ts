@@ -12,7 +12,29 @@ export interface CompareFeature {
   loadComparison: () => Promise<void>;
 }
 
-function renderComparisonTable(rows: AccountComparisonRow[]): string {
+function renderEvaluationSummary(row: AccountComparisonRow): string {
+  const evaluation = row.evaluation;
+  const score = evaluation.blendedScore === null ? "n/a" : pct(evaluation.blendedScore);
+  const gapLabel = evaluation.dataGaps.length
+    ? `${evaluation.dataGaps.length} gap${evaluation.dataGaps.length === 1 ? "" : "s"}`
+    : "No gaps";
+  const gapTitle = evaluation.dataGaps.length ? ` title="${esc(evaluation.dataGaps.join(", "))}"` : "";
+  const staleBadge = evaluation.backtestStale
+    ? `<span class="compare-stale" title="Backtest evidence is stale">Stale backtest</span>`
+    : "";
+  return `
+    <div class="compare-evaluation">
+      <span>Score ${score}</span>
+      <span>Overall ${evaluation.overallConfidence.toFixed(2)}</span>
+      <span>Backtest ${evaluation.backtestConfidence.toFixed(2)}</span>
+      <span>Paper/live ${evaluation.paperLiveConfidence.toFixed(2)}</span>
+      <span${gapTitle}>${esc(gapLabel)}</span>
+      ${staleBadge}
+    </div>
+  `;
+}
+
+export function renderComparisonTable(rows: AccountComparisonRow[]): string {
   if (!rows.length) {
     return `<div class="empty">No accounts available to compare.</div>`;
   }
@@ -31,6 +53,7 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
           <td><code>${esc(row.name)}</code></td>
           <td>${row.strategy}</td>
           <td>${row.benchmark}</td>
+          <td>${renderEvaluationSummary(row)}</td>
           <td>${currency.format(row.initialCash)}</td>
           <td>${currency.format(row.equity)}</td>
           <td class="${row.totalChange >= 0 ? "up" : "down"}">${currency.format(row.totalChange)}</td>
@@ -57,6 +80,7 @@ function renderComparisonTable(rows: AccountComparisonRow[]): string {
             <th>Account</th>
             <th>Strategy</th>
             <th>Benchmark</th>
+            <th>Evaluation</th>
             <th>Initial Cash</th>
             <th>Equity</th>
             <th>Total Change</th>

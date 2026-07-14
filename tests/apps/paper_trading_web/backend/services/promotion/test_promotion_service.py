@@ -11,6 +11,14 @@ from paper_trading_web.backend.services.promotion import (
     _normalize_optional_text,
     build_promotion_overview,
 )
+from trading.models.evaluation import (
+    EvaluationBacktestEvidence,
+    EvaluationConfidence,
+    EvaluationDiagnostics,
+    EvaluationPaperLiveEvidence,
+    EvaluationWalkForwardEvidence,
+    StrategyEvaluationArtifact,
+)
 
 
 class TestNormalizeOptionalText:
@@ -45,14 +53,46 @@ class TestBuildPromotionOverview:
         entry.events = [event]
         return entry
 
+    def _make_evaluation(self) -> StrategyEvaluationArtifact:
+        return StrategyEvaluationArtifact(
+            backtest=EvaluationBacktestEvidence(
+                available=True,
+                trade_count=42,
+                snapshot_count=9,
+                total_return_pct=12.5,
+                max_drawdown_pct=-3.2,
+            ),
+            walk_forward=EvaluationWalkForwardEvidence(
+                available=True,
+                grouped=True,
+                average_return_pct=3.4,
+                best_return_pct=5.6,
+                worst_return_pct=-1.2,
+            ),
+            paper_live=EvaluationPaperLiveEvidence(
+                available=True,
+                return_pct=2.3,
+                snapshot_count=7,
+                source_level="strategy",
+                strategy_isolated=True,
+            ),
+            confidence=EvaluationConfidence(
+                backtest_confidence=0.8,
+                paper_live_confidence=0.7,
+                overall_confidence=0.75,
+                blended_score=8.9,
+            ),
+            diagnostics=EvaluationDiagnostics(data_gaps=["missing_walk_forward_evidence"]),
+        )
+
     def test_returns_expected_payload_structure(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         assessment = self._make_assessment({"status": "pending"})
         entry = self._make_history_entry()
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_assessment",
-            lambda *_a, **_kw: assessment,
+            "fetch_current_promotion_snapshot",
+            lambda *_a, **_kw: (self._make_evaluation(), assessment),
         )
         monkeypatch.setattr(
             promotion_module,
@@ -62,22 +102,26 @@ class TestBuildPromotionOverview:
 
         result = build_promotion_overview(conn, account_name="acct_test")
 
-        assert result == {
-            "assessment": {"status": "pending"},
-            "history": [{"review": {"score": 0.8}, "events": [{"kind": "snapshot"}]}],
-        }
+        assert result["assessment"] == {"status": "pending"}
+        assert result["history"] == [{"review": {"score": 0.8}, "events": [{"kind": "snapshot"}]}]
+        assert result["evaluation"]["backtest"]["returnPct"] == pytest.approx(12.5)
+        assert result["evaluation"]["backtest"]["tradeCount"] == 42
+        assert result["evaluation"]["walkForward"]["grouped"] is True
+        assert result["evaluation"]["paperLive"]["strategyIsolated"] is True
+        assert result["evaluation"]["confidence"]["blendedScore"] == pytest.approx(8.9)
+        assert result["evaluation"]["dataGaps"] == ["missing_walk_forward_evidence"]
 
     def test_normalizes_whitespace_strategy_name_to_none(self, conn, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[str | None] = []
 
-        def _capture_assessment(_conn, *, account_name, strategy_name):
+        def _capture_snapshot(_conn, *, account_name, strategy_name):
             calls.append(strategy_name)
-            return self._make_assessment()
+            return self._make_evaluation(), self._make_assessment()
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_assessment",
-            _capture_assessment,
+            "fetch_current_promotion_snapshot",
+            _capture_snapshot,
         )
         monkeypatch.setattr(
             promotion_module,
@@ -93,15 +137,15 @@ class TestBuildPromotionOverview:
         assessment_calls: list[str | None] = []
         history_calls: list[str | None] = []
 
-        def _capture_assessment(_conn, *, account_name, strategy_name):
+        def _capture_snapshot(_conn, *, account_name, strategy_name):
             assessment_calls.append(strategy_name)
-            return self._make_assessment()
+            return self._make_evaluation(), self._make_assessment()
 
         def _capture_history(_conn, *, account_name, strategy_name, limit):
             history_calls.append(strategy_name)
             return []
 
-        monkeypatch.setattr(promotion_module, "fetch_current_promotion_assessment", _capture_assessment)
+        monkeypatch.setattr(promotion_module, "fetch_current_promotion_snapshot", _capture_snapshot)
         monkeypatch.setattr(promotion_module, "fetch_promotion_review_history", _capture_history)
 
         build_promotion_overview(conn, account_name="acct_test", strategy_name="  trend_v1  ")
@@ -118,8 +162,8 @@ class TestBuildPromotionOverview:
 
         monkeypatch.setattr(
             promotion_module,
-            "fetch_current_promotion_assessment",
-            lambda *_a, **_kw: self._make_assessment(),
+            "fetch_current_promotion_snapshot",
+            lambda *_a, **_kw: (self._make_evaluation(), self._make_assessment()),
         )
         monkeypatch.setattr(promotion_module, "fetch_promotion_review_history", _capture_history)
 

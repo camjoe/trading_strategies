@@ -1,0 +1,26 @@
+<div id="tab-portfolio" class="tab-panel layout" hidden>
+  <section class="card portfolio-card">
+    <div class="portfolio-head section-heading">
+      <div>
+        <p class="section-kicker">Portfolio</p>
+        <h2>Cross-Account Risk Rollup</h2>
+        <p class="section-copy">Exposure per account, symbol concentration, and sector rollup — read-only.</p>
+      </div>
+      <div class="section-actions">
+        <button
+          id="refreshPortfolioBtn"
+          class="icon-button"
+          type="button"
+          aria-label="Refresh"
+          data-tooltip="Refresh"
+        >↻</button>
+      </div>
+    </div>
+    <h3 class="portfolio-section-title">Exposure by account</h3>
+    <div id="portfolioExposure" class="empty">Loading portfolio rollup...</div>
+    <h3 class="portfolio-section-title">Concentration by symbol</h3>
+    <div id="portfolioConcentration" class="empty">Loading portfolio rollup...</div>
+    <h3 class="portfolio-section-title">Sector rollup</h3>
+    <div id="portfolioSectors" class="empty">Loading portfolio rollup...</div>
+  </section>
+</div>

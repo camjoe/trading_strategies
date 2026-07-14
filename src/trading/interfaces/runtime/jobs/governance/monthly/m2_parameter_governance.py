@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from common.paths.repo_paths import get_repo_root
@@ -14,8 +13,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M2_PARAMETER_GOVERNANCE_COMPLETE_SENTINEL
-from trading.repositories.sleeves import SleeveRepository
-from trading.repositories.strategy_param_sets import StrategyParamSetRepository
+from trading.services.books.book_assignments import list_report_books
+from trading.services.strategy_catalog import UnknownCatalogStrategyError, resolve_catalog_strategy
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -39,7 +38,7 @@ def already_completed_this_month(log_dir: Path, tag: str) -> bool:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="month",
-    description="M2 monthly governance: inventory active strategy parameters per sleeve.",
+    description="M2 monthly governance: inventory active strategy parameters per book.",
 )
 def main(ctx: JobContext) -> dict[str, object]:
     account_results: list[dict[str, object]] = []
@@ -49,39 +48,33 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        sleeve_repo = SleeveRepository(ctx.conn)
-        param_set_repo = StrategyParamSetRepository(ctx.conn)
-        sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
-        sleeve_rows: list[dict[str, object]] = []
+        book_rows: list[dict[str, object]] = []
 
-        for sleeve in sleeves:
-            assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name: str | None = None
-            param_set_id: int | None = None
+            primitive: str | None = None
             params: object = None
 
             if assignment is not None:
                 strategy_name = assignment.strategy_name
-                if assignment.param_set_id is not None:
-                    param_set_id = assignment.param_set_id
-                    param_set = param_set_repo.fetch_by_id(param_set_id=param_set_id)
-                    if param_set is not None:
-                        try:
-                            params = json.loads(param_set.params_json) if param_set.params_json else None
-                        except ValueError, TypeError:
-                            params = None
+                try:
+                    resolved = resolve_catalog_strategy(ctx.conn, strategy_name)
+                    primitive = resolved.primitive
+                    params = resolved.params
+                except UnknownCatalogStrategyError:
+                    params = None
 
-            sleeve_rows.append(
+            book_rows.append(
                 {
-                    "sleeve_name": sleeve.name,
+                    "book_name": book.name,
                     "strategy_name": strategy_name,
-                    "param_set_id": param_set_id,
+                    "primitive": primitive,
                     "params": params,
                 }
             )
 
-        account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
-        ctx.log(f"PARAM_GOVERNANCE: account={account_name} sleeves={len(sleeve_rows)}")
+        account_results.append({"account_name": account_name, "books": book_rows})
+        ctx.log(f"PARAM_GOVERNANCE: account={account_name} books={len(book_rows)}")
 
     return {
         "month": ctx.tag,

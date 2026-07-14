@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M3 monthly governance job — 90-day long-horizon performance audit across all sleeves."""
+"""M3 monthly governance job — 90-day long-horizon performance audit across all books."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 )
 from trading.interfaces.runtime.jobs.job_runner import JobContext, governance_job
 from trading.interfaces.runtime.job_status import MONTHLY_GOVERNANCE_M3_PERFORMANCE_AUDIT_COMPLETE_SENTINEL
-from trading.services.analysis import fetch_sleeve_performance_window
-from trading.repositories.sleeves import SleeveRepository
+from trading.services.analysis import fetch_book_performance_window
+from trading.services.books.book_assignments import list_report_books
 from trading.services.accounts.queries import find_account
 
 REPO_ROOT = get_repo_root(__file__)
@@ -89,7 +89,7 @@ def _compute_audit_stats(metrics: list) -> dict[str, object]:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="month",
-    description="M3 monthly governance: 90-day long-horizon performance audit across all sleeves.",
+    description="M3 monthly governance: 90-day long-horizon performance audit across all books.",
     add_arguments=_add_audit_window_arg,
     validate=_validate_args,
 )
@@ -106,34 +106,29 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        sleeve_repo = SleeveRepository(ctx.conn)
-        sleeves = sleeve_repo.fetch_for_account(account_id=account.id)
-        sleeve_rows: list[dict[str, object]] = []
+        book_rows: list[dict[str, object]] = []
 
-        for sleeve in sleeves:
-            assignment = sleeve_repo.fetch_active_assignment(sleeve_id=sleeve.id)
+        for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
 
-            metrics = fetch_sleeve_performance_window(
+            metrics = fetch_book_performance_window(
                 ctx.conn,
-                sleeve_id=sleeve.id,
+                book_id=book.id,
                 start_date=start_str,
                 end_date=today_str,
             )
             stats = _compute_audit_stats(metrics)
 
-            sleeve_rows.append(
+            book_rows.append(
                 {
-                    "sleeve_name": sleeve.name,
+                    "book_name": book.name,
                     "strategy_name": strategy_name,
                     **stats,
                 }
             )
 
-        account_results.append({"account_name": account_name, "sleeves": sleeve_rows})
-        ctx.log(
-            f"PERFORMANCE_AUDIT: account={account_name} sleeves={len(sleeve_rows)} window_days={audit_window_days}"
-        )
+        account_results.append({"account_name": account_name, "books": book_rows})
+        ctx.log(f"PERFORMANCE_AUDIT: account={account_name} books={len(book_rows)} window_days={audit_window_days}")
 
     return {
         "month": ctx.tag,

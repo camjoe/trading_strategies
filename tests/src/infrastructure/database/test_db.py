@@ -6,7 +6,6 @@ from infrastructure.database.backend import SQLiteBackend, get_backend, set_back
 from infrastructure.database.init import _column_names, _ensure_column, ensure_db, init_schema
 from infrastructure.database.migrations import (
     ACCOUNT_MIGRATIONS,
-    BACKTEST_RUN_MIGRATIONS,
     DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,
 )
 
@@ -78,13 +77,14 @@ def test_init_schema_migrates_legacy_accounts_and_backtest_runs(
         init_schema(conn)
 
         account_columns = _column_names(conn, "accounts")
-        run_columns = _column_names(conn, "backtest_runs")
 
         assert "benchmark_ticker" in account_columns
         assert "descriptive_name" in account_columns
         assert "rotation_overlay_watchlist" in account_columns
         assert "rotation_active_strategy" in account_columns
-        assert "strategy_name" in run_columns
+        # backtest_runs no longer carries an additive strategy_name column: the
+        # backtested strategy is a strategies FK created in the base DDL, so there is
+        # no backtest_runs migration to assert here.
         global_settings_columns = _column_names(conn, "global_settings")
         assert "runtime_max_trades_per_day" in global_settings_columns
         assert "runtime_max_trades_per_minute" in global_settings_columns
@@ -205,24 +205,28 @@ def test_overlay_watchlist_migration_backfills_existing_accounts(sqlite_backend:
 def test_ensure_column_is_noop_when_column_exists(sqlite_backend: SQLiteBackend) -> None:
     conn = sqlite_backend.open_connection()
     try:
+        # descriptive_name already present → the migration must be a silent noop.
         conn.executescript(
             """
-            CREATE TABLE backtest_runs (
+            CREATE TABLE accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id INTEGER NOT NULL,
-                strategy_name TEXT,
-                run_name TEXT,
-                start_date TEXT NOT NULL,
-                end_date TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                name TEXT NOT NULL UNIQUE,
+                strategy TEXT NOT NULL,
+                initial_cash REAL NOT NULL,
+                created_at TEXT NOT NULL,
+                descriptive_name TEXT NOT NULL DEFAULT ''
             );
+
+            INSERT INTO accounts (name, strategy, initial_cash, created_at, descriptive_name)
+            VALUES ('acct_noop', 'Trend', 1000, '2026-01-01T00:00:00Z', 'kept');
             """
         )
 
-        migration = BACKTEST_RUN_MIGRATIONS[0]
-        _ensure_column(conn, "backtest_runs", migration)
+        migration = next(item for item in ACCOUNT_MIGRATIONS if item.column_name == "descriptive_name")
+        _ensure_column(conn, "accounts", migration)
 
-        columns = _column_names(conn, "backtest_runs")
-        assert "strategy_name" in columns
+        row = conn.execute("SELECT descriptive_name FROM accounts WHERE name = 'acct_noop'").fetchone()
+        assert row is not None
+        assert row["descriptive_name"] == "kept"  # unchanged: existing column not re-migrated
     finally:
         conn.close()

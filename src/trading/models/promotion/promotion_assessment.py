@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
+from trading.models.evaluation.backtest_freshness import BacktestFreshness
 from trading.models.promotion.constants import PROMOTION_ASSESSMENT_VERSION
 from trading.models.promotion.enums import PromotionStage, PromotionStatus
 
@@ -17,6 +18,8 @@ class PromotionAssessment:
     ready_for_live: bool = False
     live_trading_enabled: bool = False
     overall_confidence: float = 0.0
+    # Advisory backtest staleness carried through from the evaluation artifact.
+    backtest_freshness: BacktestFreshness | None = None
     data_gaps: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)

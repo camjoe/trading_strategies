@@ -1,73 +1,60 @@
 #!/usr/bin/env python3
-"""Run daily backtest refreshes with idempotency, retry, and artifact output."""
+"""Refresh stale/missing backtests, targeted by the backtest freshness signal.
+
+For each account this enumerates the strategies rotation could promote (each
+active book's incumbent plus its challenger schedule) whose newest backtest is
+stale or missing, then re-runs a backtest for each — with idempotent retry and
+artifact output. Unlike a blind daily refresh it only recomputes what has
+actually drifted, and it covers challenger strategies, not just the incumbent.
+"""
 
 from __future__ import annotations
 
 import argparse
-import datetime as dt
-import json
 import re
-import sys
 import time
 from pathlib import Path
 from typing import Callable
 
-from common.paths.repo_paths import get_repo_root
+from trading.domain.backtest_freshness import DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS
 from trading.interfaces.runtime.jobs.job_helpers import (
     AttemptOutcome,
-    day_tag,
-    is_env_truthy,
-    latest_log_contains_sentinel,
-    logs_dir_for_repo,
-    resolve_accounts,
+    CLI_MAIN_MODULE,
     run_command,
     run_command_with_retry,
-    tee_line,
-    ts,
-    write_artifact,
-    CLI_MAIN_MODULE,
 )
-from trading.services.accounts import load_runtime_eligible_account_names
+from trading.interfaces.runtime.jobs.job_runner import JobContext, daily_account_job
+from trading.services.backtesting import find_stale_backtests
 from trading.services.profiles.source import DEFAULT_TICKERS_FILE
 from trading.interfaces.runtime.job_status import DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
-REPO_ROOT = get_repo_root(__file__)
-LOGS_DIR = logs_dir_for_repo(REPO_ROOT)
+JOB_NAME = "daily_backtest_refresh"
+COMPLETE_SENTINEL = DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
 
 # Explicit opt-in env var so daily reruns remain operator-controlled.
 BACKTEST_REFRESH_ENABLED_ENV = "DAILY_BACKTEST_REFRESH_ENABLED"
 
-# Successful daily refresh runs write this sentinel into the newest log.
-COMPLETE_SENTINEL = DAILY_BACKTEST_REFRESH_COMPLETE_SENTINEL
-
 RUN_ID_PATTERN = re.compile(r"run_id=(?P<run_id>\d+)")
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run daily backtest refreshes for existing accounts.")
-    parser.add_argument(
-        "--accounts",
-        default="all",
-        help="Comma-separated account names, or 'all' for every account in DB (default: all)",
-    )
-    parser.add_argument("--force-run", action="store_true", help="Allow duplicate same-day run")
-    parser.add_argument("--run-source", default="daily-backtest-refresh")
-    parser.add_argument(
-        "--enable-run",
-        action="store_true",
-        help="Explicitly enable backtest refresh execution for this invocation",
-    )
+def _add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--max-attempts",
         type=int,
         default=3,
-        help="Max attempts per account refresh command (default: 3)",
+        help="Max attempts per backtest command (default: 3)",
     )
     parser.add_argument(
         "--backoff-seconds",
         type=float,
         default=2.0,
         help="Base backoff in seconds between retries (default: 2.0)",
+    )
+    parser.add_argument(
+        "--stale-threshold-days",
+        type=int,
+        default=DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS,
+        help=f"Backtest age (days) above which a refresh is triggered (default: {DEFAULT_BACKTEST_STALE_THRESHOLD_DAYS})",
     )
     parser.add_argument(
         "--tickers-file",
@@ -99,35 +86,43 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow approximate LEAPs backtest mode using underlying price proxies",
     )
-    parser.add_argument(
-        "--repo-root",
-        default=str(REPO_ROOT),
-        help="Repository root path (default: inferred from script location)",
-    )
-    return parser.parse_args()
 
 
-def is_run_enabled(args: argparse.Namespace) -> bool:
-    if bool(args.enable_run):
-        return True
-    return is_env_truthy(BACKTEST_REFRESH_ENABLED_ENV)
+def _validate(args: argparse.Namespace) -> str | None:
+    if int(args.max_attempts) < 1:
+        return "--max-attempts must be >= 1"
+    if float(args.backoff_seconds) < 0:
+        return "--backoff-seconds must be >= 0"
+    if int(args.stale_threshold_days) < 0:
+        return "--stale-threshold-days must be >= 0"
+    return None
 
 
-def already_completed_today(log_dir: Path, day_tag_str: str) -> bool:
-    return latest_log_contains_sentinel(
-        log_dir,
-        f"daily_backtest_refresh_{day_tag_str}_*.log",
-        COMPLETE_SENTINEL,
-    )
+def _run_meta(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "stale_threshold_days": args.stale_threshold_days,
+        "tickers_file": args.tickers_file,
+        "universe_history_dir": args.universe_history_dir,
+        "start": args.start,
+        "end": args.end,
+        "lookback_months": args.lookback_months,
+        "slippage_bps": args.slippage_bps,
+        "fee": args.fee,
+        "run_name_prefix": args.run_name_prefix,
+        "allow_approximate_leaps": bool(args.allow_approximate_leaps),
+        "max_attempts": args.max_attempts,
+        "backoff_seconds": args.backoff_seconds,
+    }
 
 
-def build_run_name(*, run_name_prefix: str, day_tag: str, account: str) -> str:
-    return f"{run_name_prefix}_{day_tag}_{account}"
+def build_run_name(*, run_name_prefix: str, day_tag: str, account: str, strategy: str) -> str:
+    return f"{run_name_prefix}_{day_tag}_{account}_{strategy}"
 
 
 def build_backtest_command(
     *,
     account: str,
+    strategy: str,
     args: argparse.Namespace,
     day_tag: str,
 ) -> list[str]:
@@ -137,6 +132,8 @@ def build_backtest_command(
         "backtest",
         "--account",
         account,
+        "--strategy",
+        strategy,
         "--tickers-file",
         args.tickers_file,
         "--slippage-bps",
@@ -144,7 +141,7 @@ def build_backtest_command(
         "--fee",
         str(args.fee),
         "--run-name",
-        build_run_name(run_name_prefix=args.run_name_prefix, day_tag=day_tag, account=account),
+        build_run_name(run_name_prefix=args.run_name_prefix, day_tag=day_tag, account=account, strategy=strategy),
     ]
     if args.universe_history_dir is not None:
         command.extend(["--universe-history-dir", args.universe_history_dir])
@@ -166,159 +163,91 @@ def extract_run_id(output: str) -> int | None:
     return int(match.group("run_id"))
 
 
-def run_backtest_refresh_with_retry(
+def run_target_backtest_with_retry(
     *,
     log_path: Path,
     repo_root: Path,
     account: str,
+    strategy: str,
     args: argparse.Namespace,
     day_tag: str,
     run_command_fn: Callable[[Path, str, list[str], Path], tuple[int, str]] = run_command,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
-    """Run one account's backtest-refresh command with transient-failure retries.
+    """Run one (account, strategy) backtest with transient-failure retries.
 
     Success requires both a zero exit code and a parseable ``run_id``; a zero
     exit with no ``run_id`` is a non-retryable ``missing_run_id`` failure. Every
-    result payload carries a ``run_id`` (``None`` when absent).
+    result payload carries ``run_id`` (``None`` when absent) and ``strategy``.
     """
 
     def classify(exit_code: int, output: str) -> AttemptOutcome:
         run_id = extract_run_id(output)
         if exit_code == 0 and run_id is not None:
-            return AttemptOutcome(succeeded=True, retryable=False, extras={"run_id": run_id})
+            return AttemptOutcome(succeeded=True, retryable=False, extras={"run_id": run_id, "strategy": strategy})
         if exit_code == 0 and run_id is None:
-            return AttemptOutcome(succeeded=False, retryable=False, extras={"run_id": None, "error": "missing_run_id"})
-        return AttemptOutcome(succeeded=False, retryable=True, extras={"run_id": run_id})
+            return AttemptOutcome(
+                succeeded=False,
+                retryable=False,
+                extras={"run_id": None, "strategy": strategy, "error": "missing_run_id"},
+            )
+        return AttemptOutcome(succeeded=False, retryable=True, extras={"run_id": run_id, "strategy": strategy})
 
     return run_command_with_retry(
         log_path=log_path,
         repo_root=repo_root,
         account=account,
-        command=build_backtest_command(account=account, args=args, day_tag=day_tag),
-        label_prefix="Backtest refresh",
+        command=build_backtest_command(account=account, strategy=strategy, args=args, day_tag=day_tag),
+        label_prefix=f"Backtest refresh [{strategy}]",
         max_attempts=int(args.max_attempts),
         base_backoff_seconds=float(args.backoff_seconds),
         classify=classify,
-        result_defaults={"run_id": None},
+        result_defaults={"run_id": None, "strategy": strategy},
         run_command_fn=run_command_fn,
         sleep_fn=sleep_fn,
     )
 
 
-def main() -> int:
-    args = parse_args()
-    if int(args.max_attempts) < 1:
-        print("--max-attempts must be >= 1", file=sys.stderr)
-        return 1
-    if float(args.backoff_seconds) < 0:
-        print("--backoff-seconds must be >= 0", file=sys.stderr)
-        return 1
-
-    if not is_run_enabled(args):
-        print(
-            "Daily backtest refresh is disabled. "
-            f"Use --enable-run or set {BACKTEST_REFRESH_ENABLED_ENV}=1 to execute.",
-            file=sys.stderr,
-        )
-        return 0
-
-    repo_root = Path(args.repo_root).expanduser().resolve()
-    logs_dir = logs_dir_for_repo(repo_root)
-    export_dir = repo_root / "local" / "exports" / "daily_backtest_refresh"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    export_dir.mkdir(parents=True, exist_ok=True)
-
-    now = dt.datetime.now()
-    today = day_tag(now)
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    log_path = logs_dir / f"daily_backtest_refresh_{today}_{timestamp}.log"
-    artifact_path = export_dir / f"daily_backtest_refresh_{timestamp}.json"
-
-    try:
-        accounts = resolve_accounts(args.accounts, load_runtime_eligible_account_names())
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    if not accounts:
-        print("No accounts specified.", file=sys.stderr)
-        return 1
-
-    run_meta = {
-        "job": "daily_backtest_refresh",
-        "run_source": args.run_source,
-        "force_run": bool(args.force_run),
-        "day_tag": today,
-        "accounts": accounts,
-        "tickers_file": args.tickers_file,
-        "universe_history_dir": args.universe_history_dir,
-        "start": args.start,
-        "end": args.end,
-        "lookback_months": args.lookback_months,
-        "slippage_bps": args.slippage_bps,
-        "fee": args.fee,
-        "run_name_prefix": args.run_name_prefix,
-        "allow_approximate_leaps": bool(args.allow_approximate_leaps),
-        "max_attempts": args.max_attempts,
-        "backoff_seconds": args.backoff_seconds,
-        "log_path": str(log_path.relative_to(repo_root)),
-        "artifact_path": str(artifact_path.relative_to(repo_root)),
-        "started_at": ts(),
-    }
-    tee_line(log_path, f"[{ts()}] RUN META: {json.dumps(run_meta, sort_keys=True)}")
-
-    if not args.force_run and already_completed_today(logs_dir, today):
-        message = "Daily backtest refresh already completed today; skipping duplicate run."
-        tee_line(log_path, f"[{ts()}] SKIP: {message}")
-        write_artifact(
-            artifact_path,
-            {
-                **run_meta,
-                "status": "skipped",
-                "skip_reason": "already-completed-today",
-                "results": [],
-                "finished_at": ts(),
-            },
-        )
-        print(message)
-        return 0
-
-    results: list[dict[str, object]] = []
-    failed = False
-    for account in accounts:
-        result = run_backtest_refresh_with_retry(
-            log_path=log_path,
-            repo_root=repo_root,
-            account=account,
-            args=args,
-            day_tag=day_tag,
-        )
-        results.append(result)
-        if result["status"] != "success":
-            failed = True
-            tee_line(
-                log_path,
-                (
-                    f"[{ts()}] "
-                    f"ERROR: Backtest refresh failed for account={account} "
-                    f"attempts={result['attempts']} transient={result.get('transient', False)}"
-                ),
-            )
-            break
-
-    if not failed:
-        tee_line(log_path, f"[{ts()}] {COMPLETE_SENTINEL}")
-
-    write_artifact(
-        artifact_path,
-        {
-            **run_meta,
-            "status": "success" if not failed else "failed",
-            "results": results,
-            "finished_at": ts(),
-        },
+@daily_account_job(
+    job_name=JOB_NAME,
+    sentinel=COMPLETE_SENTINEL,
+    description="Refresh stale or missing backtests across each account's rotation candidate strategies.",
+    enabled_env=BACKTEST_REFRESH_ENABLED_ENV,
+    disabled_message=(
+        "Daily backtest refresh is disabled. Use --enable-run or set DAILY_BACKTEST_REFRESH_ENABLED=1 to execute."
+    ),
+    run_source_default="daily-backtest-refresh",
+    export_subdir="daily_backtest_refresh",
+    label="Backtest refresh",
+    open_db=True,
+    add_arguments=_add_arguments,
+    validate=_validate,
+    extra_meta=_run_meta,
+)
+def main(ctx: JobContext, account: str) -> dict[str, object]:
+    targets = find_stale_backtests(
+        ctx.conn,
+        account_name=account,
+        threshold_days=int(ctx.args.stale_threshold_days),
     )
-    return 0 if not failed else 1
+    results = [
+        run_target_backtest_with_retry(
+            log_path=ctx.log_path,
+            repo_root=ctx.repo_root,
+            account=account,
+            strategy=target.strategy_name,
+            args=ctx.args,
+            day_tag=ctx.tag,
+        )
+        for target in targets
+    ]
+    succeeded = all(result.get("status") == "success" for result in results)
+    return {
+        "account": account,
+        "status": "success" if succeeded else "failed",
+        "targets": len(targets),
+        "results": results,
+    }
 
 
 if __name__ == "__main__":

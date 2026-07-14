@@ -23,7 +23,7 @@ from trading.services.ibkr_paper_monitor import (
 
 
 def fetch_ibkr_paper_accounts_list(conn: sqlite3.Connection) -> list[dict[str, Any]]:
-    """Fetch list of IBKR paper accounts with sleeve summary.
+    """Fetch list of IBKR paper accounts with book summary.
 
     Delegates to trading.services.ibkr_paper_monitor for DB queries.
     """
@@ -37,7 +37,7 @@ def fetch_account_ibkr_paper_monitor_data(
     """Fetch comprehensive IBKR paper account dashboard data.
 
     Combines:
-    - DB data from trading.services.ibkr_paper_monitor (account, sleeves, rotations, risk)
+    - DB data from trading.services.ibkr_paper_monitor (account, books, rotations, risk)
     - Artifact data from trading.services.ibkr_paper_monitor (workflow, governance, burn-in)
 
     Raises ValueError if account not found.

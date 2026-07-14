@@ -87,7 +87,7 @@ def test_failure_sends_notification_when_webhook_configured(monkeypatch, job_roo
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
         module,
-        "notify_webhook_best_effort",
+        "notify_runtime_event",
         lambda **kwargs: sent.append(kwargs) or True,
     )
 
@@ -114,7 +114,7 @@ def test_success_does_not_send_notification_without_notify_on_ok(monkeypatch, jo
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
         module,
-        "notify_webhook_best_effort",
+        "notify_runtime_event",
         lambda **kwargs: sent.append(kwargs) or True,
     )
 
@@ -139,7 +139,7 @@ def test_success_sends_notification_with_notify_on_ok(monkeypatch, job_root: Pat
     sent: list[dict[str, object]] = []
     monkeypatch.setattr(
         module,
-        "notify_webhook_best_effort",
+        "notify_runtime_event",
         lambda **kwargs: sent.append(kwargs) or True,
     )
 

@@ -1,4 +1,4 @@
-# Backtesting Layer Map
+# Backtesting Package Map
 
 This package uses explicit layers to keep responsibilities clear.
 
@@ -18,18 +18,17 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
   - `leaderboard_repository.py`: leaderboard row/equity reads.
   - `report_repository.py`: full report run/snapshot/trade reads.
   - `report_repository.py` also exposes recent run-list reads used by backend service adapters.
-  - `history_repository.py`: strategy-return history rows for auto-trader decisions.
+  - `walk_forward_repository.py`: walk-forward group and run persistence.
 
 - `services/`: business flow, model mapping, orchestration.
   - `backtest_data_service.py`: date resolution and market/universe data composition.
-  - `history_service.py`: strategy-return loading and safe return calculations.
+  - `execution_service.py`: single-run backtest orchestration.
   - `leaderboard_service.py`: leaderboard computation and typed entry mapping.
-  - `report_service.py`: full report assembly into typed report models. Also re-exports `resolve_signal` from `trading.backtesting.domain.strategy_signals` — callers that need signal dispatch should import from here, not the domain module directly.
+  - `report_service.py`: full report assembly into typed report models.
+  - `walk_forward_report_service.py`: persisted walk-forward report assembly.
   - `walk_forward_service.py`: walk-forward run orchestration and summary rollups.
 
 - `domain/`: pure reusable backtesting logic.
-  - `strategy_signals.py`: `STRATEGY_REGISTRY`, `StrategySpec`, `resolve_strategy()`, and `resolve_signal()` dispatcher. Covers all 14 strategy IDs including the three `strategy_style="alternative"` strategies (`policy_regime`, `news_sentiment`, `social_trend_rotation`) that consume `ExternalFeatureBundle` values from `src/infrastructure/feature_providers/` providers.
-  - `indicators.py`: pure pandas indicator calculations (MACD, RS/RSI).
   - `metrics.py`: drawdown and benchmark-return calculations.
   - `windowing.py`: walk-forward date window generation.
   - `risk_warnings.py`: safeguard/warning policy composition.
@@ -42,8 +41,10 @@ Define ownership boundaries and interaction flow for backtesting repositories, s
 1. Caller invokes `backtest.py` public function.
 2. `backtest.py` delegates SQL to `repositories/` and mapping/orchestration to `services/`.
 3. `services/` use `domain/` helpers for pure calculations.
-4. `domain/strategy_signals.py` dispatches to signal functions; `strategy_style="alternative"` strategies receive an `ExternalFeatureBundle` from a `src/infrastructure/feature_providers/` provider rather than computing purely from price history.
-5. Typed models remain in `src/trading/models/` for shared contracts.
+4. Strategy signal dispatch uses `trading.domain.strategy_signals`; alternative strategies receive
+   `ExternalFeatureBundle` values from `src/infrastructure/feature_providers/` providers.
+5. Backtesting-local models live in `models.py` and `report_models.py`; shared cross-runtime
+   contracts remain in `src/trading/models/`.
 
 ## Workflows
 

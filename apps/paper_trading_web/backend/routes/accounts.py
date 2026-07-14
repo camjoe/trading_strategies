@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from infrastructure.market_data.factory import build_provider
 from trading.services.accounting import list_account_trades
 from trading.services.accounts import list_account_snapshots
+from trading.services.evaluation import fetch_strategy_evaluation_for_account_row
 
 from ..account_options import get_account_config_options
 from ..account_contract import build_account_params_update_command
@@ -31,6 +32,7 @@ from ..services.accounts.summaries import (
     build_comparison_account_payload,
 )
 from ..services.db import db_conn
+from ..services.evaluation import build_evaluation_summary_payload
 
 router = APIRouter()
 
@@ -64,7 +66,14 @@ def api_accounts_compare() -> dict[str, list[dict[str, object]]]:
                 build_live_benchmark_overlay(str(summary.get("benchmark") or ""), snapshots, provider=provider),
             )
             latest_backtest = fetch_latest_backtest_metrics(conn, row.name)
-            comparison.append(build_comparison_account_payload(summary, latest_backtest))
+            evaluation = fetch_strategy_evaluation_for_account_row(conn, row)
+            comparison.append(
+                build_comparison_account_payload(
+                    summary,
+                    latest_backtest,
+                    build_evaluation_summary_payload(evaluation),
+                )
+            )
         comparison.sort(key=lambda item: str(item["name"]))
         return {"accounts": comparison}
 

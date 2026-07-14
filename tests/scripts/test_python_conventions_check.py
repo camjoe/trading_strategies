@@ -1,0 +1,67 @@
+"""Tests for scripts.checks.python.python_conventions_check."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from common.paths.repo_paths import get_repo_root
+from scripts.checks.python.python_conventions_check import (
+    check_file,
+    discover_python_files,
+    run_python_conventions_check,
+)
+
+
+def _write(path: Path, content: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
+def test_valid_module_passes(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path / "src/example.py",
+        "from __future__ import annotations\n\n\ndef public() -> int:\n    return 1\n",
+    )
+
+    assert check_file(path).problems == []
+
+
+def test_missing_future_annotations_is_reported(tmp_path: Path) -> None:
+    path = _write(tmp_path / "src/example.py", "def public() -> int:\n    return 1\n")
+
+    assert check_file(path).problems == ["missing `from __future__ import annotations`"]
+
+
+def test_public_function_without_return_annotation_is_reported(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path / "src/example.py",
+        "from __future__ import annotations\n\n\ndef public():\n    return 1\n",
+    )
+
+    assert check_file(path).problems == ["public function `public` missing return annotation at line 4"]
+
+
+def test_private_function_without_return_annotation_is_allowed(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path / "src/example.py",
+        "from __future__ import annotations\n\n\ndef _private():\n    return 1\n",
+    )
+
+    assert check_file(path).problems == []
+
+
+def test_discovery_skips_tests_and_init_files(tmp_path: Path) -> None:
+    _write(tmp_path / "src/pkg/__init__.py", "")
+    _write(tmp_path / "tests/test_example.py", "")
+    _write(tmp_path / "src/pkg/module.py", "from __future__ import annotations\n")
+
+    discovered = {path.relative_to(tmp_path).as_posix() for path in discover_python_files(tmp_path)}
+
+    assert discovered == {"src/pkg/module.py"}
+
+
+def test_real_repo_python_conventions_are_clean() -> None:
+    repo_root = get_repo_root(Path(__file__))
+
+    assert run_python_conventions_check(repo_root, enforce=True) == 0

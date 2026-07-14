@@ -17,12 +17,8 @@ from trading.services.analysis.position import (
     compute_position_analysis,
     generate_improvement_notes,
 )
-from trading.services.reporting import (
-    benchmark_stats,
-    compute_market_value_and_unrealized,
-    fetch_latest_prices,
-    strategy_return_pct,
-)
+from trading.services.pricing import benchmark_stats, fetch_latest_prices
+from trading.services.reporting.math import compute_market_value_and_unrealized, strategy_return_pct
 
 
 def fetch_account_analysis(
