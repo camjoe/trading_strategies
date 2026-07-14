@@ -5,35 +5,13 @@ import sqlite3
 from trading.services.accounts import (
     AccountAlreadyExistsError,
     create_account,
-    delete_accounts,
+    delete_account,
+    preview_account_deletion,
 )
 from trading.services.profiles import apply_book_rotation_settings
 
 from ..account_contract import AdminCreateAccountCommand
 from .db import db_conn
-
-_MANAGED_ACCOUNT_DELETE_COUNT_KEYS = {
-    "accounts": "accounts",
-    "trades": "trades",
-    "orders": "orders",
-    "order_fills": "orderFills",
-    "equity_snapshots": "equitySnapshots",
-    "backtest_runs": "backtestRuns",
-    "backtest_trades": "backtestTrades",
-    "backtest_equity_snapshots": "backtestEquitySnapshots",
-    "walk_forward_groups": "walkForwardGroups",
-    "walk_forward_group_runs": "walkForwardGroupRuns",
-    "promotion_reviews": "promotionReviews",
-    "promotion_review_events": "promotionReviewEvents",
-    "risk_snapshots": "riskSnapshots",
-    "risk_decisions": "riskDecisions",
-}
-
-
-def _build_managed_account_delete_counts(counts: dict[str, int]) -> dict[str, int]:
-    return {
-        ui_key: int(counts.get(service_key, 0)) for service_key, ui_key in _MANAGED_ACCOUNT_DELETE_COUNT_KEYS.items()
-    }
 
 
 def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateAccountCommand) -> None:
@@ -53,14 +31,18 @@ def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateA
         apply_book_rotation_settings(conn, command.name, {"rotation": command.rotation_settings})
 
 
-def delete_account_and_dependents(account_name: str) -> dict[str, int]:
-    # delete_accounts raises NotFoundError for unknown accounts, mapped to HTTP 404
-    # by the app-level exception handler (see docs/adr/007-ui-error-mapping.md).
+def build_account_deletion_preview(account_name: str) -> dict[str, object]:
+    """Shape a compact deletion preview for the admin UI."""
     with db_conn() as conn:
-        deleted = delete_accounts(
-            conn,
-            account_names=[account_name],
-            delete_all=False,
-            dry_run=False,
-        )
-    return _build_managed_account_delete_counts(deleted)
+        preview = preview_account_deletion(conn, account_name)
+    return {
+        "accountName": preview.account_name,
+        "descriptiveName": preview.descriptive_name,
+        "strategy": preview.strategy,
+    }
+
+
+def delete_managed_account(account_name: str) -> str:
+    """Delete one account and return its canonical name."""
+    with db_conn() as conn:
+        return delete_account(conn, account_name).name

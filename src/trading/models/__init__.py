@@ -11,6 +11,7 @@ package root re-exports the stable public types. See
 from __future__ import annotations
 
 from trading.models.accounts.account_config import AccountConfig
+from trading.models.accounts.account_deletion_preview import AccountDeletionPreview
 from trading.models.accounts.account_insert import AccountInsert
 from trading.models.accounts.account_record import AccountRecord
 from trading.models.accounts.account_state import AccountState
@@ -31,6 +32,7 @@ from trading.models.execution.risk_gate_position import RiskGatePosition
 
 __all__ = [
     "AccountConfig",
+    "AccountDeletionPreview",
     "AccountExposure",
     "AccountInsert",
     "AccountRecord",

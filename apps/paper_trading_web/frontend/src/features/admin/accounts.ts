@@ -5,7 +5,7 @@ import { errorMessage, getJson, postJson } from "../../lib/http";
 import { intOrUndefined, numOrUndefined, strOrUndefined } from "../../lib/form-parse";
 import type { AccountListItem } from "../../types/accounts";
 import type { AdminCreateAccountPayload } from "../../types/admin";
-import type { AdminFeatureOptions, CreateResponse, DeleteResponse } from "./types";
+import type { AdminFeatureOptions, CreateResponse, DeletePreviewResponse, DeleteResponse } from "./types";
 import { setOutput } from "./ui";
 
 
@@ -96,29 +96,30 @@ export function createAdminAccountsController(
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete account '${accountName}' and all related trades/backtests? This cannot be undone.`,
-    );
-    if (!confirmed) {
-      setOutput(output, "empty", "Deletion cancelled.");
-      return;
-    }
-
-    setOutput(output, "empty", "Deleting account...");
-
     try {
+      setOutput(output, "empty", "Preparing deletion preview...");
+      const previewResult = await getJson<DeletePreviewResponse>(
+        `/api/admin/accounts/delete-preview?accountName=${encodeURIComponent(accountName)}`,
+      );
+      const preview = previewResult.preview;
+      const confirmed = window.confirm(
+        `Delete account '${preview.accountName}' (${preview.descriptiveName}, strategy: ${preview.strategy}) ` +
+        "and all related data? This cannot be undone.",
+      );
+      if (!confirmed) {
+        setOutput(output, "empty", "Deletion cancelled.");
+        return;
+      }
+
+      setOutput(output, "empty", "Deleting account...");
       const result = await postJson<DeleteResponse>("/api/admin/accounts/delete", {
         accountName,
         confirm: true,
       });
-      const riskRecords = result.deleted.riskSnapshots + result.deleted.riskDecisions;
       setOutput(
         output,
         "success",
-        `Deleted ${result.deleted.accounts} account.<br>` +
-        `Removed ${result.deleted.trades} trades, ${result.deleted.orders} orders, ` +
-        `${result.deleted.equitySnapshots} snapshots, ${result.deleted.backtestRuns} backtest runs, ` +
-        `${riskRecords} risk records.`,
+        `Deleted account ${esc(result.deleted.accountName)} and its related rows.`,
         true,
       );
       await loadDeleteAccounts();

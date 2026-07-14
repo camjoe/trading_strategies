@@ -43,24 +43,6 @@ _ACCOUNT_INSERT_SQL = (
     f"VALUES ({', '.join('?' for _ in _ACCOUNT_INSERT_COLUMNS)})"
 )
 
-# Account-owned rows reported before deletion. Keeping table names and predicates
-# together prevents callers from supplying arbitrary SQL identifiers.
-_DELETE_COUNT_PREDICATES = {
-    "trades": "account_id IN ({placeholders})",
-    "orders": "account_id IN ({placeholders})",
-    "order_fills": "order_id IN (SELECT id FROM orders WHERE account_id IN ({placeholders}))",
-    "equity_snapshots": "book_id IN (SELECT id FROM books WHERE account_id IN ({placeholders}))",
-    "backtest_runs": "account_id IN ({placeholders})",
-    "backtest_trades": "run_id IN (SELECT id FROM backtest_runs WHERE account_id IN ({placeholders}))",
-    "backtest_equity_snapshots": "run_id IN (SELECT id FROM backtest_runs WHERE account_id IN ({placeholders}))",
-    "walk_forward_groups": "account_id IN ({placeholders})",
-    "walk_forward_group_runs": "group_id IN (SELECT id FROM walk_forward_groups WHERE account_id IN ({placeholders}))",
-    "promotion_reviews": "account_id IN ({placeholders})",
-    "promotion_review_events": "review_id IN (SELECT id FROM promotion_reviews WHERE account_id IN ({placeholders}))",
-    "risk_snapshots": "account_id IN ({placeholders})",
-    "risk_decisions": "account_id IN ({placeholders})",
-}
-
 
 class AccountRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -76,16 +58,6 @@ class AccountRepository:
     def fetch_by_name(self, name: str) -> AccountRecord | None:
         row = self._conn.execute("SELECT * FROM accounts WHERE name = ?", (name,)).fetchone()
         return self._row_to_record(row) if row is not None else None
-
-    def fetch_by_names(self, names: tuple[str, ...]) -> list[AccountRecord]:
-        if not names:
-            return []
-        placeholders = ", ".join("?" for _ in names)
-        rows = self._conn.execute(
-            f"SELECT * FROM accounts WHERE name IN ({placeholders}) ORDER BY name ASC",
-            names,
-        ).fetchall()
-        return [self._row_to_record(row) for row in rows]
 
     def fetch_listing(self) -> list[AccountRecord]:
         rows = self._conn.execute("SELECT * FROM accounts ORDER BY strategy ASC, name ASC").fetchall()
@@ -114,29 +86,11 @@ class AccountRepository:
         )
         self._conn.commit()
 
-    def delete_by_ids(self, account_ids: tuple[int, ...], *, commit: bool = True) -> None:
-        """Delete accounts in one statement; ON DELETE CASCADE removes all account-owned rows."""
-        if not account_ids:
-            return
-        placeholders = ", ".join("?" for _ in account_ids)
-        self._conn.execute(f"DELETE FROM accounts WHERE id IN ({placeholders})", account_ids)
-        if commit:
-            self._conn.commit()
-
-    def fetch_delete_counts(self, account_ids: tuple[int, ...]) -> dict[str, int]:
-        """Count every account-owned row included in deletion reporting."""
-        if not account_ids:
-            return {table: 0 for table in _DELETE_COUNT_PREDICATES}
-
-        placeholders = ", ".join("?" for _ in account_ids)
-        counts: dict[str, int] = {}
-        for table, predicate_template in _DELETE_COUNT_PREDICATES.items():
-            predicate = predicate_template.format(placeholders=placeholders)
-            row = self._conn.execute(
-                f"SELECT COUNT(*) AS n FROM {table} WHERE {predicate}",
-                account_ids,
-            ).fetchone()
-            if row is None or not isinstance(row["n"], int):
-                raise ValueError(f"Unexpected count result from table '{table}'.")
-            counts[table] = row["n"]
-        return counts
+    def delete_by_name(self, account_name: str) -> AccountRecord | None:
+        """Delete one account and return it; database cascades remove owned rows."""
+        row = self._conn.execute(
+            "DELETE FROM accounts WHERE name = ? RETURNING *",
+            (account_name,),
+        ).fetchone()
+        self._conn.commit()
+        return self._row_to_record(row) if row is not None else None

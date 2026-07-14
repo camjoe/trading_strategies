@@ -178,12 +178,12 @@ backup_database(destination=None) -> Path
 - Custom destination: pass a directory path (file name auto-generated) or a full `.db` path.
 - Uses `shutil.copy2` — preserves metadata.
 
-**Backup-before-delete pattern** (implemented in `_cmd_delete_accounts`):
+**Backup-before-delete pattern** (implemented in `_cmd_delete_account`):
 ```bash
-python -m trading.interfaces.runtime.data_ops.admin delete-accounts --backup-before --all --yes
+python -m trading.interfaces.runtime.data_ops.admin delete-account ACCOUNT_NAME --backup-before
 ```
 
-The `--backup-before` flag calls `backup_database()` before `delete_accounts()`. Any future destructive data-ops flow should follow this same pattern.
+The `--backup-before` flag calls `backup_database()` before `delete_account()`. Any future destructive data-ops flow should follow this same pattern.
 
 ---
 

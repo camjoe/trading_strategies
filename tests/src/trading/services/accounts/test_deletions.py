@@ -4,59 +4,34 @@ import sqlite3
 
 import pytest
 
-from trading.repositories.accounts import AccountRepository
 from trading.services import accounts as accounts_service
 
 
-class TestDeleteAccounts:
-    def test_delete_accounts_dry_run_reports_counts_without_deleting(
-        self, deletion_seeded_conn: sqlite3.Connection
+class TestPreviewAccountDeletion:
+    def test_reports_compact_cascade_impact_without_deleting(
+        self,
+        deletion_seeded_conn: sqlite3.Connection,
     ) -> None:
-        counts = accounts_service.delete_accounts(
-            deletion_seeded_conn,
-            account_names=["acct_a"],
-            delete_all=False,
-            dry_run=True,
-        )
+        preview = accounts_service.preview_account_deletion(deletion_seeded_conn, "acct_a")
 
-        assert counts == {
-            "accounts": 1,
-            "trades": 1,
-            "orders": 1,
-            "order_fills": 1,
-            "equity_snapshots": 1,
-            "backtest_runs": 1,
-            "backtest_trades": 1,
-            "backtest_equity_snapshots": 1,
-            "walk_forward_groups": 1,
-            "walk_forward_group_runs": 1,
-            "promotion_reviews": 1,
-            "promotion_review_events": 1,
-            "risk_snapshots": 1,
-            "risk_decisions": 1,
-        }
+        assert preview.account_name == "acct_a"
+        assert preview.descriptive_name == "acct_a"
+        assert preview.strategy == "Trend"
+        assert deletion_seeded_conn.execute("SELECT id FROM accounts WHERE name = 'acct_a'").fetchone() is not None
 
-        remaining = deletion_seeded_conn.execute("SELECT COUNT(*) AS n FROM accounts").fetchone()
-        assert remaining is not None
-        assert int(remaining["n"]) == 2
+    def test_raises_for_missing_account(self, deletion_seeded_conn: sqlite3.Connection) -> None:
+        with pytest.raises(ValueError, match="Account 'missing' not found"):
+            accounts_service.preview_account_deletion(deletion_seeded_conn, "missing")
 
-    def test_delete_accounts_removes_target_and_related_records_only(
-        self, deletion_seeded_conn: sqlite3.Connection
+
+class TestDeleteAccount:
+    def test_deletes_one_account_and_all_related_rows(
+        self,
+        deletion_seeded_conn: sqlite3.Connection,
     ) -> None:
-        counts = accounts_service.delete_accounts(
-            deletion_seeded_conn,
-            account_names=["acct_a"],
-            delete_all=False,
-            dry_run=False,
-        )
+        deleted = accounts_service.delete_account(deletion_seeded_conn, "acct_a")
 
-        assert counts["accounts"] == 1
-        assert counts["trades"] == 1
-        assert counts["backtest_runs"] == 1
-        assert counts["promotion_reviews"] == 1
-        assert counts["risk_snapshots"] == 1
-        assert counts["risk_decisions"] == 1
-
+        assert deleted.name == "acct_a"
         remaining_accounts = deletion_seeded_conn.execute("SELECT name FROM accounts ORDER BY name ASC").fetchall()
         assert [str(row["name"]) for row in remaining_accounts] == ["acct_b"]
 
@@ -77,98 +52,12 @@ class TestDeleteAccounts:
             assert row is not None
             assert int(row["n"]) == 0, f"{label} rows for acct_a should be cascade-deleted"
 
-    def test_delete_accounts_cascades_match_dry_run_counts(self, deletion_seeded_conn: sqlite3.Connection) -> None:
-        """Cascade-backed deletion removes exactly the rows dry-run reported."""
-        dry_counts = accounts_service.delete_accounts(
-            deletion_seeded_conn,
-            account_names=["acct_a"],
-            delete_all=False,
-            dry_run=True,
-        )
-
-        counts = accounts_service.delete_accounts(
-            deletion_seeded_conn,
-            account_names=["acct_a"],
-            delete_all=False,
-            dry_run=False,
-        )
-
-        assert counts == dry_counts
         assert deletion_seeded_conn.execute("PRAGMA foreign_key_check").fetchall() == []
 
-        # The untouched account keeps its child rows across every cascaded table.
-        surviving = {
-            "orders": "SELECT COUNT(*) AS n FROM orders WHERE account_id = 2",
-            "order_fills": "SELECT COUNT(*) AS n FROM order_fills WHERE order_id = 502",
-            "backtest_trades": "SELECT COUNT(*) AS n FROM backtest_trades WHERE run_id = 22",
-            "backtest_equity_snapshots": "SELECT COUNT(*) AS n FROM backtest_equity_snapshots WHERE run_id = 22",
-            "promotion_review_events": "SELECT COUNT(*) AS n FROM promotion_review_events WHERE review_id = 202",
-            "walk_forward_group_runs": "SELECT COUNT(*) AS n FROM walk_forward_group_runs WHERE group_id = 302",
-            "risk_snapshots": "SELECT COUNT(*) AS n FROM risk_snapshots WHERE account_id = 2",
-            "risk_decisions": "SELECT COUNT(*) AS n FROM risk_decisions WHERE account_id = 2",
-        }
-        for label, query in surviving.items():
-            row = deletion_seeded_conn.execute(query).fetchone()
-            assert row is not None
-            assert int(row["n"]) == 1, f"{label} for acct_b should survive acct_a deletion"
+    def test_raises_for_missing_account(self, deletion_seeded_conn: sqlite3.Connection) -> None:
+        with pytest.raises(ValueError, match="Account 'missing' not found"):
+            accounts_service.delete_account(deletion_seeded_conn, "missing")
 
-    def test_delete_accounts_rolls_back_counts_and_delete_on_failure(
-        self,
-        deletion_seeded_conn: sqlite3.Connection,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        original_delete = AccountRepository.delete_by_ids
-
-        def delete_then_fail(self, account_ids, *, commit=True):
-            original_delete(self, account_ids, commit=commit)
-            raise RuntimeError("simulated failure")
-
-        monkeypatch.setattr(AccountRepository, "delete_by_ids", delete_then_fail)
-
-        with pytest.raises(RuntimeError, match="simulated failure"):
-            accounts_service.delete_accounts(
-                deletion_seeded_conn,
-                account_names=["acct_a"],
-                delete_all=False,
-                dry_run=False,
-            )
-
-        row = deletion_seeded_conn.execute("SELECT id FROM accounts WHERE name = 'acct_a'").fetchone()
-        assert row is not None
-        assert not deletion_seeded_conn.in_transaction
-
-    def test_delete_accounts_raises_for_missing_named_account(self, deletion_seeded_conn: sqlite3.Connection) -> None:
-        with pytest.raises(ValueError, match="Accounts not found: missing"):
-            accounts_service.delete_accounts(
-                deletion_seeded_conn,
-                account_names=["missing"],
-                delete_all=False,
-                dry_run=True,
-            )
-
-    def test_delete_accounts_delete_all_with_no_accounts_returns_zeroes(
-        self, deletion_empty_conn: sqlite3.Connection
-    ) -> None:
-        counts = accounts_service.delete_accounts(
-            deletion_empty_conn,
-            account_names=[],
-            delete_all=True,
-            dry_run=False,
-        )
-
-        assert counts == {
-            "accounts": 0,
-            "trades": 0,
-            "orders": 0,
-            "order_fills": 0,
-            "equity_snapshots": 0,
-            "backtest_runs": 0,
-            "backtest_trades": 0,
-            "backtest_equity_snapshots": 0,
-            "walk_forward_groups": 0,
-            "walk_forward_group_runs": 0,
-            "promotion_reviews": 0,
-            "promotion_review_events": 0,
-            "risk_snapshots": 0,
-            "risk_decisions": 0,
-        }
+    def test_rejects_empty_account_name(self, deletion_seeded_conn: sqlite3.Connection) -> None:
+        with pytest.raises(ValueError, match="account_name cannot be empty"):
+            accounts_service.delete_account(deletion_seeded_conn, "  ")

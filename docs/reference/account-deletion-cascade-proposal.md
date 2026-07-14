@@ -13,9 +13,9 @@ Use this note to decide which foreign-key relationships should become database-e
 
 ## Current Direction
 
-`trading.services.accounts.delete_accounts()` remains the account-deletion orchestration boundary,
+`trading.services.accounts.delete_account()` remains the account-deletion orchestration boundary,
 but the schema now owns all row cleanup: the real deletion is one atomic
-`DELETE FROM accounts` (`AccountRepository.delete_by_ids`) and `ON DELETE CASCADE` removes every
+`DELETE FROM accounts` (`AccountRepository.delete_by_name`) and `ON DELETE CASCADE` removes every
 account-owned row. The service still owns:
 
 - target account resolution and missing-account behavior
@@ -48,7 +48,7 @@ risk history. There is no separate archive path; the pre-deletion backup
 
 | Relationship | Action | Notes |
 |---|---|---|
-| `trades.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Codifies what `delete_accounts()` already did explicitly. |
+| `trades.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Codifies what `delete_account()` previously did explicitly. |
 | `orders.account_id` -> `accounts.id`, `orders.book_id` -> `books.id` | `ON DELETE CASCADE` | Fresh DDL already cascaded; the rebuild upgrades pre-book-era legacy DBs. |
 | `backtest_runs.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Research runs are account-owned; cascades reach `backtest_trades`/`backtest_equity_snapshots`. |
 | `walk_forward_groups.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Cascades reach `walk_forward_group_runs` via `group_id`. |
@@ -94,7 +94,7 @@ The example pattern lives in `.ai/skills/db-migration/sqlite-table-rebuild.md`.
 - [x] Update fresh DDL in `src/infrastructure/database/schema.py`.
 - [x] Add migration tests for a legacy table shape upgraded to the target FK action.
 - [x] Add service tests proving account deletion still reports counts and leaves no FK violations.
-- [x] Simplify `delete_accounts()` to rely on the implemented child-owned cascades.
+- [x] Simplify `delete_account()` to rely on the implemented child-owned cascades.
 
 ## Related Docs
 
