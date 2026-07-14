@@ -80,7 +80,9 @@ Order of resolution:
 2. registered aliases
 3. keyword compatibility matching
 
-Unknown labels raise `ValueError` (they do not silently fall back).
+Unknown labels raise `ValidationError` (a `ValueError` subclass; they do not
+silently fall back). In the web UI this maps to HTTP 400 — see
+`docs/adr/007-ui-error-mapping.md`.
 
 Examples of compatibility labels that still resolve:
 
