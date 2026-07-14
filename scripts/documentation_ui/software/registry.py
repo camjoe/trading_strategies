@@ -21,6 +21,7 @@ GROUP_BY_PACKAGE = {
     "fastapi": "Backend & Validation",
     "ib_async": "Data & Market Access",
     "httpx": "Developer Tooling",
+    "httpx2": "Developer Tooling",
     "hypothesis": "Developer Tooling",
     "matplotlib": "Visualization",
     "newsapi-python": "Data & Market Access",
@@ -41,6 +42,7 @@ GROUP_BY_PACKAGE = {
 }
 
 PURPOSE_BY_PACKAGE = {
+    "httpx2": "HTTP client used by Starlette's TestClient for FastAPI route and integration tests.",
     "ib_async": (
         "Async Interactive Brokers client used for broker connectivity, live account queries, "
         "and order execution flows."
