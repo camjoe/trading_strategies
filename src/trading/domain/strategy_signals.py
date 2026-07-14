@@ -6,6 +6,7 @@ from typing import Any, Callable, Mapping
 
 import pandas as pd
 
+from trading.domain.exceptions import ValidationError
 from trading.domain.indicators import calculate_macd, calculate_rs_rsi
 
 from common.constants import (
@@ -827,7 +828,7 @@ def _coerce_float_knob(name: str, value: Any) -> float:
 
 def _invalid_strategy_error(strategy_name: str) -> ValueError:
     available = ", ".join(available_strategy_ids())
-    return ValueError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
+    return ValidationError(f"Unknown strategy '{strategy_name}'. Valid strategies: {available}")
 
 
 def _resolve_exact_or_alias(name: str) -> StrategySpec | None:

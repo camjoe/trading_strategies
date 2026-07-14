@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from trading.domain.exceptions import ValidationError
 from infrastructure.market_data.factory import build_provider
 from trading.services.accounting import list_account_trades
 from trading.services.accounts import list_account_snapshots
@@ -121,6 +122,10 @@ def api_update_account_params(account_name: str, body: AccountParamsRequest) -> 
                 account_name,
                 command=command,
             )
-        except ValueError as exc:
+        except ValidationError as exc:
+            # Bad parameter values are a semantic validation failure on this PATCH
+            # (422) — a route-specific status choice, so it stays a direct mapping
+            # here rather than the app-level 400. An unexpected ValueError surfaces
+            # as 500. See docs/adr/007-ui-error-mapping.md.
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"status": "ok"}

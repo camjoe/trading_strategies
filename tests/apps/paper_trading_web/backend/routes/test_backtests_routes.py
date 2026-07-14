@@ -4,9 +4,10 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
-from trading.domain.exceptions import NotFoundError
+from trading.domain.exceptions import NotFoundError, ValidationError
 
 _BACKTEST_REPORT_FULL = "paper_trading_web.backend.routes.backtests.backtest_report_full"
 _RUN_BACKTEST = "paper_trading_web.backend.routes.backtests.run_backtest"
@@ -64,14 +65,14 @@ class TestBacktestsRoutes:
         assert response.json()["runId"] == 77
         report_mock.assert_called_once()
 
-    def test_backtest_run_endpoint_value_error(
+    def test_backtest_run_endpoint_validation_error_returns_400(
         self,
         api_client: TestClient,
         seed_account: Callable[..., None],
     ) -> None:
         seed_account("acct_run_err")
 
-        run_mock = Mock(side_effect=ValueError("bad config"))
+        run_mock = Mock(side_effect=ValidationError("bad config"))
         with patch(_RUN_BACKTEST, run_mock):
             response = api_client.post(
                 "/api/backtests/run",
@@ -85,6 +86,29 @@ class TestBacktestsRoutes:
 
         assert response.status_code == 400
         assert response.json()["detail"] == "bad config"
+        run_mock.assert_called_once()
+
+    def test_backtest_run_endpoint_unexpected_value_error_propagates(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        # A bare ValueError is an unexpected server error and is no longer masked
+        # as a 400 client error (docs/adr/007-ui-error-mapping.md).
+        seed_account("acct_run_bug")
+
+        run_mock = Mock(side_effect=ValueError("unexpected"))
+        with patch(_RUN_BACKTEST, run_mock):
+            with pytest.raises(ValueError, match="unexpected"):
+                api_client.post(
+                    "/api/backtests/run",
+                    json={
+                        "account": "acct_run_bug",
+                        "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                        "start": "2026-01-01",
+                        "end": "2026-01-31",
+                    },
+                )
         run_mock.assert_called_once()
 
     def test_backtest_preflight_endpoint_file_not_found(
@@ -155,14 +179,14 @@ class TestBacktestsRoutes:
         assert response.status_code == 400
         assert "Use either --start or --lookback-months" in response.json()["detail"]
 
-    def test_walk_forward_endpoint_value_error(
+    def test_walk_forward_endpoint_validation_error_returns_400(
         self,
         api_client: TestClient,
         seed_account: Callable[..., None],
     ) -> None:
         seed_account("acct_wf_err")
 
-        walk_forward_mock = Mock(side_effect=ValueError("wf bad config"))
+        walk_forward_mock = Mock(side_effect=ValidationError("wf bad config"))
         with patch(_RUN_WALK_FORWARD, walk_forward_mock):
             response = api_client.post(
                 "/api/backtests/walk-forward",
@@ -176,4 +200,25 @@ class TestBacktestsRoutes:
 
         assert response.status_code == 400
         assert response.json()["detail"] == "wf bad config"
+        walk_forward_mock.assert_called_once()
+
+    def test_walk_forward_endpoint_unexpected_value_error_propagates(
+        self,
+        api_client: TestClient,
+        seed_account: Callable[..., None],
+    ) -> None:
+        seed_account("acct_wf_bug")
+
+        walk_forward_mock = Mock(side_effect=ValueError("unexpected"))
+        with patch(_RUN_WALK_FORWARD, walk_forward_mock):
+            with pytest.raises(ValueError, match="unexpected"):
+                api_client.post(
+                    "/api/backtests/walk-forward",
+                    json={
+                        "account": "acct_wf_bug",
+                        "tickersFile": "src/infrastructure/config/trade_universe.txt",
+                        "testMonths": 1,
+                        "stepMonths": 1,
+                    },
+                )
         walk_forward_mock.assert_called_once()
