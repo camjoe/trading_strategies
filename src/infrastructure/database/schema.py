@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS trades (
     fee REAL NOT NULL DEFAULT 0,
     trade_time TEXT NOT NULL,
     note TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 );
 """
 
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS backtest_runs (
     tickers_file TEXT,
     notes TEXT,
     warnings TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
@@ -330,7 +330,7 @@ CREATE TABLE IF NOT EXISTS walk_forward_groups (
     best_return_pct REAL NOT NULL,
     worst_return_pct REAL NOT NULL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     FOREIGN KEY (strategy_id) REFERENCES strategies(id)
 );
 """
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS promotion_reviews (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     closed_at TEXT,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 );
 """
 
@@ -672,7 +672,7 @@ CREATE TABLE IF NOT EXISTS risk_snapshots (
     daily_loss_pct REAL,
     kill_switch_triggered INTEGER NOT NULL DEFAULT 0 CHECK (kill_switch_triggered IN (0, 1)),
     risk_payload_json TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
     UNIQUE (account_id, snapshot_time)
 );
 """
@@ -693,8 +693,8 @@ CREATE TABLE IF NOT EXISTS risk_decisions (
     approved_notional REAL,
     risk_payload_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES accounts(id),
-    FOREIGN KEY (book_id) REFERENCES books(id)
+    FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE SET NULL
 );
 """
 

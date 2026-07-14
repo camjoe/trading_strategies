@@ -7,7 +7,8 @@ from infrastructure.database.init import _column_names, _ensure_column, ensure_d
 from infrastructure.database.migrations import (
     ACCOUNT_MIGRATIONS,
     DEFAULT_ROTATION_OVERLAY_WATCHLIST_JSON,
-    ensure_order_fills_order_delete_cascade,
+    TABLE_REBUILDS,
+    ensure_table_rebuild_migrations,
 )
 
 
@@ -66,6 +67,65 @@ def test_fresh_schema_child_owned_foreign_keys_cascade(sqlite_backend: SQLiteBac
         conn.close()
 
 
+def test_fresh_schema_account_owned_foreign_keys_cascade(sqlite_backend: SQLiteBackend) -> None:
+    conn = ensure_db()
+    try:
+        assert _fk_delete_action(conn, "trades", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "orders", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "orders", "book_id", "books") == "CASCADE"
+        assert _fk_delete_action(conn, "backtest_runs", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "walk_forward_groups", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "promotion_reviews", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "risk_snapshots", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "risk_decisions", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "risk_decisions", "book_id", "books") == "SET NULL"
+    finally:
+        conn.close()
+
+
+def _table_shape(conn, table_name: str) -> tuple[set[tuple], set[str]]:
+    columns = {
+        (str(row["name"]), str(row["type"]), int(row["notnull"]), row["dflt_value"], int(row["pk"]))
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    indexes = {
+        str(row["name"])
+        for row in conn.execute(f"PRAGMA index_list({table_name})").fetchall()
+        if str(row["origin"]) == "c"
+    }
+    return columns, indexes
+
+
+def test_rebuild_specs_recreate_fresh_schema_shape(sqlite_backend: SQLiteBackend) -> None:
+    """Every rebuild spec's DDL, column list, and indexes stay in sync with schema.py.
+
+    Forces each rebuild against a fresh database and asserts the recreated table
+    is indistinguishable from the schema.py original.
+    """
+    from infrastructure.database.migrations import _run_rebuild
+
+    conn = ensure_db()
+    try:
+        for rebuild in TABLE_REBUILDS:
+            fresh_shape = _table_shape(conn, rebuild.table_name)
+            assert set(rebuild.column_names) == {column[0] for column in fresh_shape[0]}, rebuild.table_name
+
+            _run_rebuild(
+                conn,
+                table_name=rebuild.table_name,
+                create_sql=rebuild.create_sql,
+                copy_sql=rebuild.copy_sql(conn),
+                index_sql=rebuild.index_sql,
+            )
+
+            assert _table_shape(conn, rebuild.table_name) == fresh_shape, rebuild.table_name
+            for target in rebuild.foreign_key_targets:
+                actual = _fk_delete_action(conn, rebuild.table_name, target.column_name, target.references_table)
+                assert actual == target.delete_action, (rebuild.table_name, target)
+    finally:
+        conn.close()
+
+
 def test_init_schema_rebuilds_legacy_child_owned_foreign_keys(sqlite_backend: SQLiteBackend) -> None:
     conn = sqlite_backend.open_connection()
     try:
@@ -77,6 +137,19 @@ def test_init_schema_rebuilds_legacy_child_owned_foreign_keys(sqlite_backend: SQ
                 strategy TEXT NOT NULL,
                 initial_cash REAL NOT NULL,
                 created_at TEXT NOT NULL
+            );
+            CREATE TABLE books (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                start_equity REAL NOT NULL,
+                current_cash REAL NOT NULL,
+                current_equity REAL NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
             );
             CREATE TABLE orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -224,6 +297,10 @@ def test_init_schema_rebuilds_legacy_child_owned_foreign_keys(sqlite_backend: SQ
 
             INSERT INTO accounts (id, name, strategy, initial_cash, created_at)
             VALUES (1, 'acct_legacy_cascade', 'trend', 1000, '2026-01-01T00:00:00Z');
+            INSERT INTO books (
+                id, account_id, name, status, is_default, start_equity, current_cash,
+                current_equity, created_at, updated_at
+            ) VALUES (1, 1, 'default', 'active', 1, 1000, 900, 1000, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
             INSERT INTO orders (
                 id, book_id, account_id, symbol, side, qty, status, submitted_at, updated_at
             ) VALUES (1, 1, 1, 'SPY', 'buy', 1, 'filled', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
@@ -267,22 +344,31 @@ def test_init_schema_rebuilds_legacy_child_owned_foreign_keys(sqlite_backend: SQ
         assert _fk_delete_action(conn, "backtest_equity_snapshots", "run_id", "backtest_runs") == "CASCADE"
         assert _fk_delete_action(conn, "promotion_review_events", "review_id", "promotion_reviews") == "CASCADE"
         assert _fk_delete_action(conn, "walk_forward_group_runs", "group_id", "walk_forward_groups") == "CASCADE"
+        assert _fk_delete_action(conn, "orders", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "orders", "book_id", "books") == "CASCADE"
+        assert _fk_delete_action(conn, "backtest_runs", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "walk_forward_groups", "account_id", "accounts") == "CASCADE"
+        assert _fk_delete_action(conn, "promotion_reviews", "account_id", "accounts") == "CASCADE"
 
-        assert conn.execute("SELECT COUNT(*) FROM order_fills").fetchone()[0] == 1
-        assert conn.execute("SELECT COUNT(*) FROM backtest_trades").fetchone()[0] == 1
-        assert conn.execute("SELECT COUNT(*) FROM backtest_equity_snapshots").fetchone()[0] == 1
-        assert conn.execute("SELECT COUNT(*) FROM promotion_review_events").fetchone()[0] == 1
-        assert conn.execute("SELECT COUNT(*) FROM walk_forward_group_runs").fetchone()[0] == 1
+        cascade_tables = (
+            "orders",
+            "order_fills",
+            "backtest_runs",
+            "backtest_trades",
+            "backtest_equity_snapshots",
+            "promotion_reviews",
+            "promotion_review_events",
+            "walk_forward_groups",
+            "walk_forward_group_runs",
+        )
+        for table in cascade_tables:
+            assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 1, table
 
-        conn.execute("DELETE FROM orders WHERE id = 1")
-        assert conn.execute("SELECT COUNT(*) FROM order_fills").fetchone()[0] == 0
-        conn.execute("DELETE FROM promotion_reviews WHERE id = 1")
-        assert conn.execute("SELECT COUNT(*) FROM promotion_review_events").fetchone()[0] == 0
-        conn.execute("DELETE FROM walk_forward_groups WHERE id = 1")
-        assert conn.execute("SELECT COUNT(*) FROM walk_forward_group_runs").fetchone()[0] == 0
-        conn.execute("DELETE FROM backtest_runs WHERE id = 1")
-        assert conn.execute("SELECT COUNT(*) FROM backtest_trades").fetchone()[0] == 0
-        assert conn.execute("SELECT COUNT(*) FROM backtest_equity_snapshots").fetchone()[0] == 0
+        # One account deletion now cascades the entire legacy dataset.
+        conn.execute("DELETE FROM accounts WHERE id = 1")
+        for table in cascade_tables:
+            assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0, table
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         conn.close()
 
@@ -332,12 +418,12 @@ def test_table_rebuild_rejects_open_transaction(sqlite_backend: SQLiteBackend) -
         conn.execute("BEGIN")
         conn.execute("UPDATE orders SET filled_qty = 2 WHERE id = 1")
         with pytest.raises(RuntimeError, match="open transaction"):
-            ensure_order_fills_order_delete_cascade(conn)
+            ensure_table_rebuild_migrations(conn, table_names=("order_fills",))
         conn.rollback()
 
         # Legacy FK action untouched by the rejected attempt; succeeds once clean.
         assert _fk_delete_action(conn, "order_fills", "order_id", "orders") == "NO ACTION"
-        ensure_order_fills_order_delete_cascade(conn)
+        ensure_table_rebuild_migrations(conn, table_names=("order_fills",))
         assert _fk_delete_action(conn, "order_fills", "order_id", "orders") == "CASCADE"
     finally:
         conn.close()
@@ -361,7 +447,7 @@ def test_table_rebuild_rolls_back_on_foreign_key_violation(sqlite_backend: SQLit
         conn.commit()
 
         with pytest.raises(RuntimeError, match="Foreign-key violations"):
-            ensure_order_fills_order_delete_cascade(conn)
+            ensure_table_rebuild_migrations(conn, table_names=("order_fills",))
 
         # The rebuild rolled back: legacy FK action and every row (orphan included)
         # remain for the operator to repair.

@@ -24,18 +24,33 @@ Related: [Overview](overview.md), [Sleeve-Retirement DB Migration](runbooks/slee
 
 ---
 
-## Step 0 — Child-Owned FK Cascade Rebuilds
+## Step 0 — FK Cascade Rebuilds (Child-Owned + Account-Owned)
 
 **When:** the branch containing the FK-cascade migration deploys to a host with an existing DB.
 
-**Why:** five child-owned relationships now use database-enforced cascades so deleting the parent row
-removes implementation-detail children consistently on fresh and migrated databases:
+**Why:** these relationships now use database-enforced cascades so deleting the parent row removes
+owned rows consistently on fresh and migrated databases.
+
+Child-owned (implementation detail of the parent):
 
 - `order_fills.order_id` -> `orders.id`
 - `backtest_trades.run_id` -> `backtest_runs.id`
 - `backtest_equity_snapshots.run_id` -> `backtest_runs.id`
 - `promotion_review_events.review_id` -> `promotion_reviews.id`
 - `walk_forward_group_runs.group_id` -> `walk_forward_groups.id`
+
+Account-owned (account deletion removes operational, research, governance, and risk history):
+
+- `trades.account_id` -> `accounts.id`
+- `orders.account_id` -> `accounts.id` and `orders.book_id` -> `books.id` (legacy DBs only; fresh DDL already cascaded)
+- `backtest_runs.account_id` -> `accounts.id`
+- `walk_forward_groups.account_id` -> `accounts.id`
+- `promotion_reviews.account_id` -> `accounts.id`
+- `risk_snapshots.account_id` -> `accounts.id`
+- `risk_decisions.account_id` -> `accounts.id`, plus `risk_decisions.book_id` -> `books.id` `ON DELETE SET NULL`
+
+The risk-table rows also fix a latent bug: account deletion previously failed with a FK constraint
+error for any account that had risk telemetry, because the deletion service never removed those rows.
 
 **How it runs:** automatically from `src.infrastructure.database.init.init_schema()` through
 `ensure_table_rebuild_migrations()`. There is no separate data-op. The first process that opens the
@@ -60,6 +75,17 @@ Fresh databases need nothing because the DDL already has the target FK actions.
    - `backtest_equity_snapshots.run_id -> backtest_runs.id ON DELETE CASCADE`
    - `promotion_review_events.review_id -> promotion_reviews.id ON DELETE CASCADE`
    - `walk_forward_group_runs.group_id -> walk_forward_groups.id ON DELETE CASCADE`
+   - `trades.account_id -> accounts.id ON DELETE CASCADE`
+   - `orders.account_id -> accounts.id ON DELETE CASCADE`
+   - `backtest_runs.account_id -> accounts.id ON DELETE CASCADE`
+   - `walk_forward_groups.account_id -> accounts.id ON DELETE CASCADE`
+   - `promotion_reviews.account_id -> accounts.id ON DELETE CASCADE`
+   - `risk_snapshots.account_id -> accounts.id ON DELETE CASCADE`
+   - `risk_decisions.account_id -> accounts.id ON DELETE CASCADE`
+   - `risk_decisions.book_id -> books.id ON DELETE SET NULL`
+
+   Deliberately unchanged: `walk_forward_group_runs.run_id -> backtest_runs.id` stays `NO ACTION`
+   (a run that belongs to a walk-forward group must not disappear out from under it).
 
 **Rollback:** restore the pre-deploy backup. Reverting code alone does not restore old FK actions
 after the table rebuild has run.

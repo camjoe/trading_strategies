@@ -39,20 +39,28 @@ These relationships are child-owned implementation detail. The child row has no 
 | `promotion_review_events.review_id` -> `promotion_reviews.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
 | `walk_forward_group_runs.group_id` -> `walk_forward_groups.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
 
-## Potential Cascades
+## Implemented Account-Owned Cascades
 
-These may be correct, but the dependency or retention semantics need a decision first.
+Decision (2026-07-13): account deletion removes the account's operational, research, governance, and
+risk history. There is no separate archive path; the pre-deletion backup
+(`data_ops.admin backup`) is the retention mechanism.
+
+| Relationship | Action | Notes |
+|---|---|---|
+| `trades.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Codifies what `delete_accounts()` already did explicitly. |
+| `orders.account_id` -> `accounts.id`, `orders.book_id` -> `books.id` | `ON DELETE CASCADE` | Fresh DDL already cascaded; the rebuild upgrades pre-book-era legacy DBs. |
+| `backtest_runs.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Research runs are account-owned; cascades reach `backtest_trades`/`backtest_equity_snapshots`. |
+| `walk_forward_groups.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Cascades reach `walk_forward_group_runs` via `group_id`. |
+| `promotion_reviews.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Codifies existing service behavior; events cascade via `review_id`. |
+| `risk_snapshots.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Fixes a latent bug: the service never deleted risk rows, so account deletion failed for accounts with risk telemetry. |
+| `risk_decisions.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Same latent-bug fix as `risk_snapshots`. |
+| `risk_decisions.book_id` -> `books.id` | `ON DELETE SET NULL` | Standalone book deletion preserves account-level decision history (`book_id` was already nullable); account deletion still removes rows via `account_id`. |
+
+## Remaining Open Decision
 
 | Relationship | Candidate action | Decision dependency | Risk if chosen blindly |
 |---|---|---|---|
-| `trades.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Are paper trade records account-owned scratch data, or should they remain as account-name-independent execution history? | Account deletion removes trade history with no separate archive path. |
-| `backtest_runs.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Should deleting an account remove all research runs created for it? | Research evidence can disappear during account cleanup. |
-| `walk_forward_groups.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Should walk-forward summaries be account-owned, or retained as strategy evaluation evidence? | Evaluation history disappears with the account. |
-| `walk_forward_group_runs.run_id` -> `backtest_runs.id` | `ON DELETE CASCADE` | Should deleting a backtest run remove its walk-forward membership, or should parent group deletion be the only cascade path? | A run deletion can silently alter walk-forward group composition. |
-| `promotion_reviews.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Are promotion reviews operational account state, or audit records that must survive? | Operator approval history disappears. |
-| `risk_snapshots.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Are risk snapshots disposable account telemetry, or retained safety evidence? | Safety history disappears. |
-| `risk_decisions.account_id` -> `accounts.id` | `ON DELETE CASCADE` | Are risk decisions disposable account telemetry, or retained safety evidence? | Allow/block decision history disappears. |
-| `risk_decisions.book_id` -> `books.id` | `ON DELETE SET NULL` or `ON DELETE CASCADE` | If account-level history is retained, should book deletion preserve decisions with `book_id = NULL`? | Cascade can remove safety decisions; `SET NULL` requires nullable semantics to be intentional. |
+| `walk_forward_group_runs.run_id` -> `backtest_runs.id` | `ON DELETE CASCADE` | Should deleting a backtest run remove its walk-forward membership, or should parent group deletion be the only cascade path? Kept `NO ACTION` so a grouped run cannot disappear silently; fold any change into a future `walk_forward_group_runs` rebuild. | A run deletion can silently alter walk-forward group composition. |
 
 ## Keep As Non-Cascade
 
@@ -78,9 +86,9 @@ The example pattern lives in `.ai/skills/db-migration/sqlite-table-rebuild.md`.
 
 ## Decision Checklist
 
-- [ ] Decide whether direct account-owned operational rows should cascade.
-- [ ] Decide whether research/evaluation rows should survive account deletion.
-- [ ] Decide whether promotion and risk history are audit records.
+- [x] Decide whether direct account-owned operational rows should cascade. (Yes — cascade.)
+- [x] Decide whether research/evaluation rows should survive account deletion. (No — account-owned; backup is the retention path.)
+- [x] Decide whether promotion and risk history are audit records. (No — account-owned; risk `book_id` uses `SET NULL` so book deletion alone keeps history.)
 - [x] Add table-rebuild migration support under `src/infrastructure/database/`.
 - [x] Update fresh DDL in `src/infrastructure/database/schema.py`.
 - [x] Add migration tests for a legacy table shape upgraded to the target FK action.

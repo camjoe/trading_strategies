@@ -57,9 +57,15 @@ def test_account_deletion_scope_reports_known_cascade_and_no_action() -> None:
             "references_table": "accounts",
             "references_column": "id",
             "on_update": "NO ACTION",
-            "on_delete": "NO ACTION",
+            "on_delete": "CASCADE",
         }
     ]
+
+    # walk_forward_group_runs.run_id stays NO ACTION deliberately: a backtest run
+    # that belongs to a walk-forward group must not disappear out from under it.
+    group_runs = _table(payload, "walk_forward_group_runs")
+    run_fk = next(fk for fk in group_runs["foreign_keys"] if fk["references_table"] == "backtest_runs")
+    assert run_fk["on_delete"] == "NO ACTION"
 
 
 def test_all_scope_includes_tables_outside_account_deletion_scope() -> None:
