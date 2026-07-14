@@ -3,11 +3,11 @@
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-13
 Purpose: Define the shadow period, stability thresholds, and go-live checklist for signing off new strategies for autonomous trading.
 Related: [Runtime Operations](runtime-operations.md), [Governance Review Guide](governance-review.md), [Broker Integration](../reference/broker-integration.md)
 
-Defines the shadow period, stability thresholds, and go-live checklist for the IBKR Paper Autonomy system.
+Defines the shadow period, stability thresholds, and go-live checklist for autonomous paper-to-live trading.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ Before enabling fully autonomous live trading, the system must demonstrate stabi
 
 The system runs daily in paper mode with real IBKR Paper broker credentials. No real capital is at risk. All decisions and trades are executed in the paper account.
 
-**Duration:** minimum 10 consecutive trading days with no critical failures.
+**Duration:** minimum 10 consecutive successful daily paper-trading artifacts with no critical failures.
 
 **What to monitor daily:**
 - DAG completion (all steps ok or skipped, no `status: failed`)
@@ -42,11 +42,13 @@ Evaluate the output artifact at `local/artifacts/check_burn_in_status_*.json`.
 
 | Metric | Threshold | Flag |
 |---|---|---|
-| Consecutive successful days | ≥ 10 | `--min-consecutive-days` |
+| Consecutive successful daily artifacts | ≥ 10 | `--min-consecutive-days` |
 | Failed-run rate over window | ≤ 0% | `--max-failure-rate-pct` |
 | Window scanned | last 30 days | `--window-days` |
 
-`ready_for_live: true` in the artifact means both thresholds are met.
+`ready_for_live: true` in the artifact means both thresholds are met. The checker counts the
+latest `daily_paper_trading_*.json` artifact per date and treats top-level `status == "success"` as
+a successful day; it does not independently validate market calendars or broker trading sessions.
 
 **To apply tighter thresholds:**
 ```bash
@@ -69,7 +71,7 @@ Before enabling autonomous mode, an operator must verify all items below.
 
 - [ ] Scheduler tasks are registered and verified (`manage_job_schedules --dry-run`)
 - [ ] Fallback task fires within the backup window if primary is missed
-- [ ] Webhook notification URL is configured (`TRADING_RUNTIME_ALERT_WEBHOOK_URL`)
+- [ ] Runtime notifications are configured (webhook and/or SMTP; see [Runtime Operations](runtime-operations.md#runtime-notifications))
 - [ ] DB backup is scheduled weekly (`weekly_db_backup`)
 - [ ] `local/logs/` and `local/exports/` are included in backup scope
 
@@ -99,7 +101,7 @@ Before enabling autonomous mode, an operator must verify all items below.
 - [ ] Operator name: ___________________________
 - [ ] Date: ___________________________
 - [ ] Burn-in artifact path: `local/artifacts/check_burn_in_status_*.json`
-- [ ] Consecutive successes at sign-off: _____ / _____ required
+- [ ] Consecutive successful artifacts at sign-off: _____ / _____ required
 
 ---
 

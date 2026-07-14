@@ -3,11 +3,12 @@
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-06-16
+Last Reviewed: 2026-07-13
 Purpose: Procedures for running and interpreting the read-only weekly and monthly governance jobs that produce review artifacts.
-Related: [Runtime Operations](runtime-operations.md), [Burn-In Protocol](burn-in-protocol.md), [Strategy Catalog](../reference/strategies.md)
+Related: [Runtime Jobs Reference](../reference/runtime-jobs.md), [Runtime Operations](runtime-operations.md), [Burn-In Protocol](burn-in-protocol.md), [Strategy Catalog](../reference/strategies.md)
 
-Procedures for running and interpreting the weekly and monthly governance jobs.
+Procedures for interpreting the weekly and monthly governance jobs. For the complete job catalog,
+scheduling notes, and entrypoint inventory, see the [Runtime Jobs Reference](../reference/runtime-jobs.md).
 
 ## Overview
 
@@ -36,8 +37,8 @@ Ranks books by 30-day risk-adjusted performance score.
 - `books[].max_drawdown_pct` — worst drawdown in window
 
 **When to act:**
-- If a book holds rank 1 consistently → consider it for promotion review
-- If a book stays at the bottom for multiple weeks → flag for W2 retirement review
+- If a book holds rank 1 consistently, use W2 and the promotion review lifecycle to decide whether it is a promotion candidate
+- If a book stays at the bottom for multiple weeks, flag it for W2 retirement review
 
 ---
 
@@ -55,7 +56,7 @@ Reports promotion readiness and any blocking violations for each account.
 - `books[].book_status` — `active`, `inactive`, or other status
 
 **When to act:**
-- `ready_for_live: true` with no blockers → open a promotion review via the CLI
+- `ready_for_live: true` with no blockers → persist a review with `promotion-request-review`, inspect history with `promotion-review-history`, then approve/reject/comment with `promotion-review-action`
 - Any book with `book_status` other than `active` for an extended period → investigate
 
 ---
@@ -75,7 +76,7 @@ Compares actual book NAV allocation against original `start_equity` ratios.
 - `books[].reweight_suggested` — true when `|drift_pct| >= threshold` (default 5%)
 
 **When to act:**
-- Any book with `reweight_suggested: true` → review whether drift is driven by performance (acceptable) or by an accounting error (investigate)
+- Any book with `reweight_suggested: true` → review whether drift is driven by performance (acceptable) or by an accounting error (investigate); this job does not rebalance automatically
 
 **Changing the drift threshold:**
 ```bash
@@ -151,7 +152,7 @@ Inventories all active strategy parameter sets for operator review.
 
 **When to act:**
 - Negative `cumulative_return_pct` for multiple months → open a retirement review
-- Low `avg_hit_rate` (< 0.4) with high `total_trades` → review strategy signal quality
+- Low `avg_hit_rate` (< 0.4) with high `total_trades` → review strategy signal quality; this job is an audit signal, not an automatic retirement action
 
 ---
 
