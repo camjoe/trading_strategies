@@ -57,11 +57,6 @@ def parse_args() -> argparse.Namespace:
         help="Max README age in days for advisory consistency check.",
     )
     parser.add_argument(
-        "--install-python-tools",
-        action="store_true",
-        help="Install ruff and mypy before running quality gates.",
-    )
-    parser.add_argument(
         "--with-reference-doc-checks",
         action="store_true",
         help="Also run all Financial & Market, Software, and API reference sync checks.",
@@ -89,7 +84,6 @@ def run_ci(
     skip_link_check: bool = False,
     skip_module_ref_check: bool = False,
     readme_max_age_days: int = 90,
-    install_python_tools: bool = False,
     with_reference_doc_checks: bool = False,
 ) -> int:
     try:
@@ -125,13 +119,6 @@ def run_ci(
                 [python_exe, "-m", "pip", "install", "-q", "-r", "requirements-dev.txt"],
                 repo_root,
             )
-            if install_python_tools:
-                run_step(
-                    "Python: install quality tools",
-                    [python_exe, "-m", "pip", "install", "-q", "ruff", "mypy"],
-                    repo_root,
-                )
-
             run_ruff(repo_root=repo_root, python_exe=python_exe)
             run_mypy(repo_root=repo_root, python_exe=python_exe)
             run_pytest(repo_root=repo_root, python_exe=python_exe)
@@ -162,7 +149,6 @@ def main() -> int:
         skip_link_check=args.skip_link_check,
         skip_module_ref_check=args.skip_module_ref_check,
         readme_max_age_days=args.readme_max_age_days,
-        install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,
     )
 

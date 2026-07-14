@@ -60,9 +60,6 @@ python -m scripts.run_checks --profile ci --skip-frontend
 
 # Skip python checks
 python -m scripts.run_checks --profile ci --skip-python
-
-# Explicitly install ruff/mypy before quality gates
-python -m scripts.run_checks --profile ci --install-python-tools
 ```
 
 ## Quick Start

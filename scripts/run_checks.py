@@ -89,11 +89,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="CI profile: skip doc `-m` module reference check.",
     )
-    parser.add_argument(
-        "--install-python-tools",
-        action="store_true",
-        help="CI profile: install ruff and mypy before quality gates.",
-    )
     return parser.parse_args()
 
 
@@ -124,7 +119,6 @@ def main() -> int:
         skip_link_check=args.skip_link_check,
         skip_module_ref_check=args.skip_module_ref_check,
         readme_max_age_days=args.readme_max_age_days,
-        install_python_tools=args.install_python_tools,
         with_reference_doc_checks=args.with_reference_doc_checks,
     )
 
