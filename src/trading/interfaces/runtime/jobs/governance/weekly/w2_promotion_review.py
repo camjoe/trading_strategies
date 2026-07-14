@@ -9,7 +9,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyPromotionAccountPayload,
     WeeklyPromotionArtifactPayload,
-    WeeklyPromotionSleevePayload,
+    WeeklyPromotionBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
@@ -55,12 +55,12 @@ def main(ctx: JobContext) -> dict[str, object]:
 
         assessment = fetch_current_promotion_assessment(ctx.conn, account_name=account_name)
 
-        book_rows: list[WeeklyPromotionSleevePayload] = []
+        book_rows: list[WeeklyPromotionBookPayload] = []
         for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
 
             book_rows.append(
-                WeeklyPromotionSleevePayload(
+                WeeklyPromotionBookPayload(
                     book_name=book.name,
                     strategy_name=strategy_name,
                     book_status=book.status,

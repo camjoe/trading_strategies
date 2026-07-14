@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-13
 Purpose: Full inventory of documentation files — use to audit staleness, find coverage gaps, and check for redundancy.
 Related: [Docs README](../README.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -93,19 +93,15 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/reference/db-schema.md` | Schema quick-reference (all tables, purposes, FKs) + semantic notes | A table is added or removed (drift-checked by `db_schema_check`) |
 | `docs/reference/database-diagram-viewer.html` | Interactive generated database diagram viewer with full columns, grouped sections, relationship arrows, and toggleable FK metadata | Database schema, FK actions, or viewer generator changes |
 | `docs/reference/broker-setup-ibkr.md` | IBKR Client Portal Gateway operator setup checklist | IBKR gateway setup steps or connection config change |
-| `docs/reference/broker-setup-alpaca.md` | Alpaca setup guide (Draft — adapter not implemented) | Alpaca adapter work starts or is dropped |
 | `docs/reference/screenshot-ui.md` | UI screenshot / visual testing notes | UI layout or screenshot test tooling changes |
 | `docs/reference/sentiment-signals.md` | Sentiment signal sources and integration | `src/infrastructure/feature_providers/` sentiment providers change |
-| `docs/overview.md` | Definitive app explainer + north-star direction (entry point) | Purpose, capabilities, or high-level direction change |
-| `docs/status.md` | Remaining committed work and deferred workstream links | A workstream changes state or a next action is taken |
+| `docs/overview.md` | Definitive app explainer + north-star direction + itemized tracker of what remains (entry point) | Purpose, capabilities, direction, or remaining-work list change |
+| `docs/pending-deploy-steps.md` | Consolidated tracker for the one-time DB steps (two to run, one to build); full procedures link to the runbooks | A one-time DB step is added, run everywhere, or built |
 
 ### ADRs
 
 | File | Decision recorded | Would be superseded by |
 |---|---|---|
-| `docs/adr/001-cross-platform-paths.md` | Use `pathlib.Path` for all paths | Switching away from pathlib |
-| `docs/adr/002-backtesting-layering.md` | Backtesting module layering approach | Restructuring `src/trading/backtesting/` out of its current bounded-context shape |
-| `docs/adr/003-sleeve-virtualization-architecture.md` | Sleeve virtualization architecture design | Wholesale redesign of the sleeve system |
 | `docs/adr/004-runtime-naming-and-operational-settings.md` | "runtime" naming disambiguation; `operational_settings` package | Renaming the scheduler layer or the settings package |
 | `docs/adr/005-models-as-lowest-data-layer.md` | `models/` holds all passive data contracts as the lowest layer | Restructuring the models layer or layering direction |
 | `docs/adr/006-cross-cutting-decorators.md` | Sanctioned decorator/context-manager pattern for cross-cutting concerns | Changing the cross-cutting pattern rules |
@@ -115,7 +111,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | `docs/adr/010-book-keyed-execution-model.md` | Books are the execution primitive after sleeve retirement | Introducing another execution primitive or abandoning book-keyed flow |
 | `docs/adr/011-strategy-catalog-and-parameter-ownership.md` | Strategy knobs live on strategy rows; execution settings live on typed book settings | Consolidating these settings into a different ownership model |
 | `docs/adr/012-runtime-alert-email-configuration.md` | Runtime SMTP alerts use environment variables | Moving SMTP settings into database or operator UI configuration |
-| `docs/adr/013-portfolio-concentration-dimensions.md` | Portfolio concentration is symbol plus sector rollup | Adding or replacing concentration dimensions |
 | `docs/adr/014-execution-mode-collapse.md` | One book-keyed runtime path; rotation scheduling is book-owned, continuous eval under cooldown | Reintroducing an account-mode path or account-owned rotation config |
 
 ### Templates and Standards
@@ -123,8 +118,6 @@ Deep-dive references and decision records. Notes go stale when the thing they de
 | File | What it covers |
 |---|---|
 | `docs/adr/TEMPLATE.adr.md` | Template for new ADR files |
-| `docs/reference/TEMPLATE.notes.md` | Template for new reference notes |
-| `docs/reference/skill-invocation-policy.md` | Who can invoke which skill; `invoker` frontmatter schema and enforcement preamble convention |
 
 ---
 

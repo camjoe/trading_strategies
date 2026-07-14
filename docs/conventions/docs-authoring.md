@@ -3,9 +3,9 @@
 Type: convention
 Status: Active
 Created: 2026-06-16
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Define the required metadata header, document types, templates, and reference/ADR layouts for docs/ files.
-Related: [README Layout Standard](readme-layout.md), [File Naming Convention](naming.md), [Docs Map](../maps/docs-map.md)
+Related: [Documentation Maintenance](documentation-maintenance.md), [README Layout Standard](readme-layout.md), [File Naming Convention](naming.md), [Docs Map](../maps/docs-map.md)
 
 ## Header Format
 
@@ -46,9 +46,42 @@ enforces them. A status may include a parenthetical or dash suffix after a valid
 
 ## Templates
 
-`TEMPLATE.adr.md` and `TEMPLATE.notes.md` use placeholder values and are skipped by the header
-checker. When creating a new file from a template, fill in the metadata block before writing body
-content.
+`docs/adr/TEMPLATE.adr.md` uses placeholder values and is skipped by the header
+checker. When creating a new ADR from the template, fill in the metadata block
+before writing body content.
+
+For a reference note, use this inline template:
+
+```markdown
+# Title
+
+Type: notes
+Status: Active
+Created: YYYY-MM-DD
+Last Reviewed: YYYY-MM-DD
+Purpose: One sentence on what this doc covers and who should reach for it.
+Related: [Related Doc](relative/path.md)
+
+## Purpose
+
+What this document is and who should read it.
+
+## Overview
+
+Current-state description: how the system works and what it covers.
+
+## Usage
+
+Commands, recipes, or operational patterns, if applicable.
+
+## Boundaries
+
+Rules and constraints that govern this area.
+
+## Related Docs
+
+- [Related reference or architecture doc](relative/path.md)
+```
 
 ---
 
@@ -73,8 +106,8 @@ ADR (set `Status: Superseded` on the old one and link the replacement in `Relate
 2. `## Decision` — what was decided and how it works
 3. `## Consequences` — trade-offs, constraints imposed, follow-up work
 
-Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`) or copy
-`docs/reference/TEMPLATE.notes.md` / `docs/adr/TEMPLATE.adr.md`.
+Use the `reference-doc` skill (`.ai/skills/reference-doc/SKILL.md`), the inline
+reference-note template above, or `docs/adr/TEMPLATE.adr.md`.
 
 ---
 

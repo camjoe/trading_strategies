@@ -121,7 +121,7 @@
       "handler": "api_portfolio_rollup",
       "module": "portfolio",
       "group": "Analysis Endpoints",
-      "description": "Cross-account portfolio rollup: exposure per account plus symbol/sector concentration (P9, D10)."
+      "description": "Cross-account portfolio rollup: exposure per account plus symbol/sector concentration."
     },
     {
       "method": "POST",

@@ -27,7 +27,7 @@ All constants are also importable directly from their domain module, e.g.::
 
     from tests.support.seed.accounts import ACCT_TREND
     from tests.support.seed.reporting import SNAPSHOT_T1
-    from tests.support.seed.sleeve_data import BOOK_TREND
+    from tests.support.seed.book_data import BOOK_TREND
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ from tests.support.seed.reporting import (
     seed_snapshots,
     seed_trades,
 )
-from tests.support.seed.sleeve_data import (
+from tests.support.seed.book_data import (
     BOOK_METRIC_DATE,
     BOOK_STRATEGY,
     BOOK_TREND,

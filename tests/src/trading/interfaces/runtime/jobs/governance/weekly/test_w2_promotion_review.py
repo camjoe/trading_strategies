@@ -88,9 +88,9 @@ class TestArtifactStructure:
         assert isinstance(payload["accounts"], list)
 
     def test_artifact_account_fields_present(self, monkeypatch, tmp_path: Path) -> None:
-        sleeve_row = {
+        book_row = {
             "id": 10,
-            "name": "sleeve_alpha",
+            "name": "book_alpha",
             "status": "active",
         }
         from types import SimpleNamespace as _NS
@@ -98,7 +98,7 @@ class TestArtifactStructure:
         stub_runtime_job_basics(
             monkeypatch,
             module,
-            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="mean_rev", param_set_id=None))],
+            books_for_account=[(_NS(**book_row), _NS(strategy_name="mean_rev"))],
         )
         monkeypatch.setattr(
             module,
@@ -118,7 +118,7 @@ class TestArtifactStructure:
         assert acct["ready_for_live"] is False
         assert acct["blockers"] == ["missing_data"]
         assert len(acct["books"]) == 1
-        assert acct["books"][0]["book_name"] == "sleeve_alpha"
+        assert acct["books"][0]["book_name"] == "book_alpha"
         assert acct["books"][0]["strategy_name"] == "mean_rev"
         assert acct["books"][0]["book_status"] == "active"
 

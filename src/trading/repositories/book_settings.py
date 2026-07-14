@@ -7,8 +7,8 @@ from trading.models.books.book_option_settings_record import BookOptionSettingsR
 from trading.models.books.book_rotation_settings_record import BookRotationSettingsRecord
 
 # Per-concern typed settings tables, 1:1 with books. A missing row means
-# "use code defaults"; change-audit stays deferred (see the D4 change-audit
-# note in docs/decisions.md).
+# "use code defaults"; a per-row change-audit stays deferred until edit volume
+# justifies it.
 
 
 class BookExecutionSettingsRepository:

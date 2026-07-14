@@ -5,7 +5,6 @@ import sqlite3
 
 from trading.models.rotation.rotation_strategy_metrics import RotationStrategyMetrics
 from trading.models import AccountRecord
-from trading.repositories.strategy_param_sets import StrategyParamSetRepository
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.books.helpers import resolve_window_bounds as _resolve_window_bounds_shared
 from trading.services.books.rotation import resolve_book_rotation_schedule
@@ -48,7 +47,6 @@ def build_book_challenger_evaluations(
     given (the shadow-eval job's explicit window).
     """
     account_id = account.id
-    param_set_repo = StrategyParamSetRepository(conn)
     books: list[BookChallengerEvaluation] = []
     for trading_book in enumerate_trading_books(conn, account_id=account_id):
         schedule_config = resolve_book_rotation_schedule(conn, book_id=trading_book.book.id)
@@ -64,19 +62,16 @@ def build_book_challenger_evaluations(
             conn,
             account=account,
             strategy_name=incumbent_strategy,
-            param_set_id=trading_book.assignment.param_set_id,
         )
         challengers: list[RotationStrategyMetrics] = []
         for strategy_name in schedule_config.schedule:
             if strategy_name == incumbent_strategy:
                 continue
-            active_param_set = param_set_repo.fetch_active(strategy_name=strategy_name)
             challengers.append(
                 build_rotation_strategy_metrics(
                     conn,
                     account=account,
                     strategy_name=strategy_name,
-                    param_set_id=active_param_set.id if active_param_set is not None else None,
                 )
             )
         books.append(

@@ -64,7 +64,7 @@ class RiskSnapshotRepository:
 
 
 class RiskDecisionRepository:
-    """SQL access for clean-schema risk_decisions (successor to sleeve_risk_decisions)."""
+    """SQL access for the clean-schema risk_decisions table."""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn

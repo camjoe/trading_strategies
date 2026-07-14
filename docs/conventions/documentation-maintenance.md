@@ -3,8 +3,8 @@
 Type: convention
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-07-02
-Purpose: The durable habits that fight documentation rot, plus the deferred doc-tooling work they motivate. These principles are the *why* behind the repo's docs drift-check tooling (`scripts.checks.docs.maps_check`, `scripts.checks.docs.link_check`, `scripts.checks.docs.db_schema_check`, `scripts.checks.docs.readme_check`).
+Last Reviewed: 2026-07-13
+Purpose: The durable habits that fight documentation rot and the principles behind the repo's docs drift-check tooling.
 Related: [Documentation Authoring Standard](docs-authoring.md), [File Naming Convention](naming.md), [General Style](general-style.md), [Docs Map](../maps/docs-map.md)
 
 ## Principles
@@ -18,12 +18,6 @@ The folder/file shuffle is the easy, low-value part of keeping docs healthy. The
 3. **Own the duplication seams.** Every consciously duplicated piece of information is a "the docs lied to me" risk. Two known seams: the `.github/` redirects → `AGENTS.md`/`.ai/`, and the in-app docs content (`scripts/documentation_ui/` sources, authoritative) vs the generated frontend JSON assets (derived via `python -m scripts.documentation_ui.sync`). Make the *other* side genuinely derived (a generator or a pointer), never a hand-maintained twin.
 
 4. **Doc-authoring discipline at creation time.** `Type` / `Status` / `Last Reviewed` headers and "goes stale when" columns are cheap to add when writing a file and expensive to retrofit — and the staleness tooling is only as good as the headers feeding it. See [Documentation Authoring Standard](docs-authoring.md).
-
-## Deferred improvements
-
-Tracked backlog of doc-tooling work that applies the principles above.
-
-- **Scripts discoverability** (principles 1–2). Enrich [`docs/maps/scripts-map.md`](../maps/scripts-map.md) with per-script usage + safety notes, and cross-link operational scripts to the skills and runbooks that drive them (e.g. UI screenshot tooling ↔ a UI-verify skill; auto-trading runners ↔ the runtime runbooks).
 
 Implemented enforcement lives in `scripts/checks/`, `scripts/documentation_ui/check.py`, and the
 `docs-enforcement` job in `.github/workflows/quality-gates.yml`; see

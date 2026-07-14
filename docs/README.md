@@ -26,7 +26,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`overview.md`](overview.md) — **start here**: definitive explainer of what the app is, what it can do today (with honest gaps), how it works, and the north-star plan
 - [`maps/docs-map.md`](maps/docs-map.md) — full documentation inventory, top-level directory overview, and staleness guide
 - [`architecture/nav-guide.md`](architecture/nav-guide.md) — task-oriented "I want to X → look/edit Y" lookup
-- [`status.md`](status.md) — **the tracker**: remaining committed work and deferred workstream links
+- [`pending-deploy-steps.md`](pending-deploy-steps.md) — one-time DB steps pending for existing databases (two to run, one to build)
 - [`adr/`](adr/) — durable architecture and product decisions
 
 **Execution note:** Run all trading scripts as Python modules from the repository root with the active venv interpreter, e.g.:
@@ -40,7 +40,6 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 - [`architecture/service-cookbook.md`](architecture/service-cookbook.md) — which function to call for common tasks
 - [`architecture/service-repository-boundary.md`](architecture/service-repository-boundary.md) — service/repository contract rules
 - [`docs/architecture/architecture-conventions.md`](../docs/architecture/architecture-conventions.md) — authoritative layering and import boundary rules
-- [`architecture/restructure-notes.md`](architecture/restructure-notes.md) — `src/` restructure notes: outcome, reusable patterns, and the open domain-slicing question (foundation phase complete)
 
 ## Maps (file/directory inventories)
 
@@ -59,7 +58,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`reference/broker-setup-ibkr.md`](reference/broker-setup-ibkr.md) — IBKR Client Portal Gateway operator setup and connection checklist
 - [`reference/financial-market-knowledge.md`](reference/financial-market-knowledge.md) — canonical finance, market, and strategy glossary source for the documentation UI
 - [`reference/runtime-jobs.md`](reference/runtime-jobs.md) — runtime job entrypoints: how to run and schedule each one
-- [`reference/broker-setup-alpaca.md`](reference/broker-setup-alpaca.md) — Alpaca setup guide (Draft — adapter not yet implemented)
 - [`reference/db-migration-system.md`](reference/db-migration-system.md) — hand-rolled SQLite migration system
 - [`reference/database-diagram-viewer.html`](reference/database-diagram-viewer.html) — interactive generated database diagram viewer with full columns, grouped sections, and FK arrows
 - [`adr/013-portfolio-concentration-dimensions.md`](adr/013-portfolio-concentration-dimensions.md) — portfolio concentration is symbol plus sector rollup
@@ -72,9 +70,6 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`adr/006-cross-cutting-decorators.md`](adr/006-cross-cutting-decorators.md) — sanctioned decorator/context-manager pattern for cross-cutting concerns
 - [`adr/005-models-as-lowest-data-layer.md`](adr/005-models-as-lowest-data-layer.md) — models/ holds all passive data contracts as the lowest layer; feature subfolders
 - [`adr/004-runtime-naming-and-operational-settings.md`](adr/004-runtime-naming-and-operational-settings.md) — disambiguate "runtime" naming; operational_settings package
-- [`adr/003-sleeve-virtualization-architecture.md`](adr/003-sleeve-virtualization-architecture.md) — sleeve virtualization architecture decision record
-- [`adr/002-backtesting-layering.md`](adr/002-backtesting-layering.md) — decision rationale for backtesting module layering
-- [`adr/001-cross-platform-paths.md`](adr/001-cross-platform-paths.md) — pathlib cross-platform usage decision record
 
 ## Conventions
 

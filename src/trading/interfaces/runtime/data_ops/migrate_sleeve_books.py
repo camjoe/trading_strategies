@@ -1,4 +1,4 @@
-"""One-time migration: mirror legacy sleeves onto their books (sleeve retirement SR-6a).
+"""One-time migration: mirror legacy sleeves onto their books (sleeve retirement).
 
 Replaces the retired runtime lazy sweep. For every legacy ``strategy_sleeves`` row:
 ensure the bridging book exists (same account + name), mirror the sleeve's status and
@@ -45,7 +45,7 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
             " trade_universes, created_at FROM strategy_sleeves ORDER BY id ASC"
         ).fetchall()
     except sqlite3.OperationalError:
-        # Fresh DB (SR-7 schema): the legacy tables never existed — nothing to migrate.
+        # Fresh DB: the legacy tables never existed — nothing to migrate.
         return 0, 0
     for sleeve in sleeves:
         row = conn.execute(
@@ -80,7 +80,7 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
         if assignment_repo.fetch_open(book_id=book_id) is not None:
             continue
         legacy = conn.execute(
-            "SELECT strategy_name, param_set_id, effective_from, created_at, updated_at"
+            "SELECT strategy_name, effective_from, created_at, updated_at"
             " FROM sleeve_strategy_assignments"
             " WHERE sleeve_id = ? AND effective_to IS NULL"
             " ORDER BY id DESC LIMIT 1",
@@ -94,7 +94,6 @@ def migrate_sleeve_books(conn: sqlite3.Connection) -> tuple[int, int]:
         assignment_repo.assign_strategy(
             book_id=book_id,
             strategy_id=int(strategy_id),
-            param_set_id=int(legacy["param_set_id"]) if legacy["param_set_id"] is not None else None,
             effective_from=str(legacy["effective_from"]),
             created_at=str(legacy["created_at"]),
             updated_at=str(legacy["updated_at"]),

@@ -7,9 +7,9 @@ from dataclasses import dataclass
 class BookTradeIntent:
     """A single approved-to-submit trade for one book (the clean-schema execution unit).
 
-    A "book" unifies plain-account (default book) and sleeve (multi-book) trading, so
-    this one contract replaces the per-mode selection tuples that fed the two legacy
-    submission paths. Passive data only — the execution service maps it to a
+    A book is the execution unit for both a plain account's default book and any
+    additional books, so this one contract replaces the per-mode selection tuples
+    that fed the two legacy submission paths. Passive data only — the execution service maps it to a
     ``BrokerOrder`` and persists the outcome to the clean book-keyed tables.
     """
 

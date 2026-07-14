@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from common.coercion import row_expect_int, row_expect_str, row_int, row_str
+from common.coercion import row_expect_int, row_expect_str, row_str
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,7 +13,6 @@ class BookStrategyAssignmentRecord:
     id: int
     book_id: int
     strategy_id: int
-    param_set_id: int | None
     effective_from: str
     effective_to: str | None
     is_incumbent: int
@@ -26,7 +25,6 @@ class BookStrategyAssignmentRecord:
             id=row_expect_int(values, "id"),
             book_id=row_expect_int(values, "book_id"),
             strategy_id=row_expect_int(values, "strategy_id"),
-            param_set_id=row_int(values, "param_set_id"),
             effective_from=row_expect_str(values, "effective_from"),
             effective_to=row_str(values, "effective_to"),
             is_incumbent=row_expect_int(values, "is_incumbent"),

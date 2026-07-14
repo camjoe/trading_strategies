@@ -1,7 +1,6 @@
 ---
 name: reference-doc
 description: Captures reusable patterns, reference documents, and architectural decisions as persistent knowledge artifacts. Use when asked to create a reference doc, ADR, or any structured knowledge artifact for this repository.
-invoker: any
 ---
 
 # Reference Doc
@@ -15,8 +14,8 @@ is the workflow around it.
 
 1. **Determine type** — `notes` (living reference material, `docs/reference/<kebab-topic>.md`)
    or `adr` (decision record, `docs/adr/NNN-<kebab-topic>.md`, next unused number).
-2. **Copy the template** — `docs/reference/TEMPLATE.notes.md` or `docs/adr/TEMPLATE.adr.md` —
-   and fill every header field per `docs/conventions/docs-authoring.md`.
+2. **Start from the template** — use the inline reference-note template in
+   `docs/conventions/docs-authoring.md` or copy `docs/adr/TEMPLATE.adr.md` — and fill every header field.
 3. **Draft sections** — follow the section layout for the doc type in docs-authoring.md.
 4. **Link the new doc** — add an entry to `docs/README.md` (and `docs/maps/docs-map.md`).
 5. **Cross-link** — for an ADR, add a reference from the affected architecture doc
@@ -31,8 +30,8 @@ is the workflow around it.
 
 ## Repo references
 
-- `docs/conventions/docs-authoring.md` — authoritative header standard, layouts, and checklist
-- `docs/reference/TEMPLATE.notes.md` / `docs/adr/TEMPLATE.adr.md` — templates
+- `docs/conventions/docs-authoring.md` — authoritative header standard, layouts, inline reference-note template, and checklist
+- `docs/adr/TEMPLATE.adr.md` — ADR template
 - `docs/README.md` — reference section to update after creating a new doc
 
 ## Expected output

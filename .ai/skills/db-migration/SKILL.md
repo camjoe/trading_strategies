@@ -1,7 +1,6 @@
 ---
 name: db-migration
 description: Manages SQLite schema migrations for the trading database — creating, validating, estimating risk, generating rollback strategies, and planning FK cascade/table-rebuild changes. Use when asked to add a column, validate a migration, assess schema change risk, change foreign-key actions, plan account-deletion cascades, or plan a rollback.
-invoker: any
 ---
 
 # DB Migration

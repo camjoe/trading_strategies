@@ -3,7 +3,7 @@
 Type: architecture
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-07-02
+Last Reviewed: 2026-07-13
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
 Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -69,11 +69,11 @@ Disallowed:
 
 6. `src/trading/models/`: passive data contracts (the lowest layer)
    - Holds **all** passive data contracts: `*Config`/`*Insert`/`*Record`,
-     state/order models, and domain value objects (evaluation/promotion/sleeve).
+     state/order models, and domain value objects (evaluation/promotion/books).
    - No business logic, no I/O, and **no imports from `domain`, `services`,
      `repositories`, `interfaces`, or `infrastructure`** — enforced by
      `scripts/checks/repo/layer_check.py`. `domain` may import `models`, never the reverse.
-   - Organized into feature subfolders (`accounts/`, `sleeves/`, `evaluation/`, …),
+   - Organized into feature subfolders (`accounts/`, `books/`, `evaluation/`, …),
      one contract per file. See `docs/adr/005-models-as-lowest-data-layer.md`.
 
 7. `src/trading/repositories/`: SQL persistence adapters
@@ -86,7 +86,7 @@ Disallowed:
 
 9. `src/trading/backtesting/`: same layered model within backtesting package
    - Repository/service/domain layering mirrored from main trading module.
-   - See `docs/adr/002-backtesting-layering.md` for layering rationale.
+   - See `docs/reference/backtesting.md` and `src/trading/backtesting/README.md`.
 
 10. `src/infrastructure/config/`: file-backed static config assets
    - Account profile presets and other static configuration.
@@ -115,6 +115,35 @@ Disallowed:
 
 Broker SDK, external-data SDK, market-data adapter, and retired runtime package-name boundaries are
 enforced by `python -m scripts.checks.repo.layer_check`.
+
+## Execution and Parameter Ownership
+
+Books are the execution primitive. A book is a bounded pool of capital inside an
+account, run to one active strategy assignment with book-keyed rotation,
+submission, accounting, risk, and reporting.
+
+Rules:
+
+1. New runtime trading, rotation, risk, accounting, and reporting work should be
+   book-keyed unless the change is explicitly about broker account identity,
+   custody, credentials, or account-level operator metadata.
+2. The default book is the compatibility bridge for account-level workflows.
+   Do not reintroduce a separate account-mode execution path or another
+   execution primitive.
+3. Rotation scheduling is book-owned. `book_rotation_settings` owns the
+   per-book rotation gate, schedule, lookback, and cooldown policy. Do not add
+   new account-row rotation configuration.
+4. Strategy primitives and parameter schemas stay in code. Strategy-specific
+   knob values live on strategy rows as `params_json`.
+5. Execution, risk, option, and rotation settings live in typed book settings
+   tables keyed to `books`.
+6. Global operational settings remain separate from per-book settings.
+7. `src/trading/services/parameters/` is a read/edit surface over those owning
+   stores, not a new consolidated persistence model.
+
+Rationale and delivered cleanup: `docs/adr/010-book-keyed-execution-model.md`,
+`docs/adr/011-strategy-catalog-and-parameter-ownership.md`, and
+`docs/adr/014-execution-mode-collapse.md`.
 
 ## External Data Strategies
 
@@ -288,6 +317,20 @@ the UI — never make a capability, contract, or parameter editable *only* throu
 and do not design contracts around UI convenience.  UI-shaping (camelCase JSON, response
 payloads) stays at the UI backend boundary only.
 
+HTTP error mapping follows the same boundary:
+
+1. Domain/services should raise typed domain exceptions for reusable workflow
+   errors as those paths are migrated.
+2. The FastAPI app may map typed domain exceptions to HTTP responses with
+   app-level handlers.
+3. Route-specific validation may still raise `HTTPException` directly when the
+   error is genuinely transport-specific.
+4. Do not add a blanket `ValueError` -> HTTP 400 handler. Unexpected
+   `ValueError` should surface as a server error, not be disguised as client
+   input failure.
+
+See `docs/adr/007-ui-error-mapping.md`.
+
 Violation example: settlement-corrected equity math or benchmark return
 calculations in `apps/paper_trading_web/backend/services/accounts/` — these were
 migrated to `src/trading/services/reporting/` and must not be re-introduced into
@@ -311,6 +354,26 @@ Before creating or moving code in `src/trading/`:
 
 For a task-oriented "where do I put X" reference, see `docs/architecture/nav-guide.md`.
 
+## Structural Moves
+
+Use this guidance for large package relocations or adapter-boundary changes:
+
+1. Inject dependencies at composition seams, not through globals. Define the
+   port in the domain/service layer, then build concrete adapters via factories
+   imported only at interface/composition seams (CLI, runtime jobs, web routes,
+   or bounded-context entrypoints).
+2. Move concrete adapters last. Thread dependency injection first while the
+   adapter and any old global lookup stay in place; relocating the adapter too
+   early can create circular imports through package `__init__` files.
+3. Keep moves small and continuously green: `git mv`, import codemod, tests,
+   tooling updates, maps, and docs should move together for each coherent step.
+4. Relocating a package under `src/` is usually a pure `git mv`; the package
+   name is unchanged because `src/` is the discovery root. Re-run the editable
+   install when needed, and expect mypy to surface latent type issues once the
+   package enters the checked set.
+5. Slice by coupling, not uniformly. Create top-level bounded contexts only
+   when isolation materially improves clarity and safety.
+
 ## Live Trading Safety Guard
 
 The `live_trading_enabled` column on the `accounts` table is a hard safety gate
@@ -327,7 +390,7 @@ that prevents live broker orders from being submitted accidentally.
    code or automated process.
 
 3. **Never catch or suppress `LiveTradingNotEnabledError`** (from
-   `trading.brokers.factory`).  If this error surfaces, it must propagate so
+   `infrastructure.brokers.factory`).  If this error surfaces, it must propagate so
    the operator can investigate.
 
 4. **Shared test fixtures and helper factories must default to

@@ -29,7 +29,6 @@ def _compute_score(
     )
     return RotationStrategyScore(
         strategy_name=metrics.strategy_name,
-        param_set_id=metrics.param_set_id,
         score=score,
         score_components={
             "risk_adjusted_return": weighted_risk_adjusted_return,
@@ -67,10 +66,8 @@ def evaluate_champion_challenger_rotation(
         return RotationDecision(
             rotation_action="hold",
             selected_strategy=incumbent_score.strategy_name,
-            selected_param_set_id=incumbent_score.param_set_id,
             incumbent_strategy=incumbent_score.strategy_name,
             challenger_strategy=None,
-            challenger_param_set_id=None,
             cooldown_active=bool(cooldown_active),
             decision_reason="no_challenger_candidates",
             score_components=score_components,
@@ -113,10 +110,8 @@ def evaluate_champion_challenger_rotation(
     return RotationDecision(
         rotation_action="rotate" if should_rotate else "hold",
         selected_strategy=(best_challenger.strategy_name if should_rotate else incumbent_score.strategy_name),
-        selected_param_set_id=(best_challenger.param_set_id if should_rotate else incumbent_score.param_set_id),
         incumbent_strategy=incumbent_score.strategy_name,
         challenger_strategy=best_challenger.strategy_name,
-        challenger_param_set_id=best_challenger.param_set_id,
         cooldown_active=bool(cooldown_active),
         decision_reason=decision_reason,
         score_components=score_components,

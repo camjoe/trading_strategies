@@ -47,7 +47,7 @@ def test_build_report_returns_correct_structure(conn, report_env) -> None:
     assert len(report.book_performance) == 1
     sp = report.book_performance[0]
     assert sp.book_id == report_env.book_id
-    # Labels round-trip through the strategies catalog as canonical lowercase keys (P3).
+    # Labels round-trip through the strategies catalog as canonical lowercase keys.
     assert sp.strategy_name == "momentum"
     assert sp.return_pct == pytest.approx(1.5)
     assert sp.drawdown_pct == pytest.approx(-0.3)
@@ -214,7 +214,7 @@ def test_build_report_rotation_decisions(conn, report_env) -> None:
     assert len(report.rotation_decisions) == 1
     rd = report.rotation_decisions[0]
     assert rd.rotation_action == "rotate"
-    # Labels round-trip through the strategies catalog as canonical lowercase keys (P3).
+    # Labels round-trip through the strategies catalog as canonical lowercase keys.
     assert rd.incumbent_strategy == "momentum"
     assert rd.challenger_strategy == "meanrev"
     assert rd.decision_reason == "challenger outperformed"

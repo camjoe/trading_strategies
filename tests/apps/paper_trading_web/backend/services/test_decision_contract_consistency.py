@@ -1,7 +1,5 @@
-"""P2/1c — cross-surface regression: compare, promotion, and rotation all read the same
+"""Cross-surface regression: compare, promotion, and rotation all read the same
 decision-score contract (`derive_decision_score`) and handle missing evidence identically.
-
-See docs/implementation/p2-evaluation-contract-tests.md.
 """
 
 from __future__ import annotations
@@ -120,7 +118,6 @@ def test_rotation_metrics_use_same_contract(scenario: str, monkeypatch) -> None:
         object(),
         account=object(),
         strategy_name="any",
-        param_set_id=None,
     )
 
     expected_score = decision.score if decision.score is not None else 0.0

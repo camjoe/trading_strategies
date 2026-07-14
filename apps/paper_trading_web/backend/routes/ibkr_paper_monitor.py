@@ -27,7 +27,7 @@ def api_ibkr_paper_account_detail(account_name: str) -> dict[str, object]:
 
     Includes:
     - Account overview (total equity, cash, positions)
-    - Sleeve status and performance metrics
+    - Book status and performance metrics
     - Latest daily workflow run details
     - Governance check status (W1-W3, M1-M3)
     - Burn-in progress

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from typing import TYPE_CHECKING, Mapping
 
@@ -13,10 +14,16 @@ from trading.models.execution.book_trade_state import BookTradeState
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
+from trading.services.strategy_catalog.resolution import (
+    UnknownCatalogStrategyError,
+    resolve_catalog_strategy,
+)
 from trading.services.universe import resolve_named_universes
 
 if TYPE_CHECKING:
     from trading.services.auto_trading.execution import FeatureHistoryFn
+
+logger = logging.getLogger(__name__)
 
 
 def _prepare_trade_selection(*args, **kwargs):
@@ -26,9 +33,8 @@ def _prepare_trade_selection(*args, **kwargs):
 
 
 def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeState:
-    # A sleeve's live state (cash + holdings) is its bridging book's — the submission
-    # path maintains book balances/positions, and the sleeve_positions/strategy_sleeves
-    # tables are frozen once sleeve mode submits through the shared execution service.
+    # A book's live state (cash + holdings) is authoritative — the submission path
+    # maintains book balances and positions through the shared execution service.
     book = BookRepository(conn).fetch_by_id(book_id=book_id)
     current_cash = book.current_cash if book is not None else 0.0
     positions: dict[str, float] = {}
@@ -57,8 +63,8 @@ def generate_book_trade_intents(
     histories: Mapping[str, pd.Series] | None = None,
     feature_history_fn: FeatureHistoryFn | None = None,
 ) -> list[BookTradeCandidate]:
-    # Intents come only from strategy signals — no forced minimum (see D1 in
-    # docs/decisions.md).
+    # Intents come only from strategy signals — no forced minimum; a run with no
+    # signals produces no trades.
     account_id = account.id
     risk_policy = str(account.risk_policy).strip().lower()
     stop_loss_pct = account.stop_loss_pct
@@ -79,7 +85,20 @@ def generate_book_trade_intents(
         book = trading_book.book
         book_id = book.id
         strategy_name = trading_book.assignment.strategy_name.strip()
-        param_set_id = trading_book.assignment.param_set_id
+        try:
+            resolved = resolve_catalog_strategy(conn, strategy_name)
+        except UnknownCatalogStrategyError:
+            logger.warning(
+                "Book %s: strategy %r does not resolve to a code primitive; skipping (no trades).",
+                book_id,
+                strategy_name,
+            )
+            continue
+        # Signals resolve through the catalog row's canonical primitive,
+        # so a data variant runs the right primitive; the intent keeps the
+        # assigned label for display and rotation bookkeeping.
+        signal_primitive = resolved.primitive
+        strategy_params = resolved.params
         if book.trade_universes:
             book_universe_names: object = json.loads(book.trade_universes)
             if isinstance(book_universe_names, list) and book_universe_names:
@@ -100,7 +119,8 @@ def generate_book_trade_intents(
         )
         selection = _prepare_trade_selection(
             account,
-            strategy_name,
+            signal_primitive,
+            strategy_params,
             state,
             forced_sell,
             effective_universe,
@@ -119,7 +139,6 @@ def generate_book_trade_intents(
                 account_id=account_id,
                 book_id=book_id,
                 strategy_name=strategy_name,
-                param_set_id=param_set_id,
                 side=side,
                 symbol=symbol,
                 qty=qty,

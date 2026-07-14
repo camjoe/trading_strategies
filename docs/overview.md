@@ -3,15 +3,15 @@
 Type: overview
 Status: Active
 Created: 2026-07-01
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-12
 Purpose: Definitive top-level explainer and guiding north star for the app — what it is, what it can
-do today (honestly, including known gaps), how it works, and where it is going. Entry point that
-frames the current tracker in [status.md](status.md).
-Related: [Status](status.md),
-[Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md)
+do today (honestly, including known gaps), how it works, and where it is going. The entry point and
+the itemized tracker for what remains.
+Related: [Architecture Conventions](architecture/architecture-conventions.md), [Docs Index](README.md),
+[Pending One-Time DB Steps](pending-deploy-steps.md)
 
-> This document is the definitive guideline for **why/what**. When priorities or capabilities change,
-> update this file first, then reconcile current status in [status.md](status.md).
+> This document is the definitive guideline for **why/what** and the tracker for what's left. When
+> priorities or capabilities change, update this file first.
 
 ## What this app is
 
@@ -33,19 +33,19 @@ Design intent:
 
 - **Account** — the broker/custody entity. Owns the broker connection, the `live_trading_enabled`
   safety gate, and cash/positions truth. A "test" account is just an account with `broker_type="paper"`.
-- **Book** — the execution primitive (D14): a bounded pool of capital inside an account run to one
+- **Book** — the execution primitive: a bounded pool of capital inside an account run to one
   strategy; one broker account can host several independent books. (The earlier "sleeve"
-  virtualization concept was retired 2026-07-09;
-  [ADR 003](adr/003-sleeve-virtualization-architecture.md) is superseded.)
+  virtualization concept was retired 2026-07-09 in favor of books.)
 - **Strategy** — a named signal specification (`StrategySpec`) with a signal function and default
   parameters. 14 are registered today across trend, mean-reversion, oscillator, breakout, and
   external-data ("alternative") families.
-- **Strategy knobs** — tunable parameters for a strategy primitive. Runtime still reads code defaults
-  today; catalog-backed strategy rows are deferred in the P6 plan.
+- **Strategy knobs** — tunable parameters for a strategy primitive. Resolved at runtime from the
+  `strategies` catalog row: the primitive's code defaults with the row's `params_json` layered
+  on top.
 - **Evaluation** — the canonical `StrategyEvaluationArtifact`: backtest + walk-forward + paper/live
   evidence fused into confidence and a blended decision score.
 - **Rotation** — automated switching of the active strategy, book-keyed, via champion/challenger on
-  the decision-score contract (the account-episode paradigm was retired in P4).
+  the decision-score contract (the account-episode paradigm was retired).
 - **Promotion** — the human-gated lifecycle (research → paper → live-review) with audit history.
 - **Feature provider** — an external-data source (news, social, policy/ETF-proxy) that influences
   *trade signals* for "alternative" strategies. Feature providers are signal inputs, not evaluation
@@ -62,41 +62,39 @@ Design intent:
   paper/live evidence into confidence + a blended score, exposed through one decision-score contract
   (`EvaluationDecisionScore`).
 - **Promotion workflow** with research/paper/live-review stages, human gate, and append-only audit.
+- **Signal-driven live/paper execution** — selection evaluates the active strategy's signal function
+  per candidate ticker through the same `evaluate_signal(...)` entry the backtester uses: trade only
+  on real signals, no forced minimum, a per-run max cap. Rotation changes what the trader actually
+  does (no random/style-biased placeholder).
 - **Paper trading** with equity snapshots, trades, and benchmark overlays.
 - **Multi-book accounts** — one broker account hosting multiple strategy books, with
   champion/challenger rotation, a pre-submit risk gate + kill switches, and equity reconciliation.
 - **Unified rotation/submission/accounting** — accounts and sleeves converged onto one book-keyed
-  path (P4); rotation is one champion/challenger model on the decision-score contract.
+  path; rotation is one champion/challenger model on the decision-score contract.
 - **Broker abstraction** — paper adapter, IBKR Web API adapter, legacy socket adapter, behind one
   port + factory, with a hard `live_trading_enabled` safety guard.
 - **Feature providers** — news, social, and policy (ETF-proxy) sources for alternative strategies.
 - **Runtime scheduler jobs** (daily backtest refresh, challenger shadow evaluation, governance,
   health checks, reporting) plus a **CLI** and an optional **web UI** (`apps/paper_trading_web`).
 - **Operational settings** (evaluation confidence, promotion policy, trade throttles) and
-  **account profiles** for configuration, plus a **unified parameter source** (P7): one `parameters`
+  **account profiles** for configuration, plus a **unified parameter source**: one `parameters`
   view over every store with `configure-*` CLI edits for global settings and per-book rotation
   policy.
-- **Cross-account portfolio risk rollup** (P9): exposure, symbol concentration/overlap, and sector
+- **Data-defined strategy variants**: the `strategies` catalog is the canonical runtime source
+  for strategy definitions and knobs; operators add and tune variants via `create-strategy-variant`,
+  `configure-strategy`, and `freeze-strategy` without a deploy.
+- **Cross-account portfolio risk rollup**: exposure, symbol concentration/overlap, and sector
   rollup via CLI, API, and a read-only Portfolio UI tab.
 
 ## Known gaps / honest current state
 
 These are real and shape the plan. None are hidden by the UI — they are core-logic gaps.
 
-- **The execution loop is closed (P1, 2026-07-03).** Live/paper selection now evaluates the active
-  strategy's signal function per candidate ticker through the same `evaluate_signal(...)` entry the
-  backtester uses: trade only on real signals, no forced minimum, a per-run max cap. Rotation now
-  changes what the trader actually does. (The legacy random/style-biased placeholder is removed.)
-- **Strategy knobs are not yet a live data lever.** The clean schema stores them (P3: a
-  `strategies` catalog with `params_json`, seeded from the registry), but the read path still runs
-  off code: `resolve_strategy_params` returns the registry `default_params` and `resolve_strategy`
-  reads `STRATEGY_REGISTRY`. Wiring the loader onto the catalog is P6/4a. (The P7 `parameters` view
-  shows the knobs; editing them stays view-only until P6 makes the catalog canonical.)
-- **Strategies are code at the resolution layer, though the catalog is now data.** P3 seeded a
-  `strategies` table, but adding a genuinely new strategy still needs a new signal function +
-  `STRATEGY_REGISTRY` edit until P6 loads definitions from the catalog. A *variant/tuning* becomes a
-  pure data change once P6 lands.
-- **Settings edits have no change-audit.** P7's edit surface records only `updated_at` per settings
+- **New signal *logic* is still a code change.** The `strategies` catalog is canonical for
+  strategy definitions and knobs — variants and tuning are data, editable via CLI and resolved at
+  runtime from catalog rows. But a genuinely new *signal primitive* still needs a new signal function
+  + `PRIMITIVE_CATALOG` entry: the catalog composes primitives, it does not script new logic.
+- **Settings edits have no change-audit.** The parameter edit surface records only `updated_at` per settings
   row; a change-audit log stays deferred until edit volume justifies it.
 
 ## How it works (architecture)
@@ -123,32 +121,19 @@ These are real and shape the plan. None are hidden by the UI — they are core-l
   interpreter (see [runbooks](runbooks/README.md) and `AGENTS.md`). Configuration is via account
   profiles, operational settings, and DB entries.
 - **Optional:** the `apps/paper_trading_web` UI for viewing results and account configuration.
-- **Adding data (target workflow):** new accounts are data changes today. New strategy variants
-  become data changes after the deferred P6 catalog work; new strategy logic and new feature
-  providers remain contained code additions.
+- **Adding data:** new accounts and new strategy variants are data changes today (variants via the
+  `strategies` catalog); new signal *logic* and new feature providers remain contained code
+  additions.
 
 ## Direction and plan
 
-The strategic order here is the north star (the "why/what"). The **authoritative, itemized tracker**
-for what is left is [status.md](status.md). Durable decisions live in [ADRs](adr/); completed implementation narrative
-lives in git history.
-
-The spine (P1–P5) is complete: the execution loop is closed so strategy signals drive live/paper
-execution (P1); evaluation is unified behind one decision-score contract that backs compare,
-promotion, and rotation (P2); the clean book schema is live (P3); accounts and sleeves are converged
-onto one book-keyed submission/rotation/accounting path (P4, with the sleeve vocabulary fully
-retired 2026-07-09); and the decisioning naming pass landed alongside (P5). Email notifications
-(P8), the unified parameter source (P7), and the portfolio risk rollup (P9) are in. The
-execution-mode collapse landed with book-owned rotation scheduling (ADR 014): one book-keyed
-runtime path, rotation gated per book and evaluated continuously under cooldown. Backtest freshness
-(P12) ships as a non-blocking advisory staleness diagnostic on evaluations (CLI + web); the daily
-backtest-refresh job and the `refresh-stale-backtests` command close the loop by re-running only the
-stale or missing backtests across each account's rotation candidates.
+The strategic order here is the north star (the "why/what") and the authoritative, itemized tracker
+for what is left. Today's delivered capabilities are in "What it can do today" above; durable
+decisions live in [ADRs](adr/); completed implementation narrative lives in git history.
 
 The only **committed** work remaining is two one-time DB deploy steps (sleeve-retirement migration
-and the book-rotation cutover — operator runbooks). The plug-and-play strategy catalog (P6) and
-parameter optimization (P11) are independent deferred workstreams, pursued only when their triggers
-are met. Details on deferred work live in [status.md](status.md).
+and the book-rotation cutover — operator runbooks) plus one not-yet-built schema cleanup, all tracked
+in [pending-deploy-steps.md](pending-deploy-steps.md).
 
 ## Guiding constraints
 
@@ -160,3 +145,10 @@ are met. Details on deferred work live in [status.md](status.md).
 - **Feature providers are signal inputs, not evaluation evidence** — their effect reaches evaluation
   only through realized paper/live P&L.
 - **One evidence-driven evaluation** backs comparison, rotation, and promotion.
+
+## Out of scope (do not silently re-add)
+
+- **Trends workflow integration into API/UI** — `apps/trends/` stays a standalone CLI.
+- **Non-proxy alternative-data expansion** — ETF-proxy feature providers are sufficient for now.
+- **Native `IbApiClient` socket path** — the Client Portal / Web API client is the active IBKR
+  integration; the legacy socket path stays documented stubs only.

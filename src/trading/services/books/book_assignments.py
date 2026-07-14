@@ -37,7 +37,6 @@ def _view_from_open_record(conn: sqlite3.Connection, *, book_id: int) -> BookAss
         book_id=int(book_id),
         strategy_id=record.strategy_id,
         strategy_name=strategy.strategy_key,
-        param_set_id=record.param_set_id,
     )
 
 
@@ -120,7 +119,6 @@ def sync_default_book_assignment(
         conn,
         book_id=book_id,
         strategy_name=strategy_name,
-        param_set_id=None,
         now_iso=now_iso,
     )
 
@@ -130,7 +128,6 @@ def assign_book_strategy(
     *,
     book_id: int,
     strategy_name: str,
-    param_set_id: int | None,
     now_iso: str,
 ) -> BookAssignmentView:
     """Assign a strategy to the book (closing the open assignment atomically)."""
@@ -140,7 +137,6 @@ def assign_book_strategy(
     BookAssignmentRepository(conn).assign_strategy(
         book_id=int(book_id),
         strategy_id=int(strategy_id),
-        param_set_id=param_set_id,
         effective_from=now_iso,
         created_at=now_iso,
         updated_at=now_iso,

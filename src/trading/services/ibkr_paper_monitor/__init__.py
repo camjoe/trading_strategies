@@ -1,6 +1,6 @@
 """IBKR paper account monitoring service.
 
-Public surface for querying IBKR paper account status, sleeves, governance,
+Public surface for querying IBKR paper account status, books, governance,
 burn-in progress, and risk summary. Used by paper_trading_web dashboard and
 operators.
 

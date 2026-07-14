@@ -325,7 +325,7 @@ def main() -> int:
         )
         skip_dag_step(
             step_results,
-            step_id="01_mark_sleeve_nav",
+            step_id="01_mark_book_nav",
             reason="nav_marking_is_handled_in_runtime_snapshot_and_reconciliation",
             now_iso=ts,
         )
@@ -392,7 +392,7 @@ def main() -> int:
         skip_dag_step(
             step_results,
             step_id="04_rotation_decision",
-            reason="rotation_decisions_are_enforced_inside_sleeve_runtime_path",
+            reason="rotation_decisions_are_enforced_inside_book_runtime_path",
             now_iso=ts,
         )
 

@@ -3,7 +3,7 @@
 Type: adr
 Status: Accepted
 Created: 2026-07-09
-Last Reviewed: 2026-07-09
+Last Reviewed: 2026-07-12
 Purpose: Record where strategy knobs and execution settings belong after the clean schema rewrite.
 Related: [Strategies Reference](../reference/strategies.md)
 
@@ -30,10 +30,16 @@ than mutating an evidence-backed definition.
 
 ## Consequences
 
-- New strategy variants can become data changes after catalog-backed runtime loading is implemented.
-- The separate parameter-set model is legacy surface until remaining readers are retired.
-- Validation and operator editing should follow the owning concern: primitive knob schema for
-  strategy rows, typed columns for book settings, and global commands for operational settings.
+- New strategy variants are data changes: runtime resolution reads the catalog row
+  (`resolve_catalog_strategy` — primitive plus `params_json` over the primitive defaults), and
+  operators edit via `create-strategy-variant` / `configure-strategy` / `freeze-strategy`.
+- The separate parameter-set model is retired: its readers were removed and
+  `StrategyParamSetRepository` deleted. The `strategy_param_sets` table and the
+  `book_strategy_assignments.param_set_id` column persist (unused, left NULL) until a data-op drops
+  them.
+- Validation and operator editing follow the owning concern: primitive knob schema for
+  strategy rows (`validate_params_against_primitive`), typed columns for book settings, and global
+  commands for operational settings.
 - Default-tracking is asymmetric by design: the nullable book rotation-policy columns can be
   cleared back to the code default (pass `none` to `configure-book-rotation-policy`), while the
   `NOT NULL` global evaluation/promotion columns pin their values on first edit — an edited global

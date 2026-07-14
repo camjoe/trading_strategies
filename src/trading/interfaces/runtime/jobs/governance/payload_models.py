@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
-class WeeklyLeaderboardSleevePayload:
+class WeeklyLeaderboardBookPayload:
     book_name: str
     strategy_name: str | None
     avg_return_pct: float | None
@@ -18,7 +18,7 @@ class WeeklyLeaderboardSleevePayload:
 @dataclass(frozen=True)
 class WeeklyLeaderboardAccountPayload:
     account_name: str
-    books: list[WeeklyLeaderboardSleevePayload]
+    books: list[WeeklyLeaderboardBookPayload]
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ class WeeklyLeaderboardArtifactPayload:
 
 
 @dataclass(frozen=True)
-class WeeklyPromotionSleevePayload:
+class WeeklyPromotionBookPayload:
     book_name: str
     strategy_name: str | None
     book_status: str
@@ -44,7 +44,7 @@ class WeeklyPromotionAccountPayload:
     account_name: str
     ready_for_live: bool
     blockers: list[str]
-    books: list[WeeklyPromotionSleevePayload]
+    books: list[WeeklyPromotionBookPayload]
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ class WeeklyPromotionArtifactPayload:
 
 
 @dataclass(frozen=True)
-class WeeklyAllocationSleevePayload:
+class WeeklyAllocationBookPayload:
     book_name: str
     current_nav: float
     current_pct: float
@@ -71,7 +71,7 @@ class WeeklyAllocationSleevePayload:
 class WeeklyAllocationAccountPayload:
     account_name: str
     total_nav: float
-    books: list[WeeklyAllocationSleevePayload]
+    books: list[WeeklyAllocationBookPayload]
 
 
 @dataclass(frozen=True)

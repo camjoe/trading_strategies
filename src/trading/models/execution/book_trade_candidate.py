@@ -9,7 +9,6 @@ class BookTradeCandidate:
     # The trading book this intent belongs to — the primary key of the flow.
     book_id: int
     strategy_name: str
-    param_set_id: int | None
     side: str
     symbol: str
     qty: int

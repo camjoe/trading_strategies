@@ -1,7 +1,6 @@
 ---
 name: help
 description: Lists all available skills and common prompts for this repository. Use when asked what skills are available, how to invoke a skill, what a skill does, or to get a summary of the project's AI tooling. Triggered by "/help", "what skills are available", "what can you do", or similar discovery requests.
-invoker: any
 ---
 
 # Help — Available Skills
@@ -15,9 +14,9 @@ Read the files listed under Repo references, then format the response using the 
 
 Skills are reusable workflows invoked by name. Type the trigger phrase or slash command.
 
-| Skill | When to use | Invoke with | Who can invoke |
-|---|---|---|---|
-| <name> | <description one-liner> | `/<name>` or natural phrase | <invoker value> |
+| Skill | When to use | Invoke with |
+|---|---|---|
+| <name> | <description one-liner> | `/<name>` or natural phrase |
 ...
 
 ---
@@ -43,14 +42,12 @@ Shortcuts for frequent tasks:
 
 - `docs/architecture/nav-guide.md` — task → file lookup (start here for any code change)
 - `docs/maps/docs-map.md` — which docs to update after a change
-- `docs/reference/skill-invocation-policy.md` — who can invoke which skill and why
 ```
 
 ## Formatting rules
 
-- Pull skill names, descriptions, and invoker values from the `name`, `description`, and `invoker` frontmatter fields in `.ai/skills/*/SKILL.md`.
+- Pull skill names and descriptions from the `name` and `description` frontmatter fields in `.ai/skills/*/SKILL.md`.
 - For the "Invoke with" column: use `/<name>` as the primary trigger, plus a natural phrase from the description.
-- For "Who can invoke": render `any` as "Anyone" and `human` as "Human only".
 - Keep descriptions to one line. Do not copy full frontmatter descriptions verbatim — trim to the core WHAT.
 
 ## Repo references
@@ -58,5 +55,3 @@ Shortcuts for frequent tasks:
 Do **not** work from a hard-coded file list (it drifts). Enumerate the current inventory from disk:
 
 - Skills: every `.ai/skills/*/SKILL.md`
-- Invocation rules: `docs/reference/skill-invocation-policy.md`
-

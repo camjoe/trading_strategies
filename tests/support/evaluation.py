@@ -136,7 +136,7 @@ def insert_account_snapshot(
     realized_pnl: float,
     unrealized_pnl: float,
 ) -> None:
-    # Snapshots are book-keyed (P3); the repository resolves the default book.
+    # Snapshots are book-keyed; the repository resolves the default book.
     EquitySnapshotRepository(conn).insert(
         account_id=account_id,
         snapshot_time=snapshot_time,

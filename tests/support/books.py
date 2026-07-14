@@ -25,7 +25,7 @@ def insert_test_book(
     created_at: str = DEFAULT_BOOK_TIMESTAMP,
     updated_at: str = DEFAULT_BOOK_TIMESTAMP,
 ) -> int:
-    """Insert a non-default trading book (the successor of the test sleeve)."""
+    """Insert a non-default trading book (the successor of the test book)."""
     resolved_cash = start_equity if current_cash is None else current_cash
     resolved_equity = start_equity if current_equity is None else current_equity
     book_id = BookRepository(conn).insert(
@@ -48,14 +48,12 @@ def assign_test_book_strategy(
     *,
     book_id: int,
     strategy_name: str,
-    param_set_id: int | None = None,
     now_iso: str = DEFAULT_BOOK_TIMESTAMP,
 ) -> None:
     assign_book_strategy(
         conn,
         book_id=book_id,
         strategy_name=strategy_name,
-        param_set_id=param_set_id,
         now_iso=now_iso,
     )
 

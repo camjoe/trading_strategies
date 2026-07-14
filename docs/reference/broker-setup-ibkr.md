@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-06-24
+Last Reviewed: 2026-07-13
 Purpose: Operator setup and connection checklist for Interactive Brokers via the Client Portal Gateway.
 Related: [Broker Integration Reference](broker-integration.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md)
 
@@ -27,7 +27,7 @@ Before running any broker-connected module, confirm:
 - [ ] `bin/run.sh` is present and executable
 - [ ] `root/conf.yaml` is present and configured
 - [ ] IBKR Paper account credentials are available
-- [ ] Private config JSON file is prepared (see [Private Config File](#private-config-file))
+- [ ] Private config JSON file or equivalent environment variables are prepared
 
 ## Connection Flow
 
@@ -63,23 +63,14 @@ Or set individual environment variables — see [Broker Integration Reference �
 
 Keep credentials outside the repository. Store them in a private JSON file and reference it via `TRADING_IBKR_WEB_API_CONFIG`.
 
-Example structure:
+The full config schema and supported environment variables are maintained in
+[`broker-integration.md`](broker-integration.md#ibkr-web-api-configuration). A
+minimal private file usually includes the account id, gateway base URL, session
+cookie or token, SSL verification setting, request timeout, and keepalive
+settings.
 
-```json
-{
-  "account_id": "U1234567",
-  "base_url": "https://localhost:5000/v1/api",
-  "headers": {
-    "Cookie": "api=replace-me-locally"
-  },
-  "verify_ssl": false,
-  "timeout_seconds": 10,
-  "keepalive_enabled": true,
-  "keepalive_interval_seconds": 60
-}
-```
-
-Never commit account IDs, session tokens, or cookies to the repository.
+Never commit account IDs, session tokens, or cookies to the repository. Keep the
+file under `local/` or another ignored private path.
 
 ## Smoke Test
 
@@ -103,5 +94,4 @@ Use clearly non-marketable limit prices. Cancellation is best-effort — order s
 ## Related Docs
 
 - [`broker-integration.md`](broker-integration.md) — broker architecture, adapter wiring, account fields, live-trading safety
-- [`broker-setup-alpaca.md`](broker-setup-alpaca.md) — Alpaca setup (parallel broker path, not yet implemented)
 - [`runbooks/runtime-operations.md`](../runbooks/runtime-operations.md) — runtime operator workflow

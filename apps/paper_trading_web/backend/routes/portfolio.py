@@ -1,4 +1,4 @@
-"""Portfolio routes — cross-account exposure and concentration rollup (P9)."""
+"""Portfolio routes — cross-account exposure and concentration rollup."""
 
 from __future__ import annotations
 
@@ -12,6 +12,6 @@ router = APIRouter()
 
 @router.get("/api/portfolio/rollup")
 def api_portfolio_rollup() -> dict[str, object]:
-    """Cross-account portfolio rollup: exposure per account plus symbol/sector concentration (P9, D10)."""
+    """Cross-account portfolio rollup: exposure per account plus symbol/sector concentration."""
     with db_conn() as conn:
         return build_portfolio_rollup_payload(conn)

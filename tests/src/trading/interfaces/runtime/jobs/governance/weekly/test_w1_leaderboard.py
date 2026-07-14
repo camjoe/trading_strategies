@@ -75,14 +75,14 @@ class TestArtifactStructure:
         assert payload["accounts"][0]["account_name"] == "acct1"
         assert payload["accounts"][0]["books"] == []
 
-    def test_sleeve_ranking_included_in_artifact(self, monkeypatch, tmp_path: Path) -> None:
+    def test_book_ranking_included_in_artifact(self, monkeypatch, tmp_path: Path) -> None:
         from types import SimpleNamespace as _NS
 
-        sleeve_row = {"id": 10, "name": "sleeve_a"}
+        book_row = {"id": 10, "name": "book_a"}
         stub_runtime_job_basics(
             monkeypatch,
             module,
-            books_for_account=[(_NS(**sleeve_row), _NS(strategy_name="trend_follow", param_set_id=None))],
+            books_for_account=[(_NS(**book_row), _NS(strategy_name="trend_follow"))],
         )
         monkeypatch.setattr(
             module,
@@ -99,11 +99,11 @@ class TestArtifactStructure:
             tmp_path / "local" / "artifacts",
             "weekly_governance_w1_leaderboard_*.json",
         )
-        sleeve = payload["accounts"][0]["books"][0]
-        assert sleeve["rank"] == 1
-        assert sleeve["book_name"] == "sleeve_a"
-        assert sleeve["strategy_name"] == "trend_follow"
-        assert sleeve["data_points"] == 1
+        book = payload["accounts"][0]["books"][0]
+        assert book["rank"] == 1
+        assert book["book_name"] == "book_a"
+        assert book["strategy_name"] == "trend_follow"
+        assert book["data_points"] == 1
 
     def test_window_days_uses_inclusive_day_count(self, monkeypatch, tmp_path: Path) -> None:
         fixed_now = dt.datetime(2026, 1, 15, 9, 30, 0)
@@ -114,10 +114,10 @@ class TestArtifactStructure:
                 return fixed_now
 
         captured: dict[str, str] = {}
-        sleeve_row = {"id": 10, "name": "sleeve_a"}
+        book_row = {"id": 10, "name": "book_a"}
         # `now` is computed in the shared runner, so patch its datetime seam.
         monkeypatch.setattr(job_runner.dt, "datetime", _FixedDateTime)
-        stub_runtime_job_basics(monkeypatch, module, books_for_account=[sleeve_row])
+        stub_runtime_job_basics(monkeypatch, module, books_for_account=[book_row])
         # unassigned book: the stubbed pair carries assignment=None
 
         def _capture_metrics(conn, *, book_id, start_date, end_date):

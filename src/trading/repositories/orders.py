@@ -10,7 +10,7 @@ class BookAccountMismatchError(ValueError):
 
 
 class OrderRepository:
-    """SQL access for the clean-schema orders table (unifies broker + sleeve orders).
+    """SQL access for the clean-schema orders table (unifies broker + book orders).
 
     Order ↔ book ↔ account integrity (invariant 4) cannot be expressed as a cheap
     SQLite constraint, so `insert` verifies the book belongs to the account.

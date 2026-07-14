@@ -15,16 +15,6 @@ from tests.support.books import assign_test_book_strategy, insert_test_book
 NOW = "2026-05-05T12:00:00Z"
 
 
-def _insert_param_set(conn, param_set_id: int, strategy_name: str) -> None:
-    conn.execute(
-        """
-        INSERT INTO strategy_param_sets (id, strategy_name, version, params_json, created_at, updated_at)
-        VALUES (?, ?, 'v1', '{}', '2026-05-01T00:00:00Z', '2026-05-01T00:00:00Z')
-        """,
-        (param_set_id, strategy_name),
-    )
-
-
 def test_open_assignment_none_when_unassigned(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_ba_none")
     book_id = insert_test_book(conn, account_id=account_id)
@@ -32,18 +22,16 @@ def test_open_assignment_none_when_unassigned(conn) -> None:
     assert open_assignment_for_book(conn, book_id=book_id) is None
 
 
-def test_assign_book_strategy_roundtrips_with_param_set(conn) -> None:
-    _insert_param_set(conn, 202, "meanrev")
+def test_assign_book_strategy_roundtrips(conn) -> None:
     account_id = insert_repository_account(conn, name="acct_ba_assign")
     book_id = insert_test_book(conn, account_id=account_id)
 
-    view = assign_book_strategy(conn, book_id=book_id, strategy_name="meanrev", param_set_id=202, now_iso=NOW)
+    view = assign_book_strategy(conn, book_id=book_id, strategy_name="meanrev", now_iso=NOW)
 
     assert view.strategy_name == "meanrev"
-    assert view.param_set_id == 202
     record = BookAssignmentRepository(conn).fetch_open(book_id=book_id)
     assert record is not None
-    assert record.param_set_id == 202
+    assert record.strategy_id == view.strategy_id
     read_back = open_assignment_for_book(conn, book_id=book_id)
     assert read_back is not None
     assert read_back.strategy_name == "meanrev"
@@ -70,7 +58,7 @@ def test_enumerate_trading_books_includes_assigned_default_book(conn) -> None:
 
     account_id = insert_repository_account(conn, name="acct_enum_default")
     default_id = default_book_id(conn, account_id)
-    assign_book_strategy(conn, book_id=default_id, strategy_name="trend", param_set_id=None, now_iso=NOW)
+    assign_book_strategy(conn, book_id=default_id, strategy_name="trend", now_iso=NOW)
 
     books = enumerate_trading_books(conn, account_id=account_id)
 

@@ -3,9 +3,9 @@
 Type: convention
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-06-19
+Last Reviewed: 2026-07-13
 Purpose: Cross-cutting style approach + documentation/markdown style, and the index of per-language style guides.
-Related: [Python Style](python-style.md), [Frontend Style](frontend-style.md), [Architecture Conventions](../architecture/architecture-conventions.md)
+Related: [Python Style](python-style.md), [Frontend Style](frontend-style.md), [Documentation Authoring Standard](docs-authoring.md), [Architecture Conventions](../architecture/architecture-conventions.md)
 
 Scope:
 
@@ -19,7 +19,8 @@ Scope:
 |---|---|
 | Python | [`python-style.md`](python-style.md) |
 | TypeScript / frontend | [`frontend-style.md`](frontend-style.md) |
-| Documentation / markdown | this file (below) |
+| Documentation prose / markdown style | this file (below) |
+| Required docs metadata and layouts | [`docs-authoring.md`](docs-authoring.md) |
 
 ## Style Approach
 
@@ -37,3 +38,5 @@ Balanced means:
 1. Prefer short sections with actionable bullets.
 2. Keep architecture docs declarative and source-of-truth oriented.
 3. Include runnable commands from the repository root where relevant.
+4. Keep required metadata, document types, and reference/ADR layouts in
+   [`docs-authoring.md`](docs-authoring.md); do not duplicate those rules here.

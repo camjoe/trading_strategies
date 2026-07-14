@@ -13,7 +13,7 @@ from common.paths.repo_paths import get_repo_root
 from trading.interfaces.runtime.jobs.governance.payload_models import (
     WeeklyLeaderboardAccountPayload,
     WeeklyLeaderboardArtifactPayload,
-    WeeklyLeaderboardSleevePayload,
+    WeeklyLeaderboardBookPayload,
 )
 from trading.interfaces.runtime.jobs.job_helpers import (
     already_completed_for_period,
@@ -58,7 +58,7 @@ def _validate_args(args: argparse.Namespace) -> str | None:
     return None
 
 
-class SleeveStats(TypedDict):
+class BookStats(TypedDict):
     avg_return_pct: float | None
     avg_risk_adjusted_score: float | None
     max_drawdown_pct: float | None
@@ -66,7 +66,7 @@ class SleeveStats(TypedDict):
     data_points: int
 
 
-def _compute_sleeve_stats(metrics: list) -> SleeveStats:
+def _compute_book_stats(metrics: list) -> BookStats:
     """Compute aggregated performance stats from a list of daily metric rows."""
     returns = [row.return_pct for row in metrics if row.return_pct is not None]
     risk_scores = [row.risk_adjusted_score for row in metrics if row.risk_adjusted_score is not None]
@@ -86,7 +86,7 @@ def _compute_sleeve_stats(metrics: list) -> SleeveStats:
     job_name=JOB_NAME,
     sentinel=COMPLETE_SENTINEL,
     period="week",
-    description="W1 weekly governance: rank strategy sleeves by 30-day performance.",
+    description="W1 weekly governance: rank strategy books by 30-day performance.",
     add_arguments=_add_window_arg,
     validate=_validate_args,
 )
@@ -103,7 +103,7 @@ def main(ctx: JobContext) -> dict[str, object]:
             ctx.log(f"WARN: account not found in DB: {account_name}")
             continue
 
-        book_rows: list[WeeklyLeaderboardSleevePayload] = []
+        book_rows: list[WeeklyLeaderboardBookPayload] = []
 
         for book, assignment in list_report_books(ctx.conn, account_id=account.id):
             strategy_name = assignment.strategy_name if assignment is not None else None
@@ -114,9 +114,9 @@ def main(ctx: JobContext) -> dict[str, object]:
                 start_date=start_str,
                 end_date=today_str,
             )
-            stats = _compute_sleeve_stats(metrics)
+            stats = _compute_book_stats(metrics)
             book_rows.append(
-                WeeklyLeaderboardSleevePayload(
+                WeeklyLeaderboardBookPayload(
                     book_name=book.name,
                     strategy_name=strategy_name,
                     avg_return_pct=stats["avg_return_pct"],

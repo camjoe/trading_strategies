@@ -224,10 +224,7 @@ def stub_runtime_job_basics(
     Returns a SimpleNamespace with:
       - conn: the stubbed DB connection
       - books: the stubbed (book, assignment) pairs (if patched)
-      - param_set_repo: the MagicMock StrategyParamSetRepository instance (if patched)
     """
-    from unittest.mock import MagicMock
-
     import infrastructure.database.init as db_init
     import trading.interfaces.runtime.jobs.job_runner._core as job_runner
 
@@ -248,7 +245,6 @@ def stub_runtime_job_basics(
         monkeypatch.setattr(module, "find_account", lambda conn, name: lookup(name))
 
     book_pairs = None
-    mock_param_repo = None
 
     if books_for_account is not None and hasattr(module, "list_report_books"):
         book_pairs = [
@@ -256,13 +252,7 @@ def stub_runtime_job_basics(
         ]
         monkeypatch.setattr(module, "list_report_books", lambda conn, *, account_id: list(book_pairs))
 
-    if hasattr(module, "StrategyParamSetRepository"):
-        mock_param_repo = MagicMock()
-        mock_param_repo.fetch_by_id.return_value = None
-        mock_param_repo.fetch_active.return_value = None
-        monkeypatch.setattr(module, "StrategyParamSetRepository", lambda conn: mock_param_repo)
-
-    return SimpleNamespace(conn=resolved_conn, books=book_pairs, param_set_repo=mock_param_repo)
+    return SimpleNamespace(conn=resolved_conn, books=book_pairs)
 
 
 __all__ = [

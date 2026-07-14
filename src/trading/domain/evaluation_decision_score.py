@@ -2,7 +2,7 @@
 
 Pure transform with no I/O. This is the single place that turns a
 ``StrategyEvaluationArtifact`` into the ``EvaluationDecisionScore`` consumed by
-decision surfaces (compare, promotion, and — from 1b — sleeve rotation), so
+decision surfaces (compare, promotion, and rotation), so
 those surfaces stop reading evaluation confidence fields directly.
 """
 

@@ -107,18 +107,6 @@ def _current_position_value(
     return qty * mark_price
 
 
-def resolve_strategy_params(account: AccountRecord, strategy_name: str) -> dict[str, object]:
-    """Resolve the effective signal params for an account's active strategy.
-
-    Single seam for param resolution: today this is the registry's
-    ``default_params``. The ``strategies`` catalog stores knobs but is not the
-    read path yet; wiring it here (without touching callers) is the deferred
-    catalog work — see status.md (P6).
-    """
-    del account  # unused until catalog/account-level knobs are wired
-    return dict(resolve_strategy(strategy_name).default_params)
-
-
 def build_feature_history_fn(feature_fetchers: FeatureFetcherSet | None) -> FeatureHistoryFn:
     """Build the per-ticker feature-history lookup used during signal evaluation.
 
@@ -185,6 +173,7 @@ def select_signal_trade_candidates(
 def prepare_trade_selection(
     account: AccountRecord,
     active_strategy: str | None,
+    params: Mapping[str, object] | None,
     state,
     forced_sell: str | None,
     universe: list[str],
@@ -198,18 +187,15 @@ def prepare_trade_selection(
 ) -> tuple[str, str, int, float, float | None, float | None] | None:
     """Select the next trade from the active strategy's signals.
 
-    Sells take priority (the forced risk-stop first, then signaled sells) so cash is
-    freed before buys. Returns None when nothing signals — callers must not
-    manufacture a trade in that case.
+    ``params`` are the strategy's effective knobs, resolved by the caller from
+    the catalog. Sells take priority (the forced risk-stop first, then
+    signaled sells) so cash is freed before buys. Returns None when nothing
+    signals — callers must not manufacture a trade in that case.
     """
     buy_candidates: list[str] = []
     sell_candidates: list[str] = []
-    if active_strategy:
+    if active_strategy and params is not None:
         try:
-            params = resolve_strategy_params(account, active_strategy)
-        except ValueError:
-            logger.warning("Unknown strategy %r; holding (no signal trades).", active_strategy)
-        else:
             buy_candidates, sell_candidates = select_signal_trade_candidates(
                 active_strategy,
                 params,
@@ -218,6 +204,8 @@ def prepare_trade_selection(
                 cast(Mapping[str, float], getattr(state, "positions", {})),
                 feature_history_fn,
             )
+        except ValueError:
+            logger.warning("Unknown strategy %r; holding (no signal trades).", active_strategy)
 
     if forced_sell is not None or sell_candidates:
         prepared_sell = prepare_sell_trade(

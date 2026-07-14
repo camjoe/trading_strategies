@@ -69,7 +69,7 @@ def _adr_numbers(paths: list[Path], repo_root: Path) -> list[tuple[Path, int]]:
     return numbered
 
 
-def _adr_sequence_problems(paths: list[Path], repo_root: Path) -> list[str]:
+def _adr_number_problems(paths: list[Path], repo_root: Path) -> list[str]:
     numbered = _adr_numbers(paths, repo_root)
     by_number: dict[int, list[Path]] = {}
     for path, number in numbered:
@@ -80,14 +80,6 @@ def _adr_sequence_problems(paths: list[Path], repo_root: Path) -> list[str]:
         if len(duplicates) > 1:
             names = ", ".join(relative_posix(path, repo_root) for path in duplicates)
             findings.append(f"duplicate ADR number {number:03}: {names}")
-
-    numbers = sorted(by_number)
-    if numbers:
-        expected = list(range(numbers[0], numbers[-1] + 1))
-        missing = sorted(set(expected) - set(numbers))
-        if missing:
-            rendered = ", ".join(f"{number:03}" for number in missing)
-            findings.append(f"missing ADR number(s) in sequence: {rendered}")
     return findings
 
 
@@ -98,8 +90,8 @@ def run_doc_naming_check(repo_root: Path, *, enforce: bool = False, quiet: bool 
 
     docs = discover_docs(repo_root)
     reports = [report for path in docs if (report := check_file(path, repo_root)).problems]
-    sequence_findings = _adr_sequence_problems(docs, repo_root)
-    total = sum(len(report.problems) for report in reports) + len(sequence_findings)
+    number_findings = _adr_number_problems(docs, repo_root)
+    total = sum(len(report.problems) for report in reports) + len(number_findings)
 
     if quiet and not total:
         print("PASS: doc names - filenames and ADR numbering follow convention.")
@@ -116,7 +108,7 @@ def run_doc_naming_check(repo_root: Path, *, enforce: bool = False, quiet: bool 
             rel = relative_posix(report.path, repo_root)
             for problem in report.problems:
                 print(f"- {rel}: {problem}")
-        for problem in sequence_findings:
+        for problem in number_findings:
             print(f"- docs/adr/: {problem}")
 
     if enforce and total:
@@ -131,7 +123,7 @@ def run_doc_naming_check(repo_root: Path, *, enforce: bool = False, quiet: bool 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Verify docs/ filenames follow kebab-case and ADRs use sequential NNN prefixes.",
+        description="Verify docs/ filenames follow kebab-case and ADRs use unique NNN prefixes.",
     )
     parser.add_argument(
         "--repo-root",

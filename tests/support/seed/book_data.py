@@ -28,7 +28,7 @@ def seed_books(conn: sqlite3.Connection) -> None:
         created_at=ts,
         updated_at=ts,
     )
-    assign_book_strategy(conn, book_id=book_id, strategy_name=BOOK_STRATEGY, param_set_id=None, now_iso=ts)
+    assign_book_strategy(conn, book_id=book_id, strategy_name=BOOK_STRATEGY, now_iso=ts)
     DailyMetricsRepository(conn).upsert(
         account_id=acct_id,
         book_id=book_id,

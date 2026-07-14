@@ -12,7 +12,7 @@ from scripts.checks.repo.skills_check import (
     skills_on_disk,
 )
 
-VALID_SKILL = "---\nname: demo-skill\ndescription: Does X. Use when Y.\ninvoker: any\n---\n\n# Demo\n"
+VALID_SKILL = "---\nname: demo-skill\ndescription: Does X. Use when Y.\n---\n\n# Demo\n"
 
 
 def _write(path: Path, content: str) -> Path:
@@ -63,16 +63,12 @@ def test_frontmatter_problems_variants(tmp_path: Path) -> None:
     no_block = _write(tmp_path / "a/SKILL.md", "# No frontmatter\n")
     assert frontmatter_problems(no_block) == ["missing frontmatter block"]
 
-    unterminated = _write(tmp_path / "b/SKILL.md", "---\nname: x\ndescription: y\ninvoker: any\n")
+    unterminated = _write(tmp_path / "b/SKILL.md", "---\nname: x\ndescription: y\n")
     assert frontmatter_problems(unterminated) == ["unterminated frontmatter block"]
 
     incomplete = _write(tmp_path / "c/SKILL.md", "---\nname: x\n---\n")
     problems = frontmatter_problems(incomplete)
     assert "missing frontmatter field: description" in problems
-    assert "missing frontmatter field: invoker" in problems
-
-    bad_invoker = _write(tmp_path / "d/SKILL.md", "---\nname: x\ndescription: y\ninvoker: agent:retired\n---\n")
-    assert any("invalid invoker" in p for p in frontmatter_problems(bad_invoker))
 
 
 def test_advisory_mode_exits_zero_with_findings(tmp_path: Path) -> None:

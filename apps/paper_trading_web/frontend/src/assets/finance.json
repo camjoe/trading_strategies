@@ -244,24 +244,6 @@
       "definition": "Price move beyond support or resistance, often on elevated volume."
     },
     {
-      "term": "Factor-Based Signals",
-      "group": "Trading Strategies",
-      "use": "ui",
-      "definition": "Use quantitative factors (value, quality, momentum, low-volatility) to rank and select assets."
-    },
-    {
-      "term": "Momentum (Cross-Sectional)",
-      "group": "Trading Strategies",
-      "use": "ui",
-      "definition": "Rank assets by recent relative performance and go long the top performers."
-    },
-    {
-      "term": "Pairs / Statistical Arbitrage",
-      "group": "Trading Strategies",
-      "use": "ui",
-      "definition": "Exploit temporary divergences in the price spread between historically correlated instruments."
-    },
-    {
       "term": "Regime-Aware Models",
       "group": "Trading Strategies",
       "use": "ui",
@@ -280,12 +262,6 @@
       "definition": "Enter positions when price breaks out of a defined volatility range."
     },
     {
-      "term": "Crypto",
-      "group": "Asset Classes",
-      "use": "both",
-      "definition": "Digital assets via feeds like ccxt - not currently active."
-    },
-    {
       "term": "Equities",
       "group": "Asset Classes",
       "use": "both",
@@ -296,18 +272,6 @@
       "group": "Asset Classes",
       "use": "both",
       "definition": "Sector, factor, and index ETFs - useful for regime and trend strategies."
-    },
-    {
-      "term": "Forex",
-      "group": "Asset Classes",
-      "use": "both",
-      "definition": "Currency pairs - not currently active."
-    },
-    {
-      "term": "Futures",
-      "group": "Asset Classes",
-      "use": "both",
-      "definition": "Commodity and index futures - not currently active."
     },
     {
       "term": "Macro",

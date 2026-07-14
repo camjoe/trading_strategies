@@ -3,11 +3,11 @@ from __future__ import annotations
 from trading.models.books.book_fill_transition import BookFillTransition
 
 
-# Supported order directions for sleeve fills.
+# Supported order directions for book fills.
 VALID_FILL_SIDES = {"buy", "sell"}
 
 
-def normalize_sleeve_order_input(side: str, symbol: str) -> tuple[str, str]:
+def normalize_book_order_input(side: str, symbol: str) -> tuple[str, str]:
     normalized_side = side.lower().strip()
     normalized_symbol = symbol.upper().strip()
     if normalized_side not in VALID_FILL_SIDES:
@@ -17,7 +17,7 @@ def normalize_sleeve_order_input(side: str, symbol: str) -> tuple[str, str]:
     return normalized_side, normalized_symbol
 
 
-def compute_sleeve_equity(cash: float, market_value_by_symbol: dict[str, float]) -> float:
+def compute_book_equity(cash: float, market_value_by_symbol: dict[str, float]) -> float:
     return float(cash) + sum(float(value) for value in market_value_by_symbol.values())
 
 
@@ -61,7 +61,7 @@ def apply_book_fill_transition(
     cash: float,
     realized_pnl: float,
 ) -> BookFillTransition:
-    normalized_side, normalized_symbol = normalize_sleeve_order_input(side, symbol)
+    normalized_side, normalized_symbol = normalize_book_order_input(side, symbol)
     fill_qty = float(qty)
     fill_px = float(fill_price)
     fill_commission = float(commission)

@@ -106,7 +106,7 @@ def test_extract_is_section_aware_no_basename_collision() -> None:
     assert "src/trading/domain/accounting.py" in documented
     assert "src/trading/services/accounts/queries.py" in documented
     # A bare `accounting.py` under domain must NOT count a same-named file elsewhere as documented.
-    assert "src/trading/services/sleeves/accounting.py" not in documented
+    assert "src/trading/services/books/accounting.py" not in documented
 
 
 def test_extract_ignores_prose_mentions() -> None:
@@ -146,7 +146,7 @@ def test_extract_resolves_relative_subsection_under_full_section() -> None:
 
 def test_check_map_flags_undocumented_and_stale(tmp_path: Path) -> None:
     _write(tmp_path / "src/trading/domain/accounting.py")
-    _write(tmp_path / "src/trading/services/sleeves/accounting.py")  # name collides, but undocumented
+    _write(tmp_path / "src/trading/services/books/accounting.py")  # name collides, but undocumented
     _write(tmp_path / "src/trading/services/accounts/queries.py")
     _write(
         tmp_path / "map.md",
@@ -159,7 +159,7 @@ def test_check_map_flags_undocumented_and_stale(tmp_path: Path) -> None:
 
     report = check_map(tmp_path, "map.md", "src/trading", ())
 
-    assert report.undocumented == ["src/trading/services/sleeves/accounting.py"]
+    assert report.undocumented == ["src/trading/services/books/accounting.py"]
     assert report.stale == ["src/trading/services/accounts/ghost.py"]
 
 

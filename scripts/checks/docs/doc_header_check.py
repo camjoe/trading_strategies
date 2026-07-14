@@ -34,7 +34,7 @@ TYPE_VOCAB = {
 }
 
 # The status is the leading token; a parenthetical or dash suffix adds context and is allowed
-# (e.g. "Ready (multi-commit)", "Accepted — sequenced as P3").
+# (e.g. "Ready (multi-commit)", "Accepted — sequenced later").
 STATUS_VOCAB = {
     "Active",
     "Draft",
