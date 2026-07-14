@@ -77,6 +77,8 @@ def test_build_html_contains_viewer_controls_and_schema_payload() -> None:
     assert "info-panel" in html
     assert "colorKey" in html
     assert "attachSectionDragHandlers" in html
+    assert "restackDefaultLayout" in html
+    assert "layoutMarginX" in html
     assert "zoomIn" in html
     assert "toggleConstraints" in html
     assert "toggleDeleteActions" in html

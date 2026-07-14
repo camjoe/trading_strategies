@@ -452,18 +452,24 @@ def render_html(payload: dict[str, Any]) -> str:
       const cardHeight = 760;
       const titleHeight = 54;
       const sectionGap = 150;
+      // Keep the leftmost/topmost route corridor inside the visible stage:
+      // left-approaching connectors swing up to ~154px left of a card
+      // (26 connection offset + 92 lane gap + 36 max lane offset) and get
+      // clipped by the canvas if the layout starts at 0.
+      const layoutMarginX = 180;
+      const layoutMarginY = 80;
       const defaults = new Map();
       const sectionRegions = [];
-      let cursorY = 0;
+      let cursorY = layoutMarginY;
 
       for (const group of groupedTables(tables)) {{
-        const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(group.tables.length * 1.4))));
+        const columns = groupColumnCount(group.tables.length);
         const rows = Math.ceil(group.tables.length / columns);
         const sectionTop = cursorY;
         const tableTop = cursorY + titleHeight;
         group.tables.forEach((table, index) => {{
           defaults.set(table.name, {{
-            x: (index % columns) * cardWidth,
+            x: layoutMarginX + (index % columns) * cardWidth,
             y: tableTop + Math.floor(index / columns) * cardHeight,
           }});
         }});
@@ -472,7 +478,7 @@ def render_html(payload: dict[str, Any]) -> str:
           label: group.section.label,
           color: group.section.color,
           tables: group.tables.map((table) => table.name),
-          x: 0,
+          x: layoutMarginX,
           y: sectionTop,
           width: columns * cardWidth - 40,
           height: titleHeight + rows * cardHeight - 80,
@@ -488,6 +494,40 @@ def render_html(payload: dict[str, Any]) -> str:
         }}
       }}
       return {{ positions: defaults, sections: sectionRegions }};
+    }}
+
+    function groupColumnCount(tableCount) {{
+      return Math.min(4, Math.max(1, Math.ceil(Math.sqrt(tableCount * 1.4))));
+    }}
+
+    function restackDefaultLayout(viewTables) {{
+      // The initial layout assumes a fixed card height, but rendered cards vary
+      // (accounts has 3x the columns of order_fills). Once cards are in the DOM,
+      // re-stack each section row using measured heights so cards never overlap.
+      // Skipped when the user has dragged cards: their arrangement wins.
+      if (Object.keys(loadSavedPositions()).length) return;
+      const titleHeight = 54;
+      const sectionGap = 150;
+      const rowGap = 90;
+      const layoutMarginY = 80;
+      let cursorY = layoutMarginY;
+      for (const group of groupedTables(viewTables)) {{
+        const columns = groupColumnCount(group.tables.length);
+        let rowTop = cursorY + titleHeight;
+        for (let rowStart = 0; rowStart < group.tables.length; rowStart += columns) {{
+          const rowTables = group.tables.slice(rowStart, rowStart + columns);
+          let rowHeight = 0;
+          for (const table of rowTables) {{
+            const card = document.getElementById(`table-${{table.name}}`);
+            const position = currentPositions.get(table.name);
+            currentPositions.set(table.name, {{ x: position.x, y: rowTop }});
+            card.style.top = `${{rowTop}}px`;
+            rowHeight = Math.max(rowHeight, card.offsetHeight);
+          }}
+          rowTop += rowHeight + rowGap;
+        }}
+        cursorY = rowTop - rowGap + sectionGap;
+      }}
     }}
 
     function groupedTables(tables) {{
@@ -581,7 +621,6 @@ def render_html(payload: dict[str, Any]) -> str:
       currentPositions = layout.positions;
       viewTitleEl.textContent = activeView.label;
       viewDescriptionEl.textContent = activeView.description;
-      renderSections(layout.sections);
       cardsEl.innerHTML = viewTables.map(tableMarkup).join("");
       for (const table of viewTables) {{
         const card = document.getElementById(`table-${{table.name}}`);
@@ -593,6 +632,8 @@ def render_html(payload: dict[str, Any]) -> str:
           || table.columns.some((column) => column.name.toLowerCase().includes(query));
         card.classList.toggle("hidden", !matches);
       }}
+      restackDefaultLayout(viewTables);
+      renderSections(layout.sections);
       attachCardDragHandlers();
       attachSectionDragHandlers();
       drawRelationships(relationshipsFor(viewTables), currentPositions);
@@ -1410,6 +1451,3 @@ def render_html(payload: dict[str, Any]) -> str:
 </body>
 </html>
 """
-
-
-

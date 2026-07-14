@@ -9,6 +9,12 @@ from typing import Any
 from common.paths.project_paths import REPO_ROOT
 from infrastructure.database.init import init_schema
 from scripts.database_diagrams.html_viewer import render_html
+from scripts.database_diagrams.sqlite_introspection import (
+    columns,
+    foreign_keys,
+    indexes,
+    table_names,
+)
 
 DEFAULT_OUTPUT_PATH = REPO_ROOT / "docs" / "reference" / "database-diagram-viewer.html"
 
@@ -64,7 +70,10 @@ SECTION_DEFINITIONS: tuple[dict[str, object], ...] = (
 )
 
 ACCOUNT_COLUMN_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("books", ("goal_", "learning_", "risk_policy", "stop_", "take_", "trade_size_", "max_", "instrument_", "option_")),
+    (
+        "books",
+        ("goal_", "learning_", "risk_policy", "stop_", "take_", "trade_size_", "max_", "instrument_", "option_"),
+    ),
     ("rotations", ("rotation_",)),
     ("orders", ("broker_", "live_trading_")),
     ("snapshots", ("benchmark_",)),
@@ -170,9 +179,7 @@ VIEW_DEFINITIONS: tuple[dict[str, object], ...] = (
 )
 
 SECTION_BY_TABLE = {
-    table_name: str(section["id"])
-    for section in SECTION_DEFINITIONS
-    for table_name in section["tables"]
+    table_name: str(section["id"]) for section in SECTION_DEFINITIONS for table_name in section["tables"]
 }
 SECTION_BY_ID = {str(section["id"]): section for section in SECTION_DEFINITIONS}
 
@@ -183,19 +190,6 @@ def _connect_fresh_schema() -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     init_schema(conn)
     return conn
-
-
-def _table_names(conn: sqlite3.Connection) -> list[str]:
-    rows = conn.execute(
-        """
-        SELECT name
-        FROM sqlite_master
-        WHERE type = 'table'
-          AND name NOT LIKE 'sqlite_%'
-        ORDER BY name
-        """
-    ).fetchall()
-    return [str(row["name"]) for row in rows]
 
 
 def _section_payload(section_id: str | None) -> dict[str, str] | None:
@@ -223,79 +217,34 @@ def _column_section_id(table_name: str, column_name: str, foreign_keys: list[dic
     return None
 
 
-def _columns(
-    conn: sqlite3.Connection,
-    table_name: str,
-    foreign_keys: list[dict[str, str]],
-) -> list[dict[str, Any]]:
-    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    columns: list[dict[str, Any]] = []
-    for row in rows:
-        column_name = str(row["name"])
-        section = _section_payload(_column_section_id(table_name, column_name, foreign_keys))
-        columns.append(
-            {
-                "name": str(row["name"]),
-                "type": str(row["type"]),
-                "notNull": bool(row["notnull"]),
-                "default": row["dflt_value"],
-                "primaryKeyPosition": int(row["pk"]),
-                "section": section,
-            }
-        )
-    return columns
-
-
-def _indexes(conn: sqlite3.Connection, table_name: str) -> list[dict[str, Any]]:
-    rows = conn.execute(f"PRAGMA index_list({table_name})").fetchall()
-    indexes: list[dict[str, Any]] = []
-    for row in rows:
-        index_name = str(row["name"])
-        index_columns = conn.execute(f"PRAGMA index_info({index_name})").fetchall()
-        indexes.append(
-            {
-                "name": index_name,
-                "unique": bool(row["unique"]),
-                "origin": str(row["origin"]),
-                "columns": [str(index_row["name"]) for index_row in index_columns],
-            }
-        )
-    return indexes
-
-
-def _foreign_keys(conn: sqlite3.Connection, table_name: str) -> list[dict[str, str]]:
-    rows = conn.execute(f"PRAGMA foreign_key_list({table_name})").fetchall()
-    return [
-        {
-            "column": str(row["from"]),
-            "referencesTable": str(row["table"]),
-            "referencesColumn": str(row["to"]),
-            "onUpdate": str(row["on_update"]),
-            "onDelete": str(row["on_delete"]),
-        }
-        for row in rows
-    ]
-
-
 def build_diagram_payload(conn: sqlite3.Connection) -> dict[str, Any]:
-    """Return the schema payload consumed by the HTML diagram viewer."""
-    table_names = _table_names(conn)
+    """Return the schema payload consumed by the HTML diagram viewer.
+
+    Uses the project-agnostic introspection from ``scripts.database_diagrams``
+    and decorates the neutral payload with this repo's section and view metadata.
+    """
+    names = table_names(conn)
     tables: list[dict[str, Any]] = []
-    for table_name in table_names:
-        foreign_keys = _foreign_keys(conn, table_name)
+    for table_name in names:
+        table_foreign_keys = foreign_keys(conn, table_name)
+        table_columns = columns(conn, table_name)
+        for column in table_columns:
+            column["section"] = _section_payload(
+                _column_section_id(table_name, str(column["name"]), table_foreign_keys)
+            )
         tables.append(
             {
                 "name": table_name,
                 "section": _section_payload(SECTION_BY_TABLE.get(table_name)),
-                "columns": _columns(conn, table_name, foreign_keys),
-                "indexes": _indexes(conn, table_name),
-                "foreignKeys": foreign_keys,
+                "columns": table_columns,
+                "indexes": indexes(conn, table_name),
+                "foreignKeys": table_foreign_keys,
             }
         )
-    table_set = set(table_names)
+    table_set = set(names)
     views: list[dict[str, object]] = []
     for view in VIEW_DEFINITIONS:
-        view_tables = table_names if view["tables"] == "all" else [name for name in view["tables"] if name in table_set]
+        view_tables = names if view["tables"] == "all" else [name for name in view["tables"] if name in table_set]
         views.append(
             {
                 "id": view["id"],
