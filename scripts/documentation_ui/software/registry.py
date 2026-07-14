@@ -24,6 +24,7 @@ GROUP_BY_PACKAGE = {
     "httpx2": "Developer Tooling",
     "hypothesis": "Developer Tooling",
     "matplotlib": "Visualization",
+    "mypy": "Developer Tooling",
     "newsapi-python": "Data & Market Access",
     "numpy": "Analysis & Modeling",
     "pandas": "Analysis & Modeling",
@@ -35,6 +36,7 @@ GROUP_BY_PACKAGE = {
     "pytest-mock": "Developer Tooling",
     "pytest-xdist": "Developer Tooling",
     "python-dotenv": "Backend & Validation",
+    "ruff": "Developer Tooling",
     "pytrends": "Data & Market Access",
     "uvicorn": "Backend & Validation",
     "vadersentiment": "Analysis & Modeling",
@@ -47,12 +49,14 @@ PURPOSE_BY_PACKAGE = {
         "Async Interactive Brokers client used for broker connectivity, live account queries, "
         "and order execution flows."
     ),
+    "mypy": "Static type checker used by local and CI Python quality gates.",
     "newsapi-python": (
         "News API client used by alternative strategy features to fetch news inputs for sentiment-style signals."
     ),
     "playwright": "Browser automation library used for UI smoke checks and end-to-end interaction coverage.",
     "praw": "Reddit API client used by alternative strategy features to fetch social discussion inputs.",
     "pytest-xdist": "Parallel test execution plugin used to speed up larger local and CI pytest runs.",
+    "ruff": "Python linter and formatter used by local and CI quality gates.",
     "pytrends": "Google Trends client used by alternative strategy features to pull search-interest signals.",
     "vadersentiment": (
         "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features."
