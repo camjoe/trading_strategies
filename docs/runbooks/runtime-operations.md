@@ -3,15 +3,15 @@
 Type: runbook
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-02
-Purpose: Procedures for monitoring and recovering the runtime trading jobs — the daily IBKR Paper Autonomy workflow and the weekly database backup — including completion checks and artifact inspection.
+Last Reviewed: 2026-07-13
+Purpose: Procedures for monitoring and recovering the runtime trading jobs — the daily paper-trading workflow, daily supporting jobs, and weekly database backup — including completion checks and artifact inspection.
 Related: [Runtime Jobs Reference](../reference/runtime-jobs.md), [Governance Review Guide](governance-review.md), [Burn-In Protocol](burn-in-protocol.md), [Broker Integration](../reference/broker-integration.md)
 
 Procedures for monitoring and recovering the runtime trading jobs. This runbook covers the daily
-paper-trading workflow and the weekly database backup; the weekly/monthly **governance** jobs are
-covered in the [Governance Review Guide](governance-review.md), and the **burn-in** period in the
-[Burn-In Protocol](burn-in-protocol.md). For how to *run or schedule* any job (rather than monitor it),
-see the [Runtime Jobs Reference](../reference/runtime-jobs.md).
+paper-trading workflow, supporting daily jobs, and weekly database backup; the weekly/monthly
+**governance** jobs are covered in the [Governance Review Guide](governance-review.md), and the
+**burn-in** period in the [Burn-In Protocol](burn-in-protocol.md). For how to *run or schedule* any
+job (rather than monitor it), see the [Runtime Jobs Reference](../reference/runtime-jobs.md).
 
 ## Scheduled job
 
@@ -22,7 +22,7 @@ running from a Windows dev machine.
 
 **Entrypoint:**
 ```
-python -m trading.interfaces.runtime.jobs.daily.paper_trading
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading
 ```
 
 **Expected run window:** configured in `manage_job_schedules`; fallback task fires if the primary misses its window.
@@ -53,17 +53,17 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
 
 | Step ID | Purpose |
 |---|---|
-| `00_ingest_market_and_account` | Load market data and account state |
-| `01_mark_book_nav` | Mark book NAV (handled by snapshot/reconciliation) |
-| `02_run_signals_all_strategies` | Challenger shadow evaluation (if enabled) |
-| `03_score_incumbent_vs_challengers` | Score strategies |
-| `04_rotation_decision` | Evaluate and apply book rotation |
-| `05_build_position_targets_by_book` | Build position targets |
-| `06_pretrade_risk_gate` | Pre-trade risk gate evaluation |
-| `07_submit_ibkr_orders` | Submit orders to IBKR auto-trader |
+| `00_ingest_market_and_account` | Ingest market and account context |
+| `01_mark_book_nav` | Mark book NAV |
+| `02_run_signals_all_strategies` | Run incumbent/challenger strategy signals |
+| `03_score_incumbent_vs_challengers` | Score incumbent versus challengers |
+| `04_rotation_decision` | Apply rotation decision gates |
+| `05_build_position_targets_by_book` | Build position targets by book |
+| `06_pretrade_risk_gate` | Apply pretrade risk gate |
+| `07_submit_ibkr_orders` | Submit broker orders |
 | `08_reconcile_fills_update_ledgers` | Reconcile fills and update ledgers |
-| `09_postclose_metrics_and_attribution` | Compute daily metrics and attribution |
-| `10_emit_report_and_alerts` | Build operator report and send alerts |
+| `09_postclose_metrics_and_attribution` | Compute post-close metrics and attribution |
+| `10_emit_report_and_alerts` | Emit report and alerts |
 
 ---
 
@@ -79,7 +79,7 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
 3. Fix the underlying issue (connectivity, data freshness, configuration).
 4. Re-run with `--force-run`:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
+   ./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.paper_trading --force-run
    ```
 
 ### Run did not execute (scheduler missed)
@@ -90,12 +90,12 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```
 2. Replay via the backfill tool:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
+   ./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
        --from-date YYYY-MM-DD --to-date YYYY-MM-DD
    ```
 3. Use `--dry-run` first to confirm which dates are missing across a range:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
+   ./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs \
        --from-date 2026-05-01 --to-date 2026-05-07 --dry-run
    ```
 
@@ -104,12 +104,16 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading
 If `kill_switch_triggered: true` appears in the daily operator report or the M1 risk rebaseline:
 
 1. Identify the triggering account from the report's `account_reports` section.
-2. Review `portfolio_risk_snapshots` for that account:
+2. Review the latest account report/risk state:
    ```bash
-   .venv/bin/python -m trading.interfaces.cli.main risk-snapshot --account <name>
+   ./.venv/bin/python -m trading.interfaces.cli.main report --account <name>
+   ./.venv/bin/python -m trading.interfaces.cli.main portfolio-exposure
+   ./.venv/bin/python -m trading.interfaces.cli.main portfolio-concentration
    ```
-3. Investigate the cause (data staleness, reconciliation mismatch, exposure breach).
-4. Resolve and reset the kill switch via the admin interface before the next scheduled run.
+3. Inspect the daily run artifact, M1 risk rebaseline artifact, or `risk_snapshots` table for the
+   kill-switch reason payload.
+4. Investigate the cause (data staleness, reconciliation mismatch, exposure breach).
+5. Resolve and reset the kill switch via the admin interface before the next scheduled run.
 
 ---
 
@@ -123,11 +127,11 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
    ```
 2. **Run on demand** if a scheduled run was missed:
    ```bash
-   .venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
+   ./.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup
    ```
-3. The combined daily + weekly status is summarized by:
+3. The combined daily paper-trading, daily snapshot, daily backtest-refresh, and weekly backup status is summarized by:
    ```bash
-   python -m scripts.check_jobs
+   ./.venv/bin/python -m scripts.check_jobs
    ```
 
 ---
@@ -139,6 +143,9 @@ The weekly database backup runs via the scheduler entry `Trading\WeeklyDbBackup`
 | Run logs | `local/logs/daily_paper_trading_{YYYYMMDD}_{HHMMSS}.log` |
 | Run artifacts | `local/exports/daily_paper_trading/daily_paper_trading_{YYYYMMDD}_{HHMMSS}.json` |
 | Startup log | `local/logs/daily_paper_trading_startup_{YYYYMMDD}.log` |
+| Scheduler logs | `local/logs/*_scheduler.log` |
+| Daily snapshot artifacts | `local/exports/daily_snapshots/daily_snapshot_{YYYYMMDD}_{HHMMSS}.json` |
+| Daily backtest refresh artifacts | `local/exports/daily_backtest_refresh/daily_backtest_refresh_{YYYYMMDD}_{HHMMSS}.json` |
 | Governance artifacts | `local/artifacts/{job}_{tag}_{YYYYMMDD}_{HHMMSS}.json` |
 | Burn-in status artifacts | `local/artifacts/check_burn_in_status_{YYYYMMDD}_{HHMMSS}.json` |
 
@@ -179,5 +186,5 @@ not yet implemented.
 
 The `check_daily_trader_health` job validates that a recent successful run artifact exists within the configured `--max-age-hours` window:
 ```bash
-.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
+./.venv/bin/python -m trading.interfaces.runtime.jobs.daily.trader_health
 ```
