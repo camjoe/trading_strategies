@@ -32,6 +32,10 @@ DB infrastructure. Imported only by `src/trading/repositories/` and the document
 | `migrations.py` | Hand-rolled schema migration runner (`ColumnMigration`, column guards) |
 | `schema.py` | Table DDL definitions (source of truth for the schema) |
 | `sql_helpers.py` | Low-level SQL utilities (`in_placeholders`, coercion helpers) |
+| `schema_version.py` | Expected Alembic head constant + plain-SQL revision reader (runtime-safe, no Alembic import) |
+| `migration_runner.py` | Programmatic Alembic runner (upgrade/downgrade/stamp) over the active backend — ops-only |
+| `alembic/env.py` | Repository-owned Alembic environment (connection-mode only) |
+| `alembic/versions/` | Immutable numeric migration revisions (`0001_current_schema`, …) |
 
 ### `src/infrastructure/brokers/`
 

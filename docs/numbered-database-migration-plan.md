@@ -170,23 +170,22 @@ because `ensure_db()` creates it; once `ensure_db()` only verifies, that stops w
 - Existing database, repository, web, CLI, and runtime suites run against databases created through
   Alembic rather than `init_schema()`.
 
-## Open Decisions
+## Decided Wiring
 
-### Alembic environment location and wiring
-
-- Proposed home: `src/infrastructure/database/alembic/` (`env.py`, `versions/`). Confirm how
-  `scripts.checks.repo.layer_check` should treat migration files, which are exempt from the
-  no-imports-from-application-code rule by design (they are self-contained).
+- Home (decided): `src/infrastructure/database/alembic/` (`env.py`, `versions/`).
+  `scripts.checks.repo.layer_check` treats migration files as self-contained by design — no
+  application imports allowed, enforcing what this plan already mandates.
 - The migration runner and test helper hand Alembic a live connection from the active
   `DatabaseBackend` (Alembic's `connectable`/`connection` mode) rather than a URL, so
   `set_backend()` injection and in-memory databases keep working.
+- Pre-`upgrade`/`downgrade` backups reuse `backup_database()` from
+  `trading.interfaces.runtime.data_ops.admin` (decided) rather than duplicating backup logic.
 
-### Smaller decisions
+## Open Decisions
 
-- Pre-`upgrade`/`downgrade` backups should reuse `backup_database()` from
-  `trading.interfaces.runtime.data_ops.admin` rather than duplicating backup logic.
 - `scripts.data_ops.describe_db_schema --source code` and the `db_schema_check` docs drift check
-  currently read `SCHEMA_SQL`; re-point them at a temporary database built at `head`.
+  currently read `SCHEMA_SQL`; the working proposal is to re-point them at a temporary database
+  built at `head`, but the exact approach is decided when that work comes up.
 
 ## Assumptions
 

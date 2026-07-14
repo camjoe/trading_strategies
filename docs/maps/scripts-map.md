@@ -99,6 +99,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
 | `export_db_csv.py` | Export all DB tables to individual CSV files |
 | `export_db_csv_zip.py` | Export all DB tables to a single zipped CSV archive |
+| `setup_db_schema.py` | Fresh-schema setup: apply Alembic revisions base→head to a missing/empty DB; refuses populated or versioned DBs; never seeds data |
 
 ## Database Diagrams (`scripts/database_diagrams/`)
 
