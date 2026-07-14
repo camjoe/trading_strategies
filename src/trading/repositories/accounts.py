@@ -95,3 +95,11 @@ class AccountRepository:
             (benchmark_ticker, account_id),
         )
         self._conn.commit()
+
+    def delete_by_ids(self, account_ids: tuple[int, ...]) -> None:
+        """Delete accounts in one statement; ON DELETE CASCADE removes all account-owned rows."""
+        if not account_ids:
+            return
+        placeholders = ", ".join("?" for _ in account_ids)
+        self._conn.execute(f"DELETE FROM accounts WHERE id IN ({placeholders})", account_ids)
+        self._conn.commit()

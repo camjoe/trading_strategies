@@ -6,10 +6,10 @@ import sqlite3
 def seed_admin_db(conn: sqlite3.Connection) -> None:
     """Populate *conn* with the canonical admin test dataset.
 
-    Inserts two accounts with associated trades, equity snapshots, backtest
-    runs, walk-forward groups, promotion reviews, and review events.  Used by
-    the ``seeded_conn`` fixture in ``conftest.py`` so that individual tests do
-    not repeat this setup inline.
+    Inserts two accounts with associated trades, orders and fills, equity
+    snapshots, backtest runs, walk-forward groups, promotion reviews and
+    events, and risk telemetry.  Used by the ``seeded_conn`` fixture in
+    ``conftest.py`` so that individual tests do not repeat this setup inline.
     """
     conn.executescript(
         """
@@ -38,6 +38,33 @@ def seed_admin_db(conn: sqlite3.Connection) -> None:
         VALUES
             (1, '2026-01-02T00:00:00Z', 900, 100, 1000, 0, 0),
             (2, '2026-01-02T00:00:00Z', 1300, 200, 1500, 0, 0);
+
+        INSERT INTO orders (
+            id, book_id, account_id, symbol, side, qty, status, submitted_at, updated_at
+        )
+        VALUES
+            (501, 1, 1, 'SPY', 'buy', 1, 'filled', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z'),
+            (502, 2, 2, 'QQQ', 'buy', 2, 'filled', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z');
+
+        INSERT INTO order_fills (order_id, exec_id, filled_qty, fill_price, fill_time)
+        VALUES
+            (501, 'exec-a', 1, 100, '2026-01-02T00:00:00Z'),
+            (502, 'exec-b', 2, 200, '2026-01-02T00:00:00Z');
+
+        INSERT INTO risk_snapshots (
+            account_id, snapshot_time, gross_exposure, net_exposure,
+            max_symbol_concentration_pct, max_sector_concentration_pct, risk_payload_json
+        )
+        VALUES
+            (1, '2026-01-02T00:00:00Z', 100, 100, 10, 20, '{}'),
+            (2, '2026-01-02T00:00:00Z', 200, 200, 10, 20, '{}');
+
+        INSERT INTO risk_decisions (
+            account_id, book_id, decision_time, action, reason_code, risk_payload_json, created_at
+        )
+        VALUES
+            (1, 1, '2026-01-02T00:00:00Z', 'allow', 'within_limits', '{}', '2026-01-02T00:00:00Z'),
+            (2, 2, '2026-01-02T00:00:00Z', 'allow', 'within_limits', '{}', '2026-01-02T00:00:00Z');
 
         -- strategy_id left NULL: reads fall back to the account strategy ('Trend').
         INSERT INTO backtest_runs (id, account_id, run_name, start_date, end_date, created_at)

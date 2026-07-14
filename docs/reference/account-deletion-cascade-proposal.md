@@ -13,19 +13,20 @@ Use this note to decide which foreign-key relationships should become database-e
 
 ## Current Direction
 
-Keep `trading.services.admin.delete_accounts()` as the account-deletion orchestration boundary while schema cascades are added. The service still owns:
+`trading.services.admin.delete_accounts()` remains the account-deletion orchestration boundary, but
+the schema now owns all row cleanup: the real deletion is one atomic
+`DELETE FROM accounts` (`AccountRepository.delete_by_ids`) and `ON DELETE CASCADE` removes every
+account-owned row. The service still owns:
 
 - target account resolution and missing-account behavior
-- dry-run count reporting
-- transaction boundaries
+- dry-run count reporting (count queries live in `trading.repositories.admin_deletions`)
 - backup-before-delete integration through the runtime data-ops CLI
-- stable count keys consumed by the UI and CLI
+- stable count keys consumed by the UI and CLI — extended with `orders`, `order_fills`,
+  `risk_snapshots`, and `risk_decisions` now that those rows are deleted too
 
-The schema has taken over child-row cleanup for the implemented cascades below: the service no longer
-deletes `order_fills`, `backtest_trades`, `backtest_equity_snapshots`, `promotion_review_events`, or
-`walk_forward_group_runs` explicitly. Deletion order still matters — `walk_forward_groups` must be
-deleted before `backtest_runs` because `walk_forward_group_runs.run_id` remains `NO ACTION` (an open
-decision below).
+`walk_forward_group_runs.run_id` staying `NO ACTION` is safe inside the single-statement delete:
+SQLite settles immediate FK checks at statement end, and both the group-side and run-side cascades
+complete within the same statement.
 
 ## Implemented Child-Owned Cascades
 

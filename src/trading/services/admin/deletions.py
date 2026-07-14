@@ -7,23 +7,16 @@ from common.coercion import coerce_int
 from trading.domain.exceptions import NotFoundError
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin_deletions import (
-    count_equity_snapshots_for_account_ids,
-    delete_accounts_by_ids,
-    delete_backtest_runs_by_account_ids,
-    delete_equity_snapshots_by_account_ids,
-    delete_promotion_reviews_by_account_ids,
-    delete_trades_by_account_ids,
-    delete_walk_forward_groups_by_account_ids,
-    fetch_backtest_run_ids_for_account_ids,
-    fetch_promotion_review_ids_for_account_ids,
+    count_child_rows_for_account_ids,
     fetch_row_count,
-    fetch_walk_forward_group_ids_for_account_ids,
 )
 
 
 DELETE_COUNT_KEYS = (
     "accounts",
     "trades",
+    "orders",
+    "order_fills",
     "equity_snapshots",
     "backtest_runs",
     "backtest_trades",
@@ -31,6 +24,29 @@ DELETE_COUNT_KEYS = (
     "walk_forward_groups",
     "walk_forward_group_runs",
     "promotion_reviews",
+    "promotion_review_events",
+    "risk_snapshots",
+    "risk_decisions",
+)
+
+# Tables keyed directly to accounts.id; counted with a plain account_id filter.
+_ACCOUNT_KEYED_COUNT_TABLES = (
+    "trades",
+    "orders",
+    "backtest_runs",
+    "walk_forward_groups",
+    "promotion_reviews",
+    "risk_snapshots",
+    "risk_decisions",
+)
+
+# Child tables counted through their owning parent (see admin_deletions).
+_CHILD_COUNT_TABLES = (
+    "order_fills",
+    "equity_snapshots",
+    "backtest_trades",
+    "backtest_equity_snapshots",
+    "walk_forward_group_runs",
     "promotion_review_events",
 )
 
@@ -87,58 +103,17 @@ def delete_accounts(
 
     account_ids = _collect_required_ids(targets, key="id", label="account")
 
-    run_ids = fetch_backtest_run_ids_for_account_ids(conn, account_ids)
-    walk_forward_group_ids = fetch_walk_forward_group_ids_for_account_ids(conn, account_ids)
-    review_ids = fetch_promotion_review_ids_for_account_ids(conn, account_ids)
-
     counts = _empty_delete_counts()
-    counts.update(
-        {
-            "accounts": len(targets),
-            "trades": fetch_row_count(conn, "trades", "account_id", account_ids),
-            "equity_snapshots": count_equity_snapshots_for_account_ids(conn, account_ids),
-            "backtest_runs": len(run_ids),
-            "walk_forward_groups": len(walk_forward_group_ids),
-            "promotion_reviews": len(review_ids),
-        }
-    )
-
-    if run_ids:
-        counts["backtest_trades"] = fetch_row_count(conn, "backtest_trades", "run_id", run_ids)
-        counts["backtest_equity_snapshots"] = fetch_row_count(
-            conn,
-            "backtest_equity_snapshots",
-            "run_id",
-            run_ids,
-        )
-    if walk_forward_group_ids:
-        counts["walk_forward_group_runs"] = fetch_row_count(
-            conn,
-            "walk_forward_group_runs",
-            "group_id",
-            walk_forward_group_ids,
-        )
-    if review_ids:
-        counts["promotion_review_events"] = fetch_row_count(
-            conn,
-            "promotion_review_events",
-            "review_id",
-            review_ids,
-        )
+    counts["accounts"] = len(targets)
+    for table in _ACCOUNT_KEYED_COUNT_TABLES:
+        counts[table] = fetch_row_count(conn, table, "account_id", account_ids)
+    for table in _CHILD_COUNT_TABLES:
+        counts[table] = count_child_rows_for_account_ids(conn, table, account_ids)
 
     if dry_run:
         return counts
 
-    # Child rows (walk_forward_group_runs, backtest_trades, backtest_equity_snapshots,
-    # promotion_review_events) are removed by ON DELETE CASCADE. Groups must go
-    # before backtest_runs: walk_forward_group_runs.run_id still restricts run deletion.
-    conn.execute("BEGIN")
-    delete_walk_forward_groups_by_account_ids(conn, account_ids)
-    delete_promotion_reviews_by_account_ids(conn, account_ids)
-    delete_backtest_runs_by_account_ids(conn, account_ids)
-    delete_equity_snapshots_by_account_ids(conn, account_ids)
-    delete_trades_by_account_ids(conn, account_ids)
-    delete_accounts_by_ids(conn, account_ids)
-    conn.commit()
-
+    # One atomic statement: ON DELETE CASCADE removes every account-owned row
+    # (books, orders, fills, snapshots, research, governance, risk).
+    AccountRepository(conn).delete_by_ids(account_ids)
     return counts

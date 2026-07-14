@@ -1,16 +1,9 @@
 from __future__ import annotations
 
+from trading.repositories.accounts import AccountRepository
 from trading.repositories.admin_deletions import (
-    delete_accounts_by_ids,
-    delete_backtest_runs_by_account_ids,
-    delete_equity_snapshots_by_account_ids,
-    delete_promotion_reviews_by_account_ids,
-    delete_trades_by_account_ids,
-    delete_walk_forward_groups_by_account_ids,
-    fetch_backtest_run_ids_for_account_ids,
-    fetch_promotion_review_ids_for_account_ids,
+    count_child_rows_for_account_ids,
     fetch_row_count,
-    fetch_walk_forward_group_ids_for_account_ids,
 )
 from trading.repositories.snapshots import EquitySnapshotRepository
 from tests.support.repositories import insert_repository_account
@@ -77,96 +70,55 @@ class TestFetchRowCount:
         assert fetch_row_count(conn, "trades", "account_id", (acct_a,)) == 1
 
 
-class TestFetchBacktestRunIdsForAccountIds:
-    def test_returns_empty_tuple_for_no_runs(self, conn) -> None:
+class TestCountChildRowsForAccountIds:
+    def test_returns_zero_without_child_rows(self, conn) -> None:
         acct_id = _account_id(conn)
-        assert fetch_backtest_run_ids_for_account_ids(conn, (acct_id,)) == ()
+        assert count_child_rows_for_account_ids(conn, "backtest_trades", (acct_id,)) == 0
 
-    def test_returns_run_ids(self, conn) -> None:
+    def test_counts_rows_through_owning_parent(self, conn) -> None:
         acct_id = _account_id(conn)
         run_id = _insert_backtest_run(conn, account_id=acct_id)
-        ids = fetch_backtest_run_ids_for_account_ids(conn, (acct_id,))
-        assert run_id in ids
+        conn.execute(
+            "INSERT INTO backtest_trades (run_id, trade_time, ticker, side, qty, price) VALUES (?,?,?,?,?,?)",
+            (run_id, "2026-01-01T10:00:00Z", "AAPL", "buy", 1.0, 100.0),
+        )
+        conn.commit()
+        assert count_child_rows_for_account_ids(conn, "backtest_trades", (acct_id,)) == 1
 
-    def test_spans_multiple_accounts(self, conn) -> None:
-        acct_a = _account_id(conn, "acct_a")
-        acct_b = _account_id(conn, "acct_b")
-        id_a = _insert_backtest_run(conn, account_id=acct_a)
-        id_b = _insert_backtest_run(conn, account_id=acct_b)
-        ids = fetch_backtest_run_ids_for_account_ids(conn, (acct_a, acct_b))
-        assert id_a in ids
-        assert id_b in ids
-
-
-class TestDeleteBacktestRunsByAccountIds:
-    def test_removes_runs_for_account(self, conn) -> None:
-        acct_id = _account_id(conn)
-        _insert_backtest_run(conn, account_id=acct_id)
-        delete_backtest_runs_by_account_ids(conn, (acct_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (acct_id,)).fetchone()[
-            "n"
-        ]
-        assert count == 0
-
-    def test_does_not_remove_runs_for_other_accounts(self, conn) -> None:
-        acct_a = _account_id(conn, "acct_a")
-        acct_b = _account_id(conn, "acct_b")
-        _insert_backtest_run(conn, account_id=acct_a)
-        _insert_backtest_run(conn, account_id=acct_b)
-        delete_backtest_runs_by_account_ids(conn, (acct_a,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM backtest_runs WHERE account_id = ?", (acct_b,)).fetchone()["n"]
-        assert count == 1
-
-
-class TestDeleteEquitySnapshotsByAccountIds:
-    def test_removes_snapshots_for_account(self, conn) -> None:
+    def test_counts_book_keyed_snapshots(self, conn) -> None:
         acct_id = _account_id(conn)
         _insert_equity_snapshot(conn, account_id=acct_id)
-        delete_equity_snapshots_by_account_ids(conn, (acct_id,))
-        count = conn.execute(
-            "SELECT COUNT(*) AS n FROM equity_snapshots s JOIN books b ON b.id = s.book_id WHERE b.account_id = ?",
-            (acct_id,),
-        ).fetchone()["n"]
-        assert count == 0
+        assert count_child_rows_for_account_ids(conn, "equity_snapshots", (acct_id,)) == 1
+
+    def test_does_not_count_other_accounts(self, conn) -> None:
+        acct_a = _account_id(conn, "acct_a")
+        acct_b = _account_id(conn, "acct_b")
+        _insert_equity_snapshot(conn, account_id=acct_b)
+        assert count_child_rows_for_account_ids(conn, "equity_snapshots", (acct_a,)) == 0
 
 
-class TestDeleteTradesByAccountIds:
-    def test_removes_trades_for_account(self, conn) -> None:
+class TestAccountRepositoryDeleteByIds:
+    def test_removes_account_and_cascades_owned_rows(self, conn) -> None:
         acct_id = _account_id(conn)
         _insert_trade(conn, account_id=acct_id)
-        delete_trades_by_account_ids(conn, (acct_id,))
-        count = conn.execute("SELECT COUNT(*) AS n FROM trades WHERE account_id = ?", (acct_id,)).fetchone()["n"]
-        assert count == 0
+        run_id = _insert_backtest_run(conn, account_id=acct_id)
 
+        AccountRepository(conn).delete_by_ids((acct_id,))
 
-class TestDeleteAccountsByIds:
-    def test_removes_account(self, conn) -> None:
-        acct_id = _account_id(conn)
-        delete_accounts_by_ids(conn, (acct_id,))
-        row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone()
-        assert row is None
+        assert conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone() is None
+        assert fetch_row_count(conn, "trades", "account_id", (acct_id,)) == 0
+        assert conn.execute("SELECT id FROM backtest_runs WHERE id = ?", (run_id,)).fetchone() is None
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
 
     def test_does_not_remove_other_accounts(self, conn) -> None:
         acct_a = _account_id(conn, "acct_a")
         acct_b = _account_id(conn, "acct_b")
-        delete_accounts_by_ids(conn, (acct_a,))
+        AccountRepository(conn).delete_by_ids((acct_a,))
         row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_b,)).fetchone()
         assert row is not None
 
-
-class TestPromotionAndWalkForwardHelpers:
-    def test_fetch_promotion_review_ids_returns_empty(self, conn) -> None:
+    def test_empty_ids_is_a_noop(self, conn) -> None:
         acct_id = _account_id(conn)
-        assert fetch_promotion_review_ids_for_account_ids(conn, (acct_id,)) == ()
-
-    def test_delete_promotion_reviews_noop_when_empty(self, conn) -> None:
-        acct_id = _account_id(conn)
-        delete_promotion_reviews_by_account_ids(conn, (acct_id,))
-
-    def test_fetch_walk_forward_group_ids_returns_empty(self, conn) -> None:
-        acct_id = _account_id(conn)
-        assert fetch_walk_forward_group_ids_for_account_ids(conn, (acct_id,)) == ()
-
-    def test_delete_walk_forward_groups_noop_when_empty(self, conn) -> None:
-        acct_id = _account_id(conn)
-        delete_walk_forward_groups_by_account_ids(conn, (acct_id,))
+        AccountRepository(conn).delete_by_ids(())
+        row = conn.execute("SELECT id FROM accounts WHERE id = ?", (acct_id,)).fetchone()
+        assert row is not None
