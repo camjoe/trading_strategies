@@ -52,11 +52,9 @@ def api_run_backtest(payload: BacktestRunRequest) -> dict[str, object]:
     with db_conn() as conn:
         resolved_account_name = payload.account.strip()
         payload = payload.model_copy(update={"account": resolved_account_name})
-        try:
-            result = run_backtest(conn, build_backtest_config_from_run_request(payload))
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
+        # ValidationError -> 400 and NotFoundError -> 404 are handled by app-level
+        # handlers; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
+        result = run_backtest(conn, build_backtest_config_from_run_request(payload))
         return result.to_payload()
 
 
@@ -67,11 +65,13 @@ def api_backtest_preflight(payload: BacktestPreflightRequest) -> dict[str, objec
         payload = payload.model_copy(update={"account": resolved_account_name})
         try:
             warnings = preview_backtest_warnings(conn, build_backtest_config_from_preflight_request(payload))
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
         except FileNotFoundError as error:
+            # A missing tickers file is a route-specific transport error, not a
+            # domain validation failure — keep the direct 400 mapping here.
             raise HTTPException(status_code=400, detail=str(error)) from error
 
+        # ValidationError -> 400 and NotFoundError -> 404 are handled by app-level
+        # handlers; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
         return {"warnings": warnings}
 
 
@@ -80,9 +80,7 @@ def api_run_walk_forward(payload: WalkForwardRunRequest) -> dict[str, object]:
     with db_conn() as conn:
         resolved_account_name = payload.account.strip()
         payload = payload.model_copy(update={"account": resolved_account_name})
-        try:
-            summary = run_walk_forward_backtest(conn, build_walk_forward_config_from_request(payload))
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
+        # ValidationError -> 400 and NotFoundError -> 404 are handled by app-level
+        # handlers; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
+        summary = run_walk_forward_backtest(conn, build_walk_forward_config_from_request(payload))
         return summary.to_payload()

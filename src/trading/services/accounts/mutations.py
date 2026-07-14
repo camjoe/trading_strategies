@@ -7,7 +7,7 @@ from collections.abc import Callable
 from common.coercion import expect_float, expect_int
 from common.time import utc_now_iso
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
-from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError
+from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 from trading.models import AccountConfig, AccountInsert, AccountRecord
 from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.queries import find_account
@@ -47,7 +47,7 @@ def set_account_strategy(conn: sqlite3.Connection, account_name: str, strategy: 
 
     normalized_strategy = strategy.strip()
     if not normalized_strategy:
-        raise ValueError("strategy cannot be empty.")
+        raise ValidationError("strategy cannot be empty.")
     validate_strategy_name(normalized_strategy)
     account = get_account(conn, account_name)
     AccountRepository(conn).update(
@@ -77,7 +77,7 @@ def create_account(
 
     cfg = config or AccountConfig()
     if initial_cash <= 0:
-        raise ValueError("initial_cash must be greater than 0.")
+        raise ValidationError("initial_cash must be greater than 0.")
     validate_strategy_name(strategy)
     validate_goal_return_range(cfg.goal_min_return_pct, cfg.goal_max_return_pct)
 
@@ -174,7 +174,7 @@ def configure_account(
     if cfg.descriptive_name is not None:
         display = cfg.descriptive_name.strip()
         if not display:
-            raise ValueError("descriptive_name cannot be empty.")
+            raise ValidationError("descriptive_name cannot be empty.")
         updates.append("descriptive_name = ?")
         params.append(display)
 

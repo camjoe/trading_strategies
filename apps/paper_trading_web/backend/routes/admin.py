@@ -24,10 +24,9 @@ router = APIRouter()
 def api_admin_create_account(payload: AdminCreateAccountRequest) -> dict[str, object]:
     command = build_admin_create_account_command(payload)
     with db_conn() as conn:
-        try:
-            create_account_with_rotation(conn, command)
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
+        # ValidationError (bad input or duplicate name) -> 400 via the app-level
+        # handler; an unexpected ValueError surfaces as 500 (docs/adr/007-ui-error-mapping.md).
+        create_account_with_rotation(conn, command)
 
         account = require_account_row(conn, command.name)
         summary = build_account_summary(conn, account)
@@ -69,16 +68,15 @@ def api_promotion_overview(
 ) -> dict[str, object]:
     """Return promotion readiness plus persisted review history for one account."""
     with db_conn() as conn:
-        try:
-            return build_promotion_overview(
-                conn,
-                account_name=accountName.strip(),
-                strategy_name=strategyName,
-                limit=limit,
-            )
-        except ValueError as error:
-            status_code = 404 if "not found" in str(error).lower() else 400
-            raise HTTPException(status_code=status_code, detail=str(error)) from error
+        # A missing account raises NotFoundError (from get_account), mapped to 404
+        # by the app-level handler; an unexpected ValueError surfaces as 500.
+        # See docs/adr/007-ui-error-mapping.md.
+        return build_promotion_overview(
+            conn,
+            account_name=accountName.strip(),
+            strategy_name=strategyName,
+            limit=limit,
+        )
 
 
 @router.get("/api/admin/exports/csv/preview")

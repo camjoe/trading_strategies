@@ -3,10 +3,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from unittest.mock import Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
+
+from trading.domain.exceptions import AccountAlreadyExistsError, NotFoundError, ValidationError
 
 
 _CREATE_ACCOUNT = "paper_trading_web.backend.routes.admin.create_account_with_rotation"
+_INNER_CREATE_ACCOUNT = "paper_trading_web.backend.services.admin.create_account"
 _LIST_CSV_EXPORTS = "paper_trading_web.backend.routes.admin.list_csv_exports"
 _PREVIEW_CSV_EXPORT = "paper_trading_web.backend.routes.admin.preview_csv_export"
 _BUILD_PROMOTION_OVERVIEW = "paper_trading_web.backend.routes.admin.build_promotion_overview"
@@ -94,8 +98,8 @@ class TestAdminRoutes:
             },
         }
 
-    def test_admin_create_account_handles_value_error(self, api_client: TestClient) -> None:
-        create_mock = Mock(side_effect=ValueError("bad payload"))
+    def test_admin_create_account_validation_error_returns_400(self, api_client: TestClient) -> None:
+        create_mock = Mock(side_effect=ValidationError("bad payload"))
         with patch(_CREATE_ACCOUNT, create_mock):
             response = api_client.post(
                 "/api/admin/accounts/create",
@@ -111,9 +115,11 @@ class TestAdminRoutes:
         assert response.json()["detail"] == "bad payload"
         create_mock.assert_called_once()
 
-    def test_admin_create_account_handles_duplicate_record(self, api_client: TestClient) -> None:
-        create_mock = Mock(side_effect=ValueError("Account create failed: already exists"))
-        with patch(_CREATE_ACCOUNT, create_mock):
+    def test_admin_create_account_duplicate_returns_400(self, api_client: TestClient) -> None:
+        # A duplicate name raises the domain AccountAlreadyExistsError; the service
+        # wrapper translates it to a ValidationError, which maps to 400.
+        create_mock = Mock(side_effect=AccountAlreadyExistsError("Account 'acct_dup' already exists."))
+        with patch(_INNER_CREATE_ACCOUNT, create_mock):
             response = api_client.post(
                 "/api/admin/accounts/create",
                 json={
@@ -125,7 +131,23 @@ class TestAdminRoutes:
             )
 
         assert response.status_code == 400
-        assert "Account create failed" in response.json()["detail"]
+        assert "already exists" in response.json()["detail"]
+        create_mock.assert_called_once()
+
+    def test_admin_create_account_unexpected_value_error_propagates(self, api_client: TestClient) -> None:
+        # A bare ValueError is an unexpected server error, no longer masked as 400.
+        create_mock = Mock(side_effect=ValueError("unexpected"))
+        with patch(_CREATE_ACCOUNT, create_mock):
+            with pytest.raises(ValueError, match="unexpected"):
+                api_client.post(
+                    "/api/admin/accounts/create",
+                    json={
+                        "name": "acct_bug",
+                        "strategy": "trend",
+                        "initialCash": 5000,
+                        "benchmarkTicker": "SPY",
+                    },
+                )
         create_mock.assert_called_once()
 
     def test_admin_exports_endpoints_delegate_to_services(self, api_client: TestClient) -> None:
@@ -197,7 +219,7 @@ class TestAdminRoutes:
         assert response.status_code == 422
 
     def test_promotion_overview_not_found_error_returns_404(self, api_client: TestClient) -> None:
-        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(side_effect=ValueError("account not found"))):
+        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(side_effect=NotFoundError("account not found"))):
             response = api_client.get(
                 "/api/admin/promotion/overview",
                 params={"accountName": "missing_acct"},
@@ -206,12 +228,23 @@ class TestAdminRoutes:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
 
-    def test_promotion_overview_other_value_error_returns_400(self, api_client: TestClient) -> None:
-        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(side_effect=ValueError("bad strategy"))):
-            response = api_client.get(
-                "/api/admin/promotion/overview",
-                params={"accountName": "acct_any", "strategyName": "???"},
-            )
+    def test_promotion_overview_unknown_account_returns_404(self, api_client: TestClient) -> None:
+        # End-to-end: the real get_account raises NotFoundError for a missing
+        # account, which the app handler maps to 404 without any string heuristic.
+        response = api_client.get(
+            "/api/admin/promotion/overview",
+            params={"accountName": "no_such_account"},
+        )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
 
-        assert response.status_code == 400
-        assert response.json()["detail"] == "bad strategy"
+    def test_promotion_overview_unexpected_value_error_propagates(self, api_client: TestClient) -> None:
+        # A bare ValueError is an unexpected server error, not a client error: the
+        # route no longer masks it as 400 (docs/adr/007-ui-error-mapping.md). With
+        # the TestClient re-raising server exceptions, that surfaces here.
+        with patch(_BUILD_PROMOTION_OVERVIEW, Mock(side_effect=ValueError("unexpected"))):
+            with pytest.raises(ValueError, match="unexpected"):
+                api_client.get(
+                    "/api/admin/promotion/overview",
+                    params={"accountName": "acct_any", "strategyName": "???"},
+                )

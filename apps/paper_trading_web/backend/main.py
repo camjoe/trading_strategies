@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from trading.domain.exceptions import NotFoundError
+from trading.domain.exceptions import NotFoundError, ValidationError
 
 from .config import CORS_ORIGINS
 from .routes import (
@@ -36,6 +36,17 @@ app.add_middleware(
 async def _not_found_handler(_request: Request, exc: NotFoundError) -> JSONResponse:
     """Map a domain not-found error to HTTP 404 (see docs/adr/007-ui-error-mapping.md)."""
     return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(ValidationError)
+async def _validation_handler(_request: Request, exc: ValidationError) -> JSONResponse:
+    """Map a domain validation error to HTTP 400 (see docs/adr/007-ui-error-mapping.md).
+
+    NotFoundError and ValidationError are sibling subclasses of ValueError, so
+    Starlette matches each on its own type: NotFoundError still resolves to 404.
+    A bare ValueError matches neither handler and surfaces as 500.
+    """
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 app.include_router(health_router)

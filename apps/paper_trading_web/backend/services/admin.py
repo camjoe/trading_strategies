@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from trading.domain.exceptions import ValidationError
 from trading.services.accounts import (
     AccountAlreadyExistsError,
     create_account,
@@ -15,7 +16,14 @@ from .db import db_conn
 
 
 def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateAccountCommand) -> None:
-    """Create account and apply rotation profile, translating domain errors to ValueError."""
+    """Create account and apply rotation profile.
+
+    A duplicate account name is caller-correctable input, so the domain
+    ``AccountAlreadyExistsError`` is surfaced as a ``ValidationError`` (HTTP 400).
+    ``ValidationError`` from ``create_account``'s own input checks propagates
+    unchanged; an unexpected ``ValueError`` still surfaces as 500. See
+    docs/adr/007-ui-error-mapping.md.
+    """
     try:
         create_account(
             conn,
@@ -25,8 +33,8 @@ def create_account_with_rotation(conn: sqlite3.Connection, command: AdminCreateA
             benchmark_ticker=command.benchmark_ticker,
             config=command.config,
         )
-    except (ValueError, AccountAlreadyExistsError) as error:
-        raise ValueError(str(error)) from error
+    except AccountAlreadyExistsError as error:
+        raise ValidationError(str(error)) from error
     if command.rotation_settings:
         apply_book_rotation_settings(conn, command.name, {"rotation": command.rotation_settings})
 

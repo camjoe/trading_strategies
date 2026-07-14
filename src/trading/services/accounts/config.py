@@ -9,6 +9,7 @@ from common.coercion import (
     row_int,
     row_str,
 )
+from trading.domain.exceptions import ValidationError
 from trading.models import AccountRecord
 from trading.domain.auto_trading_policy import DEFAULT_MAX_POSITION_PCT, DEFAULT_TRADE_SIZE_PCT
 
@@ -36,7 +37,7 @@ def normalize_lower(value: str) -> str:
 def normalize_lower_obj(value: object) -> object:
     text = coerce_str(value)
     if text is None:
-        raise ValueError("Expected non-null string value")
+        raise ValidationError("Expected non-null string value")
     return normalize_lower(text)
 
 
@@ -45,7 +46,7 @@ def validate_enum_value(value: str, field_name: str) -> str:
     allowed = _ENUM_FIELDS[field_name]
     if normalized not in allowed:
         options = ", ".join(sorted(allowed))
-        raise ValueError(f"{field_name} must be one of: {options}")
+        raise ValidationError(f"{field_name} must be one of: {options}")
     return normalized
 
 
@@ -57,7 +58,7 @@ def normalize_account_kind(account_kind: str) -> str:
     normalized = normalize_lower(account_kind)
     if normalized not in ACCOUNT_KINDS:
         options = ", ".join(sorted(ACCOUNT_KINDS))
-        raise ValueError(f"account_kind must be one of: {options}")
+        raise ValidationError(f"account_kind must be one of: {options}")
     return normalized
 
 
@@ -72,7 +73,7 @@ def normalize_option_type(option_type: str) -> str:
 def validate_goal_return_range(goal_min_return_pct: float | None, goal_max_return_pct: float | None) -> None:
     if goal_min_return_pct is not None and goal_max_return_pct is not None:
         if goal_min_return_pct > goal_max_return_pct:
-            raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
+            raise ValidationError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
 
 
 def validate_range(
@@ -89,9 +90,9 @@ def validate_range(
     min_num = coerce_float(min_val)
     max_num = coerce_float(max_val)
     if min_num is None or max_num is None:
-        raise ValueError(f"{field_prefix} range values must be numeric.")
+        raise ValidationError(f"{field_prefix} range values must be numeric.")
     if min_num > max_num:
-        raise ValueError(f"{min_name} cannot be greater than {max_name}.")
+        raise ValidationError(f"{min_name} cannot be greater than {max_name}.")
 
 
 def validate_or_none_range(value: object | None, min_bound: float, max_bound: float, field_name: str) -> None:
@@ -99,15 +100,15 @@ def validate_or_none_range(value: object | None, min_bound: float, max_bound: fl
         return
     numeric_value = coerce_float(value)
     if numeric_value is None:
-        raise ValueError(f"{field_name} must be numeric.")
+        raise ValidationError(f"{field_name} must be numeric.")
     if (min_bound, max_bound) in [(0.0, 1.0), (0.0, 100.0)]:
         if not (min_bound <= numeric_value <= max_bound):
-            raise ValueError(f"{field_name} must be between {int(min_bound)} and {int(max_bound)}.")
+            raise ValidationError(f"{field_name} must be between {int(min_bound)} and {int(max_bound)}.")
     else:
         if numeric_value < min_bound:
-            raise ValueError(f"{field_name} must be >= {int(min_bound)}.")
+            raise ValidationError(f"{field_name} must be >= {int(min_bound)}.")
         if numeric_value > max_bound:
-            raise ValueError(f"{field_name} must be <= {int(max_bound)}.")
+            raise ValidationError(f"{field_name} must be <= {int(max_bound)}.")
 
 
 def validate_option_settings(
@@ -120,7 +121,7 @@ def validate_option_settings(
     iv_rank_max: float | None,
 ) -> None:
     if option_type is not None and option_type not in OPTION_TYPES:
-        raise ValueError("option_type must be one of: call, put, both")
+        raise ValidationError("option_type must be one of: call, put, both")
     validate_or_none_range(target_delta_min, 0, 1, "target_delta_min")
     validate_or_none_range(target_delta_max, 0, 1, "target_delta_max")
     validate_range(target_delta_min, target_delta_max, "target_delta")
@@ -158,16 +159,16 @@ def validate_position_sizing(
             continue
         numeric_value = coerce_float(value)
         if numeric_value is None:
-            raise ValueError(f"{field_name} must be numeric.")
+            raise ValidationError(f"{field_name} must be numeric.")
         if numeric_value <= 0 or numeric_value > 100:
-            raise ValueError(f"{field_name} must be greater than 0 and <= 100.")
+            raise ValidationError(f"{field_name} must be greater than 0 and <= 100.")
     has_position_sizing_inputs = trade_size_pct is not None and max_position_pct is not None
     if has_position_sizing_inputs:
         assert trade_size_pct is not None
         assert max_position_pct is not None
         trade_size_exceeds_position_limit = trade_size_pct > max_position_pct
         if trade_size_exceeds_position_limit:
-            raise ValueError("trade_size_pct cannot be greater than max_position_pct.")
+            raise ValidationError("trade_size_pct cannot be greater than max_position_pct.")
 
 
 def validate_position_sizing_from_inputs(
@@ -233,7 +234,7 @@ def validate_goal_range_from_inputs(
     min_value = resolved_float(goal_min_return_pct, account, "goal_min_return_pct")
     max_value = resolved_float(goal_max_return_pct, account, "goal_max_return_pct")
     if min_value is not None and max_value is not None and min_value > max_value:
-        raise ValueError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
+        raise ValidationError("goal_min_return_pct cannot be greater than goal_max_return_pct.")
 
 
 def validate_option_settings_from_inputs(
@@ -249,7 +250,7 @@ def validate_option_settings_from_inputs(
     min_dte = resolved_int(option_min_dte, account, "option_min_dte")
     max_dte = resolved_int(option_max_dte, account, "option_max_dte")
     if min_dte is not None and max_dte is not None and min_dte > max_dte:
-        raise ValueError("option_min_dte cannot be greater than option_max_dte.")
+        raise ValidationError("option_min_dte cannot be greater than option_max_dte.")
     delta_min = resolved_float(target_delta_min, account, "target_delta_min")
     delta_max = resolved_float(target_delta_max, account, "target_delta_max")
     iv_min = resolved_float(iv_rank_min, account, "iv_rank_min")

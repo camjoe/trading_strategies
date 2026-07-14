@@ -3,10 +3,12 @@ from __future__ import annotations
 from calendar import monthrange
 from datetime import date, timedelta
 
+from trading.domain.exceptions import ValidationError
+
 
 def add_months(base: date, months: int) -> date:
     if months < 0:
-        raise ValueError("months must be >= 0")
+        raise ValidationError("months must be >= 0")
 
     month_index = (base.year * 12 + (base.month - 1)) + months
     target_year = month_index // 12
@@ -22,11 +24,11 @@ def build_walk_forward_windows(
     step_months: int,
 ) -> list[tuple[date, date]]:
     if test_months <= 0:
-        raise ValueError("test_months must be > 0")
+        raise ValidationError("test_months must be > 0")
     if step_months <= 0:
-        raise ValueError("step_months must be > 0")
+        raise ValidationError("step_months must be > 0")
     if start_date >= end_date:
-        raise ValueError("start_date must be before end_date")
+        raise ValidationError("start_date must be before end_date")
 
     windows: list[tuple[date, date]] = []
     cursor = date(start_date.year, start_date.month, 1)
