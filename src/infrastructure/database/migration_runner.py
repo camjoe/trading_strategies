@@ -17,6 +17,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from dataclasses import dataclass
+
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
@@ -26,6 +28,15 @@ from sqlalchemy.pool import StaticPool
 from infrastructure.database.backend import get_backend
 
 _ALEMBIC_DIR = Path(__file__).resolve().parent / "alembic"
+
+
+@dataclass(frozen=True)
+class RevisionInfo:
+    """One revision in the linear chain."""
+
+    revision: str
+    down_revision: str | None
+    message: str
 
 
 def build_config() -> Config:
@@ -48,6 +59,21 @@ def repository_head() -> str:
     if len(heads) != 1:
         raise RuntimeError(f"Migration directory must have exactly one head; found {list(heads)!r}")
     return heads[0]
+
+
+def revision_chain() -> list[RevisionInfo]:
+    """Return the revision chain ordered base → head."""
+    script = ScriptDirectory.from_config(build_config())
+    ordered = list(script.walk_revisions("base", "heads"))
+    ordered.reverse()
+    return [
+        RevisionInfo(
+            revision=item.revision,
+            down_revision=item.down_revision if isinstance(item.down_revision, str) else None,
+            message=(item.doc or "").splitlines()[0] if item.doc else "",
+        )
+        for item in ordered
+    ]
 
 
 @contextmanager
