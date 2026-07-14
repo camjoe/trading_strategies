@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import sqlite3
 from dataclasses import dataclass
 
 from common.paths.project_paths import TRADE_UNIVERSE_PATH
@@ -24,6 +25,230 @@ class ColumnMigration:
     column_name: str
     ddl: str
     post_sql: tuple[str, ...] = ()
+
+
+def _fk_delete_action(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    references_table: str,
+) -> str | None:
+    rows = conn.execute(f"PRAGMA foreign_key_list({table_name})").fetchall()
+    for row in rows:
+        if str(row[3]) == column_name and str(row[2]) == references_table:
+            return str(row[6]).upper()
+    return None
+
+
+def _run_rebuild(
+    conn: sqlite3.Connection,
+    *,
+    table_name: str,
+    create_sql: str,
+    copy_sql: str,
+    index_sql: str = "",
+) -> None:
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute("BEGIN")
+    try:
+        conn.execute(create_sql)
+        conn.execute(copy_sql)
+        conn.execute(f"DROP TABLE {table_name}")
+        conn.execute(f"ALTER TABLE {table_name}_new RENAME TO {table_name}")
+        for stmt in index_sql.split(";"):
+            if stmt.strip():
+                conn.execute(stmt)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
+
+    violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+    if violations:
+        raise RuntimeError(f"Foreign-key violations after {table_name} rebuild: {violations!r}")
+
+
+def ensure_order_fills_order_delete_cascade(conn: sqlite3.Connection) -> None:
+    if _fk_delete_action(conn, "order_fills", "order_id", "orders") == "CASCADE":
+        return
+
+    _run_rebuild(
+        conn,
+        table_name="order_fills",
+        create_sql="""
+            CREATE TABLE order_fills_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                broker_fill_id TEXT,
+                exec_id TEXT,
+                filled_qty REAL NOT NULL,
+                fill_price REAL NOT NULL,
+                commission REAL NOT NULL DEFAULT 0,
+                fill_time TEXT NOT NULL,
+                FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                UNIQUE (order_id, exec_id)
+            )
+        """,
+        copy_sql="""
+            INSERT INTO order_fills_new (
+                id, order_id, broker_fill_id, exec_id, filled_qty,
+                fill_price, commission, fill_time
+            )
+            SELECT
+                id, order_id, broker_fill_id, exec_id, filled_qty,
+                fill_price, commission, fill_time
+            FROM order_fills
+        """,
+        index_sql="CREATE INDEX IF NOT EXISTS idx_order_fills_order_id ON order_fills(order_id);",
+    )
+
+
+def ensure_backtest_run_child_delete_cascades(conn: sqlite3.Connection) -> None:
+    if _fk_delete_action(conn, "backtest_trades", "run_id", "backtest_runs") != "CASCADE":
+        _run_rebuild(
+            conn,
+            table_name="backtest_trades",
+            create_sql="""
+                CREATE TABLE backtest_trades_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id INTEGER NOT NULL,
+                    trade_time TEXT NOT NULL,
+                    ticker TEXT NOT NULL,
+                    side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+                    qty REAL NOT NULL,
+                    price REAL NOT NULL,
+                    fee REAL NOT NULL DEFAULT 0,
+                    slippage_bps REAL NOT NULL DEFAULT 0,
+                    note TEXT,
+                    FOREIGN KEY (run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE
+                )
+            """,
+            copy_sql="""
+                INSERT INTO backtest_trades_new (
+                    id, run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note
+                )
+                SELECT id, run_id, trade_time, ticker, side, qty, price, fee, slippage_bps, note
+                FROM backtest_trades
+            """,
+            index_sql="CREATE INDEX IF NOT EXISTS idx_backtest_trades_run_id ON backtest_trades(run_id);",
+        )
+
+    if _fk_delete_action(conn, "backtest_equity_snapshots", "run_id", "backtest_runs") != "CASCADE":
+        _run_rebuild(
+            conn,
+            table_name="backtest_equity_snapshots",
+            create_sql="""
+                CREATE TABLE backtest_equity_snapshots_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id INTEGER NOT NULL,
+                    snapshot_time TEXT NOT NULL,
+                    cash REAL NOT NULL,
+                    market_value REAL NOT NULL,
+                    equity REAL NOT NULL,
+                    realized_pnl REAL NOT NULL,
+                    unrealized_pnl REAL NOT NULL,
+                    FOREIGN KEY (run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE
+                )
+            """,
+            copy_sql="""
+                INSERT INTO backtest_equity_snapshots_new (
+                    id, run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+                )
+                SELECT id, run_id, snapshot_time, cash, market_value, equity, realized_pnl, unrealized_pnl
+                FROM backtest_equity_snapshots
+            """,
+            index_sql=(
+                "CREATE INDEX IF NOT EXISTS idx_backtest_equity_run_id "
+                "ON backtest_equity_snapshots(run_id);"
+            ),
+        )
+
+
+def ensure_promotion_review_events_delete_cascade(conn: sqlite3.Connection) -> None:
+    if _fk_delete_action(conn, "promotion_review_events", "review_id", "promotion_reviews") == "CASCADE":
+        return
+
+    _run_rebuild(
+        conn,
+        table_name="promotion_review_events",
+        create_sql="""
+            CREATE TABLE promotion_review_events_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                review_id INTEGER NOT NULL,
+                event_seq INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                actor_type TEXT NOT NULL DEFAULT 'operator',
+                actor_name TEXT,
+                from_review_state TEXT,
+                to_review_state TEXT,
+                note TEXT,
+                event_payload TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (review_id) REFERENCES promotion_reviews(id) ON DELETE CASCADE,
+                UNIQUE(review_id, event_seq)
+            )
+        """,
+        copy_sql="""
+            INSERT INTO promotion_review_events_new (
+                id, review_id, event_seq, event_type, actor_type, actor_name,
+                from_review_state, to_review_state, note, event_payload, created_at
+            )
+            SELECT
+                id, review_id, event_seq, event_type, actor_type, actor_name,
+                from_review_state, to_review_state, note, event_payload, created_at
+            FROM promotion_review_events
+        """,
+        index_sql="""
+            CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_seq
+            ON promotion_review_events(review_id, event_seq ASC);
+            CREATE INDEX IF NOT EXISTS idx_promotion_review_events_review_created
+            ON promotion_review_events(review_id, created_at ASC);
+        """,
+    )
+
+
+def ensure_walk_forward_group_runs_delete_cascade(conn: sqlite3.Connection) -> None:
+    if _fk_delete_action(conn, "walk_forward_group_runs", "group_id", "walk_forward_groups") == "CASCADE":
+        return
+
+    _run_rebuild(
+        conn,
+        table_name="walk_forward_group_runs",
+        create_sql="""
+            CREATE TABLE walk_forward_group_runs_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER NOT NULL,
+                run_id INTEGER NOT NULL UNIQUE,
+                window_index INTEGER NOT NULL,
+                window_start TEXT NOT NULL,
+                window_end TEXT NOT NULL,
+                total_return_pct REAL NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (run_id) REFERENCES backtest_runs(id),
+                UNIQUE(group_id, window_index)
+            )
+        """,
+        copy_sql="""
+            INSERT INTO walk_forward_group_runs_new (
+                id, group_id, run_id, window_index, window_start, window_end, total_return_pct
+            )
+            SELECT id, group_id, run_id, window_index, window_start, window_end, total_return_pct
+            FROM walk_forward_group_runs
+        """,
+        index_sql="""
+            CREATE INDEX IF NOT EXISTS idx_walk_forward_group_runs_group_window
+            ON walk_forward_group_runs(group_id, window_index ASC);
+        """,
+    )
+
+
+def ensure_table_rebuild_migrations(conn: sqlite3.Connection) -> None:
+    ensure_order_fills_order_delete_cascade(conn)
+    ensure_backtest_run_child_delete_cascades(conn)
+    ensure_promotion_review_events_delete_cascade(conn)
+    ensure_walk_forward_group_runs_delete_cascade(conn)
 
 
 ACCOUNT_MIGRATIONS = (

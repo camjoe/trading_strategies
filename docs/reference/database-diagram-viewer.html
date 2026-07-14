@@ -266,7 +266,7 @@
   <header>
     <div>
       <h1>Trading Strategies Database Diagram Viewer</h1>
-      <div class="meta">Source: fresh code schema. Generated: 2026-07-13T01:58:07+00:00. Tables: 27.</div>
+      <div class="meta">Source: fresh code schema. Generated: 2026-07-13T02:52:36+00:00. Tables: 27.</div>
     </div>
     <div class="toolbar" aria-label="Diagram controls">
       <input id="search" type="search" placeholder="Search tables or columns" aria-label="Search tables or columns">
@@ -321,7 +321,7 @@
     </section>
   </main>
   <script id="schema-payload" type="application/json">{
-  "generatedAt": "2026-07-13T01:58:07+00:00",
+  "generatedAt": "2026-07-13T02:52:36+00:00",
   "sections": [
     {
       "color": "#2563eb",
@@ -1112,7 +1112,7 @@
       "foreignKeys": [
         {
           "column": "run_id",
-          "onDelete": "NO ACTION",
+          "onDelete": "CASCADE",
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
           "referencesTable": "backtest_runs"
@@ -1365,7 +1365,7 @@
       "foreignKeys": [
         {
           "column": "run_id",
-          "onDelete": "NO ACTION",
+          "onDelete": "CASCADE",
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
           "referencesTable": "backtest_runs"
@@ -1721,6 +1721,70 @@
           "primaryKeyPosition": 0,
           "section": null,
           "type": "TEXT"
+        },
+        {
+          "default": null,
+          "name": "min_trades_in_window",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "outperformance_threshold_bps",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "cooldown_days",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "INTEGER"
+        },
+        {
+          "default": null,
+          "name": "risk_adjusted_return_weight",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "stability_weight",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "drawdown_penalty_weight",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "cost_penalty_weight",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
+        },
+        {
+          "default": null,
+          "name": "regime_fit_weight",
+          "notNull": false,
+          "primaryKeyPosition": 0,
+          "section": null,
+          "type": "REAL"
         },
         {
           "default": null,
@@ -2821,7 +2885,7 @@
       "foreignKeys": [
         {
           "column": "order_id",
-          "onDelete": "NO ACTION",
+          "onDelete": "CASCADE",
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
           "referencesTable": "orders"
@@ -3269,7 +3333,7 @@
       "foreignKeys": [
         {
           "column": "review_id",
-          "onDelete": "NO ACTION",
+          "onDelete": "CASCADE",
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
           "referencesTable": "promotion_reviews"
@@ -4459,7 +4523,7 @@
         },
         {
           "column": "group_id",
-          "onDelete": "NO ACTION",
+          "onDelete": "CASCADE",
           "onUpdate": "NO ACTION",
           "referencesColumn": "id",
           "referencesTable": "walk_forward_groups"

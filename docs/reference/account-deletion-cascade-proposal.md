@@ -1,9 +1,9 @@
 # Account Deletion Cascade Proposal
 
 Type: notes
-Status: Draft
+Status: Active
 Created: 2026-07-10
-Last Reviewed: 2026-07-10
+Last Reviewed: 2026-07-13
 Purpose: Proposed cascade changes and decision dependencies for simplifying account deletion without losing intentional history.
 Related: [Database Diagram Viewer](database-diagram-viewer.html), [DB Migration System](db-migration-system.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -23,17 +23,17 @@ Keep `trading.services.admin.delete_accounts()` as the account-deletion orchestr
 
 The schema can take over row cleanup only after tests prove that deleting a parent removes the same child rows the service currently deletes explicitly.
 
-## Proposed Cascades
+## Implemented Child-Owned Cascades
 
 These relationships are child-owned implementation detail. The child row has no useful standalone meaning after the parent row is deleted.
 
-| Relationship | Proposed action | Depends on | Code cleanup unlocked |
-|---|---|---|---|
-| `order_fills.order_id` -> `orders.id` | `ON DELETE CASCADE` | Confirm order fills are not retained independently as broker audit evidence after an order is purged. | Remove explicit fill cleanup if any future order purge is added. |
-| `backtest_trades.run_id` -> `backtest_runs.id` | `ON DELETE CASCADE` | Confirm backtest trades are fully contained by a run. | Remove `delete_backtest_trades_by_run_ids()` from account purge once parent cascade exists on migrated DBs. |
-| `backtest_equity_snapshots.run_id` -> `backtest_runs.id` | `ON DELETE CASCADE` | Confirm backtest equity snapshots are fully contained by a run. | Remove `delete_backtest_equity_snapshots_by_run_ids()` from account purge once parent cascade exists on migrated DBs. |
-| `promotion_review_events.review_id` -> `promotion_reviews.id` | `ON DELETE CASCADE` | Confirm events are not kept after the review is deleted. | Remove `delete_promotion_review_events_by_review_ids()` from account purge once parent cascade exists on migrated DBs. |
-| `walk_forward_group_runs.group_id` -> `walk_forward_groups.id` | `ON DELETE CASCADE` | Confirm group membership rows are fully contained by a walk-forward group. | Remove `delete_walk_forward_group_runs_by_group_ids()` when deleting groups. |
+| Relationship | Action | Validation |
+|---|---|---|
+| `order_fills.order_id` -> `orders.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
+| `backtest_trades.run_id` -> `backtest_runs.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
+| `backtest_equity_snapshots.run_id` -> `backtest_runs.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
+| `promotion_review_events.review_id` -> `promotion_reviews.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
+| `walk_forward_group_runs.group_id` -> `walk_forward_groups.id` | `ON DELETE CASCADE` | Fresh DDL plus legacy table-rebuild migration. |
 
 ## Potential Cascades
 
@@ -77,9 +77,9 @@ The example pattern lives in `.ai/skills/db-migration/sqlite-table-rebuild.md`.
 - [ ] Decide whether direct account-owned operational rows should cascade.
 - [ ] Decide whether research/evaluation rows should survive account deletion.
 - [ ] Decide whether promotion and risk history are audit records.
-- [ ] Add table-rebuild migration support under `src/infrastructure/database/`.
-- [ ] Update fresh DDL in `src/infrastructure/database/schema.py`.
-- [ ] Add migration tests for a legacy table shape upgraded to the target FK action.
+- [x] Add table-rebuild migration support under `src/infrastructure/database/`.
+- [x] Update fresh DDL in `src/infrastructure/database/schema.py`.
+- [x] Add migration tests for a legacy table shape upgraded to the target FK action.
 - [ ] Add service tests proving account deletion still reports counts and leaves no FK violations.
 
 ## Related Docs

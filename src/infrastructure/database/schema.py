@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS backtest_trades (
     fee REAL NOT NULL DEFAULT 0,
     slippage_bps REAL NOT NULL DEFAULT 0,
     note TEXT,
-    FOREIGN KEY (run_id) REFERENCES backtest_runs(id)
+    FOREIGN KEY (run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE
 );
 """
 
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS backtest_equity_snapshots (
     equity REAL NOT NULL,
     realized_pnl REAL NOT NULL,
     unrealized_pnl REAL NOT NULL,
-    FOREIGN KEY (run_id) REFERENCES backtest_runs(id)
+    FOREIGN KEY (run_id) REFERENCES backtest_runs(id) ON DELETE CASCADE
 );
 """
 
@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS order_fills (
     fill_price REAL NOT NULL,
     commission REAL NOT NULL DEFAULT 0,
     fill_time TEXT NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     UNIQUE (order_id, exec_id)
 );
 """
@@ -344,7 +344,7 @@ CREATE TABLE IF NOT EXISTS walk_forward_group_runs (
     window_start TEXT NOT NULL,
     window_end TEXT NOT NULL,
     total_return_pct REAL NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id),
+    FOREIGN KEY (group_id) REFERENCES walk_forward_groups(id) ON DELETE CASCADE,
     FOREIGN KEY (run_id) REFERENCES backtest_runs(id),
     UNIQUE(group_id, window_index)
 );
@@ -396,7 +396,7 @@ CREATE TABLE IF NOT EXISTS promotion_review_events (
     note TEXT,
     event_payload TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
-    FOREIGN KEY (review_id) REFERENCES promotion_reviews(id),
+    FOREIGN KEY (review_id) REFERENCES promotion_reviews(id) ON DELETE CASCADE,
     UNIQUE(review_id, event_seq)
 );
 """

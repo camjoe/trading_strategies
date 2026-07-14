@@ -3,14 +3,17 @@
 Type: notes
 Status: Active
 Created: 2026-07-12
-Last Reviewed: 2026-07-12
+Last Reviewed: 2026-07-13
 Purpose: Single tracker for the pending one-time database steps — what still needs to run against an
 existing database (and what still needs building) so no loose end is forgotten.
 Related: [Overview](overview.md), [Sleeve-Retirement DB Migration](runbooks/sleeve-retirement-db-migration.md),
-[Book-Rotation Cutover](runbooks/book-rotation-cutover.md), [ADR 014](adr/014-execution-mode-collapse.md)
+[Book-Rotation Cutover](runbooks/book-rotation-cutover.md), [Account Deletion Cascade Proposal](reference/account-deletion-cascade-proposal.md),
+[ADR 014](adr/014-execution-mode-collapse.md)
 
 > Consolidated tracker; the full per-step procedures live in the linked runbooks.
 >
+> - **Step 0 runs automatically** on first DB initialization after deploy. Back up before starting
+>   the app or running any data-op with that code, because `ensure_db()` applies the table rebuilds.
 > - **Steps 1 & 2 are code-complete** — nothing to build. Each needs **one operator action** against
 >   an *existing* database; **fresh databases need nothing** (the data-ops detect this and no-op).
 > - **Step 3 is NOT built yet** — it's a follow-up branch (schema/code cleanup + a new data-op) to
@@ -18,6 +21,48 @@ Related: [Overview](overview.md), [Sleeve-Retirement DB Migration](runbooks/slee
 >
 > Windows: use `.venv\Scripts\python.exe` in place of `.venv/bin/python` below.
 > Run any data-op **while the scheduler jobs are not mid-run** (any time outside the daily run window).
+
+---
+
+## Step 0 — Child-Owned FK Cascade Rebuilds
+
+**When:** the branch containing the FK-cascade migration deploys to a host with an existing DB.
+
+**Why:** five child-owned relationships now use database-enforced cascades so deleting the parent row
+removes implementation-detail children consistently on fresh and migrated databases:
+
+- `order_fills.order_id` -> `orders.id`
+- `backtest_trades.run_id` -> `backtest_runs.id`
+- `backtest_equity_snapshots.run_id` -> `backtest_runs.id`
+- `promotion_review_events.review_id` -> `promotion_reviews.id`
+- `walk_forward_group_runs.group_id` -> `walk_forward_groups.id`
+
+**How it runs:** automatically from `src.infrastructure.database.init.init_schema()` through
+`ensure_table_rebuild_migrations()`. There is no separate data-op. The first process that opens the
+database with the new code runs the rebuilds, including CLI/data-op commands that call `ensure_db()`.
+Fresh databases need nothing because the DDL already has the target FK actions.
+
+**Procedure:**
+
+1. **Back up before first startup / first data-op with the new code:**
+   ```
+   .venv/bin/python -m trading.interfaces.runtime.data_ops.admin backup
+   ls local/db_backups/
+   ```
+2. **Deploy/start the new code** while scheduler jobs are not mid-run.
+3. **Verify FK actions and integrity:**
+   ```
+   .venv/bin/python -m scripts.data_ops.audit_foreign_keys --scope all
+   ```
+   Expected cascade lines:
+   - `order_fills.order_id -> orders.id ON DELETE CASCADE`
+   - `backtest_trades.run_id -> backtest_runs.id ON DELETE CASCADE`
+   - `backtest_equity_snapshots.run_id -> backtest_runs.id ON DELETE CASCADE`
+   - `promotion_review_events.review_id -> promotion_reviews.id ON DELETE CASCADE`
+   - `walk_forward_group_runs.group_id -> walk_forward_groups.id ON DELETE CASCADE`
+
+**Rollback:** restore the pre-deploy backup. Reverting code alone does not restore old FK actions
+after the table rebuild has run.
 
 ---
 
@@ -169,4 +214,3 @@ Both are unused and always NULL. This step removes them for good.
 
 **Note:** the `docs/reference/db-schema.md` row for `strategy_param_sets` should be removed as part of
 the code-cleanup commit (or regenerated via `python -m scripts.data_ops.describe_db_schema`).
-
